@@ -47,6 +47,9 @@ interface PublicSiteFactsContactDto {
   address: string | null
   phone: string | null
   hours: string | null
+  /** C-2：後台維護；舊版後端不回此欄位。 */
+  email?: string | null
+  departments?: Array<{ name: string, email?: string | null, phoneExtension?: string | null }> | null
 }
 
 interface PublicSiteFactsDto {
@@ -63,6 +66,9 @@ interface PublicSiteFactsDto {
    * `null`。`null`＝尚未設定，呼叫端（womens/index.vue）應退回既有
    * `useRuntimeConfig().public.blueWhaleSiteUrl`，不要顯示空連結。 */
   blueWhaleSiteUrl: string | null
+  /** C-2：整個物件可能不存在（舊版後端）或全部為 null（尚未維護）。 */
+  social?: { facebook?: string | null, instagram?: string | null, youtube?: string | null, line?: string | null } | null
+  footerBlurb?: string | null
 }
 
 function normalizeClub(club: string): ClubCode {
@@ -116,7 +122,23 @@ function mergeSiteFacts(
       address: zh.contact.address,
       phone: zh.contact.phone,
       hours: zh.contact.hours,
+      hoursEn: pickEn(en?.contact.hours, SITE_FACTS[club].contact.hoursEn ?? null),
+      email: zh.contact.email?.trim() || null,
+      departments: (zh.contact.departments ?? []).map((d, i) => ({
+        nameZh: d.name,
+        nameEn: pickEn(en?.contact.departments?.[i]?.name, null),
+        email: d.email?.trim() || null,
+        phoneExtension: d.phoneExtension?.trim() || null,
+      })),
     },
+    social: {
+      facebook: zh.social?.facebook?.trim() || null,
+      instagram: zh.social?.instagram?.trim() || null,
+      youtube: zh.social?.youtube?.trim() || null,
+      line: zh.social?.line?.trim() || null,
+    },
+    footerBlurbZh: zh.footerBlurb?.trim() || null,
+    footerBlurbEn: pickEn(en?.footerBlurb, null),
     blueWhaleSiteUrl: zh.blueWhaleSiteUrl,
   }
 }

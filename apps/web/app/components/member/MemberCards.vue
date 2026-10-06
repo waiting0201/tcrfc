@@ -25,14 +25,9 @@ const base = computed(() => {
 })
 const qrValue = computed(() => (current.value ? `${base.value}/m/${current.value.token}` : ''))
 
-const safeColor = (c: string | null | undefined) => (c && /^#[0-9a-fA-F]{6}$/.test(c) ? c : null)
-const safeUrl = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
-const cardStyle = computed(() => {
-  const c = current.value
-  const main = safeColor(c?.club.brandColor)
-  const sub = safeColor(c?.club.brandSecondaryColor)
-  return { '--mc-card-main': main ?? 'var(--brand)', '--mc-card-sub': sub ?? 'var(--ink)' }
-})
+// v3.20：卡片主色／標誌取自前台靜態資產（依該張卡的俱樂部代碼），不再讀 API。
+const cardAssets = computed(() => getClubAssets(current.value?.club.code ?? ''))
+const cardStyle = computed(() => ({ '--mc-card-main': cardAssets.value.themeColor, '--mc-card-sub': 'var(--ink)' }))
 
 const busy = ref(false)
 const message = ref('')
@@ -81,7 +76,7 @@ function tabLabel(c: MemberCard) {
       <div v-if="current" class="mc-cardwrap">
         <article class="member-card" :class="{ 'member-card--off': !current.isValid }" :style="cardStyle" :aria-label="tx(`${current.club.name}電子會員卡`, `${current.club.name} digital membership card`)">
           <header class="member-card__head">
-            <img v-if="safeUrl(current.club.logoDarkUrl)" class="member-card__logo" :src="safeUrl(current.club.logoDarkUrl)!" :alt="current.club.name" height="40">
+            <img class="member-card__logo" :src="cardAssets.footerMark.src" :alt="current.club.name" height="40">
             <p class="member-card__club">{{ current.club.name }}</p>
             <p class="member-card__tier">{{ current.tierLabel }}</p>
           </header>

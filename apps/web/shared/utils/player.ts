@@ -21,6 +21,8 @@ export interface PlayerDto {
   bio: string | null
   photoUrl: string | null
   schemaEligible?: boolean
+  /** 球員狀態（稽核 A-2）；公開端只回現役，目前恆為 `active`。前台不依此過濾，僅型別容許。 */
+  status?: string
 }
 
 /** 球員詳情的站內路徑（不含語系前綴，交給 `lp()`）。`slugOrId` 優先給 slug；只有 id 時網址仍可用（頁面會 301 到 slug）。 */

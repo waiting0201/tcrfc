@@ -108,6 +108,32 @@ const matchFields = computed(() => {
   }
 })
 
+// ── B-15：核心價值標籤與關聯球員 ──────────────────────────────────────────────
+// 核心價值標籤：`coreValueTags` 是五個固定代碼（與首頁核心價值同一組），名稱取 shared/utils/core-values.ts 的對照；
+// 認不得的代碼不顯示（不輸出原始代碼給訪客看）。
+type ArticleExtras2 = { coreValueTags?: string[] }
+const coreValueLabels = computed(() => {
+  const codes = (article.value as unknown as ArticleExtras2 | null)?.coreValueTags ?? []
+  return codes
+    .map((c) => CORE_VALUES_FALLBACK.find((v) => v.code === c))
+    .filter((v): v is NonNullable<typeof v> => Boolean(v))
+    .map((v) => (isEn.value ? v.nameEn : v.nameZh))
+})
+// 關聯球員：關聯只帶球員 id，名稱與網址代稱回頭查公開球員列表（只含現役；查不到＝已離隊或不公開，不顯示）。
+// 球員頁網址本身接受 id，但這裡仍用 slug 組網址，與球員列表一致。
+const relatedPlayerIds = computed(() => (articleExtras.value?.relations ?? [])
+  .filter((r) => r.targetType === 'player')
+  .map((r) => String(r.targetId).toLowerCase()))
+const { data: playersData } = await useFetch<{ items: { id: string, slug: string, name: string | null, shirtNo: number | null, position: string | null }[] }>(`/api/backend/${club}/players`, {
+  query: { pageSize: 200, lang: locale.value },
+  immediate: relatedPlayerIds.value.length > 0,
+})
+const relatedPlayers = computed(() => {
+  const ids = relatedPlayerIds.value
+  if (!ids.length) return []
+  return (playersData.value?.items ?? []).filter((p) => p.name && ids.includes(p.id.toLowerCase()))
+})
+
 // ── 社群分享（規劃書 3.7 詳情頁「社群分享」）──────────────────────────────────────
 // Facebook／LINE 用官方分享網址（不需任何金鑰），複製連結用 Clipboard API。分享的網址是
 // 這一站目前的絕對網址（siteConfig.url 為 runtime 可覆寫的站台網址，見檔內 canonical 說明）。
@@ -168,8 +194,9 @@ const siteName = computed(() => (isEn.value ? clubNameEn(clubKey) : getClubAsset
 const schemaOrgName = computed(() => (isEn.value && clubKey === 'bw' ? BW_FULL_NAME_EN : siteName.value))
 
 useSeoMeta({
+  // B-15：後台填了 SEO 標題就用它（頁面自己的設定優先於全站標題樣板）
   title: computed(() =>
-    article.value ? (isEn.value ? `${article.value.title} | News | ${siteName.value}` : `${article.value.title}｜新聞 News｜${siteName.value}`) : '',
+    article.value?.seoTitle?.trim() ? article.value.seoTitle.trim() : article.value ? (isEn.value ? `${article.value.title} | News | ${siteName.value}` : `${article.value.title}｜新聞 News｜${siteName.value}`) : '',
   ),
   description: computed(() => {
     const a = article.value
@@ -182,7 +209,7 @@ useSeoMeta({
   // 沒有對應的後端 SEO 資料可讀，見 apps/api/README.md「S1-12」段「Sitemap 只涵蓋 Article」
   // 同一個理由）。
   keywords: computed(() => article.value?.seoKeywords ?? undefined),
-  ogTitle: computed(() => (article.value ? `${article.value.title}${isEn.value ? ' | ' : '｜'}${siteName.value}` : undefined)),
+  ogTitle: computed(() => (article.value?.seoTitle?.trim() ? article.value.seoTitle.trim() : article.value ? `${article.value.title}${isEn.value ? ' | ' : '｜'}${siteName.value}` : undefined)),
   ogDescription: computed(() => article.value?.seoDescription || article.value?.summary || undefined),
   // ogImage 已經是 apps/api 算好優先序（這篇文章專屬 > 全站預設 > 這篇文章的封面圖片）之後
   // 的完整網址，這裡直接用，不在前台重新判斷一次優先序（單一真實來源）。
@@ -277,6 +304,10 @@ watchEffect(() => {
     }),
   ])
 })
+
+// A-8：瀏覽數 +1。只在瀏覽器端、每個工作階段每篇最多一次（見 utils/report-view.ts）。
+// 從相關文章 client-side 導覽到另一篇時元件不重掛載，所以用 watch 追 slug。
+watch(() => article.value?.slug, (slug) => { if (slug) reportView(club, 'news', slug) }, { immediate: true, flush: 'post' })
 </script>
 
 <template>
@@ -319,6 +350,7 @@ watchEffect(() => {
         <div><span class="article-meta-row__label">{{ tx('作者', 'Author') }}</span>{{ siteName }}</div>
         <!-- S1-17 新增：標籤（規劃書 3.7「詳情頁：…標籤…」，ArticleDetailDto.tags 是 S1-5
              就已回傳的既有欄位，先前沒有前台頁面消費）。沒有標籤時整格不顯示，不留空欄位。 -->
+        <div v-if="coreValueLabels.length"><span class="article-meta-row__label">{{ tx('核心價值', 'Core values') }}</span><span v-for="l in coreValueLabels" :key="l" class="article-value-tag">{{ l }}</span></div>
         <div v-if="article?.tags?.length"><span class="article-meta-row__label">{{ tx('標籤', 'Tags') }}</span>{{ article.tags.map((t) => t.name).filter(Boolean).join(isEn ? ', ' : '、') }}</div>
       </div>
 
@@ -344,6 +376,15 @@ watchEffect(() => {
             <!-- 主要內容圖：替代文字在這裡（hero 背景是裝飾，alt 留空避免同一張圖念兩次） -->
             <img :src="cover.src" :alt="cover.alt" loading="lazy" :width="cover.width ?? undefined" :height="cover.height ?? undefined">          </figure>
         </div>
+      </template>
+
+      <template v-if="relatedPlayers.length">
+        <h3>{{ tx('相關球員', 'Related players') }}</h3>
+        <ul class="article-players">
+          <li v-for="p in relatedPlayers" :key="p.id">
+            <a :href="lp(playerPath(p.slug))">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position ? `${tx('　', ' · ')}${p.position}` : '' }}</a>
+          </li>
+        </ul>
       </template>
 
       <h3>{{ tx('社群分享', 'Share') }}</h3>
@@ -389,6 +430,9 @@ watchEffect(() => {
 .article-gallery{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; }
 .article-gallery img{ width:100%; aspect-ratio:3/2; object-fit:cover; }
 .article-gallery figcaption{ font-size:.78rem; color:var(--muted); margin-top:.4rem; }
+.article-value-tag{ display:inline-block; margin-right:.5rem; padding:.1rem .55rem; border:1px solid var(--rule); font-size:.78rem; font-weight:700; }
+.article-players{ list-style:none; padding:0; margin:0 0 1.5rem; display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; }
+.article-players a{ font-weight:700; color:var(--brand-aa); }
 .share-row{ display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; }
 .share-row__status{ font-size:.82rem; color:var(--muted); }
 .article-aside{ position:sticky; top:1.5rem; }

@@ -10,7 +10,7 @@
 // 為憑據，S0-9 搬遷保留）；後台一旦建立任何一筆事蹟，整頁換成後台資料（不混搭兩個來源）——這三筆應該由
 // 內容人員補登進後台 B5（回報「待內容補登」）。
 // 🔴 單元 11 對藍鯨整頁 404（藍鯨規劃書 §2.1）。
-import type { ImpactRecord } from '#shared/utils/charity'
+import type { ImpactRecord, PublicCharityImage } from '#shared/utils/charity'
 import type { PagedResponse } from '#shared/utils/api-types'
 
 definePageMeta({ nav: 'charity', unit: '11', enReady: true })
@@ -32,6 +32,9 @@ const { data } = await useFetch<PagedResponse<ImpactRecord>>(`/api/backend/${clu
   key: `charity-records-${club}-${locale.value}`,
 })
 
+/** Logo 只接受 https 或站內路徑（API 回的是已解析的完整網址，這裡再擋一次非預期協定）。 */
+const safeImgUrl = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
+
 interface TimelineFact { label: string, text: string, href?: string }
 interface TimelineItem {
   key: string
@@ -40,7 +43,10 @@ interface TimelineItem {
   imageAlt: string
   imageWidth: number
   imageHeight: number
-  extraThumbs: string[]
+  /** B-21：全部活動圖片（縮圖列＋燈箱），不再截斷成前 2 張。 */
+  gallery: PublicCharityImage[]
+  /** B-21：公益團體 Logo（後台有上傳才有值）。 */
+  logoUrl: string | null
   title: string
   facts: TimelineFact[]
 }
@@ -50,7 +56,7 @@ interface TimelineYear { key: string, label: string, items: TimelineItem[] }
 const STATIC_YEARS: TimelineYear[] = [
   { key: '2026', label: '2026', items: [{
     key: 's-2026-01-12', date: '2026-01-12', imageUrl: siteImg('/assets/img/news/2026-01-12-community-017.jpg'),
-    imageAlt: tx('台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場', 'Taichung Rock FC and Subkarma donating English books at a non-profit kindergarten'), imageWidth: 640, imageHeight: 427, extraThumbs: [],
+    imageAlt: tx('台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場', 'Taichung Rock FC and Subkarma donating English books at a non-profit kindergarten'), imageWidth: 640, imageHeight: 427, gallery: [], logoUrl: null,
     title: '潭秀非營利幼兒園',
     facts: [
       { label: tx('捐助內容', 'Donated'), text: tx('英語書籍（與 Subkarma 合作捐贈）', 'English-language books (donated in partnership with Subkarma)') },
@@ -59,12 +65,12 @@ const STATIC_YEARS: TimelineYear[] = [
   }] },
   { key: '2025', label: '2025', items: [{
     key: 's-2025-05-03', date: '2025-05-03', imageUrl: siteImg('/assets/img/news/2025-05-03-camps-056.jpg'),
-    imageAlt: tx('2025台中磐石盃足球邀請賽活動現場', 'The 2025 Taichung Rock FC Cup football invitational'), imageWidth: 640, imageHeight: 480, extraThumbs: [],
+    imageAlt: tx('2025台中磐石盃足球邀請賽活動現場', 'The 2025 Taichung Rock FC Cup football invitational'), imageWidth: 640, imageHeight: 480, gallery: [], logoUrl: null,
     title: '台中磐石盃少年足球隊伍',
     facts: [{ label: tx('相關活動', 'Related event'), text: tx('2025 台中磐石盃足球邀請賽', '2025 Taichung Rock FC Cup football invitational') }],
   }] },
   { key: '2024', label: '2024', items: [{
-    key: 's-2024-07-23', date: '2024-07-23', imageUrl: null, imageAlt: '', imageWidth: 640, imageHeight: 427, extraThumbs: [],
+    key: 's-2024-07-23', date: '2024-07-23', imageUrl: null, imageAlt: '', imageWidth: 640, imageHeight: 427, gallery: [], logoUrl: null,
     title: '潭秀國中暨嶺東高中聯隊', facts: [],
   }] },
 ]
@@ -96,7 +102,8 @@ const years = computed<TimelineYear[]>(() => {
       imageAlt: r.charityName ? (isEn.value ? `${r.charityName} activity photo` : `${r.charityName} 活動照片`) : '',
       imageWidth: r.imageWidth ?? 640,
       imageHeight: r.imageHeight ?? 427,
-      extraThumbs: r.images.slice(0, 2).map((i) => i.thumbUrl ?? i.imageUrl),
+      gallery: r.images,
+      logoUrl: safeImgUrl(r.charityLogoUrl),
       title: r.charityName ?? '',
       facts,
     })
@@ -148,16 +155,17 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
             <div v-if="it.imageUrl" class="timeline-item__media"><img :src="it.imageUrl" :alt="it.imageAlt" loading="lazy" :width="it.imageWidth" :height="it.imageHeight"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">{{ tx('公益團體 Beneficiary', 'Beneficiary') }}</p>
-              <h4 class="timeline-item__title">{{ it.title }}</h4>
+              <h4 class="timeline-item__title">
+                <img v-if="it.logoUrl" class="impact-logo" :src="it.logoUrl" :alt="tx(`${it.title} Logo`, `${it.title} logo`)" loading="lazy" height="32">
+                {{ it.title }}
+              </h4>
               <dl v-if="it.facts.length" class="impact-facts">
                 <div v-for="f in it.facts" :key="f.label">
                   <dt>{{ f.label }}</dt>
                   <dd><a v-if="f.href" :href="lp(f.href)">{{ f.text }}</a><template v-else>{{ f.text }}</template></dd>
                 </div>
               </dl>
-              <p v-if="it.extraThumbs.length" class="impact-thumbs">
-                <img v-for="(t, ti) in it.extraThumbs" :key="ti" :src="t" alt="" loading="lazy" width="96" height="64">
-              </p>
+              <ImageGalleryStrip v-if="it.gallery.length" :images="it.gallery" :label="it.title || tx('慈善事蹟', 'Impact story')" />
             </div>
           </li>
         </ol>
@@ -250,7 +258,6 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   .timeline-item__media{ width:100%; aspect-ratio:16/9; margin-bottom:.75rem; }
 }
 
-.impact-thumbs{ display:flex; gap:.4rem; margin-top:.6rem; }
-.impact-thumbs img{ width:96px; height:64px; object-fit:cover; }
+.impact-logo{ display:inline-block; height:32px; width:auto; max-width:96px; object-fit:contain; vertical-align:middle; margin-right:.5rem; }
 .impact-more{ margin-top:2rem; font-size:.85rem; color:var(--muted); }
 </style>

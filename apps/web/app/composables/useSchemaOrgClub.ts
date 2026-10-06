@@ -41,17 +41,17 @@ const EN_CLUB_NAME: Record<string, string> = {
   bw: BW_FULL_NAME_EN,
 }
 
+// 主站規劃書 v3.20：`clubs` 公開 DTO 不再有 logoUrl／品牌色，標誌改用前台靜態資產（getClubAssets）。
+// 型別容許舊版後端仍回傳多餘欄位，也容許缺 `schemaEligible`（缺＝視為不合格，保守不輸出）。
 interface ClubSchemaData {
   name: string
   domain: string
-  logoUrl: string | null
-  schemaEligible: boolean
+  schemaEligible?: boolean
 }
 
 interface TeamSchemaData {
   code: string
   name: string | null
-  logoUrl: string | null
   schemaEligible: boolean
 }
 
@@ -88,6 +88,8 @@ export function useOrganizationSchema() {
     const c = data.value
     if (!c?.schemaEligible) return {}
     const siteUrl = (siteConfig.url ?? '').replace(/\/$/, '') || `https://${c.domain}`
+    const soc = facts.value.social
+    const sameAs = [soc?.facebook, soc?.instagram, soc?.youtube, soc?.line].filter((u): u is string => !!u)
     return {
       script: [{
         key: 'organization-schema',
@@ -98,7 +100,11 @@ export function useOrganizationSchema() {
           '@id': `${siteUrl}/#organization`,
           name: isEnUrl ? englishOnly(c.name, EN_CLUB_NAME[club] ?? EN_CLUB_NAME.tcrfc) : c.name,
           url: siteUrl,
-          logo: c.logoUrl ?? undefined,
+          logo: `${siteUrl}${getClubAssets(club).headerMark.src}`,
+          // C-2：聯絡 Email／電話／社群（sameAs）與明文同一來源 useSiteFacts；未維護則整欄不輸出。
+          email: facts.value.contact.email ?? undefined,
+          telephone: facts.value.contact.phone ?? undefined,
+          sameAs: sameAs.length ? sameAs : undefined,
           // GEO-03／GEO-04：成立年份／主場地址與明文同一來源（useSiteFacts），資料不明時
           // 整欄不輸出（不臆測），比照 GEO-05「資料不足時不輸出該欄位」的一貫原則。
           foundingDate: facts.value.foundingDateIso ?? undefined,
@@ -143,7 +149,7 @@ export function useSportsTeamSchema(teamCode: string) {
           // 藍鯨一線隊 `BW1` 退回簡稱 `BW_NAME_EN`（B-5）；其餘梯隊用 team code。
           name: isEnUrl ? englishOnly(team.name, club === 'bw' && team.code === 'BW1' ? BW_NAME_EN : team.code) : team.name,
           url: siteUrl || undefined,
-          logo: team.logoUrl ?? undefined,
+          logo: siteUrl ? `${siteUrl}${getClubAssets(club).headerMark.src}` : undefined,
           sport: 'Soccer',
           // GEO-03／GEO-04：所屬聯賽與主場與明文同一來源（useSiteFacts），數值必須一致。
           // 英文版：聯賽／場地用 nameEn（聯賽英文名「待客戶確認」，沿用既有值）；缺則退回中文全名。

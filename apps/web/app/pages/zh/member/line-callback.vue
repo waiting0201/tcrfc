@@ -40,6 +40,7 @@ const message = ref('')
 const ticket = ref('')
 const form = reactive({ email: '', name: '', phone: '', birthOn: '' })
 const guardian = ref<{ consented: boolean, name: string, relationship: GuardianRelationship | '' }>({ consented: false, name: '', relationship: '' })
+const consent = ref(false)
 const busy = ref(false)
 const formError = ref('')
 let pendingInfo: LinePending | null = null
@@ -113,6 +114,8 @@ async function complete() {
   if (!form.birthOn) { formError.value = tx('請填寫生日。', 'Please enter your date of birth.'); return }
   if (taipeiAge(form.birthOn) === null) { formError.value = tx('生日格式不正確，或晚於今天。', 'The date of birth is not valid, or it is in the future.'); return }
   const minor = isMinorBirth(form.birthOn)
+  // 同意句與 Email 註冊（MemberAuthPanel）相同；Email 註冊的勾選只擋在前台、不送後端，LINE 比照（後端 line/complete 無對應欄位）。
+  if (!consent.value) { formError.value = tx('請先閱讀並勾選同意隱私權政策與會員條款。', 'Please read and tick the box to agree to the Privacy Policy and Membership Terms.'); return }
   if (minor) {
     const g = guardian.value
     if (!g.name.trim()) { formError.value = tx('請填寫監護人姓名。', 'Please enter the guardian name.'); return }
@@ -197,6 +200,13 @@ async function complete() {
             <MemberAgeGuardian v-model:birth-on="form.birthOn" v-model:guardian="guardian" id-prefix="lc" :en="isEn" />
           </div>
         </fieldset>
+        <div class="consent-block">
+          <div class="checkbox-field">
+            <input id="lc-consent" v-model="consent" type="checkbox" name="consent" required>
+            <label v-if="isEn" for="lc-consent">I have read and agree to the <a :href="lpx('/zh/privacy/')">Privacy Policy</a> and <a :href="lpx('/zh/member-terms/')">Membership Terms</a>, and I agree that {{ clubNameEn }} may use the personal data collected through this form to create my membership and provide related services. Members under 18 need their guardian's consent.<span class="req" aria-hidden="true">*</span></label>
+            <label v-else for="lc-consent">我已閱讀並同意<a :href="lpx('/zh/privacy/')">隱私權政策</a>與<a :href="lpx('/zh/member-terms/')">會員條款</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
+          </div>
+        </div>
         <p v-if="formError" class="mc-alert mc-alert--error" role="alert">{{ formError }}</p>
         <button type="submit" class="btn btn--primary btn--block" :disabled="busy">{{ busy ? tx('處理中…', 'Processing…') : tx('完成註冊', 'Complete registration') }}</button>
       </form>

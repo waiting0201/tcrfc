@@ -9,9 +9,9 @@
 //      同類問題）。這句簡介只會出現在彈窗（people-modal__bio），彈窗內容原本就是
 //      JS 點擊後才寫入、SSR 輸出時是空的，所以「拿不到這句話」不會讓 compare-dom
 //      比對不過，但功能上這句真實的公告文字目前顯示不出來，照實回報不自行編造。
-//   2. StaffDto 沒有「教練團／顧問」分類欄位（staffGroup 種子全為 NULL），
-//      改用 title==='顧問' 判斷（API 資料裡目前唯一符合的就是陳曉明，與 mockup
-//      的顧問分區一致），不是新發明的規則。
+//   2. B-11（2026-10-06）：讀 StaffDto.staffGroup（後台 C3 分組：管理層／行政／醫療／後勤）分組顯示。
+//      沒有分組（NULL，含種子全部教練）者仍歸「教練團」；NULL 且 title==='顧問' 者仍歸「顧問」（種子唯一的陳曉明，
+//      與 mockup 的顧問分區一致）。四個分組有人才輸出對應區塊，後台新增職員選了分組就會出現在對的位置。
 //   3. 卡片顯示順序（總教練→教練→守門員教練→體能教練→青訓總監→青訓教練→顧問）
 //      是 mockup 既有的人工編排順序，API 沒有 sort_order 欄位可用，這裡用姓名
 //      對照表排序重建，仍是真實姓名資料只是補上顯示順序，不是編資料內容。
@@ -33,6 +33,14 @@ const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? OUR_PEOPLE_SE
 // 這個孿生路由目前會顯示同一種版面（不是英文為主的版面），這是刻意先不做的頁面內容
 // 設計決策，留給往後真的要做「英文為主」版面時再處理，不在 S1-13 框架範圍內。
 const { lp, isEn, tx } = useLocale()
+
+/** 後台 C3 分組值域（資料庫直接存的中文字面值，同英文版顯示名稱）。順序即前台區塊順序。 */
+const STAFF_GROUPS = [
+  { value: '管理層', zh: '管理層', en: 'Management', kicker: 'MANAGEMENT' },
+  { value: '行政', zh: '行政', en: 'Administration', kicker: 'ADMINISTRATION' },
+  { value: '醫療', zh: '醫療', en: 'Medical Staff', kicker: 'MEDICAL' },
+  { value: '後勤', zh: '後勤', en: 'Operations', kicker: 'OPERATIONS' },
+] as const
 
 const [{ data: zhData }, { data: enData }] = await Promise.all([
   useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 100, lang: 'zh' } }),
@@ -61,6 +69,8 @@ interface PersonCard {
    * mockup 找到的既有落差，不是新造規則。 */
   cardRole: string | null
   role: string | null
+  /** 後台 C3 分組原值（未分組為 null）。 */
+  staffGroup: string | null
   bio: string | null
   photoKey: string | null
   /** GEO-05／S1-12f：apps/api 算好的 Person 結構化資料合格判斷（只要求姓名），
@@ -74,7 +84,7 @@ interface PersonCard {
   displayBio: string | null
 }
 
-// mockup 卡片顯示職稱與 API title 不同的唯一例外
+// mockup 卡片顯示職稱與 API title 不同的唯一例外（B-11：只在 API 職稱仍是「顧問」時才套用，後台改了職稱就以後台為準）
 const CARD_ROLE_OVERRIDE: Record<string, string> = { chen: '技術顧問' }
 // 英文版同一張卡片的職稱：優先用 en 側表的職稱；沒有時，陳曉明的卡片沿用既有的「技術顧問」覆寫（對應 Technical Adviser）。
 const CARD_ROLE_OVERRIDE_EN: Record<string, string> = { chen: 'Technical Adviser' }
@@ -93,17 +103,21 @@ const people = computed<PersonCard[]>(() => {
         slug,
         nameZh: s.name ?? '',
         nameEn: en && en !== s.name ? en : null,
-        cardRole: CARD_ROLE_OVERRIDE[slug] ?? s.title,
+        cardRole: (s.title === '顧問' ? CARD_ROLE_OVERRIDE[slug] : null) ?? s.title,
         role: s.title,
+        staffGroup: STAFF_GROUPS.some((g) => g.value === s.staffGroup) ? (s.staffGroup as string) : null,
         bio: s.bio,
         photoKey: s.photoKey,
         schemaEligible: s.schemaEligible,
         photoUrl: s.photoUrl,
         displayName: en && en !== s.name ? en : (s.name ?? ''),
-        displayRole: (slug in CARD_ROLE_OVERRIDE_EN ? CARD_ROLE_OVERRIDE_EN[slug] : null) ?? enItems.get(s.id)?.title ?? s.title,
+        // 有翻譯的英文職稱優先；英文側表沒填（回傳值等同中文職稱）且是既有「技術顧問」例外才用覆寫。
+        displayRole: ((enItems.get(s.id)?.title && enItems.get(s.id)?.title !== s.title) ? enItems.get(s.id)?.title : null)
+          ?? (s.title === '顧問' ? CARD_ROLE_OVERRIDE_EN[slug] : null) ?? enItems.get(s.id)?.title ?? s.title,
         displayBio: enItems.get(s.id)?.bio ?? null,
       }
     })
+    // 組內順序：DISPLAY_ORDER 名單內的人照名單；名單外的人依 API 回傳順序接在後面（Array.sort 為穩定排序）。
     .sort((a, b) => {
       const ia = DISPLAY_ORDER.findIndex((d) => d.name === a.nameZh)
       const ib = DISPLAY_ORDER.findIndex((d) => d.name === b.nameZh)
@@ -111,8 +125,12 @@ const people = computed<PersonCard[]>(() => {
     })
 })
 
-const coaching = computed(() => people.value.filter((p) => p.role !== '顧問'))
-const advisory = computed(() => people.value.filter((p) => p.role === '顧問'))
+// 未分組者：教練團（含種子全部教練）；未分組且職稱是「顧問」者：顧問（既有分區）。
+const coaching = computed(() => people.value.filter((p) => !p.staffGroup && p.role !== '顧問'))
+const advisory = computed(() => people.value.filter((p) => !p.staffGroup && p.role === '顧問'))
+const groupedSections = computed(() => STAFF_GROUPS
+  .map((g) => ({ ...g, people: people.value.filter((p) => p.staffGroup === g.value) }))
+  .filter((g) => g.people.length > 0))
 
 const bioPlaceholder = computed(() => tx('簡介準備中，稍後將於本頁公開。', 'A profile is being prepared and will be published here soon.'))
 
@@ -189,7 +207,7 @@ watchEffect(() => {
   </div>
 </section>
 
-<section class="band people-band" aria-labelledby="people-coaching-title">
+<section v-if="coaching.length || !people.length" class="band people-band" aria-labelledby="people-coaching-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -207,7 +225,25 @@ watchEffect(() => {
   </div>
 </section>
 
-<section class="band grain grain--2 people-band people-band--advisory" aria-labelledby="people-advisory-title">
+<!-- B-11：後台分組（管理層／行政／醫療／後勤），有人才輸出 -->
+<section v-for="(g, gi) in groupedSections" :key="g.value" class="band people-band" :style="gi % 2 === 0 ? 'background:var(--paper-2);' : undefined" :aria-labelledby="`people-group-${gi}-title`">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">{{ g.kicker }}</p>
+        <h2 class="section-title" :id="`people-group-${gi}-title`">{{ isEn ? g.en : g.zh }}</h2>
+      </div>
+    </div>
+    <div class="people-grid">
+      <button v-for="p in g.people" :key="p.id" type="button" class="people-card" :data-person="p.slug" @click="openModal(p)">
+        <span class="people-card__role">{{ isEn ? p.displayRole : p.cardRole }}</span>
+        <span class="people-card__name">{{ isEn ? p.displayName : p.nameZh }}<span v-if="p.nameEn && !isEn" class="en">{{ p.nameEn }}</span></span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<section v-if="advisory.length" class="band grain grain--2 people-band people-band--advisory" aria-labelledby="people-advisory-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>

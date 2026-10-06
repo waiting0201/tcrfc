@@ -36,7 +36,12 @@ const classesBw = computed(() => (isEn.value ? CHILDRENS_TRAINING_CLASSES_BW_EN 
 const { facts, primaryVenue } = useSiteFacts(clubKey.value)
 // C-6／S2-13：英文版場地名取後端 en 回應的 nameEn，沒有就退回中文名（不自行音譯）。
 // 藍鯨英文：後端 en 回應沒有場地英文名時，用規劃書英文版既有寫法（Taichung Beitun Taiyuan Football Field），不退回中文。
-const venueName = computed(() => (isEn.value ? (primaryVenue.value.nameEn ?? (isTcrfc.value ? null : BW_PRIMARY_VENUE_EN_FALLBACK)) : null) ?? primaryVenue.value.nameZh)
+const factsVenueName = computed(() => (isEn.value ? (primaryVenue.value.nameEn ?? (isTcrfc.value ? null : BW_PRIMARY_VENUE_EN_FALLBACK)) : null) ?? primaryVenue.value.nameZh)
+// C-7（2026-10-06）：主要場地優先讀公開場地 API（I5 場地管理，主場 `isHome`），API 失敗或沒有場地才回退站台事實常數。
+const { venues } = await usePublicVenues()
+const homeVenue = computed(() => venues.value.find((v) => v.isHome) ?? venues.value[0] ?? null)
+const venueName = computed(() => homeVenue.value?.name ?? factsVenueName.value)
+const venueMapUrl = computed(() => (homeVenue.value ? venueMapHref(homeVenue.value) : null))
 
 useSeoMeta({
   title: computed(() => (isEn.value ? getChildrensTrainingSeoEn(clubKey.value) : getChildrensTrainingSeo(clubKey.value)).title),
@@ -44,21 +49,11 @@ useSeoMeta({
 })
 const hero = computed(() => (isEn.value ? getChildrensTrainingHeroEn(clubKey.value) : getChildrensTrainingHero(clubKey.value)))
 
-const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
-  query: { type: 'children_training', pageSize: 5, lang: locale.value },
-})
-const firstProgram = computed(() => programList.value?.items?.[0] ?? null)
-// firstProgram 在這裡已經是上一個 await 完成後的定值（不是待解析的非同步狀態），
-// 用 `immediate: !!firstProgram.value` 決定要不要真的送出這支詳情請求即可，
-// 不需要用「URL 回傳 null」這種 useFetch 沒有明確支援的寫法（$fetch 的 URL 參數
-// 不接受 null，那樣寫在 SSR 階段會直接丟例外，不是優雅跳過）。
-const { data: programDetail } = await useFetch(
-  `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
-  { query: { lang: locale.value }, immediate: !!firstProgram.value },
-)
+// B-8：該類型全部已發布課程（內容、教練團、合作夥伴、封面、梯次），不再只取第一個。
+const { programs, first: firstProgram } = await useProgramsOfType('children_training')
 /** 真實梯次資料（週期課表來自 `weeklySchedule` JSON，經 `formatWeeklySchedule` 轉成可讀文字）。空陣列＝目前沒有已建立的梯次，
  * 樣板落回既有示意空表列，不是接失敗。 */
-const sessions = computed(() => programDetail.value?.sessions ?? [])
+const sessions = computed(() => programs.value.flatMap((p) => p.sessions.map((s) => ({ ...s, programName: programs.value.length > 1 ? p.name : null }))))
 /** `weeklySchedule` 是 JSON 文字，交給共用格式化函式（依路由語系）；解析不了顯示「—」並在開發環境警告。 */
 function formatSchedule(raw: string | null | undefined): string {
   return formatWeeklySchedule(raw, locale.value, import.meta.dev ? (m) => console.warn(`[weekly-schedule] ${m}`) : undefined) ?? '—'
@@ -80,12 +75,12 @@ useFaqPageSchema(faqs)
 // shared/utils/schema-batch2.ts。
 const siteConfig = useSiteConfig()
 useCourseSchema(
-  computed(() => (programDetail.value
+  computed(() => (firstProgram.value
     ? {
-        name: programDetail.value.name ?? null,
-        intro: programDetail.value.intro ?? null,
-        ageMin: programDetail.value.ageMin ?? null,
-        ageMax: programDetail.value.ageMax ?? null,
+        name: firstProgram.value.name ?? null,
+        intro: firstProgram.value.intro ?? null,
+        ageMin: firstProgram.value.ageMin ?? null,
+        ageMax: firstProgram.value.ageMax ?? null,
       }
     : null)),
   { providerName: getClubAssets(config.public.club).nameZh, siteUrl: computed(() => siteConfig.url ?? '') },
@@ -113,6 +108,9 @@ useCourseSchema(
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
+
+<!-- B-8：後台課程（P1）的內容、適合對象、年齡、教練團、合作夥伴；有課程資料才顯示 -->
+<ProgramInfoBand v-if="programs.length" :programs="programs" :content-title="tx('課程介紹', 'About the Program')" show-partners />
 
 <section v-if="isTcrfc" class="band">
   <div class="container">
@@ -182,14 +180,18 @@ useCourseSchema(
         <dl style="margin:0;">
           <dt>{{ tx('主要場地', 'Main venue') }}</dt>
           <dd>{{ venueName }}</dd>
-          <template v-if="facts.contact.address">
+          <template v-if="homeVenue?.address">
+            <dt>{{ tx('地址', 'Address') }}</dt>
+            <dd>{{ homeVenue.address }}</dd>
+          </template>
+          <template v-else-if="facts.contact.address">
             <dt>{{ tx('地址', 'Address') }}</dt>
             <dd v-if="isEn"><span lang="zh-Hant">{{ facts.contact.address }}</span></dd>
             <dd v-else>{{ facts.contact.address }}</dd>
           </template>
-          <template v-if="isTcrfc">
+          <template v-if="venueMapUrl || isTcrfc">
             <dt>{{ tx('地圖', 'Map') }}</dt>
-            <dd><a href="https://www.google.com/maps/search/?api=1&query=%E8%A5%BF%E5%B1%AF%E8%B6%B3%E7%90%83%E5%A0%B4%20%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B7%2011%20%E5%BC%84%2041%20%E8%99%9F" target="_blank" rel="noopener">{{ tx('在 Google 地圖開啟', 'Open in Google Maps') }} <span class="visually-hidden">{{ tx('（新分頁開啟）', '(opens in a new tab)') }}</span></a></dd>
+            <dd><a :href="venueMapUrl ?? 'https://www.google.com/maps/search/?api=1&query=%E8%A5%BF%E5%B1%AF%E8%B6%B3%E7%90%83%E5%A0%B4%20%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B7%2011%20%E5%BC%84%2041%20%E8%99%9F'" target="_blank" rel="noopener">{{ tx('在 Google 地圖開啟', 'Open in Google Maps') }} <span class="visually-hidden">{{ tx('（新分頁開啟）', '(opens in a new tab)') }}</span></a></dd>
           </template>
         </dl>
       </div>
@@ -213,7 +215,7 @@ useCourseSchema(
         <tbody>
           <tr v-if="sessions.length === 0"><td colspan="3" class="is-pending">{{ tx('梯次資訊準備中', 'Session information is being prepared') }}</td></tr>
           <tr v-for="s in sessions" :key="s.id">
-            <td>{{ formatSchedule(s.weeklySchedule) }}</td>
+            <td>{{ formatSchedule(s.weeklySchedule) }}<span v-if="s.programName" class="session-program">{{ s.programName }}</span></td>
             <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }}{{ tx(' 人', ' enrolled') }}</td>
             <td>{{ s.venueName ?? venueName }}</td>
           </tr>
@@ -321,6 +323,7 @@ useCourseSchema(
 
 /* S1-15 新增：真實梯次為空、常見問題為空時的通用提示文字，以及 G-12 快捷區塊 */
 .is-pending{ color:var(--muted); font-style:italic; }
+.session-program{ display:block; font-size:.72rem; color:var(--muted); }
 .faq-embed-list{ margin-top:1.5rem; display:flex; flex-direction:column; gap:1.25rem; }
 .faq-embed-item dt{ font-weight:800; color:var(--heading); }
 .faq-embed-item dd{ margin:.4rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.7; }

@@ -63,6 +63,8 @@ function onToggle(faq: FaqAccordionItem, event: Event) {
   if (el.open && typeof history !== 'undefined' && history.replaceState) {
     history.replaceState(null, '', `#q-${faq.slug}`)
   }
+  // A-8：展開時回報瀏覽數（每工作階段每題最多一次）
+  if (el.open) reportView(props.club, 'faqs', faq.slug)
 }
 
 onMounted(() => {

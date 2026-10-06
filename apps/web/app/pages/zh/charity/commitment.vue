@@ -1,40 +1,22 @@
 <script setup lang="ts">
 // app/pages/zh/charity/commitment.vue — 由 site/src/pages/zh/charity/commitment/index.html 轉來（S0-9 靜態頁搬遷）
-import type { PageBlockNode, RawPageBlock } from '#shared/utils/page-blocks'
-
 definePageMeta({ nav: "charity", unit: "11", enReady: true })
 
 const { lp, isEn, tx } = useLocale()
 
-// S1-12d 收尾：成立年份改讀 useSiteFacts('tcrfc')（後端公開端點）。本頁 unit '11'
-// 對藍鯨已整頁 404（藍鯨規劃書不設「11 慈善與社會影響」），固定讀 tcrfc 即可。
-const { facts: tcrfcFacts } = useSiteFacts('tcrfc')
+// S1-12d 收尾：成立年份改讀 useSiteFacts（後端公開端點）。本頁 unit '11'
+// 對藍鯨已整頁 404（藍鯨規劃書不設「11 慈善與社會影響」），實務上只有磐石走到；C-1 起不寫死站別，一律讀 config.public.club。
+const club = useRuntimeConfig().public.club
+const { facts: tcrfcFacts } = useSiteFacts(club)
 
-// S3-5（順手）：11.1 慈善理念改讀 B1 頁面管理的 `charity/commitment`（`GET /api/v1/tcrfc/pages/charity/commitment`，
-// 規劃書 §3.11 11.1「區塊編輯器排版」）。**後端有已發布且含可渲染區塊的頁面就用後台內容，否則（含 404、API 打不到、
-// 區塊全是本輪不渲染的型別）維持下方既有的靜態內容**——種子目前沒有這一頁。後台頁面沒有標題欄位，h1 維持固定標題。
-// 區塊只渲染純文字型（見 shared/utils/page-blocks.ts），不 v-html。
-const { locale } = useLocale()
-interface RawCommitmentPage {
-  seoTitle: string | null
-  seoDescription: string | null
-  blocks: RawPageBlock[]
-}
-// `transform`：在進入頁面 payload 之前就把區塊正規化成安全的純文字節點（原始 JSON 不進 payload）
-const { data: cmsPage } = await useFetch<{ seoTitle: string | null, seoDescription: string | null, blocks: PageBlockNode[] } | null>('/api/backend/tcrfc/pages/charity/commitment', {
-  query: { lang: locale.value },
-  key: `charity-commitment-${locale.value}`,
-  default: () => null,
-  transform: (p: RawCommitmentPage) => ({ seoTitle: p.seoTitle, seoDescription: p.seoDescription, blocks: normalizePageBlocks(p.blocks) }),
-})
-const cmsBlocks = computed(() => cmsPage.value?.blocks ?? [])
-const useCms = computed(() => cmsBlocks.value.length > 0)
-// 英文版：後台頁面若該語系尚無內容會回退繁中區塊，含中日文字時提示（transform 已丟掉備援旗標）
-const cmsHasZh = computed(() => isEn.value && useCms.value && /[\u3400-\u9fff]/.test(JSON.stringify(cmsBlocks.value)))
+// 稽核 B-1：11.1 慈善理念讀 B1 頁面管理的 `charity/commitment`（規劃書 §3.11 11.1「區塊編輯器排版」），
+// 模式抽成共用的 `useCmsPage`：有已發布且含可渲染區塊的頁面就用後台內容，否則（含 404、API 打不到）維持下方既有靜態內容。
+// 後台頁面沒有標題欄位，h1 維持固定標題；區塊只渲染純文字型，不 v-html（見 shared/utils/page-blocks.ts）。
+const cms = await useCmsPage('charity/commitment')
 
-useSeoMeta({
-  title: computed(() => (useCms.value && cmsPage.value?.seoTitle) || (isEn.value ? 'Our Commitment and Focus Areas | Charity & Impact | Taichung Rock FC' : "慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部")),
-  description: computed(() => (useCms.value && cmsPage.value?.seoDescription) || (isEn.value ? 'The charitable philosophy and four focus areas of Taichung Rock FC: youth support, rural football, disadvantaged families and charity matches, putting our core value of Community into practice.' : "台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。")),
+cms.applySeo({
+  title: computed(() => (isEn.value ? 'Our Commitment and Focus Areas | Charity & Impact | Taichung Rock FC' : "慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部")),
+  description: computed(() => (isEn.value ? 'The charitable philosophy and four focus areas of Taichung Rock FC: youth support, rural football, disadvantaged families and charity matches, putting our core value of Community into practice.' : "台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。")),
 })
 </script>
 
@@ -58,14 +40,7 @@ useSeoMeta({
   </div>
 </section>
 
-<LocaleFallbackNotice v-if="cmsHasZh" partial />
-
-<section v-if="useCms" class="band commitment-band" aria-labelledby="commitment-title">
-  <div class="band-inner container">
-    <h2 id="commitment-title" class="visually-hidden">{{ tx('慈善理念說明', 'About our charitable philosophy') }}</h2>
-    <ContentPageBlocks :blocks="cmsBlocks" />
-  </div>
-</section>
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('慈善理念說明', 'About our charitable philosophy')" :zh-fallback="cms.hasZhFallback.value" />
 
 <section v-else class="band commitment-band" aria-labelledby="commitment-title">
   <div class="band-inner container">

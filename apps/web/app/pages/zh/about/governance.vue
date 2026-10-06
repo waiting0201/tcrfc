@@ -10,10 +10,9 @@ const identity = computed(() => (isEn.value ? getClubIdentityEnFor(clubKey.value
 const hero = computed(() => (isEn.value ? GOVERNANCE_HERO_EN : GOVERNANCE_HERO[clubKey.value]))
 const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? GOVERNANCE_SEO_EN_BW : GOVERNANCE_SEO_EN) : GOVERNANCE_SEO[clubKey.value]))
 
-useSeoMeta({
-  title: computed(() => seo.value.title),
-  description: computed(() => seo.value.description),
-})
+// 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
+const cms = await useCmsPage('about/governance')
+cms.applySeo({ title: () => seo.value.title, description: () => seo.value.description })
 </script>
 
 <template>
@@ -36,6 +35,8 @@ useSeoMeta({
   </div>
 </section>
 
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('公開文件', 'Public Documents')" :zh-fallback="cms.hasZhFallback.value" />
+<template v-else>
 <section class="band gov-band" aria-labelledby="gov-docs-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
@@ -48,6 +49,7 @@ useSeoMeta({
     <p class="section-lede" style="margin-top:1rem;">{{ tx('目前尚無可供下載的公開文件。', 'There are no public documents available to download at the moment.') }}</p>
   </div>
 </section>
+</template>
 </template>
 
 <style>

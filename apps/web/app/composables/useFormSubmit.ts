@@ -26,7 +26,7 @@ export function useFormSubmit(formCode: string) {
   const config = useRuntimeConfig()
   const club = config.public.club
   const route = useRoute()
-  const { tx, isEn } = useLocale()
+  const { tx, isEn, lp } = useLocale()
 
   const siteKey = (config.public.turnstileSiteKey as string | undefined)?.trim() ?? ''
 
@@ -34,20 +34,24 @@ export function useFormSubmit(formCode: string) {
   // 才顯示元件並要求權杖。表單定義取自 `GET /api/v1/{club}/forms/{formCode}`（PublicFormDto.captchaEnabled，
   // 經同源代理），只在瀏覽器端掛載後取一次——取不到就視為不需要驗證（後端是最後防線，會自己擋）。
   const captchaEnabled = ref(false)
+  // B-16：送出成功後導向頁（`PublicFormDto.redirectPath`，站內相對路徑，可為 null；欄位尚未出現時視同 null）。
+  const redirectPath = ref<string | null>(null)
   const captchaToken = ref<string | null>(null)
   /** 頁面以 `ref="captchaWidget"` 綁到 `<FormTurnstile>`，送出失敗時由這裡 reset。 */
   const captchaWidget = ref<{ reset: () => void } | null>(null)
 
   onMounted(async () => {
-    if (!siteKey) return
     try {
-      const def = await $fetch<{ captchaEnabled?: boolean }>(`/api/backend/${club}/forms/${formCode}`, {
+      // 表單定義不論 siteKey 有無都要取（redirectPath 與驗證碼無關）；取不到＝維持現狀，不影響送出。
+      const def = await $fetch<{ captchaEnabled?: boolean, redirectPath?: string | null }>(`/api/backend/${club}/forms/${formCode}`, {
         query: { lang: isEn.value ? 'en' : 'zh' },
       })
-      captchaEnabled.value = def?.captchaEnabled === true
+      captchaEnabled.value = !!siteKey && def?.captchaEnabled === true
+      redirectPath.value = safeRedirectPath(def?.redirectPath)
     }
     catch {
       captchaEnabled.value = false
+      redirectPath.value = null
     }
   })
 
@@ -79,12 +83,19 @@ export function useFormSubmit(formCode: string) {
         method: 'POST',
         body: {
           answers,
+          // A-4：後端自動回覆信依這個語系選 zh／en 內文（沒填該語系回退中文）。
+          lang: isEn.value ? 'en' : 'zh',
           sourcePath: route.fullPath,
           website: options.website || undefined,
           turnstileToken: captchaRequired ? captchaToken.value ?? undefined : undefined,
         },
       })
       status.value = 'success'
+      // B-16：有設定導向頁就導過去（經 lp() 轉成目前語系）；導向失敗不影響已成功的送出，頁面仍顯示成功訊息。
+      if (redirectPath.value) {
+        try { await navigateTo(lp(redirectPath.value)) }
+        catch { /* 留在原頁顯示成功訊息 */ }
+      }
     }
     catch (err: unknown) {
       status.value = 'error'
@@ -111,6 +122,15 @@ export function useFormSubmit(formCode: string) {
   function onCaptchaToken(value: string | null) { captchaToken.value = value }
 
   return { status, errorMessage, submit, reset, siteKey, captchaActive, captchaWidget, onCaptchaToken }
+}
+
+/** 只接受站內相對路徑（單一 `/` 開頭；拒絕 `//host`、`/\\host`、含控制字元或協定）；其餘回 null。 */
+export function safeRedirectPath(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null
+  const v = raw.trim()
+  if (!v.startsWith('/') || v.startsWith('//') || v.startsWith('/\\')) return null
+  for (const ch of v) { const c = ch.charCodeAt(0); if (c < 0x20 || c === 0x7f) return null }
+  return v
 }
 
 /** 後端 422 `captcha_failed`（BFF 把上游 ProblemDetails 的 code 放在 `err.data.data.code`）。 */

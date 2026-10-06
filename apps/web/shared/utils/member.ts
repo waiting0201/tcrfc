@@ -50,10 +50,8 @@ export type LineCallbackResult =
 export interface MemberClubBrand {
   code: string
   name: string
-  logoLightUrl: string | null
-  logoDarkUrl: string | null
-  brandColor: string | null
-  brandSecondaryColor: string | null
+  // 主站規劃書 v3.20：標誌與品牌色由前台靜態資產（`getClubAssets(code)`）定義，API 不再提供。
+  // 舊版後端若仍回這四個欄位，前台一律忽略，所以型別不收。
 }
 
 export interface MemberCard {

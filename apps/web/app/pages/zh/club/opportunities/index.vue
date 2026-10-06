@@ -23,7 +23,9 @@ const hero = computed(() => (isEn.value ? (isTcrfc.value ? getPlayerOpportunitie
 const joinBody = computed(() => (isEn.value ? (isTcrfc.value ? getJoinFirstTeamBodyEn(facts.value) : getJoinFirstTeamBodyEnBw(facts.value)) : getJoinFirstTeamBody(clubKey.value, facts.value)))
 const foreignBody = computed(() => (isEn.value ? (isTcrfc.value ? getForeignPlayerBodyEn(facts.value) : getForeignPlayerBodyEnBw(facts.value)) : getForeignPlayerBody(clubKey.value, facts.value)))
 
-useSeoMeta({
+// 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
+const cms = await useCmsPage('club/opportunities')
+cms.applySeo({
   title: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerOpportunitiesSeoEn() : getPlayerOpportunitiesSeoEnBw()) : getPlayerOpportunitiesSeo(clubKey.value)).title),
   description: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerOpportunitiesSeoEn() : getPlayerOpportunitiesSeoEnBw()) : getPlayerOpportunitiesSeo(clubKey.value)).description),
 })
@@ -54,6 +56,15 @@ useFaqPageSchema(faqs)
   </div>
 </section>
 
+<template v-if="cms.active.value">
+<ContentCmsPageBand :blocks="cms.blocks.value" :label="tx('球員機會', 'Player Opportunities')" :zh-fallback="cms.hasZhFallback.value" />
+<section class="band" aria-label="registration">
+  <div class="container">
+    <a class="btn btn--primary" :href="lp('/zh/join/player/')">{{ tx('填寫加入球隊報名表', 'Fill in the squad registration form') }}</a>
+  </div>
+</section>
+</template>
+<template v-else>
 <section class="band" id="join" aria-labelledby="join-title">
   <div class="band-inner container">
     <div class="prose">
@@ -64,6 +75,7 @@ useFaqPageSchema(faqs)
     <a class="btn btn--primary" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">{{ tx('填寫加入球隊報名表', 'Fill in the squad registration form') }}</a>
   </div>
 </section>
+</template>
 
 <section class="band paper-2-band" id="trials" aria-labelledby="trials-title">
   <div class="band-inner container">

@@ -16,12 +16,11 @@
 //     取得過一次成功的值之後，API 暫時失敗就沿用最後一次的結果。
 //   - 只攔 GET／HEAD 的頁面請求；其他方法（表單送出走 `/api/*`）本來就在放行名單內。
 import type { H3Event } from 'h3'
+import { getClubAssets } from '../../shared/utils/club'
 
 interface MaintenanceState {
   enabled: boolean
   message: string | null
-  logoUrl: string | null
-  brandColor: string | null
 }
 
 const CACHE_TTL_MS = 15_000
@@ -48,7 +47,6 @@ async function loadState(club: string, lang: 'zh' | 'en'): Promise<MaintenanceSt
   try {
     const dto = await $fetch<{
       maintenance?: { enabled?: boolean, message?: string | null }
-      brand?: { logoLightUrl?: string | null, brandColor?: string | null }
     }>(`/api/v1/${club}/site-settings`, {
       baseURL: backendApiBase(),
       query: { lang },
@@ -57,8 +55,6 @@ async function loadState(club: string, lang: 'zh' | 'en'): Promise<MaintenanceSt
     const value: MaintenanceState = {
       enabled: dto?.maintenance?.enabled === true,
       message: dto?.maintenance?.message ?? null,
-      logoUrl: dto?.brand?.logoLightUrl ?? null,
-      brandColor: dto?.brand?.brandColor ?? null,
     }
     cache.set(key, { at: now, value })
     return value
@@ -84,13 +80,17 @@ function safeImageUrl(value: string | null): string | null {
   return value && /^(https?:\/\/|\/)[^\s"'<>]+$/i.test(value) ? value : null
 }
 
-export function renderMaintenancePage(opts: { lang: 'zh' | 'en', clubName: string, message: string | null, logoUrl: string | null, brandColor: string | null }): string {
+export function renderMaintenancePage(opts: { lang: 'zh' | 'en', clubName: string, message: string | null, club: string }): string {
   const zh = opts.lang === 'zh'
   const title = zh ? '網站維護中' : 'Under maintenance'
   const fallback = zh ? '網站維護中，請稍後再回來看看。造成不便，敬請見諒。' : 'We are currently performing maintenance. Please check back soon. Thank you for your patience.'
   const message = opts.message?.trim() || fallback
-  const color = safeColor(opts.brandColor, '#222222')
-  const logo = safeImageUrl(opts.logoUrl)
+  // 主站規劃書 v3.20：標誌與品牌色由前台靜態資產定義，不讀 API。維護頁是內嵌 HTML、讀不到 tcrfc.css，
+  // 色值取 `getClubAssets().themeColor`（磐石 #E0218A／藍鯨 #2196D5，docs/14-invariants.md 定案色值，與 tcrfc.css 的 `--brand` 同源）。
+  // 標誌用頁首標誌（淺底版）；`/assets/` 在放行名單內，維護中仍可載入。
+  const assets = getClubAssets(opts.club)
+  const color = safeColor(assets.themeColor, '#222222')
+  const logo = safeImageUrl(assets.headerMark.src)
   const paragraphs = message.replace(/\r\n?/g, '\n').split(/\n{2,}/).map((p) => `<p>${escapeHtml(p.trim()).replace(/\n/g, '<br>')}</p>`).join('')
   return `<!doctype html>
 <html lang="${zh ? 'zh-Hant' : 'en'}">
@@ -140,7 +140,6 @@ export default defineEventHandler(async (event: H3Event) => {
     lang,
     clubName: getClubAssets(club).nameZh,
     message: state.message,
-    logoUrl: state.logoUrl,
-    brandColor: state.brandColor,
+    club,
   })
 })

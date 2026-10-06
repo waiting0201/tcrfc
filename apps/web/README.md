@@ -3424,3 +3424,102 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - **品牌外洩詞表新增**：`Academy`、`國際部`、`International Department`／`International department`、`企甲`、`乙級`、`一線隊／海外`、`First Team / Overseas`。全站 160 路由 0 命中（例外清單仍 4 筆、未增加）。
 - **協會英文名**：統一 `Taichung City Women's Football Association`（藍鯨規劃書英文版）。
 - **驗證**：藍鯨 SSR 實測對應頁（first-team、join、news/match、news/academy、academy、pathway、international-player、partners/opportunities，zh／en）；lint、兩站 build 通過。
+
+## 後台→前台串接稽核修正（2026-10-06，`frontend-architect`，docs/23）
+
+- **A-8 瀏覽數**：新增 `app/utils/report-view.ts`（`reportView(club, 'news' | 'faqs', slug)`，僅瀏覽器端、sessionStorage 每工作階段每篇一次、失敗靜默）。新聞單篇頁以 `watch(article.slug)` 呼叫；`FaqAccordion` 展開時呼叫。BFF `server/api/backend/[...path].ts` 的 POST 白名單新增 `VIEW_COUNT_PATH`（`{club}/(news|faqs)/{slug}/views`）；漫畫 `/views` 仍在 `member-proxy.ts` 白名單。
+- **A-10**：首頁 Banner `cta1Url` 經 `safeUrl()`，站內路徑（`/` 開頭）套 `lp()`，英文頁轉 `/en/...`；外部 http(s) 原樣，其他協定不輸出。
+- **E-1**：`app/app.vue` 追蹤碼先過白名單（GA4 `G-[A-Z0-9]+`、GTM `GTM-[A-Z0-9]+`、Meta Pixel 純數字、LINE Tag `[A-Za-z0-9-]+`），不符不輸出該段；網址用 `encodeURIComponent`、腳本內嵌值用 `JSON.stringify`。
+- **E-2**：`schedule.vue` 行事曆 `ctaUrl` 以 `safeUrl()` 過濾（只放行 `http(s)://` 與單一 `/` 開頭）。全站其他把 API 字串放進 `:href` 的位置（合作夥伴、福利店家、慈善、`programs/[slug]`、頁尾）已各自有 `safeExternalUrl`／`safeUrl`／`https` 檢查，未發現同類缺口。
+- **B-16**：`useFormSubmit` 掛載時一律讀表單定義（原本只在有 Turnstile site key 時），取 `redirectPath`（`safeRedirectPath()`：只收單一 `/` 開頭、拒 `//`、`/\`、控制字元），送出成功後 `navigateTo(lp(path))`；欄位不存在或不合法＝維持顯示成功訊息。
+- **A-2**：`PlayerDto` 新增選用欄位 `status`；first-team／首頁 roster strip／學院頁的人數文案皆取 `players.length`，無寫死人數。
+- **C-1**：`charity/commitment.vue` 改讀 `config.public.club`。
+- **C-3**：`join/contact` 電話／地址／營業時間改為「API 有值才顯示」（兩隊共用，不再依 `isTcrfc`）；「主場」提示行仍僅磐石。`SiteFacts.contact.hoursEn`（選用）由 `useSiteFacts` 以英文查詢取得（含中日文字元視為無值），英文頁優先顯示、無值回退中文。
+- **A-4 表單送出語系**（2026-10-06）：`useFormSubmit.submit()` 的 body 新增 `lang`（`zh`／`en`，依 `isEn`），後端自動回覆信依此選內文（該語系沒填回退中文）。其餘送出欄位不變；7 張表單頁共用此 composable，無須逐頁修改。
+
+## 稽核第二輪：課程區塊渲染、靜態頁預覽、會員條款頁（2026-10-06，`frontend-architect`，docs/23 A-5／A-7／A-11）
+
+只動 `apps/web`。
+- **A-5 課程內容區塊**：`/zh/programs/{slug}` 的 `content` 先 `parseBlocksJson`（`shared/utils/page-blocks.ts`，認 `[{blockType,content}]` 與 `{blocks:[…]}`），解析得出就用 `ContentPageBlocks` 渲染；解析不了的舊資料維持純文字空行分段（以 `[` 開頭的純文字如「[快訊]…」仍視為純文字）。**是區塊 JSON 但一個都渲染不出就什麼都不印**（不退回印 JSON 原文）。`normalizePageBlocks(blocks, { locale, mediaBaseUrl })` 新增第二參數：內容內殘留的 `{zh,en}` 雙語物件依語系化簡（en 空白退 zh，等同後端 `PageContentLocalizer`）；靜態頁已化簡的字串輸入行為不變。`PageBlocks` 補五種區塊：`text_image`、`gallery`、`video_embed`（只認 youtube／vimeo，輸出 `youtube-nocookie.com` ／ `player.vimeo.com?dnt=1`，iframe 加 sandbox／referrerpolicy）、`accordion_faq`（原生 `<details>`）、`file_download`。全部文字走 `{{ }}`，無 `v-html`。**圖片欄位組公開 API 不解析網址**：有 `url`（https／站內路徑）就用，否則 `mediaBaseUrl + '/' + key`（key 不得含 `..`、不得為絕對網址）；本機未設 `NUXT_PUBLIC_MEDIA_BASE_URL` 時圖片略過、文字保留。驗證：`scripts/check-page-blocks.mjs`（9 項，已掛 `npm run lint`）。
+- **A-7 預覽路由**：`app/pages/zh/preview/[token].vue`（`/zh|en/preview/{token}`，孿生路由自動產生，`enReady`／`enReadyBw`）。讀 `GET /api/v1/pages/preview/{token}`（**無 club 段**，BFF 一般 GET 路徑 `/api/backend/pages/preview/{token}` 本來就放行，另加 `PAGE_PREVIEW_PATH` 分支只為 `no-store`）；`noindex, nofollow`、頁頂黃色「預覽模式」提示列（版本與頁面目前狀態）、權杖無效／打不到顯示同一句友善訊息並回 404。`nuxt.config.ts` routeRules 為三條預覽路徑加 `Cache-Control: no-store`。
+- **A-11 會員條款頁**：`app/pages/zh/member-terms/index.vue`（`/zh|en/member-terms/`，命名比照 `privacy`／`cookies`），讀 `usePolicy('member-terms')`；後台沒填就顯示「整理中」，**不放任何預設條文**。Email 註冊同意句（`MemberAuthPanel.vue`，zh／en）的「會員條款」改為連結；頁尾 `legal-links` 加「會員條款」。LINE 完成頁（`line-callback.vue`）原本就沒有任何會員條款文字，未新增同意句。
+
+## 行事曆前台對接後端修正（A-9／B-6／B-7，2026-10-06，`frontend-architect`）
+
+對應 `docs/23` 的 A-9、B-6、B-7 與 `apps/api` 公開端點新欄位（`occurrenceId`／`isRecurring`／`eventTypeName`／`eventTypeColour`／`eventTypeIcon`）。
+
+- **key／錨點**（`app/pages/zh/schedule.vue`）：自建活動 `v-for` key 與卡片 `id` 一律 `occurrenceId`（沒有時回退 `id`）；重複活動同 `id` 多筆，用 `id` 會被 Vue 當同一節點、錨點重複。深連結新增 `#ce-{occurrenceId}`（只捲動定位）。
+- **Event Schema**（`shared/utils/schema-batch2.ts`）：重複活動**每個發生日一個 Event 節點**（schema.org／Google 對重複活動的慣用寫法），`url` 錨點用 `occurrenceId` 區分；`check-schema-batch2.mjs` 加測。SSR 只放 `team=club` 那份（180 天內展開），其餘分頁的活動為 client 載入、不進 Schema。
+- **活動類型**：卡片標籤顯示類型名稱＋色點（顏色只套在左邊線與色點，文字維持一般文字色，不靠底色承載對比）＋圖示（後台系統圖示集 20 個代碼對應 Unicode 圖形，`aria-hidden`；不認得的不顯示）。顏色只接受 `#RRGGBB`，其餘不渲染（防 inline style 注入）。重複活動多一枚「定期活動」標籤。
+- **各隊分頁活動**：切到分頁時 client 端打月曆模式（`from`＝台灣今天、`to`＝+180 天、`team`、逐頁取到取完，上限 10 頁），結果依分頁快取；「全部」分頁也改取全部自建活動（含掛在各隊的），載入前先顯示 SSR 的俱樂部活動。月曆檢視也畫上自建活動（錨點 `ce-…`）。賽果模式不顯示活動。
+- **`calendar/settings`**：`useFetch` 讀取（失敗回 `null`）。有公開隊別時，分頁清單／順序／顯示名稱依設定（一線隊 `firstTeamCode` 排第一、id 維持 `first-team`；名稱採設定值，不再附「梯隊／squad」）；沒有就回退 `getAcademyTeamTabs()`／`getFirstTeamCode()`。`defaultView`（`month`→月曆檢視）、`defaultTeamCode`（不在清單內回退「全部」）、`defaultRange`（新增「範圍」下拉：`upcoming`／`season` 不截斷，`this_month`／`next_30_days` 截斷賽程模式的賽事與活動）。`homeTeamCodes` **尚未接**：首頁 `index.vue` 近期賽事的隊別 chips 是寫死的 D1／U15／U14／U12 兩面板結構，沒有可對應的資料驅動區塊。
+- **訂閱（B-7）**：訂閱連結指向同源 BFF `/api/backend/{club}/calendar/feed.ics?team=&lang=`，提供 `webcal://`（需 `NUXT_PUBLIC_SITE_URL`，未設定時不顯示）與 https 兩種；選到真實隊別才帶 `team`，「全部」「俱樂部活動」為全站 feed。BFF（`server/api/backend/[...path].ts`）新增 `CALENDAR_FEED_PATH` 專屬分支：只轉發 `team`／`lang`，原樣帶回 `text/calendar` 與 `Cache-Control`（一般 GET 分支會變成 `text/html`，行事曆軟體不收）。
+- **LINE 註冊完成頁**（`app/pages/zh/member/line-callback.vue`）：新增與 Email 註冊逐字相同的同意句（zh／en，連 `/zh/privacy/`、`/zh/member-terms/`）與必勾核取方塊。Email 註冊的勾選只擋前台、**不送後端**，LINE 比照；`/auth/line/complete` 也沒有對應欄位，不需改 API。
+- **仍待實機驗收**：以上皆未對真實 API 跑過（build／lint 綠）；feed 端點的 BFF 轉發請在本機 API 起來後 `curl -I` 確認 `Content-Type: text/calendar`。
+
+## 靜態頁改讀頁面管理 CMS（稽核 B-1／B-2，2026-10-06，`frontend-architect`）
+
+規劃書對照表（主站規劃書 §4.0）：頁面管理產出 02 關於、03.2–03.5、06 入口、9.3、11.1 等靜態頁。原本全站只有 `charity/commitment` 讀 CMS，現抽成共用機制：
+
+- **`app/composables/useCmsPage.ts`**：`await useCmsPage(slug | slug[])` 讀 `GET /api/v1/{club}/pages/{slug}?lang=`（club 取 `config.public.club`、依語系）。**有已發布且含可渲染區塊 → `active`；404、API 失敗、區塊全是不認得的型別 → 不啟用，頁面維持寫死內容（fallback，不刪）**。`applySeo({ title, description })`：CMS 有值才覆寫 `seoTitle`／`seoDescription`／`seoKeywords`（`<meta keywords>`）／`canonicalPath`（疊加 canonical，同新聞頁做法）／`ogImageUrl`＋寬高＋alt；`isNoindex` 為 true 才輸出 `<meta robots noindex>`（只能更 noindex，全站 X-Robots-Tag 不受影響）。沒值沿用頁面既有設定。
+- **`app/components/content/CmsPageBand.vue`**（`<ContentCmsPageBand>`）：CMS 區塊的外框（含英文版「部分內容只有繁中」提示）。**只取代各頁寫死的「主內文」band**；hero、麵包屑、CTA、API 驅動的區塊（試訓、FAQ、國際夥伴、事實面板）一律保留。
+- `shared/utils/page-blocks.ts` 的 `text` 區塊遇到簡單 HTML（種子頁的 `<h2>…</h2><p>…</p>`）改轉純文字（`plainTextOf`，標籤不原樣輸出、仍不 v-html）；`check-page-blocks.mjs` 補測。
+
+| 前台頁 | CMS slug | 取代的範圍 | 藍鯨 |
+|---|---|---|---|
+| `about/our-story`（2.1） | `about/our-story` | 主內文 band | 有（種子有 `about/our-story`） |
+| `about/vision-mission`（2.2） | `about/vision-mission`，藍鯨另認 `about/vision`（種子 slug） | 主內文 band | 有 |
+| `about/philosophy`（2.3） | `about/philosophy` | 主內文（磐石五大核心價值／藍鯨口號兩段） | 有 |
+| `about/history`（2.7） | `about/history` | 主內文 band | 有 |
+| `about/governance` | `about/governance` | 公開文件 band | 有 |
+| `club/player-development`（3.2） | `club/player-development` | 模組 band | 有 |
+| `club/opportunities`（3.3） | `club/opportunities` | 「加入」簡介 band（保留報名按鈕；試訓、FAQ、外籍球員招募不動） | 有 |
+| `club/international-pathways`（3.4） | `club/international-pathways` | 路徑總覽 band（地區分頁、國際夥伴、球探不動） | 有 |
+| `club/player-stories`（3.5） | `club/player-stories` | 案例 band | 有 |
+| `partners/become-a-partner`（9.3，B-2） | `partners/become-a-partner` | 六大價值＋受眾數據兩個 band（CTA 保留） | 有 |
+| `womens`（06 入口） | `womens` | 簡介段（事實面板、官網按鈕保留） | 不設（unit gate 維持 404） |
+| `charity/commitment`（11.1） | `charity/commitment` | 主內文 | 不設 |
+
+**刻意不接**：`about/our-people`（職員模組＋另一組 agent）、`about/milestones`（里程碑模組資料）、`about/index`／`about/ecosystem`／`club/index`（導覽卡與體系圖，不是內文）、`club/first-team`、學院與課程頁（球隊／課程模組）。後台要建立以上 slug 即可生效；slug 即前台路徑去掉語系前綴與尾斜線。
+**驗證**：build／lint 綠；以臨時假 API（只回部分 slug）實測：有 CMS 的頁換內容並套 SEO（robots／keywords／canonical／og:image），沒有的頁維持原內容，藍鯨 `about/vision` 別名生效、`/zh/womens/` 仍 404。**未對真實 API 實機驗收。**
+
+## 課程固定頁／球隊／職員改讀後台資料（稽核 B-8／B-10／B-11／C-7，2026-10-06，`frontend-architect`）
+
+| 項目 | 改動 |
+|---|---|
+| **B-8 課程固定頁 5.1–5.5** | 新增 `composables/useProgramsOfType.ts`（某類型**全部**已發布課程的詳情，取代只取 `items[0]`；API 失敗＝空陣列落回既有寫死內容）、`utils/program-content.ts`（`ProgramDetailView` 型別、`buildProgramContent`＝區塊 JSON 走 `PageBlocks`／舊資料純文字、`programAgeText`、`uniqueById`；`programs/[slug]` 同步改用，不再各寫一份）、`components/ProgramInfoBand.vue`（封面、簡介、適合對象與年齡、內容、教練團、合作夥伴）、`components/ProgramPartnersList.vue`（用 `PartnerLogoTile`，只接 https）。五頁有課程資料才顯示該區塊；夏令營空白的「適合對象與課程內容」「教練團」改由此填上（無資料時補上占位文字）；夏令營合作夥伴有 API 資料時取代寫死的簽約儀式圖（無資料沿用）。同類型多課程全部列出，5.1 梯次表合併各課程梯次（≥2 課程時標課程名），5.2／5.3 每個課程各一張早鳥價／名額／梯次卡。Course Schema 仍只取第一個課程（`useCourseSchema` 既有介面）。藍鯨有 API 資料也會顯示（資料本來就依 club 分區），無資料維持原空狀態 |
+| **課程總覽** | `programs/index.vue`：卡片仍由 `club-copy.ts` 五大類驅動，每張卡下方（卡片連結之外，避免巢狀 `<a>`）列出該類已發布課程並連到 `programs/[slug]/`；五支列表請求並行、任一失敗該類不列 |
+| **B-10 球隊** | 新增 `composables/usePublicTeams.ts`、`utils/team-view.ts`（`normalizeTeamColor` 只收 `#RGB`／`#RRGGBB`，`teamColorChip` 依相對亮度取近黑或白文字）。`academy/teams.vue`：分頁改由 `/teams` 的 `academy`（後台排序）驅動，標籤＝球隊代碼去 `BW-` 前綴，面板頂端顯示主視覺、名稱、年齡層色塊、簡介；API 驅動時不再附磐石「其他年齡層」占位分頁；API 空／失敗回退 `getAcademyTeamTabs`。`club/first-team/index.vue`：一線隊代碼讀 `/teams` 的 `first_team`（回退 `D1`／`BW1`），簡介接在既有介紹後、主視覺有值時取代 Hero 背景 |
+| **B-11 職員** | `about/our-people.vue` 讀 `staffGroup`（值域＝後台下拉：管理層／行政／醫療／後勤，英文顯示 Management／Administration／Medical Staff／Operations）。未分組者仍歸「教練團」，未分組且職稱「顧問」仍歸「顧問」；四個分組有人才輸出區塊（位於教練團與顧問之間，底色交替）。組內順序：`DISPLAY_ORDER` 名單內照名單，名單外依 API 回傳順序接後。`CARD_ROLE_OVERRIDE`（陳曉明「技術顧問」）**保留**，但只在 API 職稱仍是「顧問」時套用（後台改職稱即以後台為準），英文版有翻譯的職稱優先於覆寫；拿掉會讓卡片從「技術顧問」退成「顧問」。空的顧問區塊不再輸出 |
+| **C-7** | `childrens-training`：主要場地、地址、地圖改讀 `usePublicVenues`（主場 `isHome`，沒有主場取第一筆），API 空／失敗回退 `useSiteFacts` 與寫死地圖連結。`school-community` 合作學校表**沒有後台資料來源**（見回報），維持現狀 |
+
+**驗證**：build／lint 綠（0 errors）；以臨時假 API（課程、球隊、職員、場地）實測磐石與藍鯨容器：夏令營兩課程的內容區塊（zh／en）、教練團、合作夥伴、各自早鳥卡、5.1 場地與地圖、課程總覽連結、學院分頁與色塊（含不合格式顏色回退）、一線隊簡介、職員分組與順序；無課程資料的冬令營／專項／校園頁維持原樣。**未對真實 API 實機驗收**。
+
+## 稽核 B 類：全站 SEO 預設、首頁、新聞、漫畫、圖集、商品標籤（B-3／B-14／B-15／B-18／B-20／B-21，2026-10-06，`frontend-architect`）
+
+| 項目 | 改動 |
+|---|---|
+| **B-3 全站 SEO 預設** | `app/app.vue` 除追蹤碼外，現在也讀 `seo/settings` 的 `titleTemplateZh/En`、`defaultDescriptionZh/En`、`ogImageUrl/Width/Height`。**標題樣板**：佔位字接受 `{標題}`／`{title}`／`%s`（後台文案提示是 `{標題}`，API 測試用 `{title}`）；以 `useHead({ titleTemplate })` 註冊，英文頁用 En 樣板，**沒填或沒有佔位字就不註冊**，沿用 nuxt-seo-utils 預設樣板（`%s | 站名`）。頁面標題若已含樣板的固定尾巴（例如站名）就不再附加，避免現有頁面自己寫的「…｜台中磐石足球俱樂部」變兩個站名。**描述與 OG 圖**用 `useSeoMeta(…, { tagPriority: 'low' })`，頁面自己設的一律蓋過；沒有 API 值時 og:image 沿用 `getClubAssets().ogImage`。og:description 不另設（由 seo-utils 隨頁面 description 推導）。 |
+| **B-14 首頁** | `useHomeSections` 新增 `orderBlocks()`（依後台 `sortOrder` 排區塊；沒有自己代碼的「一線隊球員橫幅」與不在清單的區塊，緊跟在預設順序的前一塊後面；API 失敗＝預設順序）、`featuredBannerId`、`isSectionExplicitlyEnabled()`（不走 fail-open）。`pages/zh/index.vue` 九個區塊包進 `v-for="blk in blockOrder"`（每塊 DOM 不變）；因此 hero 的三個 `ref` 改函式 ref（v-for 內一般 `ref` 會變陣列）。**Banner**：`featuredBannerId` 那則排第一；Hero 大標、副標、按鈕一、按鈕二在「第一則會顯示的 Banner」有值時用 Banner 的（純文字插值，不走 `v-html`），沒值沿用 `heroCopy`；連結經 `safeUrl`＋`lp()`，`javascript:` 等被丟棄回到預設連結；英文頁若 Banner 文字是後端回退的繁中（含 CJK）就不採用。**核心價值**：拿掉 `isTcrfc` 與 `immediate: isTcrfc`；磐石行為不變，**藍鯨須後台明確開啟 `core_values` 且 API 回了資料才顯示**，標題為中性的「核心價值／Core Values」、不放磐石的品牌主張標題、說明文字與「了解足球理念」連結（藍鯨版文案待客戶確認，藍鯨規劃書 §10 第 13 點）。 |
+| **B-15 新聞** | `news/[slug]`：`seoTitle` 有值時 `<title>`／`og:title` 用它（仍會被 B-3 的標題樣板套用）；`coreValueTags` 以標籤顯示（名稱取 `CORE_VALUES_FALLBACK`，認不得的代碼不輸出）；`relations` 的 `player` 在文章底部列「相關球員」連到球員頁（球員列表只含現役，查不到的 id 不顯示）。 |
+| **B-18 商品標籤** | 商店列表：新增標籤下拉（選項來自不帶篩選的前 60 件）與每張卡片的 `#標籤` 連結（`?tag=`，沿用 `<form method=get>`，分頁連結保留 tag）；商品頁顯示標籤並連回列表篩選。標籤值以與 BFF `FILTER_TEXT` 相同的白名單驗證，不合法視為沒有。 |
+| **B-20 漫畫角色** | `culture/manga`：角色有 `playerId` 時顯示「原型球員：xxx →」連到球員頁。公開 API **沒有以 id 查球員的列表條件**（`players/{slug}` 雖也收 id，但只回單筆且前台需要 slug 與姓名），因此取一次球員列表（`pageSize=200`）用 id 對出 slug；不在現役名單內不顯示連結。 |
+| **B-21 圖集與封面** | 新增 `components/ImageGalleryStrip.vue`（縮圖列＋原生 `<dialog>` 燈箱，上一張／下一張／關閉，無第三方腳本，第一次點擊才渲染大圖）。贊助活動紀錄、慈善事蹟改用它顯示**全部**圖片（原本截斷成 3／2 張）；慈善事蹟標題前顯示 `charityLogoUrl`；`our-impact` 掛計畫的指標（`programSlug`）顯示「所屬計畫：名稱 →」並連到計畫頁（名稱回頭查計畫列表，只在真的有指標掛計畫時才發請求）；媒體頁新聞稿與品牌識別包資源有 `coverUrl` 就顯示縮圖。 |
+
+**驗證**：`npm run lint` 全綠（eslint 0 errors，warnings 為既有）、`npm run build` 通過。以臨時假 API（`scratchpad`，非專案檔）實測磐石與藍鯨容器：樣板／描述／OG 圖（有值套用、空白回退既有行為、zh／en）、首頁排序（把夥伴牆、結尾 CTA 排到前面）、精選輪播排第一與 Banner 文字（含 XSS 字串被跳脫、`javascript:` 連結被丟棄）、藍鯨核心價值只出標籤、新聞 `seoTitle`／標籤／相關球員（含不存在 id 被略過）、漫畫球員連結、慈善事蹟 5 張縮圖與 Logo、影響力指標所屬計畫、媒體封面、商店 `?tag=` 請求與下拉。**燈箱的互動（開啟、切換、Esc）只驗了 SSR 輸出，未在瀏覽器實測；未對真實 API 實機驗收。**
+
+## C-2 聯絡資訊讀後台＋品牌改靜態資產（2026-10-06，`frontend-architect`）
+
+| 項目 | 改動 |
+|---|---|
+| **C-2 聯絡／社群／簡介** | `GET /api/v1/{club}/site-facts` 新欄位 `contact.email`、`contact.departments[]`、`social{}`、`footerBlurb` 進 `useSiteFacts`（`SiteFacts.contact.email／departments`、`social`、`footerBlurbZh／En`）。新 `composables/useClubIdentity.ts` ＝ `club-copy` 過渡值疊上後台值（`shared/utils/club-copy.ts` `applySiteFactsToIdentity`），`SiteHeader`／`SiteFooter`／`join/contact` 改用。規則：Email、頁尾簡介 API 有值優先、null 沿用寫死值；**社群**：`social` 不存在或四個平台全 null＝整組沿用寫死值，**任一平台有值＝完全以 API 為準（null 的平台不顯示）**。簡介英文版只收 API 英文值，沒有就沿用英文識別現值。聯絡頁電話／地址／營業時間改為「API 有值才顯示」（兩隊皆適用），新增各部門窗口清單（有資料才列；磐石無資料仍保留原標籤列）。Organization JSON-LD 補 `email`、`telephone`（SiteFacts 電話）、`sameAs`（有值的社群），空值整欄不輸出。 |
+| **品牌改靜態資產（主站規劃書 v3.20）** | `server/middleware/maintenance.ts` 維護頁不再讀 API 的 `brand.logoLightUrl／brandColor`，改用 `getClubAssets()` 的 `headerMark` 與 `themeColor`（`docs/14` 定案色值）。`useOrganizationSchema` 的 `logo` ＝站點網址＋`headerMark.src`，不讀 API `logoUrl`；`schemaEligible` 仍讀 API，**欄位缺失視為不合格（保守不輸出）**。`shared/utils/site-settings.ts` 移除 `brand` 型別。全站已無其他讀取 API 品牌 logo／色之處（夥伴、慈善 Logo 是另一類資料，不受影響；球隊 `logoUrl` 仍來自 `/teams`，未動）。 |
+
+**驗證**：`npm run lint` 0 errors、`npm run build` 通過；藍鯨容器（API 不可達）`check-club-brand-leak.mjs` 162 路由無外洩（僅既有例外清單）；藍鯨聯絡頁沿用藍鯨寫死社群連結。**未對真實 API 實機驗收**（後端 C-2 欄位有值時的畫面未實測）。
+
+## 後端 D 類雙語＋移除品牌設定對齊（2026-10-06）
+
+- 公開 `TeamDto` 刪 `logoUrl`：`useSportsTeamSchema` 的 `logo` 改用 `getClubAssets(club).headerMark.src` ＋ `siteConfig.url`（與 Organization 同做法）；`TeamSchemaData` 型別不收 `logoUrl`。`ClubDto.SchemaEligible` 兩隊恆 true，Organization 照輸出。`scripts/dev-fixture-api.mjs` 移除舊 `logoUrl` 欄位。
+- 會員中心 `MemberClubBrand` 只剩 `code`／`name`（`shared/utils/member.ts`），標誌與品牌色一律走前台靜態資產與 CSS；全站已無讀取 `club.logoUrl`／`brandColor`／`siteSettings.brand` 的地方（夥伴 logo 為另一類資料，不受影響）。
+- `GET /{club}/standings`（`pages/zh/club/first-team`）與 `GET /{club}/proposals`（`usePublicProposals`）補帶 `?lang=`（含 useFetch key 依語系分區）；BFF 對一般 GET 原樣轉發查詢字串，不需改白名單。榮譽、課程、會籍方案原本就帶 `lang`。
+- 積分榜 DTO 沒有 `isFallbackLocale`：英文頁若隊名仍含中日文字，出示 `LocaleFallbackNotice partial`。

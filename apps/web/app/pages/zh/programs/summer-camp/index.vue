@@ -30,20 +30,18 @@ useSeoMeta({
 })
 const hero = computed(() => (isEn.value ? getSummerCampHeroEn(clubKey.value) : getSummerCampHero(clubKey.value)))
 
-const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
-  query: { type: 'summer_camp', pageSize: 5, lang: locale.value },
+// B-8：該類型全部已發布課程（內容、教練團、合作夥伴、封面、梯次），不再只取第一個。
+const { programs, first: programDetail } = await useProgramsOfType('summer_camp')
+const hasPartners = computed(() => programs.value.some((p) => p.partners.length > 0))
+/** 每個課程各取第一個開放中（見 utils/program-session.ts）的梯次呈現早鳥價與名額；沒有任何課程時放一張「待公告」卡。 */
+const sessionCards = computed(() => {
+  const cards = programs.value.map((p) => ({
+    key: p.id,
+    name: programs.value.length > 1 ? p.name : null,
+    session: p.sessions.find((x) => isSessionRegistrable(x)) ?? null,
+  }))
+  return cards.length ? cards : [{ key: 'none', name: null, session: null }]
 })
-const firstProgram = computed(() => programList.value?.items?.[0] ?? null)
-const { data: programDetail } = await useFetch(
-  `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
-  { query: { lang: locale.value }, immediate: !!firstProgram.value },
-)
-/** 只取第一個開放中（狀態為 開放／額滿／候補且在報名窗口內，見 utils/program-session.ts）的梯次呈現早鳥價與名額——本頁是單一課程
- * 項目的行銷頁，不是梯次列表頁，多梯次的完整選擇留給報名流程本身（10.2／5.x 報名
- * 表單，不在本輪範圍）。 */
-const openSession = computed(() =>
-  (programDetail.value?.sessions ?? []).find((s) => isSessionRegistrable(s)) ?? null,
-)
 
 const { programs: registrablePrograms, hasRegistrable } = await useRegistrablePrograms('summer_camp', { enabled: isTcrfc.value })
 
@@ -94,22 +92,32 @@ useCourseSchema(
   </div>
 </section>
 
-<section v-if="isTcrfc" class="band">
+<!-- B-8：課程內容、適合對象、年齡、教練團來自後台課程（P1）；沒有課程資料時沿用原本的空區塊 -->
+<ProgramInfoBand v-if="programs.length" :programs="programs" :content-title="tx('適合對象與課程內容', 'Who It Is For and What We Cover')" />
+<section v-else-if="isTcrfc" class="band">
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
         <h2>{{ tx('適合對象與課程內容', 'Who It Is For and What We Cover') }}</h2>
-
+        <p class="is-pending">{{ tx('適合對象與課程內容將於梯次公告時同步發布。', 'Who the camp is for and what it covers will be published together with the session announcement.') }}</p>
       </div>
       <div class="prose">
         <h2>{{ tx('教練團', 'Coaching Team') }}</h2>
-
+        <p class="is-pending">{{ tx('教練團陣容將於梯次公告時同步發布。', 'The coaching team will be announced together with the session announcement.') }}</p>
       </div>
     </div>
   </div>
 </section>
 
-<section v-if="isTcrfc" class="band" style="background:var(--paper-2);">
+<section v-if="hasPartners" class="band" style="background:var(--paper-2);">
+  <div class="container">
+    <div class="prose" style="margin-bottom:1.75rem;">
+      <h2>{{ tx('合作夥伴', 'Partners') }}</h2>
+    </div>
+    <ProgramPartnersList :programs="programs" />
+  </div>
+</section>
+<section v-else-if="isTcrfc" class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2>{{ tx('合作夥伴', 'Partners') }}</h2>
@@ -139,18 +147,19 @@ useCourseSchema(
         </div>
       </div>
 
-      <div class="signup-preview">
+      <div v-for="c in sessionCards" :key="c.key" class="signup-preview">
+        <div v-if="c.name" class="signup-preview__row"><span>{{ tx('課程', 'Program') }}</span><span class="signup-preview__value">{{ c.name }}</span></div>
         <div class="signup-preview__row">
           <span>{{ tx('早鳥價', 'Early-bird price') }}</span>
-          <span class="signup-preview__value">{{ openSession?.earlyBirdPrice ? `NT$ ${openSession.earlyBirdPrice}` : tx('待公告', 'To be announced') }}</span>
+          <span class="signup-preview__value">{{ c.session?.earlyBirdPrice ? `NT$ ${c.session.earlyBirdPrice}` : tx('待公告', 'To be announced') }}</span>
         </div>
         <div class="signup-preview__row">
           <span>{{ tx('剩餘名額', 'Places left') }}</span>
-          <span class="signup-preview__value">{{ openSession?.capacity ? Math.max(openSession.capacity - openSession.enrolledCount, 0) : tx('待公告', 'To be announced') }}</span>
+          <span class="signup-preview__value">{{ c.session?.capacity ? Math.max(c.session.capacity - c.session.enrolledCount, 0) : tx('待公告', 'To be announced') }}</span>
         </div>
         <div class="signup-preview__row">
           <span>{{ tx('梯次', 'Session') }}</span>
-          <span class="signup-preview__value">{{ openSession ? `${openSession.startOn}${tx(' ～ ', ' - ')}${openSession.endOn}` : tx('待公告', 'To be announced') }}</span>
+          <span class="signup-preview__value">{{ c.session ? `${c.session.startOn}${tx(' ～ ', ' - ')}${c.session.endOn}` : tx('待公告', 'To be announced') }}</span>
         </div>
       </div>
     </template>

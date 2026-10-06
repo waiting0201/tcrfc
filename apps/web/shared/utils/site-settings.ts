@@ -17,13 +17,8 @@ export interface PublicMenus {
 }
 
 export interface PublicSiteSettings {
-  brand: {
-    logoLightUrl: string | null
-    logoDarkUrl: string | null
-    faviconUrl: string | null
-    brandColor: string | null
-    brandSecondaryColor: string | null
-  }
+  // 主站規劃書 v3.20：標誌、Favicon、品牌色由前台靜態資產與樣式定義，`site-settings` 不再有 `brand`；
+  // 舊版後端若仍回傳，前台忽略（型別不收）。
   maintenance: { enabled: boolean, message: string | null }
   languages: Array<{ code: string, name: string, isDefault: boolean, fallbackCode: string | null }>
   fallbackMode: 'show_default' | 'hide'

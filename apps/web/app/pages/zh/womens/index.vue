@@ -44,7 +44,10 @@ const blueWhaleSiteUrl = computed(
   () => tcrfcFacts.value.blueWhaleSiteUrl || config.public.blueWhaleSiteUrl,
 )
 
-useSeoMeta({
+// 稽核 B-1：06 藍鯨官網入口的簡介段改讀頁面管理 `womens`（規劃書 B1「06 藍鯨官網入口頁」）；有已發布區塊用 CMS，否則維持寫死簡介。
+// 事實面板（單一來源 site-facts，GEO-03）與前往官網按鈕不屬頁面管理，一律保留。
+const cms = await useCmsPage('womens')
+cms.applySeo({
   title: computed(() => (isEn.value ? CLUB_WOMENS_SEO_EN.title : '女子足球 Women\'s Football｜台中磐石足球俱樂部')),
   description: computed(() => (isEn.value
     ? CLUB_WOMENS_SEO_EN.description
@@ -92,7 +95,13 @@ const academySquadsEn = computed(() => tcrfcFacts.value.squadCodes.join('/'))
      不新寫文案；事實面板改讀 site-facts.ts 單一事實來源，GEO-03） -->
 <section class="band">
   <div class="container">
-    <div class="women-intro">
+    <div v-if="cms.active.value" class="women-intro women-intro--cms">
+      <ContentPageBlocks :blocks="cms.blocks.value" />
+      <figure class="women-visual">
+        <img :src="bwAssets.headerMark.src" width="140" height="138" loading="lazy" :alt="tx('台中藍鯨隊徽', CLUB_WOMENS_PAGE_EN.crestAlt)">
+      </figure>
+    </div>
+    <div v-else class="women-intro">
       <div class="prose">
         <h2>{{ tx('台中藍鯨女子隊', CLUB_WOMENS_PAGE_EN.introHeading) }}</h2>
         <p>{{ isEn ? WOMENS_STORY_BODY_EN : OUR_STORY_BODY_BW }}</p>
@@ -101,6 +110,7 @@ const academySquadsEn = computed(() => tcrfcFacts.value.squadCodes.join('/'))
         <img :src="bwAssets.headerMark.src" width="140" height="138" loading="lazy" :alt="tx('台中藍鯨隊徽', CLUB_WOMENS_PAGE_EN.crestAlt)">
       </figure>
     </div>
+    <LocaleFallbackNotice v-if="cms.hasZhFallback.value" partial />
 
     <div class="fact-panel" style="margin-top:2rem;max-width:520px;">
       <dl style="margin:0;">
@@ -175,6 +185,7 @@ const academySquadsEn = computed(() => tcrfcFacts.value.squadCodes.join('/'))
 /* WOMEN'S FOOTBALL 頁面局部元件 */
 .women-intro{ display:flex; gap:2rem; align-items:flex-start; flex-wrap:wrap; }
 .women-intro .prose{ flex:1 1 320px; min-width:0; }
+.women-intro--cms .pb{ flex:1 1 320px; min-width:0; }
 .women-visual{ flex:none; margin:0; }
 .women-visual img{ display:block; width:140px; height:138px; object-fit:contain; }
 .fact-panel{ background:var(--paper-2); border-left:4px solid var(--brand-aa); padding:1.5rem 1.75rem; }

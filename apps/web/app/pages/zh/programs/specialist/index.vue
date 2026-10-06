@@ -36,11 +36,8 @@ const { data: programList } = await useFetch(`/api/backend/${config.public.club}
   query: { type: 'specialist_training', pageSize: 10, lang: locale.value },
 })
 const openPrograms = computed(() => (programList.value?.items ?? []).filter((p) => p.hasOpenSession))
-const firstProgram = computed(() => programList.value?.items?.[0] ?? null)
-const { data: programDetail } = await useFetch(
-  `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
-  { query: { lang: locale.value }, immediate: !!firstProgram.value },
-)
+// B-8：全部已發布專項課程的詳情（內容、教練團、合作夥伴、封面）；Course Schema 仍只取第一筆（見下方說明）。
+const { programs, first: programDetail } = await useProgramsOfType('specialist_training')
 
 const { programs: registrablePrograms, hasRegistrable } = await useRegistrablePrograms('specialist_training', { enabled: isTcrfc.value })
 
@@ -87,6 +84,9 @@ useCourseSchema(
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
+
+<!-- B-8：後台課程（P1）的內容、適合對象、年齡、教練團、合作夥伴；有課程資料才顯示 -->
+<ProgramInfoBand v-if="programs.length" :programs="programs" :content-title="tx('課程介紹', 'About the Programs')" show-partners />
 
 <section v-if="isTcrfc" class="band">
   <div class="container">

@@ -40,7 +40,15 @@ const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.
 const { facts } = useSiteFacts(clubKey.value)
 // C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案；分頁 id／teamCode 與中文版相同）。
 const hero = computed(() => (isEn.value ? getAcademyTeamsHeroEn(facts.value, clubKey.value) : getAcademyTeamsHero(clubKey.value, facts.value)))
-const tabs = computed(() => (isEn.value ? getAcademyTeamTabsEn(facts.value, clubKey.value) : getAcademyTeamTabs(clubKey.value, facts.value)))
+// B-10（2026-10-06）：分頁優先由公開 `/teams`（type=academy，後台排序）驅動；API 失敗或沒有學院球隊時回退 club-copy 的
+// `getAcademyTeamTabs`（site-facts 梯隊代碼 ＋ 磐石「其他年齡層」說明分頁）。API 驅動時不再附「其他年齡層」占位分頁。
+const fallbackTabs = computed(() => (isEn.value ? getAcademyTeamTabsEn(facts.value, clubKey.value) : getAcademyTeamTabs(clubKey.value, facts.value)))
+type TeamTab = { id: string, labelZh: string, teamCode: string | null, team: PublicTeamView | null }
+const { academyTeams } = await usePublicTeams()
+const tabs = computed<TeamTab[]>(() => (academyTeams.value.length
+  ? academyTeams.value.map((t) => ({ id: t.code.toLowerCase(), labelZh: academyTabLabel(t.code), teamCode: t.code, team: t }))
+  : fallbackTabs.value.map((t) => ({ ...t, team: null }))))
+const introParagraphs = (t: PublicTeamView) => (t.intro ?? '').split(/\n{2,}/).map((x) => x.trim()).filter(Boolean)
 /** 有真實 `Team.code` 可查詢的分頁（排除磐石的「其他年齡層」靜態說明分頁）。 */
 const teamTabs = computed(() => tabs.value.filter((t) => t.teamCode !== null))
 
@@ -114,7 +122,7 @@ useSeoMeta({
   </div>
 </section>
 
-<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(playersData) || hasFallbackLocale(staffData) || hasFallbackLocale(scheduleData))" partial />
+<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(academyTeams) || hasFallbackLocale(playersData) || hasFallbackLocale(staffData) || hasFallbackLocale(scheduleData))" partial />
 <section class="band" aria-labelledby="team-tabs-title">
   <div class="container">
     <!-- S1-12e（GEO-07）：分頁面板內的「名單」「教練」「賽程與成績」都是 h3，中間
@@ -139,6 +147,19 @@ useSeoMeta({
         class="team-tabs__panel" :id="`panel-${tab.id}`" role="tabpanel"
         :aria-labelledby="`tab-${tab.id}`" tabindex="0" :hidden="active !== tab.id"
       >
+        <!-- B-10：球隊簡介、主視覺、年齡層、代表色（來自後台球隊 C1；色塊文字依亮度取黑／白確保可讀） -->
+        <div v-if="tab.team" class="team-intro">
+          <img v-if="tab.team.heroUrl" class="team-intro__hero" :src="tab.team.heroUrl" alt="" loading="lazy" width="800" height="450">
+          <div class="team-intro__body">
+            <h3 class="team-intro__name">{{ tab.team.name ?? tab.labelZh }}</h3>
+            <span
+              class="team-chip"
+              :class="{ 'team-chip--plain': !teamColorChip(tab.team.teamColor) }"
+              :style="teamColorChip(tab.team.teamColor) ? { background: teamColorChip(tab.team.teamColor)!.bg, color: teamColorChip(tab.team.teamColor)!.fg } : undefined"
+            >{{ tab.team.ageBand ?? tab.labelZh }}</span>
+            <p v-for="(para, i) in introParagraphs(tab.team)" :key="i" class="team-intro__text">{{ para }}</p>
+          </div>
+        </div>
         <div class="grid grid--2" style="margin-top:1.5rem;">
           <div>
             <h3>{{ tx('名單', 'Roster') }}</h3>
@@ -171,7 +192,7 @@ useSeoMeta({
         </div>
       </div>
 
-      <div v-if="isTcrfc" class="team-tabs__panel" id="panel-other" role="tabpanel" aria-labelledby="tab-other" tabindex="0" :hidden="active !== 'other'">
+      <div v-if="tabs.some((t) => t.id === 'other')" class="team-tabs__panel" id="panel-other" role="tabpanel" aria-labelledby="tab-other" tabindex="0" :hidden="active !== 'other'">
         <p>{{ tx('其他年齡層梯隊資訊準備中，稍後將於本頁公布。', 'Information on the other age-group squads is being prepared and will be published on this page soon.') }}</p>
       </div>
     </div>
@@ -207,4 +228,13 @@ useSeoMeta({
 <style>
 /* 藍鯨無青年隊訓練照片時的純色回退，只用既有 token（比照 club/first-team/index.vue 既有寫法） */
 .page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
+/* B-10：球隊簡介區（主視覺＋年齡層色塊＋簡介）。色塊底色來自後台、文字色由 teamColorChip 依亮度決定，不手寫對比。 */
+.team-intro{ display:grid; gap:1.5rem; grid-template-columns:minmax(0,1fr); margin-top:1.5rem; align-items:start; }
+@media (min-width:768px){ .team-intro:has(.team-intro__hero){ grid-template-columns:minmax(0,5fr) minmax(0,7fr); } }
+.team-intro__hero{ width:100%; aspect-ratio:16/9; object-fit:cover; display:block; }
+.team-intro__name{ margin:0 0 .5rem; }
+.team-chip{ display:inline-block; padding:.2rem .7rem; font-size:.75rem; font-weight:800; letter-spacing:.06em; border:1px solid transparent; }
+.team-chip--plain{ border-color:var(--rule); color:var(--heading); background:var(--paper-2); }
+.team-intro__text{ margin:.75rem 0 0; color:var(--muted); line-height:1.8; }
 </style>

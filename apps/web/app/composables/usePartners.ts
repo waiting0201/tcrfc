@@ -42,8 +42,11 @@ export async function useSponsorPackages() {
 export async function usePublicProposals() {
   const config = useRuntimeConfig()
   const club = config.public.club
+  const { locale } = useLocale()
   const { data, error } = await useFetch<PublicProposal[]>(`/api/backend/${club}/proposals`, {
-    key: `proposals-${club}`,
+    // 後端 `?lang=` 讓提案標題依語系回傳（缺英文時回退中文，由 pickProposal 的 locales 優先序處理）。
+    query: { lang: locale.value },
+    key: `proposals-${club}-${locale.value}`,
   })
   return { proposals: computed(() => data.value ?? []), failed: computed(() => Boolean(error.value)) }
 }

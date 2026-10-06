@@ -13,7 +13,7 @@
 // 沒有藍鯨自己照片的卡片改用既有的漸層佔位，不挪用磐石照片。
 definePageMeta({ nav: 'programs', unit: '05', enReady: true, enReadyBw: true })
 
-const { lp, isEn, tx } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
@@ -29,6 +29,36 @@ const cards = computed(() => (isEn.value ? getProgramsHubCardsEn(clubKey.value) 
 const enrolNoteBw = computed(() => (isEn.value ? getProgramsHubEnrolNoteEnBw() : getProgramsHubEnrolNoteBw()))
 const ctaCards = computed(() => (isEn.value ? getProgramsHubCtaCardsEn(clubKey.value) : getProgramsHubCtaCards(clubKey.value)))
 const flowSteps = computed(() => (isEn.value ? ENROL_FLOW_STEPS_TCRFC_EN : ENROL_FLOW_STEPS_TCRFC))
+
+// B-8（2026-10-06）：卡片骨架仍以 club-copy 的五大類為準；每類下列出 API 該類「已發布」課程並連到 `programs/[slug]`。
+// 五類各發一支列表請求（SSR 階段並行取好）；任一支失敗＝該類不列（沿用現狀的純卡片），不出 500。
+const PROGRAM_TYPE_BY_NUM: Record<string, string> = {
+  '5.1': 'children_training',
+  '5.2': 'summer_camp',
+  '5.3': 'winter_camp',
+  '5.4': 'specialist_training',
+  '5.5': 'school_community',
+}
+interface HubProgram { id: string, slug: string, name: string | null, audience: string | null }
+const { data: hubPrograms } = await useAsyncData<Record<string, HubProgram[]>>(
+  `programs-hub-${config.public.club}-${locale.value}`,
+  async () => {
+    const entries = await Promise.all(Object.entries(PROGRAM_TYPE_BY_NUM).map(async ([num, type]) => {
+      try {
+        const list = await $fetch<{ items?: HubProgram[] }>(`/api/backend/${config.public.club}/programs`, {
+          query: { type, pageSize: 20, lang: locale.value },
+        })
+        return [num, (list.items ?? []).filter((p) => !!p.name)] as const
+      }
+      catch {
+        return [num, []] as const
+      }
+    }))
+    return Object.fromEntries(entries)
+  },
+  { default: () => ({}) },
+)
+const programsOf = (num: string): HubProgram[] => hubPrograms.value?.[num] ?? []
 
 /** 導覽卡照片路徑——只有 tcrfc 既有卡片沿用原圖，藍鯨版一律 `hasPhoto: false`
  * （見 getProgramsHubCards 檔頭說明），不需要另外維護一份藍鯨照片路徑對照表。 */
@@ -70,7 +100,8 @@ const CARD_PHOTOS: Record<string, string> = {
 <section class="band">
   <div class="container">
     <div class="card-nav-grid">
-      <a v-for="c in cards" :key="c.num" class="nav-card clip-card" :href="lp(c.href)">
+      <div v-for="c in cards" :key="c.num" class="nav-card-group">
+      <a class="nav-card clip-card" :href="lp(c.href)">
         <div v-if="c.hasPhoto" class="nav-card__media">
           <img :src="CARD_PHOTOS[c.num]" alt="" loading="lazy" width="1600" height="1067">
         </div>
@@ -86,6 +117,13 @@ const CARD_PHOTOS: Record<string, string> = {
           </span>
         </div>
       </a>
+      <ul v-if="programsOf(c.num).length" class="nav-card-programs" :aria-label="tx(`${c.titleZh}課程`, `${c.titleEn} programs`)">
+        <li v-for="p in programsOf(c.num)" :key="p.id">
+          <a :href="lp(`/zh/programs/${p.slug}/`)">{{ p.name }}</a>
+          <span v-if="p.audience" class="nav-card-programs__audience">{{ p.audience }}</span>
+        </li>
+      </ul>
+      </div>
     </div>
   </div>
 </section>
@@ -150,6 +188,12 @@ const CARD_PHOTOS: Record<string, string> = {
 .unit-intro{ padding-block:clamp(3rem,6vw,4.5rem); }
 
 .card-nav-grid{ display:grid; gap:1.5rem; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.nav-card-group{ display:flex; flex-direction:column; min-width:0; }
+.nav-card-group > .nav-card{ flex:1; }
+.nav-card-programs{ list-style:none; margin:0; padding:.75rem 1.35rem; background:var(--paper-2); border-top:1px solid var(--rule); display:flex; flex-direction:column; gap:.4rem; }
+.nav-card-programs li{ display:flex; flex-wrap:wrap; justify-content:space-between; gap:.25rem .75rem; font-size:.85rem; }
+.nav-card-programs a{ font-weight:700; color:var(--brand-aa); }
+.nav-card-programs__audience{ font-size:.75rem; color:var(--muted); }
 .nav-card{ position:relative; background:var(--paper); display:flex; flex-direction:column; }
 .nav-card__media{ aspect-ratio:4/3; overflow:hidden; background:var(--ink-2); }
 .nav-card__media img{ width:100%; height:100%; object-fit:cover; transition:transform .5s var(--ease); }

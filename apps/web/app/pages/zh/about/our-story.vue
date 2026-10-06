@@ -20,10 +20,9 @@ const navDescEn = computed(() => (clubKey.value === 'bw' ? ABOUT_NAV_DESC_EN_BW 
 // 英文版場地名稱優先用 API 的 en 回應；沒有時才退回中文原名（不自行音譯）。
 const venueName = computed(() => (isEn.value ? (primaryVenue.value.nameEn ?? primaryVenue.value.nameZh) : primaryVenue.value.nameZh))
 
-useSeoMeta({
-  title: computed(() => seo.value.title),
-  description: computed(() => seo.value.description),
-})
+// 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
+const cms = await useCmsPage('about/our-story')
+cms.applySeo({ title: () => seo.value.title, description: () => seo.value.description })
 </script>
 
 <template>
@@ -46,6 +45,8 @@ useSeoMeta({
   </div>
 </section>
 
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('我們的故事', 'Our Story')" :zh-fallback="cms.hasZhFallback.value" />
+<template v-else>
 <section class="band story-band" aria-labelledby="story-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="story-title">{{ tx('我們的故事', 'Our Story') }}</h2>
@@ -71,6 +72,7 @@ useSeoMeta({
     </div>
   </div>
 </section>
+</template>
 
 <section class="band grain cta-band" aria-labelledby="story-cta-title">
   <div class="band-inner container">

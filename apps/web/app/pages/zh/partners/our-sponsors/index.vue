@@ -134,9 +134,7 @@ useSeoMeta({
             <td>
               <strong class="activity-title">{{ a.title }}</strong>
               <span v-if="a.resultSummary" class="activity-summary">{{ a.resultSummary }}</span>
-              <span v-if="a.images.length" class="activity-thumbs">
-                <img v-for="(img, ii) in a.images.slice(0, 3)" :key="ii" :src="img.thumbUrl ?? img.imageUrl" alt="" loading="lazy" width="96" height="64">
-              </span>
+              <ImageGalleryStrip v-if="a.images.length" :images="a.images" :label="a.title" />
             </td>
             <td>{{ a.sponsorName }}</td>
           </tr>
@@ -185,6 +183,4 @@ useSeoMeta({
 
 .activity-title{ display:block; color:#fff; font-weight:800; }
 .activity-summary{ display:block; margin-top:.3rem; line-height:1.6; }
-.activity-thumbs{ display:flex; gap:.4rem; margin-top:.5rem; }
-.activity-thumbs img{ width:96px; height:64px; object-fit:cover; }
 </style>

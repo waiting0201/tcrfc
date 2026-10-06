@@ -74,7 +74,9 @@ function tileSrc(t: IntlTile): string | null {
   return t.logo
 }
 
-useSeoMeta({
+// 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
+const cms = await useCmsPage('club/international-pathways')
+cms.applySeo({
   title: computed(() => (isEn.value ? (isTcrfc.value ? getInternationalPathwaysSeoEn() : getInternationalPathwaysSeoEnBw()) : getInternationalPathwaysSeo(clubKey.value)).title),
   description: computed(() => (isEn.value ? (isTcrfc.value ? getInternationalPathwaysSeoEn() : getInternationalPathwaysSeoEnBw()) : getInternationalPathwaysSeo(clubKey.value)).description),
 })
@@ -131,6 +133,8 @@ onMounted(() => {
   </div>
 </section>
 
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('國際發展通道', 'International Pathways')" :zh-fallback="cms.hasZhFallback.value" />
+<template v-else>
 <section class="band" id="pathway-overview" aria-labelledby="pathway-overview-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
@@ -166,6 +170,7 @@ onMounted(() => {
     </ol>
   </div>
 </section>
+</template>
 
 <LocaleFallbackNotice v-if="isEn && hasFallbackLocale(partners)" partial />
 <section class="band grain regions-band" id="regions" aria-labelledby="regions-title">

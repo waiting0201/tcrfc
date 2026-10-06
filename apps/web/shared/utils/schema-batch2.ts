@@ -55,6 +55,8 @@ export function venueAddressByName(venueName: string | null, venues: readonly Sc
 
 export interface ClubEventSchemaSourceItem {
   id: string
+  /** 每次發生的唯一鍵；重複活動同 `id` 多筆，錨點 url 用它避免多個 Event 節點撞同一個 `url`（被當成同一個節點合併）。沒有時回退 `id`。 */
+  occurrenceId?: string
   title: string | null
   /** ISO 8601 時間戳（真正的 UTC，不是牆上時間字面值，見 PublicCalendarEventDto 檔頭）。 */
   startsAt: string
@@ -101,7 +103,7 @@ export function buildClubEventSchemaNodes(
       startDate: item.startsAt,
       location: { '@type': 'Place', name: cleanFaqSchemaText(item.venueName!) },
       eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-      url: `${base}${opts.pagePath}#ce-${item.id}`,
+      url: `${base}${opts.pagePath}#ce-${item.occurrenceId || item.id}`,
     }
     if (item.endsAt) node.endDate = item.endsAt
     // 🔴 `description`／`image` 兩欄位刻意「沒有真實資料時明確填 null，不是整段省略不寫」：

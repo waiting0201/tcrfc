@@ -5,11 +5,9 @@
 // ecosystem_nav／upcoming_match／recent_fixtures／latest_news／partner_logos／shop_entry／
 // bottom_cta，與規劃書 §3.1 首頁九大區塊表格逐列對應）。
 //
-// 🔴 只做「開關」，不做「動態排序」：兩俱樂部種子資料的 sort_order 目前恰好與
-// zh/index.vue 樣板現有的區塊順序一致（db/seed/generate-club-seed-sql.py 的 HOME_SECTIONS
-// 陣列順序），所以本輪只依 API 回傳的 isEnabled 決定該區塊要不要渲染，DOM 順序仍是樣板
-// 寫死的固定順序。如果後台之後真的把某個區塊排到不同順序，畫面不會跟著動——這是已知的
-// 範圍縮減，留給之後如果後台真的開放拖曳排序時再處理（見 apps/web/README.md「S1-14」節）。
+// 排序（B-14）：後台排序清單只有九個代碼，頁面上的區塊卻有十個（「一線隊球員橫幅」沒有自己的代碼）。
+// `orderBlocks()` 以頁面預設順序為底，有代碼的區塊依 `sortOrder` 排；沒有代碼的區塊（球員橫幅）
+// 與不在排序清單內的區塊，維持「緊跟在預設順序前一個區塊後面」的相對位置。API 失敗或空陣列＝預設順序。
 //
 // 🔴 Fail-open：API 失敗或回傳空陣列時，所有區塊視為啟用（回傳 true）。九個區塊都是
 // 「錦上添花」的呈現開關，不是權限或安全機制，API 打不到時讓首頁退回「全部顯示」比
@@ -31,5 +29,30 @@ export function useHomeSections(club: string) {
     return section ? section.isEnabled : true
   }
 
-  return { sections: data, isSectionEnabled }
+  /** 明確開啟才算開：API 沒回、或沒有這個代碼一律視為關（不走 fail-open）。藍鯨核心價值用。 */
+  function isSectionExplicitlyEnabled(code: string): boolean {
+    return sectionMap.value.get(code)?.isEnabled === true
+  }
+
+  /** 後台為「精選輪播」指定的橫幅 id（只有 hero 區塊可能有值）。 */
+  const featuredBannerId = computed(() => sectionMap.value.get('hero')?.featuredBannerId ?? null)
+
+  /**
+   * 依後台排序重排頁面區塊。`defaults` 是頁面原本由上到下的區塊清單，`codes` 為該區塊對應的後台代碼
+   * （可多個，取最小排序；空陣列＝沒有自己的代碼，跟著前一個區塊走）。
+   */
+  function orderBlocks<K extends string>(defaults: ReadonlyArray<{ key: K, codes: readonly string[] }>): K[] {
+    let lastKey = -1
+    const keyed = defaults.map((b, idx) => {
+      const orders = b.codes.map((c) => sectionMap.value.get(c)?.sortOrder).filter((n): n is number => typeof n === 'number')
+      const own = orders.length ? Math.min(...orders) : null
+      const sortKey = own ?? lastKey + 0.001
+      if (own !== null) lastKey = own
+      else lastKey = sortKey
+      return { key: b.key, sortKey, idx }
+    })
+    return keyed.sort((a, b) => a.sortKey - b.sortKey || a.idx - b.idx).map((x) => x.key)
+  }
+
+  return { sections: data, isSectionEnabled, isSectionExplicitlyEnabled, featuredBannerId, orderBlocks }
 }

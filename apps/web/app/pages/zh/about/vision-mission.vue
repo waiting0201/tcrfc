@@ -14,10 +14,9 @@ const hero = computed(() => (isEn.value ? (clubKey.value === 'bw' ? VISION_MISSI
 const items = computed(() => (isEn.value ? (clubKey.value === 'bw' ? VISION_ITEMS_EN_BW : VISION_ITEMS_EN) : VISION_ITEMS[clubKey.value]))
 const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? VISION_MISSION_SEO_EN_BW : VISION_MISSION_SEO_EN) : VISION_MISSION_SEO[clubKey.value]))
 
-useSeoMeta({
-  title: computed(() => seo.value.title),
-  description: computed(() => seo.value.description),
-})
+// 稽核 B-1：主內文改讀頁面管理；藍鯨種子頁 slug 為 `about/vision`，故同時認得（有已發布區塊用 CMS，否則維持下方寫死內容）
+const cms = await useCmsPage(['about/vision-mission', ...(clubKey.value === 'bw' ? ['about/vision'] : [])])
+cms.applySeo({ title: () => seo.value.title, description: () => seo.value.description })
 </script>
 
 <template>
@@ -40,6 +39,8 @@ useSeoMeta({
   </div>
 </section>
 
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('願景與使命', 'Vision & Mission')" :zh-fallback="cms.hasZhFallback.value" />
+<template v-else>
 <section class="band vm-band" aria-labelledby="vm-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="vm-title">{{ hero.h1Zh }}</h2>
@@ -55,6 +56,7 @@ useSeoMeta({
     <p v-else class="vm-footnote"><template v-if="isEn">For our club slogan and training spirit, see <a :href="lp('/zh/about/philosophy/')">2.3 Club Slogan and Training Spirit</a>.</template><template v-else>俱樂部口號與培訓精神可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 俱樂部口號與培訓精神</a>。</template></p>
   </div>
 </section>
+</template>
 </template>
 
 <style>

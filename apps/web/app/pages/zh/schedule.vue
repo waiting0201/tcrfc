@@ -54,6 +54,14 @@
 //     自由輸入的文字欄位）原本未經 HTML 逸出就直接插入屬性值與文字節點，是可被資料內容
 //     觸發的 HTML 注入風險——已加上 `escapeHtml()`。
 //
+// 🔴 2026-10-06 後端行事曆修正對接（A-9／B-6／B-7，docs/23）：
+//   - 自建活動一律以 `occurrenceId`（每次發生唯一；舊資料回退 `id`）當 v-for key 與錨點（`#ce-…`）。重複活動
+//     每個發生日一筆、多筆共用同一個 `id`，用 `id` 當 key 會讓 Vue 把它們當同一個節點、錨點也會重複。
+//   - 活動類型名稱／顏色（卡片左邊線＋色點，文字仍用一般文字色，不靠底色承載對比）／圖示（只認系統圖示集的 20 個代碼）。
+//   - 隊別分頁、顯示名稱、順序、預設檢視／範圍／隊別讀 `GET calendar/settings`；失敗或空值回退舊的寫死邏輯。
+//   - 切到某隊分頁時，用月曆模式（`from`／`to`＝今天起 180 天）取該隊自建活動；月曆檢視也畫上自建活動。
+//   - 訂閱連結指向 BFF `/api/backend/{club}/calendar/feed.ics`（server/api/backend/[...path].ts 專屬分支）。
+//
 // 🔴 S1-19 補完（2026-09-29，主 session 對照規劃書 §3.13 逐條複查後要求補齊）：
 //   - **時區換算**：原本頁首文案宣稱「依瀏覽器所在時區顯示」，但賽事卡片實際顯示的是
 //     資料庫存的台灣牆上時間字面值，從未真正換算——文案與行為不一致。已改為真的換算：
@@ -70,8 +78,8 @@
 //     `monthGroups`／`visibleMatches` 那條既有管線——後者牽動月曆檢視、批次 `.ics`、
 //     `SportsEvent` JSON-LD、深層連結等大量既有邏輯，且 club events 目前完全沒有真實
 //     種子資料，不併入可以用最小改動涵蓋規格要求，同時把已驗證過的既有賽事管線風險降到
-//     最低。月曆檢視本輪未涵蓋俱樂部活動（只在列表檢視顯示），列為已知範圍縮減。
-//   - **依隊別訂閱**：查證 `apps/api` 只有單場 `.ics` 下載端點
+//     最低。（月曆檢視未涵蓋活動的範圍縮減已於 2026-10-06 解除，見上方 A-9。）
+//   - **（已過時，2026-10-06 已接上 feed.ics，見上方 B-7）依隊別訂閱**：查證 `apps/api` 只有單場 `.ics` 下載端點
 //     （`GET /api/v1/{club}/matches/{id}/ics`），沒有任何 webcal／訂閱 feed 端點
 //     （`L4` 行事曆進階訂閱匯出排在 `S2-6`，尚未開發）——**前台不自行產生假的訂閱網址**，
 //     選定隊別時頁首改為顯示「下一場賽事倒數」（真正可做的部分）與一句誠實的訂閱狀態說明
@@ -109,7 +117,11 @@ const clubEn = computed(() => clubNameEn(clubKey.value))
 const selfShortName = computed(() => (isEn.value ? clubEn.value : clubAssets.value.shortNameZh))
 const clubAssets = computed(() => getClubAssets(club))
 /** 一線隊 `Team.code`：磐石 `D1`、藍鯨 `BW1`——單一來源見 shared/utils/club.ts。 */
-const firstTeamCode = computed(() => getFirstTeamCode(club))
+const firstTeamCode = computed(() => {
+  const fromSettings = calSettings.value?.firstTeamCode
+  const known = settingsTeams.value.some((t) => t.code === fromSettings)
+  return fromSettings && (known || settingsTeams.value.length === 0) ? fromSettings : getFirstTeamCode(club)
+})
 
 // S1-12d 收尾：聯賽名稱與梯隊代碼改讀 useSiteFacts(club)（後端公開端點），
 // 不再是 shared/utils/site-facts.ts 的靜態快照——見 app/composables/useSiteFacts.ts 檔頭。
@@ -167,6 +179,12 @@ interface MatchItem {
  * 對應的函式（`instantTimeDisplay` vs. `matchTimeDisplay`），不要互用。 */
 interface ClubEventItem {
   id: string
+  /** 每次發生的唯一鍵（`{id}:{yyyyMMddHHmm}`）；重複活動同 `id` 多筆，key／錨點一律用它。舊資料沒有時回退 `id`。 */
+  occurrenceId: string
+  isRecurring: boolean
+  eventTypeName: string | null
+  eventTypeColour: string | null
+  eventTypeIcon: string | null
   startsAt: string
   endsAt: string | null
   isAllDay: boolean
@@ -177,18 +195,84 @@ interface ClubEventItem {
   ctaUrl: string | null
   coverUrl: string | null
 }
-const clubEvents = computed<ClubEventItem[]>(() =>
-  (clubEventsData.value?.items ?? [])
+function toClubEvents(items: unknown[] | undefined | null): ClubEventItem[] {
+  return (items ?? [])
     .filter((e) => (e as { sourceType?: string }).sourceType === 'custom')
     .map((e) => {
-      const r = e as unknown as ClubEventItem
+      const r = e as unknown as Partial<ClubEventItem> & Pick<ClubEventItem, 'id' | 'startsAt' | 'isAllDay' | 'title'>
       return {
-        id: r.id, startsAt: r.startsAt, endsAt: r.endsAt ?? null, isAllDay: r.isAllDay,
+        id: r.id, occurrenceId: r.occurrenceId || r.id, isRecurring: r.isRecurring === true,
+        startsAt: r.startsAt, endsAt: r.endsAt ?? null, isAllDay: r.isAllDay,
         title: r.title, venueName: r.venueName ?? null, eventTypeCode: r.eventTypeCode ?? null,
+        eventTypeName: r.eventTypeName ?? null, eventTypeColour: r.eventTypeColour ?? null, eventTypeIcon: r.eventTypeIcon ?? null,
         description: r.description ?? null, ctaUrl: r.ctaUrl ?? null, coverUrl: r.coverUrl ?? null,
       }
-    }),
-)
+    })
+}
+/** `team=club` 列表模式（SSR）：未掛任何球隊的俱樂部活動，重複活動已展開成每個發生日一筆。 */
+const clubEvents = computed<ClubEventItem[]>(() => toClubEvents(clubEventsData.value?.items))
+
+// ---- 行事曆設定（B-6，`GET calendar/settings`）：隊別分頁清單／順序／顯示名稱／顏色、預設檢視／範圍／隊別 ----
+// 失敗（網路、404、後端未升級）或內容空值一律回退舊的寫死邏輯，不讓頁面壞掉。
+interface CalendarSettings {
+  defaultView?: string
+  defaultRange?: string
+  defaultTeamCode?: string
+  homeTeamCodes?: string[]
+  firstTeamCode?: string | null
+  teams?: { code: string, displayName: string, colour?: string | null, sortOrder: number }[]
+  eventTypes?: { code: string, name: string, colour?: string | null, icon?: string | null }[]
+}
+const { data: calSettingsData } = await useFetch<CalendarSettings>(`/api/backend/${club}/calendar/settings`, {
+  query: { lang: locale.value },
+  // 失敗時不要把整頁拋成錯誤頁：settings 只是增強。
+  default: () => null as unknown as CalendarSettings,
+})
+const calSettings = computed<CalendarSettings | null>(() => (calSettingsData.value && typeof calSettingsData.value === 'object' ? calSettingsData.value : null))
+const settingsTeams = computed(() => (calSettings.value?.teams ?? [])
+  .filter((t) => t && typeof t.code === 'string' && t.code && t.code !== 'all' && t.code !== 'club' && t.displayName)
+  .slice()
+  .sort((a, b) => a.sortOrder - b.sortOrder))
+
+const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/
+/** 後台可自由輸入的顏色字串：只接受 #RRGGBB，其餘不渲染（避免注入進 inline style）。 */
+function safeColour(c: string | null | undefined): string | null {
+  return c && HEX_COLOUR.test(c) ? c : null
+}
+/** 活動類型圖示：後台只能從系統圖示集選（20 個代碼，見 apps/api AdminCalendarSettingsRepository.Icons）。
+ * 前台以對應的 Unicode 圖形呈現（裝飾用、`aria-hidden`），不認得的代碼不顯示。 */
+const EVENT_ICON_GLYPH: Record<string, string> = {
+  megaphone: '📣', 'pen-line': '✍️', users: '👥', whistle: '📯', 'alert-circle': '⚠️', calendar: '📅',
+  trophy: '🏆', mic: '🎤', camera: '📷', handshake: '🤝', heart: '❤️', flag: '🚩', star: '⭐',
+  ticket: '🎫', gift: '🎁', 'graduation-cap': '🎓', shirt: '👕', 'map-pin': '📍', music: '🎵', newspaper: '📰',
+}
+function eventIconGlyph(icon: string | null): string | null {
+  return icon ? (EVENT_ICON_GLYPH[icon] ?? null) : null
+}
+function eventCardStyle(e: ClubEventItem): Record<string, string> | undefined {
+  const c = safeColour(e.eventTypeColour)
+  return c ? { borderLeft: `4px solid ${c}` } : undefined
+}
+
+// ---- 行事曆訂閱（B-7）：`GET /api/v1/{club}/calendar/feed.ics?team=&lang=`，經本站 BFF（同源）對外 ----
+// team：選到真實隊別代碼就帶（隊別 feed）；「全部」「俱樂部活動」＝全站 feed（沒有隊別的俱樂部活動只在全站 feed）。
+// webcal:// 需要絕對網址，取 `siteConfig.url`（runtime 由 NUXT_PUBLIC_SITE_URL 決定，兩站各自網域）；本機未設定時只給相對路徑的 https 連結。
+const feedSiteUrl = computed(() => {
+  try {
+    return new URL(siteConfig.url).origin
+  } catch {
+    return ''
+  }
+})
+const feedPath = computed(() => {
+  const params = new URLSearchParams()
+  if (state.team !== 'all' && state.team !== 'club') params.set('team', state.team)
+  params.set('lang', locale.value)
+  return `/api/backend/${club}/calendar/feed.ics?${params.toString()}`
+})
+const feedHttpsUrl = computed(() => `${feedSiteUrl.value}${feedPath.value}`)
+const feedWebcalUrl = computed(() => (feedSiteUrl.value ? feedHttpsUrl.value.replace(/^https?:\/\//, 'webcal://') : null))
+const feedScopeLabel = computed(() => (state.team === 'all' || state.team === 'club' ? tx('全站', 'whole site') : teamHeadLabel(state.team)))
 
 const monthGroups = computed(() => {
   const map = new Map<string, MatchItem[]>()
@@ -207,6 +291,9 @@ interface ScheduleTeamTab {
   filter: string
   zh: string
   en: string | null
+  /** 顯示名稱來自行事曆設定（後台自訂）：標題不再附「梯隊／squad」後綴。 */
+  custom?: boolean
+  colour?: string | null
 }
 
 /**
@@ -217,6 +304,20 @@ interface ScheduleTeamTab {
  * 賽事行事曆的分頁必須對應真實可查詢的 `Team.code`，沒有隊伍就沒有賽程可篩選。
  */
 const teamTabs = computed<ScheduleTeamTab[]>(() => {
+  // B-6：行事曆設定有公開隊別時，清單／順序／名稱／顏色全由設定決定（一線隊排在「全部」之後第一個）。
+  if (settingsTeams.value.length > 0) {
+    const first = firstTeamCode.value
+    const mapped = settingsTeams.value.map((t) => ({
+      id: t.code === first ? 'first-team' : t.code.toLowerCase(),
+      filter: t.code, zh: t.displayName, en: null, custom: true, colour: safeColour(t.colour),
+    }))
+    const ordered = [...mapped.filter((t) => t.filter === first), ...mapped.filter((t) => t.filter !== first)]
+    return [
+      { id: 'all', filter: 'all', zh: tx('全部', 'All'), en: null },
+      ...ordered,
+      { id: 'club', filter: 'club', zh: tx('俱樂部活動', 'Club events'), en: null },
+    ]
+  }
   const youthTabs = getAcademyTeamTabs(clubKey.value, clubFacts.value)
     .filter((t) => t.teamCode !== null)
     .map((t) => ({ id: t.teamCode!.toLowerCase(), filter: t.teamCode!, zh: t.labelZh, en: null }))
@@ -234,6 +335,7 @@ function teamHeadLabel(filter: string): string {
   if (filter === 'club') return tx('俱樂部活動', 'Club events')
   const tab = teamTabs.value.find((t) => t.filter === filter)
   if (!tab) return tx('全部隊別', 'All teams')
+  if (tab.custom) return tab.zh
   if (tab.filter === firstTeamCode.value) return tab.en ? `${tab.zh} ${tab.en}` : tab.zh
   return isEn.value ? `${tab.zh} squad` : `${tab.zh} 梯隊`
 }
@@ -245,7 +347,20 @@ function teamHeadLabel(filter: string): string {
 const availableSeasons = computed(() => Array.from(new Set(matches.value.map((m) => m.seasonCode).filter(Boolean))).sort())
 const defaultSeason = computed(() => availableSeasons.value.at(-1) ?? 'all')
 
-const state = reactive({ team: 'all', mode: 'fixtures', comp: 'all', ha: 'all', view: 'list', season: defaultSeason.value })
+// 行事曆設定的預設檢視（list／month）、範圍（upcoming／this_month／next_30_days／season）與隊別；
+// 不在可選清單裡的值（例如設定指到已不公開的隊別）一律回退舊預設。
+const initialTeam = (() => {
+  const code = calSettings.value?.defaultTeamCode
+  if (!code) return 'all'
+  return code === 'all' || code === 'club' || teamTabs.value.some((t) => t.filter === code) ? code : 'all'
+})()
+const RANGE_VALUES = ['upcoming', 'this_month', 'next_30_days', 'season']
+const initialRange = RANGE_VALUES.includes(calSettings.value?.defaultRange ?? '') ? calSettings.value!.defaultRange! : 'upcoming'
+const state = reactive({
+  team: initialTeam, mode: 'fixtures', comp: 'all', ha: 'all',
+  view: calSettings.value?.defaultView === 'month' ? 'calendar' : 'list',
+  season: defaultSeason.value, range: initialRange,
+})
 
 // ---- App 深連結回退網址：`/schedule/{隊別}`（`tcrfc://schedule/d1`）與 `/schedule/{賽事 id}`
 // （`tcrfc://match/{id}`）。規劃書 App §2.3 對照表；解析規則與未知參數的回退見 docs/19 §2。
@@ -361,6 +476,8 @@ onMounted(() => {
     // Intl 不支援時區偵測：維持 null，畫面照舊顯示台灣時間，不視為錯誤。
   }
   nextMatchCountdown.value = computeNextMatchCountdown()
+  void loadTeamEvents(state.team)
+  if (state.view === 'calendar') nextTick(renderCalendar)
   countdownTimer = setInterval(() => {
     nextMatchCountdown.value = computeNextMatchCountdown()
   }, 60_000)
@@ -405,7 +522,9 @@ function cardMatches(m: MatchItem): boolean {
   const compOk = state.comp === 'all' ? true : m.competitionTag === state.comp
   const haOk = state.ha === 'all' ? true : haCode(m.homeAway) === state.ha
   const seasonOk = state.season === 'all' ? true : m.seasonCode === state.season
-  return teamOk && statusOk && compOk && haOk && seasonOk
+  const end = rangeEndKey.value
+  const rangeOk = end && state.mode === 'fixtures' ? m.matchOn <= end : true
+  return teamOk && statusOk && compOk && haOk && seasonOk && rangeOk
 }
 
 // SSR／掛載前：全部顯示（比照 mockup 執行 JS 前的原始 HTML：team=all、
@@ -424,8 +543,79 @@ function isGroupHidden(key: string): boolean {
 
 // 「俱樂部活動」只在 all／club 分頁顯示；賽果模式一律不顯示（後端 `ListClubEventsAsync`
 // 檔頭明講「俱樂部活動沒有『賽果』的語意」，見檔頭「S1-19 補完」說明）。
-const showClubEvents = computed(() => state.mode === 'fixtures' && (state.team === 'all' || state.team === 'club'))
-const visibleClubEvents = computed(() => (showClubEvents.value ? clubEvents.value : []))
+// A-9：各隊分頁也顯示該隊的自建活動（月曆模式 `from`／`to`＝今天起 180 天，後端合併賽事與自建活動，這裡只取 custom）。
+// 「全部」分頁同樣用月曆模式不帶 team（全部自建活動，含掛在各隊的）；「俱樂部活動」分頁沿用 SSR 的 `team=club` 列表。
+// 只在 client 端依分頁切換時載入（SSR 只放 `team=club` 那份，與既有 hydration 行為一致），已載入的分頁不重抓。
+const EVENT_WINDOW_DAYS = 180
+const teamEventsCache = reactive<Record<string, ClubEventItem[]>>({})
+const teamEventsLoading = ref(false)
+const teamEventsFailed = ref(false)
+function taipeiTodayKey(): string {
+  return new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 10)
+}
+function addDaysKey(key: string, days: number): string {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(Date.UTC(y!, m! - 1, d! + days)).toISOString().slice(0, 10)
+}
+async function loadTeamEvents(team: string) {
+  if (team === 'club' || teamEventsCache[team]) return
+  teamEventsLoading.value = true
+  teamEventsFailed.value = false
+  try {
+    const from = taipeiTodayKey()
+    const to = addDaysKey(from, EVENT_WINDOW_DAYS)
+    const collected: ClubEventItem[] = []
+    // 月曆模式把賽事與活動混在同一頁（上限 100），逐頁取到取完為止（最多 10 頁，防呆）。
+    for (let page = 1; page <= 10; page++) {
+      const res = await $fetch<{ items?: unknown[], totalCount?: number, pageSize?: number }>(`/api/backend/${club}/calendar/events`, {
+        query: { from, to, ...(team === 'all' ? {} : { team }), page, pageSize: 100, lang: locale.value },
+      })
+      collected.push(...toClubEvents(res.items))
+      if (page * (res.pageSize ?? 100) >= (res.totalCount ?? 0)) break
+    }
+    teamEventsCache[team] = collected
+  }
+  catch {
+    teamEventsFailed.value = true
+  }
+  finally {
+    teamEventsLoading.value = false
+  }
+}
+watch(() => state.team, (t) => {
+  if (mounted.value) void loadTeamEvents(t)
+})
+
+/** 範圍（B-6 `defaultRange`）只作用在賽程模式：upcoming／season 不另外截斷（賽事已依狀態與賽季篩選），
+ * this_month＝到本月底、next_30_days＝今天起 30 天。以台灣日期比對字串（YYYY-MM-DD）。 */
+const rangeEndKey = computed<string | null>(() => {
+  if (state.range === 'this_month') {
+    const t = taipeiTodayKey()
+    const [y, m] = t.split('-').map(Number)
+    return new Date(Date.UTC(y!, m!, 0)).toISOString().slice(0, 10)
+  }
+  if (state.range === 'next_30_days') return addDaysKey(taipeiTodayKey(), 30)
+  return null
+})
+function dayKeyOfInstant(iso: string): string {
+  return new Date(new Date(iso).getTime() + 8 * 3_600_000).toISOString().slice(0, 10)
+}
+const showClubEvents = computed(() => state.mode === 'fixtures')
+const teamEvents = computed<ClubEventItem[]>(() => {
+  if (state.team === 'club') return clubEvents.value
+  // 載入完成前「全部」先顯示 SSR 的俱樂部活動；各隊分頁載入前是空的。
+  return teamEventsCache[state.team] ?? (state.team === 'all' ? clubEvents.value : [])
+})
+const visibleClubEvents = computed(() => {
+  if (!showClubEvents.value) return []
+  const end = rangeEndKey.value
+  return end ? teamEvents.value.filter((e) => dayKeyOfInstant(e.startsAt) <= end) : teamEvents.value
+})
+/** 活動區塊標題：各隊分頁顯示「{隊名} 活動」，其餘維持「俱樂部活動」。 */
+const eventsHeading = computed(() => {
+  if (state.team === 'all' || state.team === 'club') return tx('俱樂部活動 ', 'Club events')
+  return isEn.value ? `${teamHeadLabel(state.team)} events` : `${teamHeadLabel(state.team)} 活動 `
+})
 
 const teamHeadName = computed(() => teamHeadLabel(state.team))
 // GEO-03（S1-12d）：聯賽名稱為單一來源（useSiteFacts 讀後端 API），不在此重複寫死
@@ -450,7 +640,7 @@ const teamHeadMeta = computed(() => {
     ? `${seasonLabel.value} · ${leagueName.value} · 賽果`
     : `${seasonLabel.value} · ${leagueName.value} · 共 ${visibleMatches.value.length} 場`
 })
-const isEmpty = computed(() => mounted.value && visibleMatches.value.length === 0 && visibleClubEvents.value.length === 0)
+const isEmpty = computed(() => mounted.value && !teamEventsLoading.value && visibleMatches.value.length === 0 && visibleClubEvents.value.length === 0)
 const emptyDesc = computed(() => {
   if (isEn.value) {
     if (state.team === 'club') return 'There are no announced club events yet (press conferences, signing sessions, fan meet-ups and so on). Please follow our official social channels and latest news.'
@@ -499,7 +689,7 @@ function setView(view: string) {
 watch([() => state.comp, () => state.ha], () => {
   forcedVisibleIds.value = new Set()
 })
-watch(visibleMatches, () => {
+watch([visibleMatches, visibleClubEvents], () => {
   if (state.view === 'calendar') renderCalendar()
 })
 
@@ -518,14 +708,15 @@ function escapeHtml(s: string): string {
 // ---- 月曆檢視（比照原 script：純字串組 innerHTML，client only）----
 const calRoot = ref<HTMLElement | null>(null)
 
-interface CalDayEvent { day: number; id: string; opponent: string }
+interface CalDayEvent { day: number; id: string; opponent: string; isClubEvent?: boolean }
 
 function renderCalendar() {
   const root = calRoot.value
   if (!root) return
   root.innerHTML = ''
   const visible = visibleMatches.value
-  if (visible.length === 0) {
+  const events = visibleClubEvents.value
+  if (visible.length === 0 && events.length === 0) {
     root.innerHTML = `<p class="sched-empty__desc">${tx('此篩選條件下沒有可顯示於月曆的賽事。', 'No matches to show on the calendar for these filters.')}</p>`
     return
   }
@@ -535,6 +726,13 @@ function renderCalendar() {
     const day = Number.parseInt(m.matchOn.slice(8, 10), 10)
     if (!byMonth.has(key)) byMonth.set(key, [])
     byMonth.get(key)!.push({ day, id: fixtureId(m.matchOn, m.homeAway, m.matchNo), opponent: m.opponent ?? '' })
+  }
+  // A-9：自建活動也畫上月曆（台灣日期；重複活動每個發生日各自落在對應的格子，錨點用 occurrenceId）。
+  for (const e of events) {
+    const dayKey = dayKeyOfInstant(e.startsAt)
+    const key = dayKey.slice(0, 7)
+    if (!byMonth.has(key)) byMonth.set(key, [])
+    byMonth.get(key)!.push({ day: Number.parseInt(dayKey.slice(8, 10), 10), id: `ce-${e.occurrenceId}`, opponent: e.title, isClubEvent: true })
   }
   const DOW = isEn.value ? ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] : ['日', '一', '二', '三', '四', '五', '六']
   for (const key of Array.from(byMonth.keys()).sort()) {
@@ -563,7 +761,12 @@ function renderCalendar() {
       }
       const ids = evs.map((ev) => ev.id).join(',')
       const opponents = evs.map((ev) => ev.opponent).filter(Boolean).join(isEn.value ? ', ' : '、')
-      const label = isEn.value
+      const hasEvent = evs.some((ev) => ev.isClubEvent)
+      const label = hasEvent
+        ? (isEn.value
+            ? `${calDayLabelEn(key, d)}: ${opponents}. View details`
+            : `${calMonthTitle(key)} ${d} 日：${opponents}，查看詳情`)
+        : isEn.value
         ? (evs.length > 1
             ? `${calDayLabelEn(key, d)}: ${evs.length} matches vs ${opponents}. View details`
             : `${calDayLabelEn(key, d)}: vs ${opponents}. View details`)
@@ -601,6 +804,12 @@ function jumpToMatches(ids: string[]) {
 }
 
 function handleInitialHash() {
+  if (location.hash && location.hash.indexOf('#ce-') === 0) {
+    // 自建活動錨點（`#ce-{occurrenceId}`）：卡片本身不受賽事篩選影響，只需要捲動定位。
+    const id = decodeURIComponent(location.hash.slice(1))
+    setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+    return
+  }
   if (location.hash && location.hash.indexOf('#fx-') === 0) {
     const id = location.hash.slice(1)
     forcedVisibleIds.value = new Set([id])
@@ -898,17 +1107,16 @@ useClubEventSchema(clubEvents, {
         <div class="sched-teamhead">
           <p class="sched-teamhead__name" data-teamhead-name>{{ teamHeadName }}</p>
           <p class="sched-teamhead__meta" data-teamhead-meta>{{ teamHeadMeta }}</p>
-          <!-- 規劃書 v3.13 §3.13「選定隊別後，頁面標頭顯示：隊伍名稱、下一場賽事倒數；
-               並提供該隊別專屬的行事曆訂閱網址」。倒數只在 client 端算好才顯示（見
-               nextMatchCountdown 檔頭說明，避免 hydration mismatch）；訂閱網址目前後端
-               沒有 webcal feed 端點（見檔頭「S1-19 補完」），不自行產生假網址，改為誠實
-               告知現況並指向下方「訂閱賽程」區塊既有的 .ics 下載功能。 -->
+          <!-- 規劃書 v3.13 §3.13「選定隊別後，頁面標頭顯示：隊伍名稱、下一場賽事倒數；並提供該隊別專屬的行事曆訂閱網址」。
+               倒數只在 client 端算好才顯示（見 nextMatchCountdown，避免 hydration mismatch）；訂閱網址指向
+               BFF 的 calendar/feed.ics（B-7，見檔頭 2026-10-06 說明）。 -->
           <p v-if="mounted && nextMatchCountdown" class="sched-teamhead__countdown">{{ nextMatchCountdown }}</p>
-          <p v-if="isEn && state.team !== 'all' && state.team !== 'club'" class="sched-teamhead__subscribe-note">
-            A calendar subscription (<span class="en">webcal</span>) link for {{ teamHeadName }} is not available yet. For now, use the <span class="en">.ics</span> download below or on any match card to get the fixtures.
-          </p>
-          <p v-else-if="state.team !== 'all' && state.team !== 'club'" class="sched-teamhead__subscribe-note">
-            {{ teamHeadName }}專屬的行事曆訂閱（<span class="en">webcal</span>）網址尚未上線（後端訂閱 feed 端點待開發，見下方「訂閱賽程」說明）；目前請於下方或各賽事卡片使用 <span class="en">.ics</span> 下載取得賽程。
+          <p class="sched-teamhead__subscribe-note">
+            <template v-if="isEn">Subscribe to {{ feedScopeLabel }} in your calendar app: </template>
+            <template v-else>訂閱{{ feedScopeLabel }}行事曆：</template>
+            <a v-if="feedWebcalUrl" :href="feedWebcalUrl" data-feed-webcal><span class="en">webcal://</span> {{ tx('一鍵訂閱', 'one-tap subscribe') }}</a>
+            <template v-if="feedWebcalUrl"> ・ </template>
+            <a :href="feedHttpsUrl" data-feed-https>{{ tx('https 連結', 'https link') }}<span class="en"> (.ics)</span></a>
           </p>
         </div>
 
@@ -932,6 +1140,15 @@ useClubEventSchema(clubEvents, {
               <select v-model="state.season" data-season :disabled="availableSeasons.length === 0">
                 <option value="all">{{ tx('全部賽季', 'All seasons') }}</option>
                 <option v-for="s in availableSeasons" :key="s" :value="s">{{ isEn ? `${s} season` : `${s} 賽季` }}</option>
+              </select>
+            </label>
+            <label class="sched-select">
+              <span class="visually-hidden">{{ tx('時間範圍', 'Time range') }}</span>
+              <select v-model="state.range" data-range-filter>
+                <option value="upcoming">{{ tx('範圍：即將到來', 'Range: Upcoming') }}</option>
+                <option value="this_month">{{ tx('範圍：本月', 'Range: This month') }}</option>
+                <option value="next_30_days">{{ tx('範圍：未來 30 天', 'Range: Next 30 days') }}</option>
+                <option value="season">{{ tx('範圍：整個賽季', 'Range: Whole season') }}</option>
               </select>
             </label>
             <label class="sched-select">
@@ -1034,9 +1251,9 @@ useClubEventSchema(clubEvents, {
           <!-- 俱樂部活動（規劃書 v3.13 §3.13「資料來源」第二列，S1-19 補完）。獨立於
                賽事列表之後，見檔頭「S1-19 補完」的整合方式說明。 -->
           <div v-if="visibleClubEvents.length > 0" class="club-events-block">
-            <h3 class="month-heading">{{ tx('俱樂部活動 ', 'Club events') }}<span v-if="!isEn" class="en">Club Events</span></h3>
+            <h3 class="month-heading">{{ eventsHeading }}<span v-if="!isEn && (state.team === 'all' || state.team === 'club')" class="en">Club Events</span></h3>
             <div class="fixture-list">
-              <article v-for="e in visibleClubEvents" :id="`ce-${e.id}`" :key="e.id" class="fixture-card club-event-card">
+              <article v-for="e in visibleClubEvents" :id="`ce-${e.occurrenceId}`" :key="e.occurrenceId" class="fixture-card club-event-card" :style="eventCardStyle(e)">
                 <div class="fixture-card__time">
                   <span class="fixture-card__wd">{{ isEn ? eventTimeOf(e).weekdayEn : `${eventTimeOf(e).weekdayZh} ${eventTimeOf(e).weekdayEn}` }}</span>
                   <span class="fixture-card__date">{{ eventTimeOf(e).day }}</span>
@@ -1045,7 +1262,11 @@ useClubEventSchema(clubEvents, {
                 </div>
                 <div class="fixture-card__body">
                   <div class="fixture-card__meta">
-                    <span class="tag tag--club-event">{{ tx('俱樂部活動', 'Club event') }}</span>
+                    <span class="tag tag--club-event">
+                      <span v-if="safeColour(e.eventTypeColour)" aria-hidden="true" :style="{ display: 'inline-block', width: '0.6em', height: '0.6em', borderRadius: '50%', marginRight: '0.4em', background: safeColour(e.eventTypeColour)! }"></span>
+                      <span v-if="eventIconGlyph(e.eventTypeIcon)" aria-hidden="true">{{ eventIconGlyph(e.eventTypeIcon) }} </span>{{ e.eventTypeName || tx('俱樂部活動', 'Club event') }}
+                    </span>
+                    <span v-if="e.isRecurring" class="tag">{{ tx('定期活動', 'Recurring') }}</span>
                   </div>
                   <p class="club-event-card__title">{{ e.title }}</p>
                   <p v-if="e.description" class="club-event-card__desc">{{ e.description }}</p>
@@ -1054,7 +1275,7 @@ useClubEventSchema(clubEvents, {
                   </p>
                 </div>
                 <div class="fixture-card__actions">
-                  <a v-if="e.ctaUrl" class="btn btn--primary btn--sm" :href="e.ctaUrl" target="_blank" rel="noopener">{{ tx('活動詳情', 'Event details') }}</a>
+                  <a v-if="safeUrl(e.ctaUrl)" class="btn btn--primary btn--sm" :href="safeUrl(e.ctaUrl)!" target="_blank" rel="noopener">{{ tx('活動詳情', 'Event details') }}</a>
                 </div>
               </article>
             </div>
@@ -1110,8 +1331,14 @@ useClubEventSchema(clubEvents, {
         <p v-if="isEn">Download the full schedule for your current filters as an <span class="en">.ics</span> file and import it into Google Calendar, Apple Calendar or Outlook. You can also press "Add to calendar" on any match card to download that match on its own.</p>
         <p v-else>下載目前篩選結果的完整賽程 <span class="en">.ics</span> 檔，匯入 Google 日曆、Apple 行事曆或 Outlook；也可以在任一場賽事卡片上按「加入行事曆」單獨下載該場比賽。</p>
         <button type="button" class="btn btn--dark" data-ics-bulk-btn @click="onBulkIcs">{{ tx('下載目前檢視賽程 ', 'Download current fixtures ') }}<span class="en">.ics</span></button>
-        <p v-if="isEn" class="sched-subscribe__fine">Per-team <span class="en">webcal://</span> subscription links, which keep your personal calendar in sync when fixtures change, are not available yet. For now, please use the <span class="en">.ics</span> download above to get the schedule.</p>
-        <p v-else class="sched-subscribe__fine">依隊別自動更新的 <span class="en">webcal://</span> 訂閱網址（訂閱後賽程異動會自動同步至個人行事曆）需要後台持續產生動態行事曆檔案，屬於後續系統開發項目，目前尚未上線；現在請使用上方 <span class="en">.ics</span> 下載功能取得賽程。</p>
+        <p class="sched-subscribe__fine">
+          <template v-if="isEn">Keep your own calendar in sync automatically (fixtures, cancellations and postponements update on their own): add the subscription link for {{ feedScopeLabel }} to Apple Calendar, Google Calendar or Outlook.</template>
+          <template v-else>想讓個人行事曆自動同步（賽程異動、延賽與取消都會更新）：把{{ feedScopeLabel }}的訂閱連結加入 Apple 行事曆、Google 日曆或 Outlook。</template>
+        </p>
+        <p class="sched-subscribe__links">
+          <a v-if="feedWebcalUrl" class="btn btn--primary btn--sm" :href="feedWebcalUrl"><span class="en">webcal://</span> {{ tx('訂閱', 'Subscribe') }}</a>
+          <a class="btn btn--dark btn--sm" :href="feedHttpsUrl">{{ tx('訂閱連結（https）', 'Subscription link (https)') }}</a>
+        </p>
       </div>
     </div>
 

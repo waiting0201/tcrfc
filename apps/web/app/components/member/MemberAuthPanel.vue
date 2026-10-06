@@ -249,8 +249,8 @@ async function onRegister() {
           <div class="consent-block">
             <div class="checkbox-field">
               <input id="m-reg-consent" v-model="reg.consent" type="checkbox" name="consent" required>
-              <label v-if="isEn" for="m-reg-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a> and Membership Terms, and I agree that {{ clubNameEn }} may use the personal data collected through this form to create my membership and provide related services. Members under 18 need their guardian's consent.<span class="req" aria-hidden="true">*</span></label>
-              <label v-else for="m-reg-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>與會員條款，並同意{{ clubAssets.nameZh }}依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
+              <label v-if="isEn" for="m-reg-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a> and <a :href="lp('/zh/member-terms/')">Membership Terms</a>, and I agree that {{ clubNameEn }} may use the personal data collected through this form to create my membership and provide related services. Members under 18 need their guardian's consent.<span class="req" aria-hidden="true">*</span></label>
+              <label v-else for="m-reg-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>與<a :href="lp('/zh/member-terms/')">會員條款</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
             </div>
           </div>
           <p v-if="regError" class="mc-alert mc-alert--error" role="alert">{{ regError }}</p>

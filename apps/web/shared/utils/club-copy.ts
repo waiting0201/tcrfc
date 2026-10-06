@@ -214,6 +214,27 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
   },
 }
 
+/**
+ * C-2：把後台維護的聯絡 Email／社群連結／頁尾簡介疊到 `ClubIdentity` 上（過渡期規則）。
+ * - Email、頁尾簡介：API 有值優先，null／缺欄位沿用 `identity` 現值。
+ * - 社群：`facts.social` 不存在或四個平台全為 null → 整組沿用 `identity.social`（後端種子補上前的過渡）；
+ *   只要任一平台有值 → 完全以 API 為準，API 為 null 的平台不顯示（不回退寫死值）。
+ * 注意 `lang`：英文版簡介只收 API 的英文值，沒有就沿用英文識別的現值，不混入中文。
+ */
+export function applySiteFactsToIdentity(identity: ClubIdentity, facts: SiteFacts, lang: 'zh' | 'en'): ClubIdentity {
+  const api = facts.social
+  const apiHasSocial = !!api && [api.facebook, api.instagram, api.youtube, api.line].some((v) => !!v)
+  const blurb = lang === 'en' ? facts.footerBlurbEn : facts.footerBlurbZh
+  const email = facts.contact.email || identity.social.email
+  return {
+    ...identity,
+    footerBlurb: blurb || identity.footerBlurb,
+    social: apiHasSocial
+      ? { facebook: api!.facebook, instagram: api!.instagram, youtube: api!.youtube, line: api!.line, email }
+      : { ...identity.social, email },
+  }
+}
+
 export function getClubIdentity(club: string): ClubIdentity {
   return CLUB_IDENTITY[normalizeClub(club)]
 }

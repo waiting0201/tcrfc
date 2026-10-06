@@ -27,17 +27,18 @@ useSeoMeta({
 })
 const hero = computed(() => (isEn.value ? getWinterCampHeroEn(clubKey.value) : getWinterCampHero(clubKey.value)))
 
-const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
-  query: { type: 'winter_camp', pageSize: 5, lang: locale.value },
+// B-8：該類型全部已發布課程（內容、教練團、合作夥伴、封面、梯次），不再只取第一個。
+const { programs, first: programDetail } = await useProgramsOfType('winter_camp')
+const hasPartners = computed(() => programs.value.some((p) => p.partners.length > 0))
+/** 每個課程各取第一個開放中（見 utils/program-session.ts）的梯次呈現早鳥價與名額；沒有任何課程時放一張「待公告」卡。 */
+const sessionCards = computed(() => {
+  const cards = programs.value.map((p) => ({
+    key: p.id,
+    name: programs.value.length > 1 ? p.name : null,
+    session: p.sessions.find((x) => isSessionRegistrable(x)) ?? null,
+  }))
+  return cards.length ? cards : [{ key: 'none', name: null, session: null }]
 })
-const firstProgram = computed(() => programList.value?.items?.[0] ?? null)
-const { data: programDetail } = await useFetch(
-  `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
-  { query: { lang: locale.value }, immediate: !!firstProgram.value },
-)
-const openSession = computed(() =>
-  (programDetail.value?.sessions ?? []).find((s) => isSessionRegistrable(s)) ?? null,
-)
 
 const { programs: registrablePrograms, hasRegistrable } = await useRegistrablePrograms('winter_camp', { enabled: isTcrfc.value })
 
@@ -81,7 +82,9 @@ useCourseSchema(
   </div>
 </section>
 
-<section class="band" style="background:var(--paper-2);">
+<!-- B-8：課程內容、適合對象、年齡、教練團來自後台課程（P1）；沒有課程資料時沿用原本的占位文字 -->
+<ProgramInfoBand v-if="programs.length" :programs="programs" :content-title="tx('適合對象與課程內容', 'Who It Is For and What We Cover')" band-style="background:var(--paper-2);" />
+<section v-else class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
@@ -93,6 +96,13 @@ useCourseSchema(
         <p>{{ tx('教練團陣容將於梯次公告時同步發布。', 'The coaching team will be announced together with the session announcement.') }}</p>
       </div>
     </div>
+  </div>
+</section>
+
+<section v-if="hasPartners" class="band">
+  <div class="container">
+    <div class="prose" style="margin-bottom:1.75rem;"><h2>{{ tx('合作夥伴', 'Partners') }}</h2></div>
+    <ProgramPartnersList :programs="programs" />
   </div>
 </section>
 
@@ -109,18 +119,19 @@ useCourseSchema(
       </div>
     </div>
 
-    <div class="signup-preview">
+    <div v-for="c in sessionCards" :key="c.key" class="signup-preview">
+      <div v-if="c.name" class="signup-preview__row"><span>{{ tx('課程', 'Program') }}</span><span class="signup-preview__value">{{ c.name }}</span></div>
       <div class="signup-preview__row">
         <span>{{ tx('早鳥價', 'Early-bird price') }}</span>
-        <span class="signup-preview__value">{{ openSession?.earlyBirdPrice ? `NT$ ${openSession.earlyBirdPrice}` : tx('待公告', 'To be announced') }}</span>
+        <span class="signup-preview__value">{{ c.session?.earlyBirdPrice ? `NT$ ${c.session.earlyBirdPrice}` : tx('待公告', 'To be announced') }}</span>
       </div>
       <div class="signup-preview__row">
         <span>{{ tx('剩餘名額', 'Places left') }}</span>
-        <span class="signup-preview__value">{{ openSession?.capacity ? Math.max(openSession.capacity - openSession.enrolledCount, 0) : tx('待公告', 'To be announced') }}</span>
+        <span class="signup-preview__value">{{ c.session?.capacity ? Math.max(c.session.capacity - c.session.enrolledCount, 0) : tx('待公告', 'To be announced') }}</span>
       </div>
       <div class="signup-preview__row">
         <span>{{ tx('梯次', 'Session') }}</span>
-        <span class="signup-preview__value">{{ openSession ? `${openSession.startOn}${tx(' ～ ', ' - ')}${openSession.endOn}` : tx('待公告', 'To be announced') }}</span>
+        <span class="signup-preview__value">{{ c.session ? `${c.session.startOn}${tx(' ～ ', ' - ')}${c.session.endOn}` : tx('待公告', 'To be announced') }}</span>
       </div>
     </div>
   </div>

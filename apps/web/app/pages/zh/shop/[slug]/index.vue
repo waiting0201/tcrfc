@@ -212,6 +212,11 @@ useSeoMeta({
         </div>
         <p class="product-info__stock" role="status">{{ soldOutAll ? tx('已售完', 'Sold out') : stockNow }}</p>
         <p v-if="product?.collectionName" class="mc-note mc-note--small">{{ tx('系列：', 'Collection: ') }}{{ product.collectionName }}</p>
+        <!-- B-18：商品標籤，點擊回商品列表依該標籤篩選（?tag=） -->
+        <p v-if="product?.tags?.length" class="product-tags">
+          <span class="product-tags__label">{{ tx('標籤：', 'Tags: ') }}</span>
+          <a v-for="t in product.tags" :key="t" class="sh-tag" :href="`${lp('/zh/shop/')}?tag=${encodeURIComponent(t)}`">#{{ t }}</a>
+        </p>
 
         <hr>
 
@@ -319,6 +324,10 @@ useSeoMeta({
 </template>
 
 <style>
+.product-tags{ display:flex; flex-wrap:wrap; align-items:baseline; gap:.25rem .6rem; font-size:.85rem; }
+.product-tags__label{ color:var(--muted); }
+.sh-tag{ font-size:.82rem; font-weight:700; color:var(--brand-aa); text-decoration:none; }
+.sh-tag:hover, .sh-tag:focus-visible{ text-decoration:underline; }
 .table-scroll{ overflow-x:auto; }
 .size-table{ width:100%; min-width:420px; border-collapse:collapse; font-size:.82rem; }
 .size-table th, .size-table td{ padding:.55rem .75rem; border:1px solid var(--rule); text-align:center; }

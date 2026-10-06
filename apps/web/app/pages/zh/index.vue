@@ -56,15 +56,34 @@ useOrganizationSchema()
 // 賽事管理模組（最新賽事／近期賽事）、新聞模組（最新消息）。夥伴模組／商店模組
 // 目前沒有對應的公開讀取端點（見 apps/web/README.md「S1-14」節「哪些是真資料」表），
 // 這兩區塊維持既有靜態呈現，不臆造 API。
-const { isSectionEnabled } = useHomeSections(config.public.club)
+const { isSectionEnabled, isSectionExplicitlyEnabled, featuredBannerId, orderBlocks } = useHomeSections(config.public.club)
+
+// B-14：頁面區塊由上到下的預設順序＋各自對應的後台區塊代碼（一線隊球員橫幅沒有自己的代碼，跟著前一塊走）。
+// 後台「排序」改了之後 blockOrder 跟著動；不在排序清單的區塊維持這裡的相對位置，API 失敗＝這個預設順序。
+const HOME_BLOCK_DEFAULTS = [
+  { key: 'hero', codes: ['hero'] },
+  { key: 'match', codes: ['upcoming_match', 'recent_fixtures'] },
+  { key: 'roster', codes: [] },
+  { key: 'core_values', codes: ['core_values'] },
+  { key: 'ecosystem_nav', codes: ['ecosystem_nav'] },
+  { key: 'latest_news', codes: ['latest_news'] },
+  { key: 'shop_entry', codes: ['shop_entry'] },
+  { key: 'partner_logos', codes: ['partner_logos'] },
+  { key: 'bottom_cta', codes: ['bottom_cta'] },
+] as const
+const blockOrder = computed(() => orderBlocks(HOME_BLOCK_DEFAULTS))
 
 // S3-9：五大核心價值改接 `GET /api/backend/{club}/home/core-values`（固定五項：code／中英名稱／排序／「了解更多」頁面）。
 // 說明文字與圖示由前台依 `code` 對應（shared/utils/core-values.ts）；後端打不到或回空時退回同順序的備援。
 // 區塊本身仍只對磐石顯示（藍鯨版標籤文字尚待客戶確認，藍鯨規劃書 §10 第 13 點）；藍鯨不發這個請求。
+// B-14：藍鯨也發這個請求（拿掉寫死的 isTcrfc）。磐石維持「後端回空就用備援」；藍鯨沒有備援——
+// 後台明確開啟 core_values 區塊且 API 真的回了資料才顯示，否則整塊不出現。
 const { data: coreValuesData } = await useFetch<CoreValueDto[]>(`/api/backend/${config.public.club}/home/core-values`, {
   default: () => [],
-  immediate: isTcrfc.value,
 })
+const showCoreValues = computed(() => isTcrfc.value
+  ? isSectionEnabled('core_values')
+  : isSectionExplicitlyEnabled('core_values') && (coreValuesData.value?.length ?? 0) > 0)
 const coreValues = computed(() => buildCoreValueViews(coreValuesData.value))
 const coreValuesMore = computed(() => coreValueLearnMorePath(coreValuesData.value))
 
@@ -99,6 +118,11 @@ const homePartnerTiles = computed(() => {
 // 新增 `imageUrl`／`videoUrl`（由 `IImagePublicUrlResolver`／`IVideoPublicUrlResolver` 解析
 // 出的完整可公開網址），比照 StaffDto／PlayerDto 的既有慣例，本輪接上。
 const { data: bannersData } = await useFetch<Array<{
+  id: string
+  title: string | null
+  subtitle: string | null
+  cta2Label: string | null
+  cta2Url: string | null
   mediaType: string
   imageUrl: string | null
   videoUrl: string | null
@@ -108,11 +132,36 @@ const { data: bannersData } = await useFetch<Array<{
   cta1Label: string | null
   cta1Url: string | null
 }>>(`/api/backend/${config.public.club}/banners`, { query: { lang: locale.value } })
-const primaryCta = computed(() => {
-  const first = bannersData.value?.[0]
-  if (first?.cta1Label && first?.cta1Url) return { label: first.cta1Label, href: first.cta1Url }
-  return null
+type HomeBanner = NonNullable<typeof bannersData.value>[number]
+/** B-14：後台「精選輪播」指定的那則排第一；其餘維持 API 順序。 */
+const orderedBanners = computed<HomeBanner[]>(() => {
+  const list = bannersData.value ?? []
+  const fid = featuredBannerId.value
+  if (!fid) return list
+  const hit = list.find((b) => b.id === fid)
+  return hit ? [hit, ...list.filter((b) => b !== hit)] : list
 })
+const isDisplayableBanner = (b: HomeBanner) => (b.mediaType === 'video' ? Boolean(b.imageUrl && b.videoUrl) : Boolean(b.imageUrl))
+/** Hero 文案跟隨「第一則」輪播：優先取第一則真的會顯示的，沒有就取排序後第一則。 */
+const leadBanner = computed<HomeBanner | null>(() => orderedBanners.value.find(isDisplayableBanner) ?? orderedBanners.value[0] ?? null)
+/** 英文頁不採用後端回退的繁中文字（含 CJK 字元），改走 heroCopy 的英文版。 */
+function bannerText(raw: string | null | undefined): string | null {
+  const t = raw?.trim()
+  if (!t) return null
+  return isEn.value && /[\u3400-\u9fff]/.test(t) ? null : t
+}
+/** A-10：站內連結（`/zh/...`）在英文頁要換成 `/en/...`；外部（http(s)）原樣；其他協定（javascript: 等）不輸出。 */
+function bannerCta(label: string | null | undefined, rawUrl: string | null | undefined) {
+  const l = bannerText(label)
+  if (!l || !rawUrl) return null
+  const url = safeUrl(rawUrl)
+  return url ? { label: l, href: url.startsWith('/') ? lp(url) : url } : null
+}
+const primaryCta = computed(() => bannerCta(leadBanner.value?.cta1Label, leadBanner.value?.cta1Url))
+const secondaryCta = computed(() => bannerCta(leadBanner.value?.cta2Label, leadBanner.value?.cta2Url))
+// Banner 的標題／副標是後台純文字（不是 HTML），樣板一律用文字插值，不走 v-html（heroCopy 才是自家 HTML）。
+const heroTitle = computed(() => bannerText(leadBanner.value?.title))
+const heroSubtitle = computed(() => bannerText(leadBanner.value?.subtitle))
 
 // ---- Hero 輪播素材：banners 有值就用真資料，沒有（兩俱樂部 `banners` 資料表目前皆 0 筆
 // 種子資料，db/seed）就退回既有靜態素材，不得因為欄位缺值顯示壞圖 ----
@@ -136,8 +185,8 @@ const STATIC_TCRFC_HERO_SLIDES: HeroSlide[] = [
 /** 只收「真的有完整網址可用」的輪播——image 模式要有 imageUrl；video 模式要海報圖與影片
  * 網址皆有，缺一律整則跳過，不得對缺欄位的資料猜網址（比不顯示更糟的是顯示壞圖）。 */
 const heroBanners = computed<HeroSlide[]>(() =>
-  (bannersData.value ?? [])
-    .filter((b) => (b.mediaType === 'video' ? Boolean(b.imageUrl && b.videoUrl) : Boolean(b.imageUrl)))
+  orderedBanners.value
+    .filter(isDisplayableBanner)
     .map((b) => ({
       kind: b.mediaType === 'video' ? ('video' as const) : ('image' as const),
       imageUrl: b.imageUrl ?? '',
@@ -272,6 +321,10 @@ const teamPanel = ref<'D1' | 'other'>('D1')
 const heroSectionEl = ref<HTMLElement | null>(null)
 const sliderEl = ref<HTMLElement | null>(null)
 const statusEl = ref<HTMLElement | null>(null)
+// 這三個元素在 blockOrder 的 v-for 裡，一般 `ref="x"` 會被編譯成陣列，所以一律用函式 ref。
+const setHeroSectionEl = (el: unknown) => { heroSectionEl.value = (el as HTMLElement | null) ?? null }
+const setSliderEl = (el: unknown) => { sliderEl.value = (el as HTMLElement | null) ?? null }
+const setStatusEl = (el: unknown) => { statusEl.value = (el as HTMLElement | null) ?? null }
 const slideEls = ref<HTMLElement[]>([])
 
 const COLS = 6
@@ -491,8 +544,11 @@ onBeforeUnmount(() => {
 <template>
   <!-- 英文版：新聞、球員、夥伴名稱等 API 內容若有後端回的繁中備援，於頁面頂端提示（版面文字已全數英文）。 -->
   <LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(newsData) || hasFallbackLocale(rosterData) || hasFallbackLocale(homePartners))" partial />
-  <section v-if="isSectionEnabled('hero')" ref="heroSectionEl" class="hero" id="top" :aria-label="tx('首頁主視覺', 'Homepage hero')">
-    <div v-if="heroSlides.length > 0" ref="sliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" :aria-label="tx(`首頁主視覺輪播，共 ${heroSlides.length} 張`, `Homepage hero carousel, ${heroSlides.length} slides`)">
+  <!-- B-14：區塊依後台「排序」渲染（blockOrder，見 useHomeSections.orderBlocks）；每塊的內容與 DOM 結構不變。 -->
+  <template v-for="blk in blockOrder" :key="blk">
+  <template v-if="blk === 'hero'">
+  <section v-if="isSectionEnabled('hero')" :ref="setHeroSectionEl" class="hero" id="top" :aria-label="tx('首頁主視覺', 'Homepage hero')">
+    <div v-if="heroSlides.length > 0" :ref="setSliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" :aria-label="tx(`首頁主視覺輪播，共 ${heroSlides.length} 張`, `Homepage hero carousel, ${heroSlides.length} slides`)">
       <ul class="hero__slides">
         <li
           v-for="(slide, i) in heroSlides"
@@ -519,7 +575,7 @@ onBeforeUnmount(() => {
           >
         </li>
       </ul>
-      <p ref="statusEl" class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">{{ tx(`目前顯示第 1 張，共 ${heroSlides.length} 張`, `Showing slide 1 of ${heroSlides.length}`) }}</p>
+      <p :ref="setStatusEl" class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">{{ tx(`目前顯示第 1 張，共 ${heroSlides.length} 張`, `Showing slide 1 of ${heroSlides.length}`) }}</p>
     </div>
     <!-- 沒有可用的輪播素材時（藍鯨首頁 hero 圖未下載、無授權狀態，content/blue-whale/
          gap-analysis.md §2；或 banners 資料表暫無資料）改用純色塊，不沿用磐石的照片頂替
@@ -532,11 +588,13 @@ onBeforeUnmount(() => {
         <div class="hero__grid">
           <div class="hero__copy">
             <p v-if="heroCopy.kickerEn" class="kicker kicker--on-dark">{{ heroCopy.kickerEn }}</p>
-            <h1 class="hero__headline" v-html="heroCopy.headlineZh"></h1>
-            <p class="hero__sub" v-html="heroCopy.factLineZh"></p>
+            <h1 v-if="heroTitle" class="hero__headline">{{ heroTitle }}</h1>
+            <h1 v-else class="hero__headline" v-html="heroCopy.headlineZh"></h1>
+            <p v-if="heroSubtitle" class="hero__sub">{{ heroSubtitle }}</p>
+            <p v-else class="hero__sub" v-html="heroCopy.factLineZh"></p>
             <div class="hero__ctas">
               <a class="btn btn--primary" :href="primaryCta ? primaryCta.href : lp(heroCopy.ctaPrimaryHref)">{{ primaryCta ? primaryCta.label : tx('加入球隊', HOME_JOIN_LABEL_EN) }}</a>
-              <a class="btn btn--light" :href="lp(heroCopy.ctaSecondaryHref)">{{ heroCopy.ctaSecondaryLabelZh }}</a>
+              <a class="btn btn--light" :href="secondaryCta ? secondaryCta.href : lp(heroCopy.ctaSecondaryHref)">{{ secondaryCta ? secondaryCta.label : heroCopy.ctaSecondaryLabelZh }}</a>
             </div>
             <div v-if="heroSlides.length > 1" class="hero__slider-nav">
               <button type="button" class="hero__arrow hero__arrow--prev" data-hero-prev aria-controls="hero-slider" :aria-label="tx('上一張主視覺圖片', 'Previous hero image')" @click="goTo(current - 1)">
@@ -601,7 +659,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </section>
-
+  </template>
+  <template v-if="blk === 'match'">
   <!-- SPEC 3.1（最新賽事區／近期賽事）／3.13 — Match band
        資料來源：賽事管理模組（GET /api/backend/{club}/schedule，S1-14 起接上真實資料，
        見上方 script setup「賽事資料」段與 apps/web/README.md「S1-14」節）。
@@ -689,7 +748,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </section>
-
+  </template>
+  <template v-if="blk === 'roster'">
   <!-- 一線隊球員橫幅（沿用 .stats-band 的深色帶樣式；數據區塊已移除）
        資料來源：GET /api/backend/{club}/players?team=<一線隊>（見上方 script setup「一線隊球員橫幅」段）。
        沒有球員資料時整個區塊不顯示；未取得肖像同意的球員 photoUrl 為 null，以隊徽卡呈現。 -->
@@ -713,33 +773,37 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </section>
-
+  </template>
+  <template v-if="blk === 'core_values'">
   <!-- SPEC 1.2 — Five core values
        五大核心價值是磐石自訂的品牌框架，舊站沒有陳述對等的架構，依內容紀律
        不得自行創作藍鯨版的「五大核心價值」，本區塊不顯示。 -->
-  <section v-if="isTcrfc && isSectionEnabled('core_values')" class="band values-band" id="values" aria-labelledby="values-title">
+  <section v-if="showCoreValues" class="band values-band" id="values" aria-labelledby="values-title">
     <span class="ghost-num ghost-num--light" aria-hidden="true">05</span>
     <div class="band-inner container">
       <div class="eyebrow-row">
         <div>
           <p class="kicker">OUR MISSION</p>
-          <h2 v-if="isEn" class="section-title" id="values-title">Developing players who pursue excellence<br>through a professional model</h2>
+          <!-- 藍鯨的標題與說明文字尚待客戶確認（藍鯨規劃書 §10 第 13 點），不沿用磐石的品牌主張文案：只顯示中性標題與 API 的五項名稱。 -->
+          <h2 v-if="!isTcrfc" class="section-title" id="values-title">{{ tx('核心價值', 'Core Values') }}</h2>
+          <h2 v-else-if="isEn" class="section-title" id="values-title">Developing players who pursue excellence<br>through a professional model</h2>
           <h2 v-else class="section-title" id="values-title">透過專業模式<br>培育選手追求卓越</h2>
         </div>
-        <p class="section-lede">{{ tx('從台中出發：培育本土選手邁向職業、成為在地榮耀的來源，並以足球讓世界看見台灣。', 'Starting from Taichung: developing local players for the professional game, becoming a source of local pride, and letting the world see Taiwan football through the sport.') }}</p>
+        <p v-if="isTcrfc" class="section-lede">{{ tx('從台中出發：培育本土選手邁向職業、成為在地榮耀的來源，並以足球讓世界看見台灣。', 'Starting from Taichung: developing local players for the professional game, becoming a source of local pride, and letting the world see Taiwan football through the sport.') }}</p>
       </div>
       <div class="values-grid">
         <div v-for="v in coreValues" :key="v.code" class="value-card">
           <p class="value-card__num">{{ v.num }}</p>
           <p class="value-card__en">{{ v.nameEn }}</p>
           <p v-if="!isEn" class="value-card__zh">{{ v.nameZh }}</p>
-          <p v-if="isEn ? CORE_VALUE_DESCRIPTIONS_EN[v.code] : v.desc" class="value-card__desc">{{ isEn ? CORE_VALUE_DESCRIPTIONS_EN[v.code] : v.desc }}</p>
+          <p v-if="isTcrfc && (isEn ? CORE_VALUE_DESCRIPTIONS_EN[v.code] : v.desc)" class="value-card__desc">{{ isEn ? CORE_VALUE_DESCRIPTIONS_EN[v.code] : v.desc }}</p>
         </div>
       </div>
-      <p v-if="coreValuesMore" class="sponsor-more"><a :href="lp(coreValuesMore)">{{ tx('了解足球理念與五大核心價值 →', 'Learn about our football philosophy and five core values →') }}</a></p>
+      <p v-if="isTcrfc && coreValuesMore" class="sponsor-more"><a :href="lp(coreValuesMore)">{{ tx('了解足球理念與五大核心價值 →', 'Learn about our football philosophy and five core values →') }}</a></p>
     </div>
   </section>
-
+  </template>
+  <template v-if="blk === 'ecosystem_nav'">
   <!-- SPEC 3.1 — Four pillars -->
   <section v-if="isSectionEnabled('ecosystem_nav')" class="band grain pillars-band" id="club" aria-labelledby="pillars-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">04</span>
@@ -766,7 +830,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </section>
-
+  </template>
+  <template v-if="blk === 'latest_news'">
   <!-- SPEC 3.1（最新消息）／3.7 — News mosaic
        資料來源：新聞模組（GET /api/backend/{club}/news，S1-14 起接上真實資料，精選優先、
        不足再用最新日期補滿，見上方 script setup「最新消息」段）。藍鯨新聞 07 單元自有
@@ -816,7 +881,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </section>
-
+  </template>
+  <template v-if="blk === 'shop_entry'">
   <!-- SPEC 3.1「官方商店入口」＋ 3.8 — Official store band（S3-5 接商店資料）
        有上架商品：顯示精選商品卡（名稱／圖片／價格）與站內商店入口（站內頁面，不另開新分頁）。
        磐石沒有任何上架商品：維持既有的靜態入口（真實球衣照片）；藍鯨沒有商品：整個區塊不顯示（showShopEntry）。 -->
@@ -847,7 +913,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </section>
-
+  </template>
+  <template v-if="blk === 'partner_logos'">
   <!-- SPEC 3.9 — Sponsor wall -->
   <section v-if="isSectionEnabled('partner_logos')" class="band sponsor-band" id="partners" aria-labelledby="partners-title">
     <div class="band-inner container">
@@ -874,7 +941,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </section>
-
+  </template>
+  <template v-if="blk === 'bottom_cta'">
   <!-- SPEC 3.1 — Bottom CTA trio (10.1 / 10.2 / 10.5) -->
   <section v-if="isSectionEnabled('bottom_cta')" class="band grain cta-band" id="charity" aria-labelledby="cta-title">
     <div class="band-inner container">
@@ -889,6 +957,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
   </section>
+  </template>
+  </template>
 </template>
 
 <style>

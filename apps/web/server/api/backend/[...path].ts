@@ -54,6 +54,11 @@ const TRIAL_REGISTRATION_PATH = /^[a-z][a-z0-9-]*\/trials\/[0-9a-f]{8}-[0-9a-f]{
 const NEWSLETTER_PATH = /^[a-z][a-z0-9-]*\/newsletter\/(subscribe|unsubscribe)$/
 const SEARCH_MISS_PATH = /^[a-z][a-z0-9-]*\/faqs\/search-misses$/
 
+// ── A-8（2026-10-06）：新聞單篇／FAQ 展開的瀏覽數 +1 ───────────────────────────────────
+// 對應 apps/api `POST /api/v1/{club}/news/{slug}/views`、`POST /api/v1/{club}/faqs/{slug}/views`（固定 204）。
+// 同樣只放行這兩種路徑形狀（slug 小寫英數與連字號）。漫畫的 /comic/episodes/{n}/views 走 member-proxy 白名單，不在此。
+const VIEW_COUNT_PATH = /^[a-z][a-z0-9-]*\/(news|faqs)\/[a-z0-9-]+\/views$/
+
 // 兩條「檔案下載」GET 路徑不能走下面 GET 分支的 `$fetch`（它會把二進位內容當 JSON／文字解析，
 // 丟掉 Content-Type／Content-Disposition，也會在伺服器端自己跟著 302 走掉）：
 //   - 提案檔：`/{club}/proposals/downloads/{token}`，API 串流 PDF／ZIP（`Cache-Control: private,
@@ -62,6 +67,17 @@ const SEARCH_MISS_PATH = /^[a-z][a-z0-9-]*\/faqs\/search-misses$/
 //     不跟隨轉址，把 Location 原樣回給瀏覽器（檔案由瀏覽器直接向儲存體取，不經過 Nuxt）。
 const PROPOSAL_FILE_PATH = /^[a-z][a-z0-9-]*\/proposals\/downloads\/[A-Za-z0-9_.~-]+$/
 const PRESS_DOWNLOAD_PATH = /^[a-z][a-z0-9-]*\/press\/[a-z0-9-]+\/download$/
+
+// ── A-7（2026-10-06）：B1 靜態頁預覽 ───────────────────────────────────────────────────
+// 對應 apps/api `GET /api/v1/pages/preview/{token}`（Features/Pages/PagesEndpoints.cs）。**沒有 {club} 路由段**——權杖本身就是授權
+// （Base64Url 約 43 字元）。這條 GET 其實已被下面的一般 GET 分支涵蓋，這裡獨立出來只為一件事：形狀合法的預覽一律 `Cache-Control: no-store`（預覽是「剛存檔就要看到最新內容」，且權杖不得留在任何共用快取）。
+const PAGE_PREVIEW_PATH = /^pages\/preview\/[A-Za-z0-9_-]{16,128}$/
+
+// ── B-7（2026-10-06）：行事曆訂閱 feed（webcal／https 訂閱連結指向這裡）──────────────────
+// 對應 apps/api `GET /api/v1/{club}/calendar/feed.ics?team=&lang=`（公開、text/calendar、`Cache-Control: public, max-age=900`）。
+// 一般 GET 分支會把回應當文字回傳、Content-Type 變成 text/html，行事曆軟體（Apple 行事曆、Google 日曆）不認——所以獨立出來，
+// 只轉發 team／lang 兩個查詢參數（值限小寫英數與連字號，其餘丟棄），原樣帶回 Content-Type 與 Cache-Control。
+const CALENDAR_FEED_PATH = /^[a-z][a-z0-9-]*\/calendar\/feed\.ics$/
 
 /** 轉發訪客真實 IP 給 apps/api 的限流（原理見下方 POST 分支的長註解，E-71）。 */
 function forwardedIpHeaders(event: Parameters<typeof getRequestHeader>[0]): Record<string, string> | undefined {
@@ -141,6 +157,28 @@ export default defineEventHandler(async (event) => {
     return sendStream(event, res._data)
   }
 
+  if (method === 'GET' && CALENDAR_FEED_PATH.test(path)) {
+    const q = getQuery(event)
+    const query: Record<string, string> = {}
+    for (const key of ['team', 'lang'] as const) {
+      const v = q[key]
+      if (typeof v === 'string' && /^[A-Za-z0-9-]{1,32}$/.test(v)) query[key] = v
+    }
+    const res = await $fetch.raw<string>(`/api/v1/${path}`, {
+      baseURL: backendApiBase(),
+      query,
+      responseType: 'text',
+      ignoreResponseError: true,
+      headers: forwardedIpHeaders(event),
+    })
+    if (res.status !== 200) {
+      throw createError({ statusCode: res.status >= 400 && res.status < 500 ? res.status : 502, statusMessage: res.status === 429 ? 'Too Many Requests' : res.status === 404 ? 'Not Found' : 'Bad Gateway' })
+    }
+    setResponseHeader(event, 'content-type', res.headers.get('content-type') ?? 'text/calendar; charset=utf-8')
+    setResponseHeader(event, 'cache-control', res.headers.get('cache-control') ?? 'public, max-age=900')
+    return res._data
+  }
+
   if (method === 'GET' && PRESS_DOWNLOAD_PATH.test(path)) {
     const res = await $fetch.raw(`/api/v1/${path}`, {
       baseURL: backendApiBase(),
@@ -156,6 +194,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: res.status >= 400 ? res.status : 404, statusMessage: res.status === 429 ? 'Too Many Requests' : 'Not Found' })
   }
 
+  if (method === 'GET' && PAGE_PREVIEW_PATH.test(path)) {
+    setResponseHeader(event, 'cache-control', 'no-store')
+    try {
+      return await $fetch(`/api/v1/${path}`, { baseURL: backendApiBase(), method, query: getQuery(event) })
+    }
+    catch (err: unknown) {
+      throw clientErrorFrom(err, event) ?? err
+    }
+  }
+
   if (method === 'GET') {
     // 既有行為不變：無 body，直接轉發查詢字串。
     const query = getQuery(event)
@@ -168,7 +216,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path) || PROPOSAL_DOWNLOAD_REQUEST_PATH.test(path) || PROGRAM_REGISTRATION_PATH.test(path) || TRIAL_REGISTRATION_PATH.test(path) || NEWSLETTER_PATH.test(path) || SEARCH_MISS_PATH.test(path))) {
+  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path) || PROPOSAL_DOWNLOAD_REQUEST_PATH.test(path) || PROGRAM_REGISTRATION_PATH.test(path) || TRIAL_REGISTRATION_PATH.test(path) || NEWSLETTER_PATH.test(path) || SEARCH_MISS_PATH.test(path) || VIEW_COUNT_PATH.test(path))) {
     throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
   }
 

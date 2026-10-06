@@ -14,7 +14,9 @@ const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
-useSeoMeta({
+// 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
+const cms = await useCmsPage('club/player-development')
+cms.applySeo({
   title: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerDevelopmentSeoEn() : getPlayerDevelopmentSeoEnBw()) : getPlayerDevelopmentSeo(clubKey.value)).title),
   description: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerDevelopmentSeoEn() : getPlayerDevelopmentSeoEnBw()) : getPlayerDevelopmentSeo(clubKey.value)).description),
 })
@@ -44,6 +46,8 @@ const hero = computed(() => (isEn.value ? (isTcrfc.value ? getPlayerDevelopmentH
   </div>
 </section>
 
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('球員發展系統', 'Player Development')" :zh-fallback="cms.hasZhFallback.value" />
+<template v-else>
 <section class="band" id="modules" aria-labelledby="modules-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="modules-title">{{ tx('八大發展模組', 'The eight development modules') }}</h2>
@@ -159,6 +163,7 @@ const hero = computed(() => (isEn.value ? (isTcrfc.value ? getPlayerDevelopmentH
     </div>
   </div>
 </section>
+</template>
 
 <section class="band grain cta-band" id="pd-cta" aria-labelledby="pd-cta-title">
   <div class="band-inner container">

@@ -129,6 +129,17 @@ assertEqual(
   'GEO-05：逐筆判斷，只有不合格的那一筆不輸出，其餘合格的仍要輸出',
 )
 
+{
+  // 重複活動：同 id、不同發生日（occurrenceId）→ 每個發生日一個 Event 節點，url 錨點各自唯一
+  const recurring = [
+    { ...eligibleEvent, occurrenceId: 'evt-1:202610101200' },
+    { ...eligibleEvent, startsAt: '2026-10-17T04:00:00.000Z', occurrenceId: 'evt-1:202610171200' },
+  ]
+  const nodes = buildClubEventSchemaNodes(recurring, opts)
+  assertEqual(nodes.length, 2, '重複活動：每個發生日各輸出一個 Event 節點（schema.org／Google 對重複活動的慣用寫法）')
+  assertEqual(new Set(nodes.map((n) => n.url)).size, 2, '重複活動：url 錨點以 occurrenceId 區分，兩個節點不會撞成同一個')
+}
+
 assertEqual(buildClubEventSchemaNodes([], opts), [], '輸入為空陣列時回傳空陣列（呼叫端據此完全不呼叫 useSchemaOrg）')
 
 const minimalEvent = {

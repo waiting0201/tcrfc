@@ -23,6 +23,19 @@ const [{ data: about }, { data: characters }, { data: episodes }, { data: latest
   useFetch<ComicEpisode>(`/api/backend/${club}/comic/episodes/latest`, { query: { lang }, key: `comic-latest-${club}-${lang}` }),
 ])
 
+// B-20：角色關聯球員 → 連到該球員頁。公開 API 沒有「以 id 查球員」的列表條件，所以取一次球員列表（只含現役）
+// 以 id 對出 slug；不在名單內（已離隊／不公開）就不顯示連結，不連到會 404 的頁面。藍鯨不設 8.1，這頁只會在主站出現。
+const hasLinkedPlayers = (characters.value ?? []).some(c => c.playerId)
+const { data: playersData } = await useFetch<{ items: { id: string, slug: string, name: string | null }[] }>(`/api/backend/${club}/players`, {
+  query: { pageSize: 200, lang },
+  key: `comic-players-${club}-${lang}`,
+  immediate: hasLinkedPlayers,
+})
+const playerById = computed(() => new Map((playersData.value?.items ?? []).map(p => [p.id.toLowerCase(), p])))
+function playerOf(c: ComicCharacter) {
+  return c.playerId ? (playerById.value.get(c.playerId.toLowerCase()) ?? null) : null
+}
+
 const paragraphs = computed(() => (about.value?.body ?? '').split(/\n{1,}/).map(p => p.trim()).filter(Boolean))
 const safeImg = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 const fmtDate = (d: string | null) => formatPlainDate(d)
@@ -114,6 +127,7 @@ useSeoMeta({
         </div>
         <h3 class="char-card__name">{{ c.name }}</h3>
         <p v-if="c.description" class="char-card__desc">{{ c.description }}</p>
+        <p v-if="playerOf(c)" class="char-card__desc"><a :href="lp(playerPath(playerOf(c)!.slug))">{{ tx('原型球員：', 'Based on: ') }}{{ playerOf(c)!.name }} →</a></p>
       </article>
     </div>
     <p v-else class="char-card__pending" style="margin-top:1.5rem;">{{ tx('角色設定尚未公開，敬請期待。', 'The characters have not been revealed yet. Stay tuned.') }}</p>
@@ -196,4 +210,5 @@ useSeoMeta({
 .mg-latest__cover img{ width:100%; height:100%; object-fit:cover; display:block; }
 .mg-latest__no{ font-size:.8rem; font-weight:800; color:var(--brand-aa); letter-spacing:.06em; }
 .mg-latest__title{ font-size:1.4rem; font-weight:900; color:var(--heading); margin:.3rem 0 .75rem; }
+.char-card__desc a{ color:inherit; font-weight:700; text-decoration:underline; }
 </style>

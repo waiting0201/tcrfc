@@ -29,7 +29,12 @@ const assets = computed(() => getClubAssets(clubKey.value))
 
 /** 一線隊代碼：磐石 `D1`／藍鯨 `BW1`（docs/14-invariants.md「隊別代號」：BW1 不是第二個
  * D1，全站代號唯一）。 */
-const teamCode = computed(() => (isTcrfc.value ? 'D1' : 'BW1'))
+const FALLBACK_TEAM_CODE = computed(() => (isTcrfc.value ? 'D1' : 'BW1'))
+// B-10（2026-10-06）：一線隊代碼改讀公開 `/teams` 的 `first_team`（後台球隊主檔）；API 失敗或沒有一線隊時回退上面的寫死值。
+// 同一份資料另提供球隊簡介與主視覺（有值才顯示）。
+const { firstTeam } = await usePublicTeams()
+const teamCode = computed(() => firstTeam.value?.code ?? FALLBACK_TEAM_CODE.value)
+const teamIntroParagraphs = computed(() => (firstTeam.value?.intro ?? '').split(/\n{2,}/).map((x) => x.trim()).filter(Boolean))
 
 const { lp, locale, isEn, tx } = useLocale()
 
@@ -74,7 +79,9 @@ const route = useRoute()
 const seasonParam = computed(() => safeSeasonParam(route.query.season))
 const [{ data: standings }, { data: playerStats }] = await Promise.all([
   useFetch<StandingsResponse | null>(`/api/backend/${config.public.club}/standings`, {
-    query: computed(() => (seasonParam.value ? { season: seasonParam.value } : {})),
+    // `?lang=`：英文頁取英文隊名（缺英文時後端回退中文，見下方 standingsFallback）。
+    query: computed(() => ({ lang: locale.value, ...(seasonParam.value ? { season: seasonParam.value } : {}) })),
+    key: computed(() => `standings-${config.public.club}-${locale.value}-${seasonParam.value ?? ''}`),
     default: () => null,
   }),
   useFetch<PlayerStatsResponse | null>(`/api/backend/${config.public.club}/stats/players`, {
@@ -83,6 +90,8 @@ const [{ data: standings }, { data: playerStats }] = await Promise.all([
   }),
 ])
 const standingRows = computed(() => standings.value?.items ?? [])
+// 積分榜 DTO 沒有 isFallbackLocale：英文頁隊名仍含中日文字＝後端回退繁中，出示部分內容提示。
+const standingsFallback = computed(() => standingRows.value.some(r => /[\u3400-\u9fff]/.test(r.teamName ?? '')))
 const statRows = computed(() => playerStats.value?.items ?? [])
 const seasonOptions = computed(() => [...new Set([...(standings.value?.seasons ?? []), ...(playerStats.value?.seasons ?? [])])])
 const shownSeason = computed(() => standings.value?.season?.code ?? playerStats.value?.season?.code ?? seasonParam.value)
@@ -196,7 +205,8 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無一線隊合影照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石球員合影頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/club/first-team-01-squad.jpg')" :alt="isEn ? `Taichung Rock First Team players posing together at ${primaryVenue.nameEn ?? primaryVenue.nameZh}` : `台中磐石一線隊球員於${primaryVenue.nameZh}合影`" width="1920" height="1280">
+  <img v-if="firstTeam?.heroUrl" class="page-hero__bg" :src="firstTeam.heroUrl" alt="" width="1600" height="900">
+  <img v-else-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/club/first-team-01-squad.jpg')" :alt="isEn ? `Taichung Rock First Team players posing together at ${primaryVenue.nameEn ?? primaryVenue.nameZh}` : `台中磐石一線隊球員於${primaryVenue.nameZh}合影`" width="1920" height="1280">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '3.1 First Team' : '3.1' }}</p>
@@ -205,13 +215,15 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
   </div>
 </section>
 
-<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(playersData) || hasFallbackLocale(scheduleData))" partial />
+<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(playersData) || hasFallbackLocale(scheduleData) || hasFallbackLocale(firstTeam))" partial />
 
 <section class="band" id="team-overview" aria-labelledby="team-overview-title">
   <div class="band-inner container">
     <div class="prose">
       <h2 id="team-overview-title">{{ tx('球隊介紹', 'Team introduction') }}</h2>
       <p>{{ intro }}</p>
+      <!-- B-10：後台球隊（C1）的簡介，有值才顯示 -->
+      <p v-for="(para, i) in teamIntroParagraphs" :key="i">{{ para }}</p>
     </div>
   </div>
 </section>
@@ -353,6 +365,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
       </div>
       <button class="btn btn--dark btn--sm" type="submit">{{ tx('切換賽季', 'Switch season') }}</button>
     </form>
+    <LocaleFallbackNotice v-if="isEn && standingsFallback" partial />
     <div v-if="standingRows.length" class="sh-table-wrap">
       <table class="sh-stats-table">
         <caption class="visually-hidden">{{ shownSeason }} {{ tx('賽季積分榜', 'season league table') }}</caption>

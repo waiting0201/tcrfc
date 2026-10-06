@@ -40,6 +40,8 @@ const filters = computed(() => {
   const intOf = (v: unknown) => (/^\d{1,9}$/.test(one(v)) ? one(v) : '')
   return {
     collection: /^[a-z0-9][a-z0-9-]{0,127}$/i.test(one(q.collection)) ? one(q.collection) : '',
+    // B-18：標籤篩選（BFF 放行 `?tag=`）。形狀與 BFF 的 FILTER_TEXT 相同，不合法視為沒有，避免整頁被 400 擋掉。
+    tag: /^[\p{L}\p{N} _\-./()（）+]{1,60}$/u.test(one(q.tag)) ? one(q.tag) : '',
     size: one(q.size).slice(0, 60),
     colour: one(q.colour).slice(0, 60),
     sort: SORTS.includes(sort) ? sort : '',
@@ -77,6 +79,7 @@ function sortSizes(a: string, b: string): number {
   return a.localeCompare(b, 'zh-Hant')
 }
 const sizeOptions = computed(() => [...new Set((allList.value?.items ?? []).flatMap(p => p.sizes))].sort(sortSizes))
+const tagOptions = computed(() => [...new Set((allList.value?.items ?? []).flatMap(p => p.tags ?? []).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'zh-Hant')))
 const colourOptions = computed(() => [...new Set((allList.value?.items ?? []).flatMap(p => p.colours))])
 const collectionOptions = computed(() => (info.value?.collections ?? []).filter(c => c.productCount > 0))
 
@@ -144,6 +147,14 @@ useSeoMeta({
         <select id="f-collection" name="collection">
           <option value="" :selected="!filters.collection">{{ tx('全部商品', 'All products') }}</option>
           <option v-for="c in collectionOptions" :key="c.slug" :value="c.slug" :selected="filters.collection === c.slug">{{ c.name || c.slug }}</option>
+        </select>
+      </div>
+      <div v-if="tagOptions.length || filters.tag" class="filter-field">
+        <label for="f-tag">{{ tx('標籤', 'Tag') }}</label>
+        <select id="f-tag" name="tag">
+          <option value="" :selected="!filters.tag">{{ tx('不限', 'Any') }}</option>
+          <option v-if="filters.tag && !tagOptions.includes(filters.tag)" :value="filters.tag" selected>{{ filters.tag }}</option>
+          <option v-for="t in tagOptions" :key="t" :value="t" :selected="filters.tag === t">{{ t }}</option>
         </select>
       </div>
       <div class="filter-field">
@@ -215,6 +226,9 @@ useSeoMeta({
             <template v-if="p.sizes.length && p.colours.length">{{ isEn ? ' · ' : '・' }}</template>
             <template v-if="p.colours.length">{{ isEn ? `${p.colours.length} ${p.colours.length === 1 ? 'colour' : 'colours'} available` : `${p.colours.length} 色可選` }}</template>
           </p>
+          <p v-if="p.tags?.length" class="product-card__opts product-card__tags">
+            <a v-for="t in p.tags" :key="t" class="sh-tag" :href="`${route.path}?tag=${encodeURIComponent(t)}`" :aria-label="tx(`篩選標籤：${t}`, `Filter by tag: ${t}`)">#{{ t }}</a>
+          </p>
           <div class="product-card__foot">
             <template v-if="p.priceMin !== null">
               <span :class="['price', { 'price--sale': p.onSale }]">{{ formatPriceRange(p.priceMin, p.priceMax) }}</span>
@@ -280,3 +294,10 @@ useSeoMeta({
   </div>
 </section>
 </template>
+
+<style>
+/* B-18：商品標籤（只用 design tokens，不動 tcrfc.css） */
+.product-card__tags{ display:flex; flex-wrap:wrap; gap:.25rem .6rem; }
+.sh-tag{ font-size:.78rem; font-weight:700; color:var(--brand-aa); text-decoration:none; }
+.sh-tag:hover, .sh-tag:focus-visible{ text-decoration:underline; }
+</style>

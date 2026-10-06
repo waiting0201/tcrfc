@@ -17,7 +17,6 @@ const emit = defineEmits<{ changed: [] }>()
 const { locale, lp, isEn, tx } = useLocale()
 const { authedFetch } = useMemberSession()
 
-const safeUrl = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 
 // ── 加入俱樂部 ──
 const joinBusy = ref('')
@@ -159,7 +158,7 @@ const bwNameEn = BW_NAME_EN // B-5：藍鯨英文簡稱（2026-10-05 定案）
 
       <article v-for="m in data.memberships" :key="m.id" class="mc-membership">
         <header class="mc-membership__head">
-          <img v-if="safeUrl(m.club.logoLightUrl)" :src="safeUrl(m.club.logoLightUrl)!" :alt="m.club.name" height="36" class="mc-membership__logo">
+          <img :src="getClubAssets(m.club.code).headerMark.src" :alt="m.club.name" height="36" class="mc-membership__logo">
           <h3>{{ m.club.name }}</h3>
           <span class="mc-badge" :class="m.status === 'active' ? 'mc-badge--ok' : 'mc-badge--off'">{{ m.statusLabel }}</span>
         </header>

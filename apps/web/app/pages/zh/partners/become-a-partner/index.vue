@@ -12,7 +12,9 @@ const isTcrfc = computed(() => config.public.club !== 'bw')
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const clubEn = computed(() => bizClubNameEn(config.public.club))
 
-useSeoMeta({
+// 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
+const cms = await useCmsPage('partners/become-a-partner')
+cms.applySeo({
   title: computed(() => (isEn.value ? `Become a Partner | Partners & Sponsors | ${clubEn.value}` : `成為合作夥伴 Become a Partner｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isEn.value ? `Learn about the six values of partnering with ${clubEn.value}: brand exposure, audience reach, social impact and an international development network.` : `了解與${clubAssets.value.nameZh}合作的六大價值：品牌曝光、受眾觸及、社會影響力與國際發展網絡。`)),
 })
@@ -39,6 +41,8 @@ useSeoMeta({
 </section>
 
 <!-- SPEC 3.9 §9.3 — 六大價值論述 -->
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('成為合作夥伴', 'Become a Partner')" :zh-fallback="cms.hasZhFallback.value" />
+<template v-else>
 <section class="band" aria-labelledby="values-title">
   <div class="container">
     <div class="eyebrow-row">
@@ -101,6 +105,7 @@ useSeoMeta({
     <p class="audience-note">{{ tx('完整受眾與社群數據報告可於洽談合作時提供，歡迎聯絡商務部索取最新資料。', 'The full audience and social media data report is available when we discuss a partnership. Please contact our Partnerships Department for the latest figures.') }}</p>
   </div>
 </section>
+</template>
 
 <section class="band" aria-labelledby="become-cta-title">
   <div class="container">

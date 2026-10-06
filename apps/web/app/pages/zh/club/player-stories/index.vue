@@ -18,7 +18,9 @@ const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const hero = computed(() => (isEn.value ? (isTcrfc.value ? getPlayerStoriesHeroEn() : getPlayerStoriesHeroEnBw()) : getPlayerStoriesHero(clubKey.value)))
 const emptyNote = computed(() => (isEn.value ? CLUB_PLAYER_STORIES_EMPTY_NOTE_EN_BW : getPlayerStoriesEmptyNote(clubKey.value)))
 
-useSeoMeta({
+// 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
+const cms = await useCmsPage('club/player-stories')
+cms.applySeo({
   title: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerStoriesSeoEn() : getPlayerStoriesSeoEnBw()) : getPlayerStoriesSeo(clubKey.value)).title),
   description: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerStoriesSeoEn() : getPlayerStoriesSeoEnBw()) : getPlayerStoriesSeo(clubKey.value)).description),
 })
@@ -59,6 +61,8 @@ onMounted(() => {
   </div>
 </section>
 
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('球員故事案例', 'Player story cases')" :zh-fallback="cms.hasZhFallback.value" />
+<template v-else>
 <section class="band" id="stories" aria-labelledby="stories-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="stories-title">{{ tx('球員故事案例', 'Player story cases') }}</h2>
@@ -123,6 +127,7 @@ onMounted(() => {
     </div>
   </div>
 </section>
+</template>
 
 <section class="band grain cta-band" id="stories-cta" aria-labelledby="stories-cta-title">
   <div class="band-inner container">

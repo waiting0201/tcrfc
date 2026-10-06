@@ -19,7 +19,8 @@ const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
 // 藍鯨英文版（B-5，2026-10-05）：英文識別依俱樂部取，藍鯨英文不得出現磐石字樣（Academy／TCRFC／Taichung Rock）。
-const identity = computed(() => (isEn.value ? getClubIdentityEnFor(club.value) : getClubIdentity(club.value)))
+// C-2：社群／Email／頁尾簡介以後台值優先（useClubIdentity），後台未維護時沿用 club-copy 過渡值。
+const identity = useClubIdentity()
 const clubNameEn = computed(() => (club.value === 'bw' ? BW_NAME_EN : CLUB_NAME_EN))
 const acaEn = computed(() => (club.value === 'bw' ? 'Youth' : 'Academy'))
 const clubShortName = computed(() => (isEn.value ? clubNameEn.value : assets.value.shortNameZh))
@@ -203,6 +204,7 @@ async function onSubscribe() {
         <div class="legal-links">
           <a :href="lp('/zh/privacy/')">{{ tx('隱私權政策', 'Privacy Policy') }}</a>
           <a :href="lp('/zh/cookies/')">{{ tx('Cookie 政策', 'Cookie Policy') }}</a>
+          <a :href="lp('/zh/member-terms/')">{{ tx('會員條款', 'Membership Terms') }}</a>
           <div class="footer-lang lang-switch" role="group" :aria-label="tx('網站語言切換', 'Site language')">
             <button type="button" :aria-current="locale === 'zh' ? 'true' : undefined" @click="switchTo('zh')">繁中</button><span aria-hidden="true">|</span><button type="button" :aria-current="locale === 'en' ? 'true' : undefined" @click="switchTo('en')">EN</button>
           </div>

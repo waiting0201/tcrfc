@@ -50,6 +50,22 @@ export interface SiteFactLeague {
   shortNameZh: string | null
 }
 
+/** 後台維護的部門窗口（C-2）。`nameEn` 後端缺英文時為 null，呼叫端回退中文。 */
+export interface SiteFactDepartment {
+  nameZh: string
+  nameEn: string | null
+  email: string | null
+  phoneExtension: string | null
+}
+
+/** 後台維護的社群連結（C-2）；`null`＝該平台未設定。 */
+export interface SiteFactSocial {
+  facebook: string | null
+  instagram: string | null
+  youtube: string | null
+  line: string | null
+}
+
 export interface SiteFacts {
   /** 成立年（西元，字串形式，供明文組句）。 */
   foundedYear: string
@@ -91,7 +107,18 @@ export interface SiteFacts {
     address: string | null
     phone: string | null
     hours: string | null
+    /** 英文營業時間；後端無英文值或尚未提供時為 null，呼叫端回退 `hours`（中文）顯示。 */
+    hoursEn?: string | null
+    /** C-2：後台維護的聯絡 Email。靜態快照不帶（缺欄位＝沿用 club-copy.ts 的過渡值）。 */
+    email?: string | null
+    /** C-2：各部門窗口；缺欄位或空陣列＝後台尚未維護。 */
+    departments?: SiteFactDepartment[]
   }
+  /** C-2：後台維護的社群連結；缺欄位＝API 沒給（沿用 club-copy.ts 的過渡值）。 */
+  social?: SiteFactSocial | null
+  /** C-2：頁尾品牌簡介（後台維護，中英逐語系）；null／缺＝沿用 club-copy.ts。 */
+  footerBlurbZh?: string | null
+  footerBlurbEn?: string | null
   /** 台中藍鯨官網網址（S1-16／S1-12d 後續補完，2026-09-29）——概念上只屬於 `tcrfc`
    * （藍鯨官網本身沒有 06 單元，`bw` 恆為 `null`）。後端已提供
    * `PublicSiteFactsDto.BlueWhaleSiteUrl`（後台 `I` 網站設定可維護），本檔靜態快照

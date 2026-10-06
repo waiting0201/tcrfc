@@ -10,7 +10,8 @@
 // 🔴 後端完全沒有資料（含 API 打不到）時，退回 mockup 時代人工整理的三個團體名稱與「3」筆已公開事蹟（真實，
 // 有俱樂部新聞報導為憑據，S0-9 搬遷保留）；後台一旦有任何事蹟或公開統計，整頁換成後台資料，不混搭。
 // 🔴 單元 11 對藍鯨整頁 404（藍鯨規劃書 §2.1）。
-import type { ImpactSummary } from '#shared/utils/charity'
+import type { CharityProgramListItem, ImpactSummary } from '#shared/utils/charity'
+import type { PagedResponse } from '#shared/utils/api-types'
 
 definePageMeta({ nav: 'charity', unit: '11', enReady: true })
 
@@ -34,7 +35,17 @@ const { data } = await useFetch<ImpactSummary>(`/api/backend/${club}/charity/imp
 const summary = computed(() => data.value ?? null)
 const usingApi = computed(() => Boolean(summary.value && (summary.value.charityCount > 0 || summary.value.donationItemCount > 0 || summary.value.metrics.length > 0)))
 
-interface StatCell { label: string, text: string | null }
+// B-21：掛在特定計畫的指標（programSlug）顯示所屬計畫並連過去。指標 DTO 只帶 slug，計畫名稱回頭查計畫列表
+// （只在真的有指標掛計畫時才發請求）；查不到名稱仍保留連結，用通用字樣。
+const hasProgramMetrics = (data.value?.metrics ?? []).some((m) => m.programSlug)
+const { data: programsData } = await useFetch<PagedResponse<CharityProgramListItem>>(`/api/backend/${club}/charity/programs`, {
+  query: { lang: locale.value, pageSize: 50 },
+  key: `charity-programs-for-impact-${club}-${locale.value}`,
+  immediate: hasProgramMetrics,
+})
+const programNameBySlug = computed(() => new Map((programsData.value?.items ?? []).map((p) => [p.slug, p.name])))
+
+interface StatCell { label: string, text: string | null, programSlug?: string | null, programName?: string | null }
 const STATIC_ORGS = ['潭秀非營利幼兒園', '台中磐石盃少年足球隊伍', '潭秀國中暨嶺東高中聯隊']
 
 const stats = computed<StatCell[]>(() => {
@@ -54,7 +65,12 @@ const stats = computed<StatCell[]>(() => {
     { label: tx('服務地區數', 'Regions served'), text: count(s.regions.length) },
     ...s.metrics
       .filter((m) => m.name)
-      .map((m) => ({ label: m.name as string, text: m.value == null ? null : `${m.value.toLocaleString('en-US')}${m.unit ?? ''}` })),
+      .map((m) => ({
+        label: m.name as string,
+        text: m.value == null ? null : `${m.value.toLocaleString('en-US')}${m.unit ?? ''}`,
+        programSlug: m.programSlug,
+        programName: m.programSlug ? (programNameBySlug.value.get(m.programSlug) ?? null) : null,
+      })),
   ]
 })
 const regions = computed(() => (usingApi.value ? summary.value?.regions ?? [] : []))
@@ -93,6 +109,7 @@ const anyLogo = computed(() => charities.value.some((c) => c.logoUrl))
         <p v-if="st.text" class="stat__num">{{ st.text }}</p>
         <p v-else class="stat__num" :aria-label="tx('尚未公開', 'Not yet announced')">—</p>
         <p class="stat__label">{{ st.label }}</p>
+        <p v-if="st.programSlug" class="stat__program"><a :href="lp(`/zh/charity/programs/${st.programSlug}/`)">{{ tx('所屬計畫：', 'Program: ') }}{{ st.programName || tx('查看計畫', 'View program') }} →</a></p>
       </div>
     </div>
     <p v-if="regions.length" class="impact-regions">{{ tx('服務地區：', 'Regions served: ') }}{{ regions.join(tx('、', ', ')) }}</p>
@@ -159,5 +176,7 @@ const anyLogo = computed(() => charities.value.some((c) => c.logoUrl))
   font-weight:700; color:var(--heading); font-size:.95rem;
 }
 
+.stat__program{ margin-top:.35rem; font-size:.78rem; }
+.stat__program a{ color:var(--brand); text-decoration:underline; }
 .impact-regions{ margin-top:1.75rem; font-size:.9rem; color:var(--muted-dark); }
 </style>

@@ -156,6 +156,10 @@ export default defineNuxtConfig({
     '/zh/member/**': { headers: { 'Cache-Control': 'no-store' } },
     '/en/member/**': { headers: { 'Cache-Control': 'no-store' } },
     '/m/**': { headers: { 'Cache-Control': 'no-store' } },
+    // A-7 靜態頁預覽（權杖視同密碼，未發布內容）：不得被任何層快取。
+    '/zh/preview/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/en/preview/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/api/backend/pages/preview/**': { headers: { 'Cache-Control': 'no-store' } },
     '/api/member-auth/**': { headers: { 'Cache-Control': 'no-store' } },
     '/api/backend/member/**': { headers: { 'Cache-Control': 'no-store' } },
     // 🔴 S3-5 站內商店：庫存、購物車、訂單、付款狀態不得被 SSR／CDN／瀏覽器快取（docs/14 不變量）。

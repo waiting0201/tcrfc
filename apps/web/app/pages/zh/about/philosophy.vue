@@ -16,10 +16,9 @@ const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? PHILOSOPHY_SE
 
 const quotes = computed(() => (isEn.value ? PHILOSOPHY_QUOTES_EN_BW : PHILOSOPHY_QUOTES_BW))
 
-useSeoMeta({
-  title: computed(() => seo.value.title),
-  description: computed(() => seo.value.description),
-})
+// 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
+const cms = await useCmsPage('about/philosophy')
+cms.applySeo({ title: () => seo.value.title, description: () => seo.value.description })
 </script>
 
 <template>
@@ -43,6 +42,8 @@ useSeoMeta({
 </section>
 
 <!-- 藍鯨版：隊徽理念、俱樂部口號、培訓精神——逐字節錄舊站原文（見 club-copy.ts PHILOSOPHY_QUOTES_BW）。 -->
+<ContentCmsPageBand v-if="cms.active.value" :blocks="cms.blocks.value" :label="tx('足球理念', 'Our Philosophy')" :zh-fallback="cms.hasZhFallback.value" />
+<template v-else>
 <section v-if="clubKey === 'bw'" class="band vm-band" aria-labelledby="bw-philosophy-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="bw-philosophy-title">{{ tx('俱樂部口號與培訓精神', 'Club Slogan and Training Spirit') }}</h2>
@@ -102,4 +103,5 @@ useSeoMeta({
     </div>
   </div>
 </section>
+</template>
 </template>

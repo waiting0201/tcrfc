@@ -8,37 +8,12 @@
 //   - 查無資料或後端回錯 → **不 404**，302 回 `/programs/`（App 未安裝時回退網址不得顯示錯誤頁，docs/19 §2）。
 // 資料不足不輸出 Course Schema：由 `useCourseSchema` → `buildCourseSchemaNode` 判斷（名稱與說明缺一即不輸出）。
 // 線上報名只對磐石開放（藍鯨的線上報名與收費待確認，藍鯨規劃書 §10 第 8 點，與五個靜態頁同一規則）。
-// `content` 當純文字顯示（空行分段），**不使用 v-html**。
-import type { ProgramSessionLike } from '~/utils/program-session'
-
+// `content`（A-5，2026-10-06）：後台 P1 的「課程內容」改為與靜態頁同一套區塊編輯器，存成區塊 JSON——能解析（`parseBlocksJson`）
+// 就用 `PageBlocks` 渲染；解析不了的舊資料維持純文字顯示（空行分段）。兩條路都**不使用 v-html**。
 definePageMeta({ nav: 'programs', unit: '05', enReady: true, enReadyBw: true })
 
-interface ProgramDetail {
-  id: string
-  slug: string
-  audience: string | null
-  ageMin: number | null
-  ageMax: number | null
-  coverUrl: string | null
-  name: string | null
-  intro: string | null
-  content: string | null
-  staff: Array<{ id: string, name: string | null }>
-  partners: Array<{ id: string, slug: string, name: string | null, websiteUrl: string | null }>
-  sessions: Array<ProgramSessionLike & {
-    id: string
-    startOn: string | null
-    endOn: string | null
-    weeklySchedule: string | null
-    capacity: number | null
-    enrolledCount: number
-    price: number | null
-    earlyBirdPrice: number | null
-    earlyBirdUntil: string | null
-    venueName: string | null
-    venueAddress: string | null
-  }>
-}
+// 型別與內容解析與五個固定頁共用：utils/program-content.ts（B-8）
+type ProgramDetail = ProgramDetailView
 
 const { lp, locale, isEn, tx } = useLocale()
 const route = useRoute()
@@ -57,17 +32,15 @@ if (error.value || !program.value) {
   await navigateTo(lp('/zh/programs/'), { redirectCode: 302, replace: true })
 }
 
-const paragraphs = computed(() => (program.value?.content ?? '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean))
+const mediaBaseUrl = config.public.mediaBaseUrl as string
+const contentView = computed(() => buildProgramContent(program.value?.content, isEn.value ? 'en' : 'zh', mediaBaseUrl))
+const contentBlocks = computed(() => contentView.value.blocks)
+const paragraphs = computed(() => contentView.value.paragraphs)
 const openSessions = computed(() => (program.value?.sessions ?? []).filter((s) => isSessionRegistrable(s)))
 const registrable = computed(() => (isTcrfc.value && program.value && openSessions.value.length > 0
   ? [{ slug: program.value.slug, name: program.value.name, sessions: openSessions.value }]
   : []))
-const ageText = computed(() => {
-  const p = program.value
-  if (!p || p.ageMin == null) return null
-  if (isEn.value) return p.ageMax != null ? `${p.ageMin}–${p.ageMax} years` : `${p.ageMin} years and over`
-  return p.ageMax != null ? `${p.ageMin}–${p.ageMax} 歲` : `${p.ageMin} 歲以上`
-})
+const ageText = computed(() => (program.value ? programAgeText(program.value, isEn.value) : null))
 
 useSeoMeta({
   title: computed(() => (isEn.value ? `${program.value?.name ?? 'Program'} | Programs | ${clubNameEn.value}` : `${program.value?.name ?? '課程'}｜課程與活動｜${clubAssets.value.nameZh}`)),
@@ -115,8 +88,9 @@ useCourseSchema(
           <template v-if="program.audience && ageText">{{ tx('｜', ' | ') }}</template>
           <template v-if="ageText">{{ tx('年齡：', 'Age: ') }}{{ ageText }}</template>
         </p>
+        <ContentPageBlocks v-if="contentBlocks.length" :blocks="contentBlocks" />
         <p v-for="(para, i) in paragraphs" :key="i">{{ para }}</p>
-        <p v-if="!paragraphs.length && !program.intro" class="is-pending">{{ tx('課程內容整理中，稍後公布。', 'Program details are being compiled and will be published soon.') }}</p>
+        <p v-if="!paragraphs.length && !contentBlocks.length && !program.intro" class="is-pending">{{ tx('課程內容整理中，稍後公布。', 'Program details are being compiled and will be published soon.') }}</p>
       </div>
       <div class="prose">
         <template v-if="program.staff.length">

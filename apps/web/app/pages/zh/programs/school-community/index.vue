@@ -26,14 +26,8 @@ useSeoMeta({
 
 const schoolPartners = computed(() => (isEn.value ? SCHOOL_PARTNERS_BW_EN : SCHOOL_PARTNERS_BW))
 const clubNameEn = computed(() => (isTcrfc.value ? 'Taichung Rock FC' : BW_NAME_EN))
-const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
-  query: { type: 'school_community', pageSize: 5, lang: locale.value },
-})
-const firstProgram = computed(() => programList.value?.items?.[0] ?? null)
-const { data: programDetail } = await useFetch(
-  `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
-  { query: { lang: locale.value }, immediate: !!firstProgram.value },
-)
+// B-8：全部已發布校園與社區課程的詳情（內容、教練團、合作夥伴、封面）。
+const { programs, first: programDetail } = await useProgramsOfType('school_community')
 
 // G-12 常見問題快捷區塊：program_detail 掛載點，理由同 childrens-training/index.vue。
 const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
@@ -75,6 +69,9 @@ useCourseSchema(
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
+
+<!-- B-8：後台課程（P1）的內容、適合對象、年齡、教練團、合作夥伴；有課程資料才顯示 -->
+<ProgramInfoBand v-if="programs.length" :programs="programs" :content-title="tx('課程介紹', 'About the Programs')" show-partners />
 
 <section class="band">
   <div class="container">

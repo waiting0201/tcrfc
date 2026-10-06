@@ -32,6 +32,8 @@ async function fetchPress(type: PressResourceType) {
   })
   return computed(() => data.value?.items ?? [])
 }
+/** B-21：封面有值就顯示（只收 https 或站內路徑）。 */
+const coverSrc = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 const [pressReleases, brandKits, hiresImages] = await Promise.all([
   fetchPress('press_release'),
   fetchPress('brand_kit'),
@@ -145,6 +147,7 @@ useSeoMeta({
     <p v-if="!brandKits.length" style="margin-top:1.5rem;color:var(--muted-dark)">{{ tx('品牌識別包（隊徽向量檔、社群分享圖）尚未提供，稍後將於本頁公布。', 'The brand kit (crest vector files and social share image) is not available yet. It will be published on this page soon.') }}</p>
     <ul v-else class="press-list press-list--dark">
       <li v-for="r in brandKits" :key="r.id" class="press-item">
+        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.title ?? ''" loading="lazy" width="120" height="80">
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
@@ -162,6 +165,7 @@ useSeoMeta({
     <h2 class="section-title" id="brandkit-more-title" style="color:#fff">{{ tx('更多識別素材', 'More brand assets') }}</h2>
     <ul class="press-list press-list--dark">
       <li v-for="r in brandKits" :key="r.id" class="press-item">
+        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.title ?? ''" loading="lazy" width="120" height="80">
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
@@ -183,6 +187,7 @@ useSeoMeta({
     </div>
     <ul v-if="pressReleases.length" class="press-list">
       <li v-for="r in pressReleases" :key="r.id" class="press-item">
+        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.title ?? ''" loading="lazy" width="120" height="80">
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
@@ -241,7 +246,8 @@ useSeoMeta({
 /* 7.8 媒體資源清單與圖庫（S2-12） */
 .press-list{ list-style:none; padding:0; margin:1.5rem 0 0; display:flex; flex-direction:column; border-top:1px solid var(--rule); }
 .press-item{ display:flex; gap:1.25rem; align-items:center; justify-content:space-between; padding:1.1rem 0; border-bottom:1px solid var(--rule); }
-.press-item__main{ min-width:0; }
+.press-item__main{ min-width:0; flex:1; }
+.press-item__cover{ width:120px; height:80px; object-fit:cover; flex:none; background:var(--paper-2); }
 .press-item__title{ font-weight:800; color:var(--heading); line-height:1.5; }
 .press-item__desc{ font-size:.88rem; line-height:1.7; color:var(--text); margin-top:.25rem; white-space:pre-line; }
 .press-item__meta{ font-size:.78rem; font-weight:700; color:var(--muted); margin-top:.3rem; }
@@ -255,5 +261,5 @@ useSeoMeta({
 .press-gallery__cap{ display:block; font-size:.82rem; font-weight:700; margin-top:.4rem; color:var(--heading); }
 .press-gallery__cap small{ font-weight:500; color:var(--muted); }
 .press-empty{ margin:1.25rem 0; color:var(--muted); font-size:.9rem; }
-@media (max-width:560px){ .press-item{ flex-direction:column; align-items:flex-start; } }
+@media (max-width:560px){ .press-item{ flex-direction:column; align-items:flex-start; } .press-item__cover{ width:100%; height:auto; aspect-ratio:3/2; } }
 </style>

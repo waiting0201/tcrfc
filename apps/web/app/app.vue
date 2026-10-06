@@ -26,37 +26,96 @@ const assets = computed(() => getClubAssets(club.value))
 // 對應腳本整段不輸出，不送出空字串當參數——那樣仍會建立分析工作階段，只是收不到有意義的資料。
 const { data: seoSettings } = await useFetch(() => `/api/backend/${club.value}/seo/settings`)
 
+// E-1：後台填的追蹤碼是「會被拼進腳本與網址」的字串，前台輸出前再以白名單格式驗證一次（後端也驗，這是第二道）。
+// 不符格式就整段不輸出；網址參數另以 encodeURIComponent，腳本內嵌值以 JSON.stringify 輸出成字串字面值，
+// 而不是用字串模板直接插入單引號內。
+const TRACKING_ID_PATTERNS = {
+  ga4: /^G-[A-Z0-9]+$/,
+  gtm: /^GTM-[A-Z0-9]+$/,
+  metaPixel: /^\d+$/,
+  lineTag: /^[A-Za-z0-9-]+$/,
+} as const
+function trackingId(raw: unknown, kind: keyof typeof TRACKING_ID_PATTERNS): string | null {
+  if (typeof raw !== 'string') return null
+  const v = raw.trim()
+  return TRACKING_ID_PATTERNS[kind].test(v) ? v : null
+}
+
 useHead(() => {
   const scripts: Array<{ innerHTML?: string, src?: string, async?: boolean }> = []
   const s = seoSettings.value
+  const ga4 = trackingId(s?.ga4MeasurementId, 'ga4')
+  const gtm = trackingId(s?.gtmContainerId, 'gtm')
+  const metaPixel = trackingId(s?.metaPixelId, 'metaPixel')
+  const lineTag = trackingId(s?.lineTagId, 'lineTag')
 
-  if (s?.ga4MeasurementId) {
-    scripts.push({ src: `https://www.googletagmanager.com/gtag/js?id=${s.ga4MeasurementId}`, async: true })
+  if (ga4) {
+    scripts.push({ src: `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(ga4)}`, async: true })
     scripts.push({
-      innerHTML: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${s.ga4MeasurementId}');`,
+      innerHTML: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config',${JSON.stringify(ga4)});`,
     })
   }
 
-  if (s?.gtmContainerId) {
+  if (gtm) {
     scripts.push({
-      innerHTML: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${s.gtmContainerId}');`,
+      innerHTML: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer',${JSON.stringify(gtm)});`,
     })
   }
 
-  if (s?.metaPixelId) {
+  if (metaPixel) {
     scripts.push({
-      innerHTML: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${s.metaPixelId}');fbq('track','PageView');`,
+      innerHTML: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init',${JSON.stringify(metaPixel)});fbq('track','PageView');`,
     })
   }
 
-  if (s?.lineTagId) {
+  if (lineTag) {
     scripts.push({
-      innerHTML: `(function(g,d,o){g._ltq=g._ltq||[];g._ltq.push(['init','${s.lineTagId}']);g._ltq.push(['track','PageView']);var s=d.createElement(o);s.async=1;s.src='https://d.line-scdn.net/n/line_tag/public/release/v1/lt.js';d.getElementsByTagName(o)[0].parentNode.insertBefore(s,d.getElementsByTagName(o)[0]);})(window,document,'script');`,
+      innerHTML: `(function(g,d,o){g._ltq=g._ltq||[];g._ltq.push(['init',${JSON.stringify(lineTag)}]);g._ltq.push(['track','PageView']);var s=d.createElement(o);s.async=1;s.src='https://d.line-scdn.net/n/line_tag/public/release/v1/lt.js';d.getElementsByTagName(o)[0].parentNode.insertBefore(s,d.getElementsByTagName(o)[0]);})(window,document,'script');`,
     })
   }
 
   return { script: scripts }
 })
+
+// ── B-3：全站 SEO 預設（標題樣板、預設描述、預設 OG 圖）──────────────────────────────
+// 後台「全站搜尋與分享設定」填的值。優先序：頁面自己設的 > 後台全站預設 > getClubAssets 寫死值。
+// 描述與 OG 圖用 tagPriority 'low'，頁面自己的 useSeoMeta（預設優先序）一定蓋得過。
+const { isEn } = useLocale()
+const TITLE_PLACEHOLDER = /\{標題\}|\{title\}|%s/
+const titleTemplateRaw = computed(() => {
+  const s = seoSettings.value
+  const tpl = ((isEn.value ? s?.titleTemplateEn : s?.titleTemplateZh) ?? '').trim()
+  return tpl && TITLE_PLACEHOLDER.test(tpl) ? tpl : null
+})
+function applyTitleTemplate(tpl: string, title?: string): string | undefined {
+  if (!title) return title
+  // 頁面標題已自帶樣板的固定尾巴（例如站名）就不重複附加
+  const fixed = tpl.replace(TITLE_PLACEHOLDER, '').replace(/^[\s｜|\-–—:：·]+|[\s｜|\-–—:：·]+$/g, '')
+  if (fixed && title.includes(fixed)) return title
+  return tpl.replace(TITLE_PLACEHOLDER, () => title)
+}
+// 後台沒設（或沒有佔位字）時不註冊，沿用 nuxt-seo-utils 的預設樣板
+useHead(() => {
+  const tpl = titleTemplateRaw.value
+  return tpl ? { titleTemplate: (title?: string) => applyTitleTemplate(tpl, title) } : {}
+})
+
+const seoDefaultDescription = computed(() => {
+  const s = seoSettings.value
+  return ((isEn.value ? s?.defaultDescriptionEn : s?.defaultDescriptionZh) ?? '').trim() || undefined
+})
+const seoOgImage = computed(() => {
+  const s = seoSettings.value
+  const url = typeof s?.ogImageUrl === 'string' && s.ogImageUrl ? s.ogImageUrl : null
+  if (!url) return { url: assets.value.ogImage, width: undefined, height: undefined }
+  return { url, width: s?.ogImageWidth ?? undefined, height: s?.ogImageHeight ?? undefined }
+})
+useSeoMeta({
+  description: () => seoDefaultDescription.value,
+  ogImage: () => seoOgImage.value.url,
+  ogImageWidth: () => seoOgImage.value.width,
+  ogImageHeight: () => seoOgImage.value.height,
+}, { tagPriority: 'low' })
 
 useHead(() => ({
   htmlAttrs: {
@@ -85,7 +144,6 @@ useHead(() => ({
   ],
   meta: [
     { name: 'theme-color', content: assets.value.themeColor },
-    { property: 'og:image', content: assets.value.ogImage },
   ],
 }))
 </script>
