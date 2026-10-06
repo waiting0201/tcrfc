@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * J4 俱樂部主檔編輯頁。
- * 🔴 標誌／favicon／OG 圖三組欄位本輪唯讀（見 `@/api/adminClubs` 檔頭說明），畫面上只顯示
- * 目前是否已設定，不提供上傳；之後要補時應比照新聞封面圖片的作法（選檔即時預覽、儲存才上傳）。
+ * 標誌／favicon／OG 圖在本頁只顯示是否已設定；上傳入口在 I3 全域設定（標誌淺底／深底、分頁小圖示）
+ * 與 H1 全站設定（社群分享圖片），兩處都走 §4.0 上傳通則，本頁不重複做一份上傳。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -279,7 +279,7 @@ function handleBack() {
           </el-form-item>
         </el-form>
         <p class="club-edit__note">
-          標誌、favicon、社群分享圖片目前僅供檢視，尚未開放在這裡上傳（已知缺口，見交付說明）。
+          標誌與瀏覽器分頁小圖示請到「網站設定 → 全域設定」上傳；社群分享圖片請到「搜尋與 AI 能見度 → 全站設定」上傳。這裡只顯示目前是否已設定。
         </p>
         <ul class="club-edit__logo-status">
           <li>淺底標誌：{{ logoKeys.logoLightKey ? '已設定' : '尚未設定' }}</li>

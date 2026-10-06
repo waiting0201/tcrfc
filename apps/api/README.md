@@ -721,6 +721,7 @@ coordinator 第二輪補派新增，見下方「第二輪補派：J4 球隊授�
    目前的 `*_key` 值，但 `CreateAdminClubRequest`／`UpdateAdminClubRequest` 都沒有讓呼叫端設定
    這些欄位的管道。**待辦**：之後應比照 `Features/AdminNews` 的 multipart 契約（選檔即時預覽、
    儲存才上傳）補上，見規劃書 §4.0 圖片上傳通則。
+   🔵 **2026-10-06 複核：已由他處補上**——`clubs.og_image_key` 由 H1（`Features/AdminSeo`），`logo_light_key`／`logo_dark_key`／`favicon_key` 由 I3 全域設定（2026-10-02）寫入，`UploadSlotPolicy` 的 `clubs` 槽位四項齊全；J4 本身維持唯讀顯示。
 6. **`Club`／`Competition` 都沒有刪除端點**——前者刪除會牽動約 50 張表的外鍵，後者已有 `Match`
    可能引用；規劃書沒有明文要不要支援刪除這兩個型別，本輪判斷「先不做，回報」比「猜一個刪除
    行為」安全。角色（`AdminRole`）與帳號授權（`AdminUserClub`）都有明確的刪除／撤銷語意
