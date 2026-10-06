@@ -52,7 +52,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
                 p.Id,
                 p.Slug,
                 p.ProgramType,
-                p.Audience,
+                AudienceZh = p.ProgramsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Audience).FirstOrDefault(),
+                AudienceEn = p.ProgramsI18ns.Where(i => i.Locale == "en").Select(i => i.Audience).FirstOrDefault(),
                 p.AgeMin,
                 p.AgeMax,
                 p.Status,
@@ -69,7 +70,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             Id = r.Id,
             Slug = r.Slug,
             ProgramType = r.ProgramType,
-            Audience = r.Audience,
+            Audience = r.AudienceZh,
+            AudienceEn = r.AudienceEn,
             AgeMin = r.AgeMin,
             AgeMax = r.AgeMax,
             Status = r.Status ?? "draft",
@@ -99,6 +101,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         ValidateStatus(request.Status);
         ValidateAgeRange(request.AgeMin, request.AgeMax);
         ValidateContent(request.Content);
+        var audience = AdminInput.OptionalText(request.Audience, "適合對象", AudienceMaxLength, "audience");
+        var audienceEn = AdminInput.OptionalText(request.AudienceEn, "適合對象（英文）", AudienceMaxLength, "audienceEn");
 
         if (await dbContext.Programs.AsNoTracking()
                 .AnyAsync(p => p.ClubId == scope.ClubId && p.Slug == request.Slug, cancellationToken))
@@ -116,7 +120,6 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             ClubId = scope.ClubId,
             Slug = request.Slug,
             ProgramType = request.ProgramType,
-            Audience = request.Audience,
             AgeMin = request.AgeMin,
             AgeMax = request.AgeMax,
             Status = request.Status ?? "draft",
@@ -128,11 +131,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         };
 
         dbContext.Programs.Add(program);
-        AddOrReplaceI18n(program, RequestLocale.DefaultDbLocale, request.Content.Zh);
-        if (request.Content.En is not null)
-        {
-            AddOrReplaceI18n(program, "en", request.Content.En);
-        }
+        ApplyI18n(program, request.Content, audience, audienceEn);
 
         foreach (var s in staff)
         {
@@ -155,6 +154,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         ValidateStatus(request.Status);
         ValidateAgeRange(request.AgeMin, request.AgeMax);
         ValidateContent(request.Content);
+        var audience = AdminInput.OptionalText(request.Audience, "適合對象", AudienceMaxLength, "audience");
+        var audienceEn = AdminInput.OptionalText(request.AudienceEn, "適合對象（英文）", AudienceMaxLength, "audienceEn");
 
         var program = await dbContext.Programs
             .Include(p => p.ProgramsI18ns)
@@ -181,7 +182,6 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
 
         program.Slug = request.Slug;
         program.ProgramType = request.ProgramType;
-        program.Audience = request.Audience;
         program.AgeMin = request.AgeMin;
         program.AgeMax = request.AgeMax;
         program.Status = request.Status ?? "draft";
@@ -193,16 +193,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             program.CoverKey = coverUpdate.NewKey;
         }
 
-        AddOrReplaceI18n(program, RequestLocale.DefaultDbLocale, request.Content.Zh);
-        var existingEn = program.ProgramsI18ns.FirstOrDefault(i => i.Locale == "en");
-        if (request.Content.En is not null)
-        {
-            AddOrReplaceI18n(program, "en", request.Content.En);
-        }
-        else if (existingEn is not null)
-        {
-            dbContext.Remove(existingEn);
-        }
+        ApplyI18n(program, request.Content, audience, audienceEn);
 
         // 省略＝維持不變、空陣列＝清空——比照 AdminArticlesRepository 對 Tags 的既有語意。
         if (request.StaffIds is not null)
@@ -275,7 +266,26 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         return partners;
     }
 
-    private void AddOrReplaceI18n(TrainingProgram program, string locale, AdminProgramLocaleContent content)
+    /// <summary><c>programs_i18n.audience</c> 最長 64 字（<c>db/club-schema.sql</c>）。</summary>
+    private const int AudienceMaxLength = 64;
+
+    /// <summary>繁中列必存在；英文列在「有英文內容」或「有英文適合對象」時存在，兩者皆無就移除（前台回退繁中）。
+    /// 只有英文適合對象、沒有英文內容時，英文列的名稱／簡介／內文為空，前台對這些欄位仍回退繁中。</summary>
+    private void ApplyI18n(TrainingProgram program, AdminProgramContentInput content, string? audience, string? audienceEn)
+    {
+        AddOrReplaceI18n(program, RequestLocale.DefaultDbLocale, content.Zh, audience);
+        var existingEn = program.ProgramsI18ns.FirstOrDefault(i => i.Locale == "en");
+        if (content.En is not null || audienceEn is not null)
+        {
+            AddOrReplaceI18n(program, "en", content.En, audienceEn);
+        }
+        else if (existingEn is not null)
+        {
+            dbContext.Remove(existingEn);
+        }
+    }
+
+    private void AddOrReplaceI18n(TrainingProgram program, string locale, AdminProgramLocaleContent? content, string? audience)
     {
         var existing = program.ProgramsI18ns.FirstOrDefault(i => i.Locale == locale);
         if (existing is null)
@@ -285,9 +295,10 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             dbContext.ProgramsI18ns.Add(existing);
         }
 
-        existing.Name = content.Name;
-        existing.Intro = content.Intro;
-        existing.Content = content.Content;
+        existing.Name = content?.Name;
+        existing.Intro = content?.Intro;
+        existing.Content = content?.Content;
+        existing.Audience = audience;
     }
 
     private static void ValidateProgramType(string? programType)
@@ -366,13 +377,14 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             Id = program.Id,
             Slug = program.Slug,
             ProgramType = program.ProgramType,
-            Audience = program.Audience,
+            Audience = zh?.Audience,
+            AudienceEn = en?.Audience,
             AgeMin = program.AgeMin,
             AgeMax = program.AgeMax,
             Status = program.Status ?? "draft",
             CoverKey = program.CoverKey,
             Zh = new AdminProgramLocaleContent { Name = zh?.Name ?? "", Intro = zh?.Intro, Content = zh?.Content },
-            En = en is null ? null : new AdminProgramLocaleContent { Name = en.Name ?? "", Intro = en.Intro, Content = en.Content },
+            En = en is null || en.Name is null ? null : new AdminProgramLocaleContent { Name = en.Name, Intro = en.Intro, Content = en.Content },
             Staff = program.Staff
                 .Select(s => new AdminProgramStaffDto
                 {

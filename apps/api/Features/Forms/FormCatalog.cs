@@ -50,6 +50,22 @@ public static class FormCatalog
     public static readonly IReadOnlySet<string> MediaCategoryCodes =
         new HashSet<string>(StringComparer.Ordinal) { MediaEnquiry };
 
+    /// <summary>
+    /// 欄位由系統預先定義、後台不得增刪改的表單（稽核 A-3，2026-10-06 使用者拍板）。
+    /// 前台 10.1–10.7 七張表單的 DOM 是寫死的，答案鍵（<c>field_key</c>）、必填、類型、選項一旦被後台改掉，前台送出就會被
+    /// 後端 400 擋下；<see cref="ProposalDownload"/> 的欄位由 <c>Features/Proposals</c> 以固定鍵送出，同樣不可動。
+    /// <see cref="DonationEnquiry"/> 規劃書未定義欄位、也沒有任何程式以固定鍵送出，維持可由表單設計器調整。
+    /// 鎖定範圍：新增／刪除欄位，以及修改欄位代碼、類型、必填、驗證規則、選項；
+    /// 題目文字（中英）、選項英文顯示文字、內容摘要來源、排序仍可改。
+    /// </summary>
+    public static readonly IReadOnlySet<string> FieldLockedCodes = new HashSet<string>(StringComparer.Ordinal)
+    {
+        JoinPlayer, AcademyChildrenTraining, CampRegistration, InternationalPlayerEnquiry,
+        PartnershipSponsorship, MediaEnquiry, GeneralContact, ProposalDownload,
+    };
+
+    public static bool AreFieldsLocked(string formCode) => FieldLockedCodes.Contains(formCode);
+
     public static bool IsKnownCode(string formCode) => AllCodes.Contains(formCode, StringComparer.Ordinal);
 
     /// <summary>顯示名稱對照——**不是資料庫欄位**，純粹是規劃書 §3.10 固定表格的中英名稱字面值，

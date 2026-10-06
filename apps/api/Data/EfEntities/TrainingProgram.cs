@@ -15,8 +15,6 @@ public partial class TrainingProgram
 
     public string? ProgramType { get; set; }
 
-    public string? Audience { get; set; }
-
     public int? AgeMin { get; set; }
 
     public int? AgeMax { get; set; }

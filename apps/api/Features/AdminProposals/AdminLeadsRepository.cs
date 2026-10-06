@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Features.Forms;
+using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.AdminProposals;
@@ -35,7 +36,7 @@ public sealed class AdminLeadsRepository(ClubDbContext dbContext)
                 Name = e.EnquiryAnswers.Where(a => a.FormField.FieldKey == NameKey).Select(a => a.Value).FirstOrDefault(),
                 Email = e.EnquiryAnswers.Where(a => a.FormField.FieldKey == ContactKey).Select(a => a.Value).FirstOrDefault(),
                 ProposalId = e.ProposalId,
-                ProposalTitle = e.Proposal != null ? e.Proposal.Title : null,
+                ProposalTitle = e.Proposal != null ? e.Proposal.ProposalsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Title).FirstOrDefault() : null,
                 SourcePath = e.SourcePath, UtmSource = e.UtmSource, UtmCampaign = e.UtmCampaign, Status = e.Status,
                 AssigneeAdminUserId = e.AssigneeAdminUserId, Tags = e.Tags, CreatedAt = e.CreatedAt,
             }).ToListAsync(cancellationToken);
@@ -45,7 +46,7 @@ public sealed class AdminLeadsRepository(ClubDbContext dbContext)
     public async Task<AdminLeadDetailDto?> GetByIdAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
         var enquiry = await Filter(scope, null, null, null, null, null)
-            .Include(e => e.Proposal).Include(e => e.EnquiryAnswers).ThenInclude(a => a.FormField)
+            .Include(e => e.Proposal).ThenInclude(p => p!.ProposalsI18ns).Include(e => e.EnquiryAnswers).ThenInclude(a => a.FormField)
             .AsNoTracking().FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         return enquiry is null ? null : ToDetail(enquiry);
     }
@@ -56,7 +57,7 @@ public sealed class AdminLeadsRepository(ClubDbContext dbContext)
         AdminInput.OneOf(request.Status, Statuses, "跟進狀態", "「新進」「處理中」「已回覆」「已結案」或「無效」", "status");
         var tags = AdminInput.OptionalText(request.Tags, "標籤", 255, "tags");
         var enquiry = await Filter(scope, null, null, null, null, null)
-            .Include(e => e.Proposal).Include(e => e.EnquiryAnswers).ThenInclude(a => a.FormField)
+            .Include(e => e.Proposal).ThenInclude(p => p!.ProposalsI18ns).Include(e => e.EnquiryAnswers).ThenInclude(a => a.FormField)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         if (enquiry is null)
         {
@@ -90,7 +91,7 @@ public sealed class AdminLeadsRepository(ClubDbContext dbContext)
                 Company = e.EnquiryAnswers.Where(a => a.FormField.FieldKey == CompanyKey).Select(a => a.Value).FirstOrDefault(),
                 Name = e.EnquiryAnswers.Where(a => a.FormField.FieldKey == NameKey).Select(a => a.Value).FirstOrDefault(),
                 Email = e.EnquiryAnswers.Where(a => a.FormField.FieldKey == ContactKey).Select(a => a.Value).FirstOrDefault(),
-                ProposalTitle = e.Proposal != null ? e.Proposal.Title : null,
+                ProposalTitle = e.Proposal != null ? e.Proposal.ProposalsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Title).FirstOrDefault() : null,
                 e.SourcePath, e.UtmSource, e.Status, e.Tags, e.CreatedAt,
             }).ToListAsync(cancellationToken);
 
@@ -170,7 +171,7 @@ public sealed class AdminLeadsRepository(ClubDbContext dbContext)
         {
             Id = enquiry.Id,
             Company = Answer(CompanyKey), Name = Answer(NameKey), Email = Answer(ContactKey),
-            ProposalId = enquiry.ProposalId, ProposalTitle = enquiry.Proposal?.Title, ProposalVersionNo = enquiry.Proposal?.VersionNo,
+            ProposalId = enquiry.ProposalId, ProposalTitle = enquiry.Proposal?.ProposalsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Title, ProposalVersionNo = enquiry.Proposal?.VersionNo,
             SourcePath = enquiry.SourcePath, UtmSource = enquiry.UtmSource, UtmCampaign = enquiry.UtmCampaign,
             Status = enquiry.Status, AssigneeAdminUserId = enquiry.AssigneeAdminUserId, InternalNote = enquiry.InternalNote,
             Tags = enquiry.Tags, CreatedAt = enquiry.CreatedAt, UpdatedAt = enquiry.UpdatedAt,

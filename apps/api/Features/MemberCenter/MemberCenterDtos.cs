@@ -1,14 +1,10 @@
 namespace Tcrfc.Api.Features.MemberCenter;
 
-/// <summary>俱樂部品牌（會員卡卡面與會籍列表用：「每份會籍一張卡，各帶該俱樂部的標誌與品牌色」）。</summary>
+/// <summary>俱樂部識別（會員卡卡面與會籍列表用）。標誌與品牌色已不由後端提供（主站規劃書 v3.20、App 規劃書 v3.16：App 內建兩隊標誌與品牌色，以 <c>Code</c> 對應）。</summary>
 public sealed record MemberClubBrandDto
 {
     public required string Code { get; init; }
     public required string Name { get; init; }
-    public string? LogoLightUrl { get; init; }
-    public string? LogoDarkUrl { get; init; }
-    public string? BrandColor { get; init; }
-    public string? BrandSecondaryColor { get; init; }
 }
 
 /// <summary>會員自己的一張電子會員卡。<c>Token</c> 是這張卡的 QR 憑證（QR 內容＝<c>{官網網址}/m/{token}</c>，在裝置端組出），只有會員本人看得到。

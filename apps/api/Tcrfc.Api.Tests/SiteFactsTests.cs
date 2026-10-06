@@ -194,6 +194,112 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // ───────────────────────────── C-2：聯絡 Email、社群、部門窗口、頁尾簡介 ─────────────────────────────
+
+    [Fact]
+    public async Task C2_聯絡Email社群部門窗口頁尾簡介_寫入後後台與公開端點一致並可還原()
+    {
+        using var client = await CreateSuperAdminClientAsync();
+        var original = await (await client.GetAsync("/api/v1/admin/tcrfc/site-facts"))
+            .Content.ReadFromJsonAsync<AdminSiteFactsDto>(TestJson.Options);
+
+        try
+        {
+            var request = ToUpdateRequest(original!) with
+            {
+                ContactEmail = "info@tcrfc.test",
+                FacebookUrl = "https://www.facebook.com/TCRFC2024",
+                InstagramUrl = "https://www.instagram.com/tcr_fc_2024",
+                YoutubeUrl = "https://www.youtube.com/@TCRFC-2024",
+                LineUrl = "https://lin.ee/abc123",
+                Departments =
+                [
+                    new UpdateSiteFactDepartmentRequest { NameZh = "行政部", NameEn = "Administration", Email = "admin@tcrfc.test", PhoneExtension = "101" },
+                    new UpdateSiteFactDepartmentRequest { NameZh = "教練團", Email = null, PhoneExtension = "#202" },
+                ],
+                FooterBlurbZh = "測試簡介",
+                FooterBlurbEn = "Test blurb",
+            };
+            var put = await client.PutAsJsonAsync("/api/v1/admin/tcrfc/site-facts", request, TestJson.WriteOptions);
+            Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+            var admin = await put.Content.ReadFromJsonAsync<AdminSiteFactsDto>(TestJson.Options);
+            Assert.Equal("info@tcrfc.test", admin!.ContactEmail);
+            Assert.Equal("https://lin.ee/abc123", admin.LineUrl);
+            Assert.Equal(2, admin.Departments.Count);
+            Assert.Equal("Administration", admin.Departments[0].NameEn);
+            Assert.Equal("測試簡介", admin.FooterBlurbZh);
+
+            using var publicClient = fixture.CreateClient();
+            var zh = await (await publicClient.GetAsync("/api/v1/tcrfc/site-facts?lang=zh"))
+                .Content.ReadFromJsonAsync<PublicSiteFactsDto>(TestJson.Options);
+            Assert.Equal("info@tcrfc.test", zh!.Contact.Email);
+            Assert.Equal("https://www.youtube.com/@TCRFC-2024", zh.Social.Youtube);
+            Assert.Equal("https://www.facebook.com/TCRFC2024", zh.Social.Facebook);
+            Assert.Equal("測試簡介", zh.FooterBlurb);
+            Assert.Equal(["行政部", "教練團"], zh.Contact.Departments.Select(d => d.Name));
+            Assert.Equal("101", zh.Contact.Departments[0].PhoneExtension);
+
+            var en = await (await publicClient.GetAsync("/api/v1/tcrfc/site-facts?lang=en"))
+                .Content.ReadFromJsonAsync<PublicSiteFactsDto>(TestJson.Options);
+            Assert.Equal("Test blurb", en!.FooterBlurb);
+            Assert.Equal("Administration", en.Contact.Departments[0].Name);
+            Assert.Equal("教練團", en.Contact.Departments[1].Name); // 缺英文回退中文
+
+            // 俱樂部隔離：藍鯨看不到磐石剛寫入的值。
+            var bw = await (await publicClient.GetAsync("/api/v1/bw/site-facts"))
+                .Content.ReadFromJsonAsync<PublicSiteFactsDto>(TestJson.Options);
+            Assert.NotEqual("info@tcrfc.test", bw!.Contact.Email);
+        }
+        finally
+        {
+            var restore = await client.PutAsJsonAsync("/api/v1/admin/tcrfc/site-facts", ToUpdateRequest(original!), TestJson.WriteOptions);
+            Assert.True(restore.IsSuccessStatusCode);
+        }
+    }
+
+    public static TheoryData<string, string, string> C2_不合法輸入 => new()
+    {
+        { "facebookUrl", "http://www.facebook.com/x", "facebookUrl" },
+        { "facebookUrl", "https://evilfacebook.com/x", "facebookUrl" },
+        { "facebookUrl", "https://www.instagram.com/x", "facebookUrl" },
+        { "instagramUrl", "https://facebook.com/x", "instagramUrl" },
+        { "youtubeUrl", "javascript:alert(1)", "youtubeUrl" },
+        { "lineUrl", "https://user:pw@line.me/x", "lineUrl" },
+        { "contactEmail", "not-an-email", "contactEmail" },
+        { "deptNoName", "", "departments[0].nameZh" },
+        { "deptBadEmail", "x", "departments[0].email" },
+        { "deptBadExt", "abc", "departments[0].phoneExtension" },
+        { "deptEmpty", "", "departments[0].email" },
+        { "blurbEnOnly", "", "footerBlurbZh" },
+    };
+
+    [Theory]
+    [MemberData(nameof(C2_不合法輸入))]
+    public async Task C2_不合法輸入_回400並帶欄位鍵(string kind, string value, string expectedKey)
+    {
+        using var client = await CreateSuperAdminClientAsync();
+        var original = await (await client.GetAsync("/api/v1/admin/tcrfc/site-facts"))
+            .Content.ReadFromJsonAsync<AdminSiteFactsDto>(TestJson.Options);
+        var b = ToUpdateRequest(original!);
+        var r = kind switch
+        {
+            "facebookUrl" => b with { FacebookUrl = value },
+            "instagramUrl" => b with { InstagramUrl = value },
+            "youtubeUrl" => b with { YoutubeUrl = value },
+            "lineUrl" => b with { LineUrl = value },
+            "contactEmail" => b with { ContactEmail = value },
+            "deptNoName" => b with { Departments = [new UpdateSiteFactDepartmentRequest { NameZh = " ", Email = "a@b.co" }] },
+            "deptBadEmail" => b with { Departments = [new UpdateSiteFactDepartmentRequest { NameZh = "部", Email = value }] },
+            "deptBadExt" => b with { Departments = [new UpdateSiteFactDepartmentRequest { NameZh = "部", PhoneExtension = value }] },
+            "deptEmpty" => b with { Departments = [new UpdateSiteFactDepartmentRequest { NameZh = "部" }] },
+            _ => b with { FooterBlurbZh = null, FooterBlurbEn = "only en" },
+        };
+
+        var response = await client.PutAsJsonAsync("/api/v1/admin/tcrfc/site-facts", r, TestJson.WriteOptions);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains($"\"{expectedKey}\"", await response.Content.ReadAsStringAsync());
+    }
+
     private static UpdateSiteFactsRequest ToUpdateRequest(AdminSiteFactsDto dto) => new()
     {
         FoundedYear = dto.FoundedYear,
@@ -220,6 +326,17 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         ContactHoursZh = dto.ContactHoursZh,
         ContactHoursEn = dto.ContactHoursEn,
         BlueWhaleSiteUrl = dto.BlueWhaleSiteUrl,
+        ContactEmail = dto.ContactEmail,
+        FacebookUrl = dto.FacebookUrl,
+        InstagramUrl = dto.InstagramUrl,
+        YoutubeUrl = dto.YoutubeUrl,
+        LineUrl = dto.LineUrl,
+        Departments = dto.Departments.Select(d => new UpdateSiteFactDepartmentRequest
+        {
+            NameZh = d.NameZh, NameEn = d.NameEn, Email = d.Email, PhoneExtension = d.PhoneExtension,
+        }).ToList(),
+        FooterBlurbZh = dto.FooterBlurbZh,
+        FooterBlurbEn = dto.FooterBlurbEn,
     };
 
     // ───────────────────────────── 公開端點 ─────────────────────────────

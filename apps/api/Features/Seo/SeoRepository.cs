@@ -15,17 +15,14 @@ namespace Tcrfc.Api.Features.Seo;
 /// 目前站上也只有 zh 頁面存在，見 <c>apps/web/server/routes/sitemap.xml.ts</c> 既有註解），
 /// 快取 key 的 locale 維度一律用 <see cref="CacheDimensions.AnyLocale"/>。
 ///
-/// 🔴 **寫入端（<c>Features/AdminSeo</c>）刻意不呼叫 <see cref="IQueryCache.InvalidateAsync"/>**——
-/// 比照 <c>IQueryCache</c> 介面文件本身的既有說明（「目前後台還不存在，沒有任何寫入層會呼叫這個
-/// 方法……讀取端完全靠 TTL 兜底過期」），本輪維持與其餘既有唯讀 repository 一致的取捨：管理員
-/// 改設定或轉址後，最多延後一個 TTL（預設 300 秒）才會反映到公開端點。這不是遺漏，是跟現有五組
-/// repository 一致的既定行為，之後若要做 write-invalidate，直接在
-/// <c>Features/AdminSeo</c> 各自的寫入方法補呼叫即可，這裡的讀取介面不需要改。
+/// 🔴 **寫入端失效（2026-10-06，docs/23 B-22）**：<c>Features/AdminSeo</c> 的設定、轉址、llms、爬蟲四個寫入 repository 與
+/// <c>AdminSiteFacts</c> 寫入後都會呼叫 <see cref="IQueryCache.InvalidateAsync"/>（entity 名稱即下方各 <c>*Entity</c> 常數），
+/// 公開端不必再等一個 TTL。先前這裡寫「刻意不失效」是早期取捨，已不成立。
 /// </summary>
 public sealed class SeoRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrlResolver)
 {
-    private const string SettingsEntity = "seo-settings";
-    private const string RedirectsEntity = "seo-redirects";
+    internal const string SettingsEntity = "seo-settings";
+    internal const string RedirectsEntity = "seo-redirects";
     private const string SitemapEntity = "seo-sitemap-entries";
 
     private static readonly string[] SettingKeys =
@@ -158,7 +155,7 @@ public sealed class SeoRepository(IClubSqlConnectionFactory connectionFactory, I
 
     // ───────────────────────────── GEO-01：llms.txt 內容（S1-12a） ─────────────────────────────
 
-    private const string LlmsContentEntity = "seo-llms-content";
+    internal const string LlmsContentEntity = "seo-llms-content";
 
     private static readonly string[] LlmsKeys =
     [
@@ -207,7 +204,7 @@ public sealed class SeoRepository(IClubSqlConnectionFactory connectionFactory, I
 
     // ───────────────────────────── GEO-02：AI 爬蟲授權（S1-12b） ─────────────────────────────
 
-    private const string CrawlerSettingsEntity = "seo-crawler-settings";
+    internal const string CrawlerSettingsEntity = "seo-crawler-settings";
     private static readonly JsonSerializerOptions CrawlerJsonOptions = new(JsonSerializerDefaults.Web);
 
     private sealed record CrawlerSettingValueRow(string SettingKey, string? SettingValue);

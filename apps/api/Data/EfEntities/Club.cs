@@ -13,21 +13,11 @@ public partial class Club
 
     public string Domain { get; set; } = null!;
 
-    public string? LogoLightKey { get; set; }
-
-    public string? LogoDarkKey { get; set; }
-
-    public string? FaviconKey { get; set; }
-
     public string? OgImageKey { get; set; }
 
     public int? OgImageWidth { get; set; }
 
     public int? OgImageHeight { get; set; }
-
-    public string? BrandColor { get; set; }
-
-    public string? BrandSecondaryColor { get; set; }
 
     public string? InvoiceTitle { get; set; }
 

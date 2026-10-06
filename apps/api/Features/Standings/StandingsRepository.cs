@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Features.AdminMatches;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -48,7 +49,7 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
 
     // ═══════════════════════════ 積分榜 ═══════════════════════════
 
-    public async Task<StandingsDto> GetStandingsAsync(ClubScope scope, string? seasonCode, CancellationToken cancellationToken)
+    public async Task<StandingsDto> GetStandingsAsync(ClubScope scope, string? seasonCode, string dbLocale, CancellationToken cancellationToken)
     {
         var withData = await db.Standings.AsNoTracking().Where(s => s.ClubId == scope.ClubId).Select(s => s.SeasonId).Distinct().ToListAsync(cancellationToken);
         var season = await ResolveSeasonAsync(scope, seasonCode, withData, cancellationToken);
@@ -58,8 +59,16 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
             return new StandingsDto { Season = null, Seasons = codes, Items = [] };
         }
 
-        var rows = await db.Standings.AsNoTracking().Where(s => s.ClubId == scope.ClubId && s.SeasonId == season.Id)
-            .OrderBy(s => s.Rank == null).ThenBy(s => s.Rank).ThenBy(s => s.TeamName).ToListAsync(cancellationToken);
+        // 球隊名稱走 standings_i18n：請求語系優先、空白回退繁中（RequestLocale.Pick）。
+        var raw = await db.Standings.AsNoTracking().Where(s => s.ClubId == scope.ClubId && s.SeasonId == season.Id)
+            .Select(s => new
+            {
+                s.Rank, s.Played, s.Points, s.UpdatedAt,
+                Requested = s.StandingsI18ns.Where(i => i.Locale == dbLocale).Select(i => i.TeamName).FirstOrDefault(),
+                Default = s.StandingsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.TeamName).FirstOrDefault(),
+            }).ToListAsync(cancellationToken);
+        var rows = raw.Select(r => new { r.Rank, r.Played, r.Points, r.UpdatedAt, TeamName = RequestLocale.Pick(r.Requested, r.Default) ?? string.Empty })
+            .OrderBy(s => s.Rank == null).ThenBy(s => s.Rank).ThenBy(s => s.TeamName, StringComparer.Ordinal).ToList();
         return new StandingsDto
         {
             Season = Ref(season), Seasons = codes, UpdatedAt = rows.Count == 0 ? null : rows.Max(r => r.UpdatedAt),
@@ -69,14 +78,16 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
 
     // ═══════════════════════════ 球員數據 ═══════════════════════════
 
-    private sealed record Totals(int Appearances, int Goals, int? Assists, int Yellow, int Red, string Source);
+    internal sealed record Totals(int Appearances, int Goals, int? Assists, int Yellow, int Red, string Source);
 
-    /// <summary>某球季全部球員的數據（手動優先，否則自動彙總）。鍵＝球員 id。</summary>
-    private async Task<Dictionary<Guid, Totals>> AggregateAsync(ClubScope scope, Guid seasonId, Guid? onlyPlayerId, CancellationToken cancellationToken)
+    /// <summary>只做「自動彙總」（不看手動數據）。後台球員賽季數據畫面也用它顯示「清除手動後會回到的數字」，兩邊同一份規則。
+    /// 規則見類別檔頭；烏龍球不算該球員進球（稽核 A-1）。</summary>
+    internal static async Task<Dictionary<Guid, Totals>> AutoTotalsAsync(
+        ClubDbContext db, Guid clubId, Guid seasonId, Guid? onlyPlayerId, CancellationToken cancellationToken)
     {
-        var matchIds = await db.Matches.AsNoTracking().Where(m => m.ClubId == scope.ClubId && m.SeasonId == seasonId && m.Status == "played").Select(m => m.Id).ToListAsync(cancellationToken);
+        var matchIds = await db.Matches.AsNoTracking().Where(m => m.ClubId == clubId && m.SeasonId == seasonId && m.Status == "played").Select(m => m.Id).ToListAsync(cancellationToken);
         var goals = await db.MatchGoals.AsNoTracking().Where(g => matchIds.Contains(g.MatchId) && (onlyPlayerId == null || g.PlayerId == onlyPlayerId))
-            .Select(g => new { g.MatchId, g.PlayerId }).ToListAsync(cancellationToken);
+            .Select(g => new { g.MatchId, g.PlayerId, g.GoalType }).ToListAsync(cancellationToken);
         var cards = await db.MatchCards.AsNoTracking().Where(c => matchIds.Contains(c.MatchId) && (onlyPlayerId == null || c.PlayerId == onlyPlayerId))
             .Select(c => new { c.MatchId, c.PlayerId, c.CardType }).ToListAsync(cancellationToken);
         var lineups = await db.MatchLineups.AsNoTracking().Where(l => matchIds.Contains(l.MatchId) && (onlyPlayerId == null || l.PlayerId == onlyPlayerId))
@@ -99,13 +110,24 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
             appeared.Add((c.PlayerId, c.MatchId));
         }
 
+        // 烏龍球記在對手名下、不算該球員的進球（稽核 A-1）；出賽仍算（上面 appeared 已含）。
+        var countedGoals = goals.Where(g => !MatchGoalTypes.IsOwnGoal(g.GoalType)).ToList();
+
         var result = new Dictionary<Guid, Totals>();
         foreach (var playerId in appeared.Select(a => a.Player).Distinct())
         {
             result[playerId] = new Totals(
-                appeared.Count(a => a.Player == playerId), goals.Count(g => g.PlayerId == playerId), null,
+                appeared.Count(a => a.Player == playerId), countedGoals.Count(g => g.PlayerId == playerId), null,
                 cards.Count(c => c.PlayerId == playerId && c.CardType == "yellow"), cards.Count(c => c.PlayerId == playerId && c.CardType == "red"), "auto");
         }
+
+        return result;
+    }
+
+    /// <summary>某球季全部球員的數據（手動優先，否則自動彙總）。鍵＝球員 id。</summary>
+    private async Task<Dictionary<Guid, Totals>> AggregateAsync(ClubScope scope, Guid seasonId, Guid? onlyPlayerId, CancellationToken cancellationToken)
+    {
+        var result = await AutoTotalsAsync(db, scope.ClubId, seasonId, onlyPlayerId, cancellationToken);
 
         var manual = await db.PlayerSeasonStats.AsNoTracking().Where(s => s.SeasonId == seasonId && (onlyPlayerId == null || s.PlayerId == onlyPlayerId)
                                                                           && s.Player.ClubId == scope.ClubId).ToListAsync(cancellationToken);

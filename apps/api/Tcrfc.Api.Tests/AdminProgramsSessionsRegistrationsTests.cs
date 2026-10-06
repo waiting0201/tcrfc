@@ -110,6 +110,7 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
                 Slug = slug,
                 ProgramType = "summer_camp",
                 Audience = "混齡",
+                AudienceEn = "Mixed ages",
                 AgeMin = 6,
                 AgeMax = 12,
                 Content = new AdminProgramContentInput
@@ -122,6 +123,8 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
             var created = await createResponse.Content.ReadFromJsonAsync<AdminProgramDetailDto>(TestJson.Options);
             Assert.NotNull(created);
             Assert.Equal("draft", created!.Status); // 省略 Status 時預設草稿。
+            Assert.Equal("混齡", created.Audience);
+            Assert.Equal("Mixed ages", created.AudienceEn); // 適合對象走 programs_i18n 側表（D 類雙語）
 
             // 網址名稱在同俱樂部重複要擋下（409）。
             var conflictForm = AdminArticleMultipart.Build(new CreateAdminProgramRequest
@@ -159,6 +162,8 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
                 Slug = slug,
                 ProgramType = "summer_camp",
                 Status = "published",
+                Audience = "混齡",
+                AudienceEn = "Mixed ages",
                 Content = new AdminProgramContentInput
                 {
                     Zh = new AdminProgramLocaleContent { Name = "測試夏令營（已發布）", Intro = "更新後的簡介" },
@@ -169,6 +174,25 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
             var updated = await updateResponse.Content.ReadFromJsonAsync<AdminProgramDetailDto>(TestJson.Options);
             Assert.Equal("published", updated!.Status);
             Assert.Equal("測試夏令營（已發布）", updated.Zh.Name);
+            Assert.Null(updated.En); // 只有英文適合對象、沒有英文內容：後台不顯示英文內容區塊
+
+            // 公開端點：英文請求用英文適合對象；英文名稱沒填仍回退繁中
+            using var anonymous = fixture.CreateClient();
+            var pubEn = await anonymous.GetFromJsonAsync<System.Text.Json.JsonElement>($"/api/v1/bw/programs/{slug}?lang=en");
+            Assert.Equal("Mixed ages", pubEn.GetProperty("audience").GetString());
+            Assert.Equal("測試夏令營（已發布）", pubEn.GetProperty("name").GetString());
+            var pubZh = await anonymous.GetFromJsonAsync<System.Text.Json.JsonElement>($"/api/v1/bw/programs/{slug}");
+            Assert.Equal("混齡", pubZh.GetProperty("audience").GetString());
+
+            // 適合對象最長 64 字，超過 → 400 並點名欄位鍵
+            var longForm = AdminArticleMultipart.Build(new UpdateAdminProgramRequest
+            {
+                Slug = slug, Audience = new string('齡', 65),
+                Content = new AdminProgramContentInput { Zh = new AdminProgramLocaleContent { Name = "x" } },
+            });
+            var longResponse = await client.PutAsync($"/api/v1/admin/bw/programs/{created.Id}", longForm);
+            Assert.Equal(HttpStatusCode.BadRequest, longResponse.StatusCode);
+            Assert.Contains("audience", await longResponse.Content.ReadAsStringAsync());
         }
         finally
         {

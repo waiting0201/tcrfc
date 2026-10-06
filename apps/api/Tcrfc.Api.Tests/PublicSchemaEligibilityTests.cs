@@ -42,46 +42,35 @@ public sealed class PublicSchemaEligibilityTests(ApiFixture fixture)
     }
 
     [Fact]
-    public async Task Club_種子資料沒有隊徽物件鍵_Organization不合格()
+    public async Task Club_有名稱與網域_Organization合格_標誌不是資料庫必填欄位()
     {
         using var client = fixture.CreateClient();
 
         var club = await client.GetFromJsonAsync<ClubDto>("/api/v1/clubs/tcrfc", TestJson.Options);
 
         Assert.NotNull(club);
-        // 🔴 已知現況（見 ClubDto.SchemaEligible 檔頭）：clubs.logo_light_key 目前沒有任何寫入路徑，
-        // 種子資料恆為 null，這裡如實反映「缺漏者不輸出」，不是本次判斷有誤。
-        Assert.False(club!.SchemaEligible);
-        Assert.Null(club.LogoUrl);
+        // 🔴 主站規劃書 v3.20：標誌由前台靜態資產輸出，clubs 已無 logo／favicon／品牌色欄位；
+        // Organization 必填只剩名稱與網域（名稱缺漏時回退俱樂部代碼，網域為 NOT NULL），兩個俱樂部恆合格。
+        Assert.True(club!.SchemaEligible);
     }
 
     [Fact]
-    public async Task Club_補上隊徽物件鍵後_Organization合格且LogoUrl有值()
+    public async Task Club_公開DTO不再含標誌與品牌欄位()
     {
-        try
-        {
-            await ExecuteAsync(
-                "UPDATE clubs SET logo_light_key = @Key WHERE code = 'tcrfc'",
-                ("@Key", "brand/tcrfc/test-logo.webp"));
+        using var client = fixture.CreateClient();
 
-            using var client = fixture.CreateClient();
-            var club = await client.GetFromJsonAsync<ClubDto>("/api/v1/clubs/tcrfc", TestJson.Options);
+        var json = await client.GetStringAsync("/api/v1/clubs/tcrfc");
 
-            Assert.NotNull(club);
-            Assert.True(club!.SchemaEligible);
-            // 🔴 ApiFixture 沒有接真實 Azurite，IImagePublicUrlResolver 綁的是
-            // UnavailableImagePublicUrlResolver（一律回傳 null），所以這裡不斷言 LogoUrl 非空——
-            // Resolve() 本身的解析邏輯已由 AdminSeoImageTests（真實 Azurite）驗證過，這裡只驗證
-            // SchemaEligible 有沒有正確吃到新寫入的 logo_light_key。
-        }
-        finally
+        foreach (var removed in new[] { "logoUrl", "logoDarkUrl", "faviconUrl", "logoLightKey", "logoDarkKey", "faviconKey", "brandColor", "brandSecondaryColor" })
         {
-            await ExecuteAsync("UPDATE clubs SET logo_light_key = NULL WHERE code = 'tcrfc'");
+            Assert.DoesNotContain($"\"{removed}\"", json);
         }
+
+        Assert.Contains("\"ogImageKey\"", json); // og_image_* 仍保留
     }
 
     [Fact]
-    public async Task Team_種子資料沒有識別圖片_SportsTeam不合格()
+    public async Task Team_有隊名與俱樂部網域_SportsTeam合格_識別圖片不影響合格()
     {
         using var client = fixture.CreateClient();
 
@@ -89,55 +78,21 @@ public sealed class PublicSchemaEligibilityTests(ApiFixture fixture)
         var d1 = teams?.SingleOrDefault(t => t.Code == "D1");
 
         Assert.NotNull(d1);
-        // 🔴 已知現況（見 TeamDto.SchemaEligible 檔頭）：teams.hero_key 與 clubs.logo_light_key
-        // 種子資料皆為 null，兩者擇一都拿不到值，如實反映不合格。
-        Assert.False(d1!.SchemaEligible);
-        Assert.Null(d1.LogoUrl);
-    }
+        Assert.True(d1!.SchemaEligible);
 
-    [Fact]
-    public async Task Team_補上球隊識別圖片後_SportsTeam合格()
-    {
+        // hero_key 只影響 HeroUrl（球隊頁 Hero 版位），不影響 SportsTeam 合格與否（標誌已不是必填欄位）。
         try
         {
             await ExecuteAsync(
                 "UPDATE teams SET hero_key = @Key WHERE club_id = (SELECT id FROM clubs WHERE code = 'tcrfc') AND code = 'D1'",
                 ("@Key", "brand/tcrfc/test-team-hero.webp"));
-
-            using var client = fixture.CreateClient();
-            var teams = await client.GetFromJsonAsync<IReadOnlyList<TeamDto>>("/api/v1/tcrfc/teams", TestJson.Options);
-            var d1 = teams?.SingleOrDefault(t => t.Code == "D1");
-
-            Assert.NotNull(d1);
-            Assert.True(d1!.SchemaEligible); // LogoUrl 不斷言非空，理由同 Club 那組測試
+            var again = await client.GetFromJsonAsync<IReadOnlyList<TeamDto>>("/api/v1/tcrfc/teams", TestJson.Options);
+            Assert.True(again!.Single(t => t.Code == "D1").SchemaEligible);
         }
         finally
         {
             await ExecuteAsync(
                 "UPDATE teams SET hero_key = NULL WHERE club_id = (SELECT id FROM clubs WHERE code = 'tcrfc') AND code = 'D1'");
-        }
-    }
-
-    [Fact]
-    public async Task Team_球隊自己沒有識別圖片但俱樂部有隊徽時_擇一合格()
-    {
-        try
-        {
-            await ExecuteAsync(
-                "UPDATE clubs SET logo_light_key = @Key WHERE code = 'tcrfc'",
-                ("@Key", "brand/tcrfc/test-logo.webp"));
-
-            using var client = fixture.CreateClient();
-            var teams = await client.GetFromJsonAsync<IReadOnlyList<TeamDto>>("/api/v1/tcrfc/teams", TestJson.Options);
-            var d1 = teams?.SingleOrDefault(t => t.Code == "D1");
-
-            Assert.NotNull(d1);
-            Assert.Null(d1!.HeroKey); // 球隊自己沒有，回退用俱樂部隊徽
-            Assert.True(d1.SchemaEligible); // LogoUrl 不斷言非空，理由同上
-        }
-        finally
-        {
-            await ExecuteAsync("UPDATE clubs SET logo_light_key = NULL WHERE code = 'tcrfc'");
         }
     }
 

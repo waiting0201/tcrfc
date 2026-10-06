@@ -251,7 +251,7 @@ public sealed partial class SearchRepository(ClubDbContext db, IImagePublicUrlRe
     // ── 球員（照片遵守肖像同意）────────────────────────────────────────────────────
     private async Task<(int, List<Hit>)> SearchPlayersAsync(Ctx c, bool wanted, CancellationToken ct)
     {
-        var q = db.Players.AsNoTracking().Where(p => p.ClubId == c.ClubId);
+        var q = db.Players.AsNoTracking().Where(p => p.ClubId == c.ClubId && (p.Status == null || p.Status == "active"));
         foreach (var token in c.Tokens)
         {
             var tk = token;

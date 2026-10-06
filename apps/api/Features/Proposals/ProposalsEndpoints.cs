@@ -1,5 +1,6 @@
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Documents;
+using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Proposals;
@@ -11,10 +12,10 @@ public static class ProposalsEndpoints
     {
         // GET /api/v1/{club}/proposals
         app.MapGet("/api/v1/{club}/proposals", async (
-            string club, IClubResolver clubResolver, ProposalsRepository repository, CancellationToken cancellationToken) =>
+            string club, string? lang, IClubResolver clubResolver, ProposalsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            return Results.Ok(await repository.ListAsync(scope, cancellationToken));
+            return Results.Ok(await repository.ListAsync(scope, RequestLocale.ToDbLocale(lang), cancellationToken));
         })
         .WithName("ListPublicProposals").WithTags("Proposals")
         .Produces<IReadOnlyList<PublicProposalDto>>().Produces(StatusCodes.Status404NotFound);

@@ -72,6 +72,18 @@ public static class PiiMasking
         return digits[..2] + new string('*', digits.Length - 4) + digits[^2..];
     }
 
+    /// <summary>載具號碼（手機條碼 /ABC+123、自然人憑證 AB12345678901234）只留前 2 碼與最後 2 碼。</summary>
+    public static string? MaskCarrier(string? carrier)
+    {
+        if (string.IsNullOrWhiteSpace(carrier))
+        {
+            return null;
+        }
+
+        var t = carrier.Trim();
+        return t.Length <= 4 ? "***" : t[..2] + new string('*', t.Length - 4) + t[^2..];
+    }
+
     /// <summary>地址只留前 6 個字（通常涵蓋縣市與區），其餘以 *** 取代。</summary>
     public static string? MaskAddress(string? address)
     {

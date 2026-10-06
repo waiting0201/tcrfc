@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.AdminStandings;
@@ -46,7 +47,8 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
                 s.Id,
                 s.SeasonId,
                 SeasonCode = s.Season.Code,
-                s.TeamName,
+                TeamName = s.StandingsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.TeamName).FirstOrDefault(),
+                TeamNameEn = s.StandingsI18ns.Where(i => i.Locale == "en").Select(i => i.TeamName).FirstOrDefault(),
                 s.Rank,
                 s.Played,
                 s.Points,
@@ -59,7 +61,8 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
             Id = r.Id,
             SeasonId = r.SeasonId,
             SeasonCode = r.SeasonCode,
-            TeamName = r.TeamName,
+            TeamName = r.TeamName ?? string.Empty,
+            TeamNameEn = r.TeamNameEn,
             Rank = r.Rank,
             Played = r.Played,
             Points = r.Points,
@@ -70,7 +73,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
     public async Task<AdminStandingDetailDto?> GetByIdAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
         var standing = await dbContext.Standings.AsNoTracking()
-            .Include(s => s.Season)
+            .Include(s => s.Season).Include(s => s.StandingsI18ns)
             .FirstOrDefaultAsync(s => s.Id == id && s.ClubId == scope.ClubId, cancellationToken);
 
         return standing is null ? null : ToDetailDto(standing);
@@ -79,7 +82,8 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
     public async Task<AdminStandingDetailDto> CreateAsync(
         AdminClubScope scope, CreateAdminStandingRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        ValidateTeamName(request.TeamName);
+        var teamName = ValidateTeamName(request.TeamName);
+        var teamNameEn = ValidateTeamNameEn(request.TeamNameEn);
         var season = await ResolveSeasonAsync(scope, request.SeasonId, cancellationToken);
 
         var now = DateTime.UtcNow;
@@ -88,7 +92,6 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
             Id = Guid.NewGuid(),
             ClubId = scope.ClubId,
             SeasonId = season.Id,
-            TeamName = request.TeamName,
             Rank = request.Rank,
             Played = request.Played,
             Points = request.Points,
@@ -99,6 +102,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         };
 
         dbContext.Standings.Add(standing);
+        SetTeamNames(standing, teamName, teamNameEn);
         await dbContext.SaveChangesAsync(cancellationToken);
         return (await GetByIdAsync(scope, standing.Id, cancellationToken))!;
     }
@@ -106,9 +110,10 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
     public async Task<AdminStandingDetailDto?> UpdateAsync(
         AdminClubScope scope, Guid id, UpdateAdminStandingRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        ValidateTeamName(request.TeamName);
+        var teamName = ValidateTeamName(request.TeamName);
+        var teamNameEn = ValidateTeamNameEn(request.TeamNameEn);
 
-        var standing = await dbContext.Standings.FirstOrDefaultAsync(s => s.Id == id && s.ClubId == scope.ClubId, cancellationToken);
+        var standing = await dbContext.Standings.Include(s => s.StandingsI18ns).FirstOrDefaultAsync(s => s.Id == id && s.ClubId == scope.ClubId, cancellationToken);
         if (standing is null)
         {
             return null;
@@ -117,7 +122,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         var season = await ResolveSeasonAsync(scope, request.SeasonId, cancellationToken);
 
         standing.SeasonId = season.Id;
-        standing.TeamName = request.TeamName;
+        SetTeamNames(standing, teamName, teamNameEn);
         standing.Rank = request.Rank;
         standing.Played = request.Played;
         standing.Points = request.Points;
@@ -145,8 +150,12 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
 
     private static readonly string[] CsvHeader = ["賽季代碼", "名次", "球隊名稱", "出賽場次", "積分"];
 
+    /// <summary>選填的第六欄：英文球隊名稱。沒有這一欄的五欄檔案照舊可匯入（英文名稱留空，前台回退繁中）。</summary>
+    private const string CsvHeaderEn = "球隊名稱（英文）";
+
     /// <summary>
-    /// CSV 格式（UTF-8 BOM，中文表頭）：<c>賽季代碼,名次,球隊名稱,出賽場次,積分</c>。**一份檔案只能
+    /// CSV 格式（UTF-8 BOM，中文表頭）：<c>賽季代碼,名次,球隊名稱,出賽場次,積分</c>，可選擇在最後多一欄
+    /// <c>球隊名稱（英文）</c>（寫入 <c>standings_i18n(en)</c>；整季替換，所以沒有這一欄＝匯入後該季英文名稱全部清空）。**一份檔案只能
     /// 包含同一個賽季的資料**（表頭下每一列的賽季代碼都必須相同）——積分榜是「這個賽季的一整張
     /// 排名表」，混雜多個賽季在同一份匯入操作裡沒有實際使用情境，也會讓「整季替換」語意複雜化。
     ///
@@ -167,9 +176,11 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         }
 
         var header = rows[0];
-        if (header.Count != CsvHeader.Length || !header.SequenceEqual(CsvHeader, StringComparer.Ordinal))
+        var hasEnglishColumn = header.Count == CsvHeader.Length + 1 && string.Equals(header[^1].Trim(), CsvHeaderEn, StringComparison.Ordinal);
+        var columnCount = hasEnglishColumn ? CsvHeader.Length + 1 : CsvHeader.Length;
+        if (header.Count != columnCount || !header.Take(CsvHeader.Length).SequenceEqual(CsvHeader, StringComparer.Ordinal))
         {
-            throw new AdminStandingValidationException($"檔案格式不正確，表頭必須依序是「{string.Join("、", CsvHeader)}」。");
+            throw new AdminStandingValidationException($"檔案格式不正確，表頭必須依序是「{string.Join("、", CsvHeader)}」，最後可再加一欄「{CsvHeaderEn}」。");
         }
 
         var seasonByCode = await dbContext.Seasons.AsNoTracking()
@@ -177,7 +188,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
             .ToDictionaryAsync(s => s.Code, StringComparer.Ordinal, cancellationToken);
 
         var errors = new List<StandingCsvImportRowErrorDto>();
-        var parsedRows = new List<(Season Season, string TeamName, int? Rank, int? Played, int? Points)>();
+        var parsedRows = new List<(Season Season, string TeamName, string? TeamNameEn, int? Rank, int? Played, int? Points)>();
         Season? fileSeason = null;
 
         for (var i = 1; i < rows.Count; i++)
@@ -185,9 +196,9 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
             var rowNumber = i + 1;
             var row = rows[i];
 
-            if (row.Count != CsvHeader.Length)
+            if (row.Count != columnCount)
             {
-                errors.Add(new StandingCsvImportRowErrorDto { RowNumber = rowNumber, Reason = $"欄位數不正確，應為 {CsvHeader.Length} 欄，實際 {row.Count} 欄。" });
+                errors.Add(new StandingCsvImportRowErrorDto { RowNumber = rowNumber, Reason = $"欄位數不正確，應為 {columnCount} 欄，實際 {row.Count} 欄。" });
                 continue;
             }
 
@@ -196,6 +207,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
             var teamName = row[2].Trim();
             var playedText = row[3].Trim();
             var pointsText = row[4].Trim();
+            var teamNameEn = hasEnglishColumn ? row[5].Trim() : string.Empty;
 
             var rowErrors = new List<string>();
 
@@ -215,6 +227,15 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
             if (teamName.Length == 0)
             {
                 rowErrors.Add("球隊名稱為必填欄位。");
+            }
+            else if (teamName.Length > TeamNameMaxLength)
+            {
+                rowErrors.Add($"球隊名稱不可超過 {TeamNameMaxLength} 個字。");
+            }
+
+            if (teamNameEn.Length > TeamNameMaxLength)
+            {
+                rowErrors.Add($"球隊名稱（英文）不可超過 {TeamNameMaxLength} 個字。");
             }
 
             int? rank = null;
@@ -262,7 +283,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
                 continue;
             }
 
-            parsedRows.Add((season!, teamName, rank, played, points));
+            parsedRows.Add((season!, teamName, teamNameEn.Length == 0 ? null : teamNameEn, rank, played, points));
         }
 
         if (errors.Count == 0 && parsedRows.Count == 0)
@@ -276,6 +297,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         }
 
         var seasonId = fileSeason!.Id;
+        // 側表列由資料庫 ON DELETE CASCADE 一併清除；EF 這邊不需要先載入。
         var existing = await dbContext.Standings.Where(s => s.ClubId == scope.ClubId && s.SeasonId == seasonId).ToListAsync(cancellationToken);
         var deletedCount = existing.Count;
         dbContext.Standings.RemoveRange(existing);
@@ -283,12 +305,11 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         var now = DateTime.UtcNow;
         foreach (var parsed in parsedRows)
         {
-            dbContext.Standings.Add(new Standing
+            var created = new Standing
             {
                 Id = Guid.NewGuid(),
                 ClubId = scope.ClubId,
                 SeasonId = parsed.Season.Id,
-                TeamName = parsed.TeamName,
                 Rank = parsed.Rank,
                 Played = parsed.Played,
                 Points = parsed.Points,
@@ -296,7 +317,9 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
                 UpdatedAt = now,
                 CreatedBy = operatorId,
                 UpdatedBy = operatorId,
-            });
+            };
+            dbContext.Standings.Add(created);
+            SetTeamNames(created, parsed.TeamName, parsed.TeamNameEn);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -313,12 +336,63 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         return season;
     }
 
-    private static void ValidateTeamName(string teamName)
+    private const int TeamNameMaxLength = 128;
+
+    private static string ValidateTeamName(string teamName)
     {
         if (string.IsNullOrWhiteSpace(teamName))
         {
             throw new AdminStandingValidationException("球隊名稱為必填欄位。", "teamName");
         }
+
+        var trimmed = teamName.Trim();
+        if (trimmed.Length > TeamNameMaxLength)
+        {
+            throw new AdminStandingValidationException($"球隊名稱不可超過 {TeamNameMaxLength} 個字。", "teamName");
+        }
+
+        return trimmed;
+    }
+
+    private static string? ValidateTeamNameEn(string? teamNameEn)
+    {
+        var trimmed = teamNameEn?.Trim();
+        if (string.IsNullOrEmpty(trimmed))
+        {
+            return null;
+        }
+
+        return trimmed.Length > TeamNameMaxLength
+            ? throw new AdminStandingValidationException($"球隊名稱（英文）不可超過 {TeamNameMaxLength} 個字。", "teamNameEn")
+            : trimmed;
+    }
+
+    /// <summary>繁中列必存在；英文列只在有填英文名稱時存在，清空即移除（前台回退繁中）。</summary>
+    private void SetTeamNames(Standing standing, string teamName, string? teamNameEn)
+    {
+        Upsert(standing, RequestLocale.DefaultDbLocale, teamName);
+        var en = standing.StandingsI18ns.FirstOrDefault(i => i.Locale == "en");
+        if (teamNameEn is not null)
+        {
+            Upsert(standing, "en", teamNameEn);
+        }
+        else if (en is not null)
+        {
+            dbContext.Remove(en);
+        }
+    }
+
+    private void Upsert(Standing standing, string locale, string teamName)
+    {
+        var row = standing.StandingsI18ns.FirstOrDefault(i => i.Locale == locale);
+        if (row is null)
+        {
+            row = new StandingsI18n { StandingId = standing.Id, Locale = locale };
+            standing.StandingsI18ns.Add(row);
+            dbContext.StandingsI18ns.Add(row);
+        }
+
+        row.TeamName = teamName;
     }
 
     private static AdminStandingDetailDto ToDetailDto(Standing standing) => new()
@@ -326,7 +400,8 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         Id = standing.Id,
         SeasonId = standing.SeasonId,
         SeasonCode = standing.Season.Code,
-        TeamName = standing.TeamName,
+        TeamName = standing.StandingsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.TeamName ?? string.Empty,
+        TeamNameEn = standing.StandingsI18ns.FirstOrDefault(i => i.Locale == "en")?.TeamName,
         Rank = standing.Rank,
         Played = standing.Played,
         Points = standing.Points,

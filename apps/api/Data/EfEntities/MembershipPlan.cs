@@ -21,8 +21,6 @@ public partial class MembershipPlan
 
     public int JerseyQuota { get; set; }
 
-    public string? MidSeasonRule { get; set; }
-
     public int SortOrder { get; set; }
 
     public DateOnly? StartsOn { get; set; }

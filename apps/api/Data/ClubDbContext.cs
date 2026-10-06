@@ -325,6 +325,9 @@ public partial class ClubDbContext : DbContext
     public virtual DbSet<AdEvent> AdEvents { get; set; }
     public virtual DbSet<AdSlot> AdSlots { get; set; }
     public virtual DbSet<AdSlotsI18n> AdSlotsI18ns { get; set; }
+    public virtual DbSet<StandingsI18n> StandingsI18ns { get; set; }
+    public virtual DbSet<AchievementsI18n> AchievementsI18ns { get; set; }
+    public virtual DbSet<ProposalsI18n> ProposalsI18ns { get; set; }
     public virtual DbSet<Advertiser> Advertisers { get; set; }
     public virtual DbSet<AdvertisersI18n> AdvertisersI18ns { get; set; }
     public virtual DbSet<AppAnnouncement> AppAnnouncements { get; set; }
@@ -361,17 +364,11 @@ public partial class ClubDbContext : DbContext
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
             entity.Property(e => e.ClubId).HasColumnName("club_id");
-            entity.Property(e => e.CompetitionName)
-                .HasMaxLength(128)
-                .HasColumnName("competition_name");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
-            entity.Property(e => e.Placing)
-                .HasMaxLength(32)
-                .HasColumnName("placing");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -1596,12 +1593,6 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
-            entity.Property(e => e.BrandColor)
-                .HasMaxLength(16)
-                .HasColumnName("brand_color");
-            entity.Property(e => e.BrandSecondaryColor)
-                .HasMaxLength(16)
-                .HasColumnName("brand_secondary_color");
             entity.Property(e => e.Code)
                 .HasMaxLength(16)
                 .HasColumnName("code");
@@ -1617,21 +1608,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Domain)
                 .HasMaxLength(128)
                 .HasColumnName("domain");
-            entity.Property(e => e.FaviconKey)
-                .HasMaxLength(255)
-                .HasColumnName("favicon_key");
             entity.Property(e => e.InvoiceTitle)
                 .HasMaxLength(64)
                 .HasColumnName("invoice_title");
             entity.Property(e => e.IsCollectingSubject)
                 .HasDefaultValue(true)
                 .HasColumnName("is_collecting_subject");
-            entity.Property(e => e.LogoDarkKey)
-                .HasMaxLength(255)
-                .HasColumnName("logo_dark_key");
-            entity.Property(e => e.LogoLightKey)
-                .HasMaxLength(255)
-                .HasColumnName("logo_light_key");
             entity.Property(e => e.OgImageKey)
                 .HasMaxLength(255)
                 .HasColumnName("og_image_key");
@@ -4484,9 +4466,6 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.EndsOn).HasColumnName("ends_on");
             entity.Property(e => e.Fee).HasColumnName("fee");
             entity.Property(e => e.JerseyQuota).HasColumnName("jersey_quota");
-            entity.Property(e => e.MidSeasonRule)
-                .HasMaxLength(255)
-                .HasColumnName("mid_season_rule");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -4535,6 +4514,9 @@ public partial class ClubDbContext : DbContext
                 .HasMaxLength(10)
                 .HasColumnName("locale");
             entity.Property(e => e.BenefitNote).HasColumnName("benefit_note");
+            entity.Property(e => e.MidSeasonRule)
+                .HasMaxLength(255)
+                .HasColumnName("mid_season_rule");
             entity.Property(e => e.Name)
                 .HasMaxLength(64)
                 .HasColumnName("name");
@@ -5956,9 +5938,6 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("id");
             entity.Property(e => e.AgeMax).HasColumnName("age_max");
             entity.Property(e => e.AgeMin).HasColumnName("age_min");
-            entity.Property(e => e.Audience)
-                .HasMaxLength(32)
-                .HasColumnName("audience");
             entity.Property(e => e.ClubId).HasColumnName("club_id");
             entity.Property(e => e.CoverKey)
                 .HasMaxLength(500)
@@ -6046,6 +6025,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.Audience)
+                .HasMaxLength(64)
+                .HasColumnName("audience");
             entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.Intro).HasColumnName("intro");
             entity.Property(e => e.Name)
@@ -6055,6 +6037,72 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.TrainingProgram).WithMany(p => p.ProgramsI18ns)
                 .HasForeignKey(d => d.ProgramId)
                 .HasConstraintName("FK_programs_i18n_program");
+        });
+
+        modelBuilder.Entity<StandingsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.StandingId, e.Locale });
+
+            entity.ToTable("standings_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_standings_i18n_locale");
+
+            entity.Property(e => e.StandingId).HasColumnName("standing_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.TeamName)
+                .HasMaxLength(128)
+                .HasColumnName("team_name");
+
+            entity.HasOne(d => d.Standing).WithMany(p => p.StandingsI18ns)
+                .HasForeignKey(d => d.StandingId)
+                .HasConstraintName("FK_standings_i18n_standing");
+        });
+
+        modelBuilder.Entity<AchievementsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.AchievementId, e.Locale });
+
+            entity.ToTable("achievements_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_achievements_i18n_locale");
+
+            entity.Property(e => e.AchievementId).HasColumnName("achievement_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.CompetitionName)
+                .HasMaxLength(128)
+                .HasColumnName("competition_name");
+            entity.Property(e => e.Placing)
+                .HasMaxLength(64)
+                .HasColumnName("placing");
+
+            entity.HasOne(d => d.Achievement).WithMany(p => p.AchievementsI18ns)
+                .HasForeignKey(d => d.AchievementId)
+                .HasConstraintName("FK_achievements_i18n_achievement");
+        });
+
+        modelBuilder.Entity<ProposalsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.ProposalId, e.Locale });
+
+            entity.ToTable("proposals_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_proposals_i18n_locale");
+
+            entity.Property(e => e.ProposalId).HasColumnName("proposal_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Title)
+                .HasMaxLength(128)
+                .HasColumnName("title");
+
+            entity.HasOne(d => d.Proposal).WithMany(p => p.ProposalsI18ns)
+                .HasForeignKey(d => d.ProposalId)
+                .HasConstraintName("FK_proposals_i18n_proposal");
         });
 
         modelBuilder.Entity<Proposal>(entity =>
@@ -6083,9 +6131,6 @@ public partial class ClubDbContext : DbContext
                 .HasMaxLength(16)
                 .HasDefaultValue("draft", "DF_proposals_status")
                 .HasColumnName("status");
-            entity.Property(e => e.Title)
-                .HasMaxLength(128)
-                .HasColumnName("title");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -7158,9 +7203,6 @@ public partial class ClubDbContext : DbContext
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
             entity.Property(e => e.SeasonId).HasColumnName("season_id");
-            entity.Property(e => e.TeamName)
-                .HasMaxLength(128)
-                .HasColumnName("team_name");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")

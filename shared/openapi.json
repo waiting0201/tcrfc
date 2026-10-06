@@ -3185,6 +3185,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -4764,6 +4771,13 @@
             "name": "club",
             "in": "path",
             "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -6486,6 +6500,13 @@
           },
           {
             "name": "season",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
             "in": "query",
             "schema": {
               "type": "string"
@@ -8603,37 +8624,7 @@
           "domain": {
             "type": "string"
           },
-          "logoLightKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "logoDarkKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "faviconKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
           "ogImageKey": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "brandColor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "brandSecondaryColor": {
             "type": [
               "null",
               "string"
@@ -8641,24 +8632,6 @@
           },
           "defaultLocale": {
             "type": "string"
-          },
-          "logoUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "logoDarkUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "faviconUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
           },
           "ogImageUrl": {
             "type": [
@@ -9860,30 +9833,6 @@
           },
           "name": {
             "type": "string"
-          },
-          "logoLightUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "logoDarkUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "brandColor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "brandSecondaryColor": {
-            "type": [
-              "null",
-              "string"
-            ]
           }
         }
       },
@@ -12472,6 +12421,12 @@
             "type": "string",
             "format": "uuid"
           },
+          "status": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "slug": {
             "type": "string"
           },
@@ -13232,41 +13187,6 @@
           }
         }
       },
-      "PublicBrandDto": {
-        "type": "object",
-        "properties": {
-          "logoLightUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "logoDarkUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "faviconUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "brandColor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "brandSecondaryColor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
       "PublicCalendarEventDto": {
         "required": [
           "sourceType",
@@ -13389,6 +13309,33 @@
             ]
           },
           "eventTypeCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventTypeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventTypeColour": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eventTypeIcon": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isRecurring": {
+            "type": "boolean"
+          },
+          "occurrenceId": {
             "type": [
               "null",
               "string"
@@ -13617,6 +13564,12 @@
           },
           "captchaEnabled": {
             "type": "boolean"
+          },
+          "redirectPath": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "fields": {
             "type": "array",
@@ -14056,6 +14009,9 @@
         }
       },
       "PublicSiteFactContactDto": {
+        "required": [
+          "departments"
+        ],
         "type": "object",
         "properties": {
           "address": {
@@ -14075,6 +14031,41 @@
               "null",
               "string"
             ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "departments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicSiteFactDepartmentDto"
+            }
+          }
+        }
+      },
+      "PublicSiteFactDepartmentDto": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phoneExtension": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -14088,6 +14079,35 @@
             ]
           },
           "shortName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PublicSiteFactSocialDto": {
+        "type": "object",
+        "properties": {
+          "facebook": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instagram": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "youtube": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "line": {
             "type": [
               "null",
               "string"
@@ -14121,7 +14141,8 @@
           "league",
           "venues",
           "squadCodes",
-          "contact"
+          "contact",
+          "social"
         ],
         "type": "object",
         "properties": {
@@ -14178,12 +14199,20 @@
               "null",
               "string"
             ]
+          },
+          "social": {
+            "$ref": "#/components/schemas/PublicSiteFactSocialDto"
+          },
+          "footerBlurb": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
       "PublicSiteSettingsDto": {
         "required": [
-          "brand",
           "maintenance",
           "languages",
           "fallbackMode",
@@ -14192,9 +14221,6 @@
         ],
         "type": "object",
         "properties": {
-          "brand": {
-            "$ref": "#/components/schemas/PublicBrandDto"
-          },
           "maintenance": {
             "$ref": "#/components/schemas/PublicMaintenanceDto"
           },
@@ -16149,6 +16175,12 @@
               "string"
             ]
           },
+          "lang": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "turnstileToken": {
             "type": [
               "null",
@@ -16364,12 +16396,6 @@
             ]
           },
           "heroUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "logoUrl": {
             "type": [
               "null",
               "string"

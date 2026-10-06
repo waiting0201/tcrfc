@@ -1,4 +1,7 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Tcrfc.Api.Features.Seo;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.Uploads;
@@ -25,10 +28,10 @@ namespace Tcrfc.Api.Features.AdminSeo;
 /// 裡另外發明三個鍵重複儲存同一份資料——那會製造兩個可能互相矛盾的真實來源。寫入時直接更新
 /// <c>Club</c> 實體，不經過 <c>Features/AdminClubs</c>（該模組的 <c>AdminClubDetailDto.OgImageKey</c>
 /// 原本刻意唯讀，是因為當時的任務邊界要求不要動圖片上傳共用元件，跟本輪的任務邊界不同，
-/// 見 <c>AdminClubDtos.cs</c> 的既有註解）。<c>clubs</c> 的 <c>logo_light_key</c>／
-/// <c>logo_dark_key</c>／<c>favicon_key</c> 三個品牌欄位維持原本刻意唯讀，不受本次影響。
+/// 見 <c>AdminClubDtos.cs</c> 的既有註解）。（主站規劃書 v3.20：<c>clubs</c> 的標誌、Favicon、
+/// 品牌色欄位已刪除，由前台靜態資產與 CSS 定義；<c>og_image_*</c> 保留。）
 /// </summary>
-public sealed class AdminSeoSettingsRepository(ClubDbContext dbContext, IImagePublicUrlResolver imageUrlResolver)
+public sealed partial class AdminSeoSettingsRepository(ClubDbContext dbContext, IImagePublicUrlResolver imageUrlResolver, IQueryCache cache)
 {
     private const string KeyTitleTemplate = "seo.title_template";
     private const string KeyDefaultDescription = "seo.default_description";
@@ -79,6 +82,12 @@ public sealed class AdminSeoSettingsRepository(ClubDbContext dbContext, IImagePu
             throw new AdminSeoValidationException("預設描述（中文）為必填欄位。", "defaultDescriptionZh");
         }
 
+        // 追蹤碼前台會直接拼進 <script>，只收各平台正式格式（稽核 E-1）；空白＝清除。
+        var ga4 = ValidateTrackingId(request.Ga4MeasurementId, Ga4Pattern(), "GA4 評估 ID", "G-XXXXXXXXXX", "ga4MeasurementId", upper: true);
+        var gtm = ValidateTrackingId(request.GtmContainerId, GtmPattern(), "Google Tag Manager 容器 ID", "GTM-XXXXXXX", "gtmContainerId", upper: true);
+        var metaPixel = ValidateTrackingId(request.MetaPixelId, MetaPixelPattern(), "Meta Pixel ID", "純數字（約 15–16 碼）", "metaPixelId", upper: false);
+        var lineTag = ValidateTrackingId(request.LineTagId, LineTagPattern(), "LINE Tag ID", "英文字母、數字與連字號", "lineTagId", upper: false);
+
         var settings = await dbContext.Settings
             .Include(s => s.SettingsI18ns)
             .Where(s => s.ClubId == scope.ClubId && AllKeys.Contains(s.SettingKey))
@@ -87,10 +96,10 @@ public sealed class AdminSeoSettingsRepository(ClubDbContext dbContext, IImagePu
         UpsertI18n(settings, KeyTitleTemplate, GroupSeo, scope.ClubId, request.TitleTemplateZh, request.TitleTemplateEn, operatorId);
         UpsertI18n(settings, KeyDefaultDescription, GroupSeo, scope.ClubId, request.DefaultDescriptionZh, request.DefaultDescriptionEn, operatorId);
         UpsertValue(settings, KeyRobotsCustomRules, GroupSeo, scope.ClubId, request.RobotsCustomRules, operatorId);
-        UpsertValue(settings, KeyGa4, GroupTracking, scope.ClubId, request.Ga4MeasurementId, operatorId);
-        UpsertValue(settings, KeyGtm, GroupTracking, scope.ClubId, request.GtmContainerId, operatorId);
-        UpsertValue(settings, KeyMetaPixel, GroupTracking, scope.ClubId, request.MetaPixelId, operatorId);
-        UpsertValue(settings, KeyLineTag, GroupTracking, scope.ClubId, request.LineTagId, operatorId);
+        UpsertValue(settings, KeyGa4, GroupTracking, scope.ClubId, ga4, operatorId);
+        UpsertValue(settings, KeyGtm, GroupTracking, scope.ClubId, gtm, operatorId);
+        UpsertValue(settings, KeyMetaPixel, GroupTracking, scope.ClubId, metaPixel, operatorId);
+        UpsertValue(settings, KeyLineTag, GroupTracking, scope.ClubId, lineTag, operatorId);
 
         if (ogImageUpdate.Change)
         {
@@ -105,8 +114,43 @@ public sealed class AdminSeoSettingsRepository(ClubDbContext dbContext, IImagePu
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(SeoRepository.SettingsEntity, scope.ClubCode, cancellationToken);
 
         return await GetAsync(scope, cancellationToken);
+    }
+
+    [GeneratedRegex(@"^G-[A-Z0-9]{4,20}$")]
+    private static partial Regex Ga4Pattern();
+
+    [GeneratedRegex(@"^GTM-[A-Z0-9]{4,12}$")]
+    private static partial Regex GtmPattern();
+
+    [GeneratedRegex(@"^[0-9]{5,20}$")]
+    private static partial Regex MetaPixelPattern();
+
+    // LINE Tag 的 ID 是 UUID 樣式（含連字號的英數字串），官方沒有公布更嚴格的格式，保守只收英數與連字號。
+    [GeneratedRegex(@"^[A-Za-z0-9-]{1,64}$")]
+    private static partial Regex LineTagPattern();
+
+    private static string? ValidateTrackingId(string? raw, Regex pattern, string label, string example, string field, bool upper)
+    {
+        var text = raw?.Trim();
+        if (string.IsNullOrEmpty(text))
+        {
+            return null;
+        }
+
+        if (upper)
+        {
+            text = text.ToUpperInvariant();
+        }
+
+        if (!pattern.IsMatch(text))
+        {
+            throw new AdminSeoValidationException($"{label}格式不正確（範例：{example}）。", field);
+        }
+
+        return text;
     }
 
     /// <summary>呼叫端（<see cref="AdminSeoSettingsEndpoints"/>）需要先知道目前的 OG 圖片鍵，

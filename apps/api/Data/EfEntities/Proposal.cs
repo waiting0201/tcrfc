@@ -11,8 +11,6 @@ public partial class Proposal
 
     public Guid ClubId { get; set; }
 
-    public string Title { get; set; } = null!;
-
     public int VersionNo { get; set; }
 
     public string Status { get; set; } = null!;
@@ -32,6 +30,7 @@ public partial class Proposal
     public virtual ICollection<Enquiry> Enquiries { get; set; } = new List<Enquiry>();
 
     public virtual ICollection<ProposalFile> ProposalFiles { get; set; } = new List<ProposalFile>();
+    public virtual ICollection<ProposalsI18n> ProposalsI18ns { get; set; } = new List<ProposalsI18n>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 }

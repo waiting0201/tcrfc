@@ -51,6 +51,28 @@ public sealed record PublicSiteFactsDto
     /// 呼叫端應保留既有預設值（例如 <c>apps/web</c> 目前的 <c>NUXT_PUBLIC_BLUE_WHALE_SITE_URL</c>
     /// staging 預設）而不是顯示空白連結。</summary>
     public string? BlueWhaleSiteUrl { get; init; }
+
+    /// <summary>社群連結（C-2）。全部可空，<c>null</c>＝該平台未設定，前台不應顯示該圖示。</summary>
+    public required PublicSiteFactSocialDto Social { get; init; }
+
+    /// <summary>頁尾品牌簡介，依 <c>lang</c> 解析（缺英文回退中文）；<c>null</c>＝未設定，前台保留既有預設文案。</summary>
+    public string? FooterBlurb { get; init; }
+}
+
+public sealed record PublicSiteFactSocialDto
+{
+    public string? Facebook { get; init; }
+    public string? Instagram { get; init; }
+    public string? Youtube { get; init; }
+    public string? Line { get; init; }
+}
+
+/// <summary>各部門窗口（對外公開資訊）。名稱依 <c>lang</c> 解析。</summary>
+public sealed record PublicSiteFactDepartmentDto
+{
+    public required string Name { get; init; }
+    public string? Email { get; init; }
+    public string? PhoneExtension { get; init; }
 }
 
 public sealed record PublicSiteFactLeagueDto
@@ -88,4 +110,10 @@ public sealed record PublicSiteFactContactDto
 
     /// <summary>營業時間，依 <c>lang</c> 解析，目前兩俱樂部皆未核實，恆為 <c>null</c>。</summary>
     public string? Hours { get; init; }
+
+    /// <summary>聯絡 Email，與 <c>lang</c> 無關；<c>null</c>＝未設定。</summary>
+    public string? Email { get; init; }
+
+    /// <summary>各部門窗口，依顯示順序；未設定為空陣列。</summary>
+    public required IReadOnlyList<PublicSiteFactDepartmentDto> Departments { get; init; }
 }

@@ -17,9 +17,7 @@ public sealed class ClubsRepository(
     public const string DetailEntity = "club-detail";
 
     private sealed record ClubRow(
-        Guid Id, string Code, string Domain, string? LogoLightKey, string? LogoDarkKey,
-        string? FaviconKey, string? OgImageKey, string? BrandColor, string? BrandSecondaryColor,
-        string DefaultLocale);
+        Guid Id, string Code, string Domain, string? OgImageKey, string DefaultLocale);
 
     private sealed record ClubI18nRow(Guid ClubId, string Locale, string Name, string? ShortName, string? Description);
 
@@ -37,10 +35,7 @@ public sealed class ClubsRepository(
 
                 const string clubSql = """
                     SELECT id AS Id, code AS Code, domain AS Domain,
-                           logo_light_key AS LogoLightKey, logo_dark_key AS LogoDarkKey,
-                           favicon_key AS FaviconKey, og_image_key AS OgImageKey,
-                           brand_color AS BrandColor, brand_secondary_color AS BrandSecondaryColor,
-                           default_locale AS DefaultLocale
+                           og_image_key AS OgImageKey, default_locale AS DefaultLocale
                     FROM clubs
                     WHERE status = 'active'
                     ORDER BY sort_order, code
@@ -75,10 +70,7 @@ public sealed class ClubsRepository(
 
                 const string clubSql = """
                     SELECT id AS Id, code AS Code, domain AS Domain,
-                           logo_light_key AS LogoLightKey, logo_dark_key AS LogoDarkKey,
-                           favicon_key AS FaviconKey, og_image_key AS OgImageKey,
-                           brand_color AS BrandColor, brand_secondary_color AS BrandSecondaryColor,
-                           default_locale AS DefaultLocale
+                           og_image_key AS OgImageKey, default_locale AS DefaultLocale
                     FROM clubs
                     WHERE id = @ClubId
                     """;
@@ -123,13 +115,11 @@ public sealed class ClubsRepository(
         var name = RequestLocale.Pick(requested?.Name, fallback?.Name) ?? club.Code;
 
         // GEO-05（S1-12f）：單一來源見 SchemaRequiredFields 檔頭。url 用 Domain（clubs 表 NOT NULL
-        // 欄位，恆有值）；logo 用 LogoLightKey——兩個俱樂部現況下皆為 null（見 ClubDto.SchemaEligible
-        // 的檔頭說明），本欄位會如實回報 false，不是這裡的判斷有誤。
+        // 欄位，恆有值）；標誌由前台靜態資產輸出（v3.20），不是必填欄位。
         var schemaEligible = SchemaRequiredFields.IsComplete(SchemaType.Organization, new Dictionary<string, object?>
         {
             ["name"] = name,
             ["url"] = club.Domain,
-            ["logo"] = club.LogoLightKey,
         });
 
         return new ClubDto
@@ -140,16 +130,8 @@ public sealed class ClubsRepository(
             IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
             Description = RequestLocale.Pick(requested?.Description, fallback?.Description),
             Domain = club.Domain,
-            LogoLightKey = club.LogoLightKey,
-            LogoDarkKey = club.LogoDarkKey,
-            FaviconKey = club.FaviconKey,
             OgImageKey = club.OgImageKey,
-            BrandColor = club.BrandColor,
-            BrandSecondaryColor = club.BrandSecondaryColor,
             DefaultLocale = club.DefaultLocale,
-            LogoUrl = imageUrlResolver.Resolve(club.LogoLightKey),
-            LogoDarkUrl = imageUrlResolver.Resolve(club.LogoDarkKey),
-            FaviconUrl = imageUrlResolver.Resolve(club.FaviconKey),
             OgImageUrl = imageUrlResolver.Resolve(club.OgImageKey),
             SchemaEligible = schemaEligible,
         };

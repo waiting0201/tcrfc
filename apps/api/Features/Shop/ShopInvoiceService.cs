@@ -19,6 +19,9 @@ public sealed class ShopInvoiceService(
 
     public string ProtectCarrier(string carrierId) => protection.CreateProtector(Purpose).Protect(carrierId);
 
+    /// <summary>解開載具號碼（後台訂單詳情在有解除遮罩權限時顯示用）；解不開回傳 <c>null</c>。</summary>
+    public string? RevealCarrier(string? encrypted) => UnprotectCarrier(encrypted);
+
     private string? UnprotectCarrier(string? encrypted)
     {
         if (string.IsNullOrEmpty(encrypted))

@@ -46,6 +46,29 @@ public static class ShopLabels
         ["settled"] = "已結算",
     };
 
+    /// <summary>發票開立方式（由 <c>store_invoices</c> 的載具類型／統編／捐贈碼推得，見 <c>AdminShopOrdersRepository.InvoiceType</c>）。</summary>
+    public static readonly IReadOnlyDictionary<string, string> InvoiceType = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["mobile_barcode"] = "手機條碼載具",
+        ["citizen_cert"] = "自然人憑證載具",
+        ["tax_id"] = "公司戶（統一編號）",
+        ["donation"] = "捐贈發票",
+    };
+
+    public static readonly IReadOnlyDictionary<string, string> InvoiceIssueStatus = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["pending"] = "待開立",
+        ["issued"] = "已開立",
+        ["failed"] = "開立失敗（待重試）",
+    };
+
+    public static readonly IReadOnlyDictionary<string, string> InvoiceVoidStatus = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["none"] = "未作廢",
+        ["voided"] = "已作廢",
+        ["allowance"] = "已折讓",
+    };
+
     public static readonly IReadOnlyDictionary<string, string> Pickup = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["waiting"] = "待領取",

@@ -165,6 +165,59 @@ public static class AdminPlayersEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .DisableAntiforgery();
+
+        MapSeasonStatsEndpoints(group);
+    }
+
+    /// <summary>球員賽季數據（B-13）：手動輸入與清除。權限碼沿用 <c>team.player.*</c>，並套用與球員修改相同的球隊列級授權。</summary>
+    private static void MapSeasonStatsEndpoints(IEndpointRouteBuilder group)
+    {
+        group.MapGet("/{id:guid}/season-stats", async (
+            string club, Guid id, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminPlayersRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
+            var result = await repository.GetSeasonStatsAsync(scope, id, cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        })
+        .WithName("AdminGetPlayerSeasonStats")
+        .Produces<AdminPlayerSeasonStatsDto>()
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
+        group.MapPut("/{id:guid}/season-stats/{seasonId:guid}", async (
+            string club, Guid id, Guid seasonId, SetAdminPlayerSeasonStatRequest request, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, IAdminTeamRowScopeResolver rowScopeResolver,
+            AdminPlayersRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
+            var rowScope = await rowScopeResolver.ResolveAsync(scope, PermissionUpdate, cancellationToken);
+            var result = await repository.SetSeasonStatAsync(scope, rowScope, id, seasonId, request, scope.Identity.AdminUserId, cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        })
+        .WithName("AdminSetPlayerSeasonStat")
+        .Produces<AdminPlayerSeasonStatDto>()
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
+        group.MapDelete("/{id:guid}/season-stats/{seasonId:guid}", async (
+            string club, Guid id, Guid seasonId, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, IAdminTeamRowScopeResolver rowScopeResolver,
+            AdminPlayersRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
+            var rowScope = await rowScopeResolver.ResolveAsync(scope, PermissionUpdate, cancellationToken);
+            var result = await repository.ClearSeasonStatAsync(scope, rowScope, id, seasonId, cancellationToken);
+            return result is null ? Results.NotFound() : Results.NoContent();
+        })
+        .WithName("AdminClearPlayerSeasonStat")
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
     }
 
     private static async Task<UploadedImageInfo> UploadPhotoAsync(

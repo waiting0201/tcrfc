@@ -81,8 +81,12 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
         await using var data = new MatchData { SeasonId = seasonId, ClubId = clubId };
         await BizTest.ExecuteSqlAsync(
             """
-            INSERT INTO standings (club_id, season_id, team_name, rank, played, points) VALUES
-              (@C, @S, N'【F測試】乙隊', 2, 10, 20), (@C, @S, N'【F測試】甲隊', 1, 10, 25), (@C, @S, N'【F測試】未排名隊', NULL, 9, NULL);
+            DECLARE @A uniqueidentifier = NEWID(), @B uniqueidentifier = NEWID(), @U uniqueidentifier = NEWID();
+            INSERT INTO standings (id, club_id, season_id, rank, played, points) VALUES
+              (@A, @C, @S, 2, 10, 20), (@B, @C, @S, 1, 10, 25), (@U, @C, @S, NULL, 9, NULL);
+            INSERT INTO standings_i18n (standing_id, locale, team_name) VALUES
+              (@A, N'zh-Hant', N'【F測試】乙隊'), (@B, N'zh-Hant', N'【F測試】甲隊'), (@U, N'zh-Hant', N'【F測試】未排名隊'),
+              (@B, N'en', N'F-Test Team A');
             """, ("@C", clubId), ("@S", seasonId));
         using var client = fixture.CreateClient();
 
@@ -90,6 +94,10 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
         Assert.Equal(TestSeason, standings.GetProperty("season").GetProperty("code").GetString());
         Assert.Equal(["【F測試】甲隊", "【F測試】乙隊", "【F測試】未排名隊"], standings.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("teamName").GetString()).ToArray());
         Assert.Equal(25, standings.GetProperty("items")[0].GetProperty("points").GetInt32());
+
+        // 英文：有英文名稱者用英文、沒有的回退繁中（standings_i18n 側表，RequestLocale.Pick）。
+        var en = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tcrfc/standings?season={TestSeason}&lang=en");
+        Assert.Equal(["F-Test Team A", "【F測試】乙隊", "【F測試】未排名隊"], en.GetProperty("items").EnumerateArray().Select(i => i.GetProperty("teamName").GetString()).ToArray());
         Assert.Equal(JsonValueKind.Null, standings.GetProperty("items")[2].GetProperty("rank").ValueKind);
         Assert.Contains(standings.GetProperty("seasons").EnumerateArray(), s => s.GetString() == TestSeason);
 

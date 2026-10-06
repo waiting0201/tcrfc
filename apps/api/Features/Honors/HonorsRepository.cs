@@ -20,12 +20,16 @@ public sealed class HonorsRepository(IClubSqlConnectionFactory connectionFactory
             using var connection = connectionFactory.CreateConnection();
             const string sql = """
                 SELECT a.id AS Id, a.year AS Year, s.code AS SeasonCode, t.code AS TeamCode,
-                       COALESCE(NULLIF(tr.name, N''), td.name) AS TeamName, a.competition_name AS CompetitionName, a.placing AS Placing
+                       COALESCE(NULLIF(tr.name, N''), td.name) AS TeamName,
+                       COALESCE(NULLIF(ar.competition_name, N''), ad.competition_name) AS CompetitionName,
+                       COALESCE(NULLIF(ar.placing, N''), ad.placing) AS Placing
                 FROM achievements a
                 JOIN seasons s ON s.id = a.season_id
                 JOIN teams t ON t.id = a.team_id
                 LEFT JOIN teams_i18n tr ON tr.team_id = t.id AND tr.locale = @Locale
                 LEFT JOIN teams_i18n td ON td.team_id = t.id AND td.locale = @DefaultLocale
+                LEFT JOIN achievements_i18n ar ON ar.achievement_id = a.id AND ar.locale = @Locale
+                LEFT JOIN achievements_i18n ad ON ad.achievement_id = a.id AND ad.locale = @DefaultLocale
                 WHERE a.club_id = @ClubId AND (@TeamCode IS NULL OR t.code = @TeamCode)
                 ORDER BY a.year DESC, a.row_seq DESC
                 """;

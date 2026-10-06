@@ -67,6 +67,35 @@ public static partial class AdminInput
         return text;
     }
 
+    /// <summary>選填連結：只收 <c>https://</c>／<c>http://</c> 完整網址，或站內 <c>/</c> 開頭的相對路徑
+    /// （<c>//</c>、<c>/\</c> 會被瀏覽器當成外站，一併拒絕）。前台會把它直接放進 <c>href</c>，
+    /// <c>javascript:</c>、<c>data:</c> 之類的協定必須在這裡擋掉（稽核 E-2）。</summary>
+    public static string? OptionalHttpOrSitePath(string? value, string label, int maxLength = 500, string? field = null)
+    {
+        var text = OptionalText(value, label, maxLength, field);
+        if (text is null)
+        {
+            return null;
+        }
+
+        if (text[0] == '/')
+        {
+            if (text.Length > 1 && (text[1] == '/' || text[1] == '\\') || text.Any(char.IsControl))
+            {
+                throw new AdminValidationException($"{Spaced(label)}的站內路徑格式不正確。", field);
+            }
+
+            return text;
+        }
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            throw new AdminValidationException($"{Spaced(label)}必須是以 http://、https:// 開頭的完整網址，或以 / 開頭的站內路徑。", field);
+        }
+
+        return text;
+    }
+
     public static string? OptionalEmail(string? value, string label, string? field = null)
     {
         var text = OptionalText(value, label, 255, field);

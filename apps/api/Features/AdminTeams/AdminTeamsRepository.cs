@@ -23,6 +23,8 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     /// <summary>不分俱樂部列出全部球隊——見 <c>AdminTeamsEndpoints</c> 檔頭「跨俱樂部」的說明。
     /// <paramref name="clubCode"/> 給定時縮小到單一俱樂部（畫面已經選定俱樂部時可以少拉一點資料，
     /// 不給就是完整跨俱樂部清單）。</summary>
+    private static readonly string[] TeamDependentCacheEntities = ["players", "staff", "schedule", "honors", "calendar"];
+
     public async Task<IReadOnlyList<AdminTeamListItemDto>> ListAsync(string? clubCode, CancellationToken cancellationToken)
     {
         var query = dbContext.Teams.AsNoTracking().AsQueryable();
@@ -283,6 +285,12 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("teams", scope.ClubCode, cancellationToken);
+        // 球隊代碼、名稱、類型會直接出現在球員、職員、賽程、榮譽的公開回應裡（稽核 B-22），不一併失效就要等 TTL。
+        foreach (var dependent in TeamDependentCacheEntities)
+        {
+            await cache.InvalidateAsync(dependent, scope.ClubCode, cancellationToken);
+        }
+
         return await GetForClubAsync(scope, id, cancellationToken);
     }
 

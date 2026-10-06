@@ -21,7 +21,7 @@ public sealed record OrderFilter(
 /// </summary>
 public sealed class AdminShopOrdersRepository(
     ClubDbContext db, IPermissionChecker permissions, SensitiveActionLogger audit, InventoryService inventory,
-    ShopOrderLifecycle lifecycle, ShopSettingsReader shopSettings)
+    ShopOrderLifecycle lifecycle, ShopSettingsReader shopSettings, Shop.ShopInvoiceService invoiceService)
 {
     private const int ExportRowLimit = 20000;
 
@@ -174,6 +174,7 @@ public sealed class AdminShopOrdersRepository(
             RecipientName = canReveal ? order.RecipientName : PiiMasking.MaskName(order.RecipientName),
             RecipientPhone = canReveal ? order.RecipientPhone : PiiMasking.MaskPhone(order.RecipientPhone),
             RecipientAddress = canReveal ? order.RecipientAddress : PiiMasking.MaskAddress(order.RecipientAddress),
+            BuyerEmail = canReveal ? order.BuyerEmail : PiiMasking.MaskEmail(order.BuyerEmail),
             CustomerNote = order.CustomerNote, InternalNote = order.InternalNote, SettlementStatus = order.SettlementStatus,
             SettlementStatusLabel = ShopLabels.Of(ShopLabels.Settlement, order.SettlementStatus), SettledOn = order.SettledOn, SettlementNote = order.SettlementNote,
             Items = order.OrderItems.OrderBy(i => i.RowSeq).Select(i => new AdminOrderItemDto
@@ -182,12 +183,33 @@ public sealed class AdminShopOrdersRepository(
                 UnitPrice = i.UnitPriceSnapshot, Quantity = i.Quantity, LineTotal = i.LineTotal, RefundedQuantity = refundedByItem.GetValueOrDefault(i.Id),
             }).ToList(),
             Shipment = shipment is null ? null : ToShipmentDto(shipment),
-            Invoice = invoice is null ? null : new AdminOrderInvoiceDto { InvoiceNo = invoice.InvoiceNo, IssuedAt = invoice.IssuedAt, IssueStatus = invoice.IssueStatus, VoidStatus = invoice.VoidStatus },
+            Invoice = invoice is null ? null : ToInvoiceDto(invoice, canReveal),
             Refunds = refunds.Select(r => new AdminOrderRefundSummaryDto
             {
                 Id = r.Id, Status = r.Status, StatusLabel = ShopLabels.Of(ShopLabels.Refund, r.Status), RefundAmount = r.RefundAmount, Reason = r.Reason, CreatedAt = r.CreatedAt,
             }).ToList(),
             AvailableActions = actions, IsMasked = !canReveal, CanReveal = canReveal, UpdatedAt = order.UpdatedAt,
+        };
+    }
+
+    /// <summary>發票開立方式由載具類型／統編／捐贈碼推得（<c>store_invoices</c> 沒有獨立的類型欄位）。</summary>
+    private static string? InvoiceType(StoreInvoice i)
+        => !string.IsNullOrEmpty(i.CarrierIdEncrypted) || !string.IsNullOrEmpty(i.CarrierType)
+            ? (i.CarrierType is "mobile_barcode" or "citizen_cert" ? i.CarrierType : null)
+            : !string.IsNullOrEmpty(i.TaxId) ? "tax_id" : !string.IsNullOrEmpty(i.DonationCode) ? "donation" : null;
+
+    private AdminOrderInvoiceDto ToInvoiceDto(StoreInvoice invoice, bool canReveal)
+    {
+        var type = InvoiceType(invoice);
+        var carrier = invoiceService.RevealCarrier(invoice.CarrierIdEncrypted);
+        return new AdminOrderInvoiceDto
+        {
+            InvoiceNo = invoice.InvoiceNo, IssuedAt = invoice.IssuedAt,
+            IssueStatus = invoice.IssueStatus, IssueStatusLabel = ShopLabels.Of(ShopLabels.InvoiceIssueStatus, invoice.IssueStatus),
+            VoidStatus = invoice.VoidStatus, VoidStatusLabel = ShopLabels.Of(ShopLabels.InvoiceVoidStatus, invoice.VoidStatus),
+            Type = type, TypeLabel = type is null ? null : ShopLabels.Of(ShopLabels.InvoiceType, type),
+            CarrierId = canReveal ? carrier : PiiMasking.MaskCarrier(carrier),
+            TaxId = invoice.TaxId, DonationCode = invoice.DonationCode,
         };
     }
 

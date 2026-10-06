@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.Forms;
@@ -27,8 +28,11 @@ namespace Tcrfc.Api.Features.AdminForms;
 /// `FK_enquiry_answers_field` 沒有 `ON DELETE CASCADE`（`db/club-schema.sql` 註解），
 /// 這裡先查一次，給出中文訊息，不讓呼叫端直接撞到 SQL Server 的 547 錯誤。
 /// </summary>
-public sealed class AdminFormsRepository(ClubDbContext dbContext)
+public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache cache)
 {
+    /// <summary>與公開端 <c>FormsRepository</c> 的快取實體名稱一致；後台寫入後失效，公開表單定義（含送出後導向頁）才不必等 TTL（稽核 B-22）。</summary>
+    private const string CacheEntity = "forms";
+
     public async Task<IReadOnlyList<AdminFormListItemDto>> ListAsync(AdminClubScope scope, CancellationToken cancellationToken)
         => await dbContext.Forms.AsNoTracking()
             .Where(f => f.ClubId == scope.ClubId)
@@ -81,6 +85,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         UpsertI18n(form, "en", request.AutoReplyBodyEn);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(CacheEntity, scope.ClubCode, cancellationToken);
         return ToDetailDto(form);
     }
 
@@ -92,6 +97,11 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         if (form is null || form.ClubId != scope.ClubId)
         {
             return null;
+        }
+
+        if (FormCatalog.AreFieldsLocked(form.FormCode))
+        {
+            throw new AdminFormValidationException(LockedMessage("不能新增欄位"), "fieldKey");
         }
 
         var fieldKey = ValidateFieldKey(request.FieldKey);
@@ -140,6 +150,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
 
         dbContext.FormFields.Add(field);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(CacheEntity, scope.ClubCode, cancellationToken);
 
         return ToFieldDto(field);
     }
@@ -171,6 +182,11 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         if (form.FormFields.Any(f => f.Id != fieldId && string.Equals(f.FieldKey, fieldKey, StringComparison.Ordinal)))
         {
             throw new AdminFormFieldKeyConflictException($"這張表單已經有欄位代碼「{fieldKey}」，請換一個名稱。");
+        }
+
+        if (FormCatalog.AreFieldsLocked(form.FormCode))
+        {
+            EnsureLockedStructureUnchanged(field, request, fieldKey, fieldType, validationRule, optionsJson);
         }
 
         if (request.IsSummary)
@@ -205,6 +221,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(CacheEntity, scope.ClubCode, cancellationToken);
         return ToFieldDto(field);
     }
 
@@ -223,6 +240,11 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
             return null;
         }
 
+        if (FormCatalog.AreFieldsLocked(form.FormCode))
+        {
+            throw new AdminFormValidationException(LockedMessage("不能刪除欄位"), "fieldId");
+        }
+
         var inUse = await dbContext.EnquiryAnswers.AsNoTracking().AnyAsync(a => a.FormFieldId == fieldId, cancellationToken);
         if (inUse)
         {
@@ -231,7 +253,47 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
 
         dbContext.FormFields.Remove(field);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(CacheEntity, scope.ClubCode, cancellationToken);
         return true;
+    }
+
+    private static string LockedMessage(string what)
+        => $"這張表單的欄位由系統固定，{what}；前台表單的欄位、必填與選項已與網站版面綁定。若需調整請聯絡系統維護人員。";
+
+    /// <summary>鎖定表單的欄位只允許改「不影響送出驗證」的東西（題目文字、選項英文顯示文字、內容摘要來源、排序）；
+    /// 代碼、類型、必填、驗證規則、選項任何一項與現況不同都擋下，錯誤標在對應欄位鍵。</summary>
+    private static void EnsureLockedStructureUnchanged(
+        FormField field, UpdateAdminFormFieldRequest request, string fieldKey, string fieldType, string? validationRule, string? optionsJson)
+    {
+        if (!string.Equals(field.FieldKey, fieldKey, StringComparison.Ordinal))
+        {
+            throw new AdminFormValidationException(LockedMessage("不能修改欄位代碼"), "fieldKey");
+        }
+
+        if (!string.Equals(field.FieldType, fieldType, StringComparison.Ordinal))
+        {
+            throw new AdminFormValidationException(LockedMessage("不能修改欄位類型"), "fieldType");
+        }
+
+        if (field.IsRequired != request.IsRequired)
+        {
+            throw new AdminFormValidationException(LockedMessage("不能修改必填設定"), "isRequired");
+        }
+
+        if (!string.Equals(field.ValidationRule, validationRule, StringComparison.Ordinal))
+        {
+            throw new AdminFormValidationException(LockedMessage("不能修改格式規則"), "validationRule");
+        }
+
+        var existingOptions = field.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(field.OptionsJson);
+        var newOptions = optionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(optionsJson);
+        var sameOptions = existingOptions is null || newOptions is null
+            ? existingOptions is null && newOptions is null
+            : existingOptions.SequenceEqual(newOptions, StringComparer.Ordinal);
+        if (!sameOptions)
+        {
+            throw new AdminFormValidationException(LockedMessage("不能修改選項"), "options");
+        }
     }
 
     // ───────────────────────────── 驗證 ─────────────────────────────
@@ -274,10 +336,11 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         {
             return;
         }
-        if (!redirectPath.StartsWith('/') && !redirectPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            && !redirectPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+
+        // 只收站內相對路徑（稽核 B-16：公開端會把它輸出給前台跳轉）；「//」「/\」會被瀏覽器當成外站，一併擋掉。
+        if (FormsRepository.SafeRedirectPath(redirectPath) is null)
         {
-            throw new AdminFormValidationException("送出後導向的網址要用 / 開頭的相對路徑，或完整的 http(s):// 網址。", "redirectPath");
+            throw new AdminFormValidationException("送出後導向的網址要用 / 開頭的站內路徑（例如 /thank-you），不可填完整網址。", "redirectPath");
         }
     }
 

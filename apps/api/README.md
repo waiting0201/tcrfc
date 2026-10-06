@@ -3419,7 +3419,691 @@ DML 轉態。完整說明另見 `docs/12-database-schema.md` §12 第 39 點。
 
 1. **列表模式**（`from`／`to` 皆未提供）：依 `team` 決定內容——
    - `team=club`：回傳「俱樂部活動」分頁（規劃書「隊別分頁……另有『全部』與『俱樂部活動』」），
-     只給公開（`is_public=1`）自建事件；
+     只給公開（`is_public=1`）、**未掛任何球隊**、活動類型公開（或未設類型）的自建事件；
+     **重複規則即時展開**（預設區間＝今天起 180 天，例外日排除，`repeat_until` 截止），每個發生日一筆，
+     依 `startsAt` 由近到遠，`page`／`pageSize` 分頁；
+   - 其餘（含未指定）：回傳**只有賽事**的「賽程 Fixtures／賽果 Results」分頁（`mode=fixtures`
+     預設／`results`），支援 `season`／`type`（賽事類型標籤）／`homeAway` 篩選、`page`／`pageSize`
+     分頁——這兩個分頁在規劃書原文本來就是賽事的概念（未來／過去），俱樂部活動沒有「賽果」的語意。
+2. **月曆模式**（提供 `from`／`to`，上限 366 天）：合併賽事與公開自建事件，L2 重複規則即時展開，
+   排序一律由近到遠，不分賽程／賽果，仍可疊加 `team`／`season`／`type`／`homeAway` 篩選。
+
+**自建活動回應欄位**（`PublicCalendarEventDto`，A-9／B-6）：`id`＝原活動 id（重複活動同 id 多筆）、
+`startsAt`／`endsAt`＝該次發生的起訖、`occurrenceId`＝每次發生的唯一鍵（`{id}:{yyyyMMddHHmm}`，v-for key 用）、
+`isRecurring`、`eventTypeCode`／`eventTypeName`（依 `lang`，缺譯回退中文）／`eventTypeColour`／`eventTypeIcon`。
+**team 篩選語意**（兩種模式一致）：`team=club`＝只回未掛任何球隊的活動；`team={code}`＝只回掛在該隊的活動
+（列表模式的 `team={code}` 仍只回賽事，要看該隊活動請用月曆模式 `from`／`to`）。
+**活動類型 `event_types.is_public=0` 時其下活動不輸出**（公開列表、月曆模式與 `calendar/feed.ics` 一致）。
+
+### 權限碼與角色指派（`db/seed/generate-club-seed-sql.py`）
+
+新增 10 個權限碼：`program.item.view/create/update`、`program.session.view/create/update`、
+`program.registration.view/create/update/export`（`export` 是 `is_restricted=1`）。`module_code=P`、
+`domain=program`（獨立於 `team` 之外，矩陣把「球隊／賽事」與「課程／報名」列為兩個獨立欄位）。
+依主站規劃書 §6 矩陣「課程／報名」欄逐列展開：系統管理員 ✔全；內容編輯／競技球隊管理／商務贊助／
+檢視者 唯讀；**學院／課程管理 ✔全（含匯出）**；**客服／行政「報名處理」→ 只給
+`program.registration.view/update`**（不給課程項目／梯次的建立編輯權，也不給匯出）；公關／媒體
+矩陣是「—」，不指派；合作球隊管理 ✔自家課程（`own_clubs`，不含匯出，比照既有保守預設）；
+翻譯人員本輪維持跟其餘模組一致不指派（「僅翻譯欄位」全系統目前沒有任何模組真的做出欄位級強制）。
+
+新增兩個測試帳號：`customer.service@tcrfc.test`（`customer_service_admin`，僅 `tcrfc`，密碼
+`ContentEditor@123`）、`pr.media@tcrfc.test`（`pr_media`，僅 `tcrfc`，同密碼）——理由與既有
+`academy.manager@tcrfc.test`／`team.manager@tcrfc.test` 相同，見 `db/seed/generate-club-seed-sql.py`
+對應段落。
+
+### 名額控管（規劃書行 1097「額滿自動關閉、候補遞補提醒」）
+
+`sessions.enrolled_count` 只由報名寫入路徑維護，後台建立／更新梯次的端點完全不接受呼叫端指定這個
+欄位。「額滿自動關閉」用單一原子 SQL 陳述式完成，不是「先查再寫」：
+
+```sql
+UPDATE sessions
+SET enrolled_count = enrolled_count + 1,
+    status = CASE WHEN capacity IS NOT NULL AND enrolled_count + 1 >= capacity THEN N'額滿' ELSE status END,
+    updated_at = SYSUTCDATETIME()
+OUTPUT INSERTED.id
+WHERE id = @SessionId AND status = N'開放' AND (capacity IS NULL OR enrolled_count < capacity)
+```
+
+只有梯次「目前正是開放中且還有名額」時才會真的更新到那一列（影響列數＝1）；梯次目前是「額滿」
+「候補」（管理者手動設定，代表只收候補）或「已結束」（更早一步被擋下），或兩個訪客同時搶最後一個
+名額，落敗的那一次呼叫影響列數是 0——這一次直接判定為「候補」，不佔用名額。單一 `UPDATE` 陳述式
+本身就有隱含的列鎖定保護，不需要額外的重試或 `UPDLOCK`／`HOLDLOCK` 語法。這個判定**只單向收斂到
+「額滿」**，不會反向把「額滿」自動打回「開放」，也不會自動把「候補」改回「開放」——規劃書只講
+「額滿自動關閉」的單向語意，反向與「候補」都是人工判斷（後台可隨時手動改回）。後台代填報名
+（`Features/AdminRegistrations`）與轉梯次也走同一組邏輯（原子 `UPDATE ... SET enrolled_count =
+enrolled_count + @delta`），但**不做「額滿即拒絕」的關卡**——那是保護公開訪客的行為，後台操作者
+是人，允許人工超額或把候補直接轉正。
+
+### 肖像同意的既有防線沒有被繞過
+
+05 課程詳情把教練團（`program_staff`）嵌進回應，但**刻意只回傳姓名，不含照片**——
+`docs/12` §12 第 32 點與 S1-7a 已確認「全系統只有 `Features/Players`／`Features/Staff` 兩支公開
+端點會依肖像同意白名單輸出球員／教練照片」，本端點若另外夾帶 `photo_key` 會繞過那道白名單、變成
+第三個出口，故刻意不做。前台如需教練完整資料（含已同意的照片）應另外呼叫既有的
+`GET /api/v1/{club}/staff`。
+
+### 規劃書沒寫清楚、本輪自行判斷的地方
+
+1. **前台報名流程的「Email／簡訊通知」未實作**（`docs/02-frontend-spec.md` 行 102／主站規劃書行
+   389：「送出 → 產生報名編號 → Email／簡訊通知」）。`EmailLog.type` 值域是封閉的 9 個值（會員
+   5＋商店 4，`docs/12` §12 第 23 點），課程報名的通知信不在其中；簡訊更是全系統從未建置過的
+   通路（`docs/17-deployment.md` 沒有任何簡訊服務的整合紀錄）。這屬於「綱要與規劃書在這件事上
+   沒有明確答案」，依任務指示停在這裡、不自行新增 `EmailLog.type` 值域或串接簡訊服務，回報供
+   下一輪走 `docs/00-harness.md` §2.5 同步鏈裁決（要嘛新增通知型別與樣板，要嘛裁決課程報名不寄
+   系統信）。「候補遞補提醒」同一個缺口，未實作。
+2. **`Registration.health_declaration`（健康聲明）維持現行 DDL 的明文欄位，未加密、未做欄位級
+   遮罩、未建立蒐集覈實或同意書留存流程**——`docs/12b-database-tables.md` §8 明文標注這欄「🔐
+   建議，⚠️ 待法務確認」，但真正待確認的是《個資法》§6 特種個資的蒐集要件與保存期限，不是儲存
+   方式本身（該檔案原文：「真正要確認的是能不能蒐集、要不要蒐集、保存多久，那在儲存方式之前」）。
+   這層法務判斷超出本次任務邊界，依派工指示「不要自行擴大蒐集範圍」處理：欄位照現行 DDL 收（不
+   新增欄位、不新增同意書上傳），可見範圍依 `program.registration.view` 權限碼控管（矩陣角色
+   分佈見上方），CSV 匯出**刻意排除**這欄（資料最小化，見下一點）。
+3. **CSV 匯出「Excel 匯出」的落地方式**：規劃書行 1090 寫「匯出 Excel：名單匯出（含分組欄位）」，
+   本專案沒有任何 `.xlsx` 產生套件，比照既有 FAQ／賽程／積分榜三個模組的先例（`Common/CsvUtils.cs`
+   檔頭），以 CSV 實作（Excel 可直接開啟）。匯出欄位**刻意不含健康聲明**——名單匯出的用途是人數
+   控管與簽到，不需要醫療類個資；「簽到表列印」由前台／後台畫面直接把這份清單資料印出即可，
+   後端不另外產生 PDF。
+4. **`program.registration.export` 套用 `is_restricted=1`，但沒有另外實作「執行當下二次驗證」**
+   ——`docs/12b` §7.5 承諾的二次驗證（重輸密碼或 2FA）全系統目前沒有任何模組真的做出來（`J2`
+   角色管理只有資料層的旗標，`Security/PermissionChecker.cs` 也只做一般權限碼比對），本輪比照
+   現狀，只掛旗標與基本權限檢查，不另外發明。
+5. **`sessions.status`／`programs.status`／`programs.program_type` 三個值域用 CHECK 約束收斂**
+   （見上方「綱要異動」）——規劃書只在文字敘述給了合法值，DDL 從未真正約束過，判斷比照
+   `AlignSchemaV314` 補 `matches.status` 的既有先例補齊，不是新增規格。
+6. **P1「課程／營隊項目」的「常見問題」欄位不另外新增資料結構**——規劃書 P1 逐字列出的欄位包含
+   「常見問題」，但 FAQ 嵌入機制（G-12，`FaqEmbedSlot`／`FaqEmbedSlotLink`，S1-7a 已完成）已有
+   `program_detail` 這個掛載點，判斷為同一件事的既有落點，不重複建置。
+7. **公開報名送出端點雖然任務描述寫「公開讀取端點」，本輪判斷仍需要一個公開寫入端點**——前台
+   報名流程（規劃書行 389）明確要求「送出 → 產生報名編號」，沒有寫入端點 P3 報名管理就沒有真實
+   資料來源（後台代填只服務電話／現場報名，多數報名預期來自公開網站表單）。判斷這是 P3 報名
+   管理不可或缺的一部分，不是規劃外新增，予以實作。
+8. **未成年報名是否強制要求家長／緊急聯絡人**——`registrations.guardian_name`／`guardian_phone`
+   在 DDL 都是 `NULL`able，規劃書沒有給年齡門檻。本輪不依 `birth_on` 自動判定「未成年」並強制
+   要求家長欄位（沒有法定年齡門檻的依據，屬於會影響蒐集範圍的判斷，依指示不自行擴大），公開送出
+   端點只驗證「姓名必填」「電話與 Email 至少一項」，家長欄位是否必填留給前台表單依實際政策決定。
+9. **報名編號格式**（`{俱樂部代碼}-{yyyyMMdd}-{6 碼隨機}`，例如 `TCRFC-20260925-K7QXM2`）為本輪
+   自訂——規劃書只要求「產生報名編號」，沒有定義格式，比照 `Common/CsvUtils.cs` 檔頭「沒定義就
+   採最小可行」的既有慣例，見 `Common/RegistrationNumberGenerator.cs` 檔頭。
+10. **`registrations.member_id` 可接受呼叫端指定既有會員**（後台代填與公開送出皆有此欄位，驗證
+    FK 存在但不做任何會員登入或自動帶入邏輯）——K1 會員系統尚未開發，前台也沒有會員登入能串接，
+    這欄位目前實務上恆為空，只是為了不擋住日後 K1 開發時的相容性預先接上驗證，沒有新增任何行為。
+
+### 未做的部分（P4 試訓管理，`S2-4`）
+
+`trials`／`registrations.trial_id` 那一半完全沒有動，`Features/AdminRegistrations` 的清單查詢明確
+用 `WHERE session_id IS NOT NULL` 排除試訓報名，避免這批端點意外把 P4 的資料一起吐出來。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminProgramsSessionsRegistrationsTests.cs` 新增 12 項（權限矩陣 5 項、P1／P2／P3
+CRUD 與驗證 4 項、公開讀取與報名送出 3 項，含跨俱樂部越權、無權限角色 403、額滿轉候補、已結束梯次
+拒絕報名、跨俱樂部梯次 404 等反例）。全套 `dotnet test` **386／386 通過**（連跑兩次皆全線）。
+`apps/admin`／`apps/web` 的 `npm run lint` 皆通過（0 errors；`apps/web` 既有 539 個 warning 與本輪
+無關，未觸碰任何前端檔案）。
+
+---
+
+## S1-10：`G1` 表單設計器／`G2` 詢問收件匣 ＋ 10 表單中心公開讀取與送出（2026-09-25，`backend-engineer`）
+
+主站規劃書 §4.7 G1／G2（後台）、§3.10（10 表單中心，公開讀取與送出）。沿用既有架構：
+`IAdminClubAuthorizer`、權限碼、`ApiExceptionHandler`、CSV 匯出（`Common/CsvUtils.cs`）。
+**沒有套用 `TeamRowScope`**——本模組另外設計了一套不需要 `role_permissions.scope_type` 的列級授權，
+見下方「依表單類別的列級授權」。
+
+### 綱要異動
+
+`forms`／`form_fields`／`enquiries`／`enquiry_answers` 四張表在此之前就已經是完整 DDL
+（`db/club-schema.sql`「4.6 G 表單與詢問」，S0 系列建的），EF 實體與 `ClubDbContext` 對應也早就
+scaffold 好。本輪異動：
+
+1. **新增欄位** `form_fields.options_json`（`nvarchar(1000)`，下拉／多選的選項清單，JSON 字串陣列）
+   ——G1 規劃書明文要求下拉／多選兩種欄位型別，但原本沒有任何欄位能存選項清單
+   （`validation_rule` 語意是格式驗證正規表示式，不同用途）。
+2. **補齊兩個從未套用過的值域 CHECK**（跟 `AlignSchemaV314`／`AlignSchemaS19Programs` 同一種落差）：
+   `form_fields.field_type`（對應規劃書 G1 逐字列出的六種欄位型別）、`enquiries.status`
+   （對應規劃書 G2「新進 → 處理中 → 已回覆 → 已結案 / 無效」五個狀態值）。
+3. **新增欄位** `form_fields.is_summary`（`bit NOT NULL DEFAULT 0`，審查回饋補做，見下方「G2『內容
+   摘要』欄」）＋一個過濾唯一索引，限制同一張表單最多一個欄位可標記為摘要來源。
+
+```
+migration: 20260925035351_AlignSchemaS110Forms
+  ALTER TABLE form_fields ADD [options_json] nvarchar(1000) NULL;   -- EF AddColumn，來自實體模型異動
+  ALTER TABLE form_fields ADD CONSTRAINT CK_form_fields_field_type
+    CHECK (field_type IN ('text','textarea','select','multiselect','date','file','consent'));
+  ALTER TABLE enquiries ADD CONSTRAINT CK_enquiries_status
+    CHECK (status IN (N'新進',N'處理中',N'已回覆',N'已結案',N'無效'));
+
+migration: 20260925051206_AddFormFieldIsSummary
+  ALTER TABLE form_fields ADD [is_summary] bit NOT NULL DEFAULT CAST(0 AS bit);
+  CREATE UNIQUE INDEX UQ_form_fields_one_summary_per_form ON form_fields (form_id) WHERE is_summary = 1;
+```
+
+第一支套用前查證 `tcrfc_club_dev` 的 `form_fields`／`enquiries` 兩張表皆為 0 筆（G 模組本輪才第一次
+接上真實 API），純 DDL 變更。第二支套用時 `form_fields` 已有 114 筆種子資料，但這是單純新增有
+`DEFAULT` 的欄位（不是對既有資料新增 CHECK），對既有列永遠安全，不需要「0 筆」前提；套用後另外
+對已種下的種子資料跑一次 `UPDATE`（依 `docs/12-database-schema.md` §12 第 38 點的分配表）把
+`is_summary=1` 補回對應欄位，因為 `db/seed/generate-club-seed-sql.py` 的「`IF NOT EXISTS` 才
+`INSERT`」冪等策略對「更新既有列」沒有幫助（同 `ADMIN_USERS` 密碼／2FA 狀態需要另外
+`reset-admin-accounts.sh` 才能同步的既有道理）。`Data/EfEntities/FormField.cs` 各加一個
+`OptionsJson`／`IsSummary` 屬性、`Data/ClubDbContext.cs` 加對應的 `entity.Property(...)` 設定——
+比照既有 `Match.OriginalMatchOn`／`OriginalKickoff` 的先例（手改兩個既有「產生檔」，不整個重新
+scaffold），`ClubDbContextModelSnapshot.cs` 已同步（該檔不進版控，見 S0-7j 段）。完整說明另見
+docs/12-database-schema.md §12 第 37／38 點。
+
+### `Form.form_code` 九碼目錄（本輪判斷，非資料庫欄位）
+
+規劃書 §3.10 只用中文標題列出 7 類表單＋提案下載＋捐助洽詢，未定義程式用代碼字串。本輪拍板九碼
+（`Features/Forms/FormCatalog.cs`）：`join_player`／`academy_children_training`／
+`camp_registration`／`international_player_enquiry`／`partnership_sponsorship`／`media_enquiry`／
+`general_contact`／`proposal_download`／`donation_enquiry`。**表單顯示名稱不進資料庫**
+（2026-09-22 已拍板不建 `forms_i18n.name`），`FormCatalog` 的中英顯示名稱字典是純程式碼常數，
+只給 CSV 匯出與清單 API 的便利欄位使用。`db/seed/generate-club-seed-sql.py` 各自宣告一份同樣的
+九個代碼字面值（既有慣例，見該檔 `HOME_SECTIONS` 段的檔頭說明），兩處要一起改。
+
+種子資料：兩俱樂部（`tcrfc`／`bw`）各種一份 9 個表單 ＋ 依規劃書 §3.10 逐表單欄位清單設定的預設
+`form_fields`（`proposal_download`／`donation_enquiry` 兩者規劃書未列欄位，最小可行自訂）。所有
+表單統一補一個 `privacy_consent`（同意條款）欄位，對應規劃書「共通機制：個資同意條款勾選」；每個
+表單一律含 `name`／`contact` 兩個慣例欄位鍵，供 G2 收件匣清單顯示「姓名」「聯絡方式」兩欄使用
+（見下方「姓名／聯絡方式怎麼從動態欄位取出」）。
+
+### 後台端點（新增檔案 `Features/AdminForms`／`AdminEnquiries`）
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/forms` | `form.view` | 9 個固定表單清單 |
+| `GET /api/v1/admin/{club}/forms/{id}` | `form.view` | 單筆詳情（設定＋動態欄位＋雙語自動回覆信） |
+| `PUT /api/v1/admin/{club}/forms/{id}` | `form.update` | 更新設定（通知信、CAPTCHA 開關、送出後導向、自動回覆信雙語）。**沒有建立／刪除表單本身的端點**——9 個表單是固定目錄 |
+| `POST /api/v1/admin/{club}/forms/{id}/fields` | `form.update` | 建立動態欄位 |
+| `PUT /api/v1/admin/{club}/forms/{id}/fields/{fieldId}` | `form.update` | 編輯動態欄位 |
+| `DELETE /api/v1/admin/{club}/forms/{id}/fields/{fieldId}` | `form.update` | 刪除動態欄位。**已有詢問資料引用會被擋下（409）**——`FK_enquiry_answers_field` 沒有 `ON DELETE CASCADE` |
+| `GET /api/v1/admin/{club}/enquiries` | `enquiry.inbox.view` 或 `enquiry.course/partnership/media.view` 其一 | 詢問清單。`formCode`／`status`／`keyword`／`dateFrom`／`dateTo`／`page`／`pageSize` 篩選，依角色類別自動過濾 |
+| `GET /api/v1/admin/{club}/enquiries/{id}` | 同上 | 單筆詳情（含全部逐欄回答） |
+| `GET /api/v1/admin/{club}/enquiries/export` | `enquiry.inbox.export`（`is_restricted`，僅系統管理員） | CSV 匯出，表單類別欄輸出中文顯示名稱，不輸出 `form_code` 字面值 |
+| `PUT /api/v1/admin/{club}/enquiries/{id}` | `enquiry.inbox.update` 或 `enquiry.course/partnership/media.update` 其一 | 處理詢問：狀態／指派負責人／內部備註／標籤。**不能改來源表單與逐筆回答內容**（訪客原始送出資料） |
+
+### 公開端點（新增檔案 `Features/Forms`，不需要登入）
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `GET /api/v1/{club}/forms/{formCode}` | 表單定義（動態欄位＋型別＋必填＋驗證規則＋選項），供前台動態產生表單（S1-17，不在本次範圍） |
+| `POST /api/v1/{club}/forms/{formCode}/submissions` | 送出，回傳 `{success:true}`。掛 Rate Limiting（見下方「濫用防護」） |
+
+### 權限碼與角色指派（`db/seed/generate-club-seed-sql.py`）
+
+新增 11 個權限碼，`module_code=G`、`domain=enquiry`（G1／G2 共用同一個 domain，矩陣把「表單詢問」
+列為單一欄）：`form.view`／`form.update`（G1）、`enquiry.inbox.view/update/export`
+（G2，`export` 是 `is_restricted=1`，僅系統管理員）、`enquiry.course.view/update`、
+`enquiry.partnership.view/update`、`enquiry.media.view/update`（G2 的三個類別限定分組）。
+
+依主站規劃書 §6 矩陣「表單詢問」欄逐列指派：系統管理員 ✔全；內容編輯／競技球隊管理／翻譯人員
+「—」，不指派；**學院／課程管理 → `enquiry.course.*`**（矩陣「課程類詢問」）；
+**商務／贊助 → `enquiry.partnership.*`**（矩陣「合作／贊助類詢問」）；
+**公關／媒體 → `enquiry.media.*`**（矩陣「媒體類詢問」）；**客服／行政 → `form.*` ＋
+`enquiry.inbox.view/update`**（矩陣「✔全」，不含匯出，比照 P3 匯出不給客服／行政的既有保守預設）；
+**檢視者 → `form.view`／`enquiry.inbox.view`**（唯讀）；**合作球隊管理 → `form.*` ＋
+`enquiry.inbox.view/update`**（`scope_type=own_clubs`，矩陣「自家」，俱樂部範圍已由既有機制限制，
+G 模組內部不需要再疊一層類別過濾）。
+
+🔴 **發現規劃書 §6 原始表格的欄位錯位**：主站規劃書 §6（行 1604）「廣告」／「行動 App」／
+「表單詢問」三欄，實測欄位內容與表頭標籤對不上（例如「商務／贊助」列在字面「廣告」欄位置出現的是
+「合作／贊助類詢問」，語意明顯屬於表單詢問而非廣告）。本輪改採 `docs/03-admin-spec.md` §3
+已手動修正對齊的「詢問」欄核對（該檔案在更早的 S1 階段已把「廣告」「行動 App」兩欄整欄拿掉、
+只保留語意正確的「詢問」欄），未回頭修正規劃書原始表格本身。完整記錄見
+docs/12-database-schema.md §12 第 37 點、docs/12b-database-tables.md §7.4「S1-10 新增」附註，
+建議 `system-analyst` 之後把規劃書 §6 原始表格也修正對齊。
+
+新增一個測試帳號：`business.sponsorship@tcrfc.test`（`business_sponsorship`，僅 `tcrfc`，密碼
+`ContentEditor@123`）——`business_sponsorship` 角色早已存在（S1-3 種子），但先前沒有任何測試帳號
+被指派過，本輪測 `enquiry.partnership.*` 需要它。
+
+### 依表單類別的列級授權（不是 `role_permissions.scope_type`）
+
+矩陣「課程類詢問」「合作／贊助類詢問」「媒體類詢問」三格看起來很像既有 `TeamRowScope` 那種
+「同一權限碼、依角色細分範圍」的情境，但**本輪刻意不沿用 `scope_type`**：`own_teams` 之所以需要
+`scope_type` 加一張 `AdminUserTeam` 關聯表，是因為「這個人能碰哪些球隊」是**逐人指派**、會隨時間
+變動的；而「課程類詢問＝`academy_children_training`／`camp_registration`」這個分組**是規劃書固定
+的 9 個 `form_code` 分類**，不會因為換了哪個使用者而不同，也不需要另外建一張「誰對應哪個類別」的
+關聯表。直接拆成 `enquiry.course.*`／`enquiry.partnership.*`／`enquiry.media.*` 三組獨立權限碼，
+比「多一個 `scope_type` 列舉值＋在程式碼裡硬編碼一份『scope_type → form_code 集合』對照表」更直接，
+也不需要修改 `role_permissions.scope_type` 的 CHECK 值域（零綱要異動）。
+
+執行機制：一個操作可能有多個「等價權限碼」（例如查看詢問清單，`enquiry.inbox.view` 或
+`enquiry.course.view` 或...任一個都能通過），既有 `IAdminClubAuthorizer.AuthorizeAsync` 只接受
+單一權限碼，因此新增 `AuthorizeAnyAsync`（清單中持有任一個即可通過①②③帳號與俱樂部授權檢查＋
+④'寬鬆版權限碼檢查）；`IPermissionChecker` 新增 `GetHeldPermissionCodesAsync`（一次查出候選碼中
+持有哪幾個），`AdminEnquiriesRepository.ResolveViewFormCodeFilterAsync`／
+`ResolveUpdateFormCodeFilterAsync` 依持有的碼組出 `WHERE form_code IN (...)` 的過濾條件（持有
+`*.inbox.*` 回傳 `null` 代表不限；只持有類別碼則聯集對應的 `form_code` 集合；都沒有則回傳空集合，
+fail-closed）。清單／匯出用集合過濾整批資料；詳情／更新單筆時額外核對「這一筆的 `form_code`
+在不在允許集合內」，不在則視同 404（比照既有跨俱樂部越權「不洩漏存在與否」的慣例）。
+
+### 姓名／聯絡方式怎麼從動態欄位取出
+
+`Enquiry` 本身沒有姓名／聯絡方式欄位——這兩項跟其餘表單內容一樣，全部存在 `EnquiryAnswer`
+（`(enquiry_id, form_field_id) → value`），因為 G1 是「表單設計器」，欄位是動態的。本輪採**慣例
+欄位鍵**：種子資料把每個表單的姓名欄位 `field_key` 定為 `"name"`、聯絡方式定為 `"contact"`，G2
+清單靠這兩個鍵撈出來顯示。**若後台把這兩個鍵改名或刪除，清單只會顯示 `null`，不是程式錯誤**——
+這是動態表單的必然取捨，沒有資料庫層的機制能保證「某個 `field_key` 一定存在」。
+
+### 🔴 修正：G2「內容摘要」欄補做（審查回饋，2026-09-25）
+
+**發現的問題**：主站規劃書 G2（行 1164）逐字列出收件匣欄位「來源表單、姓名、聯絡方式、**內容
+摘要**、來源頁面、UTM 來源、送出時間」，本輪最初以「表單欄位是動態的，沒有一個穩定的摘要標記」
+為由略過這一欄，經審查回饋指出**規劃書明文要求的欄位不能因為實作不便而略過**。
+
+**怎麼補的**：跟姓名／聯絡方式同一種「慣例欄位鍵」精神，但改用**旗標**而不是字面鍵比對——
+`form_fields` 新增 `is_summary bit`，G1 表單設計器可以把**任一欄位**標記為「這是內容摘要」，
+不受限於固定的 `field_key` 名稱。**同一張表單最多一個欄位可標記**，兩道防線：①應用層
+（`AdminFormsRepository.CreateFieldAsync`／`UpdateFieldAsync`，標記新的會自動取代舊的，不是回
+錯誤要求先手動取消）；②DB 層過濾唯一索引 `UQ_form_fields_one_summary_per_form`
+（`WHERE is_summary = 1`）。G2 清單／CSV 匯出依此旗標取值（`AdminEnquiriesRepository`）。
+
+**種子資料的分配**：只標給有敘述性文字、值得當摘要的欄位——`join_player`／
+`academy_children_training`／`international_player_enquiry` 標 `experience`；
+`partnership_sponsorship` 標 `cooperation_direction`；`general_contact`／`donation_enquiry`
+標 `message`。`camp_registration`（營隊梯次、學員資料、健康聲明、緊急聯絡人）、`media_enquiry`
+（媒體名稱、記者姓名、採訪主題、截稿日）、`proposal_download`（公司、姓名、Email）**三個表單沒有
+任何合適的敘述性文字欄位，刻意不標記**——這三個表單的內容摘要在清單與匯出上一律是 `null`，
+是設計上的必然結果，不是遺漏。
+
+### 濫用防護（規劃書「防機器人（reCAPTCHA / Turnstile）」，S1-17 已串接 Turnstile）
+
+三層防線：① `Program.cs` 對 `POST .../submissions` 掛 ASP.NET Core 內建 Rate Limiting（依訪客真實 IP 分區，固定視窗 5 分鐘 20 次，超過回 429，`QueueLimit=0`）；
+② `SubmitFormRequest.Website` 誘捕欄位（honeypot，填了值就安靜回成功但不寫入任何資料，**排在人機驗證之前**）；
+③ **Cloudflare Turnstile**（`Security/ClubTurnstileVerifier.cs`，與慈善平台的 `ITurnstileVerifier` 刻意各自一份、互不引用）。
+
+- 契約：`SubmitFormRequest.TurnstileToken`（JSON `turnstileToken`，選填）。
+- 設定鍵 `TURNSTILE_SECRET_KEY`（club.env，主站與藍鯨共用；慈善是另一把 `TURNSTILE_SECRET_KEY_CHARITY`）。**未設＝`NotConfiguredClubTurnstileVerifier`，一律放行**（只剩①②）。
+- **只有該表單 `forms.captcha_enabled = true` 且已設密鑰時才驗證**；旗標關閉不驗。（`captcha_enabled` 種子預設為開，部署端一設密鑰，前台就必須同時有 `TURNSTILE_SITE_KEY`，見 `infra/README.md` §4.3。）
+- 缺 token 或驗證失敗 → **422**，ProblemDetails `code = captcha_failed`，訊息「人機驗證未通過，請重新整理頁面後再試一次。」（`CaptchaFailedException : ICodedApiException`）。
+- 傳給 siteverify 的 `remoteip` 用 `ClientIpResolver.Resolve`（`TRUSTED_PROXY_IPS` 解析後的訪客真實 IP），不是原始 `RemoteIpAddress`。
+- Cloudflare 服務本身異常（逾時 5 秒、5xx、連線失敗、回應無法解析）→ **放行**並記 warning（fail-open，IP 限流與 honeypot 仍在）。
+- 驗證只掛在公開表單端點（`FormsRepository.SubmitAsync(..., verifyCaptcha: true)`）。提案下載 `POST proposals/{id}/download-requests` 內部重用 `SubmitAsync` 但**不驗證**（它的請求沒有 token 欄位，規劃書沒寫要求）；該端點只有 IP 限流。
+- 測試：`ClubTurnstileTests.cs`（假驗證器端點整合 ＋ 假 `HttpMessageHandler` 驗證器單元，不連網）。
+
+### 🔴🔴🔴 修正：限流原本依賴的不是訪客真實 IP（審查回饋，2026-09-25）
+
+**發現的問題**：初版把 `httpContext.Connection.RemoteIpAddress` 直接當限流分區鍵，但正式環境的
+路徑是 Cloudflare → Caddy → `api` 容器——`deploy/Caddyfile` 的 `trusted_proxies`／
+`client_ip_headers` 只解決 **Caddy 自己**怎麼看穿 Cloudflare，不會讓下游的 `api` 也認得訪客
+真實 IP。`api` 容器實際看到的 TCP 連線來源永遠是 Caddy 容器的 Docker 內部 IP，等於**全站訪客
+共用同一把「Caddy 的 IP」鑰匙**，依 IP 分區限流形同虛設。
+
+**怎麼修的**：新增 `Security/TrustedProxyConfiguration.cs`（設定
+`ForwardedHeadersOptions`）＋`Common/ClientIpResolver.cs`（讀取已被中介軟體處理過的
+`RemoteIpAddress`），`Program.cs` 在管線最前面掛 `app.UseForwardedHeaders()`。
+`docker-compose.yml` 把 `internal` 網路釘死子網段 `172.28.238.0/24`，給 `proxy`（Caddy）服務
+一個固定 IP `172.28.238.2`，透過新環境變數 `TRUSTED_PROXY_IP` 傳給 `api`。**只信任這一個 IP，
+不信任整個 Docker 網段**——網段裡還有 `nuxt-tcrfc`／`admin-web` 等其他容器，信任整個網段等於
+讓這些容器也能偽造標頭騙過限流，違反「不可信任所有來源」的要求。
+
+**🔴🔴🔴 過程中親自踩到的框架陷阱，務必記住**：`ForwardedHeadersMiddleware` 把
+`KnownProxies`／`KnownIPNetworks` **兩者都是空集合**視為「沒有設限制」，行為是**信任所有來源**，
+跟直覺剛好相反（多數人會以為空清單＝沒人受信任＝標頭一律被忽略）。第一版的單元測試因此曾經
+「未設定 `TRUSTED_PROXY_IP` 時，偽造的 `X-Forwarded-For` 仍被採信」而失敗——這代表如果只靠
+「沒設定時清單留空」當防線，本機開發、測試環境、甚至漏設這個環境變數的正式部署都會變成信任
+任何人送來的標頭，比完全不做這個功能更危險。真正的防線因此改成：**`TRUSTED_PROXY_IP` 沒設定時，
+`Program.cs` 根本不呼叫 `app.UseForwardedHeaders()`**（`TrustedProxyConfiguration.IsEnabled`
+判斷），中介軟體完全不在管線裡執行，`RemoteIpAddress` 保證是連線本身看到的值，沒有任何機會被
+偽造的標頭覆寫。完整說明見 `Security/TrustedProxyConfiguration.cs` 檔頭。
+
+**測試**：`Tcrfc.Api.Tests/TrustedProxyConfigurationTests.cs` 新增 3 項——受信任代理轉來的
+`X-Forwarded-For`、不同來源 IP 各自解析出不同真實 IP（各自獨立額度）；不受信任來源送來的
+`X-Forwarded-For` 整個被忽略；未設定 `TRUSTED_PROXY_IP` 時任何 `X-Forwarded-For` 一律不採信。
+**不透過 `WebApplicationFactory` 打真正 HTTP**——實測確認 `TestServer` 底下
+`HttpContext.Connection.RemoteIpAddress` 永遠是 `null`，`ForwardedHeadersMiddleware` 的信任
+判斷永遠不可能命中，無法在那個環境下驗證「受信任代理」這條路徑。改用
+`TrustedProxyConfiguration.ResolveEffectiveClientIp`（跟 `Program.cs` 真正管線用的是同一支
+`Configure` 設定，內部真的建構並執行一次 `ForwardedHeadersMiddleware`，不是重寫一份邏輯）。
+⚠️ `Tcrfc.Api.Tests` 是 `Microsoft.NET.Sdk`（不是 `Sdk.Web`），實測發現無法直接參照
+`Microsoft.AspNetCore.HttpOverrides`（`ResolveTargetingPackAssets` 中繼輸出看得到該組件，卻不會
+出現在最終傳給 `csc` 的 `-reference` 清單，原因不明，懷疑是 RAR 衝突解決或套件裁剪管線的交互
+作用），因此把「建構中介軟體並執行」這段留在主專案，測試專案只呼叫回傳 `string` 的純函式版本，
+完全不需要碰任何 ASP.NET Core 型別。
+
+**手動驗收**（本機 `dotnet run`，`curl`）：公開表單定義、成功送出、缺必填欄位（400）、未知表單代碼
+（404）、誘捕欄位命中（200 但資料庫 0 筆）、依 IP 分區限流（連續 25 次請求，第 21 次起收到 429）、
+**設定 `TRUSTED_PROXY_IP` 後，帶不同 `X-Forwarded-For` 的請求各自獨立計算限流額度、且非受信任
+連線來源送的 `X-Forwarded-For` 不被採信**逐項打過，詳見下方「測試」段。後台端點用
+`clean.login@tcrfc.test` 走完整登入＋即時完成 2FA 設定（`TotpService` 的 RFC 6238 演算法用
+Python 手算驗證碼，不繞過驗證本身）後實際呼叫 G1／G2 端點，確認清單、詳情、CSV 匯出（中文表單
+類別名稱、非 `form_code` 字面值）皆正確，驗收後已呼叫 `reset-admin-accounts.sh` 把
+`clean.login@tcrfc.test` 的 2FA 狀態還原成種子初始值，不污染 `AdminAuthTests` 對這個帳號
+「兩階段驗證未啟用」的既有假設。
+
+### 規劃書沒寫清楚、本輪自行判斷的地方
+
+1. **`donation_enquiry`（捐助洽詢）規劃書全文未定義這個表單的實際欄位**——只在 G2 收件匣分頁清單
+   （行 1163）與 `Enquiry` 型別說明兩處被提及，§3.10 逐表單欄位清單只列到 10.1–10.7 七類。本輪
+   最小可行自訂三個欄位（姓名、聯絡方式、內容，皆比照 10.7 一般聯絡的欄位精神），不擴大蒐集範圍。
+2. **`proposal_download` 併入商務／贊助的「合作／贊助類詢問」類別**——規劃書沒有明文歸類提案下載
+   的 Lead 名單該由哪個角色的 G2 收件匣看到，本輪判斷「提案下載＝贊助洽詢的前導動作」（9.4
+   CTA「Sponsorship Deck 下載提案簡介」本身就在贊助頁面），歸入商務／贊助能看到的範圍。
+3. **檔案上傳（`file`）欄位型別本輪只接受文字／URL 輸入，不是真正的檔案上傳**——全系統既有的
+   `IImageStorageService` 是「驗證格式→去 EXIF→縮圖→轉 WebP」的圖片專用管線，履歷等一般文件
+   （PDF／Word）不是圖片、也不需要縮圖，直接沿用會誤用圖片轉檔邏輯。建立一套獨立的通用檔案上傳
+   服務（儲存體容器、型別與大小驗證）是獨立的基礎建設決定，不在本次任務範圍，見
+   `Features/Forms/FormFieldTypes.cs` 上 `File` 常數的說明。
+4. **「內容摘要」欄（規劃書 G2 條列的收件匣欄位之一）已於審查回饋後補做**——最初判斷「表單欄位
+   是動態的，沒有穩定的摘要標記」而略過，經指出「規劃書明文要求的欄位不能因為實作不便而略過」
+   後改正：`form_fields` 新增 `is_summary bit`（migration `AddFormFieldIsSummary`），G1 可以把
+   任一欄位標記為內容摘要來源，同一張表單最多一個（應用層＋DB 過濾唯一索引 `UQ_form_fields_
+   one_summary_per_form` 兩道防線，設定第二個會自動取代第一個，不是回錯誤）。種子資料把
+   `join_player`／`academy_children_training`／`international_player_enquiry` 的 `experience`、
+   `partnership_sponsorship` 的 `cooperation_direction`、`general_contact`／`donation_enquiry`
+   的 `message` 標記為摘要；`camp_registration`／`media_enquiry`／`proposal_download` 沒有合適
+   的敘述性文字欄位，內容摘要維持 `null`，是設計上的必然結果。完整說明見
+   `docs/12-database-schema.md` §12 第 38 點與 `Features/AdminEnquiries/AdminEnquiriesRepository.cs`
+   檔頭。
+5. **`enquiry.inbox.export` 只給系統管理員，客服／行政「✔全」不含匯出**——比照 P3
+   `program.registration.export` 不給客服／行政的既有保守預設，矩陣的「✔全」在既有慣例裡本來就
+   不必然包含匯出（匯出普遍被視為需要額外授權的敏感動作）。
+6. **`enquiry.inbox.export` 套用 `is_restricted=1`，但沒有另外實作「執行當下二次驗證」**——全系統
+   目前沒有任何模組真的做出這件事（`Security/PermissionChecker.cs` 只做一般權限碼比對），本輪比照
+   現狀，只掛旗標與基本權限檢查，不另外發明，同 S1-9 既有先例。
+7. **`form_fields` 沒有 `UNIQUE (form_id, field_key)` 的資料庫層防線**——只在應用層（
+   `AdminFormsRepository.CreateFieldAsync`／`UpdateFieldAsync`）擋重複欄位代碼，判斷這個唯一性
+   邊界只有這一支程式碼會寫入，資料庫層約束的邊際效益不足以再多開一次 DDL 異動，回報供之後若有
+   第二個寫入路徑時重新評估。
+8. **G1 沒有欄位批次重新排序的端點**——`PUT .../fields/{fieldId}` 的 `sortOrder` 允許逐一覆寫，
+   後台若要做拖曳排序，前端可依序對每個異動的欄位各呼叫一次；規劃書沒有明確要求批次排序端點，
+   採最小可行原則不多開。
+9. **Rate Limiting 的門檻值（20 次／5 分鐘／依 IP）沒有規格依據**——比照 `Common/CsvUtils.cs`
+   檔頭「沒定義就採最小可行」的既有慣例自訂；這個數字同時要照顧到
+   `Tcrfc.Api.Tests.AdminFormsEnquiriesTests` 的整合測試呼叫量（`WebApplicationFactory` 測試連線
+   共用同一個 IP 分區），見 `Program.cs` 對應段落的完整說明。
+10. **公開送出端點回應不含新建的 `Enquiry` id 或確認編號**——規劃書只要求「送出後：自動回覆信＋
+    通知信＋寫入後台」，沒有像 P3 報名那樣要求「產生報名編號」，本輪判斷不需要額外的確認碼，只回
+    `{success:true}`；測試需要回查 id 時改用 `contact` 欄位值查資料庫（見測試檔案內部工具）。
+11. **表單通知信與自動回覆信本輪未接上真正的寄信通路**——同 S1-9 記錄的既有缺口（全系統還沒有
+    寄信基礎設施），`forms.notify_emails`／`forms_i18n.auto_reply_body` 兩個設定欄位已可由 G1
+    寫入與讀出，但公開送出端點目前不會真的寄出任何信件，回報供下一輪走同步鏈裁決寄信基礎建設。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminFormsEnquiriesTests.cs` 新增 17 項（權限矩陣 5 項、G1 表單設定與欄位 CRUD
+含驗證與衝突反例 4 項、內容摘要「同一表單最多一個、自動取代」1 項、G2 依類別列級授權含跨類別越權
+與無摘要表單回 `null` 各 1 項、公開表單定義與送出含誘捕欄位／必填／未知欄位／下拉選項驗證等反例
+5 項、CSV 匯出中文化含內容摘要欄 1 項）；`Tcrfc.Api.Tests/TrustedProxyConfigurationTests.cs`
+新增 3 項（限流依真實訪客 IP：受信任代理各自獨立額度、不受信任來源標頭不被採信、未設定
+`TRUSTED_PROXY_IP` 時中介軟體完全不掛）。全套 `dotnet test` **406／406 通過**（連跑多次皆全線）。
+`apps/admin`／`apps/web` 的 `npm run lint` 皆通過（0 errors；`apps/web` 既有 539 個 warning 與
+本輪無關，未觸碰任何前端檔案）。
+
+> 🔴 **2026-09-29 更新（見「S1-17 修正」節）**：上面這一段是 2026-09-25 當時的狀態，
+> **環境變數已改名**（`TRUSTED_PROXY_IP` 單數 → `TRUSTED_PROXY_IPS` 複數），且信任來源從
+> 「只信任 Caddy 一個 IP」擴充為「信任 Caddy ＋ `nuxt-tcrfc` ＋ `nuxt-bw` 三個固定 IP」，
+> 因為 10 表單中心公開送出後來（S1-17）改由 Nuxt 伺服器端代理轉發，不再是瀏覽器直接呼叫
+> 公開 API 網域。本段其餘敘述（框架陷阱、測試手法、驗收方式）原理不變，仍可參考；
+> 只有「只信任這一個 IP」這句與環境變數名稱已過期，請以「S1-17 修正」節為準。
+
+---
+
+## S1-10 修正：題目文字語系化、G2 指派負責人姓名選單、`/auth/me` 權限碼清單（2026-09-25，`backend-engineer`）
+
+驗收退回兩項缺口（見 `STATUS.md` S1-10 列），本輪逐一修完，另外一併處理任務指示要求的第三項
+（`/auth/me` 回傳權限碼清單，供下一輪前端改接、根治 E-39 同類風險）。
+
+### 缺口一：`form_fields` 沒有題目文字，違反全域規定第 4 條
+
+**問題**：`form_fields` 只有 `field_key`（英文小寫代碼），沒有題目文字欄位，也沒有 `*_i18n` 側表，
+公開表單無題目可顯示，後台 G2 詢問詳情只能印英文欄位代碼給人看。2026-09-22 曾經以「規劃書行1159
+只列出欄位型別，沒有提到欄位標籤需要雙語」為由判斷不建 `form_fields_i18n`（`docs/12` §4.6 附註、
+`docs/12c` §4 舊列），但這個判斷忽略了 CLAUDE.md 全域規定第 4 條與主站規劃書 §4.0「介面一律日常
+中文」是跨全站的**通則**，不需要規劃書在每一個型別上逐字重申才算數。
+
+**怎麼修的**：新增 `form_fields_i18n(form_field_id, locale, label, options_json)`，比照
+`docs/12c` §2.2 標準側表形狀：
+
+- `label`：題目文字。**zh-Hant 列必存**（`AdminFormsRepository.ValidateLabelZh` 應用層強制必填、
+  非空白，`Create`／`UpdateAdminFormFieldRequest.LabelZh` 是 `required` 屬性），**en 列可缺**——
+  沒有翻譯時公開端點回退顯示中文，跟「這一列不存在」語意合一，不用空字串表示「沒有翻譯」。
+- `options_json`：下拉／多選選項的**顯示文字**，與 `form_fields.options_json`（canonical，送出值
+  與驗證用，維持單一語系、不因這次修正而改變）同順序、同筆數的 JSON 字串陣列，**只有 en 列會用到
+  這欄**——canonical 值本身就是 zh-Hant 的顯示文字，不重複存一份。`AdminFormsRepository.
+  ValidateOptionLabelsEn` 檢查筆數與 `Options` 一致，不一致回 400。
+
+migration：`AddFormFieldsI18n`（純加表，`form_fields` 當下已有 114 筆種子資料但不影響——新增
+一張獨立表，不是對既有表加 CHECK 或 NOT NULL 欄位）。
+
+```
+migration: 20260925064538_AddFormFieldsI18n
+  CREATE TABLE form_fields_i18n (
+    form_field_id uniqueidentifier NOT NULL,
+    locale        nvarchar(10)     NOT NULL,
+    label         nvarchar(255)    NOT NULL,
+    options_json  nvarchar(1000)   NULL,
+    CONSTRAINT PK_form_fields_i18n PRIMARY KEY (form_field_id, locale),
+    CONSTRAINT FK_form_fields_i18n_field FOREIGN KEY (form_field_id)
+      REFERENCES form_fields(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IX_form_fields_i18n_locale ON form_fields_i18n (locale);
+```
+
+**API 異動**：
+
+| 端點 | 異動 |
+|---|---|
+| `GET /api/v1/{club}/forms/{formCode}?lang=zh\|en` | 新增 `lang` 查詢參數（既有慣例，比照 `FaqsEndpoints`）；`PublicFormFieldDto` 新增 `label`（必填，依語系回退）、`optionLabels`（選項顯示文字，同順序同筆數，`null`＝這個欄位沒有選項）。**快取維度改用 `dbLocale` 取代 `CacheDimensions.AnyLocale`**——語系化之後繼續共用同一把 key 會讓後填入的語系覆蓋另一個語系的結果，這是本輪順手修正的快取 bug（修正前的行為在自動化測試裡測不出來，因為單一測試行程一次只打一種語系） |
+| `GET/POST /api/v1/admin/{club}/forms/{id}/fields...` | `Create`／`UpdateAdminFormFieldRequest` 新增 `LabelZh`（必填）、`LabelEn`（選填）、`OptionLabelsEn`（選填，筆數需與 `Options` 一致）；`AdminFormFieldDto` 對應回傳 `LabelZh`／`LabelEn`／`OptionLabelsEn` |
+
+**種子資料**：`db/seed/generate-club-seed-sql.py` 新增 `field()` 輔助函式，114 個既有欄位（9 個
+表單 × 2 俱樂部）逐一補上中文題目文字，並為找得到合理翻譯的欄位一併補上英文題目；
+`enrollment_category`（10.2）／`enquiry_type`（10.5）兩個下拉欄位額外補上英文選項顯示文字。
+套用 `apply-seed.sh` 後實測 `form_fields_i18n` 為 228 列（114 zh-Hant ＋ 114 en，本輪所有欄位皆
+提供了英文翻譯，不是規格要求，是判斷「反正翻了就一起補」比留一半機會之後又漏掉更省事）。
+
+**判斷**：canonical 值故意**不語系化**（不建「選項代碼」與「選項顯示文字」分離的新抽象）——
+`enquiry_answers.value` 已經直接儲存 canonical（中文）字面值超過一輪，改成語系無關的代碼需要同時
+遷移既有資料與所有比對邏輯，本輪判斷「維持 canonical＝中文，另外疊一層顯示文字」是風險最低的修正
+路徑，不是規劃書要求的規格；也**不新增 `placeholder`**（提示文字）欄位——規劃書全文未提及，維持
+最小可行，不多加規劃書沒有要求的東西。完整說明見 `docs/12-database-schema.md` §12 第 40 點、
+`docs/12c-i18n-tables.md` §3.6／§5 第 8 點。
+
+### 缺口二：G2「指派負責人」姓名選單僅系統管理員能用
+
+**問題**：`AdminEnquiryListItemDto`／`AdminEnquiryDetailDto` 只回傳 `assigneeAdminUserId`
+（GUID），能把它對照回姓名、或列出「可以指派給誰」的 `GET /api/v1/admin/accounts` 是
+`system.account.view`（僅系統管理員）。持有 `enquiry.*.update` 但不是系統管理員的角色（客服／
+行政、合作球隊管理、學院／課程管理、商務／贊助、公關／媒體）因此沒有任何後端端點能用姓名指派
+負責人。
+
+**怎麼修的**：新增 `GET /api/v1/admin/{club}/enquiries/assignable-users?formCode=...`
+（`AdminEnquiriesRepository.ListAssignableUsersAsync`）：
+
+- 權限碼：`AdminEnquiriesRepository.UpdateCandidateCodes`（跟 `PUT .../enquiries/{id}` 同一組）
+  ——能處理詢問的人才能查「能指派給誰」。
+- 二次檢查：`formCode` 必須落在呼叫端（依 `ResolveUpdateFormCodeFilterAsync`）持有更新權限的類別
+  範圍內，否則回 404（比照既有跨類別越權「不洩漏存在與否」慣例）；`formCode` 本身不是已知的九碼
+  之一也回 404。
+- 回應**只有必要欄位**（`id`、`displayName`），不重用 `AdminAccountListItemDto`（那份明細含
+  Email、角色、俱樂部與球隊授權，刻意只給系統管理員）——不能把 J1 帳號管理端點的存取範圍跟著
+  放寬，否則等於繞道讓非系統管理員也能查到別人的 Email。
+- 範圍：`scope.ClubId` 目前有效授權（`AdminUserClub.is_active` 且未過期）的帳號 ＋ 系統管理員一律
+  有效，且**只回傳對 `formCode` 所屬類別持有 update 權限的帳號**（例如查 `media_enquiry` 只會列出
+  持有 `enquiry.inbox.update` 或 `enquiry.media.update` 的帳號，不是這個俱樂部隨便一個有效帳號）。
+
+**同時修正發現的邊界漏洞**：`AdminEnquiriesRepository.ValidateAssigneeAsync` 原本只驗證「被指派者
+有沒有這個俱樂部的授權」，沒有驗證「被指派者對這一類詢問有沒有處理權限」——一個只有
+`enquiry.media.update` 的公關／媒體帳號，先前可以被指派一筆 `partnership_sponsorship` 詢問，指派
+後卻連自己被指派的這筆都看不到（G2 依類別過濾），形成「指派了也等於沒指派」的死資料。現在
+`UpdateAsync` 呼叫 `ValidateAssigneeAsync` 時多帶 `enquiry.Form.FormCode`，額外要求被指派者持有
+對應類別的 update 權限碼（或為系統管理員），不符合回 400「指定的負責人帳號對這一類詢問沒有處理
+權限，無法指派。」
+
+**判斷**：「候選人清單」與「指派時驗證」共用同一份 `CandidateUpdateCodesForFormCode(formCode)`
+邏輯（`enquiry.inbox.update` 一定在內，另加 `formCode` 所屬類別的專屬碼），確保「清單上看得到的人」
+跟「真正能被成功指派的人」永遠是同一個集合，不會有「選單顯示了卻指派失敗」或「選單沒顯示卻能用
+其他管道指派成功」兩種不一致。
+
+### 任務指示第三項：`GET /admin/auth/me` 回傳有效權限碼清單
+
+**問題**：前端（`useProgramPermissions`／`useFormsPermissions`）依角色手寫一份「角色→操作」對照
+表，要跟種子腳本手動同步，已經是 E-39 同類風險第二次發生（`useRolePermissions.ts` 檔頭已自行記錄
+這個根本限制，回報「若後端需要回傳權限清單才能根治，寫進報告，不要改後端」）。
+
+**怎麼修的**：`IPermissionChecker` 新增 `GetAllHeldPermissionsAsync(adminUserId, isSuperAdmin, ct)`
+——回傳這個帳號目前實際持有的**全部**權限碼，形狀是 `Code → 這個人對這個權限碼持有的 scope_type
+原始集合`（一個人可能透過多個角色持有同一個權限碼、各自帶不同 `scope_type`，這裡**不做「多個
+scope_type 該合併成單一有效值」的商業判斷**，那件事留給 `TeamRowScope`／`AdminTeamRowScopeResolver`
+這種已經為特定資源類型定義過合併規則的型別，避免發明一個只有這個端點在用的合併規則）。
+`isSuperAdmin=true` 時回傳系統裡**全部**權限碼（含 `sysadmin_only`），每個標記 `["all"]`——系統
+管理員跳過整個 `role_permissions` 查詢直接視為持有一切，跟 `HasPermissionAsync` 同一條規則。
+
+`MeResponse` 新增 `permissions: MePermissionDto[]`（`{code, scopeTypes}`），`AdminAuthService.
+GetMeAsync` 呼叫上述方法填入。**權限碼只給程式判斷用，前端不得顯示**（主站規劃書 §4.0「介面一律
+日常中文……不顯示……權限碼」）。
+
+**判斷（回報供下一輪前端改接參考，本輪未改 `apps/admin`）**：
+
+1. **這份清單跟「目前俱樂部」無關**——本系統的角色指派（`admin_user_roles`）與角色的權限指派
+   （`role_permissions`）都沒有 `club_id` 維度，一個人對某個權限碼持有哪些 `scope_type` 不會因為
+   切換到哪個俱樂部而改變；真正決定「這個人能不能碰這個俱樂部」的是既有 `ClubGrants`
+   （`AdminUserClub`）。前端要判斷「在目前這個俱樂部能不能做某件事」，需要同時看兩份清單：先確認
+   目前俱樂部在 `ClubGrants` 裡，再查 `Permissions` 有沒有對應權限碼——這是本輪判斷，`/auth/me`
+   端點本身沒有 `club` 參數，因為權限碼清單不會因俱樂部而異，加這個參數只會誤導呼叫端以為有這種
+   相依性。
+2. **`scopeTypes` 回傳原始集合，不做合併**——例如某人同時是「學院／課程管理」（`own_teams` 之類）
+   與「合作球隊管理」（`own_clubs`）兩個角色，對同一個權限碼會回傳兩個 `scope_type`。前端若要做
+   「是否受列級限制」的粗判斷，含 `"all"` 或 `"own_clubs"` 即代表這個人對這個權限碼至少有一個
+   角色是不受列級限制的（比照 `AdminTeamRowScopeResolver` 現有的「`own_clubs` 視同 `all`」判斷）；
+   若前端要做更細的列級 UI（例如「只顯示我能碰的球隊」），現階段仍得靠既有的專屬端點（例如
+   `own_teams` 相關資料），`/auth/me` 的權限碼清單不是要取代那些端點，只是取代前端手寫的
+   「角色→操作」推導表。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminFormsEnquiriesTests.cs` 新增 2 項（公開表單定義依語系回傳題目與選項顯示
+文字、未翻譯回退中文；G1 建立／更新欄位題目文字必填與選項英文顯示文字筆數驗證，含清空英文題目
+後公開端點正確回退）。全套 `dotnet test` **439／439 通過**（含本輪新增與既有全部項目）。
+
+**手動驗收**（本機 `dotnet run` 另開 `5499` 埠，`curl`＋自簽 JWT，未使用任何互動式登入或 2FA 流程
+——理由：既有「-login」後綴測試帳號當時正被另一個並行 session 的無頭瀏覽器驗收使用中，直接登入
+會互相干擾；比照 `Tcrfc.Api.Tests.Fixtures.TestAdminTokens` 同一套簽章邏輯與金鑰另外寫一支一次性
+小工具直接簽出有效存取權杖，验证的是真正跑在獨立行程的 API、真正的 HTTP 請求與真正的
+`tcrfc_club_dev`，不是走 `WebApplicationFactory` 的行程內管線）：
+
+1. `GET /auth/me`（`customer.service@tcrfc.test`）：`permissions` 陣列正確含
+   `enquiry.inbox.view/update`／`form.view/update`，`scopeTypes` 皆為 `["all"]`。
+2. `GET .../forms/partnership_sponsorship?lang=en`：`enquiry_type` 欄位 `label` 為
+   `"Enquiry Type"`、`options` 為中文 canonical 值、`optionLabels` 為對應英文；`company` 欄位（無
+   選項）`label` 為 `"Company Name"`、`optionLabels` 為 `null`；`?lang=zh` 對照組 `optionLabels`
+   回退等於 canonical 值本身。
+3. `GET .../enquiries/assignable-users?formCode=general_contact`（`customer.service`）：200，列出
+   系統管理員與全部持有 `enquiry.inbox.update` 的帳號。
+4. `GET .../enquiries/assignable-users?formCode=general_contact`（`pr.media`，只有
+   `enquiry.media.*`）：404（越權，不洩漏存在與否）。
+5. `GET .../enquiries/assignable-users?formCode=media_enquiry`（`pr.media`）：200，清單同時含
+   `enquiry.inbox.update`（客服／行政）與 `enquiry.media.update`（公關／媒體）持有者的聯集。
+6. `GET .../enquiries/assignable-users`（`content.editor`，完全沒有 `enquiry.*` 權限碼）：403。
+7. `GET .../enquiries/assignable-users?formCode=not_a_real_code`：404。
+8. 用公開端點送出一筆 `general_contact` 測試詢問 → `PUT .../enquiries/{id}` 指派給 `pr.media`
+   （只有 `enquiry.media.*`，`general_contact` 屬於 inbox-only 類別）：400「指定的負責人帳號對這
+   一類詢問沒有處理權限，無法指派。」→ 改指派給自己（`customer.service` 持有
+   `enquiry.inbox.update`）：200，成功。
+9. **收尾**：刪除本輪建立的測試詢問資料（`DELETE FROM enquiry_answers`／`enquiries` 對應列）、
+   關閉本機 `dotnet run`（`5499`）行程、刪除一次性簽權杖小工具（未進版控）。**未動用任何共用
+   「-login」帳號的 2FA 或密碼狀態**——本輪驗收方式全程繞開互動式登入，不會與其他並行 session
+   互相干擾。
+
+🔴 **驗收期間發現的既有帳號狀態污染，非本輪造成**：跑 `dotnet test` 全套時 `AdminAuthTests` 三項
+（`登入成功_回傳存取權杖與更新權杖Cookie` 等）一度失敗，原因是共用開發資料庫的
+`clean.login@tcrfc.test` 當下 `two_factor_enabled=1`（另一個並行 session 的無頭瀏覽器 E2E 驗收
+正在使用這個帳號，`ps aux` 可見其 `dotnet run`／headless Chrome 行程），跟本輪任何改動無關（這三項
+測試只碰 `/login`／`/refresh`／`/logout`，本輪對 `AdminAuthService.cs` 的唯一改動在 `GetMeAsync`
+方法本體）。該並行 session 的行程結束後執行 `db/seed/reset-admin-accounts.sh` 還原種子帳號初始
+狀態，重跑 `dotnet test` 全綠（**439／439**）。
+
+`apps/admin`／`apps/web` 的 `npm run lint` 皆通過（`apps/admin` 0 errors／0 warnings，`apps/web`
+0 errors，既有 539 個 warning 與本輪無關）——**本輪未觸碰任何 `apps/admin`／`apps/web` 檔案**，
+後台畫面（G1 題目文字欄位、G2 姓名選單）留給下一輪 `frontend-architect`。
+
+---
+
+## S1-11：`L1` 行事曆總覽／`L2` 自建事件 ＋ 13 賽事行事曆公開讀取（含單場 `.ics`）（2026-09-25，`backend-engineer`）
+
+主站規劃書 §4.12 L1／L2（後台）、§3.13（13 賽事行事曆，公開讀取）。沿用既有架構：
+`IAdminClubAuthorizer`、`IClubResolver`／`ClubScope`、`IQueryCache`、後台圖片欄位直傳
+（`calendar_custom_events.cover_key`）。**沒有套用 `TeamRowScope`**——見下方「為什麼不套列級授權」。
+
+### 讀到的規劃書條文
+
+| 章節 | 行號 | 內容 |
+|---|---|---|
+| 主站 §4.12 L1 | 1368–1376 | 月曆呈現全部賽事與自建活動、隊別分軌檢視、拖曳改期回寫賽事、衝突偵測、篩選、檢視切換；「課程／營隊／專項訓練不進入行事曆」 |
+| 主站 §4.12 L2 | 1378–1381 | 自建事件欄位、重複規則（每週／每兩週／每月，可設定結束日期與例外日期） |
+| 主站 §4.12「資料一致性原則」 | 1396–1398 | 行事曆是彙整層而非資料源，僅 L2 為自有資料 |
+| 主站 §3.13 | 591–711 | 隊別分類（D1／U15／U14／U12，另有全部與俱樂部活動）、賽程／賽果切換、賽事卡片、加入我的行事曆 `.ics`、SEO 網址規則 |
+| 主站 §6 矩陣「行事曆」欄 | 1607 | 十個角色逐列分佈，見下方權限碼段 |
+| docs/12b §7.4 | — | `own_teams` 綁在「賽事事件」「梯隊賽事」兩格，S1-8 保留給 L 模組使用 |
+
+### STATUS.md 既定的範圍切法（沿用，非本輪判斷）
+
+`STATUS.md` 把規劃書 L1 原文列出的「隊別分軌檢視」「拖曳調整日期回寫賽事」「衝突偵測」與 L3／L4
+一起排進 `S2-6`（「行事曆進階」）。本輪只做 **L1 合併讀取**（把 `matches` 與
+`calendar_custom_events` 換算成同一種形狀回傳）與 **L2 自建事件 CRUD**，不做分軌並排、拖曳改期、
+衝突警示、訂閱與匯出——這是既有工作分解，不是本輪重新裁量，任務指示本身也是照這個切法派工。
+
+### 資料庫：既有 DDL 已經備妥，只補一個欄位與一個 CHECK 約束
+
+`calendar_custom_events`／`calendar_custom_events_i18n`／`calendar_event_teams`／
+`calendar_event_exceptions`／`event_types`／`event_types_i18n` 六張表在 S0 系列就已經是完整 DDL
+（`db/club-schema.sql`「4.10 L 行事曆管理」），EF 實體與 `ClubDbContext` 對應也早就 scaffold 好。
+本輪異動：
+
+1. **新增欄位** `calendar_custom_events.repeat_until`（`date NULL`）——規劃書 L2「可設定結束日期與
+   例外日期」，例外日期已有 `calendar_event_exceptions` 承接，但原始 DDL沒有任何欄位承接「結束
+   日期」，`docs/12d-field-audit.md` 也記過這個缺口。
+2. **補齊從未約束過的值域** `repeat_rule`：定案為 `weekly`／`biweekly`／`monthly` 三個英文字面值
+   （比照 `matches.status`「挑最直白的英文單字」既有風格，規劃書只給中文頻率敘述，沒有給代碼或
+   RRULE 格式的技術決定），補上 `CK_calendar_custom_events_repeat_rule`。
+
+```
+migration: 20260925055015_AddCalendarCustomEventRepeatUntil
+  ALTER TABLE calendar_custom_events ADD [repeat_until] date NULL;   -- EF AddColumn，來自實體模型異動
+  ALTER TABLE calendar_custom_events ADD CONSTRAINT CK_calendar_custom_events_repeat_rule
+    CHECK (repeat_rule IN ('weekly','biweekly','monthly') OR repeat_rule IS NULL);
+```
+
+套用前查證 `calendar_custom_events` 為 0 筆（本輪才第一次接上真實 API），純 DDL 變更，不搭配任何
+DML 轉態。完整說明另見 `docs/12-database-schema.md` §12 第 39 點。
+
+**重複規則不 materialize 成事件實例表**——比照「行事曆是彙整層而非資料源」的既有原則，改為讀取
+當下依呼叫端要求的日期範圍即時展開（`Common/RecurrenceExpander.cs`），範圍本身已經是呼叫端的
+必要輸入（月曆檢視一次看一個月、公開列表也有 `from`／`to`），迭代次數天然有界（防呆上限 400 次）。
+
+**種子資料**：`event_types` 種六個起始分類（記者會／簽名會／球迷見面會／公開訓練／休館公告／
+其他，不帶 `club_id`，兩俱樂部共用）——L3「賽事類型維護」正式的 CRUD 管理畫面留給 `S2-6`，這裡
+只種最小可行的起始字典，讓 L2 建立事件時有分類可選，比照既有 `HOME_SECTIONS`／`FAQ_EMBED_SLOTS`
+「先種固定字典，完整維護畫面留給後續」的既有先例。
+
+### 後台端點（新增檔案 `Features/AdminCalendar`）
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/calendar/events` | `calendar.view` | L1 總覽：合併 `matches`＋`calendar_custom_events`。`from`／`to`（預設本月，上限 366 天）、`team`（球隊代碼或 `club`）、`sourceType`（`match`／`custom`）篩選 |
+| `GET /api/v1/admin/{club}/calendar/event-types` | `calendar.custom_event.view` | L2 建立／編輯事件用的分類下拉選單（唯讀，L3 正式管理畫面留給 `S2-6`） |
+| `GET /api/v1/admin/{club}/calendar/custom-events` | `calendar.custom_event.view` | L2 清單。`team` 篩選 |
+| `GET /api/v1/admin/{club}/calendar/custom-events/{id}` | `calendar.custom_event.view` | 單筆詳情 |
+| `POST /api/v1/admin/{club}/calendar/custom-events` | `calendar.custom_event.create` | 建立，`multipart/form-data`（`payload`＋選填 `file` 封面圖） |
+| `PUT /api/v1/admin/{club}/calendar/custom-events/{id}` | `calendar.custom_event.update` | 更新，同上 multipart 契約 |
+| `DELETE /api/v1/admin/{club}/calendar/custom-events/{id}` | `calendar.custom_event.delete` | 硬刪除 |
+
+### 公開端點（新增檔案 `Features/Calendar`，不需要登入）
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `GET /api/v1/{club}/calendar/events` | 13 賽事行事曆。見下方「兩種查詢模式」 |
+| `GET /api/v1/{club}/matches/{id}/ics` | 單場賽事「加入我的行事曆」下載 |
+
+#### 兩種查詢模式（本輪判斷，規劃書沒有把這兩種模式的參數形狀寫清楚）
+
+1. **列表模式**（`from`／`to` 皆未提供）：依 `team` 決定內容——
+   - `team=club`：回傳「俱樂部活動」分頁（規劃書「隊別分頁……另有『全部』與『俱樂部活動』」），
+     只給公開（`is_public=1`）、**未掛任何球隊**、活動類型公開（或未設類型）的自建事件；
+     **重複規則即時展開**（預設區間＝今天起 180 天，例外日排除，`repeat_until` 截止），每個發生日一筆，
+     依 `startsAt` 由近到遠，`page`／`pageSize` 分頁；
    - 其餘（含未指定）：回傳**只有賽事**的「賽程 Fixtures／賽果 Results」分頁（`mode=fixtures`
      預設／`results`），支援 `season`／`type`（賽事類型標籤）／`homeAway` 篩選、`page`／`pageSize`
      分頁——這兩個分頁在規劃書原文本來就是賽事的概念（未來／過去），俱樂部活動沒有「賽果」的語意。
@@ -9660,3 +10344,75 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 - **賽程對手英文不需改結構**：`matches_i18n` 的 `en` 列存 `opponent`／`venue`，`matches.opponent` 是繁中預設與回退來源；`MatchDto.isFallbackLocale` 在英文 `opponent` 為空時為 true（現行行為正確）。後台 C4 `opponentEn`／`venueEn`（新增、修改、CSV）早已接好。缺的是英文資料，無來源不音譯，沒有 migration。
 - **`ApplicableTierLabel`**：`lang=en` 時為 `All members`／`Paid Fan Club members only`，以 `docs/06` §1.1 對照表為準；測試在 `MembershipPublicTests`。
+
+## 後台欄位串接稽核的後端修正（2026-10-06，`docs/23` A-1／A-2／A-3／A-4／A-6／A-12／B-12／B-13／B-16／B-22／E-1／E-2）
+
+測試：`Tcrfc.Api.Tests/AuditWiringFixesTests.cs`（60 項）；`AdminFormsEnquiriesTests`、`AdminTeamsPlayersStaffTests` 各改一支以符合新行為。全套 1,498 項全綠。`shared/` 已重產（`PlayerDto.status`、`PublicFormDto.redirectPath`、`SubmitFormRequest.lang`）。
+
+| 項 | 行為 | 檔案 |
+|---|---|---|
+| **A-1 烏龍球** | 自動彙總（`Standings/StandingsRepository.AutoTotalsAsync`）排除烏龍球：出賽仍算、進球不算。`match_goals.goal_type` 原本是自由文字，後台寫入改為**固定值域**：`header`（頭槌）／`penalty`（點球）／`free_kick`（自由球）／`own_goal`（烏龍球）／`other`（其他），**空＝一般進球**；寫入時接受常見中文與英文同義詞並正規化成代碼（`頭槌`→`header`、`烏龍球`→`own_goal`…），不認得的值回 400 `goals[i].goalType`。讀取端對**舊資料的自由文字**（含「烏龍」「own goal」）也認得為烏龍球，不需要資料遷移 | `AdminMatches/MatchGoalTypes.cs`、`AdminMatchesRepository.ApplyGoalsAsync` |
+| **A-2 球員狀態** | 公開 `players` 列表、詳情（slug 或 id）與全站搜尋**只回現役**（`status = 'active'` 或 NULL）；離隊／外借／海外發展一律不輸出（詳情 404）。`PlayerDto` 新增 `status`（目前恆為 `active`；型別可空，避免 App 舊快取解碼失敗）。球員數據榜（`/stats/players`）不過濾（歷史賽季數據仍需呈現離隊球員） | `Players/PlayersRepository.cs`、`Search/SearchRepository.cs` |
+| **A-3 表單欄位鎖定** | `FormCatalog.FieldLockedCodes`＝10.1–10.7 七類＋`proposal_download`（提案下載由 `Features/Proposals` 以固定鍵送出）。`donation_enquiry` **不鎖**（規劃書未定義欄位、無任何程式以固定鍵送出）。鎖定表單：`POST .../fields` → 400 `fieldKey`；`DELETE .../fields/{id}` → 400 `fieldId`；`PUT .../fields/{id}` 若 `fieldKey`／`fieldType`／`isRequired`／`validationRule`／`options` 任一與現況不同 → 400，鍵依序為 `fieldKey`／`fieldType`／`isRequired`／`validationRule`／`options`。仍可改：表單層的 `notifyEmails`／`captchaEnabled`／`redirectPath`／`autoReplyBodyZh|En`，欄位層的 `labelZh|En`、`optionLabelsEn`、`isSummary`、`sortOrder`（前提是結構欄位原樣送回） | `Forms/FormCatalog.cs`、`AdminForms/AdminFormsRepository.cs` |
+| **A-4 表單通知信** | `FormsRepository.SubmitAsync` 在 commit 後（honeypot 命中不寄）：① **收件通知**寄給 `notify_emails`（逗號／分號分隔、去重複，每人一封；內容＝題目＋答案，不含同意條款欄位）；② **自動回覆**寄給送件者：Email 取答案中的 `email`、`contact` 欄位值，**值不像 Email（例如電話）就不寄**；內文取 `forms_i18n.auto_reply_body`，依 `lang` 選 zh／en，該語系沒填回退 zh，兩者都空就不寄。寄信失敗只記 log，不影響送出。`SubmitFormRequest` 新增選填 `lang`（`zh`／`en`，也可用查詢字串 `?lang=`，body 優先）。信件 Kind：`form_notify`／`form_auto_reply`（`Features/Email/FormEmailTemplates.cs`）。目前寄信是本機假實作（已知） | `Forms/FormsRepository.cs` |
+| **B-16 導向頁** | `PublicFormDto.redirectPath`：只輸出站內相對路徑（`/` 開頭、非 `//`、非 `/\`），不合法或未設定為 `null`。後台 `redirectPath` 驗證同步收緊為**只收站內路徑**（原本也收 `http(s)://`），不合 400 `redirectPath` | `Forms/FormDtos.cs`、`FormsRepository.SafeRedirectPath` |
+| **A-6 訂單詳情** | `AdminOrderDetailDto.buyerEmail`（無 `shop.order.reveal` 回遮罩 `b***@example.com`）；`invoice` 新增 `type`（`mobile_barcode`／`citizen_cert`／`tax_id`／`donation`，皆無為 `null`）、`typeLabel`（手機條碼載具／自然人憑證載具／公司戶（統一編號）／捐贈發票）、`carrierId`（無權限遮罩 `/A****23`，只留前 2 後 2）、`taxId`、`donationCode`（公開資訊不遮罩）、`issueStatusLabel`（待開立／已開立／開立失敗（待重試））、`voidStatusLabel`（未作廢／已作廢／已折讓）。列表未加 | `AdminShop/AdminShopOrdersRepository.cs`、`Common/PiiMasking.MaskCarrier` |
+| **A-12 賽季管理** | 新 `Features/AdminSeasons`，權限碼 `team.match.view|create|update|delete`（清單另接受 `team.competition.view`）；**寫入另要求球隊列級授權為整個俱樂部**（學院限定／個別球隊帳號 403）。規則：`code` 同俱樂部唯一（不分大小寫，409 `code`）、格式英數與 `/ - _` 且 ≤16（400 `code`）、`endOn` 須晚於 `startOn`（400 `endOn`）、**同俱樂部期間不可重疊**（409 `startOn`，首尾相接日期也算重疊）、被 competitions／matches／standings／achievements／player_season_stats／memberships／membership_plans 任一引用不能刪（409，訊息列出被誰引用）。寫入後失效 `schedule`／`competitions`／`honors`／`calendar` 快取。原 `AdminCompetitions` 底下的 `GET .../seasons` 移到這裡（網址與 `id`／`code`／`startOn`／`endOn` 不變） | `Features/AdminSeasons/` |
+| **B-13 球員賽季數據** | `GET /api/v1/admin/{club}/players/{id}/season-stats`（`team.player.view`）；`PUT .../season-stats/{seasonId}`、`DELETE ...`（`team.player.update`＋球員的球隊列級授權）。寫入 `player_season_stats`——**這張表沒有 `source` 欄位，「這一列存在」就是手動**（公開端 `source=manual` 的判斷），所以「清除」＝刪除該列，公開端自動回到賽事彙總。DELETE 對沒有手動數據的賽季也回 204 | `AdminPlayers/` |
+| **B-12** | 公開賽程的 `competitionName`／`competitionCode` 只取 `status = 'published'` 的賽事系列；草稿系列的賽事仍列出，但兩欄為空 | `Schedule/MatchesRepository.cs` |
+| **B-22 快取** | `AdminForms`（`forms`）、`AdminSeo` 設定（`seo-settings`）／轉址（`seo-redirects`）／llms（`seo-llms-content`）／爬蟲（`seo-crawler-settings`）、`AdminSiteFacts`（`site-facts`）寫入後 `InvalidateAsync`；`AdminTeams` 修改時一併失效 `players`／`staff`／`schedule`／`honors`／`calendar` | 各 `Admin*Repository` |
+| **E-1 追蹤碼** | `AdminSeoSettingsRepository` 白名單：GA4 `^G-[A-Z0-9]{4,20}$`、GTM `^GTM-[A-Z0-9]{4,12}$`（兩者自動轉大寫）、Meta Pixel `^[0-9]{5,20}$`、LINE Tag `^[A-Za-z0-9-]{1,64}$`（官方沒公布更嚴格格式）；空白＝清除；不符 400，鍵 `ga4MeasurementId`／`gtmContainerId`／`metaPixelId`／`lineTagId` | `AdminSeo/AdminSeoSettingsRepository.cs` |
+| **E-2 行事曆連結** | 自建活動 `ctaUrl` 只收 `http://`／`https://` 完整網址或 `/` 開頭站內路徑（`//`、`/\` 不收），不符 400 `ctaUrl`；新增共用 `AdminInput.OptionalHttpOrSitePath` | `Common/AdminInput.cs` |
+
+新增的欄位鍵（補進上方「已補鍵清單」）：賽季 `code`／`startOn`／`endOn`；球員賽季數據 `appearances`／`goals`／`assists`／`yellowCards`／`redCards`；進球 `goals[i].goalType`；表單欄位鎖定 `fieldKey`／`fieldId`／`fieldType`／`isRequired`／`validationRule`／`options`；`redirectPath`；追蹤碼四鍵；`ctaUrl`。
+
+## 後台欄位串接稽核 C-2：聯絡 Email、社群連結、部門窗口、頁尾簡介（2026-10-06）
+
+不新增資料表，沿用 `settings`／`settings_i18n`（`setting_group='site'`，依俱樂部各一份）。測試：`SiteFactsTests` 新增 C-2 共 13 項；全套 1,516 項全綠；`shared/` 已重產。
+
+| setting key | 形狀 | 後台欄位 |
+|---|---|---|
+| `site.contact_email` | 單一值 | `contactEmail` |
+| `site.social_facebook`／`_instagram`／`_youtube`／`_line` | 單一值（https） | `facebookUrl`／`instagramUrl`／`youtubeUrl`／`lineUrl` |
+| `site.contact_departments` | 單一值，JSON 陣列 `[{nameZh,nameEn,email,phoneExtension}]` | `departments[]` |
+| `site.footer_blurb` | 逐語系 | `footerBlurbZh`／`footerBlurbEn` |
+
+- 整份取代語意不變：`PUT` 省略欄位＝清空。社群網域白名單（主機等於或為子網域）：Facebook `facebook.com`／`fb.com`／`fb.me`；Instagram `instagram.com`／`instagr.am`；YouTube `youtube.com`／`youtu.be`；LINE `line.me`／`lin.ee`；不收 http、帳密、他站網域。
+- 部門窗口最多 20 筆；每筆 `nameZh` 必填，`email`／`phoneExtension` 至少一項；分機只收數字與 `+ - # 空白 ()`。填英文簡介時中文必填。
+- 欄位錯誤鍵：`contactEmail`、`facebookUrl`、`instagramUrl`、`youtubeUrl`、`lineUrl`、`departments`（超過筆數）、`departments[i].nameZh|nameEn|email|phoneExtension`、`footerBlurbZh|footerBlurbEn`。
+- 公開 `GET /api/v1/{club}/site-facts?lang=`：新增 `contact.email`、`contact.departments[]{name,email,phoneExtension}`（`name` 依 lang，缺英文回退中文）、`social{facebook,instagram,youtube,line}`、`footerBlurb`（依 lang）。全部未設定時為 `null`／空陣列，前台應保留既有預設。寫入後已失效 `site-facts` 快取。
+- 共用：`Features/SiteFacts/SiteContactSupport.cs`（鍵與 JSON 解析，壞 JSON 視為空）。
+
+## 稽核 D 類雙語缺口＋移除後台品牌設定（2026-10-06）
+
+**資料庫**（對照 `db/club-schema.sql`、遷移 SQL 在 `db/migrations/20261006_*`）：新側表 `standings_i18n(team_name)`、`achievements_i18n(competition_name, placing)`、`proposals_i18n(title)`；`programs_i18n.audience`（64）、`membership_plans_i18n.mid_season_rule`（255）；主表舊欄位 `standings.team_name`、`achievements.competition_name／placing`、`programs.audience`、`membership_plans.mid_season_rule`、`proposals.title` 與 `clubs` 的 `logo_light_key／logo_dark_key／favicon_key／brand_color／brand_secondary_color` 刪除。locale 值沿用側表慣例（`zh-Hant`／`en`）。
+
+**三支 EF migration（展開—收縮，`docs/20` §5）**：
+
+| migration | 性質 | 內容 |
+|---|---|---|
+| `20261006090843_DBilingualGapsExpand` | 展開（可隨新版 api 一起上） | 建三張側表、補兩個側表欄位、把主表中文值搬進 `zh-Hant` 列（冪等；SQL 與 `db/migrations/20261006_d-bilingual-gaps_1-expand.sql` 同源） |
+| `20261006090900_ClubBrandDropContract` | **收縮（走 `production-db` 核准關卡）** | 刪 `clubs` 五個品牌欄位 |
+| `20261006091446_DBilingualGapsContract` | **收縮（走 `production-db` 核准關卡）** | 刪五個舊主表欄位；刪除前逐表核對舊值與 `zh-Hant` 側表一致，不一致 `THROW` 整批回滾 |
+
+🔴 **兩支收縮型 migration 必須在新版 api 部署並驗證之後才套用**（舊版 api 仍 SELECT 這些欄位，先套用會 500）。`db-migrate.yml` 會套用**全部待套用**的 migration，所以**建議收縮型兩支另開後續 PR 才合併到 master**，展開型先上。`Designer.cs`／snapshot 以最終模型為準；`MigrationsOnBlankDatabaseTests` 已涵蓋三支的 Up／Down／冪等重跑。
+
+**讀寫改走側表**（公開 DTO 欄位名不變；公開端依 `lang` 用 `RequestLocale.Pick` 回退）：
+
+| 模組 | 公開 | 後台新增／改變 |
+|---|---|---|
+| 榮譽（`Honors`／`AdminHonors`） | 賽事名稱、名次依 `lang` 回退 | `competitionNameEn`、`placingEn`；名次上限 32→64（鍵 `placing`、`placingEn`、`competitionNameEn`） |
+| 積分榜（`Standings`／`AdminStandings`） | `GET /{club}/standings` **新增選填 `?lang=`**，`teamName` 依語系回退（排序在回退後） | `teamNameEn`（建立／更新／清單／詳情；鍵 `teamNameEn`）；**CSV 匯入**：五欄檔照舊可匯（英文留空），可在最後多一欄 `球隊名稱（英文）`；整季替換，所以不帶英文欄＝該季英文名稱清空 |
+| 課程（`Programs`／`AdminPrograms`） | `audience` 依 `lang` 回退 | `audienceEn`（清單／詳情／建立／更新）；`audience` 上限 64（鍵 `audience`、`audienceEn`）；只填英文適合對象時英文列仍建立（`en` 內容區塊維持 `null`） |
+| 會籍方案（`MembershipPublic`／`AdminMemberships`） | `midSeasonRule` 依 `lang` 回退 | `midSeasonRuleEn`（詳情／更新）；鍵 `midSeasonRule`、`midSeasonRuleEn`；英文列在「有英文名稱或有英文規則」時存在 |
+| 提案（`Proposals`／`AdminProposals`／`AdminLeads`） | `GET /{club}/proposals` **新增選填 `?lang=`**（快取依語系分區），`title` 依語系回退 | `titleEn`（清單／詳情／建立／更新；鍵 `titleEn`）；Lead 的 `proposalTitle` 一律繁中 |
+
+**移除後台品牌設定（主站規劃書 v3.20）**：兩站標誌、Favicon、品牌主色與輔色由前台靜態資產與 CSS 定義。
+- `AdminGlobalSettings`：回應刪除 `brand`；`PUT` 刪除 `brandColor`／`brandSecondaryColor`／`removeLogoLight`／`removeLogoDark`／`removeFavicon` 與三個檔案欄位（`logoLight`／`logoDark`／`favicon`）。**仍是 `multipart/form-data`（欄位 `payload`，不附檔）**，舊版客戶端夾帶的品牌欄位被忽略、不報錯。
+- `AdminClubs`：`AdminClubDetailDto` 刪 `logoLightKey`／`logoDarkKey`／`faviconKey`／`brandColor`／`brandSecondaryColor`；建立／更新請求刪 `brandColor`／`brandSecondaryColor`。`og_image_*` 保留。
+- 公開 `Clubs`：`ClubDto` 刪 `logoLightKey`／`logoDarkKey`／`faviconKey`／`brandColor`／`brandSecondaryColor`／`logoUrl`／`logoDarkUrl`／`faviconUrl`；`SchemaEligible` 改為只看名稱與網域（標誌不是資料庫必填欄位，兩隊恆為 `true`）。`TeamDto` 刪 `logoUrl`（原為球隊 Hero 或俱樂部隊徽回退），`SchemaEligible` 同樣只看隊名與網域；`HeroUrl` 不變。
+- 公開 `SiteSettings`：`PublicSiteSettingsDto` 刪 `brand`（維護頁的 `logoLightUrl`／`brandColor` 等）。
+- 公開會員中心：`MemberClubBrandDto` 刪 `logoLightUrl`／`logoDarkUrl`／`brandColor`／`brandSecondaryColor`（只剩 `code`／`name`，App 內建兩隊標誌與品牌色、以 `code` 對應）。
+- `UploadSlotPolicy`：`clubs` 只剩 `ogImage`。`SchemaRequiredFields`：Organization／SportsTeam 必填由 name＋url＋logo 改為 name＋url；後台 Schema 完整度報表同步。
+
+**測試**：全套 1,514 項（含展開／收縮 migration 的空白庫 Up／Down 重跑）；新增或改寫的重點：榮譽／積分榜（含 CSV 六欄）／課程／會籍方案／提案的中英讀寫與回退、公開 DTO 不再含品牌欄位、全域設定 `PUT` 容忍舊版品牌欄位。`shared/` 已重產。

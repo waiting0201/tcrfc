@@ -68,8 +68,8 @@ public sealed record SchemaFieldDefinition(string Key, string LabelZh, string La
 /// 型別永遠輸出不了，對 GEO 沒有幫助；那類事實單一來源的欄位缺口屬於 GEO-03／GEO-04
 /// （S1-12d）的範圍，不在本次 GEO-05 任務新增資料欄位。逐型別理由：
 /// - <b>Organization</b>／<b>SportsTeam</b>：schema.org 只要求 <c>name</c>；本專案另外要求
-///   <c>url</c>（俱樂部網域，<c>Club.Domain</c>，Google 建議 Organization 一律帶 <c>url</c>）與
-///   <c>logo</c>（<c>Club.LogoLightKey</c>／<c>Team.HeroKey</c>），三者皆為本專案既有欄位。
+///   <c>url</c>（俱樂部網域，<c>Club.Domain</c>，Google 建議 Organization 一律帶 <c>url</c>）。
+///   🔴 主站規劃書 v3.20：<c>logo</c> 不再是資料庫必填欄位——標誌由前台靜態資產輸出，後台與資料庫沒有標誌欄位。
 /// - <b>Event</b>：對應 <c>calendar_custom_events</c>（一般活動）。Google Event 結構化資料必要屬性
 ///   為 <c>name</c>／<c>startDate</c>／<c>location</c>（含地點名稱），三者皆為既有欄位。
 /// - <b>SportsEvent</b>：對應 <c>matches</c>。沿用 <c>app/pages/zh/schedule.vue</c>
@@ -105,13 +105,11 @@ public static class SchemaRequiredFields
             [
                 new SchemaFieldDefinition("name", "俱樂部名稱", "Name"),
                 new SchemaFieldDefinition("url", "官網網址", "URL"),
-                new SchemaFieldDefinition("logo", "隊徽圖片", "Logo"),
             ],
             [SchemaType.SportsTeam] =
             [
                 new SchemaFieldDefinition("name", "球隊名稱", "Team Name"),
                 new SchemaFieldDefinition("url", "官網網址", "URL"),
-                new SchemaFieldDefinition("logo", "隊徽圖片", "Logo"),
             ],
             [SchemaType.Event] =
             [

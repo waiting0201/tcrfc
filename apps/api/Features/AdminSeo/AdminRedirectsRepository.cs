@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Tcrfc.Api.Features.Seo;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
@@ -11,7 +13,7 @@ namespace Tcrfc.Api.Features.AdminSeo;
 /// （<c>UQ_redirects_club_path</c> = <c>(club_id, from_path)</c>）已於既有 <c>db/club-schema.sql</c>
 /// 完整存在，本輪只補後端 CRUD 與 CSV 批次匯入／匯出。
 /// </summary>
-public sealed class AdminRedirectsRepository(ClubDbContext dbContext)
+public sealed class AdminRedirectsRepository(ClubDbContext dbContext, IQueryCache cache)
 {
     /// <summary>CSV 表頭（中文，比照 <c>AdminFaqsRepository</c> 既有慣例：後台介面與匯出檔一律
     /// 中文欄名，CLAUDE.md「CSV 匯出的欄位標題同此規則」）。</summary>
@@ -76,6 +78,7 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext)
 
         dbContext.Redirects.Add(redirect);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(SeoRepository.RedirectsEntity, scope.ClubCode, cancellationToken);
 
         return ToDto(redirect);
     }
@@ -102,6 +105,7 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext)
         redirect.UpdatedBy = operatorId;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(SeoRepository.RedirectsEntity, scope.ClubCode, cancellationToken);
 
         return ToDto(redirect);
     }
@@ -116,6 +120,7 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext)
 
         dbContext.Redirects.Remove(redirect);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(SeoRepository.RedirectsEntity, scope.ClubCode, cancellationToken);
 
         return true;
     }
@@ -267,6 +272,7 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(SeoRepository.RedirectsEntity, scope.ClubCode, cancellationToken);
 
         return new RedirectCsvImportResultDto { ImportedCount = parsedRows.Count, Errors = [] };
     }

@@ -13,6 +13,12 @@ public sealed record AdminAchievementDto
     public int? Year { get; init; }
     public string? CompetitionName { get; init; }
     public string? Placing { get; init; }
+
+    /// <summary>英文賽事名稱（<c>achievements_i18n(en)</c>）；未填為 <c>null</c>，前台回退繁中。</summary>
+    public string? CompetitionNameEn { get; init; }
+
+    /// <summary>英文名次（<c>achievements_i18n(en)</c>）；未填為 <c>null</c>。</summary>
+    public string? PlacingEn { get; init; }
     public required DateTime UpdatedAt { get; init; }
 }
 
@@ -25,8 +31,14 @@ public sealed record UpsertAdminAchievementRequest
     public int? Year { get; init; }
     public required string CompetitionName { get; init; }
 
-    /// <summary>名次（自由文字，例如「冠軍」「亞軍」「第四名」）。</summary>
+    /// <summary>名次（自由文字，例如「冠軍」「亞軍」「第四名」；最長 64 字）。</summary>
     public required string Placing { get; init; }
+
+    /// <summary>英文賽事名稱（選填，最長 128 字）。</summary>
+    public string? CompetitionNameEn { get; init; }
+
+    /// <summary>英文名次（選填，最長 64 字）。</summary>
+    public string? PlacingEn { get; init; }
 }
 
 public sealed record AdminMilestoneLocaleContent

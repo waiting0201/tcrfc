@@ -115,8 +115,23 @@ public sealed class AdminPressAndHonorsTests(AdminWriteApiFixture fixture)
             Assert.Equal("D1", item.TeamCode);
 
             var updated = await manager.PutAsync($"/api/v1/admin/tcrfc/achievements/{item.Id}",
-                BizTest.Json(new { seasonId, teamId, year = 2025, competitionName = "【測試】榮譽改", placing = "亞軍" }));
-            Assert.Equal(2025, (await BizTest.ReadAsync<AdminAchievementDto>(updated)).Year);
+                BizTest.Json(new { seasonId, teamId, year = 2025, competitionName = "【測試】榮譽改", placing = "亞軍", competitionNameEn = "Test Cup", placingEn = "Runner-up" }));
+            var updatedDto = await BizTest.ReadAsync<AdminAchievementDto>(updated);
+            Assert.Equal(2025, updatedDto.Year);
+            Assert.Equal("【測試】榮譽改", updatedDto.CompetitionName);
+            Assert.Equal("Test Cup", updatedDto.CompetitionNameEn);
+            Assert.Equal("Runner-up", updatedDto.PlacingEn);
+
+            // 名次最長 64 字（D 類雙語：由 32 放寬）；英文欄位超長 → 400 並點名欄位鍵
+            var longPlacing = await manager.PutAsync($"/api/v1/admin/tcrfc/achievements/{item.Id}",
+                BizTest.Json(new { seasonId, teamId, competitionName = "x", placing = new string('名', 65) }));
+            Assert.Equal(HttpStatusCode.BadRequest, longPlacing.StatusCode);
+            Assert.Contains("placing", await longPlacing.Content.ReadAsStringAsync());
+            var okPlacing = await manager.PutAsync($"/api/v1/admin/tcrfc/achievements/{item.Id}",
+                BizTest.Json(new { seasonId, teamId, year = 2025, competitionName = "【測試】榮譽改", placing = new string('名', 64), competitionNameEn = "Test Cup", placingEn = "Runner-up" }));
+            Assert.Equal(HttpStatusCode.OK, okPlacing.StatusCode);
+            await manager.PutAsync($"/api/v1/admin/tcrfc/achievements/{item.Id}",
+                BizTest.Json(new { seasonId, teamId, year = 2025, competitionName = "【測試】榮譽改", placing = "亞軍", competitionNameEn = "Test Cup", placingEn = "Runner-up" }));
 
             var filtered = await BizTest.ReadAsync<List<AdminAchievementDto>>(await manager.GetAsync($"/api/v1/admin/tcrfc/achievements?year=2025&teamId={teamId}"));
             Assert.Contains(filtered, a => a.Id == item.Id);
@@ -125,6 +140,18 @@ public sealed class AdminPressAndHonorsTests(AdminWriteApiFixture fixture)
             using var anonymous = await BizTest.ClientAsync(fixture, null);
             var pub = await BizTest.ReadAsync<List<Tcrfc.Api.Features.Honors.AchievementDto>>(await anonymous.GetAsync("/api/v1/tcrfc/achievements?team=D1"));
             Assert.Contains(pub, a => a.Id == item.Id && a.Placing == "亞軍");
+
+            // 英文：有英文用英文，名稱欄位依 lang 回退（achievements_i18n 側表，公開 DTO 欄位名不變）
+            var pubEn = await BizTest.ReadAsync<List<Tcrfc.Api.Features.Honors.AchievementDto>>(await anonymous.GetAsync("/api/v1/tcrfc/achievements?team=D1&lang=en"));
+            Assert.Contains(pubEn, a => a.Id == item.Id && a.Placing == "Runner-up" && a.CompetitionName == "Test Cup");
+
+            // 清空英文欄位 → 英文列移除，公開英文版回退繁中
+            await manager.PutAsync($"/api/v1/admin/tcrfc/achievements/{item.Id}",
+                BizTest.Json(new { seasonId, teamId, year = 2025, competitionName = "【測試】榮譽改", placing = "亞軍" }));
+            var cleared = await BizTest.ReadAsync<List<AdminAchievementDto>>(await manager.GetAsync($"/api/v1/admin/tcrfc/achievements?year=2025&teamId={teamId}"));
+            Assert.Null(cleared.Single(x => x.Id == item.Id).PlacingEn);
+            var pubFallback = await BizTest.ReadAsync<List<Tcrfc.Api.Features.Honors.AchievementDto>>(await anonymous.GetAsync("/api/v1/tcrfc/achievements?team=D1&lang=en"));
+            Assert.Contains(pubFallback, a => a.Id == item.Id && a.Placing == "亞軍");
         }
         finally
         {

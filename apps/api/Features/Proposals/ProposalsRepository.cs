@@ -26,16 +26,22 @@ public sealed partial class ProposalsRepository(
     [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
     private static partial Regex EmailFormat();
 
-    private sealed record ProposalRow(Guid Id, string Title, int VersionNo);
+    private sealed record ProposalRow(Guid Id, string? Title, int VersionNo);
     private sealed record FileRow(Guid Id, Guid ProposalId, string Locale, string FileKey, int VersionNo);
 
-    public async Task<IReadOnlyList<PublicProposalDto>> ListAsync(ClubScope scope, CancellationToken cancellationToken)
-        => await cache.GetOrCreateAsync("proposals", scope.ClubCode, CacheDimensions.AnyLocale, "list", async ct =>
+    public async Task<IReadOnlyList<PublicProposalDto>> ListAsync(ClubScope scope, string dbLocale, CancellationToken cancellationToken)
+        => await cache.GetOrCreateAsync("proposals", scope.ClubCode, dbLocale, "list", async ct =>
         {
             using var connection = connectionFactory.CreateConnection();
             var proposals = (await connection.QueryAsync<ProposalRow>(new CommandDefinition(
-                "SELECT id AS Id, title AS Title, version_no AS VersionNo FROM proposals WHERE club_id = @ClubId AND status = 'published' ORDER BY row_seq",
-                new { scope.ClubId }, cancellationToken: ct))).AsList();
+                """
+                SELECT p.id AS Id, COALESCE(NULLIF(r.title, N''), d.title) AS Title, p.version_no AS VersionNo
+                FROM proposals p
+                LEFT JOIN proposals_i18n r ON r.proposal_id = p.id AND r.locale = @Locale
+                LEFT JOIN proposals_i18n d ON d.proposal_id = p.id AND d.locale = @DefaultLocale
+                WHERE p.club_id = @ClubId AND p.status = 'published' ORDER BY p.row_seq
+                """,
+                new { scope.ClubId, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale }, cancellationToken: ct))).AsList();
             if (proposals.Count == 0)
             {
                 return (IReadOnlyList<PublicProposalDto>)[];
@@ -46,7 +52,7 @@ public sealed partial class ProposalsRepository(
                 new { Ids = proposals.Select(p => p.Id).ToList() }, cancellationToken: ct));
             var byProposal = files.GroupBy(f => f.ProposalId).ToDictionary(g => g.Key, g => g.Select(f => f.Locale == "en" ? "en" : "zh").Distinct().OrderBy(l => l).ToList());
             return (IReadOnlyList<PublicProposalDto>)proposals.Where(p => byProposal.ContainsKey(p.Id))
-                .Select(p => new PublicProposalDto { Id = p.Id, Title = p.Title, VersionNo = p.VersionNo, Locales = byProposal[p.Id] }).ToList();
+                .Select(p => new PublicProposalDto { Id = p.Id, Title = p.Title ?? string.Empty, VersionNo = p.VersionNo, Locales = byProposal[p.Id] }).ToList();
         }, cancellationToken);
 
     /// <summary>建立 Lead 並簽發下載連結；提案不存在／未發布／沒有檔案回傳 <c>null</c>（呼叫端轉 404）。</summary>

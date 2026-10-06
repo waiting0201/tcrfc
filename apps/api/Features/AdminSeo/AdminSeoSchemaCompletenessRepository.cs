@@ -30,7 +30,7 @@ public sealed class AdminSeoSchemaCompletenessRepository(IClubSqlConnectionFacto
 {
     private const string Locale = RequestLocale.DefaultDbLocale;
 
-    private sealed record ClubRow(Guid Id, string Domain, string? LogoLightKey, string? OgImageKey, string? Name);
+    private sealed record ClubRow(Guid Id, string Domain, string? OgImageKey, string? Name);
     private sealed record TeamRow(Guid Id, string? HeroKey, string? Name);
     private sealed record EventRow(Guid Id, DateTime StartsAt, string? VenueName, string? Title);
     private sealed record MatchRow(
@@ -51,7 +51,7 @@ public sealed class AdminSeoSchemaCompletenessRepository(IClubSqlConnectionFacto
 
         // ── Organization（clubs，每個俱樂部恰一列）───────────────────────────────
         var club = await connection.QuerySingleOrDefaultAsync<ClubRow>(new CommandDefinition("""
-            SELECT c.id AS Id, c.domain AS Domain, c.logo_light_key AS LogoLightKey,
+            SELECT c.id AS Id, c.domain AS Domain,
                    c.og_image_key AS OgImageKey, ci.name AS Name
             FROM clubs c
             LEFT JOIN clubs_i18n ci ON ci.club_id = c.id AND ci.locale = @Locale
@@ -64,12 +64,10 @@ public sealed class AdminSeoSchemaCompletenessRepository(IClubSqlConnectionFacto
             {
                 ["name"] = club.Name,
                 ["url"] = club.Domain,
-                ["logo"] = club.LogoLightKey,
             });
         }
 
-        // ── SportsTeam（teams）。url 用俱樂部網域（Organization 那一層的事實，見類別檔頭），
-        //    logo 回退俱樂部隊徽——沒有專屬隊徽美術時，用俱樂部隊徽代表這支球隊仍然正確。──────
+        // ── SportsTeam（teams）。url 用俱樂部網域（Organization 那一層的事實，見類別檔頭）。──────
         var teams = (await connection.QueryAsync<TeamRow>(new CommandDefinition("""
             SELECT t.id AS Id, t.hero_key AS HeroKey, ti.name AS Name
             FROM teams t
@@ -83,7 +81,6 @@ public sealed class AdminSeoSchemaCompletenessRepository(IClubSqlConnectionFacto
             {
                 ["name"] = team.Name,
                 ["url"] = club?.Domain,
-                ["logo"] = team.HeroKey ?? club?.LogoLightKey,
             });
         }
 

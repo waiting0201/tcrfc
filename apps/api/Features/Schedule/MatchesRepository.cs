@@ -165,7 +165,7 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
         }
 
         var rows = await connection.QueryAsync<CompetitionCodeRow>(new CommandDefinition(
-            "SELECT id AS Id, code AS Code FROM competitions WHERE id IN @Ids", new { Ids = competitionIds }, cancellationToken: cancellationToken));
+            "SELECT id AS Id, code AS Code FROM competitions WHERE id IN @Ids AND status = 'published'", new { Ids = competitionIds }, cancellationToken: cancellationToken));
         return rows.ToDictionary(r => r.Id, r => r.Code);
     }
 
@@ -206,9 +206,11 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
         }
 
         const string sql = """
-            SELECT competition_id AS CompetitionId, locale AS Locale, name AS Name
-            FROM competitions_i18n
-            WHERE competition_id IN @CompetitionIds AND locale IN @Locales
+            SELECT ci.competition_id AS CompetitionId, ci.locale AS Locale, ci.name AS Name
+            FROM competitions_i18n ci
+            JOIN competitions c ON c.id = ci.competition_id
+            WHERE ci.competition_id IN @CompetitionIds AND ci.locale IN @Locales
+              AND c.status = 'published' -- 草稿賽事系列不得出現在公開賽程（稽核 B-12）
             """;
         var locales = dbLocale == RequestLocale.DefaultDbLocale
             ? new[] { dbLocale }

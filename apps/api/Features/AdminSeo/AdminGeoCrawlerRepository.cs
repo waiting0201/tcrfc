@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.Seo;
@@ -24,7 +25,7 @@ namespace Tcrfc.Api.Features.AdminSeo;
 /// 真正輸出給 <c>apps/web</c> 的合併結果（強制 ∪ 後台自加）在
 /// <see cref="Seo.SeoRepository.GetCrawlerSettingsAsync"/>，不是這裡。
 /// </summary>
-public sealed class AdminGeoCrawlerRepository(ClubDbContext dbContext)
+public sealed class AdminGeoCrawlerRepository(ClubDbContext dbContext, IQueryCache cache)
 {
     private const string KeyAgents = "geo.crawler_agents";
     private const string KeyExtraExcludePaths = "geo.crawler_extra_exclude_paths";
@@ -68,6 +69,7 @@ public sealed class AdminGeoCrawlerRepository(ClubDbContext dbContext)
         UpsertValue(settings, KeyExtraExcludePaths, scope.ClubId, pathsJson, operatorId);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(SeoRepository.CrawlerSettingsEntity, scope.ClubCode, cancellationToken);
 
         return await GetAsync(scope, cancellationToken);
     }

@@ -17,10 +17,6 @@ public partial class Achievement
 
     public int? Year { get; set; }
 
-    public string? CompetitionName { get; set; }
-
-    public string? Placing { get; set; }
-
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
@@ -34,6 +30,7 @@ public partial class Achievement
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
     public virtual Season Season { get; set; } = null!;
+    public virtual ICollection<AchievementsI18n> AchievementsI18ns { get; set; } = new List<AchievementsI18n>();
 
     public virtual Team Team { get; set; } = null!;
 

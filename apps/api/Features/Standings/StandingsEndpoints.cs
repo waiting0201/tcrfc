@@ -8,12 +8,12 @@ public static class StandingsEndpoints
 {
     public static void MapStandingsEndpoints(this IEndpointRouteBuilder app)
     {
-        // GET /api/v1/{club}/standings?season=2026/27
+        // GET /api/v1/{club}/standings?season=2026/27&lang=
         app.MapGet("/api/v1/{club}/standings", async (
-            string club, string? season, IClubResolver clubs, StandingsRepository repository, CancellationToken ct) =>
+            string club, string? season, string? lang, IClubResolver clubs, StandingsRepository repository, CancellationToken ct) =>
         {
             var scope = await clubs.ResolveAsync(club, ct);
-            return Results.Ok(await repository.GetStandingsAsync(scope, season, ct));
+            return Results.Ok(await repository.GetStandingsAsync(scope, season, RequestLocale.ToDbLocale(lang), ct));
         })
         .WithName("GetStandings").WithTags("Standings")
         .Produces<StandingsDto>().Produces(StatusCodes.Status404NotFound);

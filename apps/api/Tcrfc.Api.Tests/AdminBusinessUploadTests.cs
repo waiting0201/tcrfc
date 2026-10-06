@@ -200,10 +200,17 @@ public sealed class AdminBusinessUploadTests(AdminWriteAzuriteEnabledApiFixture 
             Assert.DoesNotContain(listBefore, p => p.Id == proposal.Id);
             Assert.Equal(HttpStatusCode.NotFound, (await anonymous.PostAsync($"/api/v1/tcrfc/proposals/{proposal.Id}/download-requests", BizTest.Json(ValidRequest()))).StatusCode);
 
-            await business.PutAsync($"/api/v1/admin/tcrfc/proposals/{proposal.Id}", BizTest.Json(new { title = "【測試】下載提案", versionNo = 1, status = "published" }));
+            await business.PutAsync($"/api/v1/admin/tcrfc/proposals/{proposal.Id}", BizTest.Json(new { title = "【測試】下載提案", titleEn = "Test Download Proposal", versionNo = 1, status = "published" }));
             var listAfter = await BizTest.ReadAsync<List<Tcrfc.Api.Features.Proposals.PublicProposalDto>>(await anonymous.GetAsync("/api/v1/tcrfc/proposals"));
             var pub = Assert.Single(listAfter, p => p.Id == proposal.Id);
             Assert.Equal(["zh"], pub.Locales);
+            Assert.Equal("【測試】下載提案", pub.Title);
+
+            // 提案名稱走 proposals_i18n 側表：英文請求用英文、沒填英文回退繁中（公開 DTO 欄位名不變）
+            var listEn = await BizTest.ReadAsync<List<Tcrfc.Api.Features.Proposals.PublicProposalDto>>(await anonymous.GetAsync("/api/v1/tcrfc/proposals?lang=en"));
+            Assert.Equal("Test Download Proposal", Assert.Single(listEn, p => p.Id == proposal.Id).Title);
+            var detail = await BizTest.ReadAsync<AdminProposalDetailDto>(await business.GetAsync($"/api/v1/admin/tcrfc/proposals/{proposal.Id}"));
+            Assert.Equal("Test Download Proposal", detail.TitleEn);
 
             var url = $"/api/v1/tcrfc/proposals/{proposal.Id}/download-requests";
             // 沒勾同意／缺欄位／Email 格式錯誤 → 400（日常中文）

@@ -65,6 +65,33 @@ public sealed record AdminSiteFactsDto
     /// <c>null</c>＝尚未設定；有值時必為 <c>https://</c> 開頭的絕對網址（見
     /// <see cref="AdminSiteFactsRepository.ValidateBlueWhaleSiteUrl"/>）。</summary>
     public string? BlueWhaleSiteUrl { get; init; }
+
+    /// <summary>聯絡 Email（對外公開）。<c>null</c>＝未設定。</summary>
+    public string? ContactEmail { get; init; }
+
+    /// <summary>社群連結。全部可空；有值時必為 https 且網域符合該平台（見
+    /// <see cref="AdminSiteFactsRepository.ValidateSocialUrl"/>）。</summary>
+    public string? FacebookUrl { get; init; }
+    public string? InstagramUrl { get; init; }
+    public string? YoutubeUrl { get; init; }
+    public string? LineUrl { get; init; }
+
+    /// <summary>各部門窗口，依顯示順序。對外公開資訊（前台聯絡頁會輸出）。</summary>
+    public required IReadOnlyList<AdminSiteFactDepartmentDto> Departments { get; init; }
+
+    /// <summary>頁尾品牌簡介（中英）。</summary>
+    public string? FooterBlurbZh { get; init; }
+    public string? FooterBlurbEn { get; init; }
+}
+
+/// <summary>各部門窗口。</summary>
+public sealed record AdminSiteFactDepartmentDto
+{
+    public required string NameZh { get; init; }
+    public string? NameEn { get; init; }
+    public string? Email { get; init; }
+    /// <summary>電話分機（數字、+、-、#、空白、括號，32 字內）。</summary>
+    public string? PhoneExtension { get; init; }
 }
 
 /// <summary>既有 <c>Venue</c> 列（可能同時被其他資料引用，例如賽事、梯次的地點）。</summary>
@@ -98,6 +125,22 @@ public sealed record UpdateSiteFactsRequest
     public string? ContactHoursZh { get; init; }
     public string? ContactHoursEn { get; init; }
     public string? BlueWhaleSiteUrl { get; init; }
+    public string? ContactEmail { get; init; }
+    public string? FacebookUrl { get; init; }
+    public string? InstagramUrl { get; init; }
+    public string? YoutubeUrl { get; init; }
+    public string? LineUrl { get; init; }
+    public IReadOnlyList<UpdateSiteFactDepartmentRequest>? Departments { get; init; }
+    public string? FooterBlurbZh { get; init; }
+    public string? FooterBlurbEn { get; init; }
+}
+
+public sealed record UpdateSiteFactDepartmentRequest
+{
+    public string? NameZh { get; init; }
+    public string? NameEn { get; init; }
+    public string? Email { get; init; }
+    public string? PhoneExtension { get; init; }
 }
 
 /// <summary><see cref="Id"/> 有值＝更新既有 <c>Venue</c> 列（找不到則回 400）；

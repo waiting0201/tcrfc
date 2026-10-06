@@ -85,7 +85,6 @@ public sealed partial class SiteSettingsRepository(ClubDbContext db, IQueryCache
     public async Task<PublicSiteSettingsDto> GetSiteSettingsAsync(ClubScope scope, string dbLocale, CancellationToken cancellationToken)
         => await cache.GetOrCreateAsync(CacheEntities.Settings, scope.ClubCode, dbLocale, CacheDimensions.NoQualifier, async ct =>
         {
-            var club = await db.Clubs.AsNoTracking().FirstAsync(c => c.Id == scope.ClubId, ct);
             var settings = await db.Settings.AsNoTracking().Include(s => s.SettingsI18ns)
                 .Where(s => s.ClubId == scope.ClubId && SettingKeys.Contains(s.SettingKey))
                 .ToDictionaryAsync(s => s.SettingKey, StringComparer.Ordinal, ct);
@@ -106,14 +105,6 @@ public sealed partial class SiteSettingsRepository(ClubDbContext db, IQueryCache
 
             return new PublicSiteSettingsDto
             {
-                Brand = new PublicBrandDto
-                {
-                    LogoLightUrl = imageUrls.Resolve(club.LogoLightKey),
-                    LogoDarkUrl = imageUrls.Resolve(club.LogoDarkKey),
-                    FaviconUrl = imageUrls.Resolve(club.FaviconKey),
-                    BrandColor = club.BrandColor,
-                    BrandSecondaryColor = club.BrandSecondaryColor,
-                },
                 Maintenance = new PublicMaintenanceDto
                 {
                     Enabled = settings.TryGetValue(SiteSettingKeys.MaintenanceEnabled, out var m) && m.SettingValue == "1",

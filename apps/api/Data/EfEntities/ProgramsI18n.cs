@@ -14,6 +14,7 @@ public partial class ProgramsI18n
     public string? Intro { get; set; }
 
     public string? Content { get; set; }
+    public string? Audience { get; set; }
 
     public virtual TrainingProgram TrainingProgram { get; set; } = null!;
 }

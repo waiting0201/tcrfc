@@ -52,7 +52,9 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
         var ms = list[0];
         Assert.Equal("tcrfc", ms.GetProperty("club").GetProperty("code").GetString());
         Assert.False(string.IsNullOrEmpty(ms.GetProperty("club").GetProperty("name").GetString()));
-        Assert.False(string.IsNullOrEmpty(ms.GetProperty("club").GetProperty("brandColor").GetString())); // 卡面品牌色
+        // 🔴 主站規劃書 v3.20：後端不再提供標誌與品牌色（App 內建兩隊標誌與品牌色，以 club.code 對應）。
+        Assert.False(ms.GetProperty("club").TryGetProperty("brandColor", out _));
+        Assert.False(ms.GetProperty("club").TryGetProperty("logoLightUrl", out _));
         Assert.Equal("一般會員", ms.GetProperty("tierLabel").GetString());
         Assert.Equal("有效", ms.GetProperty("statusLabel").GetString());
         Assert.Equal("2026-27", ms.GetProperty("seasonCode").GetString());

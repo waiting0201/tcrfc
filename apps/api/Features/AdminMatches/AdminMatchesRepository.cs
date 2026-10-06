@@ -752,13 +752,19 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         {
             var input = goals[i];
             var player = await ResolveMatchPlayerAsync(matchTeams, input.PlayerId, FieldKey.Item("goals", i, "playerId"), cancellationToken);
+            if (!MatchGoalTypes.TryNormalize(input.GoalType, out var goalType))
+            {
+                throw new AdminMatchValidationException(
+                    "進球類型只能是「頭槌」「點球」「自由球」「烏龍球」「其他」，或留空（一般進球）。", FieldKey.Item("goals", i, "goalType"));
+            }
+
             var goal = new MatchGoal
             {
                 Id = Guid.NewGuid(),
                 MatchId = match.Id,
                 PlayerId = player.Id,
                 Minute = input.Minute,
-                GoalType = input.GoalType,
+                GoalType = goalType,
                 CreatedAt = now,
                 UpdatedAt = now,
             };

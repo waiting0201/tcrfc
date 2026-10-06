@@ -22,25 +22,8 @@ public sealed record ClubDto
     public required bool IsFallbackLocale { get; init; }
     public string? Description { get; init; }
     public required string Domain { get; init; }
-    public string? LogoLightKey { get; init; }
-    public string? LogoDarkKey { get; init; }
-    public string? FaviconKey { get; init; }
     public string? OgImageKey { get; init; }
-    public string? BrandColor { get; init; }
-    public string? BrandSecondaryColor { get; init; }
     public required string DefaultLocale { get; init; }
-
-    /// <summary>隊徽完整可公開存取網址（S1-12f 新增），由 <c>LogoLightKey</c> 經
-    /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出，<c>null</c>＝沒有隊徽物件鍵可用
-    /// （目前種子資料恆為此情形，見 <see cref="SchemaEligible"/> 說明）。</summary>
-    public string? LogoUrl { get; init; }
-
-    /// <summary><see cref="LogoDarkKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）——同一批
-    /// 「回傳未解析物件鍵」缺口盤點時一併補上，算法與 <see cref="LogoUrl"/> 相同。</summary>
-    public string? LogoDarkUrl { get; init; }
-
-    /// <summary><see cref="FaviconKey"/> 完整可公開存取網址（E-64 修正）。</summary>
-    public string? FaviconUrl { get; init; }
 
     /// <summary><see cref="OgImageKey"/> 完整可公開存取網址（E-64 修正）。⚠️ 這是俱樂部層級的
     /// 全站預設 OG 圖片物件鍵本身，跟 <c>Features/News/ArticleDetailDto.OgImageUrl</c>（單篇文章
@@ -50,11 +33,9 @@ public sealed record ClubDto
     public string? OgImageUrl { get; init; }
 
     /// <summary>GEO-05（S1-12c／S1-12f）：這個俱樂部的資料是否足以輸出 Organization
-    /// 結構化資料（<see cref="SchemaType.Organization"/> 必填欄位——名稱、網域、隊徽——齊全）。
+    /// 結構化資料（<see cref="SchemaType.Organization"/> 必填欄位——名稱、網域——齊全）。
     /// 判斷條件單一來源見 <see cref="SchemaRequiredFields"/>，這裡不重新判斷一次（E-39）。
-    /// 🔴 **已知現況**：<c>clubs.logo_light_key</c> 目前的種子資料與既有後台（<c>AdminClubDetailDto</c>
-    /// 對標誌三組欄位刻意唯讀）皆未提供寫入路徑，本欄位在兩個俱樂部現況下恆為 <c>false</c>——
-    /// 這是 GEO-05「缺漏者不輸出該型別」的正確行為，不是本次任務的缺陷，回報見
-    /// apps/web/README.md「S1-12f」節。</summary>
+    /// 🔴 主站規劃書 v3.20：標誌、Favicon、品牌色由前台靜態資產與 CSS 定義、後台不設定，
+    /// 本 DTO 不再含標誌欄位，Organization 的 <c>logo</c> 由前台以靜態資產輸出，故不再是資料庫必填欄位。</summary>
     public required bool SchemaEligible { get; init; }
 }

@@ -14,7 +14,12 @@ public sealed record AdminProposalFileDto
 public sealed record AdminProposalListItemDto
 {
     public required Guid Id { get; init; }
+
+    /// <summary>繁中提案名稱（<c>proposals_i18n(zh-Hant)</c>）。</summary>
     public required string Title { get; init; }
+
+    /// <summary>英文提案名稱（<c>proposals_i18n(en)</c>）；未填為 <c>null</c>。</summary>
+    public string? TitleEn { get; init; }
     public required int VersionNo { get; init; }
     public required string Status { get; init; }
     public required IReadOnlyList<string> Locales { get; init; }
@@ -29,6 +34,7 @@ public sealed record AdminProposalDetailDto
 {
     public required Guid Id { get; init; }
     public required string Title { get; init; }
+    public string? TitleEn { get; init; }
     public required int VersionNo { get; init; }
     public required string Status { get; init; }
     public required IReadOnlyList<AdminProposalFileDto> Files { get; init; }
@@ -40,6 +46,9 @@ public sealed record AdminProposalDetailDto
 public sealed record UpsertAdminProposalRequest
 {
     public required string Title { get; init; }
+
+    /// <summary>英文提案名稱（選填，最長 128 字）。</summary>
+    public string? TitleEn { get; init; }
 
     /// <summary>提案版本號（≥ 1），A/B 版本可用不同標題或不同版本號區分。</summary>
     public int VersionNo { get; init; } = 1;

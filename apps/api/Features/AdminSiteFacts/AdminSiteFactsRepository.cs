@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Tcrfc.Api.Common;
+using Tcrfc.Api.Features.SiteFacts;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
@@ -25,6 +28,9 @@ namespace Tcrfc.Api.Features.AdminSiteFacts;
 /// - <c>site.contact_phone</c>（單一值，電話號碼，非人類語言）
 /// - <c>site.contact_hours</c>（逐語系——營業時間是人類可讀文字，例如「平日 09:00–18:00」）
 /// - <c>site.home_venue_ids</c>（單一值，逗號分隔 <c>venues.id</c> 清單，依顯示順序，第一筆＝主要主場）
+/// - <c>site.contact_email</c>、<c>site.social_facebook|instagram|youtube|line</c>（單一值，C-2）
+/// - <c>site.contact_departments</c>（單一值，JSON 陣列，見 <see cref="SiteContactSupport"/>）
+/// - <c>site.footer_blurb</c>（逐語系，頁尾品牌簡介）
 /// - <c>site.blue_whale_site_url</c>（單一值，<c>https://</c> 網址，非人類語言，概念上只屬於
 ///   <c>tcrfc</c> 這個俱樂部，見 <see cref="AdminSiteFactsDto.BlueWhaleSiteUrl"/> 檔頭）
 ///
@@ -35,7 +41,7 @@ namespace Tcrfc.Api.Features.AdminSiteFacts;
 /// 從清單移除一筆場地**不會刪除** <c>Venue</c> 列本身（可能仍被其他俱樂部或其他資料引用，例如
 /// 賽事、梯次的地點），只是不再視為這個俱樂部的主場。
 /// </summary>
-public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
+public sealed class AdminSiteFactsRepository(ClubDbContext dbContext, IQueryCache cache)
 {
     private const string KeyFoundedYear = "site.founded_year";
     private const string KeyFoundingDate = "site.founding_date";
@@ -61,6 +67,7 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
         KeyFoundedYear, KeyFoundingDate, KeyFoundingDateDisplay, KeyFoundingTitle,
         KeyLeagueName, KeyLeagueShortName, KeySquadStructureSummary, KeySquadCodes,
         KeyContactPhone, KeyContactHours, KeyHomeVenueIds, KeyBlueWhaleSiteUrl,
+        .. SiteContactSupport.Keys,
     ];
 
     public async Task<AdminSiteFactsDto> GetAsync(AdminClubScope scope, CancellationToken cancellationToken)
@@ -110,6 +117,20 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
 
         ValidateBlueWhaleSiteUrl(request.BlueWhaleSiteUrl);
 
+        var contactEmail = AdminInput.OptionalEmail(request.ContactEmail, "聯絡 Email", "contactEmail");
+        var facebook = ValidateSocialUrl(request.FacebookUrl, "Facebook 連結", "facebookUrl", ["facebook.com", "fb.com", "fb.me"]);
+        var instagram = ValidateSocialUrl(request.InstagramUrl, "Instagram 連結", "instagramUrl", ["instagram.com", "instagr.am"]);
+        var youtube = ValidateSocialUrl(request.YoutubeUrl, "YouTube 連結", "youtubeUrl", ["youtube.com", "youtu.be"]);
+        var line = ValidateSocialUrl(request.LineUrl, "LINE 官方帳號連結", "lineUrl", ["line.me", "lin.ee"]);
+        var footerBlurbZh = AdminInput.OptionalText(request.FooterBlurbZh, "頁尾品牌簡介（中文）", 500, "footerBlurbZh");
+        var footerBlurbEn = AdminInput.OptionalText(request.FooterBlurbEn, "頁尾品牌簡介（英文）", 1000, "footerBlurbEn");
+        if (footerBlurbZh is null && footerBlurbEn is not null)
+        {
+            throw new AdminSiteFactsValidationException("填了英文頁尾品牌簡介時，中文也必須填寫。", "footerBlurbZh");
+        }
+
+        var departments = ValidateDepartments(request.Departments);
+
         var settings = await dbContext.Settings
             .Include(s => s.SettingsI18ns)
             .Where(s => s.ClubId == scope.ClubId && AllKeys.Contains(s.SettingKey))
@@ -126,11 +147,19 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
         UpsertValue(settings, KeyContactPhone, scope.ClubId, request.ContactPhone, operatorId);
         UpsertI18nOptional(settings, KeyContactHours, scope.ClubId, request.ContactHoursZh, request.ContactHoursEn, operatorId);
         UpsertValue(settings, KeyBlueWhaleSiteUrl, scope.ClubId, request.BlueWhaleSiteUrl, operatorId);
+        UpsertValue(settings, SiteContactSupport.KeyContactEmail, scope.ClubId, contactEmail, operatorId);
+        UpsertValue(settings, SiteContactSupport.KeySocialFacebook, scope.ClubId, facebook, operatorId);
+        UpsertValue(settings, SiteContactSupport.KeySocialInstagram, scope.ClubId, instagram, operatorId);
+        UpsertValue(settings, SiteContactSupport.KeySocialYoutube, scope.ClubId, youtube, operatorId);
+        UpsertValue(settings, SiteContactSupport.KeySocialLine, scope.ClubId, line, operatorId);
+        UpsertValue(settings, SiteContactSupport.KeyDepartments, scope.ClubId, SiteContactSupport.Serialize(departments), operatorId);
+        UpsertI18nOptional(settings, SiteContactSupport.KeyFooterBlurb, scope.ClubId, footerBlurbZh, footerBlurbEn, operatorId);
 
         var venueIds = await UpsertHomeVenuesAsync(homeVenueRequests, operatorId, cancellationToken);
         UpsertValue(settings, KeyHomeVenueIds, scope.ClubId, string.Join(',', venueIds), operatorId);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(SiteFactsRepository.Entity, scope.ClubCode, cancellationToken);
 
         return await GetAsync(scope, cancellationToken);
     }
@@ -148,6 +177,69 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
         {
             throw new AdminSiteFactsValidationException("台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。", "blueWhaleSiteUrl");
         }
+    }
+
+    /// <summary>社群連結：空白＝未設定；有值必須是 https 絕對網址，且主機名稱等於或為
+    /// <paramref name="allowedDomains"/> 任一網域的子網域（避免 <c>evilfacebook.com</c> 之類的假冒）。
+    /// 不接受帳號密碼（userinfo）。</summary>
+    internal static string? ValidateSocialUrl(string? value, string label, string field, string[] allowedDomains)
+    {
+        var text = AdminInput.OptionalText(value, label, 500, field);
+        if (text is null)
+        {
+            return null;
+        }
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(uri.UserInfo))
+        {
+            throw new AdminSiteFactsValidationException($"{label}必須是 https:// 開頭的完整網址。", field);
+        }
+
+        var host = uri.IdnHost.ToLowerInvariant();
+        if (!allowedDomains.Any(d => host == d || host.EndsWith("." + d, StringComparison.Ordinal)))
+        {
+            throw new AdminSiteFactsValidationException($"{label}的網址不屬於該平台（應為 {string.Join("、", allowedDomains)} 網域）。", field);
+        }
+
+        return text;
+    }
+
+    private const int MaxDepartments = 20;
+
+    private static List<StoredDepartment> ValidateDepartments(IReadOnlyList<UpdateSiteFactDepartmentRequest>? items)
+    {
+        var result = new List<StoredDepartment>();
+        if (items is null || items.Count == 0)
+        {
+            return result;
+        }
+
+        if (items.Count > MaxDepartments)
+        {
+            throw new AdminSiteFactsValidationException($"各部門窗口最多 {MaxDepartments} 筆。", "departments");
+        }
+
+        for (var i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            var nameZh = AdminInput.RequireText(item.NameZh, "部門名稱（中文）", 50, FieldKey.Item("departments", i, "nameZh"));
+            var nameEn = AdminInput.OptionalText(item.NameEn, "部門名稱（英文）", 100, FieldKey.Item("departments", i, "nameEn"));
+            var email = AdminInput.OptionalEmail(item.Email, "窗口 Email", FieldKey.Item("departments", i, "email"));
+            var ext = AdminInput.OptionalText(item.PhoneExtension, "電話分機", 32, FieldKey.Item("departments", i, "phoneExtension"));
+            if (ext is not null && !ext.All(c => char.IsAsciiDigit(c) || c is '+' or '-' or '#' or ' ' or '(' or ')'))
+            {
+                throw new AdminSiteFactsValidationException("電話分機只能包含數字、+、-、#、空白與括號。", FieldKey.Item("departments", i, "phoneExtension"));
+            }
+
+            if (email is null && ext is null)
+            {
+                throw new AdminSiteFactsValidationException("每個部門窗口至少要填 Email 或電話分機其中一項。", FieldKey.Item("departments", i, "email"));
+            }
+
+            result.Add(new StoredDepartment(nameZh, nameEn, email, ext));
+        }
+
+        return result;
     }
 
     private static string? JoinCodes(IReadOnlyList<string>? codes)
@@ -331,6 +423,16 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
             ContactHoursZh = I18n(KeyContactHours, RequestLocale.DefaultDbLocale),
             ContactHoursEn = I18n(KeyContactHours, "en"),
             BlueWhaleSiteUrl = Value(KeyBlueWhaleSiteUrl),
+            ContactEmail = Value(SiteContactSupport.KeyContactEmail),
+            FacebookUrl = Value(SiteContactSupport.KeySocialFacebook),
+            InstagramUrl = Value(SiteContactSupport.KeySocialInstagram),
+            YoutubeUrl = Value(SiteContactSupport.KeySocialYoutube),
+            LineUrl = Value(SiteContactSupport.KeySocialLine),
+            Departments = SiteContactSupport.Parse(Value(SiteContactSupport.KeyDepartments))
+                .Select(d => new AdminSiteFactDepartmentDto { NameZh = d.NameZh, NameEn = d.NameEn, Email = d.Email, PhoneExtension = d.PhoneExtension })
+                .ToList(),
+            FooterBlurbZh = I18n(SiteContactSupport.KeyFooterBlurb, RequestLocale.DefaultDbLocale),
+            FooterBlurbEn = I18n(SiteContactSupport.KeyFooterBlurb, "en"),
         };
     }
 

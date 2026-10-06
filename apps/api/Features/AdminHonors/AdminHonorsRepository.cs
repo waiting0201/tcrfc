@@ -39,13 +39,18 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
         var rows = await query.OrderByDescending(a => a.Year).ThenByDescending(a => a.RowSeq)
             .Select(a => new
             {
-                a.Id, a.SeasonId, SeasonCode = a.Season.Code, a.TeamId, TeamCode = a.Team.Code, a.Year, a.CompetitionName, a.Placing, a.UpdatedAt,
+                a.Id, a.SeasonId, SeasonCode = a.Season.Code, a.TeamId, TeamCode = a.Team.Code, a.Year, a.UpdatedAt,
+                CompetitionNameZh = a.AchievementsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.CompetitionName).FirstOrDefault(),
+                PlacingZh = a.AchievementsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Placing).FirstOrDefault(),
+                CompetitionNameEn = a.AchievementsI18ns.Where(i => i.Locale == "en").Select(i => i.CompetitionName).FirstOrDefault(),
+                PlacingEn = a.AchievementsI18ns.Where(i => i.Locale == "en").Select(i => i.Placing).FirstOrDefault(),
                 TeamNameZh = a.Team.TeamsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
             }).ToListAsync(cancellationToken);
         return rows.Select(r => new AdminAchievementDto
         {
             Id = r.Id, SeasonId = r.SeasonId, SeasonCode = r.SeasonCode, TeamId = r.TeamId, TeamCode = r.TeamCode, TeamNameZh = r.TeamNameZh,
-            Year = r.Year, CompetitionName = r.CompetitionName, Placing = r.Placing, UpdatedAt = r.UpdatedAt,
+            Year = r.Year, CompetitionName = r.CompetitionNameZh, Placing = r.PlacingZh,
+            CompetitionNameEn = r.CompetitionNameEn, PlacingEn = r.PlacingEn, UpdatedAt = r.UpdatedAt,
         }).ToList();
     }
 
@@ -66,10 +71,10 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
         {
             Id = Guid.NewGuid(), ClubId = scope.ClubId, SeasonId = season.Id, TeamId = team.Id,
             Year = request.Year ?? season.StartOn.Year,
-            CompetitionName = request.CompetitionName.Trim(), Placing = request.Placing.Trim(),
             CreatedAt = now, UpdatedAt = now, CreatedBy = operatorId, UpdatedBy = operatorId,
         };
         dbContext.Achievements.Add(achievement);
+        SetAchievementI18n(achievement, request);
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync(CacheEntity, scope.ClubCode, cancellationToken);
         return (await GetAchievementAsync(scope, achievement.Id, cancellationToken))!;
@@ -79,7 +84,7 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
         AdminClubScope scope, TeamRowScope rowScope, Guid id, UpsertAdminAchievementRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
         var (season, team) = await ValidateAchievementAsync(scope, request, cancellationToken);
-        var achievement = await dbContext.Achievements.Include(a => a.Team)
+        var achievement = await dbContext.Achievements.Include(a => a.Team).Include(a => a.AchievementsI18ns)
             .FirstOrDefaultAsync(a => a.Id == id && a.ClubId == scope.ClubId, cancellationToken);
         if (achievement is null)
         {
@@ -95,8 +100,7 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
         achievement.SeasonId = season.Id;
         achievement.TeamId = team.Id;
         achievement.Year = request.Year ?? season.StartOn.Year;
-        achievement.CompetitionName = request.CompetitionName.Trim();
-        achievement.Placing = request.Placing.Trim();
+        SetAchievementI18n(achievement, request);
         achievement.UpdatedAt = DateTime.UtcNow;
         achievement.UpdatedBy = operatorId;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -124,11 +128,43 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
         return true;
     }
 
+    /// <summary>繁中列必填（賽事名稱與名次）；英文列只在有任一英文欄位時存在，兩者皆空就移除該列（前台回退繁中）。</summary>
+    private void SetAchievementI18n(Achievement achievement, UpsertAdminAchievementRequest request)
+    {
+        UpsertAchievementRow(achievement, RequestLocale.DefaultDbLocale, request.CompetitionName.Trim(), request.Placing.Trim());
+        var nameEn = string.IsNullOrWhiteSpace(request.CompetitionNameEn) ? null : request.CompetitionNameEn.Trim();
+        var placingEn = string.IsNullOrWhiteSpace(request.PlacingEn) ? null : request.PlacingEn.Trim();
+        if (nameEn is not null || placingEn is not null)
+        {
+            UpsertAchievementRow(achievement, "en", nameEn, placingEn);
+        }
+        else if (achievement.AchievementsI18ns.FirstOrDefault(i => i.Locale == "en") is { } en)
+        {
+            dbContext.Remove(en);
+        }
+    }
+
+    private void UpsertAchievementRow(Achievement achievement, string locale, string? competitionName, string? placing)
+    {
+        var row = achievement.AchievementsI18ns.FirstOrDefault(i => i.Locale == locale);
+        if (row is null)
+        {
+            row = new AchievementsI18n { AchievementId = achievement.Id, Locale = locale };
+            achievement.AchievementsI18ns.Add(row);
+            dbContext.AchievementsI18ns.Add(row);
+        }
+
+        row.CompetitionName = competitionName;
+        row.Placing = placing;
+    }
+
     private async Task<(Season Season, Team Team)> ValidateAchievementAsync(
         AdminClubScope scope, UpsertAdminAchievementRequest request, CancellationToken cancellationToken)
     {
         AdminInput.RequireText(request.CompetitionName, "賽事名稱", 128, "competitionName");
-        AdminInput.RequireText(request.Placing, "名次", 32, "placing");
+        AdminInput.RequireText(request.Placing, "名次", 64, "placing");
+        AdminInput.OptionalText(request.CompetitionNameEn, "賽事名稱（英文）", 128, "competitionNameEn");
+        AdminInput.OptionalText(request.PlacingEn, "名次（英文）", 64, "placingEn");
         if (request.Year is < 1900 or > 2200)
         {
             throw new AdminValidationException("年份必須是合理的西元年份。", "year");

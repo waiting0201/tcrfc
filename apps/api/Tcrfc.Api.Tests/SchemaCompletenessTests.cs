@@ -113,12 +113,14 @@ public sealed class SchemaCompletenessTests
     }
 
     [Fact]
-    public void Organization_與_SportsTeam_都要求name_url_logo三欄()
+    public void Organization_與_SportsTeam_都只要求name_url兩欄_標誌由前台靜態資產輸出()
     {
         var incomplete = new Dictionary<string, object?> { ["name"] = "台中磐石", ["url"] = null, ["logo"] = null };
 
-        Assert.Equal(2, SchemaRequiredFields.GetMissingFields(SchemaType.Organization, incomplete).Count);
-        Assert.Equal(2, SchemaRequiredFields.GetMissingFields(SchemaType.SportsTeam, incomplete).Count);
+        // v3.20：logo 不再是資料庫必填欄位（clubs 已無標誌欄位），缺 url 才算缺漏。
+        Assert.Single(SchemaRequiredFields.GetMissingFields(SchemaType.Organization, incomplete));
+        Assert.Single(SchemaRequiredFields.GetMissingFields(SchemaType.SportsTeam, incomplete));
+        Assert.True(SchemaRequiredFields.IsComplete(SchemaType.Organization, new Dictionary<string, object?> { ["name"] = "台中磐石", ["url"] = "https://example.test" }));
     }
 
     [Fact]

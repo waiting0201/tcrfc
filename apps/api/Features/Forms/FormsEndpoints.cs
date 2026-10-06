@@ -30,12 +30,12 @@ public static class FormsEndpoints
 
         // POST /api/v1/{club}/forms/{formCode}/submissions
         app.MapPost("/api/v1/{club}/forms/{formCode}/submissions", async (
-            string club, string formCode, SubmitFormRequest request, HttpContext httpContext,
+            string club, string formCode, string? lang, SubmitFormRequest request, HttpContext httpContext,
             IClubResolver clubResolver, FormsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await clubResolver.ResolveAsync(club, cancellationToken);
             var result = await repository.SubmitAsync(
-                scope, formCode, request, cancellationToken,
+                scope, formCode, request.Lang is null && lang is not null ? request with { Lang = lang } : request, cancellationToken,
                 captchaRemoteIp: ClientIpResolver.Resolve(httpContext), verifyCaptcha: true);
             return Results.Ok(result);
         })

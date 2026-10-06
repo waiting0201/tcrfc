@@ -12,6 +12,7 @@ public partial class MembershipPlansI18n
     public string? Name { get; set; }
 
     public string? BenefitNote { get; set; }
+    public string? MidSeasonRule { get; set; }
 
     public virtual MembershipPlan MembershipPlan { get; set; } = null!;
 }

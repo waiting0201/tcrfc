@@ -82,7 +82,7 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         };
         Apply(plan, request);
         db.MembershipPlans.Add(plan);
-        SetI18n(plan, request.Content);
+        SetI18n(plan, request);
         await db.SaveChangesAsync(cancellationToken);
         return (await GetByIdAsync(scope, plan.Id, cancellationToken))!;
     }
@@ -116,7 +116,7 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         Apply(plan, request);
         plan.UpdatedAt = DateTime.UtcNow;
         plan.UpdatedBy = operatorId;
-        SetI18n(plan, request.Content);
+        SetI18n(plan, request);
         await db.SaveChangesAsync(cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
     }
@@ -201,6 +201,7 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         }
 
         AdminInput.OptionalText(request.MidSeasonRule, "季中入會計價規則", 255, "midSeasonRule");
+        AdminInput.OptionalText(request.MidSeasonRuleEn, "季中入會計價規則（英文）", 255, "midSeasonRuleEn");
         AdminInput.DateRange(request.StartsOn, request.EndsOn, "方案期間", "endsOn");
         AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」", "status");
         AdminInput.RequireText(request.Content.Zh.Name, "中文方案名稱", 64, "nameZh");
@@ -217,20 +218,24 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         plan.Fee = request.Fee;
         plan.CardQuota = request.CardQuota;
         plan.JerseyQuota = request.JerseyQuota;
-        plan.MidSeasonRule = AdminInput.OptionalText(request.MidSeasonRule, "季中入會計價規則", 255, "midSeasonRule");
         plan.StartsOn = request.StartsOn;
         plan.EndsOn = request.EndsOn;
         plan.SortOrder = request.SortOrder;
         plan.Status = request.Status;
     }
 
-    private void SetI18n(MembershipPlan plan, AdminPlanContentInput content)
+    /// <summary>繁中列必存在；英文列在「有英文方案名稱」或「有英文季中入會規則」時存在，兩者皆無就移除（前台回退繁中）。</summary>
+    private void SetI18n(MembershipPlan plan, UpsertAdminPlanRequest request)
     {
-        Upsert(plan, RequestLocale.DefaultDbLocale, content.Zh);
+        var content = request.Content;
+        var ruleZh = AdminInput.OptionalText(request.MidSeasonRule, "季中入會計價規則", 255, "midSeasonRule");
+        var ruleEn = AdminInput.OptionalText(request.MidSeasonRuleEn, "季中入會計價規則（英文）", 255, "midSeasonRuleEn");
+        Upsert(plan, RequestLocale.DefaultDbLocale, content.Zh, ruleZh);
         var en = plan.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == "en");
-        if (content.En is not null && !string.IsNullOrWhiteSpace(content.En.Name))
+        var hasEnName = content.En is not null && !string.IsNullOrWhiteSpace(content.En.Name);
+        if (hasEnName || ruleEn is not null)
         {
-            Upsert(plan, "en", content.En);
+            Upsert(plan, "en", hasEnName ? content.En : null, ruleEn);
         }
         else if (en is not null)
         {
@@ -238,7 +243,7 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         }
     }
 
-    private void Upsert(MembershipPlan plan, string locale, AdminPlanLocaleContent content)
+    private void Upsert(MembershipPlan plan, string locale, AdminPlanLocaleContent? content, string? midSeasonRule)
     {
         var row = plan.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == locale);
         if (row is null)
@@ -248,8 +253,9 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
             db.MembershipPlansI18ns.Add(row);
         }
 
-        row.Name = content.Name.Trim();
-        row.BenefitNote = string.IsNullOrWhiteSpace(content.BenefitNote) ? null : content.BenefitNote;
+        row.Name = content?.Name.Trim();
+        row.BenefitNote = string.IsNullOrWhiteSpace(content?.BenefitNote) ? null : content.BenefitNote;
+        row.MidSeasonRule = midSeasonRule;
     }
 
     private async Task<Season> ResolveSeasonAsync(AdminClubScope scope, Guid seasonId, CancellationToken cancellationToken)
@@ -272,11 +278,11 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         return new AdminPlanDetailDto
         {
             Id = plan.Id, SeasonId = plan.SeasonId, SeasonCode = plan.Season.Code, Code = plan.Code, Fee = plan.Fee,
-            CardQuota = plan.CardQuota, JerseyQuota = plan.JerseyQuota, MidSeasonRule = plan.MidSeasonRule,
+            CardQuota = plan.CardQuota, JerseyQuota = plan.JerseyQuota, MidSeasonRule = zh?.MidSeasonRule, MidSeasonRuleEn = en?.MidSeasonRule,
             StartsOn = plan.StartsOn, EndsOn = plan.EndsOn, SortOrder = plan.SortOrder, Status = plan.Status,
             StatusLabel = StatusLabel(plan.Status),
             Zh = new AdminPlanLocaleContent { Name = zh?.Name ?? "", BenefitNote = zh?.BenefitNote },
-            En = en is null ? null : new AdminPlanLocaleContent { Name = en.Name ?? "", BenefitNote = en.BenefitNote },
+            En = en is null || en.Name is null ? null : new AdminPlanLocaleContent { Name = en.Name, BenefitNote = en.BenefitNote },
             MembershipCount = membershipCount, CreatedAt = plan.CreatedAt, UpdatedAt = plan.UpdatedAt,
         };
     }

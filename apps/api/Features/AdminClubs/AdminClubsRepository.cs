@@ -72,8 +72,6 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
             Id = Guid.NewGuid(),
             Code = request.Code,
             Domain = request.Domain,
-            BrandColor = request.BrandColor,
-            BrandSecondaryColor = request.BrandSecondaryColor,
             InvoiceTitle = request.InvoiceTitle,
             TaxId = request.TaxId,
             IsCollectingSubject = request.IsCollectingSubject,
@@ -118,8 +116,6 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
         }
 
         club.Domain = request.Domain;
-        club.BrandColor = request.BrandColor;
-        club.BrandSecondaryColor = request.BrandSecondaryColor;
         club.InvoiceTitle = request.InvoiceTitle;
         club.TaxId = request.TaxId;
         club.IsCollectingSubject = request.IsCollectingSubject;
@@ -216,12 +212,7 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
             Id = club.Id,
             Code = club.Code,
             Domain = club.Domain,
-            LogoLightKey = club.LogoLightKey,
-            LogoDarkKey = club.LogoDarkKey,
-            FaviconKey = club.FaviconKey,
             OgImageKey = club.OgImageKey,
-            BrandColor = club.BrandColor,
-            BrandSecondaryColor = club.BrandSecondaryColor,
             InvoiceTitle = club.InvoiceTitle,
             TaxId = club.TaxId,
             IsCollectingSubject = club.IsCollectingSubject,

@@ -71,7 +71,22 @@ public sealed record AdminOrderInvoiceDto
     public string? InvoiceNo { get; init; }
     public DateTime? IssuedAt { get; init; }
     public required string IssueStatus { get; init; }
+    public string IssueStatusLabel { get; init; } = string.Empty;
     public required string VoidStatus { get; init; }
+    public string VoidStatusLabel { get; init; } = string.Empty;
+
+    /// <summary>開立方式代碼：<c>mobile_barcode</c>（手機條碼載具）／<c>citizen_cert</c>（自然人憑證載具）／<c>tax_id</c>（統編）／<c>donation</c>（捐贈）；都沒有時為 <c>null</c>。</summary>
+    public string? Type { get; init; }
+    public string? TypeLabel { get; init; }
+
+    /// <summary>載具號碼。視同個資：沒有 <c>shop.order.reveal</c> 時只回遮罩值（見 <see cref="AdminOrderDetailDto.IsMasked"/>）。</summary>
+    public string? CarrierId { get; init; }
+
+    /// <summary>公司統一編號（公開資訊，不遮罩）。</summary>
+    public string? TaxId { get; init; }
+
+    /// <summary>捐贈碼（公開資訊，不遮罩）。</summary>
+    public string? DonationCode { get; init; }
 }
 
 public sealed record AdminOrderRefundSummaryDto
@@ -119,6 +134,9 @@ public sealed record AdminOrderDetailDto
     public string? RecipientName { get; init; }
     public string? RecipientPhone { get; init; }
     public string? RecipientAddress { get; init; }
+
+    /// <summary>買家 Email（客服聯絡用，訪客單沒有其他聯絡方式）。視同個資：沒有 <c>shop.order.reveal</c> 時回遮罩值。</summary>
+    public string? BuyerEmail { get; init; }
     public string? CustomerNote { get; init; }
     public string? InternalNote { get; init; }
     public required string SettlementStatus { get; init; }

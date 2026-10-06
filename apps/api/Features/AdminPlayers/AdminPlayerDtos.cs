@@ -122,3 +122,46 @@ public sealed record UpdateAdminPlayerRequest
     /// <summary>true＝移除目前的照片，不接受同時夾帶新檔案（比照 <c>UpdateArticleRequest.RemoveCover</c>）。</summary>
     public bool RemovePhoto { get; init; }
 }
+
+// ═══════════════════════════ 賽季數據（B-13，規劃書 C2「可手動輸入或由賽事自動彙總」）═══════════════════════════
+
+/// <summary>某球員在某賽季的數據列。<see cref="Source"/>：<c>manual</c>（已手動輸入，公開端以它為準）／<c>auto</c>（沒有手動數據、
+/// 但有已結束賽事可彙總）／<c>none</c>（兩者都沒有）。<see cref="Auto"/> 是「清除手動數據後會回到的自動彙總值」，供畫面對照。</summary>
+public sealed record AdminPlayerSeasonStatDto
+{
+    public required Guid SeasonId { get; init; }
+    public required string SeasonCode { get; init; }
+    public required DateOnly StartOn { get; init; }
+    public required DateOnly EndOn { get; init; }
+    public required string Source { get; init; }
+    public AdminPlayerSeasonStatValues? Manual { get; init; }
+    public AdminPlayerSeasonStatValues? Auto { get; init; }
+}
+
+/// <summary>五個數據欄位。自動彙總沒有助攻資料來源，<c>Assists</c> 恆為 <c>null</c>。</summary>
+public sealed record AdminPlayerSeasonStatValues
+{
+    public required int Appearances { get; init; }
+    public required int Goals { get; init; }
+    public int? Assists { get; init; }
+    public required int YellowCards { get; init; }
+    public required int RedCards { get; init; }
+}
+
+public sealed record AdminPlayerSeasonStatsDto
+{
+    public required Guid PlayerId { get; init; }
+
+    /// <summary>該俱樂部全部賽季（新到舊），每個賽季一列。</summary>
+    public required IReadOnlyList<AdminPlayerSeasonStatDto> Items { get; init; }
+}
+
+/// <summary>手動設定某球員某賽季的數據（整組取代）。五欄皆必填、不可為負、上限 9999。</summary>
+public sealed record SetAdminPlayerSeasonStatRequest
+{
+    public required int Appearances { get; init; }
+    public required int Goals { get; init; }
+    public required int Assists { get; init; }
+    public required int YellowCards { get; init; }
+    public required int RedCards { get; init; }
+}

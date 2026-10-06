@@ -453,16 +453,8 @@ data class ClubDto(
     val isFallbackLocale: Boolean,
     val description: String? = null,
     val domain: String,
-    val logoLightKey: String? = null,
-    val logoDarkKey: String? = null,
-    val faviconKey: String? = null,
     val ogImageKey: String? = null,
-    val brandColor: String? = null,
-    val brandSecondaryColor: String? = null,
     val defaultLocale: String,
-    val logoUrl: String? = null,
-    val logoDarkUrl: String? = null,
-    val faviconUrl: String? = null,
     val ogImageUrl: String? = null,
     val schemaEligible: Boolean,
 )
@@ -757,10 +749,6 @@ data class MemberChangePasswordRequest(
 data class MemberClubBrandDto(
     val code: String,
     val name: String,
-    val logoLightUrl: String? = null,
-    val logoDarkUrl: String? = null,
-    val brandColor: String? = null,
-    val brandSecondaryColor: String? = null,
 )
 
 @Serializable
@@ -1367,6 +1355,7 @@ data class PlayerCareerStatsDto(
 @Serializable
 data class PlayerDto(
     val id: String,
+    val status: String? = null,
     val slug: String,
     val isFallbackLocale: Boolean,
     val teamCode: String,
@@ -1528,15 +1517,6 @@ data class ProposalDownloadResultDto(
 )
 
 @Serializable
-data class PublicBrandDto(
-    val logoLightUrl: String? = null,
-    val logoDarkUrl: String? = null,
-    val faviconUrl: String? = null,
-    val brandColor: String? = null,
-    val brandSecondaryColor: String? = null,
-)
-
-@Serializable
 data class PublicCalendarEventDto(
     val sourceType: String,
     val id: String,
@@ -1558,6 +1538,11 @@ data class PublicCalendarEventDto(
     val originalMatchOn: String? = null,
     val originalKickoff: String? = null,
     val eventTypeCode: String? = null,
+    val eventTypeName: String? = null,
+    val eventTypeColour: String? = null,
+    val eventTypeIcon: String? = null,
+    val isRecurring: Boolean? = null,
+    val occurrenceId: String? = null,
     val description: String? = null,
     val ctaUrl: String? = null,
     val coverKey: String? = null,
@@ -1618,6 +1603,7 @@ data class PublicFormDto(
     val formNameZh: String,
     val formNameEn: String,
     val captchaEnabled: Boolean,
+    val redirectPath: String? = null,
     val fields: List<PublicFormFieldDto>,
 )
 
@@ -1736,12 +1722,29 @@ data class PublicSiteFactContactDto(
     val address: String? = null,
     val phone: String? = null,
     val hours: String? = null,
+    val email: String? = null,
+    val departments: List<PublicSiteFactDepartmentDto>,
+)
+
+@Serializable
+data class PublicSiteFactDepartmentDto(
+    val name: String,
+    val email: String? = null,
+    val phoneExtension: String? = null,
 )
 
 @Serializable
 data class PublicSiteFactLeagueDto(
     val name: String? = null,
     val shortName: String? = null,
+)
+
+@Serializable
+data class PublicSiteFactSocialDto(
+    val facebook: String? = null,
+    val instagram: String? = null,
+    val youtube: String? = null,
+    val line: String? = null,
 )
 
 @Serializable
@@ -1763,11 +1766,12 @@ data class PublicSiteFactsDto(
     val squadCodes: List<String>,
     val contact: PublicSiteFactContactDto,
     val blueWhaleSiteUrl: String? = null,
+    val social: PublicSiteFactSocialDto,
+    val footerBlurb: String? = null,
 )
 
 @Serializable
 data class PublicSiteSettingsDto(
-    val brand: PublicBrandDto,
     val maintenance: PublicMaintenanceDto,
     val languages: List<PublicLanguageDto>,
     val fallbackMode: String,
@@ -2194,6 +2198,7 @@ data class SubmitFormRequest(
     val utmSource: String? = null,
     val utmCampaign: String? = null,
     val website: String? = null,
+    val lang: String? = null,
     val turnstileToken: String? = null,
 )
 
@@ -2248,7 +2253,6 @@ data class TeamDto(
     val isFallbackLocale: Boolean,
     val intro: String? = null,
     val heroUrl: String? = null,
-    val logoUrl: String? = null,
     val schemaEligible: Boolean,
 )
 

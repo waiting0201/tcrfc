@@ -13,8 +13,6 @@ public partial class Standing
 
     public Guid SeasonId { get; set; }
 
-    public string TeamName { get; set; } = null!;
-
     public int? Rank { get; set; }
 
     public int? Played { get; set; }
@@ -34,6 +32,7 @@ public partial class Standing
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
     public virtual Season Season { get; set; } = null!;
+    public virtual ICollection<StandingsI18n> StandingsI18ns { get; set; } = new List<StandingsI18n>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 }

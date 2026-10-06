@@ -56,6 +56,7 @@ using Tcrfc.Api.Features.AdminTrials;
 using Tcrfc.Api.Features.AdminPrograms;
 using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
+using Tcrfc.Api.Features.AdminSeasons;
 using Tcrfc.Api.Features.AdminSeo;
 using Tcrfc.Api.Features.AdminSessions;
 using Tcrfc.Api.Features.AdminSiteFacts;
@@ -250,6 +251,7 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Programs.ProgramsRepository>();
 
 // ── S1-10：G1 表單設計器／G2 詢問收件匣 ＋ 10 表單中心公開讀取與送出 ──────────────
 builder.Services.AddScoped<AdminFormsRepository>();
+builder.Services.AddScoped<AdminSeasonsRepository>();
 builder.Services.AddScoped<AdminEnquiriesRepository>();
 // 公開表單的 Cloudflare Turnstile 驗證：設了 TURNSTILE_SECRET_KEY 才啟用，否則放行（只剩 IP 限流＋honeypot）。
 {
@@ -1034,6 +1036,7 @@ app.MapAdminRegistrationsEndpoints();
 
 // ── S1-10：G1 表單設計器／G2 詢問收件匣 ──────────────────────────────────
 app.MapAdminFormsEndpoints();
+app.MapAdminSeasonsEndpoints();
 app.MapAdminEnquiriesEndpoints();
 
 // ── S1-11：L1 行事曆總覽／L2 自建事件 ────────────────────────────────────

@@ -33,24 +33,14 @@ public sealed record TeamDto
 
     /// <summary><see cref="HeroKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）——比照
     /// <c>Features/Staff/StaffDto.PhotoUrl</c> 的既有慣例，由
-    /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出。跟 <see cref="LogoUrl"/>
-    /// 不是同一件事：這裡只回這支球隊自己的識別圖片，沒有回退俱樂部隊徽——回退後的網址已經由
-    /// <see cref="LogoUrl"/> 提供，兩者分工不同（<see cref="HeroUrl"/> 給球隊頁 Hero 版位用，
-    /// <see cref="LogoUrl"/> 給 GEO-05 結構化資料用）。<c>null</c>＝這支球隊沒有自己的識別圖片。
+    /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出。這裡只回這支球隊自己的識別圖片
+    /// （球隊頁 Hero 版位用）。<c>null</c>＝這支球隊沒有自己的識別圖片。🔴 v3.20 起俱樂部標誌由前台靜態資產定義，
+    /// 本 DTO 不再有 <c>LogoUrl</c>。
     /// </summary>
     public string? HeroUrl { get; init; }
 
-    /// <summary>球隊識別圖片完整可公開存取網址（S1-12f 新增）。優先序：這支球隊自己的
-    /// <c>HeroKey</c> &gt; 所屬俱樂部的隊徽（<c>Club.LogoLightKey</c>）——<see cref="SchemaRequiredFields"/>
-    /// 檔頭「logo（Club.LogoLightKey／Team.HeroKey）」的「／」判讀為「擇一即可」，比照既有
-    /// OG 圖片優先序（專屬 &gt; 全站預設）同一種寫法，不是另開一份規則。<c>null</c>＝兩者皆無。</summary>
-    public string? LogoUrl { get; init; }
-
     /// <summary>GEO-05（S1-12c／S1-12f）：這支球隊的資料是否足以輸出 SportsTeam 結構化資料
-    /// （<see cref="SchemaType.SportsTeam"/> 必填欄位——隊名、網址、識別圖片——齊全）。判斷條件
-    /// 單一來源見 <see cref="SchemaRequiredFields"/>，這裡不重新判斷一次（E-39）。🔴 現況：多數球隊
-    /// 沒有自己的 <c>HeroKey</c>，且俱樂部隊徽 <c>LogoLightKey</c> 目前恆為 null（見
-    /// <c>Tcrfc.Api.Features.Clubs.ClubDto.SchemaEligible</c> 同一個已知現況），本欄位在現況下多半
-    /// 為 <c>false</c>，是 GEO-05「缺漏者不輸出該型別」的正確行為。</summary>
+    /// （<see cref="SchemaType.SportsTeam"/> 必填欄位——隊名、網址——齊全）。判斷條件
+    /// 單一來源見 <see cref="SchemaRequiredFields"/>，這裡不重新判斷一次（E-39）。🔴 v3.20：標誌由前台靜態資產輸出，不再是資料庫必填欄位。</summary>
     public required bool SchemaEligible { get; init; }
 }

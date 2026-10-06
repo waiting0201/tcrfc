@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Tcrfc.Api.Features.Seo;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
@@ -22,7 +24,7 @@ namespace Tcrfc.Api.Features.AdminSeo;
 /// <c>IQueryCache</c>，最多延後一個 TTL（預設 300 秒）才會反映，理由與既定行為同
 /// <see cref="Seo.SeoRepository"/> 檔頭「寫入端刻意不呼叫 InvalidateAsync」的既有說明。
 /// </summary>
-public sealed class AdminGeoLlmsRepository(ClubDbContext dbContext)
+public sealed class AdminGeoLlmsRepository(ClubDbContext dbContext, IQueryCache cache)
 {
     private const string KeyPositioning = "geo.llms_positioning";
     private const string KeyKeyPages = "geo.llms_key_pages";
@@ -61,6 +63,7 @@ public sealed class AdminGeoLlmsRepository(ClubDbContext dbContext)
         UpsertOptionalI18n(settings, KeyContact, scope.ClubId, request.ContactZh, request.ContactEn, operatorId);
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(SeoRepository.LlmsContentEntity, scope.ClubCode, cancellationToken);
 
         return await GetAsync(scope, cancellationToken);
     }

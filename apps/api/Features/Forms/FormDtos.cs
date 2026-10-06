@@ -26,8 +26,7 @@ public sealed record PublicFormFieldDto
 }
 
 /// <summary>公開表單定義——G1 表單設計器的公開讀取半邊，供前台動態產生表單欄位（S1-17，不在本次
-/// 範圍）。**刻意不含 <c>notify_emails</c>／<c>redirect_path</c>**：前者是後台內部設定，後者只在
-/// 送出成功後由前端自行處理跳轉，不需要在載入表單時先暴露完整導向網址。</summary>
+/// 範圍）。**刻意不含 <c>notify_emails</c>**（後台內部設定）。<see cref="RedirectPath"/> 於稽核 B-16 補上輸出。</summary>
 public sealed record PublicFormDto
 {
     public required string FormCode { get; init; }
@@ -37,6 +36,10 @@ public sealed record PublicFormDto
     /// <summary>前端讀到 <c>true</c> 時渲染 Turnstile 元件，送出時把權杖放進 <c>turnstileToken</c>。
     /// 伺服器端只有在部署端設定了 <c>TURNSTILE_SECRET_KEY</c> 時才驗證（未設定＝一律放行），見 <c>FormsRepository.SubmitAsync</c>。</summary>
     public required bool CaptchaEnabled { get; init; }
+
+    /// <summary>送出成功後的導向頁（稽核 B-16）：只會是站內相對路徑（<c>/</c> 開頭），沒設定或不合法時為 <c>null</c>
+    /// （用戶端維持原本的「顯示成功訊息」行為）。路徑不含語系時由前台自行以 <c>lp()</c> 補語系前綴。</summary>
+    public string? RedirectPath { get; init; }
 
     public required IReadOnlyList<PublicFormFieldDto> Fields { get; init; }
 }
@@ -52,6 +55,9 @@ public sealed record SubmitFormRequest
     public string? UtmSource { get; init; }
     public string? UtmCampaign { get; init; }
     public string? Website { get; init; }
+
+    /// <summary>送件者語系（<c>zh</c>／<c>en</c>，省略視為 <c>zh</c>），決定自動回覆信用哪一種語言的內文。</summary>
+    public string? Lang { get; init; }
 
     /// <summary>Cloudflare Turnstile 前端元件產生的權杖。表單 <c>captcha_enabled = true</c> 且部署端已設定
     /// <c>TURNSTILE_SECRET_KEY</c> 時必填，缺漏或驗證失敗回 422 <c>captcha_failed</c>；否則忽略。</summary>

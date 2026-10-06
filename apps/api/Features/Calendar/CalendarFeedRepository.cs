@@ -107,7 +107,8 @@ public sealed class CalendarFeedRepository(IClubSqlConnectionFactory connectionF
             LEFT JOIN calendar_custom_events_i18n cz ON cz.calendar_custom_event_id = c.id AND cz.locale = N'zh-Hant'
             LEFT JOIN venues_i18n vi ON vi.venue_id = c.venue_id AND vi.locale = @Locale
             LEFT JOIN venues_i18n vz ON vz.venue_id = c.venue_id AND vz.locale = N'zh-Hant'
-            WHERE c.club_id = @ClubId AND c.is_public = 1
+            LEFT JOIN event_types et ON et.id = c.event_type_id
+            WHERE c.club_id = @ClubId AND c.is_public = 1 AND (et.id IS NULL OR et.is_public = 1)
               AND c.starts_at < @To AND (c.repeat_until IS NULL OR c.repeat_until >= @From)
               AND (@TeamCode IS NULL OR EXISTS (SELECT 1 FROM calendar_event_teams cet JOIN teams t ON t.id = cet.team_id
                                                 WHERE cet.source_type = N'custom' AND cet.source_id = c.id AND t.code = @TeamCode))

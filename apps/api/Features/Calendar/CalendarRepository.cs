@@ -39,8 +39,13 @@ public sealed class CalendarRepository(
     // 回報的 CLR 型別一律是 DateTime，Dapper 的 record 建構子具現化要求型別逐一相符
     // （docs/18-work-errors.md E-20）。傳給 RecurrenceExpander 前再轉成 DateOnly。
     private sealed record CustomEventRow(
-        Guid Id, DateTime StartsAt, DateTime? EndsAt, bool IsAllDay, Guid? VenueId, string? EventTypeCode,
-        string? CtaUrl, string? CoverKey, string? RepeatRule, DateTime? RepeatUntil);
+        Guid Id, DateTime StartsAt, DateTime? EndsAt, bool IsAllDay, Guid? VenueId, Guid? EventTypeId, string? EventTypeCode,
+        string? EventTypeColour, string? EventTypeIcon, string? CtaUrl, string? CoverKey, string? RepeatRule, DateTime? RepeatUntil);
+
+    private sealed record EventTypeNameRow(Guid EventTypeId, string Locale, string? Name);
+
+    /// <summary>列表模式（<c>team=club</c>、未給 <c>from</c>／<c>to</c>）預設往後展開的天數。</summary>
+    internal const int DefaultClubEventsWindowDays = 180;
 
     private sealed record I18nTextRow(Guid Id, string Locale, string? Text1, string? Text2);
     private sealed record TeamCodeRow(Guid Id, string Code);
@@ -128,38 +133,20 @@ public sealed class CalendarRepository(
         return new PagedResult<PublicCalendarEventDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
     }
 
-    /// <summary>「俱樂部活動」分頁——只回傳公開自建事件，粗略依「還沒結束」或「仍在重複中」篩選；
-    /// ⚠️ **已知簡化**：重複規則事件在這個分頁只用原始 <c>starts_at</c> 排序，不逐一展開每一次
-    /// 重複發生的時間（那需要月曆模式的 <c>from</c>／<c>to</c> 才有界限可以展開，見類別檔頭說明）。
-    /// 前台若要看到某個重複活動「下一次」的確切時間，應改用月曆檢視。</summary>
+    /// <summary>「俱樂部活動」分頁——只回傳**未掛任何球隊**的公開自建活動（掛在特定球隊的活動歸該隊分頁，
+    /// 見 <c>team={code}</c> 的月曆模式），且活動類型必須公開。<b>重複規則即時展開</b>：預設區間為
+    /// 今天起 <see cref="DefaultClubEventsWindowDays"/> 天，每個發生日一筆（例外日排除），
+    /// <c>Id</c> 為原活動 id、<c>StartsAt</c>／<c>EndsAt</c> 為該次發生的起訖、<c>OccurrenceId</c> 唯一。</summary>
     private async Task<PagedResult<PublicCalendarEventDto>> ListClubEventsAsync(
         System.Data.IDbConnection connection, ClubScope scope, string dbLocale, int page, int pageSize,
         CancellationToken cancellationToken)
     {
-        var nowUtc = DateTime.UtcNow;
-        var countSql = """
-            SELECT COUNT(*) FROM calendar_custom_events c
-            WHERE c.club_id = @ClubId AND c.is_public = 1
-              AND (c.repeat_rule IS NOT NULL OR c.ends_at >= @Now OR (c.ends_at IS NULL AND c.starts_at >= @Now))
-            """;
-        var listSql = """
-            SELECT c.id AS Id, c.starts_at AS StartsAt, c.ends_at AS EndsAt, c.is_all_day AS IsAllDay,
-                   c.venue_id AS VenueId, et.code AS EventTypeCode, c.cta_url AS CtaUrl, c.cover_key AS CoverKey,
-                   c.repeat_rule AS RepeatRule, c.repeat_until AS RepeatUntil
-            FROM calendar_custom_events c
-            LEFT JOIN event_types et ON et.id = c.event_type_id
-            WHERE c.club_id = @ClubId AND c.is_public = 1
-              AND (c.repeat_rule IS NOT NULL OR c.ends_at >= @Now OR (c.ends_at IS NULL AND c.starts_at >= @Now))
-            ORDER BY c.starts_at ASC
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
-            """;
-        var parameters = new { scope.ClubId, Now = nowUtc, Offset = (page - 1) * pageSize, PageSize = pageSize };
-
-        var totalCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
-        var rows = (await connection.QueryAsync<CustomEventRow>(new CommandDefinition(listSql, parameters, cancellationToken: cancellationToken))).AsList();
-
-        var items = await MapCustomEventsAsync(connection, rows, dbLocale, cancellationToken);
-        return new PagedResult<PublicCalendarEventDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+        var from = DateOnly.FromDateTime(DateTime.UtcNow);
+        var to = from.AddDays(DefaultClubEventsWindowDays);
+        var occurrences = await LoadCustomOccurrencesAsync(connection, scope, from, to, "club", dbLocale, cancellationToken);
+        var all = occurrences.OrderBy(i => i.StartsAt).ThenBy(i => i.Id).ToList();
+        var pageItems = all.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return new PagedResult<PublicCalendarEventDto> { Items = pageItems, Page = page, PageSize = pageSize, TotalCount = all.Count };
     }
 
     /// <summary>月曆模式——合併賽事與公開自建事件，L2 重複規則即時展開，範圍上限 366 天
@@ -191,49 +178,8 @@ public sealed class CalendarRepository(
             new { scope.ClubId, FromDate = fromDate, ToDateExclusive = toDateExclusive, Team = team, Season = season, Type = type, HomeAway = homeAway },
             cancellationToken: cancellationToken))).AsList();
 
-        const string customSql = """
-            SELECT c.id AS Id, c.starts_at AS StartsAt, c.ends_at AS EndsAt, c.is_all_day AS IsAllDay,
-                   c.venue_id AS VenueId, et.code AS EventTypeCode, c.cta_url AS CtaUrl, c.cover_key AS CoverKey,
-                   c.repeat_rule AS RepeatRule, c.repeat_until AS RepeatUntil
-            FROM calendar_custom_events c
-            LEFT JOIN event_types et ON et.id = c.event_type_id
-            WHERE c.club_id = @ClubId AND c.is_public = 1
-              AND c.starts_at < @ToDateExclusiveTs
-              AND (c.repeat_until IS NULL OR c.repeat_until >= @FromDate)
-              AND (@Team IS NULL
-                   OR (@Team = N'club' AND NOT EXISTS (
-                         SELECT 1 FROM calendar_event_teams cet WHERE cet.source_type = N'custom' AND cet.source_id = c.id))
-                   OR EXISTS (
-                         SELECT 1 FROM calendar_event_teams cet JOIN teams t ON t.id = cet.team_id
-                         WHERE cet.source_type = N'custom' AND cet.source_id = c.id AND t.code = @Team))
-            """;
-        var customRows = (await connection.QueryAsync<CustomEventRow>(new CommandDefinition(
-            customSql,
-            new { scope.ClubId, FromDate = fromDate, ToDateExclusiveTs = toDateExclusive.ToDateTime(TimeOnly.MinValue), Team = team },
-            cancellationToken: cancellationToken))).AsList();
-
         var matchItems = await MapMatchesAsync(connection, matchRows, dbLocale, cancellationToken);
-
-        var rangeFrom = fromDate.ToDateTime(TimeOnly.MinValue);
-        var rangeToExclusive = toDateExclusive.ToDateTime(TimeOnly.MinValue);
-        var customItems = new List<PublicCalendarEventDto>();
-        foreach (var row in customRows)
-        {
-            var exceptions = await LoadExceptionDatesAsync(connection, row.Id, cancellationToken);
-            var repeatUntil = row.RepeatUntil is { } ru ? DateOnly.FromDateTime(ru) : (DateOnly?)null;
-            var occurrences = RecurrenceExpander.Expand(
-                row.StartsAt, row.EndsAt, row.RepeatRule, repeatUntil, exceptions, rangeFrom, rangeToExclusive);
-            if (occurrences.Count == 0)
-            {
-                continue;
-            }
-
-            var (dto, _) = await MapCustomEventBaseAsync(connection, row, dbLocale, cancellationToken);
-            foreach (var (starts, ends) in occurrences)
-            {
-                customItems.Add(dto with { StartsAt = starts, EndsAt = ends });
-            }
-        }
+        var customItems = await LoadCustomOccurrencesAsync(connection, scope, fromDate, toDateExclusive, team, dbLocale, cancellationToken);
 
         var all = matchItems.Concat(customItems).OrderBy(i => i.StartsAt).ToList();
         var (normalizedPage, normalizedPageSize) = (page, pageSize);
@@ -289,21 +235,90 @@ public sealed class CalendarRepository(
         }).ToList();
     }
 
-    private async Task<List<PublicCalendarEventDto>> MapCustomEventsAsync(
-        System.Data.IDbConnection connection, IReadOnlyList<CustomEventRow> rows, string dbLocale, CancellationToken cancellationToken)
+    /// <summary>公開自建活動在 <c>[fromDate, toDateExclusive)</c> 內的所有發生次數（展開重複規則、排除例外日）。
+    /// 篩選：<c>is_public = 1</c>；活動類型若有設定則 <c>event_types.is_public = 1</c>（類型下架時其下活動不輸出）；
+    /// <paramref name="team"/>＝<c>club</c> 只回未掛任何球隊者，＝球隊代碼只回掛在該隊者，<c>null</c> 不篩。</summary>
+    private async Task<List<PublicCalendarEventDto>> LoadCustomOccurrencesAsync(
+        System.Data.IDbConnection connection, ClubScope scope, DateOnly fromDate, DateOnly toDateExclusive,
+        string? team, string dbLocale, CancellationToken cancellationToken)
     {
-        var results = new List<PublicCalendarEventDto>();
-        foreach (var row in rows)
+        const string customSql = """
+            SELECT c.id AS Id, c.starts_at AS StartsAt, c.ends_at AS EndsAt, c.is_all_day AS IsAllDay,
+                   c.venue_id AS VenueId, c.event_type_id AS EventTypeId, et.code AS EventTypeCode,
+                   et.colour AS EventTypeColour, et.icon AS EventTypeIcon, c.cta_url AS CtaUrl, c.cover_key AS CoverKey,
+                   c.repeat_rule AS RepeatRule, c.repeat_until AS RepeatUntil
+            FROM calendar_custom_events c
+            LEFT JOIN event_types et ON et.id = c.event_type_id
+            WHERE c.club_id = @ClubId AND c.is_public = 1
+              AND (et.id IS NULL OR et.is_public = 1)
+              AND c.starts_at < @ToDateExclusiveTs
+              AND (c.repeat_rule IS NOT NULL OR COALESCE(c.ends_at, c.starts_at) >= @FromTs)
+              AND (c.repeat_until IS NULL OR c.repeat_until >= @FromDate)
+              AND (@Team IS NULL
+                   OR (@Team = N'club' AND NOT EXISTS (
+                         SELECT 1 FROM calendar_event_teams cet WHERE cet.source_type = N'custom' AND cet.source_id = c.id))
+                   OR EXISTS (
+                         SELECT 1 FROM calendar_event_teams cet JOIN teams t ON t.id = cet.team_id
+                         WHERE cet.source_type = N'custom' AND cet.source_id = c.id AND t.code = @Team))
+            """;
+        var customRows = (await connection.QueryAsync<CustomEventRow>(new CommandDefinition(
+            customSql,
+            new
+            {
+                scope.ClubId, FromDate = fromDate, FromTs = fromDate.ToDateTime(TimeOnly.MinValue),
+                ToDateExclusiveTs = toDateExclusive.ToDateTime(TimeOnly.MinValue), Team = team,
+            },
+            cancellationToken: cancellationToken))).AsList();
+
+        var typeIds = customRows.Where(r => r.EventTypeId.HasValue).Select(r => r.EventTypeId!.Value).Distinct().ToList();
+        var typeNames = await LoadEventTypeNamesAsync(connection, typeIds, dbLocale, cancellationToken);
+
+        var rangeFrom = fromDate.ToDateTime(TimeOnly.MinValue);
+        var rangeToExclusive = toDateExclusive.ToDateTime(TimeOnly.MinValue);
+        var customItems = new List<PublicCalendarEventDto>();
+        foreach (var row in customRows)
         {
-            var (dto, _) = await MapCustomEventBaseAsync(connection, row, dbLocale, cancellationToken);
-            results.Add(dto);
+            var exceptions = await LoadExceptionDatesAsync(connection, row.Id, cancellationToken);
+            var repeatUntil = row.RepeatUntil is { } ru ? DateOnly.FromDateTime(ru) : (DateOnly?)null;
+            var occurrences = RecurrenceExpander.Expand(
+                row.StartsAt, row.EndsAt, row.RepeatRule, repeatUntil, exceptions, rangeFrom, rangeToExclusive);
+            if (occurrences.Count == 0)
+            {
+                continue;
+            }
+
+            var typeName = row.EventTypeId is { } tid ? typeNames.GetValueOrDefault(tid) : null;
+            var (dto, _) = await MapCustomEventBaseAsync(connection, row, typeName, dbLocale, cancellationToken);
+            foreach (var (starts, ends) in occurrences)
+            {
+                customItems.Add(dto with { StartsAt = starts, EndsAt = ends, OccurrenceId = $"{row.Id:N}:{starts:yyyyMMddHHmm}" });
+            }
         }
 
-        return results;
+        return customItems;
+    }
+
+    private static async Task<Dictionary<Guid, string?>> LoadEventTypeNamesAsync(
+        System.Data.IDbConnection connection, IReadOnlyList<Guid> typeIds, string dbLocale, CancellationToken cancellationToken)
+    {
+        if (typeIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await connection.QueryAsync<EventTypeNameRow>(new CommandDefinition(
+            "SELECT event_type_id AS EventTypeId, locale AS Locale, name AS Name FROM event_types_i18n WHERE event_type_id IN @Ids AND locale IN @Locales",
+            new { Ids = typeIds, Locales = LocaleFallbackChain(dbLocale) }, cancellationToken: cancellationToken));
+
+        return rows.GroupBy(r => r.EventTypeId).ToDictionary(g => g.Key, g =>
+        {
+            var byLocale = g.ToDictionary(r => r.Locale, r => r.Name);
+            return RequestLocale.Pick(byLocale.GetValueOrDefault(dbLocale), byLocale.GetValueOrDefault(RequestLocale.DefaultDbLocale));
+        });
     }
 
     private async Task<(PublicCalendarEventDto Dto, HashSet<DateOnly> Exceptions)> MapCustomEventBaseAsync(
-        System.Data.IDbConnection connection, CustomEventRow row, string dbLocale, CancellationToken cancellationToken)
+        System.Data.IDbConnection connection, CustomEventRow row, string? eventTypeName, string dbLocale, CancellationToken cancellationToken)
     {
         var i18n = await LoadCustomEventI18nAsync(connection, row.Id, dbLocale, cancellationToken);
         var teamCodes = (await LoadTeamCodesAsync(connection, "custom", [row.Id], cancellationToken)).GetValueOrDefault(row.Id, []);
@@ -321,6 +336,11 @@ public sealed class CalendarRepository(
             TeamCodes = teamCodes,
             VenueName = venueName,
             EventTypeCode = row.EventTypeCode,
+            EventTypeName = eventTypeName,
+            EventTypeColour = row.EventTypeColour,
+            EventTypeIcon = row.EventTypeIcon,
+            IsRecurring = !string.IsNullOrEmpty(row.RepeatRule),
+            OccurrenceId = $"{row.Id:N}:{row.StartsAt:yyyyMMddHHmm}",
             Description = i18n.Description,
             CtaUrl = row.CtaUrl,
             CoverKey = row.CoverKey,

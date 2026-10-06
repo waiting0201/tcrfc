@@ -15,7 +15,7 @@ namespace Tcrfc.Api.Features.MemberCenter;
 /// 不接受路由或請求本文傳進來的 memberId；別人的會籍／會員卡／球衣一律 404（不洩漏存在與否）。
 /// 🔴 <b>會籍有效與否、卡片驗證一律直接查庫，不讀快取</b>（docs/14：會員卡驗證、會籍與訂單狀態不得讀快取——讀到陳舊值＝已撤銷／已過期的卡通過查驗）。
 /// </summary>
-public sealed class MemberCenterService(ClubDbContext db, IImagePublicUrlResolver imageUrls, MemberMembershipService membershipService)
+public sealed class MemberCenterService(ClubDbContext db, MemberMembershipService membershipService)
 {
     private static readonly IReadOnlyDictionary<string, string> TierLabelEn = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -385,8 +385,7 @@ public sealed class MemberCenterService(ClubDbContext db, IImagePublicUrlResolve
 
     private MemberClubBrandDto Brand(Club club, bool en) => new()
     {
-        Code = club.Code, Name = ClubName(club, en), LogoLightUrl = imageUrls.Resolve(club.LogoLightKey), LogoDarkUrl = imageUrls.Resolve(club.LogoDarkKey),
-        BrandColor = club.BrandColor, BrandSecondaryColor = club.BrandSecondaryColor,
+        Code = club.Code, Name = ClubName(club, en),
     };
 
     public static string ClubName(Club club, bool en)

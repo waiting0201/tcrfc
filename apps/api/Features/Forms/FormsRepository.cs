@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.Email;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -19,19 +20,21 @@ namespace Tcrfc.Api.Features.Forms;
 /// 只有公開表單端點傳 <c>captchaRemoteIp</c> 才會驗證；提案下載等內部重用 <c>SubmitAsync</c> 的呼叫不帶，不受影響。
 ///
 /// ### 動態欄位驗證
-/// <c>form_fields</c> 是 G1 表單設計器可自由編修的動態欄位，本檔依 <see cref="FormFieldTypes"/>
+/// <c>form_fields</c> 是 G1 表單設計器的動態欄位（10.1–10.7 與提案下載的欄位已鎖定、後台不得增刪改，見 <c>FormCatalog.FieldLockedCodes</c>），本檔依 <see cref="FormFieldTypes"/>
 /// 逐型別驗證：<c>consent</c> 必填時必須是真值；<c>date</c> 必須是合法日期；<c>select</c>／
 /// <c>multiselect</c> 的值必須落在 <c>options_json</c> 內；其餘型別若設定 <c>validation_rule</c>
 /// 則視為正規表示式（帶逾時保護，避免惡意樣式拖垮伺服器——雖然 <c>validation_rule</c> 只有後台
 /// 管理者能設定，非公開輸入，仍比照縱深防禦原則加上逾時）。**不接受未知的 <c>field_key</c>**：
 /// 送出內容包含任何不屬於這張表單的鍵一律整批拒絕（400），避免累積垃圾資料。
 /// </summary>
-public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IClubTurnstileVerifier turnstile)
+public sealed class FormsRepository(
+    IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IClubTurnstileVerifier turnstile,
+    IEmailSender email, ILogger<FormsRepository> logger)
 {
     private const string CacheEntity = "forms";
 
-    private sealed record FormRow(Guid Id, string FormCode, bool CaptchaEnabled);
-    private sealed record FieldRow(Guid Id, string FieldKey, string FieldType, bool IsRequired, string? ValidationRule, string? OptionsJson, int SortOrder);
+    private sealed record FormRow(Guid Id, string FormCode, bool CaptchaEnabled, string? RedirectPath, string? NotifyEmails);
+    internal sealed record FieldRow(Guid Id, string FieldKey, string FieldType, bool IsRequired, string? ValidationRule, string? OptionsJson, int SortOrder);
     private sealed record FieldI18nRow(Guid FormFieldId, string Locale, string Label, string? OptionsJson);
 
     /// <summary><paramref name="dbLocale"/>——S1-10 修正（2026-09-25）新增：題目文字與選項顯示文字
@@ -61,6 +64,7 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
                     FormNameZh = FormCatalog.DisplayNameZh(form.FormCode),
                     FormNameEn = FormCatalog.DisplayNameEn(form.FormCode),
                     CaptchaEnabled = form.CaptchaEnabled,
+                    RedirectPath = SafeRedirectPath(form.RedirectPath),
                     Fields = fields.Select(f => ToPublicFieldDto(f, i18nByFieldId.GetValueOrDefault(f.Id), dbLocale)).ToList(),
                 };
             },
@@ -161,7 +165,139 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
 
         transaction.Commit();
 
+        // 寄信在 commit 之後、盡力而為：詢問已經寫入，寄信失敗（供應商掛掉、收件人格式怪）不得讓訪客看到「送出失敗」。
+        await SendNotificationsAsync(connection, scope, form, fields, validatedAnswers, enquiryId, request.Lang, cancellationToken);
+
         return new SubmitFormResultDto { Success = true };
+    }
+
+    /// <summary>送出後導向頁只允許站內相對路徑（<c>/</c> 開頭，且不是 <c>//</c> 或 <c>/\</c> 這類會被瀏覽器當成外站的寫法）；
+    /// 不符一律視為沒設定。後台寫入時已經用同一條規則擋過，這裡是輸出端的縱深防禦（舊資料可能是完整網址）。</summary>
+    public static string? SafeRedirectPath(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return null;
+        }
+
+        var p = path.Trim();
+        if (p.Length > 500 || p[0] != '/' || (p.Length > 1 && (p[1] == '/' || p[1] == '\\')) || p.Any(char.IsControl))
+        {
+            return null;
+        }
+
+        return p;
+    }
+
+    private static readonly Regex EmailPattern = new(@"^[^@\s]+@[^@\s]+\.[^@\s]+$", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200));
+
+    /// <summary>送件者 Email：表單沒有專屬 Email 型別，慣例欄位鍵是 <c>contact</c>（聯絡方式，可能是電話）或 <c>email</c>；
+    /// 只有值真的長得像 Email 才寄，電話之類一律不寄。</summary>
+    internal static string? FindSenderEmail(IReadOnlyList<FieldRow> fields, IReadOnlyDictionary<Guid, string> answers)
+    {
+        foreach (var key in new[] { "email", "contact" })
+        {
+            var field = fields.FirstOrDefault(f => f.FieldKey == key);
+            if (field is not null && answers.TryGetValue(field.Id, out var value))
+            {
+                var candidate = value.Trim();
+                try
+                {
+                    if (candidate.Length <= 255 && EmailPattern.IsMatch(candidate))
+                    {
+                        return candidate;
+                    }
+                }
+                catch (RegexMatchTimeoutException)
+                {
+                    // 逾時視為不是 Email。
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private async Task SendNotificationsAsync(
+        System.Data.IDbConnection connection, ClubScope scope, FormRow form, IReadOnlyList<FieldRow> fields,
+        IReadOnlyDictionary<Guid, string> answers, Guid enquiryId, string? lang, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var notifyTargets = (form.NotifyEmails ?? string.Empty)
+                .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var senderEmail = FindSenderEmail(fields, answers);
+            var dbLocale = string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase) ? "en" : RequestLocale.DefaultDbLocale;
+
+            string? autoReply = null;
+            if (senderEmail is not null)
+            {
+                const string bodySql = """
+                    SELECT auto_reply_body FROM forms_i18n WHERE form_id = @FormId AND locale IN (@Locale, @Default)
+                    ORDER BY CASE WHEN locale = @Locale THEN 0 ELSE 1 END
+                    """;
+                autoReply = (await connection.QueryAsync<string?>(new CommandDefinition(
+                    bodySql, new { FormId = form.Id, Locale = dbLocale, Default = RequestLocale.DefaultDbLocale }, cancellationToken: cancellationToken)))
+                    .FirstOrDefault(b => !string.IsNullOrWhiteSpace(b));
+            }
+
+            if (notifyTargets.Count == 0 && autoReply is null)
+            {
+                return;
+            }
+
+            var clubName = await LoadClubNameAsync(connection, scope.ClubId, dbLocale, scope.ClubCode, cancellationToken);
+
+            if (notifyTargets.Count > 0)
+            {
+                var labels = await LoadFieldI18nAsync(connection, fields.Select(f => f.Id).ToList(), RequestLocale.DefaultDbLocale, cancellationToken);
+                var rows = fields.Where(f => f.FieldType != FormFieldTypes.Consent && answers.ContainsKey(f.Id)).OrderBy(f => f.SortOrder)
+                    .Select(f => new FormEmailTemplates.Answer(
+                        labels.GetValueOrDefault(f.Id)?.GetValueOrDefault(RequestLocale.DefaultDbLocale)?.Label ?? f.FieldKey, answers[f.Id]))
+                    .ToList();
+                foreach (var target in notifyTargets)
+                {
+                    await TrySendAsync(FormEmailTemplates.StaffNotification(target, clubName, FormCatalog.DisplayNameZh(form.FormCode), enquiryId, rows), form.FormCode, cancellationToken);
+                }
+            }
+
+            if (senderEmail is not null && autoReply is not null)
+            {
+                await TrySendAsync(FormEmailTemplates.AutoReply(senderEmail, clubName, autoReply, dbLocale == "en" ? "en" : "zh"), form.FormCode, cancellationToken);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "表單 {FormCode} 送出後的通知信處理失敗（詢問已寫入，不影響送出）。", form.FormCode);
+        }
+    }
+
+    private async Task TrySendAsync(EmailMessage message, string formCode, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await email.SendAsync(message, cancellationToken))
+            {
+                logger.LogWarning("表單 {FormCode} 的 {Kind} 信件未寄出（寄信供應商尚未串接或拒收）。", formCode, message.Kind);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(ex, "表單 {FormCode} 的 {Kind} 信件寄送失敗（不影響送出）。", formCode, message.Kind);
+        }
+    }
+
+    private static async Task<string> LoadClubNameAsync(
+        System.Data.IDbConnection connection, Guid clubId, string dbLocale, string fallback, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT name FROM clubs_i18n WHERE club_id = @ClubId AND locale IN (@Locale, @Default)
+            ORDER BY CASE WHEN locale = @Locale THEN 0 ELSE 1 END
+            """;
+        var names = await connection.QueryAsync<string?>(new CommandDefinition(
+            sql, new { ClubId = clubId, Locale = dbLocale, Default = RequestLocale.DefaultDbLocale }, cancellationToken: cancellationToken));
+        return names.FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)) ?? fallback;
     }
 
     private static void ValidateFieldValue(FieldRow field, string value)
@@ -267,7 +403,7 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
         System.Data.IDbConnection connection, Guid clubId, string formCode, System.Data.IDbTransaction? transaction, CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT id AS Id, form_code AS FormCode, captcha_enabled AS CaptchaEnabled
+            SELECT id AS Id, form_code AS FormCode, captcha_enabled AS CaptchaEnabled, redirect_path AS RedirectPath, notify_emails AS NotifyEmails
             FROM forms
             WHERE club_id = @ClubId AND form_code = @FormCode
             """;

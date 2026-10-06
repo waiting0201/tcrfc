@@ -17,7 +17,7 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
 {
     private static object PlanPayload(Guid seasonId, string code, int fee = 999, string status = "draft", int cardQuota = 1, int jerseyQuota = 0) => new
     {
-        seasonId, code, fee, cardQuota, jerseyQuota, midSeasonRule = "測試規則", startsOn = "2026-09-13", endsOn = "2027-05-02", sortOrder = 9, status,
+        seasonId, code, fee, cardQuota, jerseyQuota, midSeasonRule = "測試規則", midSeasonRuleEn = "Pro-rated", startsOn = "2026-09-13", endsOn = "2027-05-02", sortOrder = 9, status,
         content = new { zh = new { name = $"【測試】方案{code}", benefitNote = "測試權益" }, en = new { name = $"Test {code}" } },
     };
 
@@ -62,6 +62,8 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
             id = created.Id;
             Assert.Equal("下架", created.StatusLabel);
             Assert.Equal("Test " + code, created.En!.Name);
+            Assert.Equal("測試規則", created.MidSeasonRule);
+            Assert.Equal("Pro-rated", created.MidSeasonRuleEn); // 季中入會規則走 membership_plans_i18n 側表（D 類雙語）
             Assert.Equal(HttpStatusCode.Conflict, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, code)))).StatusCode);
 
             var updated = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.PutAsync($"/api/v1/admin/tcrfc/membership-plans/{id}",
@@ -73,6 +75,25 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
             Assert.Equal(1500, updated.Fee);
             Assert.Equal("上架", updated.StatusLabel);
             Assert.Null(updated.En); // PUT 整份取代：省略英文版＝移除
+            Assert.Null(updated.MidSeasonRule);
+            Assert.Null(updated.MidSeasonRuleEn);
+
+            // 只有英文規則、沒有英文名稱：英文列仍存在（En 內容區塊為 null），公開英文版規則用英文、名稱回退繁中
+            var ruleOnly = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.PutAsync($"/api/v1/admin/tcrfc/membership-plans/{id}",
+                BizTest.Json(new { seasonId, code, fee = 1500, cardQuota = 2, jerseyQuota = 1, sortOrder = 9, status = "published", midSeasonRule = "照比例", midSeasonRuleEn = "Pro-rated", content = new { zh = new { name = "【測試】改名方案" } } })));
+            Assert.Null(ruleOnly.En);
+            Assert.Equal("Pro-rated", ruleOnly.MidSeasonRuleEn);
+            using (var anonymousPlans = await BizTest.ClientAsync(fixture, null))
+            {
+                var pubPlans = await BizTest.ReadAsync<List<Tcrfc.Api.Features.MembershipPublic.MembershipPlanPublicDto>>(await anonymousPlans.GetAsync("/api/v1/tcrfc/membership/plans?lang=en"));
+                var mine = pubPlans.Single(p => p.Code == code);
+                Assert.Equal("Pro-rated", mine.MidSeasonRule);
+                Assert.Equal("【測試】改名方案", mine.Name);
+                Assert.True(mine.IsFallbackLocale);
+            }
+
+            Assert.Equal(HttpStatusCode.BadRequest, (await admin.PutAsync($"/api/v1/admin/tcrfc/membership-plans/{id}",
+                BizTest.Json(new { seasonId, code, fee = 1500, cardQuota = 2, jerseyQuota = 1, sortOrder = 9, status = "published", midSeasonRuleEn = new string('a', 256), content = new { zh = new { name = "x" } } }))).StatusCode);
 
             var list = await BizTest.ReadAsync<List<AdminPlanListItemDto>>(await admin.GetAsync("/api/v1/admin/tcrfc/membership-plans?status=published"));
             Assert.Contains(list, p => p.Id == id);

@@ -24,6 +24,9 @@ public sealed record AdminProgramListItemDto
     public required string Slug { get; init; }
     public string? ProgramType { get; init; }
     public string? Audience { get; init; }
+
+    /// <summary>英文適合對象（<c>programs_i18n(en).audience</c>）；未填為 <c>null</c>。</summary>
+    public string? AudienceEn { get; init; }
     public int? AgeMin { get; init; }
     public int? AgeMax { get; init; }
     public required string Status { get; init; }
@@ -52,6 +55,7 @@ public sealed record AdminProgramDetailDto
     public required string Slug { get; init; }
     public string? ProgramType { get; init; }
     public string? Audience { get; init; }
+    public string? AudienceEn { get; init; }
     public int? AgeMin { get; init; }
     public int? AgeMax { get; init; }
     public required string Status { get; init; }
@@ -79,6 +83,9 @@ public sealed record CreateAdminProgramRequest
     public required string Slug { get; init; }
     public string? ProgramType { get; init; }
     public string? Audience { get; init; }
+
+    /// <summary>英文適合對象（選填，最長 64 字）；<c>Audience</c>（繁中）最長 64 字。</summary>
+    public string? AudienceEn { get; init; }
     public int? AgeMin { get; init; }
     public int? AgeMax { get; init; }
     public string? Status { get; init; }
@@ -92,6 +99,9 @@ public sealed record UpdateAdminProgramRequest
     public required string Slug { get; init; }
     public string? ProgramType { get; init; }
     public string? Audience { get; init; }
+
+    /// <summary>英文適合對象（選填，最長 64 字）；<c>Audience</c>（繁中）最長 64 字。</summary>
+    public string? AudienceEn { get; init; }
     public int? AgeMin { get; init; }
     public int? AgeMax { get; init; }
     public string? Status { get; init; }

@@ -26,7 +26,9 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
             .OrderByDescending(p => p.UpdatedAt)
             .Select(p => new
             {
-                p.Id, p.Title, p.VersionNo, p.Status, p.UpdatedAt,
+                p.Id, p.VersionNo, p.Status, p.UpdatedAt,
+                TitleZh = p.ProposalsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Title).FirstOrDefault(),
+                TitleEn = p.ProposalsI18ns.Where(i => i.Locale == "en").Select(i => i.Title).FirstOrDefault(),
                 Locales = p.ProposalFiles.Select(f => f.Locale).Distinct().ToList(),
                 FileCount = p.ProposalFiles.Count,
                 LeadCount = dbContext.Enquiries.Count(e => e.ProposalId == p.Id),
@@ -34,7 +36,7 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
 
         return rows.Select(r => new AdminProposalListItemDto
         {
-            Id = r.Id, Title = r.Title, VersionNo = r.VersionNo, Status = r.Status,
+            Id = r.Id, Title = r.TitleZh ?? string.Empty, TitleEn = r.TitleEn, VersionNo = r.VersionNo, Status = r.Status,
             Locales = r.Locales.Select(ToExternalLocale).OrderBy(l => l).ToList(),
             FileCount = r.FileCount, LeadCount = r.LeadCount, UpdatedAt = r.UpdatedAt,
         }).ToList();
@@ -42,7 +44,7 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
 
     public async Task<AdminProposalDetailDto?> GetByIdAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
-        var proposal = await dbContext.Proposals.AsNoTracking().Include(p => p.ProposalFiles)
+        var proposal = await dbContext.Proposals.AsNoTracking().Include(p => p.ProposalFiles).Include(p => p.ProposalsI18ns)
             .FirstOrDefaultAsync(p => p.Id == id && p.ClubId == scope.ClubId, cancellationToken);
         if (proposal is null)
         {
@@ -65,10 +67,11 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
         var now = DateTime.UtcNow;
         var proposal = new Proposal
         {
-            Id = Guid.NewGuid(), ClubId = scope.ClubId, Title = request.Title.Trim(), VersionNo = request.VersionNo,
+            Id = Guid.NewGuid(), ClubId = scope.ClubId, VersionNo = request.VersionNo,
             Status = request.Status, CreatedAt = now, UpdatedAt = now, CreatedBy = operatorId, UpdatedBy = operatorId,
         };
         dbContext.Proposals.Add(proposal);
+        SetTitles(proposal, request);
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("proposals", scope.ClubCode, cancellationToken);
         return (await GetByIdAsync(scope, proposal.Id, cancellationToken))!;
@@ -78,7 +81,7 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
         AdminClubScope scope, Guid id, UpsertAdminProposalRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
         Validate(request);
-        var proposal = await dbContext.Proposals.Include(p => p.ProposalFiles)
+        var proposal = await dbContext.Proposals.Include(p => p.ProposalFiles).Include(p => p.ProposalsI18ns)
             .FirstOrDefaultAsync(p => p.Id == id && p.ClubId == scope.ClubId, cancellationToken);
         if (proposal is null)
         {
@@ -90,7 +93,7 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
             throw new AdminValidationException("提案還沒有上傳任何檔案，不能發布。", "status");
         }
 
-        proposal.Title = request.Title.Trim();
+        SetTitles(proposal, request);
         proposal.VersionNo = request.VersionNo;
         proposal.Status = request.Status;
         proposal.UpdatedAt = DateTime.UtcNow;
@@ -192,12 +195,41 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
     private static void Validate(UpsertAdminProposalRequest request)
     {
         AdminInput.RequireText(request.Title, "提案名稱", 128, "title");
+        AdminInput.OptionalText(request.TitleEn, "提案名稱（英文）", 128, "titleEn");
         if (request.VersionNo < 1)
         {
             throw new AdminValidationException("版本號必須是 1 以上的整數。", "versionNo");
         }
 
         AdminInput.OneOf(request.Status, Statuses, "狀態", "「草稿」或「發布」", "status");
+    }
+
+    /// <summary>繁中列必存在；英文列只在有填英文名稱時存在，清空即移除（前台回退繁中）。</summary>
+    private void SetTitles(Proposal proposal, UpsertAdminProposalRequest request)
+    {
+        UpsertTitle(proposal, RequestLocale.DefaultDbLocale, request.Title.Trim());
+        var titleEn = string.IsNullOrWhiteSpace(request.TitleEn) ? null : request.TitleEn.Trim();
+        if (titleEn is not null)
+        {
+            UpsertTitle(proposal, "en", titleEn);
+        }
+        else if (proposal.ProposalsI18ns.FirstOrDefault(i => i.Locale == "en") is { } en)
+        {
+            dbContext.Remove(en);
+        }
+    }
+
+    private void UpsertTitle(Proposal proposal, string locale, string title)
+    {
+        var row = proposal.ProposalsI18ns.FirstOrDefault(i => i.Locale == locale);
+        if (row is null)
+        {
+            row = new ProposalsI18n { ProposalId = proposal.Id, Locale = locale };
+            proposal.ProposalsI18ns.Add(row);
+            dbContext.ProposalsI18ns.Add(row);
+        }
+
+        row.Title = title;
     }
 
     internal static string ToDbLocale(string external)
@@ -211,7 +243,8 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
     private static AdminProposalDetailDto ToDetail(Proposal proposal, int leadCount) => new()
     {
         Id = proposal.Id,
-        Title = proposal.Title,
+        Title = proposal.ProposalsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Title ?? string.Empty,
+        TitleEn = proposal.ProposalsI18ns.FirstOrDefault(i => i.Locale == "en")?.Title,
         VersionNo = proposal.VersionNo,
         Status = proposal.Status,
         Files = proposal.ProposalFiles.OrderBy(f => f.Locale).ThenByDescending(f => f.VersionNo).Select(f => new AdminProposalFileDto

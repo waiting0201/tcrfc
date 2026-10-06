@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Features.Standings;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -313,6 +314,126 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         if (weightKg is < 30 or > 150)
         {
             throw new AdminPlayerValidationException("體重數值不合理，請確認單位為公斤。", "weightKg");
+        }
+    }
+
+    // ═══════════════════════════ 賽季數據（B-13）═══════════════════════════
+    // 🔴 player_season_stats 沒有 source 欄位：「這一列存在」就是手動數據（公開端 StandingsRepository 以此判斷 source=manual），
+    // 「清除」＝刪除這一列，公開端自動回到賽事彙總。
+
+    private async Task<Player?> LoadPlayerForStatsAsync(AdminClubScope scope, Guid playerId, CancellationToken cancellationToken)
+        => await dbContext.Players.Include(p => p.Team).FirstOrDefaultAsync(p => p.Id == playerId && p.ClubId == scope.ClubId, cancellationToken);
+
+    public async Task<AdminPlayerSeasonStatsDto?> GetSeasonStatsAsync(AdminClubScope scope, Guid playerId, CancellationToken cancellationToken)
+    {
+        var player = await dbContext.Players.AsNoTracking().FirstOrDefaultAsync(p => p.Id == playerId && p.ClubId == scope.ClubId, cancellationToken);
+        if (player is null)
+        {
+            return null;
+        }
+
+        var seasons = await dbContext.Seasons.AsNoTracking().Where(s => s.ClubId == scope.ClubId).OrderByDescending(s => s.StartOn).ToListAsync(cancellationToken);
+        var manual = await dbContext.PlayerSeasonStats.AsNoTracking().Where(m => m.PlayerId == playerId).ToDictionaryAsync(m => m.SeasonId, cancellationToken);
+        var items = new List<AdminPlayerSeasonStatDto>();
+        foreach (var season in seasons)
+        {
+            items.Add(await BuildSeasonStatAsync(scope, playerId, season, manual.GetValueOrDefault(season.Id), cancellationToken));
+        }
+
+        return new AdminPlayerSeasonStatsDto { PlayerId = playerId, Items = items };
+    }
+
+    private async Task<AdminPlayerSeasonStatDto> BuildSeasonStatAsync(
+        AdminClubScope scope, Guid playerId, Season season, PlayerSeasonStat? manual, CancellationToken cancellationToken)
+    {
+        var auto = (await StandingsRepository.AutoTotalsAsync(dbContext, scope.ClubId, season.Id, playerId, cancellationToken)).GetValueOrDefault(playerId);
+        return new AdminPlayerSeasonStatDto
+        {
+            SeasonId = season.Id, SeasonCode = season.Code, StartOn = season.StartOn, EndOn = season.EndOn,
+            Source = manual is not null ? "manual" : auto is not null ? "auto" : "none",
+            Manual = manual is null ? null : new AdminPlayerSeasonStatValues
+            {
+                Appearances = manual.Appearances, Goals = manual.Goals, Assists = manual.Assists, YellowCards = manual.YellowCards, RedCards = manual.RedCards,
+            },
+            Auto = auto is null ? null : new AdminPlayerSeasonStatValues
+            {
+                Appearances = auto.Appearances, Goals = auto.Goals, Assists = null, YellowCards = auto.Yellow, RedCards = auto.Red,
+            },
+        };
+    }
+
+    public async Task<AdminPlayerSeasonStatDto?> SetSeasonStatAsync(
+        AdminClubScope scope, TeamRowScope rowScope, Guid playerId, Guid seasonId, SetAdminPlayerSeasonStatRequest request, Guid? operatorId, CancellationToken cancellationToken)
+    {
+        var player = await LoadPlayerForStatsAsync(scope, playerId, cancellationToken);
+        var season = await dbContext.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.Id == seasonId && s.ClubId == scope.ClubId, cancellationToken);
+        if (player is null || season is null)
+        {
+            return null;
+        }
+
+        if (!rowScope.Allows(player.TeamId, player.Team.Type))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這位球員。");
+        }
+
+        ValidateStat(request.Appearances, "出賽場次", "appearances");
+        ValidateStat(request.Goals, "進球", "goals");
+        ValidateStat(request.Assists, "助攻", "assists");
+        ValidateStat(request.YellowCards, "黃牌", "yellowCards");
+        ValidateStat(request.RedCards, "紅牌", "redCards");
+
+        var now = DateTime.UtcNow;
+        var row = await dbContext.PlayerSeasonStats.FirstOrDefaultAsync(m => m.PlayerId == playerId && m.SeasonId == seasonId, cancellationToken);
+        if (row is null)
+        {
+            row = new PlayerSeasonStat { Id = Guid.NewGuid(), PlayerId = playerId, SeasonId = seasonId, CreatedAt = now, CreatedBy = operatorId };
+            dbContext.PlayerSeasonStats.Add(row);
+        }
+
+        row.Appearances = request.Appearances;
+        row.Goals = request.Goals;
+        row.Assists = request.Assists;
+        row.YellowCards = request.YellowCards;
+        row.RedCards = request.RedCards;
+        row.UpdatedAt = now;
+        row.UpdatedBy = operatorId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return await BuildSeasonStatAsync(scope, playerId, season, row, cancellationToken);
+    }
+
+    /// <returns><c>null</c>＝找不到球員或賽季（404）；<c>false</c>＝這個賽季本來就沒有手動數據；<c>true</c>＝已清除。</returns>
+    public async Task<bool?> ClearSeasonStatAsync(
+        AdminClubScope scope, TeamRowScope rowScope, Guid playerId, Guid seasonId, CancellationToken cancellationToken)
+    {
+        var player = await LoadPlayerForStatsAsync(scope, playerId, cancellationToken);
+        var seasonExists = await dbContext.Seasons.AsNoTracking().AnyAsync(s => s.Id == seasonId && s.ClubId == scope.ClubId, cancellationToken);
+        if (player is null || !seasonExists)
+        {
+            return null;
+        }
+
+        if (!rowScope.Allows(player.TeamId, player.Team.Type))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這位球員。");
+        }
+
+        var row = await dbContext.PlayerSeasonStats.FirstOrDefaultAsync(m => m.PlayerId == playerId && m.SeasonId == seasonId, cancellationToken);
+        if (row is null)
+        {
+            return false;
+        }
+
+        dbContext.PlayerSeasonStats.Remove(row);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    private static void ValidateStat(int value, string label, string field)
+    {
+        if (value is < 0 or > 9999)
+        {
+            throw new AdminPlayerValidationException($"{label}必須是 0 到 9999 之間的整數。", field);
         }
     }
 

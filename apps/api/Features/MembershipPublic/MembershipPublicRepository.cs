@@ -45,7 +45,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
             return new MembershipPlanPublicDto
             {
                 Code = p.Code, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), BenefitNote = RequestLocale.Pick(requested?.BenefitNote, fallback?.BenefitNote),
-                Fee = p.Fee, CardQuota = p.CardQuota, JerseyQuota = p.JerseyQuota, MidSeasonRule = p.MidSeasonRule, SeasonCode = p.Season.Code,
+                Fee = p.Fee, CardQuota = p.CardQuota, JerseyQuota = p.JerseyQuota, MidSeasonRule = RequestLocale.Pick(requested?.MidSeasonRule, fallback?.MidSeasonRule), SeasonCode = p.Season.Code,
                 StartsOn = p.StartsOn ?? p.Season.StartOn, EndsOn = p.EndsOn ?? p.Season.EndOn,
             };
         }).ToList();

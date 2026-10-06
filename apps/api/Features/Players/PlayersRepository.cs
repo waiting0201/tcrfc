@@ -22,12 +22,12 @@ public sealed class PlayersRepository(
     private sealed record PlayerRow(
         Guid Id, string Slug, string TeamCode, int? ShirtNo, string? Position, DateTime? BirthOn,
         int? HeightCm, int? WeightKg, string? Nationality, string? PreferredFoot, string? PhotoKey,
-        string PortraitConsentStatus);
+        string PortraitConsentStatus, string? Status);
 
     private sealed record PlayerI18nRow(Guid PlayerId, string Locale, string? Name, string? Bio);
 
     /// <summary>
-    /// 球員名單。<paramref name="scope"/> 型別是 <see cref="ClubScope"/>——不是 Guid、不是 string，
+    /// 球員名單（<b>只回現役</b>：<c>status</c> 為 <c>active</c> 或尚未填寫；離隊／外借／海外發展不公開，稽核 A-2）。<paramref name="scope"/> 型別是 <see cref="ClubScope"/>——不是 Guid、不是 string，
     /// 呼叫端唯一的取得方式是先經過 <see cref="IClubResolver"/>。<c>players.club_id</c> 是 50 張
     /// 必填 club_id 表之一，這裡用 <c>=</c> 硬過濾，不是「可為空、需回退共同內容」的 9 張表之一。
     /// **快取**：qualifier 涵蓋 <paramref name="teamCode"/>／<paramref name="page"/>／
@@ -50,6 +50,7 @@ public sealed class PlayersRepository(
                     FROM players p
                     JOIN teams t ON t.id = p.team_id
                     WHERE p.club_id = @ClubId
+                      AND (p.status IS NULL OR p.status = 'active')
                       AND (@TeamCode IS NULL OR t.code = @TeamCode)
                     """;
 
@@ -57,10 +58,11 @@ public sealed class PlayersRepository(
                     SELECT p.id AS Id, p.slug AS Slug, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
                            p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
                            p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey,
-                           p.portrait_consent_status AS PortraitConsentStatus
+                           p.portrait_consent_status AS PortraitConsentStatus, p.status AS Status
                     FROM players p
                     JOIN teams t ON t.id = p.team_id
                     WHERE p.club_id = @ClubId
+                      AND (p.status IS NULL OR p.status = 'active')
                       AND (@TeamCode IS NULL OR t.code = @TeamCode)
                     ORDER BY t.sort_order, p.shirt_no
                     OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
@@ -104,10 +106,10 @@ public sealed class PlayersRepository(
                     SELECT p.id AS Id, p.slug AS Slug, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
                            p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
                            p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey,
-                           p.portrait_consent_status AS PortraitConsentStatus
+                           p.portrait_consent_status AS PortraitConsentStatus, p.status AS Status
                     FROM players p
                     JOIN teams t ON t.id = p.team_id
-                    WHERE p.club_id = @ClubId AND (p.slug = @Key OR p.id = @Id)
+                    WHERE p.club_id = @ClubId AND (p.status IS NULL OR p.status = 'active') AND (p.slug = @Key OR p.id = @Id)
                     """;
                 var row = await connection.QueryFirstOrDefaultAsync<PlayerRow>(new CommandDefinition(
                     sql, new { scope.ClubId, Key = key, Id = Guid.TryParse(key, out var id) ? id : Guid.Empty }, cancellationToken: ct));
@@ -164,6 +166,7 @@ public sealed class PlayersRepository(
         return new PlayerDto
         {
             Id = row.Id,
+            Status = row.Status ?? "active",
             Slug = row.Slug,
             TeamCode = row.TeamCode,
             ShirtNo = row.ShirtNo,

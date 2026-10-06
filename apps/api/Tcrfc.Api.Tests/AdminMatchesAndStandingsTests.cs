@@ -478,10 +478,12 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
 
         var createResponse = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/standings", new CreateAdminStandingRequest
         {
-            SeasonId = seasonId, TeamName = "測試積分榜球隊", Rank = 1, Played = 10, Points = 25,
+            SeasonId = seasonId, TeamName = "測試積分榜球隊", TeamNameEn = "Test Standings Team", Rank = 1, Played = 10, Points = 25,
         });
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var created = await createResponse.Content.ReadFromJsonAsync<AdminStandingDetailDto>(TestJson.Options);
+        Assert.Equal("測試積分榜球隊", created!.TeamName);
+        Assert.Equal("Test Standings Team", created.TeamNameEn);
 
         try
         {
@@ -492,6 +494,14 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
             var updated = await updateResponse.Content.ReadFromJsonAsync<AdminStandingDetailDto>(TestJson.Options);
             Assert.Equal(2, updated!.Rank);
+            Assert.Null(updated.TeamNameEn); // 省略英文名稱＝清除英文列，前台回退繁中
+
+            var tooLong = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/standings", new CreateAdminStandingRequest
+            {
+                SeasonId = seasonId, TeamName = "x", TeamNameEn = new string('a', 129),
+            });
+            Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
+            Assert.Contains("teamNameEn", await tooLong.Content.ReadAsStringAsync());
         }
         finally
         {
@@ -539,6 +549,21 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
             Assert.DoesNotContain(list!, s => s.TeamName == "應該被替換掉的舊資料");
             Assert.Contains(list!, s => s.TeamName == "積分榜CSV測試A");
             Assert.Contains(list!, s => s.TeamName == "積分榜CSV測試B");
+            Assert.All(list!, s => Assert.Null(s.TeamNameEn)); // 五欄檔案沒有英文欄＝英文名稱留空
+
+            // 可選的第六欄「球隊名稱（英文）」寫入 standings_i18n(en)。
+            var csvEn = CsvUtils.BuildCsv(
+            [
+                ["賽季代碼", "名次", "球隊名稱", "出賽場次", "積分", "球隊名稱（英文）"],
+                ["2026-27", "1", "積分榜CSV測試A", "10", "28", "CSV Test A"],
+                ["2026-27", "2", "積分榜CSV測試B", "10", "25", ""],
+            ]);
+            var responseEn = await PostCsvAsync(client, "/api/v1/admin/tcrfc/standings/import", csvEn);
+            Assert.Equal(HttpStatusCode.OK, responseEn.StatusCode);
+            var listEn = await client.GetFromJsonAsync<List<AdminStandingListItemDto>>(
+                $"/api/v1/admin/tcrfc/standings?seasonId={seasonId}", TestJson.Options);
+            Assert.Equal("CSV Test A", listEn!.Single(s => s.TeamName == "積分榜CSV測試A").TeamNameEn);
+            Assert.Null(listEn!.Single(s => s.TeamName == "積分榜CSV測試B").TeamNameEn);
         }
         finally
         {
@@ -788,7 +813,7 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
         await using var connection = new SqlConnection(RequireConnectionString());
         await connection.OpenAsync();
         await using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM standings WHERE season_id = @SeasonId AND team_name IN (SELECT value FROM STRING_SPLIT(@Names, '|'));";
+        command.CommandText = "DELETE FROM standings WHERE season_id = @SeasonId AND id IN (SELECT standing_id FROM standings_i18n WHERE locale = N'zh-Hant' AND team_name IN (SELECT value FROM STRING_SPLIT(@Names, '|')));";
         command.Parameters.AddWithValue("@SeasonId", seasonId);
         command.Parameters.AddWithValue("@Names", string.Join('|', teamNames));
         await command.ExecuteNonQueryAsync();

@@ -30,8 +30,11 @@ public sealed record UpsertAdminPlanRequest
     public int CardQuota { get; init; } = 1;
     public int JerseyQuota { get; init; }
 
-    /// <summary>季中入會計價規則（文字說明，例：「照比例」「不折價」）。</summary>
+    /// <summary>季中入會計價規則（繁中文字說明，例：「照比例」「不折價」；最長 255 字，存 <c>membership_plans_i18n(zh-Hant)</c>）。</summary>
     public string? MidSeasonRule { get; init; }
+
+    /// <summary>英文季中入會計價規則（選填，最長 255 字，存 <c>membership_plans_i18n(en)</c>）。</summary>
+    public string? MidSeasonRuleEn { get; init; }
     public DateOnly? StartsOn { get; init; }
     public DateOnly? EndsOn { get; init; }
     public int SortOrder { get; init; }
@@ -71,6 +74,7 @@ public sealed record AdminPlanDetailDto
     public required int CardQuota { get; init; }
     public required int JerseyQuota { get; init; }
     public string? MidSeasonRule { get; init; }
+    public string? MidSeasonRuleEn { get; init; }
     public DateOnly? StartsOn { get; init; }
     public DateOnly? EndsOn { get; init; }
     public required int SortOrder { get; init; }

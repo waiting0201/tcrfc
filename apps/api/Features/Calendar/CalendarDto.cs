@@ -32,6 +32,22 @@ public sealed record PublicCalendarEventDto
 
     // ── custom-only 欄位 ─────────────────────────────────────────────────
     public string? EventTypeCode { get; init; }
+
+    /// <summary>活動類型顯示名稱（依 <c>lang</c>，缺譯回退中文）；未設類型為 <c>null</c>。B-6。</summary>
+    public string? EventTypeName { get; init; }
+
+    /// <summary>活動類型代表色（如 <c>#C8102E</c>），可為 <c>null</c>。</summary>
+    public string? EventTypeColour { get; init; }
+
+    /// <summary>活動類型圖示代碼，可為 <c>null</c>。</summary>
+    public string? EventTypeIcon { get; init; }
+
+    /// <summary>此活動是否設有重複規則（每週／每兩週／每月）。為 true 時同一個 <c>Id</c> 會出現多筆（每個發生日一筆）。</summary>
+    public bool IsRecurring { get; init; }
+
+    /// <summary>每個發生次數的唯一鍵（<c>{活動id}:{yyyyMMddHHmm}</c>），前台 <c>v-for</c> 的 key 用這個，
+    /// 因為重複活動的 <c>Id</c> 會重複。match 來源恆為 <c>null</c>。</summary>
+    public string? OccurrenceId { get; init; }
     public string? Description { get; init; }
     public string? CtaUrl { get; init; }
     public string? CoverKey { get; init; }

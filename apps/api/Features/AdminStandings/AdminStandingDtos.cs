@@ -14,7 +14,12 @@ public sealed record AdminStandingListItemDto
     public required Guid Id { get; init; }
     public required Guid SeasonId { get; init; }
     public required string SeasonCode { get; init; }
+
+    /// <summary>繁中球隊名稱（<c>standings_i18n(zh-Hant)</c>）。</summary>
     public required string TeamName { get; init; }
+
+    /// <summary>英文球隊名稱（<c>standings_i18n(en)</c>）；未填為 <c>null</c>，前台回退繁中。</summary>
+    public string? TeamNameEn { get; init; }
     public int? Rank { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }
@@ -27,6 +32,7 @@ public sealed record AdminStandingDetailDto
     public required Guid SeasonId { get; init; }
     public required string SeasonCode { get; init; }
     public required string TeamName { get; init; }
+    public string? TeamNameEn { get; init; }
     public int? Rank { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }
@@ -38,6 +44,9 @@ public sealed record CreateAdminStandingRequest
 {
     public required Guid SeasonId { get; init; }
     public required string TeamName { get; init; }
+
+    /// <summary>英文球隊名稱（選填，最長 128 字）。</summary>
+    public string? TeamNameEn { get; init; }
     public int? Rank { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }
@@ -47,6 +56,7 @@ public sealed record UpdateAdminStandingRequest
 {
     public required Guid SeasonId { get; init; }
     public required string TeamName { get; init; }
+    public string? TeamNameEn { get; init; }
     public int? Rank { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }

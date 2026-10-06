@@ -330,21 +330,21 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
     [Fact]
     public async Task FormField_已有詢問資料引用_刪除被擋下409()
     {
+        // 七類表單與提案下載的欄位已鎖定（A-3，刪除一律 400），「使用中不能刪」只會在仍可編輯的捐助洽詢表單出現。
         using var adminClient = await CreateClientAsync("customer.service@tcrfc.test");
         using var publicClient = fixture.CreateClient();
 
-        var formId = await GetFormIdAsync(adminClient, "tcrfc", FormCatalog.GeneralContact);
+        var formId = await GetFormIdAsync(adminClient, "tcrfc", FormCatalog.DonationEnquiry);
         var detail = await adminClient.GetFromJsonAsync<AdminFormDetailDto>($"/api/v1/admin/tcrfc/forms/{formId}", TestJson.Options);
         var nameFieldId = detail!.Fields.First(f => f.FieldKey == "name").Id;
 
         Guid? enquiryId = null;
         try
         {
-            enquiryId = await SubmitAndGetIdAsync(publicClient, "tcrfc", FormCatalog.GeneralContact, new Dictionary<string, string>
+            enquiryId = await SubmitAndGetIdAsync(publicClient, "tcrfc", FormCatalog.DonationEnquiry, new Dictionary<string, string>
             {
                 ["name"] = "刪除保護測試",
                 ["contact"] = "delete-guard@example.com",
-                ["subject"] = "測試",
                 ["message"] = "測試內容",
                 ["privacy_consent"] = "true",
             });

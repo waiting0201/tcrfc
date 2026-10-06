@@ -17,8 +17,8 @@ public sealed class ProgramsRepository(
     private const string CacheEntity = "programs";
 
     private sealed record ProgramRow(
-        Guid Id, string Slug, string? ProgramType, string? Audience, int? AgeMin, int? AgeMax, string? CoverKey, bool HasOpenSession);
-    private sealed record ProgramI18nRow(string Locale, string? Name, string? Intro, string? Content);
+        Guid Id, string Slug, string? ProgramType, int? AgeMin, int? AgeMax, string? CoverKey, bool HasOpenSession);
+    private sealed record ProgramI18nRow(string Locale, string? Name, string? Intro, string? Content, string? Audience);
     private sealed record StaffRow(Guid Id, string? Name);
     private sealed record PartnerRow(Guid Id, string Slug, string? Name, string? LogoDarkKey, string? LogoLightKey, string? WebsiteUrl);
     // ⚠️ date 欄位一律 DateTime?（不是 DateOnly?）：Dapper 對 positional record 的建構子具現化要求型別逐一相符，見 docs/18 E-20；Map 時再轉 DateOnly。
@@ -49,7 +49,7 @@ public sealed class ProgramsRepository(
                     """;
 
                 const string listSql = """
-                    SELECT p.id AS Id, p.slug AS Slug, p.program_type AS ProgramType, p.audience AS Audience,
+                    SELECT p.id AS Id, p.slug AS Slug, p.program_type AS ProgramType,
                            p.age_min AS AgeMin, p.age_max AS AgeMax, p.cover_key AS CoverKey,
                            CAST(CASE WHEN EXISTS (
                                SELECT 1 FROM sessions s WHERE s.program_id = p.id AND s.status IN (N'開放', N'候補')
@@ -80,7 +80,7 @@ public sealed class ProgramsRepository(
                         Id = r.Id,
                         Slug = r.Slug,
                         ProgramType = r.ProgramType,
-                        Audience = r.Audience,
+                        Audience = RequestLocale.Pick(requested?.Audience, fallback?.Audience),
                         AgeMin = r.AgeMin,
                         AgeMax = r.AgeMax,
                         CoverKey = r.CoverKey,
@@ -106,7 +106,7 @@ public sealed class ProgramsRepository(
                 using var connection = connectionFactory.CreateConnection();
 
                 const string programSql = """
-                    SELECT id AS Id, slug AS Slug, program_type AS ProgramType, audience AS Audience,
+                    SELECT id AS Id, slug AS Slug, program_type AS ProgramType,
                            age_min AS AgeMin, age_max AS AgeMax, cover_key AS CoverKey,
                            CAST(0 AS bit) AS HasOpenSession
                     FROM programs
@@ -183,7 +183,7 @@ public sealed class ProgramsRepository(
                     Id = program.Id,
                     Slug = program.Slug,
                     ProgramType = program.ProgramType,
-                    Audience = program.Audience,
+                    Audience = RequestLocale.Pick(requested?.Audience, fallback?.Audience),
                     AgeMin = program.AgeMin,
                     AgeMax = program.AgeMax,
                     CoverKey = program.CoverKey,
@@ -359,7 +359,7 @@ public sealed class ProgramsRepository(
         }
 
         const string sql = """
-            SELECT program_id AS ProgramId, locale AS Locale, name AS Name, intro AS Intro, content AS Content
+            SELECT program_id AS ProgramId, locale AS Locale, name AS Name, intro AS Intro, content AS Content, audience AS Audience
             FROM programs_i18n
             WHERE program_id IN @ProgramIds AND locale IN @Locales
             """;
@@ -367,11 +367,11 @@ public sealed class ProgramsRepository(
             ? new[] { dbLocale }
             : new[] { dbLocale, RequestLocale.DefaultDbLocale };
 
-        var rows = await connection.QueryAsync<(Guid ProgramId, string Locale, string? Name, string? Intro, string? Content)>(
+        var rows = await connection.QueryAsync<(Guid ProgramId, string Locale, string? Name, string? Intro, string? Content, string? Audience)>(
             new CommandDefinition(sql, new { ProgramIds = programIds, Locales = locales }, cancellationToken: cancellationToken));
 
         return rows.GroupBy(r => r.ProgramId).ToDictionary(
             g => g.Key,
-            g => g.ToDictionary(r => r.Locale, r => new ProgramI18nRow(r.Locale, r.Name, r.Intro, r.Content)));
+            g => g.ToDictionary(r => r.Locale, r => new ProgramI18nRow(r.Locale, r.Name, r.Intro, r.Content, r.Audience)));
     }
 }

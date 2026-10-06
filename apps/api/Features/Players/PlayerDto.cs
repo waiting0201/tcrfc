@@ -13,6 +13,11 @@ public sealed record PlayerDto
 {
     public required Guid Id { get; init; }
 
+    /// <summary>球員狀態（稽核 A-2）。公開端只回現役，所以目前恆為 <c>active</c>；仍輸出是為了讓用戶端不必猜、
+    /// 日後若開放顯示離隊球員（例如球員檔案頁）契約不需要再改。型別宣告為可空（伺服器永遠有值）：App 的本機快取可能存著
+    /// 新增此欄位之前的舊回應，非空型別會讓舊快取解碼失敗。</summary>
+    public string? Status { get; init; }
+
     /// <summary>網址代稱（2026-10-05）：App 規劃書 §2.3 深連結 <c>tcrfc://player/{slug}</c> → <c>/zh/club/first-team/player/{slug}</c>。
     /// 同一俱樂部內唯一（<c>(club_id, slug)</c>），<c>[a-z0-9-]</c>。</summary>
     public required string Slug { get; init; }

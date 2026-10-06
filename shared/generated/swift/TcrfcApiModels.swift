@@ -1134,16 +1134,8 @@ public struct ClubDto: Codable, Equatable, Sendable {
     public var isFallbackLocale: Bool
     public var description: String?
     public var domain: String
-    public var logoLightKey: String?
-    public var logoDarkKey: String?
-    public var faviconKey: String?
     public var ogImageKey: String?
-    public var brandColor: String?
-    public var brandSecondaryColor: String?
     public var defaultLocale: String
-    public var logoUrl: String?
-    public var logoDarkUrl: String?
-    public var faviconUrl: String?
     public var ogImageUrl: String?
     public var schemaEligible: Bool
 
@@ -1154,16 +1146,8 @@ public struct ClubDto: Codable, Equatable, Sendable {
         isFallbackLocale: Bool,
         description: String? = nil,
         domain: String,
-        logoLightKey: String? = nil,
-        logoDarkKey: String? = nil,
-        faviconKey: String? = nil,
         ogImageKey: String? = nil,
-        brandColor: String? = nil,
-        brandSecondaryColor: String? = nil,
         defaultLocale: String,
-        logoUrl: String? = nil,
-        logoDarkUrl: String? = nil,
-        faviconUrl: String? = nil,
         ogImageUrl: String? = nil,
         schemaEligible: Bool
     ) {
@@ -1173,16 +1157,8 @@ public struct ClubDto: Codable, Equatable, Sendable {
         self.isFallbackLocale = isFallbackLocale
         self.description = description
         self.domain = domain
-        self.logoLightKey = logoLightKey
-        self.logoDarkKey = logoDarkKey
-        self.faviconKey = faviconKey
         self.ogImageKey = ogImageKey
-        self.brandColor = brandColor
-        self.brandSecondaryColor = brandSecondaryColor
         self.defaultLocale = defaultLocale
-        self.logoUrl = logoUrl
-        self.logoDarkUrl = logoDarkUrl
-        self.faviconUrl = faviconUrl
         self.ogImageUrl = ogImageUrl
         self.schemaEligible = schemaEligible
     }
@@ -1899,25 +1875,13 @@ public struct MemberChangePasswordRequest: Codable, Equatable, Sendable {
 public struct MemberClubBrandDto: Codable, Equatable, Sendable {
     public var code: String
     public var name: String
-    public var logoLightUrl: String?
-    public var logoDarkUrl: String?
-    public var brandColor: String?
-    public var brandSecondaryColor: String?
 
     public init(
         code: String,
-        name: String,
-        logoLightUrl: String? = nil,
-        logoDarkUrl: String? = nil,
-        brandColor: String? = nil,
-        brandSecondaryColor: String? = nil
+        name: String
     ) {
         self.code = code
         self.name = name
-        self.logoLightUrl = logoLightUrl
-        self.logoDarkUrl = logoDarkUrl
-        self.brandColor = brandColor
-        self.brandSecondaryColor = brandSecondaryColor
     }
 }
 
@@ -3431,6 +3395,7 @@ public struct PlayerCareerStatsDto: Codable, Equatable, Sendable {
 
 public struct PlayerDto: Codable, Equatable, Sendable {
     public var id: String
+    public var status: String?
     public var slug: String
     public var isFallbackLocale: Bool
     public var teamCode: String
@@ -3450,6 +3415,7 @@ public struct PlayerDto: Codable, Equatable, Sendable {
 
     public init(
         id: String,
+        status: String? = nil,
         slug: String,
         isFallbackLocale: Bool,
         teamCode: String,
@@ -3468,6 +3434,7 @@ public struct PlayerDto: Codable, Equatable, Sendable {
         schemaEligible: Bool
     ) {
         self.id = id
+        self.status = status
         self.slug = slug
         self.isFallbackLocale = isFallbackLocale
         self.teamCode = teamCode
@@ -3858,28 +3825,6 @@ public struct ProposalDownloadResultDto: Codable, Equatable, Sendable {
     }
 }
 
-public struct PublicBrandDto: Codable, Equatable, Sendable {
-    public var logoLightUrl: String?
-    public var logoDarkUrl: String?
-    public var faviconUrl: String?
-    public var brandColor: String?
-    public var brandSecondaryColor: String?
-
-    public init(
-        logoLightUrl: String? = nil,
-        logoDarkUrl: String? = nil,
-        faviconUrl: String? = nil,
-        brandColor: String? = nil,
-        brandSecondaryColor: String? = nil
-    ) {
-        self.logoLightUrl = logoLightUrl
-        self.logoDarkUrl = logoDarkUrl
-        self.faviconUrl = faviconUrl
-        self.brandColor = brandColor
-        self.brandSecondaryColor = brandSecondaryColor
-    }
-}
-
 public struct PublicCalendarEventDto: Codable, Equatable, Sendable {
     public var sourceType: String
     public var id: String
@@ -3901,6 +3846,11 @@ public struct PublicCalendarEventDto: Codable, Equatable, Sendable {
     public var originalMatchOn: String?
     public var originalKickoff: String?
     public var eventTypeCode: String?
+    public var eventTypeName: String?
+    public var eventTypeColour: String?
+    public var eventTypeIcon: String?
+    public var isRecurring: Bool?
+    public var occurrenceId: String?
     public var description: String?
     public var ctaUrl: String?
     public var coverKey: String?
@@ -3927,6 +3877,11 @@ public struct PublicCalendarEventDto: Codable, Equatable, Sendable {
         originalMatchOn: String? = nil,
         originalKickoff: String? = nil,
         eventTypeCode: String? = nil,
+        eventTypeName: String? = nil,
+        eventTypeColour: String? = nil,
+        eventTypeIcon: String? = nil,
+        isRecurring: Bool? = nil,
+        occurrenceId: String? = nil,
         description: String? = nil,
         ctaUrl: String? = nil,
         coverKey: String? = nil,
@@ -3952,6 +3907,11 @@ public struct PublicCalendarEventDto: Codable, Equatable, Sendable {
         self.originalMatchOn = originalMatchOn
         self.originalKickoff = originalKickoff
         self.eventTypeCode = eventTypeCode
+        self.eventTypeName = eventTypeName
+        self.eventTypeColour = eventTypeColour
+        self.eventTypeIcon = eventTypeIcon
+        self.isRecurring = isRecurring
+        self.occurrenceId = occurrenceId
         self.description = description
         self.ctaUrl = ctaUrl
         self.coverKey = coverKey
@@ -4078,6 +4038,7 @@ public struct PublicFormDto: Codable, Equatable, Sendable {
     public var formNameZh: String
     public var formNameEn: String
     public var captchaEnabled: Bool
+    public var redirectPath: String?
     public var fields: [PublicFormFieldDto]
 
     public init(
@@ -4085,12 +4046,14 @@ public struct PublicFormDto: Codable, Equatable, Sendable {
         formNameZh: String,
         formNameEn: String,
         captchaEnabled: Bool,
+        redirectPath: String? = nil,
         fields: [PublicFormFieldDto]
     ) {
         self.formCode = formCode
         self.formNameZh = formNameZh
         self.formNameEn = formNameEn
         self.captchaEnabled = captchaEnabled
+        self.redirectPath = redirectPath
         self.fields = fields
     }
 }
@@ -4369,15 +4332,37 @@ public struct PublicSiteFactContactDto: Codable, Equatable, Sendable {
     public var address: String?
     public var phone: String?
     public var hours: String?
+    public var email: String?
+    public var departments: [PublicSiteFactDepartmentDto]
 
     public init(
         address: String? = nil,
         phone: String? = nil,
-        hours: String? = nil
+        hours: String? = nil,
+        email: String? = nil,
+        departments: [PublicSiteFactDepartmentDto]
     ) {
         self.address = address
         self.phone = phone
         self.hours = hours
+        self.email = email
+        self.departments = departments
+    }
+}
+
+public struct PublicSiteFactDepartmentDto: Codable, Equatable, Sendable {
+    public var name: String
+    public var email: String?
+    public var phoneExtension: String?
+
+    public init(
+        name: String,
+        email: String? = nil,
+        phoneExtension: String? = nil
+    ) {
+        self.name = name
+        self.email = email
+        self.phoneExtension = phoneExtension
     }
 }
 
@@ -4391,6 +4376,25 @@ public struct PublicSiteFactLeagueDto: Codable, Equatable, Sendable {
     ) {
         self.name = name
         self.shortName = shortName
+    }
+}
+
+public struct PublicSiteFactSocialDto: Codable, Equatable, Sendable {
+    public var facebook: String?
+    public var instagram: String?
+    public var youtube: String?
+    public var line: String?
+
+    public init(
+        facebook: String? = nil,
+        instagram: String? = nil,
+        youtube: String? = nil,
+        line: String? = nil
+    ) {
+        self.facebook = facebook
+        self.instagram = instagram
+        self.youtube = youtube
+        self.line = line
     }
 }
 
@@ -4421,6 +4425,8 @@ public struct PublicSiteFactsDto: Codable, Equatable, Sendable {
     public var squadCodes: [String]
     public var contact: PublicSiteFactContactDto
     public var blueWhaleSiteUrl: String?
+    public var social: PublicSiteFactSocialDto
+    public var footerBlurb: String?
 
     public init(
         foundedYear: String? = nil,
@@ -4432,7 +4438,9 @@ public struct PublicSiteFactsDto: Codable, Equatable, Sendable {
         squadStructureSummary: String? = nil,
         squadCodes: [String],
         contact: PublicSiteFactContactDto,
-        blueWhaleSiteUrl: String? = nil
+        blueWhaleSiteUrl: String? = nil,
+        social: PublicSiteFactSocialDto,
+        footerBlurb: String? = nil
     ) {
         self.foundedYear = foundedYear
         self.foundingDateIso = foundingDateIso
@@ -4444,11 +4452,12 @@ public struct PublicSiteFactsDto: Codable, Equatable, Sendable {
         self.squadCodes = squadCodes
         self.contact = contact
         self.blueWhaleSiteUrl = blueWhaleSiteUrl
+        self.social = social
+        self.footerBlurb = footerBlurb
     }
 }
 
 public struct PublicSiteSettingsDto: Codable, Equatable, Sendable {
-    public var brand: PublicBrandDto
     public var maintenance: PublicMaintenanceDto
     public var languages: [PublicLanguageDto]
     public var fallbackMode: String
@@ -4456,14 +4465,12 @@ public struct PublicSiteSettingsDto: Codable, Equatable, Sendable {
     public var policies: [PublicPolicyIndexDto]
 
     public init(
-        brand: PublicBrandDto,
         maintenance: PublicMaintenanceDto,
         languages: [PublicLanguageDto],
         fallbackMode: String,
         formats: PublicFormatsDto,
         policies: [PublicPolicyIndexDto]
     ) {
-        self.brand = brand
         self.maintenance = maintenance
         self.languages = languages
         self.fallbackMode = fallbackMode
@@ -5544,6 +5551,7 @@ public struct SubmitFormRequest: Codable, Equatable, Sendable {
     public var utmSource: String?
     public var utmCampaign: String?
     public var website: String?
+    public var lang: String?
     public var turnstileToken: String?
 
     public init(
@@ -5552,6 +5560,7 @@ public struct SubmitFormRequest: Codable, Equatable, Sendable {
         utmSource: String? = nil,
         utmCampaign: String? = nil,
         website: String? = nil,
+        lang: String? = nil,
         turnstileToken: String? = nil
     ) {
         self.answers = answers
@@ -5559,6 +5568,7 @@ public struct SubmitFormRequest: Codable, Equatable, Sendable {
         self.utmSource = utmSource
         self.utmCampaign = utmCampaign
         self.website = website
+        self.lang = lang
         self.turnstileToken = turnstileToken
     }
 }
@@ -5667,7 +5677,6 @@ public struct TeamDto: Codable, Equatable, Sendable {
     public var isFallbackLocale: Bool
     public var intro: String?
     public var heroUrl: String?
-    public var logoUrl: String?
     public var schemaEligible: Bool
 
     public init(
@@ -5683,7 +5692,6 @@ public struct TeamDto: Codable, Equatable, Sendable {
         isFallbackLocale: Bool,
         intro: String? = nil,
         heroUrl: String? = nil,
-        logoUrl: String? = nil,
         schemaEligible: Bool
     ) {
         self.id = id
@@ -5698,7 +5706,6 @@ public struct TeamDto: Codable, Equatable, Sendable {
         self.isFallbackLocale = isFallbackLocale
         self.intro = intro
         self.heroUrl = heroUrl
-        self.logoUrl = logoUrl
         self.schemaEligible = schemaEligible
     }
 }

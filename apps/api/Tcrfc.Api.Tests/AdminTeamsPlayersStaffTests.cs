@@ -295,6 +295,21 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
             Assert.Equal("loan", updated!.Status);
             Assert.Equal(78, updated.ShirtNo);
 
+            // A-2：外借（非現役）不得出現在公開名單，列表與詳情都一樣；寫入後快取要已失效。
+            var hiddenList = await client.GetFromJsonAsync<PagedResult<JsonElement>>("/api/v1/tcrfc/players?team=D1", TestJson.Options);
+            Assert.DoesNotContain(hiddenList!.Items, p => p.GetProperty("id").GetGuid() == playerId);
+            Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/tcrfc/players/{playerId}")).StatusCode);
+
+            // 改回現役後公開端看得到，且輸出 status。
+            var reactivateForm = AdminArticleMultipart.Build(new UpdateAdminPlayerRequest
+            {
+                TeamId = tcrfcTeamId,
+                ShirtNo = 78,
+                Status = "active",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "測試球員（外借）" } },
+            });
+            Assert.Equal(HttpStatusCode.OK, (await client.PutAsync($"/api/v1/admin/tcrfc/players/{playerId}", reactivateForm)).StatusCode);
+
             // 公開端點：生日等既有判定為公開的欄位維持可見（docs/12b §8 未列 players 為受限），
             // 這是既有行為，本輪沒有改動，這裡只是回歸驗證；同時驗證寫入後快取已失效。
             var publicPlayers = await client.GetFromJsonAsync<PagedResult<JsonElement>>(
@@ -302,6 +317,7 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
             var publicPlayer = publicPlayers!.Items.FirstOrDefault(p => p.GetProperty("id").GetGuid() == playerId);
             Assert.True(publicPlayer.ValueKind != JsonValueKind.Undefined, "公開端點應能查到剛建立的球員（快取已失效）。");
             Assert.True(publicPlayer.TryGetProperty("birthOn", out _));
+            Assert.Equal("active", publicPlayer.GetProperty("status").GetString());
         }
         finally
         {

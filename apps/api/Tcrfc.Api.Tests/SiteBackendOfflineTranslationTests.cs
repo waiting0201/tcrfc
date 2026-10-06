@@ -196,7 +196,7 @@ public sealed class SiteBackendOfflineTranslationTests
 
         await OfflineQueryTranslation.AssertTranslatesAsync(() => new AdminMenusRepository(db, NoCache).GetAsync(Admin(), CancellationToken.None));
         await OfflineQueryTranslation.AssertTranslatesAsync(() => new AdminGlobalSettingsRepository(
-            db, editor, NoCache, Urls, new SensitiveActionLogger(NullLogger<SensitiveActionLogger>.Instance)).GetAsync(Admin(), CancellationToken.None));
+            db, editor, NoCache, new SensitiveActionLogger(NullLogger<SensitiveActionLogger>.Instance)).GetAsync(Admin(), CancellationToken.None));
 
         var i18n = new AdminI18nRepository(db, editor, new TranslationStatusReader(new OfflineConnectionFactory()), NoCache);
         await OfflineQueryTranslation.AssertTranslatesAsync(() => i18n.ListLocalesAsync(CancellationToken.None));

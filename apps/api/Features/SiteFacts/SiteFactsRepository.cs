@@ -11,19 +11,18 @@ namespace Tcrfc.Api.Features.SiteFacts;
 /// 梯隊組成、聯絡方式）。設定鍵詞彙見 <c>Features/AdminSiteFacts/AdminSiteFactsRepository</c> 檔頭，
 /// 這裡只是同一批鍵的唯讀版本，不重新定義一次鍵名字面值以外的邏輯。
 ///
-/// 🔴 **寫入端（<c>Features/AdminSiteFacts</c>）刻意不呼叫 <see cref="IQueryCache.InvalidateAsync"/>**
-/// ——比照既有 <c>Features/Seo/SeoRepository</c> 同一個取捨（見該檔頭說明），管理員改設定後最多
-/// 延後一個 TTL（預設 300 秒）才會反映到公開端點。
+/// 寫入端（<c>Features/AdminSiteFacts</c>）寫入後會呼叫 <see cref="IQueryCache.InvalidateAsync"/>（B-22），公開端點立即反映。
 /// </summary>
 public sealed class SiteFactsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
 {
-    private const string Entity = "site-facts";
+    internal const string Entity = "site-facts";
 
     private static readonly string[] SettingKeys =
     [
         "site.founded_year", "site.founding_date", "site.founding_date_display", "site.founding_title",
         "site.league_name", "site.league_short_name", "site.squad_structure_summary", "site.squad_codes",
         "site.contact_phone", "site.contact_hours", "site.home_venue_ids", "site.blue_whale_site_url",
+        .. SiteContactSupport.Keys,
     ];
 
     private sealed record SettingValueRow(string SettingKey, string? SettingValue);
@@ -84,8 +83,24 @@ public sealed class SiteFactsRepository(IClubSqlConnectionFactory connectionFact
                         Address = venues.Count > 0 ? venues[0].Address : null,
                         Phone = Value("site.contact_phone"),
                         Hours = I18nResolved("site.contact_hours"),
+                        Email = Value(SiteContactSupport.KeyContactEmail),
+                        Departments = SiteContactSupport.Parse(Value(SiteContactSupport.KeyDepartments))
+                            .Select(d => new PublicSiteFactDepartmentDto
+                            {
+                                Name = RequestLocale.Pick(dbLocale == RequestLocale.DefaultDbLocale ? d.NameZh : d.NameEn, d.NameZh) ?? d.NameZh,
+                                Email = d.Email,
+                                PhoneExtension = d.PhoneExtension,
+                            }).ToList(),
                     },
                     BlueWhaleSiteUrl = Value("site.blue_whale_site_url"),
+                    Social = new PublicSiteFactSocialDto
+                    {
+                        Facebook = Value(SiteContactSupport.KeySocialFacebook),
+                        Instagram = Value(SiteContactSupport.KeySocialInstagram),
+                        Youtube = Value(SiteContactSupport.KeySocialYoutube),
+                        Line = Value(SiteContactSupport.KeySocialLine),
+                    },
+                    FooterBlurb = I18nResolved(SiteContactSupport.KeyFooterBlurb),
                 };
             },
             cancellationToken);

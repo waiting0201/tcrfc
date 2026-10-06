@@ -107,6 +107,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
         Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
+        var ctaUrl = AdminInput.OptionalHttpOrSitePath(request.CtaUrl, "按鈕連結", 500, "ctaUrl");
         ValidateRepeatRule(request.RepeatRule, request.RepeatUntil);
         ValidateTimeRange(request.StartsAt, request.EndsAt);
         await ValidateEventTypeAsync(request.EventTypeId, cancellationToken);
@@ -127,7 +128,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
             RepeatUntil = request.RepeatUntil,
             IsPublic = request.IsPublic,
             CoverKey = coverKey,
-            CtaUrl = request.CtaUrl,
+            CtaUrl = ctaUrl,
             CreatedAt = now,
             UpdatedAt = now,
             CreatedBy = operatorId,
@@ -166,6 +167,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
         Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
+        var ctaUrl = AdminInput.OptionalHttpOrSitePath(request.CtaUrl, "按鈕連結", 500, "ctaUrl");
         ValidateRepeatRule(request.RepeatRule, request.RepeatUntil);
         ValidateTimeRange(request.StartsAt, request.EndsAt);
         await ValidateEventTypeAsync(request.EventTypeId, cancellationToken);
@@ -194,7 +196,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
         entity.RepeatRule = request.RepeatRule;
         entity.RepeatUntil = request.RepeatUntil;
         entity.IsPublic = request.IsPublic;
-        entity.CtaUrl = request.CtaUrl;
+        entity.CtaUrl = ctaUrl;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.UpdatedBy = operatorId;
 

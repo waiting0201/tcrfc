@@ -169,11 +169,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("club_id");
 
-                    b.Property<string>("CompetitionName")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("competition_name");
-
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(3)
@@ -184,11 +179,6 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
-
-                    b.Property<string>("Placing")
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
-                        .HasColumnName("placing");
 
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
@@ -230,6 +220,34 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_achievements_row_seq"));
 
                     b.ToTable("achievements", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AchievementsI18n", b =>
+                {
+                    b.Property<Guid>("AchievementId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("achievement_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("CompetitionName")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("competition_name");
+
+                    b.Property<string>("Placing")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("placing");
+
+                    b.HasKey("AchievementId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_achievements_i18n_locale");
+
+                    b.ToTable("achievements_i18n", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCampaign", b =>
@@ -3402,16 +3420,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
 
-                    b.Property<string>("BrandColor")
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
-                        .HasColumnName("brand_color");
-
-                    b.Property<string>("BrandSecondaryColor")
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
-                        .HasColumnName("brand_secondary_color");
-
                     b.Property<string>("Code")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -3443,11 +3451,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(128)")
                         .HasColumnName("domain");
 
-                    b.Property<string>("FaviconKey")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("favicon_key");
-
                     b.Property<string>("InvoiceTitle")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)")
@@ -3458,16 +3461,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("bit")
                         .HasDefaultValue(true)
                         .HasColumnName("is_collecting_subject");
-
-                    b.Property<string>("LogoDarkKey")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("logo_dark_key");
-
-                    b.Property<string>("LogoLightKey")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("logo_light_key");
 
                     b.Property<int?>("OgImageHeight")
                         .HasColumnType("int")
@@ -7633,11 +7626,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("jersey_quota");
 
-                    b.Property<string>("MidSeasonRule")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("mid_season_rule");
-
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
@@ -7705,6 +7693,11 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<string>("BenefitNote")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("benefit_note");
+
+                    b.Property<string>("MidSeasonRule")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("mid_season_rule");
 
                     b.Property<string>("Name")
                         .HasMaxLength(64)
@@ -9816,6 +9809,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(10)")
                         .HasColumnName("locale");
 
+                    b.Property<string>("Audience")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("audience");
+
                     b.Property<string>("Content")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("content");
@@ -9873,12 +9871,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(16)")
                         .HasColumnName("status")
                         .HasDefaultValue("draft", "DF_proposals_status");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("title");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -9982,6 +9974,29 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_proposal_files_row_seq"));
 
                     b.ToTable("proposal_files", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.ProposalsI18n", b =>
+                {
+                    b.Property<Guid>("ProposalId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("proposal_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("title");
+
+                    b.HasKey("ProposalId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_proposals_i18n_locale");
+
+                    b.ToTable("proposals_i18n", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessage", b =>
@@ -11639,12 +11654,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("season_id");
 
-                    b.Property<string>("TeamName")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)")
-                        .HasColumnName("team_name");
-
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(3)
@@ -11666,6 +11675,29 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_standings_row_seq"));
 
                     b.ToTable("standings", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.StandingsI18n", b =>
+                {
+                    b.Property<Guid>("StandingId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("standing_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("team_name");
+
+                    b.HasKey("StandingId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_standings_i18n_locale");
+
+                    b.ToTable("standings_i18n", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.StoreInvoice", b =>
@@ -11995,11 +12027,6 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<int?>("AgeMin")
                         .HasColumnType("int")
                         .HasColumnName("age_min");
-
-                    b.Property<string>("Audience")
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)")
-                        .HasColumnName("audience");
 
                     b.Property<Guid>("ClubId")
                         .HasColumnType("uniqueidentifier")
@@ -12594,6 +12621,18 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("Team");
 
                     b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AchievementsI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Achievement", "Achievement")
+                        .WithMany("AchievementsI18ns")
+                        .HasForeignKey("AchievementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_achievements_i18n_achievement");
+
+                    b.Navigation("Achievement");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCampaign", b =>
@@ -15753,6 +15792,18 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("UpdatedByNavigation");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.ProposalsI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Proposal", "Proposal")
+                        .WithMany("ProposalsI18ns")
+                        .HasForeignKey("ProposalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_proposals_i18n_proposal");
+
+                    b.Navigation("Proposal");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessage", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "AudienceClub")
@@ -16386,6 +16437,18 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("UpdatedByNavigation");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.StandingsI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Standing", "Standing")
+                        .WithMany("StandingsI18ns")
+                        .HasForeignKey("StandingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_standings_i18n_standing");
+
+                    b.Navigation("Standing");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.StoreInvoice", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
@@ -16624,6 +16687,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasConstraintName("FK_venues_i18n_venue");
 
                     b.Navigation("Venue");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Achievement", b =>
+                {
+                    b.Navigation("AchievementsI18ns");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCampaign", b =>
@@ -17617,6 +17685,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("Enquiries");
 
                     b.Navigation("ProposalFiles");
+
+                    b.Navigation("ProposalsI18ns");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessage", b =>
@@ -17686,6 +17756,11 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("StaffI18ns");
 
                     b.Navigation("StaffTeams");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Standing", b =>
+                {
+                    b.Navigation("StandingsI18ns");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Tag", b =>

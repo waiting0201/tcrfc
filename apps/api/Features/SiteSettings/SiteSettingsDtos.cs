@@ -28,19 +28,6 @@ public sealed record PublicMenusDto
     public required IReadOnlyList<PublicMenuItemDto> Footer { get; init; }
 }
 
-public sealed record PublicBrandDto
-{
-    public string? LogoLightUrl { get; init; }
-
-    public string? LogoDarkUrl { get; init; }
-
-    public string? FaviconUrl { get; init; }
-
-    public string? BrandColor { get; init; }
-
-    public string? BrandSecondaryColor { get; init; }
-}
-
 public sealed record PublicMaintenanceDto
 {
     public required bool Enabled { get; init; }
@@ -88,8 +75,6 @@ public sealed record PublicPolicyIndexDto
 /// <summary>前台一次取得的站台全域設定。維護模式與多語系規則每頁載入都要用，所以集中在這一支（短暫快取，後台儲存時立即失效）。</summary>
 public sealed record PublicSiteSettingsDto
 {
-    public required PublicBrandDto Brand { get; init; }
-
     public required PublicMaintenanceDto Maintenance { get; init; }
 
     /// <summary>啟用中的語系，依排序。</summary>
