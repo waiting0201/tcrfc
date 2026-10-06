@@ -184,6 +184,10 @@ services:
       NUXT_PUBLIC_SITE_ENV: ${SITE_ENV:?請在 .env 設定 SITE_ENV=prelaunch 或 production（docs/17 §10.4）} # 見 nuxt-tcrfc 同名變數的註解（docs/17 §10.4）
       NUXT_PUBLIC_API_BASE: https://${API_DOMAIN}
       NUXT_API_INTERNAL_BASE: http://api:8080
+      # Turnstile 網站金鑰（公開值，非機密）來自 /opt/tcrfc/.env 的 TURNSTILE_SITE_KEY_CHARITY。
+      # 🔴 必須與 charity.env 的 TURNSTILE_SECRET_KEY_CHARITY 一起設：只設後端＝前台不送 token＝所有捐款被擋（infra/README.md §4.3）。
+      # 未設＝空字串（前台不顯示驗證元件）。
+      NUXT_PUBLIC_TURNSTILE_SITE_KEY: ${TURNSTILE_SITE_KEY_CHARITY:-}
       # ⛔ 慈善平台不得接觸 Redis（docs/17 §5 補償措施）——本服務刻意不給 REDIS_* 變數
     networks: [internal]
     healthcheck:

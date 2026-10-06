@@ -316,7 +316,7 @@ GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 | `GEOCODER`／`GOOGLE_MAPS_GEOCODING_API_KEY` | club.env | **不設**，使用者在 Google Cloud 建好**限定 Geocoding API＋限定 VM 出口 IP** 的金鑰後兩個一起填（`GEOCODER=google`） | 未設 → 後台「由地址定位」回 503、存檔不阻擋；🔴 `GEOCODER=fake` 在 Production 啟動失敗；只有 `GEOCODER=google` 缺金鑰＝同樣優雅降級。金鑰不得貼進對話或進版控。步驟與條款風險見 `docs/17` §3「G 批的接縫」 |
 | `LINE_LOGIN_CHANNEL_ID`／`_SECRET`／`LINE_LOGIN_REDIRECT_URIS` | club.env | **不設** | 三項缺一 → LINE 登入端點回 **503**（不假成功）。到位後三個一起填；`REDIRECT_URIS` 逗號分隔，須與 LINE Developers 登記的 Callback URL 逐字一致 |
 | `CHARITY_ALLOW_FAKE_PROVIDERS` | charity.env | **不設（絕不填 `true`）** | 未設 → 慈善金流／發票／寄信一律「尚未設定」，捐款頁顯示服務暫時無法使用；`true` 會讓假金流對任何交易回扣款成功、**把假捐款寫進正式資料庫**（`docs/17` §5） |
-| `TURNSTILE_SECRET_KEY_CHARITY` | charity.env | **不設** | ⚠️ 這一項**不是**「顯示尚未設定」：未設 → 人機驗證**一律放行**，只剩 IP 限流。設了之後前台必須同時有 `NUXT_PUBLIC_TURNSTILE_SITE_KEY`（目前 compose 的 `nuxt-charity` 沒有給）——**只設後端不設前端 → 沒有 token → 所有捐款被擋** |
+| `TURNSTILE_SECRET_KEY_CHARITY` | charity.env | **不設** | ⚠️ 這一項**不是**「顯示尚未設定」：未設 → 人機驗證**一律放行**，只剩 IP 限流。設了之後前台必須同時有網站金鑰：在 `/opt/tcrfc/.env` 加 `TURNSTILE_SITE_KEY_CHARITY=<site key>`（compose 轉給 `nuxt-charity` 的 `NUXT_PUBLIC_TURNSTILE_SITE_KEY`，執行期設定、不必重建映像檔）——**只設後端不設前端 → 沒有 token → 所有捐款被擋**。兩邊設好後 `docker compose --env-file /opt/tcrfc/.env up -d api nuxt-charity` 重建這兩個容器 |
 | `MEMBERSHIP_ACTIVATE_CREDENTIAL` | club.env | **不設** | 未設 → 內部會籍開通端點停用（設的話 ≥32 字元） |
 | `MEMBER_EMAIL_LINK_BASE_URL` | — | **不設** | 它是**單一值**，設了會讓主站與藍鯨兩個俱樂部的信件連結都指向同一站；不設則用資料庫 `clubs.domain`（確認該欄位是 stg 網域或之後的正式網域） |
 | `CHARITY_ASSOCIATION_NOTIFY_EMAIL` | charity.env | **不設** | 未設 → 發票開立失敗不寄通知，仍標記失敗進後台佇列。是個人 Email，不進公開 repo；且目前沒有寄信管道 |
