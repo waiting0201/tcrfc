@@ -179,10 +179,10 @@ public sealed class AdminSponsorActivationsRepository(ClubDbContext dbContext, I
 
     private static void Validate(UpsertAdminActivationRequest request)
     {
-        AdminInput.RequireText(request.Content.Zh.Title, "中文活動名稱", 200);
+        AdminInput.RequireText(request.Content.Zh.Title, "中文活動名稱", 200, "titleZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Title))
         {
-            AdminInput.RequireText(request.Content.En.Title, "英文活動名稱", 200);
+            AdminInput.RequireText(request.Content.En.Title, "英文活動名稱", 200, "titleEn");
         }
     }
 

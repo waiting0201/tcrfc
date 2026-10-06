@@ -261,7 +261,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         {
             if (!TryMatch(EmailPattern, email))
             {
-                throw new AdminFormValidationException($"「{email}」不是合法的 Email 格式。");
+                throw new AdminFormValidationException($"「{email}」不是合法的 Email 格式。", "notifyEmails");
             }
         }
 
@@ -277,7 +277,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         if (!redirectPath.StartsWith('/') && !redirectPath.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             && !redirectPath.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
-            throw new AdminFormValidationException("送出後導向的網址要用 / 開頭的相對路徑，或完整的 http(s):// 網址。");
+            throw new AdminFormValidationException("送出後導向的網址要用 / 開頭的相對路徑，或完整的 http(s):// 網址。", "redirectPath");
         }
     }
 
@@ -285,7 +285,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
     {
         if (string.IsNullOrWhiteSpace(fieldKey) || !TryMatch(FieldKeyPattern, fieldKey))
         {
-            throw new AdminFormValidationException("欄位代碼只能是英文小寫字母開頭，接英文小寫字母、數字或底線，長度 1–64。");
+            throw new AdminFormValidationException("欄位代碼只能是英文小寫字母開頭，接英文小寫字母、數字或底線，長度 1–64。", "fieldKey");
         }
         return fieldKey;
     }
@@ -294,7 +294,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
     {
         if (!FormFieldTypes.Allowed.Contains(fieldType))
         {
-            throw new AdminFormValidationException("欄位型別只能是文字、多行文字、下拉、多選、日期、檔案上傳或同意條款其中一種。");
+            throw new AdminFormValidationException("欄位型別只能是文字、多行文字、下拉、多選、日期、檔案上傳或同意條款其中一種。", "fieldType");
         }
         return fieldType;
     }
@@ -311,7 +311,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         }
         catch (ArgumentException)
         {
-            throw new AdminFormValidationException("驗證規則不是合法的正規表示式。");
+            throw new AdminFormValidationException("驗證規則不是合法的正規表示式。", "validationRule");
         }
         return validationRule;
     }
@@ -326,24 +326,24 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         {
             if (options is { Count: > 0 })
             {
-                throw new AdminFormValidationException("只有下拉或多選欄位才能設定選項。");
+                throw new AdminFormValidationException("只有下拉或多選欄位才能設定選項。", "options");
             }
             return null;
         }
 
         if (options is null || options.Count == 0)
         {
-            throw new AdminFormValidationException("下拉或多選欄位至少要有一個選項。");
+            throw new AdminFormValidationException("下拉或多選欄位至少要有一個選項。", "options");
         }
 
         var trimmed = options.Select(o => o.Trim()).ToList();
         if (trimmed.Any(string.IsNullOrEmpty))
         {
-            throw new AdminFormValidationException("選項不能是空字串。");
+            throw new AdminFormValidationException("選項不能是空字串。", "options");
         }
         if (trimmed.Distinct(StringComparer.Ordinal).Count() != trimmed.Count)
         {
-            throw new AdminFormValidationException("選項內容不能重複。");
+            throw new AdminFormValidationException("選項內容不能重複。", "options");
         }
 
         return JsonSerializer.Serialize(trimmed);
@@ -354,11 +354,11 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
     {
         if (string.IsNullOrWhiteSpace(labelZh))
         {
-            throw new AdminFormValidationException("題目文字（中文）為必填欄位。");
+            throw new AdminFormValidationException("題目文字（中文）為必填欄位。", "labelZh");
         }
         if (labelZh.Length > 255)
         {
-            throw new AdminFormValidationException("題目文字（中文）長度不能超過 255 個字元。");
+            throw new AdminFormValidationException("題目文字（中文）長度不能超過 255 個字元。", "labelZh");
         }
         return labelZh.Trim();
     }
@@ -371,7 +371,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         }
         if (labelEn.Length > 255)
         {
-            throw new AdminFormValidationException("題目文字（英文）長度不能超過 255 個字元。");
+            throw new AdminFormValidationException("題目文字（英文）長度不能超過 255 個字元。", "labelEn");
         }
         return labelEn.Trim();
     }
@@ -388,17 +388,17 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
 
         if (canonicalOptions is null || canonicalOptions.Count == 0)
         {
-            throw new AdminFormValidationException("這個欄位沒有選項，不能設定選項的英文顯示文字。");
+            throw new AdminFormValidationException("這個欄位沒有選項，不能設定選項的英文顯示文字。", "optionLabelsEn");
         }
         if (optionLabelsEn.Count != canonicalOptions.Count)
         {
-            throw new AdminFormValidationException("選項的英文顯示文字筆數必須跟選項本身的筆數一致。");
+            throw new AdminFormValidationException("選項的英文顯示文字筆數必須跟選項本身的筆數一致。", "optionLabelsEn");
         }
 
         var trimmed = optionLabelsEn.Select(o => o.Trim()).ToList();
         if (trimmed.Any(string.IsNullOrEmpty))
         {
-            throw new AdminFormValidationException("選項的英文顯示文字不能是空字串。");
+            throw new AdminFormValidationException("選項的英文顯示文字不能是空字串。", "optionLabelsEn");
         }
 
         return JsonSerializer.Serialize(trimmed);

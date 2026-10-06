@@ -5,7 +5,7 @@
  * apps/api/README.md「S1-4：B1 頁面管理」。版面沿用既有 `NewsEditView.vue` 的編輯頁標準型
  * （分段卡片／離開未儲存提醒／固定底部操作列），圖片一律「選檔不上傳、儲存才上傳」。
  */
-import { computed, reactive, ref, shallowRef } from 'vue'
+import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -15,6 +15,12 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import PageBlockEditor from '@/components/pageBlocks/PageBlockEditor.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import {
@@ -179,8 +185,11 @@ async function loadPage() {
 loadPage()
 
 const saving = ref(false)
-const slugError = ref<string | null>(null)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除分享圖片就清掉該欄位的錯誤
+watch([ogImageFile, removeOgImage], () => formErrors.clear('ogImage'))
 const scheduleDialogVisible = ref(false)
 const scheduleDateTime = ref<Date | null>(null)
 
@@ -216,14 +225,31 @@ async function confirmEnglishSeoRemovalIfNeeded(): Promise<boolean> {
   return true
 }
 
-function validateBeforeSave(): boolean {
-  slugError.value = null
-  formError.value = null
-  if (!form.slug.trim()) {
-    formError.value = '請輸入網址名稱'
-    return false
+/** 區塊新增、刪除、排序後索引會錯位，所有區塊的舊錯誤一律清掉（下次儲存會重新檢查）。 */
+function clearBlockErrors() {
+  for (const key of Object.keys(formErrors.errors)) {
+    if (key.startsWith('blocks')) formErrors.clear(key)
   }
-  return true
+}
+
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。
+ * 區塊內容的驗證邏輯在序列化工具裡（一遇到錯就丟例外），這裡逐區塊各跑一次，
+ * 每個區塊最多標一則錯誤在區塊上，訊息開頭的「第 N 個區塊」改成該區塊實際的位置。 */
+function validateBeforeSave(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.slug.trim()) errors.slug = '請輸入網址名稱'
+  blocks.value.forEach((block, index) => {
+    try {
+      serializeBlocksForSubmit([block])
+    } catch (error) {
+      if (error instanceof PageBlockValidationError) {
+        errors[`blocks[${index}]`] = error.message.replace(/^第 \d+ 個區塊/, `第 ${index + 1} 個區塊`)
+      } else {
+        errors[`blocks[${index}]`] = '這個區塊的內容有誤，請檢查後再試'
+      }
+    }
+  })
+  return errors
 }
 
 async function handleSaveError(error: unknown) {
@@ -233,10 +259,9 @@ async function handleSaveError(error: unknown) {
   }
   switch (error.kind) {
     case 'slug-conflict':
-      slugError.value = error.message
-      break
     case 'validation':
-      formError.value = error.message
+      // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+      if (!formErrors.applyApiError(error)) formError.value = error.message
       break
     case 'concurrency-conflict':
       try {
@@ -270,7 +295,11 @@ async function handleSaveError(error: unknown) {
 }
 
 async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind: 'schedule'; publishAt: string }) {
-  if (!validateBeforeSave()) return
+  formError.value = null
+  if (formErrors.replaceAll(validateBeforeSave())) {
+    await formErrors.focusFirst()
+    return
+  }
 
   let blocksPayload
   let files: Record<string, File>
@@ -337,8 +366,8 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
     const wasCreate = isCreate.value && !currentId.value
     applyLoadedPage(saved)
     hadEnSeoAtLoad.value = !isEnSeoEmpty()
-    slugError.value = null
     formError.value = null
+    formErrors.clearAll()
 
     ElMessage.success(transition?.kind === 'publish' ? '已發布' : transition?.kind === 'schedule' ? '已排程發布' : '已儲存')
 
@@ -401,6 +430,7 @@ const addBlockType = ref<PageBlockType>('text')
 
 function addBlock() {
   blocks.value.push(createEmptyBlock(addBlockType.value))
+  clearBlockErrors()
 }
 
 function moveBlock(index: number, delta: number) {
@@ -408,6 +438,7 @@ function moveBlock(index: number, delta: number) {
   if (target < 0 || target >= blocks.value.length) return
   const [item] = blocks.value.splice(index, 1)
   blocks.value.splice(target, 0, item)
+  clearBlockErrors()
 }
 
 async function removeBlock(index: number) {
@@ -422,6 +453,7 @@ async function removeBlock(index: number) {
     return
   }
   blocks.value.splice(index, 1)
+  clearBlockErrors()
 }
 
 // ── 預覽連結（顯示並可複製） ─────────────────────────────────────────────
@@ -604,14 +636,13 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
       />
 
       <el-form label-position="top" class="page-edit__form">
+       <LangTabsBar>
+        <EditLayout>
+         <template #main>
         <el-card shadow="never" header="基本資訊" class="page-edit__section">
-          <el-form-item label="網址名稱" required :error="slugError ?? undefined">
-            <el-input
-              v-model="form.slug"
-              placeholder="例如：about/history（可用斜線表示分層路徑）"
-              @update:model-value="slugError = null"
-            />
-          </el-form-item>
+          <FormField field="slug" label="網址名稱" required>
+            <el-input v-model="form.slug" placeholder="例如：about/history（可用斜線表示分層路徑）" />
+          </FormField>
         </el-card>
 
         <el-card shadow="never" header="搜尋與分享設定" class="page-edit__section">
@@ -619,6 +650,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
             這裡的標題與描述同時用在搜尋引擎結果與社群分享預覽；分享圖片沒有另外設定時，會回退使用全站預設分享圖片。
           </p>
           <BilingualShortField
+            field="seoTitle"
             label="搜尋與分享標題"
             :zh="form.seoTitleZh"
             :en="form.seoTitleEn"
@@ -627,6 +659,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
             @update:en="(v) => (form.seoTitleEn = v)"
           />
           <BilingualTextareaField
+            field="seoDescription"
             label="搜尋與分享描述"
             :zh="form.seoDescriptionZh"
             :en="form.seoDescriptionEn"
@@ -636,6 +669,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
             @update:en="(v) => (form.seoDescriptionEn = v)"
           />
           <BilingualShortField
+            field="seoKeywords"
             label="關鍵字"
             :zh="form.seoKeywordsZh"
             :en="form.seoKeywordsEn"
@@ -644,27 +678,9 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
             @update:en="(v) => (form.seoKeywordsEn = v)"
           />
 
-          <el-form-item label="分享圖片">
-            <ImageUploader
-              v-model:file="ogImageFile"
-              v-model:remove-cover="removeOgImage"
-              :has-existing-image="!!form.ogImageUrl"
-              :existing-preview-url="form.ogImageUrl"
-              :disabled="saving"
-            />
-          </el-form-item>
-          <BilingualShortField
-            label="分享圖片替代文字"
-            :zh="form.ogImageAlt.zh"
-            :en="form.ogImageAlt.en"
-            placeholder="選填，描述圖片內容，供視障輔助工具使用"
-            @update:zh="(v) => (form.ogImageAlt.zh = v)"
-            @update:en="(v) => (form.ogImageAlt.en = v)"
-          />
-
-          <el-form-item label="正式網址">
+          <FormField field="canonicalPath" label="正式網址">
             <el-input v-model="form.canonicalPath" placeholder="選填，站內相對路徑，未填寫時由系統依目前網址自動判斷" />
-          </el-form-item>
+          </FormField>
           <p class="page-edit__hint">只有這個頁面的正式網址跟目前網址不同時才需要填寫。</p>
 
           <el-form-item label="不讓搜尋引擎收錄">
@@ -687,7 +703,9 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
                 <el-button size="small" text type="danger" @click="removeBlock(index)">刪除區塊</el-button>
               </div>
             </div>
-            <PageBlockEditor :block-type="block.blockType" :content="block.content" />
+            <FormField :field="`blocks[${index}]`">
+              <PageBlockEditor :block-type="block.blockType" :content="block.content" :block-index="index" />
+            </FormField>
           </div>
 
           <div class="page-edit__add-block">
@@ -718,9 +736,35 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
           </template>
           <p v-else class="page-edit__hint">儲存後才會產生預覽連結。</p>
         </el-card>
+         </template>
+         <template #aside>
+        <el-card shadow="never" header="分享圖片" class="page-edit__section">
+          <FormField field="ogImage" label="分享圖片">
+            <ImageUploader
+              v-model:file="ogImageFile"
+              v-model:remove-cover="removeOgImage"
+              :has-existing-image="!!form.ogImageUrl"
+              :existing-preview-url="form.ogImageUrl"
+              :disabled="saving"
+            />
+          </FormField>
+          <BilingualShortField
+          field="ogImageAlt"
+          label="分享圖片替代文字"
+          :zh="form.ogImageAlt.zh"
+          :en="form.ogImageAlt.en"
+          placeholder="選填，描述圖片內容，供視障輔助工具使用"
+          @update:zh="(v) => (form.ogImageAlt.zh = v)"
+          @update:en="(v) => (form.ogImageAlt.en = v)"
+        />
+        </el-card>
+         </template>
+        </EditLayout>
+       </LangTabsBar>
       </el-form>
 
-      <div class="page-edit__action-bar">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button v-if="!isCreate" @click="openVersionsDialog">版本歷程</el-button>
         <el-tooltip v-if="!canPreview" content="尚未發布，暫不提供正式網址預覽" placement="top">
           <span>
@@ -739,18 +783,18 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-      </div>
+      </EditActionBar>
     </template>
 
     <el-dialog v-model="scheduleDialogVisible" title="排程發布" width="360px">
-      <el-form-item label="發布日期與時間" style="margin-bottom: 0">
+      <FormField field="publishAt" label="發布日期與時間" style="margin-bottom: 0" :reveal="() => { scheduleDialogVisible = true }">
         <el-date-picker
           v-model="scheduleDateTime"
           type="datetime"
           placeholder="選擇日期與時間（台灣時間）"
           style="width: 100%"
         />
-      </el-form-item>
+      </FormField>
       <template #footer>
         <el-button @click="scheduleDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="confirmSchedule">確認排程</el-button>
@@ -804,7 +848,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
 
 <style scoped>
 .page-edit {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto 88px;
 }
 
@@ -882,37 +926,5 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
   padding-left: 20px;
   font-size: 13px;
   line-height: 1.8;
-}
-
-.page-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .page-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .page-edit__action-bar {
-    justify-content: stretch;
-    flex-wrap: wrap;
-  }
-
-  .page-edit__action-bar :deep(.el-button),
-  .page-edit__action-bar :deep(.el-dropdown) {
-    flex: 1;
-  }
 }
 </style>

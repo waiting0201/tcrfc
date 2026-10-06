@@ -10,10 +10,13 @@ import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { createRefund, getOrder, listOrders, type OrderDetailDto, type OrderListItemDto } from '@/api/adminShop'
 import { formatMoney } from '@/utils/formatMoney'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 
 const props = defineProps<{ modelValue: boolean; orderId?: string }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void; (e: 'created', refundId: string | null): void }>()
 
+const formErrors = provideFormErrors()
 const club = computed(() => activeClubId.value)
 const order = ref<OrderDetailDto | null>(null)
 const loading = ref(false)
@@ -46,6 +49,7 @@ watch(
     if (!open) return
     Object.assign(form, { reason: '', needsReturn: true, overrideAmount: false, refundAmount: 0 })
     error.value = null
+    formErrors.clearAll()
     options.value = []
     pickedOrderId.value = ''
     order.value = null
@@ -77,11 +81,18 @@ async function submit() {
   const o = order.value
   if (!o) return
   error.value = null
+  formErrors.clearAll()
   const items = o.items.filter((i) => (qty[i.id] ?? 0) > 0).map((i) => ({ orderItemId: i.id, quantity: qty[i.id] }))
-  if (items.length === 0) return (error.value = '請至少選擇一個要退的品項與數量')
-  if (o.items.some((i) => (qty[i.id] ?? 0) > refundable(i))) return (error.value = '退回數量不可超過尚可退的數量')
-  if (!form.reason.trim()) return (error.value = '請填寫退貨原因')
-  if (form.overrideAmount && (form.refundAmount === null || form.refundAmount <= 0)) return (error.value = '退款金額必須大於 0')
+  // 欄位鍵與後端一致（items／reason／refundAmount），同一錯誤不論前後端都標在同一格
+  const errors: Record<string, string> = {}
+  if (items.length === 0) errors.items = '請至少選擇一個要退的品項與數量'
+  else if (o.items.some((i) => (qty[i.id] ?? 0) > refundable(i))) errors.items = '退回數量不可超過尚可退的數量'
+  if (!form.reason.trim()) errors.reason = '請填寫退貨原因'
+  if (form.overrideAmount && (form.refundAmount === null || form.refundAmount <= 0)) errors.refundAmount = '退款金額必須大於 0'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const created = await createRefund(club.value, {
@@ -95,6 +106,7 @@ async function submit() {
     emit('update:modelValue', false)
     emit('created', created?.id ?? null)
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     error.value = e instanceof AdminApiError ? e.message : '建立失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -115,26 +127,28 @@ async function submit() {
     <el-skeleton v-if="loading" :rows="4" animated />
     <template v-else-if="order">
       <p class="refund-create__title">訂單 {{ order.orderNo }}（{{ order.orderStatus }}，總額 {{ formatMoney(order.total) }}）</p>
-      <div class="refund-create__items">
-        <div v-for="item in order.items" :key="item.id" class="refund-create__item">
-          <div class="refund-create__item-main">
-            <strong>{{ item.productName }}</strong>
-            <span class="refund-create__muted">{{ item.variantLabel }}・單價 {{ formatMoney(item.unitPrice) }}・購買 {{ item.quantity }}・已退 {{ item.refundedQuantity }}</span>
+      <FormField field="items" style="margin-bottom: 0">
+        <div class="refund-create__items">
+          <div v-for="item in order.items" :key="item.id" class="refund-create__item">
+            <div class="refund-create__item-main">
+              <strong>{{ item.productName }}</strong>
+              <span class="refund-create__muted">{{ item.variantLabel }}・單價 {{ formatMoney(item.unitPrice) }}・購買 {{ item.quantity }}・已退 {{ item.refundedQuantity }}</span>
+            </div>
+            <el-input-number v-model="qty[item.id]" :min="0" :max="refundable(item)" :disabled="refundable(item) <= 0" size="small" />
           </div>
-          <el-input-number v-model="qty[item.id]" :min="0" :max="refundable(item)" :disabled="refundable(item) <= 0" size="small" />
         </div>
-      </div>
+      </FormField>
       <el-form label-position="top">
-        <el-form-item label="退貨原因" required><el-input v-model="form.reason" type="textarea" :rows="2" maxlength="200" show-word-limit /></el-form-item>
+        <FormField field="reason" label="退貨原因" required><el-input v-model="form.reason" type="textarea" :rows="2" maxlength="200" show-word-limit /></FormField>
         <el-form-item label="是否需要退回商品"><el-switch v-model="form.needsReturn" active-text="需要退回並驗收" inactive-text="不需要退回（核准後直接可退款）" /></el-form-item>
-        <el-form-item label="退款金額">
+        <FormField field="refundAmount" label="退款金額">
           <div class="refund-create__amount">
             <span>所退品項小計 {{ formatMoney(itemsSubtotal) }}</span>
             <el-checkbox v-model="form.overrideAmount">手動指定金額（例如連運費一起退）</el-checkbox>
             <el-input-number v-if="form.overrideAmount" v-model="form.refundAmount" :min="0" :controls="false" />
           </div>
           <p class="refund-create__muted">不可超過這張訂單尚可退的金額。本次退款金額：{{ formatMoney(finalAmount) }}</p>
-        </el-form-item>
+        </FormField>
       </el-form>
     </template>
     <template #footer>

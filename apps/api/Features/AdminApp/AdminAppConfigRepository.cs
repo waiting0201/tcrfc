@@ -112,21 +112,21 @@ public sealed partial class AdminAppConfigRepository(
 
     private (string Key, string Platform) ValidateFlag(UpsertAdminAppFeatureFlagRequest r)
     {
-        var key = AdminInput.RequireText(r.FlagKey, "開關名稱", 64);
+        var key = AdminInput.RequireText(r.FlagKey, "開關名稱", 64, "flagKey");
         if (!FlagKeyFormat().IsMatch(key))
         {
-            throw new AdminValidationException("開關名稱的格式是「模組_功能」，只能用小寫英文字母、數字與底線，例如 ads_enabled。");
+            throw new AdminValidationException("開關名稱的格式是「模組_功能」，只能用小寫英文字母、數字與底線，例如 ads_enabled。", "flagKey");
         }
 
-        var platform = AdminInput.OneOf(r.Platform ?? "all", new HashSet<string>(["all", "ios", "android"], StringComparer.Ordinal), "平台範圍", "「全部」「iOS」或「Android」");
-        AdminInput.OptionalText(r.Description, "說明", 255);
+        var platform = AdminInput.OneOf(r.Platform ?? "all", new HashSet<string>(["all", "ios", "android"], StringComparer.Ordinal), "平台範圍", "「全部」「iOS」或「Android」", "platform");
+        AdminInput.OptionalText(r.Description, "說明", 255, "description");
         if (key == PaymentModeKey)
         {
-            AdminInput.OneOf(r.StringValue, PaymentModes.ToHashSet(StringComparer.Ordinal), "付款模式", "「關閉」「外開瀏覽器」或「App 內付款」（off／external／inapp）");
+            AdminInput.OneOf(r.StringValue, PaymentModes.ToHashSet(StringComparer.Ordinal), "付款模式", "「關閉」「外開瀏覽器」或「App 內付款」", "stringValue");
         }
         else if (r.StringValue is not null)
         {
-            throw new AdminValidationException("只有付款模式（payment_mode）是三態開關，其他開關只有開或關。");
+            throw new AdminValidationException("只有付款模式是三態開關，其他開關只有開或關。", "stringValue");
         }
 
         return (key, platform);
@@ -196,7 +196,7 @@ public sealed partial class AdminAppConfigRepository(
         var today = TaiwanClock.Today;
         if (newExpiresOn is { } e && e <= today)
         {
-            throw new AdminValidationException("新的屆期日必須晚於今天。");
+            throw new AdminValidationException("新的屆期日必須晚於今天。", "expiresOn");
         }
 
         c.LastRotatedOn = today;
@@ -227,18 +227,18 @@ public sealed partial class AdminAppConfigRepository(
 
     private static void Validate(UpsertAdminAppCredentialRequest r)
     {
-        AdminInput.OneOf(r.Kind, KindLabels.Keys.ToHashSet(StringComparer.Ordinal), "種類", "Apple 推播金鑰、Google 推播憑證、Apple 或 Google Play 開發者帳號、地圖金鑰或其他");
-        AdminInput.RequireText(r.Label, "名稱", 120);
-        AdminInput.OptionalText(r.ExternalRef, "外部識別", 200);
-        AdminInput.OptionalText(r.Note, "備註", 500);
+        AdminInput.OneOf(r.Kind, KindLabels.Keys.ToHashSet(StringComparer.Ordinal), "種類", "Apple 推播金鑰、Google 推播憑證、Apple 或 Google Play 開發者帳號、地圖金鑰或其他", "kind");
+        AdminInput.RequireText(r.Label, "名稱", 120, "label");
+        AdminInput.OptionalText(r.ExternalRef, "外部識別", 200, "externalRef");
+        AdminInput.OptionalText(r.Note, "備註", 500, "note");
         if (r.RotationPeriodDays is <= 0 or > 3650)
         {
-            throw new AdminValidationException("輪替週期請填 1 到 3650 天。");
+            throw new AdminValidationException("輪替週期請填 1 到 3650 天。", "rotationPeriodDays");
         }
 
         if (r.ExpiresOn is { } e && e < r.CreatedOn)
         {
-            throw new AdminValidationException("屆期日不可早於建立日。");
+            throw new AdminValidationException("屆期日不可早於建立日。", "expiresOn");
         }
     }
 

@@ -10,6 +10,11 @@ import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { createAdminClub, getAdminClub, updateAdminClub } from '@/api/adminClubs'
 import { AdminApiError } from '@/api/http'
@@ -44,7 +49,9 @@ const baselineJson = ref('')
 const loadState = ref<'loading' | 'ready' | 'error'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 async function loadClub() {
   loadState.value = 'loading'
@@ -94,33 +101,23 @@ function isEnEmpty(): boolean {
   return !form.nameEn.trim() && !form.shortNameEn.trim() && !form.descriptionEn.trim()
 }
 
-function validate(): boolean {
-  formError.value = null
-  if (isCreate.value && !form.code.trim()) {
-    formError.value = '請輸入俱樂部代碼'
-    return false
-  }
-  if (!form.domain.trim()) {
-    formError.value = '請輸入前台網域'
-    return false
-  }
-  if (!form.nameZh.trim()) {
-    formError.value = '請輸入中文名稱'
-    return false
-  }
-  if (form.shortNameZh.trim().length > 32 || form.shortNameEn.trim().length > 32) {
-    formError.value = '簡稱最多 32 個字'
-    return false
-  }
-  if (!isEnEmpty() && !form.nameEn.trim()) {
-    formError.value = '有填英文簡稱或英文簡介時，請一併填寫英文名稱，否則英文內容不會被儲存'
-    return false
-  }
-  return true
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (isCreate.value && !form.code.trim()) errors.code = '請輸入俱樂部代碼'
+  if (!form.domain.trim()) errors.domain = '請輸入前台網域'
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  if (form.shortNameZh.trim().length > 32) errors.shortNameZh = '簡稱最多 32 個字'
+  if (form.shortNameEn.trim().length > 32) errors.shortNameEn = '簡稱最多 32 個字'
+  if (!isEnEmpty() && !form.nameEn.trim()) errors.nameEn = '有填英文簡稱或英文簡介時，請一併填寫英文名稱，否則英文內容不會被儲存'
+  return errors
 }
 
 async function handleSave() {
-  if (!validate()) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const content = {
@@ -160,6 +157,7 @@ async function handleSave() {
     }
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -205,93 +203,95 @@ function handleBack() {
         @close="formError = null"
       />
 
-      <el-card shadow="never" header="基本資料" class="club-edit__section">
-        <el-form label-position="top">
-          <el-form-item label="俱樂部代碼" required>
-            <el-input v-model="form.code" :disabled="!isCreate" placeholder="建立後不可修改，例如 tcrfc、bw" />
-          </el-form-item>
-          <el-form-item label="前台網域" required>
-            <el-input v-model="form.domain" placeholder="例如 www.tcrfc.tw" />
-          </el-form-item>
-          <BilingualShortField
-            label="名稱"
-            :zh="form.nameZh"
-            :en="form.nameEn"
-            required
-            @update:zh="(v) => (form.nameZh = v)"
-            @update:en="(v) => (form.nameEn = v)"
-          />
-          <BilingualShortField
-            label="簡稱"
-            :zh="form.shortNameZh"
-            :en="form.shortNameEn"
-            @update:zh="(v) => (form.shortNameZh = v)"
-            @update:en="(v) => (form.shortNameEn = v)"
-          />
-          <p class="club-edit__hint">用在空間有限的地方，例如 App 的分頁標籤；最多 32 字，留空代表沒有簡稱。英文簡稱請依客戶確認的正式寫法填寫，不要自行翻譯。</p>
-          <BilingualShortField
-            label="簡介"
-            :zh="form.descriptionZh"
-            :en="form.descriptionEn"
-            @update:zh="(v) => (form.descriptionZh = v)"
-            @update:en="(v) => (form.descriptionEn = v)"
-          />
-          <el-form-item label="排序">
-            <el-input-number v-model="form.sortOrder" :min="0" />
-          </el-form-item>
-          <el-form-item v-if="!isCreate" label="啟用狀態">
-            <el-select v-model="form.status" style="width: 160px">
-              <el-option label="啟用" value="active" />
-              <el-option label="停用" value="inactive" />
-            </el-select>
-          </el-form-item>
-        </el-form>
-      </el-card>
+      <el-form label-position="top">
+        <LangTabsBar>
+          <el-card shadow="never" header="基本資料" class="club-edit__section">
+            <FormField field="code" label="俱樂部代碼" required>
+              <el-input v-model="form.code" :disabled="!isCreate" placeholder="建立後不可修改，例如 tcrfc、bw" />
+            </FormField>
+            <FormField field="domain" label="前台網域" required>
+              <el-input v-model="form.domain" placeholder="例如 www.tcrfc.tw" />
+            </FormField>
+            <BilingualShortField
+              field="name"
+              label="名稱"
+              :zh="form.nameZh"
+              :en="form.nameEn"
+              required
+              @update:zh="(v) => (form.nameZh = v)"
+              @update:en="(v) => (form.nameEn = v)"
+            />
+            <BilingualShortField
+              field="shortName"
+              label="簡稱"
+              :zh="form.shortNameZh"
+              :en="form.shortNameEn"
+              @update:zh="(v) => (form.shortNameZh = v)"
+              @update:en="(v) => (form.shortNameEn = v)"
+            />
+            <p class="club-edit__hint">用在空間有限的地方，例如 App 的分頁標籤；最多 32 字，留空代表沒有簡稱。英文簡稱請依客戶確認的正式寫法填寫，不要自行翻譯。</p>
+            <BilingualShortField
+              field="description"
+              label="簡介"
+              :zh="form.descriptionZh"
+              :en="form.descriptionEn"
+              @update:zh="(v) => (form.descriptionZh = v)"
+              @update:en="(v) => (form.descriptionEn = v)"
+            />
+            <el-form-item label="排序">
+              <el-input-number v-model="form.sortOrder" :min="0" />
+            </el-form-item>
+            <el-form-item v-if="!isCreate" label="啟用狀態">
+              <el-select v-model="form.status" style="width: 160px">
+                <el-option label="啟用" value="active" />
+                <el-option label="停用" value="inactive" />
+              </el-select>
+            </el-form-item>
+          </el-card>
 
-      <el-card shadow="never" header="法人資料" class="club-edit__section">
-        <el-alert
-          title="⚠️ 收款主體目前只有俱樂部本身。把合作球隊誤設為收款主體，會讓款項與發票歸屬出錯。"
-          type="warning"
-          show-icon
-          :closable="false"
-          class="club-edit__hint"
-        />
-        <el-form label-position="top">
-          <el-form-item label="發票抬頭">
-            <el-input v-model="form.invoiceTitle" placeholder="選填" />
-          </el-form-item>
-          <el-form-item label="統一編號">
-            <el-input v-model="form.taxId" placeholder="選填" />
-          </el-form-item>
-          <el-form-item label="是否為收款主體">
-            <el-switch v-model="form.isCollectingSubject" />
-          </el-form-item>
-        </el-form>
-      </el-card>
+          <el-card shadow="never" header="法人資料" class="club-edit__section">
+            <el-alert
+              title="⚠️ 收款主體目前只有俱樂部本身。把合作球隊誤設為收款主體，會讓款項與發票歸屬出錯。"
+              type="warning"
+              show-icon
+              :closable="false"
+              class="club-edit__hint"
+            />
+            <el-form-item label="發票抬頭">
+              <el-input v-model="form.invoiceTitle" placeholder="選填" />
+            </el-form-item>
+            <el-form-item label="統一編號">
+              <el-input v-model="form.taxId" placeholder="選填" />
+            </el-form-item>
+            <el-form-item label="是否為收款主體">
+              <el-switch v-model="form.isCollectingSubject" />
+            </el-form-item>
+          </el-card>
 
-      <el-card shadow="never" header="品牌設定" class="club-edit__section">
-        <el-form label-position="top">
-          <el-form-item label="主色（十六進位色碼）">
-            <el-input v-model="form.brandColor" placeholder="例如 #E0218A" />
-          </el-form-item>
-          <el-form-item label="次要色（十六進位色碼）">
-            <el-input v-model="form.brandSecondaryColor" placeholder="選填" />
-          </el-form-item>
-        </el-form>
-        <p class="club-edit__note">
-          標誌與瀏覽器分頁小圖示請到「網站設定 → 全域設定」上傳；社群分享圖片請到「搜尋與 AI 能見度 → 全站設定」上傳。這裡只顯示目前是否已設定。
-        </p>
-        <ul class="club-edit__logo-status">
-          <li>淺底標誌：{{ logoKeys.logoLightKey ? '已設定' : '尚未設定' }}</li>
-          <li>深底標誌：{{ logoKeys.logoDarkKey ? '已設定' : '尚未設定' }}</li>
-          <li>favicon：{{ logoKeys.faviconKey ? '已設定' : '尚未設定' }}</li>
-          <li>社群分享圖片：{{ logoKeys.ogImageKey ? '已設定' : '尚未設定' }}</li>
-        </ul>
-      </el-card>
+          <el-card shadow="never" header="品牌設定" class="club-edit__section">
+            <el-form-item label="主色（十六進位色碼）">
+              <el-input v-model="form.brandColor" placeholder="例如 #E0218A" />
+            </el-form-item>
+            <el-form-item label="次要色（十六進位色碼）">
+              <el-input v-model="form.brandSecondaryColor" placeholder="選填" />
+            </el-form-item>
+            <p class="club-edit__note">
+              標誌與瀏覽器分頁小圖示請到「網站設定 → 全域設定」上傳；社群分享圖片請到「搜尋與 AI 能見度 → 全站設定」上傳。這裡只顯示目前是否已設定。
+            </p>
+            <ul class="club-edit__logo-status">
+              <li>淺底標誌：{{ logoKeys.logoLightKey ? '已設定' : '尚未設定' }}</li>
+              <li>深底標誌：{{ logoKeys.logoDarkKey ? '已設定' : '尚未設定' }}</li>
+              <li>favicon：{{ logoKeys.faviconKey ? '已設定' : '尚未設定' }}</li>
+              <li>社群分享圖片：{{ logoKeys.ogImageKey ? '已設定' : '尚未設定' }}</li>
+            </ul>
+          </el-card>
+        </LangTabsBar>
+      </el-form>
 
-      <div class="club-edit__actions">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -317,9 +317,5 @@ function handleBack() {
   color: var(--admin-text-secondary);
   padding-left: 18px;
   margin: 0;
-}
-
-.club-edit__actions {
-  margin-top: 16px;
 }
 </style>

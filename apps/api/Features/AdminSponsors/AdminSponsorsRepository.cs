@@ -263,20 +263,20 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
     private static string? ValidateAndSlug(UpsertAdminSponsorRequest request)
     {
         var slug = string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
-        AdminInput.OneOf(request.Tier, Tiers, "贊助等級", "「主贊助」「官方贊助」或「支持夥伴」");
-        AdminInput.DateRange(request.ContractStartOn, request.ContractEndOn, "合約期間");
+        AdminInput.OneOf(request.Tier, Tiers, "贊助等級", "「主贊助」「官方贊助」或「支持夥伴」", "tier");
+        AdminInput.DateRange(request.ContractStartOn, request.ContractEndOn, "合約期間", "contractEndOn");
         if (request.ExpiryAlertOn is not null && request.ContractEndOn is not null && request.ExpiryAlertOn > request.ContractEndOn)
         {
-            throw new AdminValidationException("到期提醒日期不可晚於合約結束日期。");
+            throw new AdminValidationException("到期提醒日期不可晚於合約結束日期。", "expiryAlertOn");
         }
 
-        AdminInput.OptionalText(request.ContactName, "聯絡人姓名", 64);
-        AdminInput.OptionalText(request.ContactPhone, "聯絡電話", 32);
-        AdminInput.OptionalEmail(request.ContactEmail, "聯絡 Email");
-        AdminInput.RequireText(request.Content.Zh.Name, "中文名稱", 128);
+        AdminInput.OptionalText(request.ContactName, "聯絡人姓名", 64, "contactName");
+        AdminInput.OptionalText(request.ContactPhone, "聯絡電話", 32, "contactPhone");
+        AdminInput.OptionalEmail(request.ContactEmail, "聯絡 Email", "contactEmail");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文名稱", 128, "nameZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文名稱", 128);
+            AdminInput.RequireText(request.Content.En.Name, "英文名稱", 128, "nameEn");
         }
 
         return slug;
@@ -288,9 +288,9 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
         sponsor.ContractStartOn = request.ContractStartOn;
         sponsor.ContractEndOn = request.ContractEndOn;
         sponsor.ExpiryAlertOn = request.ExpiryAlertOn;
-        sponsor.ContactName = AdminInput.OptionalText(request.ContactName, "聯絡人姓名", 64);
-        sponsor.ContactPhone = AdminInput.OptionalText(request.ContactPhone, "聯絡電話", 32);
-        sponsor.ContactEmail = AdminInput.OptionalEmail(request.ContactEmail, "聯絡 Email");
+        sponsor.ContactName = AdminInput.OptionalText(request.ContactName, "聯絡人姓名", 64, "contactName");
+        sponsor.ContactPhone = AdminInput.OptionalText(request.ContactPhone, "聯絡電話", 32, "contactPhone");
+        sponsor.ContactEmail = AdminInput.OptionalEmail(request.ContactEmail, "聯絡 Email", "contactEmail");
         sponsor.SortOrder = request.SortOrder;
     }
 
@@ -333,7 +333,7 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
         var packages = await dbContext.SponsorPackages.Where(p => p.ClubId == scope.ClubId && distinct.Contains(p.Id)).ToListAsync(cancellationToken);
         if (packages.Count != distinct.Count)
         {
-            throw new AdminValidationException("贊助方案清單含有不存在的方案，請重新整理後再試。");
+            throw new AdminValidationException("贊助方案清單含有不存在的方案，請重新整理後再試。", "packageIds");
         }
 
         return packages;
@@ -351,7 +351,7 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
             .Where(a => distinct.Contains(a.Id) && (a.ClubId == scope.ClubId || a.ClubId == null)).ToListAsync(cancellationToken);
         if (articles.Count != distinct.Count)
         {
-            throw new AdminValidationException("贊助故事清單含有找不到的文章，請重新整理後再試。");
+            throw new AdminValidationException("贊助故事清單含有找不到的文章，請重新整理後再試。", "articleIds");
         }
 
         // 保持呼叫端給的順序。
@@ -372,7 +372,7 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
         if (await dbContext.Sponsors.AsNoTracking().AnyAsync(
                 s => s.ClubId == scope.ClubId && s.Slug == slug && s.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他贊助商使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他贊助商使用，請換一個。", "slug");
         }
     }
 

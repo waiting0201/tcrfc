@@ -241,7 +241,7 @@ public sealed class AdminAppPushRepository(
         var zh = Content(m, RequestLocale.DefaultDbLocale);
         if (zh is null || string.IsNullOrWhiteSpace(zh.Title) || string.IsNullOrWhiteSpace(zh.Body))
         {
-            throw new AdminValidationException("送審前必須填寫繁中的標題與內文。");
+            throw new AdminValidationException("送審前必須填寫繁中的標題與內文。", "titleZh");
         }
 
         await guard.EnsureAllowedAsync(new PushContentInput { Zh = zh, En = Content(m, "en") }, m.DeepLink, cancellationToken);
@@ -263,7 +263,7 @@ public sealed class AdminAppPushRepository(
 
         RequireStatus(m, ["pending_review"], "只有待覆核的批次可以退回。");
         m.Status = "draft";
-        m.RejectNote = AdminInput.RequireText(note, "退回原因", 255);
+        m.RejectNote = AdminInput.RequireText(note, "退回原因", 255, "note");
         m.UpdatedAt = DateTime.UtcNow;
         m.UpdatedBy = caller.AdminUserId;
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -373,12 +373,12 @@ public sealed class AdminAppPushRepository(
 
     private async Task<PushAudienceSpec> ResolveSpecAsync(string? tier, string? clubCode, IReadOnlyList<string>? teamCodes, CancellationToken cancellationToken)
     {
-        var t = AdminInput.OneOf(tier ?? "all", PushAudienceSpec.Tiers, "會籍層級", "「全部」「球迷會員」「一般會員」或「未登入」");
+        var t = AdminInput.OneOf(tier ?? "all", PushAudienceSpec.Tiers, "會籍層級", "「全部」「球迷會員」「一般會員」或「未登入」", "audienceTier");
         Guid? clubId = null;
         if (!string.IsNullOrWhiteSpace(clubCode))
         {
             clubId = await dbContext.Clubs.AsNoTracking().Where(c => c.Code == clubCode).Select(c => (Guid?)c.Id).FirstOrDefaultAsync(cancellationToken)
-                     ?? throw new AdminValidationException("找不到這個俱樂部代碼。");
+                     ?? throw new AdminValidationException("找不到這個俱樂部代碼。", "audienceClubCode");
         }
 
         var teams = (teamCodes ?? []).Where(c => !string.IsNullOrWhiteSpace(c)).Select(c => c.Trim()).Distinct().ToList();
@@ -388,7 +388,7 @@ public sealed class AdminAppPushRepository(
             var unknown = teams.Except(known).FirstOrDefault();
             if (unknown is not null)
             {
-                throw new AdminValidationException($"找不到球隊代碼「{unknown}」。");
+                throw new AdminValidationException("分眾條件裡有找不到的球隊，請重新選擇。", "audienceTeamCodes");
             }
         }
 
@@ -397,24 +397,24 @@ public sealed class AdminAppPushRepository(
 
     private async Task<(Guid? ClubId, IReadOnlyList<string> Teams)> ValidateAsync(UpsertAdminPushMessageRequest r, CancellationToken cancellationToken)
     {
-        AdminInput.RequireText(r.Content.Zh.Title, "標題（繁中）", 120);
-        AdminInput.RequireText(r.Content.Zh.Body, "內文（繁中）", 500);
+        AdminInput.RequireText(r.Content.Zh.Title, "標題（繁中）", 120, "titleZh");
+        AdminInput.RequireText(r.Content.Zh.Body, "內文（繁中）", 500, "bodyZh");
         if (r.Content.En is { } en)
         {
-            AdminInput.OptionalText(en.Title, "標題（英文）", 120);
-            AdminInput.OptionalText(en.Body, "內文（英文）", 500);
+            AdminInput.OptionalText(en.Title, "標題（英文）", 120, "titleEn");
+            AdminInput.OptionalText(en.Body, "內文（英文）", 500, "bodyEn");
         }
 
-        AdminInput.OneOf(r.Kind ?? "announcement", Kinds, "推播類型", "「一般公告」「新聞」或「賽事」");
-        var link = AdminInput.OptionalText(r.DeepLink, "深連結", 500);
+        AdminInput.OneOf(r.Kind ?? "announcement", Kinds, "推播類型", "「一般公告」「新聞」或「賽事」", "kind");
+        var link = AdminInput.OptionalText(r.DeepLink, "深連結", 500, "deepLink");
         if (link is not null && !link.StartsWith("tcrfc://", StringComparison.Ordinal))
         {
-            AdminInput.OptionalHttpUrl(link, "深連結");
+            AdminInput.OptionalHttpUrl(link, "深連結", 500, "deepLink");
         }
 
         if (r.ScheduledAt is { } at && at < DateTimeOffset.UtcNow.AddMinutes(-5))
         {
-            throw new AdminValidationException("排程時間不能是過去的時間。");
+            throw new AdminValidationException("排程時間不能是過去的時間。", "scheduledAt");
         }
 
         var spec = await ResolveSpecAsync(r.AudienceTier, r.AudienceClubCode, r.AudienceTeamCodes, cancellationToken);

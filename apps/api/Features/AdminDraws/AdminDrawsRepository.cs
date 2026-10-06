@@ -194,12 +194,12 @@ public sealed partial class AdminDrawsRepository(
         {
             if (newCode is not null && !string.Equals(newCode, draw.DrawCode, StringComparison.Ordinal))
             {
-                throw new AdminConflictException("名單已鎖定", "名單鎖定後不能變更活動代碼（它會出現在匯出檔名與稽核紀錄）。");
+                throw new AdminConflictException("名單已鎖定", "名單鎖定後不能變更活動代碼（它會出現在匯出檔名與稽核紀錄）。", "drawCode");
             }
 
             if (request.SnapshotAt is DateTime s && (draw.SnapshotAt is null || Math.Abs((Utc(s) - draw.SnapshotAt.Value).TotalMilliseconds) >= 1))
             {
-                throw new AdminConflictException("名單已鎖定", "名單鎖定後不能變更資格基準時間；名單有誤請整份作廢重產。");
+                throw new AdminConflictException("名單已鎖定", "名單鎖定後不能變更資格基準時間；名單有誤請整份作廢重產。", "snapshotAt");
             }
         }
         else if (newCode is not null && !string.Equals(newCode, draw.DrawCode, StringComparison.Ordinal))
@@ -293,17 +293,17 @@ public sealed partial class AdminDrawsRepository(
                 : "這個活動已結案或作廢，不能產生名單。");
         }
 
-        var voidReason = regenerate ? AdminInput.RequireText(request.VoidReason, "作廢原因", 255) : null;
+        var voidReason = regenerate ? AdminInput.RequireText(request.VoidReason, "作廢原因", 255, "reason") : null;
         if (!(await GetNoticeAsync(scope, cancellationToken)).Confirmed)
         {
             throw new AdminConflictException("尚未完成蒐集告知", "會員條款與註冊同意事項還沒有增列抽獎的蒐集告知（「會籍有效期間將自動列入球迷會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」），完成前不能舉辦抽獎。");
         }
 
-        var asOf = draw.SnapshotAt ?? throw new AdminValidationException("請先設定資格基準時間。");
+        var asOf = draw.SnapshotAt ?? throw new AdminValidationException("請先設定資格基準時間。", "snapshotAt");
         var rules = draw.MemberDrawsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Rules;
         if (string.IsNullOrWhiteSpace(rules))
         {
-            throw new AdminValidationException("活動辦法為必填：請先填寫活動辦法（獎品內容、名額、資格條件、基準時間、開獎時間與場合、領獎期限、主辦單位保留變更權利之範圍）。");
+            throw new AdminValidationException("活動辦法為必填：請先填寫活動辦法（獎品內容、名額、資格條件、基準時間、開獎時間與場合、領獎期限、主辦單位保留變更權利之範圍）。", "rulesZh");
         }
 
         var eligible = await QueryEligibleAsync(scope.ClubId, asOf, cancellationToken);
@@ -435,32 +435,33 @@ public sealed partial class AdminDrawsRepository(
         RequireWinnerPhase(draw, request.Reason);
         if (request.Winners.Count is 0 or > 200)
         {
-            throw new AdminValidationException("一次最多回填 200 筆，至少 1 筆。");
+            throw new AdminValidationException("一次最多回填 200 筆，至少 1 筆。", "winners");
         }
 
         var serials = request.Winners.Select(w => w.SerialNo).ToList();
         if (serials.Distinct().Count() != serials.Count)
         {
-            throw new AdminValidationException("回填清單裡有重複的序號。");
+            throw new AdminValidationException("回填清單裡有重複的序號。", "winners");
         }
 
         var rows = await db.DrawRosters.Where(r => r.MemberDrawId == id && r.RosterVersion == draw.RosterVersion && serials.Contains(r.SerialNo)).ToListAsync(cancellationToken);
         var missing = serials.Where(s => rows.All(r => r.SerialNo != s)).ToList();
         if (missing.Count > 0)
         {
-            throw new AdminValidationException($"序號 {string.Join("、", missing)} 不在這一版名單裡，請確認序號。");
+            throw new AdminValidationException($"序號 {string.Join("、", missing)} 不在這一版名單裡，請確認序號。", "winners");
         }
 
         var now = DateTime.UtcNow;
-        foreach (var w in request.Winners)
+        for (var wi = 0; wi < request.Winners.Count; wi++)
         {
+            var w = request.Winners[wi];
             var row = rows.First(r => r.SerialNo == w.SerialNo);
-            var prize = AdminInput.OptionalText(w.PrizeName, "獎項名稱", 128);
+            var prize = AdminInput.OptionalText(w.PrizeName, "獎項名稱", 128, FieldKey.Item("winners", wi, "prizeName"));
             if (w.IsBackup)
             {
                 if (row.IsWinner)
                 {
-                    throw new AdminConflictException("已經是中獎人", $"序號 {row.SerialNo} 已經是中獎人，不能改成備取；請先取消中獎標記。");
+                    throw new AdminConflictException("已經是中獎人", $"序號 {row.SerialNo} 已經是中獎人，不能改成備取；請先取消中獎標記。", FieldKey.Item("winners", wi, "isBackup"));
                 }
 
                 row.IsBackup = true;
@@ -470,7 +471,7 @@ public sealed partial class AdminDrawsRepository(
             {
                 row.IsWinner = true;
                 row.IsBackup = false;
-                row.PrizeName = prize ?? throw new AdminValidationException($"序號 {row.SerialNo} 中獎，請填寫獎項名稱。");
+                row.PrizeName = prize ?? throw new AdminValidationException($"序號 {row.SerialNo} 中獎，請填寫獎項名稱。", FieldKey.Item("winners", wi, "prizeName"));
                 row.FulfilmentStatus ??= "pending";
             }
 
@@ -545,7 +546,7 @@ public sealed partial class AdminDrawsRepository(
 
         if (draw.Status == "announced" && string.IsNullOrWhiteSpace(reason))
         {
-            throw new AdminValidationException("名單已經公布，再修改中獎人必須填寫異動原因。");
+            throw new AdminValidationException("名單已經公布，再修改中獎人必須填寫異動原因。", "reason");
         }
     }
 
@@ -677,22 +678,22 @@ public sealed partial class AdminDrawsRepository(
 
         if (request.ClaimMethod is not null)
         {
-            row.ClaimMethod = AdminInput.OneOf(request.ClaimMethod, ClaimLabels.Keys.ToHashSet(), "領獎方式", "「寄送」或「現場領取」");
+            row.ClaimMethod = AdminInput.OneOf(request.ClaimMethod, ClaimLabels.Keys.ToHashSet(), "領獎方式", "「寄送」或「現場領取」", "claimMethod");
         }
 
         if (request.RecipientName is not null)
         {
-            row.RecipientName = AdminInput.OptionalText(request.RecipientName, "收件人姓名", 64);
+            row.RecipientName = AdminInput.OptionalText(request.RecipientName, "收件人姓名", 64, "recipientName");
         }
 
         if (request.RecipientPhone is not null)
         {
-            row.RecipientPhone = AdminInput.OptionalText(request.RecipientPhone, "收件人電話", 32);
+            row.RecipientPhone = AdminInput.OptionalText(request.RecipientPhone, "收件人電話", 32, "recipientPhone");
         }
 
         if (request.RecipientAddress is not null)
         {
-            row.RecipientAddress = AdminInput.OptionalText(request.RecipientAddress, "收件地址", 500);
+            row.RecipientAddress = AdminInput.OptionalText(request.RecipientAddress, "收件地址", 500, "recipientAddress");
         }
 
         if (request.Note is not null)
@@ -705,19 +706,19 @@ public sealed partial class AdminDrawsRepository(
             return;
         }
 
-        AdminInput.OneOf(request.Status, new HashSet<string>(["pending", "shipped", "claimed"]), "發放狀態", "待處理、已寄出或已領取");
+        AdminInput.OneOf(request.Status, new HashSet<string>(["pending", "shipped", "claimed"]), "發放狀態", "待處理、已寄出或已領取", "status");
         var now = DateTime.UtcNow;
         switch (request.Status)
         {
             case "shipped":
                 if (row.ClaimMethod != "ship")
                 {
-                    throw new AdminValidationException($"序號 {row.SerialNo}：只有領獎方式為「寄送」的才能標記已寄出，現場領取請直接標為已領取。");
+                    throw new AdminValidationException($"序號 {row.SerialNo}：只有領獎方式為「寄送」的才能標記已寄出，現場領取請直接標為已領取。", "status");
                 }
 
                 if (string.IsNullOrWhiteSpace(row.RecipientName) || string.IsNullOrWhiteSpace(row.RecipientPhone) || string.IsNullOrWhiteSpace(row.RecipientAddress))
                 {
-                    throw new AdminValidationException($"序號 {row.SerialNo}：寄送必須有收件人姓名、電話與地址。");
+                    throw new AdminValidationException($"序號 {row.SerialNo}：寄送必須有收件人姓名、電話與地址。", "recipientName");
                 }
 
                 row.ShippedAt ??= now;
@@ -932,7 +933,7 @@ public sealed partial class AdminDrawsRepository(
 
         if (!await db.Articles.AsNoTracking().AnyAsync(a => a.Id == request.ArticleId && (a.ClubId == scope.ClubId || a.ClubId == null), cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的文章，請確認文章屬於目前的俱樂部。");
+            throw new AdminValidationException("找不到指定的文章，請確認文章屬於目前的俱樂部。", "articleId");
         }
 
         draw.AnnouncementArticleId = request.ArticleId;
@@ -998,7 +999,7 @@ public sealed partial class AdminDrawsRepository(
 
     public async Task<AdminDrawDetailDto?> VoidAsync(AdminClubScope scope, Guid id, VoidAdminDrawRequest request, CancellationToken cancellationToken)
     {
-        var reason = AdminInput.RequireText(request.Reason, "作廢原因", 255);
+        var reason = AdminInput.RequireText(request.Reason, "作廢原因", 255, "reason");
         var draw = await db.MemberDraws.FirstOrDefaultAsync(d => d.Id == id && d.ClubId == scope.ClubId, cancellationToken);
         if (draw is null)
         {
@@ -1023,31 +1024,31 @@ public sealed partial class AdminDrawsRepository(
 
     private static string? Validate(UpsertAdminDrawRequest request)
     {
-        AdminInput.RequireText(request.Content.Zh.Name, "中文活動名稱", 128);
-        AdminInput.OptionalText(request.Content.Zh.Rules, "中文活動辦法", 20000);
-        AdminInput.OptionalText(request.Content.Zh.PrizeDescription, "中文獎品內容", 20000);
-        AdminInput.OptionalText(request.Content.Zh.Notes, "中文注意事項", 20000);
+        AdminInput.RequireText(request.Content.Zh.Name, "中文活動名稱", 128, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.Rules, "中文活動辦法", 20000, "rulesZh");
+        AdminInput.OptionalText(request.Content.Zh.PrizeDescription, "中文獎品內容", 20000, "prizeZh");
+        AdminInput.OptionalText(request.Content.Zh.Notes, "中文注意事項", 20000, "notesZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文活動名稱", 128);
-            AdminInput.OptionalText(request.Content.En.Rules, "英文活動辦法", 20000);
-            AdminInput.OptionalText(request.Content.En.PrizeDescription, "英文獎品內容", 20000);
-            AdminInput.OptionalText(request.Content.En.Notes, "英文注意事項", 20000);
+            AdminInput.RequireText(request.Content.En.Name, "英文活動名稱", 128, "nameEn");
+            AdminInput.OptionalText(request.Content.En.Rules, "英文活動辦法", 20000, "rulesEn");
+            AdminInput.OptionalText(request.Content.En.PrizeDescription, "英文獎品內容", 20000, "prizeEn");
+            AdminInput.OptionalText(request.Content.En.Notes, "英文注意事項", 20000, "notesEn");
         }
 
         if (request.DrawOccasion is not null)
         {
-            AdminInput.OneOf(request.DrawOccasion, OccasionLabels.Keys.ToHashSet(), "開獎場合", "「主場賽事日」「直播」或「其他」");
+            AdminInput.OneOf(request.DrawOccasion, OccasionLabels.Keys.ToHashSet(), "開獎場合", "「主場賽事日」「直播」或「其他」", "drawOccasion");
         }
 
-        AdminInput.OptionalText(request.InternalNote, "內部備註", 4000);
+        AdminInput.OptionalText(request.InternalNote, "內部備註", 4000, "internalNote");
         if (string.IsNullOrWhiteSpace(request.DrawCode))
         {
             return null;
         }
 
         var code = request.DrawCode.Trim();
-        return DrawCodeFormat().IsMatch(code) ? code : throw new AdminValidationException("活動代碼只能使用英文字母、數字與連字號（-），開頭必須是英數字，長度不可超過 32 字。");
+        return DrawCodeFormat().IsMatch(code) ? code : throw new AdminValidationException("活動代碼只能使用英文字母、數字與連字號（-），開頭必須是英數字，長度不可超過 32 字。", "drawCode");
     }
 
     /// <summary>API 的時間戳一律是 UTC，回傳的 JSON 不帶時區記號（EF 讀出的 Kind 是 Unspecified）；送回來的無時區時間因此視為 UTC，只有明確標示本地時區的才換算。</summary>
@@ -1066,7 +1067,7 @@ public sealed partial class AdminDrawsRepository(
     {
         if (await db.MemberDraws.AsNoTracking().AnyAsync(d => d.ClubId == scope.ClubId && d.DrawCode == code && d.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("活動代碼重複", $"活動代碼「{code}」已經被這個俱樂部的另一個抽獎活動使用，請換一個。");
+            throw new AdminConflictException("活動代碼重複", $"活動代碼「{code}」已經被這個俱樂部的另一個抽獎活動使用，請換一個。", "drawCode");
         }
     }
 

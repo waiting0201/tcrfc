@@ -9,6 +9,11 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -34,7 +39,9 @@ const hasImage = ref(false)
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const readOnly = computed(() => (isCreate.value ? !canCreate.value : !canUpdate.value))
 const pageTitle = computed(() => (isCreate.value ? '新增里程碑' : `編輯：${form.titleZh || '（未命名）'}`))
 
@@ -73,11 +80,21 @@ onMounted(load)
 const isDirty = computed(() => loadState.value === 'ready' && (JSON.stringify(form) !== baselineJson.value || !!imageFile.value || removeImage.value))
 useUnsavedChanges(isDirty)
 
+/** 一次檢查全部必填，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.titleZh.trim()) errors.titleZh = '請輸入中文標題'
+  if (!form.happenedOn) errors.happenedOn = '請選擇日期'
+  return errors
+}
+
 async function handleSave() {
   if (readOnly.value) return
   formError.value = null
-  if (!form.happenedOn) return void (formError.value = '請選擇日期')
-  if (!form.titleZh.trim()) return void (formError.value = '請輸入中文標題')
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -103,6 +120,7 @@ async function handleSave() {
     baselineJson.value = JSON.stringify(form)
     ElMessage.success('已儲存')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -137,26 +155,34 @@ const back = () => router.push({ path: '/teams/honours', query: { tab: 'mileston
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="milestone-edit__block" @close="formError = null" />
       <el-alert v-if="readOnly" title="你的帳號只能檢視里程碑，不能修改。" type="info" show-icon :closable="false" class="milestone-edit__block" />
       <el-form label-position="top" :disabled="readOnly">
+       <LangTabsBar>
+        <EditLayout>
+         <template #main>
         <el-card shadow="never" header="里程碑內容" class="milestone-edit__block">
-          <BilingualShortField label="標題" :zh="form.titleZh" :en="form.titleEn" required @update:zh="(v) => (form.titleZh = v)" @update:en="(v) => (form.titleEn = v)" />
-          <BilingualTextareaField label="說明" :zh="form.descZh" :en="form.descEn" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
+          <BilingualShortField field="title" label="標題" :zh="form.titleZh" :en="form.titleEn" required @update:zh="(v) => (form.titleZh = v)" @update:en="(v) => (form.titleEn = v)" />
+          <BilingualTextareaField field="desc" label="說明" :zh="form.descZh" :en="form.descEn" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
           <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="日期" required><el-date-picker v-model="form.happenedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="happenedOn" label="日期" required><el-date-picker v-model="form.happenedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('happenedOn')" /></FormField></el-col>
             <el-col :xs="24" :sm="12"><el-form-item label="排序值（同一天時的先後）"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
           </el-row>
           <el-form-item label="前台顯示"><el-switch v-model="form.isVisible" active-text="顯示在前台時間軸" inactive-text="隱藏" /></el-form-item>
         </el-card>
+         </template>
+         <template #aside>
         <el-card shadow="never" header="圖片（選填）" class="milestone-edit__block">
           <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeImage" :min-width="0" :min-height="0" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
-          <BilingualShortField label="圖片替代文字" :zh="form.altZh" :en="form.altEn" placeholder="用一句話描述圖片內容，供視障者與搜尋引擎閱讀" @update:zh="(v) => (form.altZh = v)" @update:en="(v) => (form.altEn = v)" />
+          <BilingualShortField field="alt" label="圖片替代文字" :zh="form.altZh" :en="form.altEn" placeholder="用一句話描述圖片內容，供視障者與搜尋引擎閱讀" @update:zh="(v) => (form.altZh = v)" @update:en="(v) => (form.altEn = v)" />
         </el-card>
+         </template>
+        </EditLayout>
+       </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly"><template #status><FormErrorStatus /></template><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.milestone-edit { max-width: 780px; margin: 0 auto 88px; }
+.milestone-edit { max-width: 1200px; margin: 0 auto 88px; }
 .milestone-edit__block { margin-bottom: 16px; }
 </style>

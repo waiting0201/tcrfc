@@ -68,7 +68,7 @@ public static class AdminBannersEndpoints
 
             if (file is null)
             {
-                throw new AdminBannerValidationException("請選擇輪播圖片，這個欄位是必填的（影片模式下這張圖作為海報格）。");
+                throw new AdminBannerValidationException("請選擇輪播圖片，這個欄位是必填的（影片模式下這張圖作為海報格）。", "image");
             }
 
             // 🔴 fail fast：先驗證 mediaType／檔案欄位互斥，再上傳，避免對一個註定會被拒絕的
@@ -76,11 +76,11 @@ public static class AdminBannersEndpoints
             var mediaType = AdminBannersRepository.ValidateMediaType(request.MediaType);
             if (mediaType == "video" && videoFile is null)
             {
-                throw new AdminBannerValidationException("素材種類為「影片」時，必須上傳影片檔案。");
+                throw new AdminBannerValidationException("素材種類為「影片」時，必須上傳影片檔案。", "video");
             }
             if (mediaType == "image" && videoFile is not null)
             {
-                throw new AdminBannerValidationException("素材種類為「圖片」時，不可上傳影片檔案。");
+                throw new AdminBannerValidationException("素材種類為「圖片」時，不可上傳影片檔案。", "video");
             }
 
             UploadSlotPolicy.Validate("banners", "image");
@@ -138,7 +138,7 @@ public static class AdminBannersEndpoints
             var mediaType = AdminBannersRepository.ValidateMediaType(request.MediaType);
             if (mediaType == "image" && videoFile is not null)
             {
-                throw new AdminBannerValidationException("素材種類為「圖片」時，不可上傳影片檔案。");
+                throw new AdminBannerValidationException("素材種類為「圖片」時，不可上傳影片檔案。", "video");
             }
 
             string? uploadedKey = null;

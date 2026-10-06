@@ -14,7 +14,12 @@ import PageHeader from '@/components/PageHeader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { availableClubs } from '@/auth/clubAccess'
@@ -47,7 +52,10 @@ const baseline = ref('')
 const state = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadError = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+watch([image, removeImage], () => formErrors.clear('image'))
 const status = ref('draft')
 const deepLinks = ref<DeepLinkDto[]>([])
 const teamOptions = ref<{ code: string; label: string }[]>([])
@@ -106,19 +114,23 @@ async function doEstimate() {
   }
 }
 
-function validate(): string | null {
-  if (!form.titleZh.trim()) return '請輸入中文標題'
-  if (!form.bodyZh.trim()) return '請輸入中文內文'
-  if (form.titleEn.trim() && !form.bodyEn.trim()) return '有英文標題時請一併填寫英文內文（或清空英文標題）'
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.titleZh.trim()) errors.titleZh = '請輸入中文標題'
+  if (!form.bodyZh.trim()) errors.bodyZh = '請輸入中文內文'
+  if (form.titleEn.trim() && !form.bodyEn.trim()) errors.bodyEn = '有英文標題時請一併填寫英文內文（或清空英文標題）'
   const link = form.deepLink.trim()
-  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) return '連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結'
-  if (form.scheduledAt && form.scheduledAt.getTime() <= nowAsPickerDate().getTime()) return '預定發送時間不能是過去，沒填就是核可後立刻發送'
-  return null
+  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) errors.deepLink = '連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結'
+  if (form.scheduledAt && form.scheduledAt.getTime() <= nowAsPickerDate().getTime()) errors.scheduledAt = '預定發送時間不能是過去，沒填就是核可後立刻發送'
+  return errors
 }
 async function save() {
   if (readOnly.value) return
-  formError.value = validate()
-  if (formError.value) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   const hasEn = form.titleEn.trim() || form.bodyEn.trim()
   const payload = {
@@ -152,6 +164,7 @@ async function save() {
       baseline.value = JSON.stringify(form)
     }
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = e instanceof AdminApiError ? e.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -178,44 +191,56 @@ const back = () => router.push(isCreate.value || !pushId.value ? '/app/push' : `
       <el-alert type="warning" show-icon :closable="false" class="pe__block" title="推播不能用來公布中獎名單：標題或內文出現「中獎」「得獎」「獲獎」「抽中」等字樣，或連結指向抽獎公布文章，系統會擋下。" />
 
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="推播內容" class="pe__block">
-          <BilingualShortField v-model:zh="form.titleZh" v-model:en="form.titleEn" label="標題（120 字內）" required />
-          <BilingualTextareaField v-model:zh="form.bodyZh" v-model:en="form.bodyEn" label="內文（500 字內）" required :rows="4" />
-          <el-form-item label="推播圖片（選填）">
-            <ImageUploader v-model:file="image" v-model:remove-cover="removeImage" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :min-width="1" :min-height="1" :disabled="readOnly || saving" />
-          </el-form-item>
-          <BilingualShortField v-model:zh="form.imageAltZh" v-model:en="form.imageAltEn" label="圖片替代文字" />
-          <el-form-item label="點擊後前往（選填）">
-            <el-select v-model="form.deepLink" filterable allow-create clearable default-first-option placeholder="選擇 App 內頁面，或自行輸入連結" style="width: 100%">
-              <el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || d.code" :value="d.appLink" />
-            </el-select>
-            <div class="pe__hint">可以填網頁網址（https:// 開頭），或 App 內頁面連結（不確定時請向 App 工程團隊確認）。</div>
-          </el-form-item>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="推播內容" class="pe__block">
+                <BilingualShortField v-model:zh="form.titleZh" v-model:en="form.titleEn" field="title" label="標題（120 字內）" required />
+                <BilingualTextareaField v-model:zh="form.bodyZh" v-model:en="form.bodyEn" field="body" label="內文（500 字內）" required :rows="4" />
+                <FormField field="deepLink" label="點擊後前往（選填）">
+                  <el-select v-model="form.deepLink" filterable allow-create clearable default-first-option placeholder="選擇 App 內頁面，或自行輸入連結" style="width: 100%" @change="formErrors.clear('deepLink')">
+                    <el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || d.code" :value="d.appLink" />
+                  </el-select>
+                  <div class="pe__hint">可以填網頁網址（https:// 開頭），或 App 內頁面連結（不確定時請向 App 工程團隊確認）。</div>
+                </FormField>
+              </el-card>
 
-        <el-card shadow="never" header="發送對象與時間" class="pe__block">
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="會籍層級"><el-select v-model="form.audienceTier" style="width: 100%"><el-option v-for="t in AUDIENCE_TIERS" :key="t.value" :label="t.label" :value="t.value" /></el-select></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="限定俱樂部（選填，用於一般公告）"><el-select v-model="form.audienceClubCode" clearable placeholder="不限" style="width: 100%"><el-option v-for="c in availableClubs" :key="c.code" :label="c.name" :value="c.code" /></el-select></el-form-item></el-col>
-            <el-col :xs="24"><el-form-item label="追蹤球隊（選填，只算有開啟該隊推播的裝置）"><el-select v-model="form.teamCodes" multiple filterable clearable placeholder="不限" style="width: 100%"><el-option v-for="t in teamOptions" :key="t.code" :label="t.label" :value="t.code" /></el-select></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="預定發送時間（台灣時間，選填）"><el-date-picker v-model="form.scheduledAt" type="datetime" placeholder="沒填＝核可後立刻發送" style="width: 100%" /></el-form-item></el-col>
-          </el-row>
-          <div class="pe__estimate">
-            <el-button :loading="estimating" @click="doEstimate">試算預估人數</el-button>
-            <span v-if="estimate" class="pe__num">預估可觸及 {{ estimate.total.toLocaleString() }} 台裝置</span>
-            <span v-if="estimateError" class="pe__err">{{ estimateError }}</span>
-          </div>
-          <el-table v-if="estimate && estimate.breakdown.length > 0" :data="estimate.breakdown" size="small" class="pe__table">
-            <el-table-column prop="platformLabel" label="平台" width="110" />
-            <el-table-column prop="localeLabel" label="語言" width="100" />
-            <el-table-column label="裝置數"><template #default="{ row }">{{ row.sent.toLocaleString() }}</template></el-table-column>
-          </el-table>
-          <p class="pe__hint">試算只算「推播權杖有效且已允許推播」的裝置，不會列出任何裝置清單。分眾不使用第三方的主題訂閱，付費狀態不會送進推播服務商。</p>
-        </el-card>
+              <el-card shadow="never" header="發送對象與時間" class="pe__block">
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12"><FormField field="audienceTier" label="會籍層級"><el-select v-model="form.audienceTier" style="width: 100%"><el-option v-for="t in AUDIENCE_TIERS" :key="t.value" :label="t.label" :value="t.value" /></el-select></FormField></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="audienceClubCode" label="限定俱樂部（選填，用於一般公告）"><el-select v-model="form.audienceClubCode" clearable placeholder="不限" style="width: 100%"><el-option v-for="c in availableClubs" :key="c.code" :label="c.name" :value="c.code" /></el-select></FormField></el-col>
+                  <el-col :xs="24"><FormField field="audienceTeamCodes" label="追蹤球隊（選填，只算有開啟該隊推播的裝置）"><el-select v-model="form.teamCodes" multiple filterable clearable placeholder="不限" style="width: 100%"><el-option v-for="t in teamOptions" :key="t.code" :label="t.label" :value="t.code" /></el-select></FormField></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="scheduledAt" label="預定發送時間（台灣時間，選填）"><el-date-picker v-model="form.scheduledAt" type="datetime" placeholder="沒填＝核可後立刻發送" style="width: 100%" @change="formErrors.clear('scheduledAt')" /></FormField></el-col>
+                </el-row>
+                <div class="pe__estimate">
+                  <el-button :loading="estimating" @click="doEstimate">試算預估人數</el-button>
+                  <span v-if="estimate" class="pe__num">預估可觸及 {{ estimate.total.toLocaleString() }} 台裝置</span>
+                  <span v-if="estimateError" class="pe__err">{{ estimateError }}</span>
+                </div>
+                <el-table v-if="estimate && estimate.breakdown.length > 0" :data="estimate.breakdown" size="small" class="pe__table">
+                  <el-table-column prop="platformLabel" label="平台" width="110" />
+                  <el-table-column prop="localeLabel" label="語言" width="100" />
+                  <el-table-column label="裝置數"><template #default="{ row }">{{ row.sent.toLocaleString() }}</template></el-table-column>
+                </el-table>
+                <p class="pe__hint">試算只算「推播權杖有效且已允許推播」的裝置，不會列出任何裝置清單。分眾不使用第三方的主題訂閱，付費狀態不會送進推播服務商。</p>
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="推播圖片" class="pe__block">
+                <FormField field="image" label="圖片（選填）">
+                  <ImageUploader v-model:file="image" v-model:remove-cover="removeImage" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :min-width="1" :min-height="1" :disabled="readOnly || saving" />
+                </FormField>
+                <BilingualShortField v-model:zh="form.imageAltZh" v-model:en="form.imageAltEn" field="imageAlt" label="圖片替代文字" />
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
     </template>
 
     <EditActionBar v-if="state === 'ready'">
+      <template #status><FormErrorStatus /></template>
       <el-button @click="back">取消</el-button>
       <el-button v-if="!readOnly" type="primary" :loading="saving" @click="save">儲存草稿</el-button>
     </EditActionBar>

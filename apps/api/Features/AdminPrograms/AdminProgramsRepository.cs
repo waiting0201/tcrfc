@@ -250,7 +250,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
 
         if (staff.Count != staffIds.Distinct().Count())
         {
-            throw new AdminProgramValidationException("教練團裡有找不到的教練／團隊成員，請確認名單。");
+            throw new AdminProgramValidationException("教練團裡有找不到的教練／團隊成員，請確認名單。", "staffIds");
         }
 
         return staff;
@@ -269,7 +269,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
 
         if (partners.Count != partnerIds.Distinct().Count())
         {
-            throw new AdminProgramValidationException("合作夥伴裡有找不到的夥伴，請確認名單。");
+            throw new AdminProgramValidationException("合作夥伴裡有找不到的夥伴，請確認名單。", "partnerIds");
         }
 
         return partners;
@@ -295,7 +295,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         if (programType is not null && !AllowedProgramTypes.Contains(programType))
         {
             throw new AdminProgramValidationException(
-                "課程類型只能是「兒童訓練」「夏令營」「冬令營」「專項訓練」或「校園社區」其中一種。");
+                "課程類型只能是「兒童訓練」「夏令營」「冬令營」「專項訓練」或「校園社區」其中一種。", "programType");
         }
     }
 
@@ -303,7 +303,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
     {
         if (status is not null && !AllowedStatuses.Contains(status))
         {
-            throw new AdminProgramValidationException("狀態只能是「草稿」或「已發布」。");
+            throw new AdminProgramValidationException("狀態只能是「草稿」或「已發布」。", "status");
         }
     }
 
@@ -311,15 +311,15 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
     {
         if (ageMin is int min && min < 0)
         {
-            throw new AdminProgramValidationException("最小年齡不能是負數。");
+            throw new AdminProgramValidationException("最小年齡不能是負數。", "ageMin");
         }
         if (ageMax is int max && max < 0)
         {
-            throw new AdminProgramValidationException("最大年齡不能是負數。");
+            throw new AdminProgramValidationException("最大年齡不能是負數。", "ageMax");
         }
         if (ageMin is int lo && ageMax is int hi && lo > hi)
         {
-            throw new AdminProgramValidationException("最小年齡不能大於最大年齡。");
+            throw new AdminProgramValidationException("最小年齡不能大於最大年齡。", "ageMin");
         }
     }
 
@@ -327,13 +327,13 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
-            throw new AdminProgramValidationException("中文名稱為必填欄位。");
+            throw new AdminProgramValidationException("中文名稱為必填欄位。", "nameZh");
         }
 
-        ValidateContentJson(content.Zh.Content);
+        ValidateContentJson(content.Zh.Content, "contentZh");
         if (content.En is not null)
         {
-            ValidateContentJson(content.En.Content);
+            ValidateContentJson(content.En.Content, "contentEn");
         }
     }
 
@@ -342,7 +342,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
     /// docs/14-invariants.md「後端任何會回給使用者的訊息都視同介面文字」，故在寫入前先在應用層
     /// 驗證一次語法合法性，提前給出看得懂的中文錯誤訊息。不驗證區塊結構本身，理由見
     /// <see cref="AdminProgramLocaleContent"/> 上的說明。</summary>
-    public static void ValidateContentJson(string? content)
+    public static void ValidateContentJson(string? content, string? field = null)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -352,7 +352,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         // 不只語法：根節點必須是物件或陣列，原生 json 欄位不收純量（docs/18 E-111）。
         if (!JsonColumn.IsObjectOrArray(content))
         {
-            throw new AdminProgramValidationException("內容格式不正確，請確認區塊編輯器或週期時段表的輸出內容。");
+            throw new AdminProgramValidationException("內容格式不正確，請確認區塊編輯器或週期時段表的輸出內容。", field);
         }
     }
 

@@ -518,7 +518,7 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
         var exists = await dbContext.Members.AsNoTracking().AnyAsync(m => m.Id == memberId, cancellationToken);
         if (!exists)
         {
-            throw new AdminRegistrationValidationException("找不到指定的會員，請確認會員資料是否存在。");
+            throw new AdminRegistrationValidationException("找不到指定的會員，請確認會員資料是否存在。", "memberId");
         }
     }
 
@@ -526,12 +526,12 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
     {
         if (string.IsNullOrWhiteSpace(applicantName))
         {
-            throw new AdminRegistrationValidationException("學員姓名為必填欄位。");
+            throw new AdminRegistrationValidationException("學員姓名為必填欄位。", "applicantName");
         }
         if (!AllowedStatuses.Contains(status))
         {
             throw new AdminRegistrationValidationException(
-                "狀態只能是「待確認」「已確認」「已繳費」「完成」「取消」或「候補」其中一種。");
+                "狀態只能是「待確認」「已確認」「已繳費」「完成」「取消」或「候補」其中一種。", "status");
         }
     }
 
@@ -540,12 +540,12 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
     {
         try
         {
-            return (AdminInput.OptionalPhone(phone, "電話"), AdminInput.OptionalEmail(email, "Email")?.ToLowerInvariant(),
-                AdminInput.OptionalPhone(guardianPhone, "家長電話"));
+            return (AdminInput.OptionalPhone(phone, "電話", "phone"), AdminInput.OptionalEmail(email, "Email", "email")?.ToLowerInvariant(),
+                AdminInput.OptionalPhone(guardianPhone, "家長電話", "guardianPhone"));
         }
         catch (AdminValidationException ex)
         {
-            throw new AdminRegistrationValidationException(ex.Message);
+            throw new AdminRegistrationValidationException(ex.Message, ex.FieldErrors.Keys.FirstOrDefault());
         }
     }
 

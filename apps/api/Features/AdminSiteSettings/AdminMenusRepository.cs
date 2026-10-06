@@ -61,16 +61,16 @@ public sealed partial class AdminMenusRepository(ClubDbContext db, IQueryCache c
         }
 
         var flat = new List<FlatNode>();
-        Flatten(request.Items ?? [], parentIndex: null, depth: 1, flat);
+        Flatten(request.Items ?? [], parentIndex: null, depth: 1, flat, "items");
         if (flat.Count > MaxItemsPerLocation)
         {
-            throw new AdminValidationException($"每個選單最多 {MaxItemsPerLocation} 個項目。");
+            throw new AdminValidationException($"每個選單最多 {MaxItemsPerLocation} 個項目。", "items");
         }
 
         var requestedIds = flat.Where(n => n.Source.Id is not null).Select(n => n.Source.Id!.Value).ToList();
         if (requestedIds.Count != requestedIds.Distinct().Count())
         {
-            throw new AdminValidationException("同一個選單項目不能出現兩次。");
+            throw new AdminValidationException("同一個選單項目不能出現兩次。", "items");
         }
 
         var existing = await db.MenuItems.Include(i => i.MenuItemsI18ns)
@@ -129,35 +129,36 @@ public sealed partial class AdminMenusRepository(ClubDbContext db, IQueryCache c
 
     private sealed record FlatNode(UpsertAdminMenuItemRequest Source, int? ParentIndex, int Order, string LabelZh, string? LabelEn, string? Url);
 
-    private static void Flatten(IReadOnlyList<UpsertAdminMenuItemRequest> siblings, int? parentIndex, int depth, List<FlatNode> flat)
+    private static void Flatten(IReadOnlyList<UpsertAdminMenuItemRequest> siblings, int? parentIndex, int depth, List<FlatNode> flat, string path)
     {
         if (depth > MaxDepth)
         {
-            throw new AdminValidationException($"選單最多 {MaxDepth} 層。");
+            throw new AdminValidationException($"選單最多 {MaxDepth} 層。", path);
         }
 
         for (var order = 0; order < siblings.Count; order++)
         {
             var source = siblings[order];
-            var labelZh = AdminInput.RequireText(source.LabelZh, "選單名稱（繁中）", 64);
-            var labelEn = AdminInput.OptionalText(source.LabelEn, "選單名稱（英文）", 64);
+            var nodePath = $"{path}[{order}]";
+            var labelZh = AdminInput.RequireText(source.LabelZh, "選單名稱（繁中）", 64, nodePath + ".labelZh");
+            var labelEn = AdminInput.OptionalText(source.LabelEn, "選單名稱（英文）", 64, nodePath + ".labelEn");
             var hasChildren = source.Children is { Count: > 0 };
-            var url = NormalizeUrl(source.Url, source.IsExternal, labelZh);
+            var url = NormalizeUrl(source.Url, source.IsExternal, labelZh, nodePath + ".url");
             if (url is null && !hasChildren)
             {
-                throw new AdminValidationException($"選單「{labelZh}」沒有子項目，必須設定連結。");
+                throw new AdminValidationException($"選單「{labelZh}」沒有子項目，必須設定連結。", nodePath + ".url");
             }
 
             var index = flat.Count;
             flat.Add(new FlatNode(source, parentIndex, order, labelZh, labelEn, url));
             if (hasChildren)
             {
-                Flatten(source.Children!, index, depth + 1, flat);
+                Flatten(source.Children!, index, depth + 1, flat, nodePath + ".children");
             }
         }
     }
 
-    private static string? NormalizeUrl(string? raw, bool isExternal, string labelForMessage)
+    private static string? NormalizeUrl(string? raw, bool isExternal, string labelForMessage, string field)
     {
         var url = raw?.Trim();
         if (string.IsNullOrEmpty(url))
@@ -167,7 +168,7 @@ public sealed partial class AdminMenusRepository(ClubDbContext db, IQueryCache c
 
         if (url.Length > 500)
         {
-            throw new AdminValidationException($"選單「{labelForMessage}」的連結不可超過 500 個字。");
+            throw new AdminValidationException($"選單「{labelForMessage}」的連結不可超過 500 個字。", field);
         }
 
         if (isExternal)
@@ -175,7 +176,7 @@ public sealed partial class AdminMenusRepository(ClubDbContext db, IQueryCache c
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
                 || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp) || string.IsNullOrEmpty(uri.Host))
             {
-                throw new AdminValidationException($"選單「{labelForMessage}」是外部連結，必須是以 http:// 或 https:// 開頭的完整網址。");
+                throw new AdminValidationException($"選單「{labelForMessage}」是外部連結，必須是以 http:// 或 https:// 開頭的完整網址。", field);
             }
 
             return url;
@@ -183,7 +184,7 @@ public sealed partial class AdminMenusRepository(ClubDbContext db, IQueryCache c
 
         if (url.StartsWith("//", StringComparison.Ordinal) || !InternalPath().IsMatch(url))
         {
-            throw new AdminValidationException($"選單「{labelForMessage}」的內部連結必須以 / 開頭（例如 /about/），不能含空白或網域；外部網址請勾選「外部連結」。");
+            throw new AdminValidationException($"選單「{labelForMessage}」的內部連結必須以 / 開頭（例如 /about/），不能含空白或網域；外部網址請勾選「外部連結」。", field);
         }
 
         return url;

@@ -29,6 +29,10 @@ import {
 } from '@/api/adminShop'
 import { formatDateTime } from '@/utils/dateTime'
 import { orderStatusTag } from '@/utils/shopStatus'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const router = useRouter()
 const { breakpoint } = useBreakpoint()
@@ -156,6 +160,7 @@ async function doBatchShip() {
     selectedIds.value = []
     await load()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     ElMessage.error(errorText(error, '批次出貨失敗，請稍後再試'))
   } finally {
     batching.value = false
@@ -340,7 +345,7 @@ const printNow = () => window.print()
 
     <el-dialog v-model="batchOpen" title="批次標記已出貨" width="440px" :close-on-click-modal="false" class="shipping__dialog">
       <p class="shipping__hint">將勾選的 {{ selectedIds.length }} 張訂單標為已出貨。超商取貨缺門市代碼、狀態不對的會被略過。物流單號可稍後用「匯入物流單號檔案」回填。</p>
-      <el-form label-position="top"><el-form-item label="物流商（選填）"><el-input v-model="batchCarrier" maxlength="64" placeholder="例如 黑貓宅急便" /></el-form-item></el-form>
+      <el-form label-position="top"><FormField field="carrier" label="物流商（選填）"><el-input v-model="batchCarrier" maxlength="64" placeholder="例如 黑貓宅急便" /></FormField></el-form>
       <template #footer>
         <el-button @click="batchOpen = false">取消</el-button>
         <el-button type="primary" :loading="batching" @click="doBatchShip">確定出貨</el-button>

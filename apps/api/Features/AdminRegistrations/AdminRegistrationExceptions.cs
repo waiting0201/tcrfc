@@ -9,4 +9,7 @@ public sealed class AdminRegistrationValidationException(string message, string?
 
 /// <summary><c>SessionId</c> 指向的梯次不存在，或不屬於這個俱樂部。</summary>
 public sealed class SessionNotFoundForRegistrationException()
-    : AdminRegistrationException("找不到這個俱樂部的梯次，請確認梯次是否存在。");
+    : AdminRegistrationException("找不到這個俱樂部的梯次，請確認梯次是否存在。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("sessionId", Message);
+}

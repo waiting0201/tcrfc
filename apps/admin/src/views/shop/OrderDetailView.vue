@@ -32,6 +32,10 @@ import {
 import { formatDateTime } from '@/utils/dateTime'
 import { formatMoney } from '@/utils/formatMoney'
 import { orderStatusTag, refundStatusTag } from '@/utils/shopStatus'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const route = useRoute()
 const router = useRouter()
@@ -79,6 +83,7 @@ async function act(fn: () => Promise<OrderDetailDto>, success: string) {
     ElMessage.success(success)
     return true
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return false
     ElMessage.error(error instanceof AdminApiError ? error.message : '操作失敗，請稍後再試')
     await load()
     return false
@@ -351,10 +356,10 @@ function onRefundCreated(id: string | null) {
       <el-alert v-if="shipError" :title="shipError" type="warning" show-icon class="order-detail__block" @close="shipError = null" />
       <el-form label-position="top">
         <template v-if="order?.deliveryMethod !== 'onsite_pickup'">
-          <el-form-item label="物流商"><el-input v-model="shipForm.carrier" maxlength="64" placeholder="例如 黑貓宅急便" /></el-form-item>
-          <el-form-item label="物流單號"><el-input v-model="shipForm.trackingNo" maxlength="64" placeholder="可以先出貨、之後再回填" /></el-form-item>
+          <FormField field="carrier" label="物流商"><el-input v-model="shipForm.carrier" maxlength="64" placeholder="例如 黑貓宅急便" /></FormField>
+          <FormField field="trackingNo" label="物流單號"><el-input v-model="shipForm.trackingNo" maxlength="64" placeholder="可以先出貨、之後再回填" /></FormField>
         </template>
-        <el-form-item v-if="order?.deliveryMethod === 'cvs_pickup'" label="門市代碼" required><el-input v-model="shipForm.storeBranchCode" maxlength="32" /></el-form-item>
+        <FormField v-if="order?.deliveryMethod === 'cvs_pickup'" field="storeBranchCode" label="門市代碼" required><el-input v-model="shipForm.storeBranchCode" maxlength="32" /></FormField>
         <el-form-item v-if="order?.deliveryMethod === 'onsite_pickup'" label="領取期限（選填）"><el-date-picker v-model="shipForm.pickupDeadlineOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
       </el-form>
       <p v-if="shipMode === 'edit'" class="order-detail__hint">更正會整份取代物流商、物流單號、門市代碼與領取期限四個欄位。</p>

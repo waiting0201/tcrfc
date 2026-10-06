@@ -310,7 +310,7 @@ public sealed class AdminPagesRepository(
     {
         if (request.PublishAt <= DateTime.UtcNow)
         {
-            throw new AdminPageValidationException("排程發布時間必須晚於現在。");
+            throw new AdminPageValidationException("排程發布時間必須晚於現在。", "publishAt");
         }
 
         var page = await LoadTrackedForWriteAsync(scope, id, cancellationToken);

@@ -8,7 +8,9 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import FormField from '@/components/FormField.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { activeClubId } from '@/auth/clubAccess'
 import {
@@ -90,13 +92,16 @@ function emptyRedirectForm(): RedirectFormState {
 const dialogVisible = ref(false)
 const dialogMode = ref<'create' | 'edit'>('create')
 const form = reactive<RedirectFormState>(emptyRedirectForm())
+/** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const saving = ref(false)
 
 function openCreateDialog() {
   dialogMode.value = 'create'
   Object.assign(form, emptyRedirectForm())
   formError.value = null
+  formErrors.clearAll()
   dialogVisible.value = true
 }
 
@@ -104,17 +109,17 @@ function openEditDialog(row: AdminRedirectDto) {
   dialogMode.value = 'edit'
   Object.assign(form, { id: row.id, fromPath: row.fromPath, toPath: row.toPath, isActive: row.isActive })
   formError.value = null
+  formErrors.clearAll()
   dialogVisible.value = true
 }
 
 async function saveRedirect() {
   formError.value = null
-  if (!form.fromPath.trim()) {
-    formError.value = '請輸入來源網址'
-    return
-  }
-  if (!form.toPath.trim()) {
-    formError.value = '請輸入目的網址'
+  const errors: Record<string, string> = {}
+  if (!form.fromPath.trim()) errors.fromPath = '請輸入來源網址'
+  if (!form.toPath.trim()) errors.toPath = '請輸入目的網址'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
     return
   }
   saving.value = true
@@ -136,6 +141,7 @@ async function saveRedirect() {
     dialogVisible.value = false
     await loadRedirects()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -312,13 +318,13 @@ async function handleCsvFileChange(event: Event) {
     <el-dialog v-model="dialogVisible" :title="dialogMode === 'create' ? '新增轉址' : '編輯轉址'" width="480px">
       <el-alert v-if="formError" :title="formError" type="warning" show-icon :closable="false" class="redirect-list__form-error" />
       <el-form label-position="top">
-        <el-form-item label="來源網址（舊網址）" required>
+        <FormField field="fromPath" label="來源網址（舊網址）" required>
           <el-input v-model="form.fromPath" :disabled="dialogMode === 'edit'" placeholder="例如：/old-page/" />
-        </el-form-item>
+        </FormField>
         <p v-if="dialogMode === 'edit'" class="redirect-list__hint">來源網址建立後不能修改，要換來源網址請刪除這筆後重新新增。</p>
-        <el-form-item label="目的網址（新網址）" required>
+        <FormField field="toPath" label="目的網址（新網址）" required>
           <el-input v-model="form.toPath" placeholder="例如：/zh/news/new-page/" />
-        </el-form-item>
+        </FormField>
         <el-form-item label="啟用">
           <el-switch v-model="form.isActive" />
         </el-form-item>

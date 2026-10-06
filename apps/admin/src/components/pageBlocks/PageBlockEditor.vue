@@ -1,3 +1,4 @@
+<!-- lang-scope: inherited -->
 <script setup lang="ts">
 /**
  * B1 頁面管理的區塊化編輯器——單一區塊的內容編輯（12 種型別依 `blockType` 切換要顯示的欄位）。
@@ -17,6 +18,8 @@ import { computed } from 'vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import FormField from '@/components/FormField.vue'
+import { useFormErrors } from '@/composables/useFormErrors'
 import {
   emptyBilingualText,
   emptyImageSlot,
@@ -39,7 +42,22 @@ import {
 const props = defineProps<{
   blockType: PageBlockType
   content: PageBlockContent
+  /** 這個區塊在頁面中的位置（從 0 起算），只用來組欄位錯誤鍵 `blocks[i].xxx`，不顯示在畫面上。 */
+  blockIndex: number
 }>()
+
+const formErrors = useFormErrors()
+
+/** 欄位鍵：`k('body')` → `blocks[2].body`（雙語欄位元件會再補上 Zh／En）。只在程式內對照。 */
+const k = (suffix: string) => `blocks[${props.blockIndex}].${suffix}`
+
+/** 新增、刪除、排序子項目之後索引會錯位，這個區塊舊的欄位錯誤一律清掉（下次儲存會重新檢查）。 */
+function clearBlockErrors() {
+  const prefix = `blocks[${props.blockIndex}]`
+  for (const key of Object.keys(formErrors.errors)) {
+    if (key === prefix || key.startsWith(`${prefix}.`) || key.startsWith(`${prefix}[`)) formErrors.clear(key)
+  }
+}
 
 // ── 各型別的型別轉型（同一個物件參照，只是換個型別視角） ─────────────────────
 const textC = computed(() => props.content as TextBlockContent)
@@ -60,46 +78,57 @@ function moveItem<T>(list: T[], index: number, delta: number) {
   if (target < 0 || target >= list.length) return
   const [item] = list.splice(index, 1)
   list.splice(target, 0, item)
+  clearBlockErrors()
 }
 
 // 圖片藝廊
 function addGalleryImage() {
   galleryC.value.images.push(emptyImageSlot())
+  clearBlockErrors()
 }
 function removeGalleryImage(index: number) {
   galleryC.value.images.splice(index, 1)
+  clearBlockErrors()
 }
 
 // 手風琴 FAQ
 function addFaqItem() {
   faqC.value.items.push({ question: emptyBilingualText(), answer: emptyBilingualText() })
+  clearBlockErrors()
 }
 function removeFaqItem(index: number) {
   faqC.value.items.splice(index, 1)
+  clearBlockErrors()
 }
 
 // 時間軸
 function addTimelineItem() {
   timelineC.value.items.push({ date: '', title: emptyBilingualText(), description: emptyBilingualText() })
+  clearBlockErrors()
 }
 function removeTimelineItem(index: number) {
   timelineC.value.items.splice(index, 1)
+  clearBlockErrors()
 }
 
 // 步驟條
 function addStepsItem() {
   stepsC.value.items.push({ title: emptyBilingualText(), description: emptyBilingualText() })
+  clearBlockErrors()
 }
 function removeStepsItem(index: number) {
   stepsC.value.items.splice(index, 1)
+  clearBlockErrors()
 }
 
 // 數據卡
 function addStatCard() {
   statCardsC.value.items.push({ value: '', label: emptyBilingualText() })
+  clearBlockErrors()
 }
 function removeStatCard(index: number) {
   statCardsC.value.items.splice(index, 1)
+  clearBlockErrors()
 }
 
 // 表格：新增／刪除欄位時，每一列都要跟著補一格／刪一格，欄數才會一直等於標題數
@@ -107,16 +136,20 @@ function removeStatCard(index: number) {
 function addTableColumn() {
   tableC.value.headers.push(emptyBilingualText())
   for (const row of tableC.value.rows) row.push('')
+  clearBlockErrors()
 }
 function removeTableColumn(colIndex: number) {
   tableC.value.headers.splice(colIndex, 1)
   for (const row of tableC.value.rows) row.splice(colIndex, 1)
+  clearBlockErrors()
 }
 function addTableRow() {
   tableC.value.rows.push(tableC.value.headers.map(() => ''))
+  clearBlockErrors()
 }
 function removeTableRow(rowIndex: number) {
   tableC.value.rows.splice(rowIndex, 1)
+  clearBlockErrors()
 }
 </script>
 
@@ -124,12 +157,7 @@ function removeTableRow(rowIndex: number) {
   <div class="page-block-editor">
     <!-- 文字 -->
     <template v-if="blockType === 'text'">
-      <el-form-item label="內文（中文）" required>
-        <el-input v-model="textC.body.zh" type="textarea" :rows="6" placeholder="請輸入內文" />
-      </el-form-item>
-      <el-form-item label="內文（英文）">
-        <el-input v-model="textC.body.en" type="textarea" :rows="6" placeholder="Enter English content" />
-      </el-form-item>
+      <BilingualTextareaField :field="k('body')" label="內文" required :rows="6" placeholder="請輸入內文" :zh="textC.body.zh" :en="textC.body.en" @update:zh="(v) => (textC.body.zh = v)" @update:en="(v) => (textC.body.en = v)" />
     </template>
 
     <!-- 圖文左右 -->
@@ -140,30 +168,24 @@ function removeTableRow(rowIndex: number) {
           <el-radio value="right">圖片在右</el-radio>
         </el-radio-group>
       </el-form-item>
-      <el-form-item label="內文（中文）" required>
-        <el-input v-model="textImageC.body.zh" type="textarea" :rows="5" placeholder="請輸入內文" />
-      </el-form-item>
-      <el-form-item label="內文（英文）">
-        <el-input v-model="textImageC.body.en" type="textarea" :rows="5" placeholder="Enter English content" />
-      </el-form-item>
-      <el-form-item label="圖片" required>
-        <div class="page-block-editor__image-slot">
-          <ImageUploader
-            v-model:file="textImageC.image.file"
-            v-model:remove-cover="textImageC.image.cleared"
-            :has-existing-image="!!textImageC.image.existingKey"
-          />
-          <BilingualShortField
-            label="圖片替代文字"
-            :zh="textImageC.image.altZh"
-            :en="textImageC.image.altEn"
-            required
-            placeholder="描述圖片內容，供螢幕閱讀器與搜尋引擎使用"
-            @update:zh="(v) => (textImageC.image.altZh = v)"
-            @update:en="(v) => (textImageC.image.altEn = v)"
-          />
-        </div>
-      </el-form-item>
+      <BilingualTextareaField :field="k('body')" label="內文" required :rows="5" placeholder="請輸入內文" :zh="textImageC.body.zh" :en="textImageC.body.en" @update:zh="(v) => (textImageC.body.zh = v)" @update:en="(v) => (textImageC.body.en = v)" />
+      <FormField :field="k('image')" label="圖片" required>
+        <ImageUploader
+          v-model:file="textImageC.image.file"
+          v-model:remove-cover="textImageC.image.cleared"
+          :has-existing-image="!!textImageC.image.existingKey"
+        />
+      </FormField>
+      <BilingualShortField
+        :field="k('image.alt')"
+        label="圖片替代文字"
+        :zh="textImageC.image.altZh"
+        :en="textImageC.image.altEn"
+        required
+        placeholder="描述圖片內容，供螢幕閱讀器與搜尋引擎使用"
+        @update:zh="(v) => (textImageC.image.altZh = v)"
+        @update:en="(v) => (textImageC.image.altEn = v)"
+      />
     </template>
 
     <!-- 圖片藝廊 -->
@@ -181,12 +203,15 @@ function removeTableRow(rowIndex: number) {
             刪除這張圖片
           </el-button>
         </div>
-        <ImageUploader
-          v-model:file="slot.file"
-          v-model:remove-cover="slot.cleared"
-          :has-existing-image="!!slot.existingKey"
-        />
+        <FormField :field="k(`images[${i}]`)" label="圖片">
+          <ImageUploader
+            v-model:file="slot.file"
+            v-model:remove-cover="slot.cleared"
+            :has-existing-image="!!slot.existingKey"
+          />
+        </FormField>
         <BilingualShortField
+          :field="k(`images[${i}].alt`)"
           label="圖片替代文字"
           :zh="slot.altZh"
           :en="slot.altEn"
@@ -201,16 +226,17 @@ function removeTableRow(rowIndex: number) {
 
     <!-- 影音嵌入 -->
     <template v-else-if="blockType === 'video_embed'">
-      <el-form-item label="影音來源" required>
+      <FormField :field="k('provider')" label="影音來源" required>
         <el-radio-group v-model="videoC.provider">
           <el-radio value="youtube">YouTube</el-radio>
           <el-radio value="vimeo">Vimeo</el-radio>
         </el-radio-group>
-      </el-form-item>
-      <el-form-item label="影片代碼" required>
+      </FormField>
+      <FormField :field="k('videoId')" label="影片代碼" required>
         <el-input v-model="videoC.videoId" placeholder="影片網址裡代表這支影片的那一段代碼，不是整段網址" />
-      </el-form-item>
+      </FormField>
       <BilingualShortField
+        :field="k('caption')"
         label="說明文字"
         :zh="videoC.caption.zh"
         :en="videoC.caption.en"
@@ -223,6 +249,7 @@ function removeTableRow(rowIndex: number) {
     <!-- 引言 -->
     <template v-else-if="blockType === 'quote'">
       <BilingualTextareaField
+        :field="k('text')"
         label="引言文字"
         :zh="quoteC.text.zh"
         :en="quoteC.text.en"
@@ -232,6 +259,7 @@ function removeTableRow(rowIndex: number) {
         @update:en="(v) => (quoteC.text.en = v)"
       />
       <BilingualShortField
+        :field="k('attribution')"
         label="引言來源"
         :zh="quoteC.attribution.zh"
         :en="quoteC.attribution.en"
@@ -244,6 +272,7 @@ function removeTableRow(rowIndex: number) {
     <!-- CTA -->
     <template v-else-if="blockType === 'cta'">
       <BilingualShortField
+        :field="k('text')"
         label="文字"
         :zh="ctaC.text.zh"
         :en="ctaC.text.en"
@@ -252,6 +281,7 @@ function removeTableRow(rowIndex: number) {
         @update:en="(v) => (ctaC.text.en = v)"
       />
       <BilingualShortField
+        :field="k('buttonLabel')"
         label="按鈕文字"
         :zh="ctaC.buttonLabel.zh"
         :en="ctaC.buttonLabel.en"
@@ -259,9 +289,9 @@ function removeTableRow(rowIndex: number) {
         @update:zh="(v) => (ctaC.buttonLabel.zh = v)"
         @update:en="(v) => (ctaC.buttonLabel.en = v)"
       />
-      <el-form-item label="按鈕連結網址" required>
+      <FormField :field="k('buttonUrl')" label="按鈕連結網址" required>
         <el-input v-model="ctaC.buttonUrl" placeholder="例如：/zh/programs/ 或完整網址" />
-      </el-form-item>
+      </FormField>
     </template>
 
     <!-- 手風琴 FAQ -->
@@ -276,6 +306,7 @@ function removeTableRow(rowIndex: number) {
           </div>
         </div>
         <BilingualShortField
+          :field="k(`items[${i}].question`)"
           label="問題"
           :zh="item.question.zh"
           :en="item.question.en"
@@ -284,6 +315,7 @@ function removeTableRow(rowIndex: number) {
           @update:en="(v) => (item.question.en = v)"
         />
         <BilingualTextareaField
+          :field="k(`items[${i}].answer`)"
           label="答案"
           :zh="item.answer.zh"
           :en="item.answer.en"
@@ -307,10 +339,11 @@ function removeTableRow(rowIndex: number) {
             <el-button size="small" text type="danger" :disabled="timelineC.items.length <= 1" @click="removeTimelineItem(i)">刪除</el-button>
           </div>
         </div>
-        <el-form-item label="日期" required>
+        <FormField :field="k(`items[${i}].date`)" label="日期" required>
           <el-input v-model="item.date" placeholder="例如：2024 年 3 月，文字自由填寫，不限定日期格式" />
-        </el-form-item>
+        </FormField>
         <BilingualShortField
+          :field="k(`items[${i}].title`)"
           label="標題"
           :zh="item.title.zh"
           :en="item.title.en"
@@ -319,6 +352,7 @@ function removeTableRow(rowIndex: number) {
           @update:en="(v) => (item.title.en = v)"
         />
         <BilingualTextareaField
+          :field="k(`items[${i}].description`)"
           label="說明"
           :zh="item.description.zh"
           :en="item.description.en"
@@ -343,6 +377,7 @@ function removeTableRow(rowIndex: number) {
           </div>
         </div>
         <BilingualShortField
+          :field="k(`items[${i}].title`)"
           label="標題"
           :zh="item.title.zh"
           :en="item.title.en"
@@ -351,6 +386,7 @@ function removeTableRow(rowIndex: number) {
           @update:en="(v) => (item.title.en = v)"
         />
         <BilingualTextareaField
+          :field="k(`items[${i}].description`)"
           label="說明"
           :zh="item.description.zh"
           :en="item.description.en"
@@ -370,10 +406,11 @@ function removeTableRow(rowIndex: number) {
           <span class="page-block-editor__item-index">第 {{ i + 1 }} 張</span>
           <el-button size="small" text type="danger" :disabled="statCardsC.items.length <= 1" @click="removeStatCard(i)">刪除</el-button>
         </div>
-        <el-form-item label="數據值" required>
+        <FormField :field="k(`items[${i}].value`)" label="數據值" required>
           <el-input v-model="item.value" placeholder="例如：120＋、98%" />
-        </el-form-item>
+        </FormField>
         <BilingualShortField
+          :field="k(`items[${i}].label`)"
           label="說明文字"
           :zh="item.label.zh"
           :en="item.label.en"
@@ -391,6 +428,8 @@ function removeTableRow(rowIndex: number) {
       <div class="page-block-editor__table-headers">
         <div v-for="(header, colIndex) in tableC.headers" :key="colIndex" class="page-block-editor__table-header-cell">
           <BilingualShortField
+            :field-zh="k(`headers[${colIndex}].labelZh`)"
+            :field-en="k(`headers[${colIndex}].labelEn`)"
             :label="`第 ${colIndex + 1} 欄標題`"
             :zh="header.zh"
             :en="header.en"
@@ -405,26 +444,29 @@ function removeTableRow(rowIndex: number) {
         <el-button @click="addTableColumn">+ 新增欄位</el-button>
       </div>
 
-      <el-table :data="tableC.rows.map((row, rowIndex) => ({ row, rowIndex }))" size="small" class="page-block-editor__table-rows">
-        <el-table-column v-for="(header, colIndex) in tableC.headers" :key="colIndex" :label="header.zh || `第 ${colIndex + 1} 欄`">
-          <template #default="{ row: entry }">
-            <el-input v-model="entry.row[colIndex]" size="small" />
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="80">
-          <template #default="{ row: entry }">
-            <el-button size="small" text type="danger" :disabled="tableC.rows.length <= 1" @click="removeTableRow(entry.rowIndex)">
-              刪除
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+      <FormField :field="k('rows')">
+        <el-table :data="tableC.rows.map((row, rowIndex) => ({ row, rowIndex }))" size="small" class="page-block-editor__table-rows">
+          <el-table-column v-for="(header, colIndex) in tableC.headers" :key="colIndex" :label="header.zh || `第 ${colIndex + 1} 欄`">
+            <template #default="{ row: entry }">
+              <el-input v-model="entry.row[colIndex]" size="small" />
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="80">
+            <template #default="{ row: entry }">
+              <el-button size="small" text type="danger" :disabled="tableC.rows.length <= 1" @click="removeTableRow(entry.rowIndex)">
+                刪除
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+      </FormField>
       <el-button @click="addTableRow">+ 新增一列</el-button>
     </template>
 
     <!-- 檔案下載 -->
     <template v-else-if="blockType === 'file_download'">
       <BilingualShortField
+        :field="k('label')"
         label="檔案名稱"
         :zh="fileDownloadC.label.zh"
         :en="fileDownloadC.label.en"
@@ -432,12 +474,12 @@ function removeTableRow(rowIndex: number) {
         @update:zh="(v) => (fileDownloadC.label.zh = v)"
         @update:en="(v) => (fileDownloadC.label.en = v)"
       />
-      <el-form-item label="檔案網址" required>
+      <FormField :field="k('fileUrl')" label="檔案網址" required>
         <el-input v-model="fileDownloadC.fileUrl" placeholder="請貼上已有的外部網址或既有物件鍵，本區塊不支援直接上傳新檔案" />
         <span class="page-block-editor__hint">
           本區塊不支援直接上傳新檔案（圖片上傳服務只處理圖片，PDF 等檔案會被損毀），請貼上已經放好的檔案網址。
         </span>
-      </el-form-item>
+      </FormField>
     </template>
   </div>
 </template>
@@ -448,12 +490,6 @@ function removeTableRow(rowIndex: number) {
   font-size: 12px;
   color: var(--admin-text-tertiary);
   margin-top: 4px;
-}
-
-.page-block-editor__image-slot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
 }
 
 .page-block-editor__item-card {

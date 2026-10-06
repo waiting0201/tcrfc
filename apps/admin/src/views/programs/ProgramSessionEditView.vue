@@ -15,6 +15,11 @@ import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import WeeklyScheduleInput from '@/components/WeeklyScheduleInput.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { listAdminVenues, type AdminVenueListItemDto } from '@/api/adminVenues'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
@@ -60,7 +65,11 @@ const scheduleInput = ref<InstanceType<typeof WeeklyScheduleInput> | null>(null)
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 上課時間表是自訂元件，內容變動就清掉該欄位的錯誤
+watch(() => form.weeklySchedule, () => formErrors.clear('weeklySchedule'))
 
 async function loadPrograms() {
   try {
@@ -121,27 +130,14 @@ const pageTitle = computed(() =>
 )
 const isReadOnly = computed(() => !canManageSessions.value)
 
-function validateSchedule(): boolean {
-  const message = scheduleInput.value?.validate() ?? null
-  if (message) {
-    formError.value = message
-    return false
-  }
-  return true
-}
-
-function validate(): boolean {
-  formError.value = null
-  if (!form.programId) {
-    formError.value = '請選擇所屬課程／營隊項目'
-    return false
-  }
-  if (form.capacity != null && form.capacity < 0) {
-    formError.value = '名額上限不能是負數'
-    return false
-  }
-  if (!validateSchedule()) return false
-  return true
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.programId) errors.programId = '請選擇所屬課程／營隊項目'
+  if (form.capacity != null && form.capacity < 0) errors.capacity = '名額上限不能是負數'
+  const scheduleMessage = scheduleInput.value?.validate() ?? null
+  if (scheduleMessage) errors.weeklySchedule = scheduleMessage
+  return errors
 }
 
 function buildPayload(): CreateSessionPayload {
@@ -163,9 +159,12 @@ function buildPayload(): CreateSessionPayload {
 
 async function handleSave() {
   if (isReadOnly.value) return
-  if (!validate()) return
-  saving.value = true
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     if (isCreate.value) {
       const created = await createAdminProgramSession(activeClubId.value, buildPayload())
@@ -184,6 +183,7 @@ async function handleSave() {
     }
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -246,102 +246,108 @@ function retryLoad() {
       />
 
       <el-form label-position="top" :disabled="isReadOnly">
-        <el-card shadow="never" header="基本資料" class="session-edit__section">
-          <el-form-item label="所屬課程／營隊項目" required>
-            <el-select
-              v-model="form.programId"
-              filterable
-              :disabled="!isCreate || isReadOnly"
-              style="width: 100%"
-              no-data-text="目前這個俱樂部還沒有任何課程／營隊項目，請先到「項目」新增一筆"
-            >
-              <el-option v-for="p in programs" :key="p.id" :label="p.nameZh || p.slug" :value="p.id" />
-            </el-select>
-            <p v-if="!isCreate" class="session-edit__hint">建立後不能更換所屬項目。</p>
-          </el-form-item>
-
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="開始日期">
-                <el-date-picker v-model="form.startOn" type="date" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="結束日期">
-                <el-date-picker v-model="form.endOn" type="date" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <el-form-item label="場地">
-            <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
-              <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
-            </el-select>
-            <p class="session-edit__hint">場地清單在「網站設定」的場地管理維護。</p>
-          </el-form-item>
-
-          <el-form-item label="每週上課時間（選填）">
-            <WeeklyScheduleInput ref="scheduleInput" v-model="form.weeklySchedule" :disabled="isReadOnly" />
-          </el-form-item>
-        </el-card>
-
-        <el-card shadow="never" header="名額與費用" class="session-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="名額上限">
-                <el-input-number v-model="form.capacity" :min="0" style="width: 100%" placeholder="不限" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="目前已報名數">
-                <el-input :model-value="enrolledCount" disabled />
-                <p class="session-edit__hint">由報名寫入路徑自動維護，這裡無法直接修改。</p>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="狀態">
-                <el-select v-model="form.status" clearable placeholder="留空自動判定" style="width: 100%">
-                  <el-option v-for="s in SESSION_STATUS_ORDER" :key="s" :label="s" :value="s" />
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never" header="基本資料">
+              <FormField field="programId" label="所屬課程／營隊項目" required>
+                <el-select
+                  v-model="form.programId"
+                  filterable
+                  :disabled="!isCreate || isReadOnly"
+                  style="width: 100%"
+                  no-data-text="目前這個俱樂部還沒有任何課程／營隊項目，請先到「項目」新增一筆"
+                  @change="formErrors.clear('programId')"
+                >
+                  <el-option v-for="p in programs" :key="p.id" :label="p.nameZh || p.slug" :value="p.id" />
                 </el-select>
-                <p class="session-edit__hint">留空時依名額自動推定（額滿即關閉），「候補」與「已結束」需要人工設定。</p>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="原價">
-                <el-input-number v-model="form.price" :min="0" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="早鳥價">
-                <el-input-number v-model="form.earlyBirdPrice" :min="0" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="早鳥截止日">
-                <el-date-picker v-model="form.earlyBirdUntil" type="date" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="報名開始時間">
-                <el-date-picker v-model="form.signupOpensAt" type="datetime" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="報名截止時間">
-                <el-date-picker v-model="form.signupClosesAt" type="datetime" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-card>
+                <p v-if="!isCreate" class="session-edit__hint">建立後不能更換所屬項目。</p>
+              </FormField>
+
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <FormField field="startOn" label="開始日期">
+                    <el-date-picker v-model="form.startOn" type="date" style="width: 100%" />
+                  </FormField>
+                </el-col>
+                <el-col :span="12">
+                  <FormField field="endOn" label="結束日期">
+                    <el-date-picker v-model="form.endOn" type="date" style="width: 100%" />
+                  </FormField>
+                </el-col>
+              </el-row>
+
+              <FormField field="venueId" label="場地">
+                <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
+                  <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+                </el-select>
+                <p class="session-edit__hint">場地清單在「網站設定」的場地管理維護。</p>
+              </FormField>
+
+              <FormField field="weeklySchedule" label="每週上課時間（選填）">
+                <WeeklyScheduleInput ref="scheduleInput" v-model="form.weeklySchedule" :disabled="isReadOnly" />
+              </FormField>
+            </el-card>
+
+            <el-card shadow="never" header="名額與費用">
+              <el-row :gutter="12">
+                <el-col :span="8">
+                  <FormField field="capacity" label="名額上限">
+                    <el-input-number v-model="form.capacity" :min="0" style="width: 100%" placeholder="不限" @change="formErrors.clear('capacity')" />
+                  </FormField>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="目前已報名數">
+                    <el-input :model-value="enrolledCount" disabled />
+                    <p class="session-edit__hint">由報名寫入路徑自動維護，這裡無法直接修改。</p>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <FormField field="status" label="狀態">
+                    <el-select v-model="form.status" clearable placeholder="留空自動判定" style="width: 100%">
+                      <el-option v-for="s in SESSION_STATUS_ORDER" :key="s" :label="s" :value="s" />
+                    </el-select>
+                    <p class="session-edit__hint">留空時依名額自動推定（額滿即關閉），「候補」與「已結束」需要人工設定。</p>
+                  </FormField>
+                </el-col>
+              </el-row>
+              <el-row :gutter="12">
+                <el-col :span="8">
+                  <FormField field="price" label="原價">
+                    <el-input-number v-model="form.price" :min="0" style="width: 100%" />
+                  </FormField>
+                </el-col>
+                <el-col :span="8">
+                  <FormField field="earlyBirdPrice" label="早鳥價">
+                    <el-input-number v-model="form.earlyBirdPrice" :min="0" style="width: 100%" />
+                  </FormField>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="早鳥截止日">
+                    <el-date-picker v-model="form.earlyBirdUntil" type="date" style="width: 100%" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <FormField field="signupOpensAt" label="報名開始時間">
+                    <el-date-picker v-model="form.signupOpensAt" type="datetime" style="width: 100%" />
+                  </FormField>
+                </el-col>
+                <el-col :span="12">
+                  <FormField field="signupClosesAt" label="報名截止時間">
+                    <el-date-picker v-model="form.signupClosesAt" type="datetime" style="width: 100%" />
+                  </FormField>
+                </el-col>
+              </el-row>
+            </el-card>
+          </template>
+        </EditLayout>
       </el-form>
 
-      <div v-if="!isReadOnly" class="session-edit__action-bar">
+      <EditActionBar v-if="!isReadOnly">
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -349,14 +355,10 @@ function retryLoad() {
 <style scoped>
 .session-edit {
   max-width: 780px;
-  margin: 0 auto 88px;
+  margin: 0 auto;
 }
 
 .session-edit__form-error {
-  margin-bottom: 16px;
-}
-
-.session-edit__section {
   margin-bottom: 16px;
 }
 
@@ -365,35 +367,5 @@ function retryLoad() {
   font-size: 12px;
   color: var(--admin-text-tertiary);
   line-height: 1.6;
-}
-
-.session-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .session-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .session-edit__action-bar {
-    justify-content: stretch;
-  }
-
-  .session-edit__action-bar :deep(.el-button) {
-    flex: 1;
-  }
 }
 </style>

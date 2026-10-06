@@ -118,26 +118,26 @@ public sealed class AdminAdvertisersRepository(ClubDbContext dbContext)
 
     private async Task ValidateAsync(UpsertAdminAdvertiserRequest r, CancellationToken cancellationToken)
     {
-        AdminInput.RequireText(r.Content.Zh.Name, "廣告主名稱（繁中）", 128);
-        AdminInput.OptionalText(r.Content.En?.Name, "廣告主名稱（英文）", 128);
-        AdminInput.OptionalText(r.TaxId, "統一編號", 16);
-        AdminInput.OptionalText(r.ContactName, "聯絡窗口", 100);
-        AdminInput.OptionalText(r.ContactPhone, "電話", 40);
-        AdminInput.OptionalEmail(r.ContactEmail, "聯絡 Email");
-        AdminInput.OptionalText(r.ContractNote, "合約備註", 1000);
-        AdminInput.DateRange(r.CooperationStartOn, r.CooperationEndOn, "合作期間");
-        AdminInput.OneOf(r.Status ?? "negotiating", AdLabels.AdvertiserStatus.Keys.ToHashSet(StringComparer.Ordinal), "狀態", "「洽談中」「合作中」或「已結束」");
+        AdminInput.RequireText(r.Content.Zh.Name, "廣告主名稱（繁中）", 128, "nameZh");
+        AdminInput.OptionalText(r.Content.En?.Name, "廣告主名稱（英文）", 128, "nameEn");
+        AdminInput.OptionalText(r.TaxId, "統一編號", 16, "taxId");
+        AdminInput.OptionalText(r.ContactName, "聯絡窗口", 100, "contactName");
+        AdminInput.OptionalText(r.ContactPhone, "電話", 40, "contactPhone");
+        AdminInput.OptionalEmail(r.ContactEmail, "聯絡 Email", "contactEmail");
+        AdminInput.OptionalText(r.ContractNote, "合約備註", 1000, "contractNote");
+        AdminInput.DateRange(r.CooperationStartOn, r.CooperationEndOn, "合作期間", "cooperationEndOn");
+        AdminInput.OneOf(r.Status ?? "negotiating", AdLabels.AdvertiserStatus.Keys.ToHashSet(StringComparer.Ordinal), "狀態", "「洽談中」「合作中」或「已結束」", "status");
         if (r.SponsorId is { } sid && !await dbContext.Sponsors.AnyAsync(s => s.Id == sid, cancellationToken))
         {
-            throw new AdminValidationException("找不到要關聯的贊助商，請重新挑選。");
+            throw new AdminValidationException("找不到要關聯的贊助商，請重新挑選。", "sponsorId");
         }
     }
 
     private static void Apply(Advertiser a, UpsertAdminAdvertiserRequest r)
     {
-        a.TaxId = AdminInput.OptionalText(r.TaxId, "統一編號", 16);
-        a.ContactName = AdminInput.OptionalText(r.ContactName, "聯絡窗口", 100);
-        a.ContactPhone = AdminInput.OptionalText(r.ContactPhone, "電話", 40);
+        a.TaxId = AdminInput.OptionalText(r.TaxId, "統一編號", 16, "taxId");
+        a.ContactName = AdminInput.OptionalText(r.ContactName, "聯絡窗口", 100, "contactName");
+        a.ContactPhone = AdminInput.OptionalText(r.ContactPhone, "電話", 40, "contactPhone");
         a.ContactEmail = AdminInput.OptionalEmail(r.ContactEmail, "聯絡 Email");
         a.ContractNote = AdminInput.OptionalText(r.ContractNote, "合約備註", 1000);
         a.CooperationStartOn = r.CooperationStartOn;

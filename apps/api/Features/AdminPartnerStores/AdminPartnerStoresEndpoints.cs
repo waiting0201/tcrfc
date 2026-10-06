@@ -78,7 +78,7 @@ public static class AdminPartnerStoresEndpoints
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
             if (request.RemoveImage)
             {
-                throw new AdminValidationException("建立店家時不能選擇移除照片。");
+                throw new AdminValidationException("建立店家時不能選擇移除照片。", "image");
             }
 
             var id = Guid.NewGuid();

@@ -49,7 +49,7 @@ public static class AdminSeoSettingsEndpoints
 
             if (ogImageFile is not null && request.RemoveOgImage)
             {
-                throw new AdminSeoValidationException("上傳新圖片與勾選「移除全站預設 OG 圖片」不能同時發生，請擇一。");
+                throw new AdminSeoValidationException("上傳新圖片與勾選「移除全站預設分享圖片」不能同時發生，請擇一。", "ogImage");
             }
 
             var previousOgImageKey = await repository.GetCurrentOgImageKeyAsync(scope.ClubId, cancellationToken);

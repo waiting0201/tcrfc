@@ -167,11 +167,11 @@ public sealed class AdminAppReleasesRepository(
         string scope, SetAppMaintenanceRequest request, AdminSystemScope actor, CancellationToken cancellationToken)
     {
         AdminInput.OneOf(scope, Scopes, "維護範圍", "「全部平台」「iOS」或「Android」");
-        var zh = AdminInput.OptionalText(request.MessageZh, "維護訊息（繁中）", 500);
-        var en = AdminInput.OptionalText(request.MessageEn, "維護訊息（英文）", 500);
+        var zh = AdminInput.OptionalText(request.MessageZh, "維護訊息（繁中）", 500, "messageZh");
+        var en = AdminInput.OptionalText(request.MessageEn, "維護訊息（英文）", 500, "messageEn");
         if (request.Enabled && zh is null)
         {
-            throw new AdminValidationException("開啟維護模式必須填寫繁中的維護訊息（使用者會在畫面上看到）。");
+            throw new AdminValidationException("開啟維護模式必須填寫繁中的維護訊息（使用者會在畫面上看到）。", "messageZh");
         }
 
         var key = AppConfigComposer.MaintenanceKeyPrefix + scope;
@@ -208,17 +208,17 @@ public sealed class AdminAppReleasesRepository(
     private static (string Platform, string Version) Validate(UpsertAdminAppReleaseRequest r)
     {
         var platform = AppInput.RequirePlatform(r.Platform);
-        var version = AdminInput.RequireText(r.Version, "版本號", 32);
+        var version = AdminInput.RequireText(r.Version, "版本號", 32, "version");
         if (!AppVersion.IsValid(version))
         {
-            throw new AdminValidationException("版本號的格式是「主.次.修」，例如 1.2.0。");
+            throw new AdminValidationException("版本號的格式是「主.次.修」，例如 1.2.0。", "version");
         }
 
-        AdminInput.OptionalText(r.BuildNumber, "建置號", 32);
-        AdminInput.OneOf(r.Status ?? "testing", Statuses, "狀態", "「測試」「已上架」或「已下架」");
-        AdminInput.OptionalText(r.Content.Zh.WhatsNew, "更新說明（繁中）", 2000);
-        AdminInput.OptionalText(r.Content.Zh.ForceMessage, "強制更新文案（繁中）", 500);
-        AdminInput.OptionalText(r.Content.Zh.RecommendMessage, "建議更新文案（繁中）", 500);
+        AdminInput.OptionalText(r.BuildNumber, "建置號", 32, "buildNumber");
+        AdminInput.OneOf(r.Status ?? "testing", Statuses, "狀態", "「測試」「已上架」或「已下架」", "status");
+        AdminInput.OptionalText(r.Content.Zh.WhatsNew, "更新說明（繁中）", 2000, "whatsNewZh");
+        AdminInput.OptionalText(r.Content.Zh.ForceMessage, "強制更新文案（繁中）", 500, "forceMessageZh");
+        AdminInput.OptionalText(r.Content.Zh.RecommendMessage, "建議更新文案（繁中）", 500, "recommendMessageZh");
         return (platform, version);
     }
 

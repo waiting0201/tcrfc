@@ -134,7 +134,7 @@ public sealed class AdminTrialsRepository(ClubDbContext db, ClubSettingsStore se
         await ResolveRefsAsync(scope, request, cancellationToken);
         if (request.Capacity is int cap && cap < trial.EnrolledCount)
         {
-            throw new AdminValidationException($"名額不能低於目前已報名的人數（{trial.EnrolledCount} 人）。");
+            throw new AdminValidationException($"名額不能低於目前已報名的人數（{trial.EnrolledCount} 人）。", "capacity");
         }
 
         trial.TeamId = request.TeamId;
@@ -196,23 +196,23 @@ public sealed class AdminTrialsRepository(ClubDbContext db, ClubSettingsStore se
     {
         if (request.Capacity is < 1)
         {
-            throw new AdminValidationException("名額至少要 1 人；不限名額請留空。");
+            throw new AdminValidationException("名額至少要 1 人；不限名額請留空。", "capacity");
         }
 
         if (request.DeadlineOn is DateOnly deadline && deadline > request.TrialOn)
         {
-            throw new AdminValidationException("報名截止日不可晚於試訓日期。");
+            throw new AdminValidationException("報名截止日不可晚於試訓日期。", "deadlineOn");
         }
 
         if (request.Status is not null)
         {
-            AdminInput.OneOf(request.Status, Statuses, "狀態", "「開放」「額滿」「候補」或「已結束」");
+            AdminInput.OneOf(request.Status, Statuses, "狀態", "「開放」「額滿」「候補」或「已結束」", "status");
         }
 
-        AdminInput.RequireText(request.Content.Zh.Audience, "中文對象說明", 255);
+        AdminInput.RequireText(request.Content.Zh.Audience, "中文對象說明", 255, "audienceZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Audience))
         {
-            AdminInput.RequireText(request.Content.En.Audience, "英文對象說明", 255);
+            AdminInput.RequireText(request.Content.En.Audience, "英文對象說明", 255, "audienceEn");
         }
     }
 
@@ -220,12 +220,12 @@ public sealed class AdminTrialsRepository(ClubDbContext db, ClubSettingsStore se
     {
         if (request.TeamId is Guid teamId && !await db.Teams.AsNoTracking().AnyAsync(t => t.Id == teamId && t.ClubId == scope.ClubId, cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的球隊，請確認球隊屬於目前的俱樂部。");
+            throw new AdminValidationException("找不到指定的球隊，請確認球隊屬於目前的俱樂部。", "teamId");
         }
 
         if (request.VenueId is Guid venueId && !await db.Venues.AsNoTracking().AnyAsync(v => v.Id == venueId, cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的場地。");
+            throw new AdminValidationException("找不到指定的場地。", "venueId");
         }
     }
 

@@ -105,16 +105,16 @@ public sealed class AdminJerseysRepository(ClubDbContext db, IPermissionChecker 
 
     public async Task<AdminJerseyDto> CreateAsync(AdminClubScope scope, CreateAdminJerseyRequest request, CancellationToken cancellationToken)
     {
-        var recipient = AdminInput.RequireText(request.RecipientName, "領用人姓名", 64);
+        var recipient = AdminInput.RequireText(request.RecipientName, "領用人姓名", 64, "recipientName");
         var size = NormalizeSize(request.Size);
-        AdminInput.OneOf(request.DeliveryMethod, MemberLabels.Delivery.Keys.ToHashSet(), "領取方式", "「寄送」或「到場領取」");
-        var phone = AdminInput.OptionalText(request.Phone, "電話", 32);
-        var address = AdminInput.OptionalText(request.Address, "收件地址", 500);
+        AdminInput.OneOf(request.DeliveryMethod, MemberLabels.Delivery.Keys.ToHashSet(), "領取方式", "「寄送」或「到場領取」", "deliveryMethod");
+        var phone = AdminInput.OptionalText(request.Phone, "電話", 32, "phone");
+        var address = AdminInput.OptionalText(request.Address, "收件地址", 500, "address");
         RequireShippingInfo(request.DeliveryMethod, phone, address);
 
         var membership = await db.Memberships.Include(m => m.MembershipPlan)
             .FirstOrDefaultAsync(m => m.Id == request.MembershipId && m.ClubId == scope.ClubId, cancellationToken)
-            ?? throw new AdminValidationException("找不到指定的會籍，請確認會籍屬於目前的俱樂部。");
+            ?? throw new AdminValidationException("找不到指定的會籍，請確認會籍屬於目前的俱樂部。", "membershipId");
         var quota = membership.MembershipPlan?.JerseyQuota ?? 0;
         var used = await db.JerseyIssues.AsNoTracking().CountAsync(j => j.MembershipId == membership.Id, cancellationToken);
         if (used >= quota)
@@ -152,17 +152,17 @@ public sealed class AdminJerseysRepository(ClubDbContext db, IPermissionChecker 
 
         if (request.RecipientName is not null)
         {
-            jersey.RecipientName = AdminInput.RequireText(request.RecipientName, "領用人姓名", 64);
+            jersey.RecipientName = AdminInput.RequireText(request.RecipientName, "領用人姓名", 64, "recipientName");
         }
 
         if (request.Phone is not null)
         {
-            jersey.Phone = AdminInput.OptionalText(request.Phone, "電話", 32);
+            jersey.Phone = AdminInput.OptionalText(request.Phone, "電話", 32, "phone");
         }
 
         if (request.Address is not null)
         {
-            jersey.Address = AdminInput.OptionalText(request.Address, "收件地址", 500);
+            jersey.Address = AdminInput.OptionalText(request.Address, "收件地址", 500, "address");
         }
 
         if (request.Size is not null)
@@ -172,7 +172,7 @@ public sealed class AdminJerseysRepository(ClubDbContext db, IPermissionChecker 
 
         if (request.DeliveryMethod is not null)
         {
-            AdminInput.OneOf(request.DeliveryMethod, MemberLabels.Delivery.Keys.ToHashSet(), "領取方式", "「寄送」或「到場領取」");
+            AdminInput.OneOf(request.DeliveryMethod, MemberLabels.Delivery.Keys.ToHashSet(), "領取方式", "「寄送」或「到場領取」", "deliveryMethod");
             jersey.DeliveryMethod = request.DeliveryMethod;
         }
 
@@ -252,7 +252,7 @@ public sealed class AdminJerseysRepository(ClubDbContext db, IPermissionChecker 
 
     private static string NormalizeSize(string? size)
     {
-        var s = AdminInput.RequireText(size, "尺寸", 16).ToUpperInvariant();
+        var s = AdminInput.RequireText(size, "尺寸", 16, "size").ToUpperInvariant();
         return s;
     }
 
@@ -260,7 +260,7 @@ public sealed class AdminJerseysRepository(ClubDbContext db, IPermissionChecker 
     {
         if (deliveryMethod == "ship" && (string.IsNullOrWhiteSpace(phone) || string.IsNullOrWhiteSpace(address)))
         {
-            throw new AdminValidationException("選「寄送」必須填寫電話與收件地址。");
+            throw new AdminValidationException("選「寄送」必須填寫電話與收件地址。", string.IsNullOrWhiteSpace(phone) ? "phone" : "address");
         }
     }
 

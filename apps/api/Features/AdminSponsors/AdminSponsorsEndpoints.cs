@@ -64,7 +64,7 @@ public static class AdminSponsorsEndpoints
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
             if (request.RemoveLogoDark || request.RemoveLogoLight)
             {
-                throw new AdminValidationException("建立贊助商時不能選擇移除 Logo。");
+                throw new AdminValidationException("建立贊助商時不能選擇移除 Logo。", "logoLight");
             }
 
             var id = Guid.NewGuid();

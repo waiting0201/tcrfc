@@ -166,15 +166,15 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
     {
         if (string.IsNullOrWhiteSpace(code))
         {
-            throw new AdminClubValidationException("俱樂部代碼為必填欄位。");
+            throw new AdminClubValidationException("俱樂部代碼為必填欄位。", "code");
         }
         if (code.Length > 16)
         {
-            throw new AdminClubValidationException("俱樂部代碼長度不能超過 16 個字元。");
+            throw new AdminClubValidationException("俱樂部代碼長度不能超過 16 個字元。", "code");
         }
         if (!code.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c)))
         {
-            throw new AdminClubValidationException("俱樂部代碼只能使用小寫英文字母與數字組成。");
+            throw new AdminClubValidationException("俱樂部代碼只能使用小寫英文字母與數字組成。", "code");
         }
     }
 
@@ -182,11 +182,11 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
     {
         if (string.IsNullOrWhiteSpace(domain))
         {
-            throw new AdminClubValidationException("網域為必填欄位。");
+            throw new AdminClubValidationException("網域為必填欄位。", "domain");
         }
         if (domain.Length > 128)
         {
-            throw new AdminClubValidationException("網域長度不能超過 128 個字元。");
+            throw new AdminClubValidationException("網域長度不能超過 128 個字元。", "domain");
         }
     }
 
@@ -194,14 +194,14 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
-            throw new AdminClubValidationException("中文名稱為必填欄位。");
+            throw new AdminClubValidationException("中文名稱為必填欄位。", "nameZh");
         }
 
-        foreach (var (label, locale) in new[] { ("中文", (AdminClubLocaleContent?)content.Zh), ("英文", content.En) })
+        foreach (var (label, locale, field) in new[] { ("中文", (AdminClubLocaleContent?)content.Zh, "shortNameZh"), ("英文", content.En, "shortNameEn") })
         {
             if (locale?.ShortName is { } shortName && shortName.Trim().Length > 32)
             {
-                throw new AdminClubValidationException($"{label}簡稱最多 32 個字。");
+                throw new AdminClubValidationException($"{label}簡稱最多 32 個字。", field);
             }
         }
     }

@@ -255,7 +255,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         var team = await dbContext.Teams.FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
         if (team is null || team.ClubId != scope.ClubId)
         {
-            throw new AdminPlayerValidationException($"找不到這個俱樂部的球隊（id={teamId}）。");
+            throw new AdminPlayerValidationException("找不到這個俱樂部的球隊，請重新整理後再試一次。", "teamId");
         }
         return team;
     }
@@ -279,7 +279,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         if (status is not null && !AllowedStatuses.Contains(status))
         {
             throw new AdminPlayerValidationException(
-                "狀態只能是「active」（現役）、「departed」（離隊）、「loan」（外借）或「overseas」（海外發展）。");
+                "狀態只能選「現役」「離隊」「外借」或「海外發展」。", "status");
         }
     }
 
@@ -288,8 +288,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         if (portraitConsentStatus is not null && !AllowedPortraitConsentStatuses.Contains(portraitConsentStatus))
         {
             throw new AdminPlayerValidationException(
-                "肖像同意狀態只能是「not_consented」（未同意）、「consented」（本人已同意）或" +
-                "「consented_by_guardian」（監護人已同意）。");
+                "肖像同意狀態只能選「未同意」「本人已同意」或「監護人已同意」。", "portraitConsentStatus");
         }
     }
 
@@ -297,7 +296,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
-            throw new AdminPlayerValidationException("中文姓名為必填欄位。");
+            throw new AdminPlayerValidationException("中文姓名為必填欄位。", "nameZh");
         }
     }
 
@@ -305,15 +304,15 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
     {
         if (shirtNo is < 1 or > 99)
         {
-            throw new AdminPlayerValidationException("背號只能是 1 到 99 之間的整數。");
+            throw new AdminPlayerValidationException("背號只能是 1 到 99 之間的整數。", "shirtNo");
         }
         if (heightCm is < 100 or > 250)
         {
-            throw new AdminPlayerValidationException("身高數值不合理，請確認單位為公分。");
+            throw new AdminPlayerValidationException("身高數值不合理，請確認單位為公分。", "heightCm");
         }
         if (weightKg is < 30 or > 150)
         {
-            throw new AdminPlayerValidationException("體重數值不合理，請確認單位為公斤。");
+            throw new AdminPlayerValidationException("體重數值不合理，請確認單位為公斤。", "weightKg");
         }
     }
 

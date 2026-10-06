@@ -95,7 +95,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         // 帳號是一般字串（可含中文等 Unicode）：先去前後空白再驗證，登入端同樣先 Trim。
         var username = request.Username?.Trim() ?? string.Empty;
         ValidateUsername(username);
-        AdminAuthService.ValidatePasswordPolicy(request.InitialPassword, username);
+        AdminAuthService.ValidatePasswordPolicy(request.InitialPassword, username, "initialPassword");
 
         if (await dbContext.AdminUsers.AsNoTracking().AnyAsync(u => u.Username == username, cancellationToken))
         {
@@ -104,7 +104,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
 
         if (request.PrimaryClubId is Guid primaryClubId)
         {
-            await EnsureClubExistsAsync(primaryClubId, cancellationToken);
+            await EnsureClubExistsAsync(primaryClubId, "primaryClubId", cancellationToken);
         }
 
         var roles = await ResolveRolesAsync(request.RoleCodes, cancellationToken);
@@ -156,7 +156,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
 
         if (request.PrimaryClubId is Guid primaryClubId)
         {
-            await EnsureClubExistsAsync(primaryClubId, cancellationToken);
+            await EnsureClubExistsAsync(primaryClubId, "primaryClubId", cancellationToken);
         }
 
         // 🔴 防呆（task 5，執行層安全措施，規劃書未明文）：把最後一個啟用中的超管帳號降級，
@@ -197,7 +197,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
     {
         if (status is not ("active" or "disabled"))
         {
-            throw new AdminAccountValidationException("帳號狀態只能是「active」或「disabled」。");
+            throw new AdminAccountValidationException("帳號狀態只能是「啟用」或「停用」。");
         }
 
         var user = await dbContext.AdminUsers.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
@@ -236,7 +236,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
             return null;
         }
 
-        AdminAuthService.ValidatePasswordPolicy(newPassword, user.Username);
+        AdminAuthService.ValidatePasswordPolicy(newPassword, user.Username, "newPassword");
 
         user.PasswordHash = PasswordHasher.Hash(newPassword);
         // 刻意保留為 true：這是「管理員替持有人設了密碼」的明確事件，旗標僅作提示（不強制），
@@ -306,12 +306,12 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
             return null;
         }
 
-        await EnsureClubExistsAsync(request.ClubId, cancellationToken);
+        await EnsureClubExistsAsync(request.ClubId, "clubGrantClubId", cancellationToken);
 
         var grantedOn = request.GrantedOn ?? DateOnly.FromDateTime(DateTime.UtcNow);
         if (request.ExpiresOn is DateOnly expiresOn && expiresOn < grantedOn)
         {
-            throw new AdminAccountValidationException("到期日不能早於授權起日。");
+            throw new AdminAccountValidationException("到期日不能早於授權起日。", "clubGrantExpiresOn");
         }
 
         var grant = await dbContext.AdminUserClubs
@@ -400,7 +400,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
             .FirstOrDefaultAsync(t => t.Id == request.TeamId, cancellationToken);
         if (team is null)
         {
-            throw new AdminAccountValidationException($"找不到球隊（id={request.TeamId}）。");
+            throw new AdminAccountValidationException("找不到這支球隊，請重新整理後再試一次。", "teamGrantTeamId");
         }
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -410,7 +410,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         if (!hasEffectiveClubGrant)
         {
             throw new AdminAccountValidationException(
-                "只能授權這個帳號目前有效俱樂部授權範圍內的球隊，請先確認該帳號已被授權這支球隊所屬的俱樂部。");
+                "只能授權這個帳號目前有效俱樂部授權範圍內的球隊，請先確認該帳號已被授權這支球隊所屬的俱樂部。", "teamGrantTeamId");
         }
 
         var grant = await dbContext.AdminUserTeams
@@ -479,11 +479,11 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         }
     }
 
-    private async Task EnsureClubExistsAsync(Guid clubId, CancellationToken cancellationToken)
+    private async Task EnsureClubExistsAsync(Guid clubId, string field, CancellationToken cancellationToken)
     {
         if (!await dbContext.Clubs.AsNoTracking().AnyAsync(c => c.Id == clubId, cancellationToken))
         {
-            throw new AdminAccountValidationException($"找不到俱樂部（id={clubId}）。");
+            throw new AdminAccountValidationException("找不到這個俱樂部，請重新整理後再試一次。", field);
         }
     }
 
@@ -500,7 +500,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         if (roles.Count != distinctCodes.Count)
         {
             var missing = distinctCodes.Except(roles.Select(r => r.Code));
-            throw new AdminAccountValidationException($"找不到角色代碼：{string.Join("、", missing)}。");
+            throw new AdminAccountValidationException($"有 {missing.Count()} 個角色已經不存在，請重新整理角色清單後再試一次。", "roleCodes");
         }
 
         return roles;
@@ -510,15 +510,15 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
     {
         if (string.IsNullOrWhiteSpace(username))
         {
-            throw new AdminAccountValidationException("帳號為必填欄位。");
+            throw new AdminAccountValidationException("帳號為必填欄位。", "username");
         }
         if (username.Length > 64)
         {
-            throw new AdminAccountValidationException("帳號長度不能超過 64 個字元。");
+            throw new AdminAccountValidationException("帳號長度不能超過 64 個字元。", "username");
         }
         if (username.Any(char.IsWhiteSpace))
         {
-            throw new AdminAccountValidationException("帳號不能包含空白字元。");
+            throw new AdminAccountValidationException("帳號不能包含空白字元。", "username");
         }
     }
 

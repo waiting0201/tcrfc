@@ -3,7 +3,7 @@
  * 事蹟紀錄——新增／編輯。三項必填：公益團體、捐助內容、活動圖片（主圖）。
  * 其他活動圖片可多張，新增後在編輯頁補充。共用事蹟整頁唯讀。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -14,6 +14,11 @@ import ImageUploader from '@/components/ImageUploader.vue'
 import GalleryManager from '@/components/GalleryManager.vue'
 import SharedContentNotice from '@/components/SharedContentNotice.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -57,7 +62,11 @@ const programs = ref<ProgramListItemDto[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有欄位歸屬的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除主圖就清掉該欄位的錯誤
+watch([imageFile, removeFlag], () => formErrors.clear('image'))
 const readOnly = computed(() => isShared.value || (isCreate.value ? !canCreate.value : !canUpdate.value))
 const pageTitle = computed(() => (isCreate.value ? '新增事蹟紀錄' : `${readOnly.value ? '檢視' : '編輯'}事蹟紀錄`))
 
@@ -106,18 +115,23 @@ onMounted(load)
 const isDirty = computed(() => loadState.value === 'ready' && (JSON.stringify(form) !== baselineJson.value || !!imageFile.value || removeFlag.value))
 useUnsavedChanges(isDirty)
 
-function validate(): string | null {
-  if (!form.charityId) return '請選擇公益團體'
-  if (!form.donationZh.trim()) return '請填寫中文捐助內容，例如「足球 50 顆、訓練背心 100 件」'
-  if (isCreate.value && !imageFile.value) return '事蹟紀錄必須上傳活動圖片'
-  if (!isCreate.value && removeFlag.value && !imageFile.value) return '主圖不能移除，請選擇新的圖片來更換'
-  return null
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.charityId) errors.charityId = '請選擇公益團體'
+  if (!form.donationZh.trim()) errors.donationZh = '請填寫中文捐助內容，例如「足球 50 顆、訓練背心 100 件」'
+  if (isCreate.value && !imageFile.value) errors.image = '事蹟紀錄必須上傳活動圖片'
+  else if (!isCreate.value && removeFlag.value && !imageFile.value) errors.image = '主圖不能移除，請選擇新的圖片來更換'
+  return errors
 }
 
 async function handleSave() {
   if (readOnly.value) return
-  formError.value = validate()
-  if (formError.value) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -146,6 +160,8 @@ async function handleSave() {
     baselineJson.value = JSON.stringify(form)
     ElMessage.success('已儲存')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -193,42 +209,57 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'record
     <template v-else>
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="record-edit__block" @close="formError = null" />
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="事蹟內容" class="record-edit__block">
-          <el-form-item label="公益團體" required>
-            <el-select v-model="form.charityId" filterable placeholder="請選擇受贈的公益團體" style="width: 100%">
-              <el-option v-for="o in orgs" :key="o.id" :label="o.nameZh || '（未命名）'" :value="o.id" />
-            </el-select>
-          </el-form-item>
-          <BilingualTextareaField label="捐助內容" :zh="form.donationZh" :en="form.donationEn" required :rows="2" placeholder="例如：足球 50 顆、訓練背心 100 件" @update:zh="(v) => (form.donationZh = v)" @update:en="(v) => (form.donationEn = v)" />
-          <BilingualShortField label="地點" :zh="form.locationZh" :en="form.locationEn" @update:zh="(v) => (form.locationZh = v)" @update:en="(v) => (form.locationEn = v)" />
-          <BilingualTextareaField label="簡述" :zh="form.briefZh" :en="form.briefEn" @update:zh="(v) => (form.briefZh = v)" @update:en="(v) => (form.briefEn = v)" />
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="日期"><el-date-picker v-model="form.happenedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="所屬計畫（選填）">
-                <el-select v-model="form.programId" clearable filterable placeholder="不屬於任何計畫" style="width: 100%"><el-option v-for="p in programs" :key="p.id" :label="p.nameZh || '（未命名）'" :value="p.id" /></el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="置頂"><el-switch v-model="form.isPinned" active-text="排在最前面" /></el-form-item></el-col>
-          </el-row>
-        </el-card>
-        <el-card shadow="never" header="活動圖片（主圖，必填）" class="record-edit__block">
-          <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeFlag" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
-          <p class="record-edit__hint">主圖不能移除，只能更換。</p>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="事蹟內容">
+                <FormField field="charityId" label="公益團體" required>
+                  <el-select v-model="form.charityId" filterable placeholder="請選擇受贈的公益團體" style="width: 100%" @change="formErrors.clear('charityId')">
+                    <el-option v-for="o in orgs" :key="o.id" :label="o.nameZh || '（未命名）'" :value="o.id" />
+                  </el-select>
+                </FormField>
+                <BilingualTextareaField field="donation" label="捐助內容" :zh="form.donationZh" :en="form.donationEn" required :rows="2" placeholder="例如：足球 50 顆、訓練背心 100 件" @update:zh="(v) => (form.donationZh = v)" @update:en="(v) => (form.donationEn = v)" />
+                <BilingualShortField field="location" label="地點" :zh="form.locationZh" :en="form.locationEn" @update:zh="(v) => (form.locationZh = v)" @update:en="(v) => (form.locationEn = v)" />
+                <BilingualTextareaField field="brief" label="簡述" :zh="form.briefZh" :en="form.briefEn" @update:zh="(v) => (form.briefZh = v)" @update:en="(v) => (form.briefEn = v)" />
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12"><el-form-item label="日期"><el-date-picker v-model="form.happenedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="programId" label="所屬計畫（選填）">
+                      <el-select v-model="form.programId" clearable filterable placeholder="不屬於任何計畫" style="width: 100%"><el-option v-for="p in programs" :key="p.id" :label="p.nameZh || '（未命名）'" :value="p.id" /></el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12"><el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
+                  <el-col :xs="24" :sm="12"><el-form-item label="置頂"><el-switch v-model="form.isPinned" active-text="排在最前面" /></el-form-item></el-col>
+                </el-row>
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="活動圖片（主圖，必填）">
+                <FormField field="image" label="活動圖片（主圖）" required>
+                  <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeFlag" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
+                </FormField>
+                <p class="record-edit__hint">主圖不能移除，只能更換。</p>
+              </el-card>
+              <el-card shadow="never" header="其他活動圖片">
+                <p class="record-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
+                <p v-if="isCreate" class="record-edit__hint">請先儲存基本資料，才能管理相簿</p>
+                <GalleryManager v-else :images="gallery" :disabled="readOnly" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
-      <el-card shadow="never" header="其他活動圖片" class="record-edit__block">
-        <p v-if="isCreate" class="record-edit__hint">請先儲存事蹟紀錄，儲存後就能加入更多活動圖片。</p>
-        <GalleryManager v-else :images="gallery" :disabled="readOnly" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
-      </el-card>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.record-edit { max-width: 780px; margin: 0 auto 88px; }
+.record-edit { max-width: 1200px; margin: 0 auto; }
 .record-edit__block { margin-bottom: 16px; }
 .record-edit__hint { margin: 6px 0 0; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 </style>

@@ -30,7 +30,7 @@ public sealed partial class AdminShopDonationCodesRepository(ClubDbContext db)
         var (code, org) = Validate(request);
         if (await db.InvoiceDonationCodes.AsNoTracking().AnyAsync(c => c.Code == code, cancellationToken))
         {
-            throw new AdminConflictException("捐贈碼重複", $"捐贈碼「{code}」已經在名單裡了。");
+            throw new AdminConflictException("捐贈碼重複", $"捐贈碼「{code}」已經在名單裡了。", "code");
         }
 
         var maxOrder = await db.InvoiceDonationCodes.Select(c => (int?)c.SortOrder).MaxAsync(cancellationToken);
@@ -56,7 +56,7 @@ public sealed partial class AdminShopDonationCodesRepository(ClubDbContext db)
 
         if (await db.InvoiceDonationCodes.AsNoTracking().AnyAsync(c => c.Code == code && c.Id != id, cancellationToken))
         {
-            throw new AdminConflictException("捐贈碼重複", $"捐贈碼「{code}」已經在名單裡了。");
+            throw new AdminConflictException("捐贈碼重複", $"捐贈碼「{code}」已經在名單裡了。", "code");
         }
 
         row.Code = code;
@@ -89,14 +89,14 @@ public sealed partial class AdminShopDonationCodesRepository(ClubDbContext db)
 
     private static (string Code, string Org) Validate(UpsertAdminDonationCodeRequest request)
     {
-        var code = AdminInput.RequireText(request.Code, "捐贈碼", 16);
+        var code = AdminInput.RequireText(request.Code, "捐贈碼", 16, "code");
         if (!CodeFormat().IsMatch(code))
         {
-            throw new AdminValidationException("捐贈碼必須是 3 到 7 位數字。");
+            throw new AdminValidationException("捐贈碼必須是 3 到 7 位數字。", "code");
         }
 
-        AdminInput.OptionalNonNegative(request.SortOrder, "排序");
-        return (code, AdminInput.RequireText(request.OrgName, "機構名稱", 128));
+        AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
+        return (code, AdminInput.RequireText(request.OrgName, "機構名稱", 128, "orgName"));
     }
 
     private static AdminDonationCodeDto ToDto(InvoiceDonationCode c) => new()

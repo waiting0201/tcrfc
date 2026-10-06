@@ -4,6 +4,8 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
@@ -12,6 +14,7 @@ import {
   createLayoutItem, deleteLayoutItem, listDeepLinks, listLayoutItems, reorderLayoutItems, updateLayoutItem,
   type DeepLinkDto, type LayoutItemDto, type LayoutKind,
 } from '@/api/adminApp'
+import FormField from '@/components/FormField.vue'
 
 const props = defineProps<{ kind: LayoutKind }>()
 const { breakpoint } = useBreakpoint()
@@ -70,11 +73,14 @@ async function move(index: number, delta: number) {
 const visible = ref(false)
 const editing = ref<LayoutItemDto | null>(null)
 const saving = ref(false)
+/** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const form = reactive({ itemKey: '', labelZh: '', labelEn: '', deepLinkId: '' as string, iconKey: '', isEnabled: true })
 function openDialog(row: LayoutItemDto | null) {
   editing.value = row
   formError.value = null
+  formErrors.clearAll()
   Object.assign(form, { itemKey: row?.itemKey ?? '', labelZh: row?.labelZh ?? '', labelEn: row?.labelEn ?? '', deepLinkId: row?.deepLinkId ?? '', iconKey: row?.iconKey ?? '', isEnabled: row?.isEnabled ?? true })
   visible.value = true
 }
@@ -91,9 +97,12 @@ function autoItemKey(): string {
 }
 async function save() {
   if (!canUpdate.value) return
-  if (!form.labelZh.trim()) return void (formError.value = '請輸入中文名稱')
-  saving.value = true
   formError.value = null
+  if (formErrors.replaceAll(form.labelZh.trim() ? {} : { labelZh: '請輸入中文名稱' })) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   const body = {
     deepLinkId: form.deepLinkId || null,
     iconKey: nullIfBlank(form.iconKey),
@@ -107,6 +116,7 @@ async function save() {
     visible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = errText(e, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -174,15 +184,17 @@ const linkText = (r: LayoutItemDto) => deepLinks.value.find((d) => d.id === r.de
       </template>
     </el-card>
 
-    <el-dialog v-model="visible" :title="editing ? `編輯${KIND_TEXT[kind]}` : `新增${KIND_TEXT[kind]}`" width="560px" :fullscreen="isMobile" :close-on-click-modal="false">
+    <el-dialog v-model="visible" :title="editing ? `編輯${KIND_TEXT[kind]}` : `新增${KIND_TEXT[kind]}`" width="560px" :fullscreen="isMobile" :close-on-click-modal="false" destroy-on-close>
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="li__block" />
       <el-form label-position="top">
-        <BilingualShortField v-model:zh="form.labelZh" v-model:en="form.labelEn" label="名稱" required />
-        <el-form-item label="點擊後前往">
-          <el-select v-model="form.deepLinkId" clearable placeholder="不設定" style="width: 100%"><el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || '（未命名連結）'" :value="d.id" /></el-select>
-        </el-form-item>
-        <el-form-item v-if="!fixedKind" label="圖示（選填）"><el-input v-model="form.iconKey" placeholder="選填，圖示名稱請向 App 工程團隊確認" /></el-form-item>
-        <el-form-item label="顯示在 App"><el-switch v-model="form.isEnabled" /></el-form-item>
+        <LangTabsBar variant="bare">
+          <BilingualShortField v-model:zh="form.labelZh" v-model:en="form.labelEn" field="label" label="名稱" required />
+          <FormField field="deepLinkId" label="點擊後前往">
+            <el-select v-model="form.deepLinkId" clearable placeholder="不設定" style="width: 100%"><el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || '（未命名連結）'" :value="d.id" /></el-select>
+          </FormField>
+          <FormField v-if="!fixedKind" field="iconKey" label="圖示（選填）"><el-input v-model="form.iconKey" placeholder="選填，圖示名稱請向 App 工程團隊確認" /></FormField>
+          <el-form-item label="顯示在 App"><el-switch v-model="form.isEnabled" /></el-form-item>
+        </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="visible = false">取消</el-button>

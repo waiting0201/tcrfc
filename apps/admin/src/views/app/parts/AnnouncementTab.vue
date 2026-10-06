@@ -4,6 +4,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { availableClubs } from '@/auth/clubAccess'
@@ -42,7 +45,9 @@ onMounted(load)
 const visible = ref(false)
 const editing = ref<AnnouncementDto | null>(null)
 const saving = ref(false)
+/** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const form = reactive({
   messageZh: '', messageEn: '', linkUrl: '', startsAt: null as Date | null, endsAt: null as Date | null,
   audienceTier: 'all' as AudienceTier, audienceClubCode: '', isEnabled: true,
@@ -50,6 +55,7 @@ const form = reactive({
 function openDialog(row: AnnouncementDto | null) {
   editing.value = row
   formError.value = null
+  formErrors.clearAll()
   Object.assign(form, {
     messageZh: row?.messageZh ?? '', messageEn: row?.messageEn ?? '', linkUrl: row?.linkUrl ?? '', startsAt: utcToPickerDate(row?.startsAt), endsAt: utcToPickerDate(row?.endsAt),
     audienceTier: row?.audienceTier ?? 'all', audienceClubCode: row?.audienceClubCode ?? '', isEnabled: row?.isEnabled ?? true,
@@ -58,12 +64,17 @@ function openDialog(row: AnnouncementDto | null) {
 }
 async function save() {
   if (!canUpdate.value) return
-  if (!form.messageZh.trim()) return void (formError.value = '請輸入中文公告內容')
-  if (form.startsAt && form.endsAt && form.endsAt.getTime() <= form.startsAt.getTime()) return void (formError.value = '結束時間必須晚於開始時間')
-  const link = form.linkUrl.trim()
-  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) return void (formError.value = '連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結')
-  saving.value = true
   formError.value = null
+  const errors: Record<string, string> = {}
+  if (!form.messageZh.trim()) errors.messageZh = '請輸入中文公告內容'
+  if (form.startsAt && form.endsAt && form.endsAt.getTime() <= form.startsAt.getTime()) errors.endsAt = '結束時間必須晚於開始時間'
+  const link = form.linkUrl.trim()
+  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) errors.linkUrl = '連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   const body = {
     message: { zh: form.messageZh.trim(), en: form.messageEn.trim() || undefined },
     linkUrl: nullIfBlank(form.linkUrl),
@@ -80,6 +91,7 @@ async function save() {
     visible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = errText(e, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -133,18 +145,20 @@ const periodText = (r: AnnouncementDto) => (r.startsAt || r.endsAt ? `${formatDa
       </template>
     </el-card>
 
-    <el-dialog v-model="visible" :title="editing ? '編輯公告' : '新增公告'" width="600px" :fullscreen="isMobile" :close-on-click-modal="false">
+    <el-dialog v-model="visible" :title="editing ? '編輯公告' : '新增公告'" width="600px" :fullscreen="isMobile" :close-on-click-modal="false" destroy-on-close>
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="an__block" />
       <el-form label-position="top">
-        <BilingualShortField v-model:zh="form.messageZh" v-model:en="form.messageEn" label="公告內容（200 字內）" required />
-        <el-form-item label="點擊後前往（選填）"><el-input v-model="form.linkUrl" placeholder="網址（https:// 開頭）或 App 內頁面連結" /></el-form-item>
-        <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="開始時間（台灣時間，選填）"><el-date-picker v-model="form.startsAt" type="datetime" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="結束時間（台灣時間，選填）"><el-date-picker v-model="form.endsAt" type="datetime" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="公告對象"><el-select v-model="form.audienceTier" style="width: 100%"><el-option v-for="t in TIERS" :key="t.value" :label="t.label" :value="t.value" /></el-select></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="限定俱樂部（選填）"><el-select v-model="form.audienceClubCode" clearable placeholder="不限" style="width: 100%"><el-option v-for="c in availableClubs" :key="c.code" :label="c.name" :value="c.code" /></el-select></el-form-item></el-col>
-        </el-row>
-        <el-form-item label="啟用"><el-switch v-model="form.isEnabled" /></el-form-item>
+        <LangTabsBar variant="bare">
+          <BilingualShortField v-model:zh="form.messageZh" v-model:en="form.messageEn" field="message" label="公告內容（200 字內）" required />
+          <FormField field="linkUrl" label="點擊後前往（選填）"><el-input v-model="form.linkUrl" placeholder="網址（https:// 開頭）或 App 內頁面連結" /></FormField>
+          <el-row :gutter="12">
+            <el-col :xs="24" :sm="12"><el-form-item label="開始時間（台灣時間，選填）"><el-date-picker v-model="form.startsAt" type="datetime" style="width: 100%" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="endsAt" label="結束時間（台灣時間，選填）"><el-date-picker v-model="form.endsAt" type="datetime" style="width: 100%" @change="formErrors.clear('endsAt')" /></FormField></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="audienceTier" label="公告對象"><el-select v-model="form.audienceTier" style="width: 100%"><el-option v-for="t in TIERS" :key="t.value" :label="t.label" :value="t.value" /></el-select></FormField></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="audienceClubCode" label="限定俱樂部（選填）"><el-select v-model="form.audienceClubCode" clearable placeholder="不限" style="width: 100%"><el-option v-for="c in availableClubs" :key="c.code" :label="c.name" :value="c.code" /></el-select></FormField></el-col>
+          </el-row>
+          <el-form-item label="啟用"><el-switch v-model="form.isEnabled" /></el-form-item>
+        </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="visible = false">取消</el-button>

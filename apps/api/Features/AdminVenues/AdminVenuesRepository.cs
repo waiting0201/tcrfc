@@ -207,42 +207,42 @@ public sealed class AdminVenuesRepository(ClubDbContext dbContext, IImagePublicU
     {
         if (request.Zh is null)
         {
-            throw new AdminValidationException("場地名稱（繁中）為必填欄位。");
+            throw new AdminValidationException("場地名稱（繁中）為必填欄位。", "nameZh");
         }
 
-        var zh = Clean(request.Zh, "繁中", requireName: true)!;
-        var en = request.En is null || string.IsNullOrWhiteSpace(request.En.Name) ? null : Clean(request.En, "英文", requireName: true);
+        var zh = Clean(request.Zh, "繁中", "Zh", requireName: true)!;
+        var en = request.En is null || string.IsNullOrWhiteSpace(request.En.Name) ? null : Clean(request.En, "英文", "En", requireName: true);
         if (request.SortOrder < 0)
         {
-            throw new AdminValidationException("排序不可為負數。");
+            throw new AdminValidationException("排序不可為負數。", "sortOrder");
         }
 
         if ((request.Lat is null) != (request.Lng is null))
         {
-            throw new AdminValidationException("緯度與經度要同時填寫，或同時留白。");
+            throw new AdminValidationException("緯度與經度要同時填寫，或同時留白。", request.Lat is null ? "lat" : "lng");
         }
 
         if (request.Lat is { } lat && (lat < -90 || lat > 90))
         {
-            throw new AdminValidationException("緯度必須介於 -90 到 90 之間。");
+            throw new AdminValidationException("緯度必須介於 -90 到 90 之間。", "lat");
         }
 
         if (request.Lng is { } lng && (lng < -180 || lng > 180))
         {
-            throw new AdminValidationException("經度必須介於 -180 到 180 之間。");
+            throw new AdminValidationException("經度必須介於 -180 到 180 之間。", "lng");
         }
 
         // decimal(9,6)：小數最多 6 位，超過會被資料庫靜默四捨五入，這裡先明確四捨五入。
         return (zh, en, request.Lat is null ? null : Math.Round(request.Lat.Value, 6), request.Lng is null ? null : Math.Round(request.Lng.Value, 6));
     }
 
-    private static AdminVenueLocaleContent? Clean(AdminVenueLocaleContent content, string languageLabel, bool requireName)
+    private static AdminVenueLocaleContent? Clean(AdminVenueLocaleContent content, string languageLabel, string suffix, bool requireName)
         => new()
         {
-            Name = requireName ? AdminInput.RequireText(content.Name, $"場地名稱（{languageLabel}）", 128) : content.Name,
-            Address = AdminInput.OptionalText(content.Address, $"地址（{languageLabel}）", 255),
-            Directions = AdminInput.OptionalText(content.Directions, $"交通說明（{languageLabel}）", 5000),
-            PhotoAlt = AdminInput.OptionalText(content.PhotoAlt, $"照片替代文字（{languageLabel}）", 200),
+            Name = requireName ? AdminInput.RequireText(content.Name, $"場地名稱（{languageLabel}）", 128, "name" + suffix) : content.Name,
+            Address = AdminInput.OptionalText(content.Address, $"地址（{languageLabel}）", 255, "address" + suffix),
+            Directions = AdminInput.OptionalText(content.Directions, $"交通說明（{languageLabel}）", 5000, "directions" + suffix),
+            PhotoAlt = AdminInput.OptionalText(content.PhotoAlt, $"照片替代文字（{languageLabel}）", 200, "photoAlt" + suffix),
         };
 
     private void SetI18n(Venue venue, string locale, AdminVenueLocaleContent? content)

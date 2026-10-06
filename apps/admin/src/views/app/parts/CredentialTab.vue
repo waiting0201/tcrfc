@@ -14,6 +14,10 @@ import { AdminApiError } from '@/api/http'
 import { nullIfBlank } from '@/api/adminCommon'
 import { createCredential, deleteCredential, listCredentials, rotateCredential, updateCredential, type CredentialDto } from '@/api/adminApp'
 import { taipeiToday } from '@/utils/dateTime'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const { breakpoint } = useBreakpoint()
 const isMobile = computed(() => breakpoint.value === 'mobile')
@@ -61,6 +65,7 @@ const form = reactive({
 function openDialog(row: CredentialDto | null) {
   editing.value = row
   formError.value = null
+  formErrors.clearAll()
   Object.assign(form, {
     kind: row?.kind ?? 'apns_key', label: row?.label ?? '', externalRef: row?.externalRef ?? '', createdOn: row?.createdOn ?? null,
     lastRotatedOn: row?.lastRotatedOn ?? null, expiresOn: row?.expiresOn ?? null, rotationPeriodDays: row?.rotationPeriodDays ?? null, note: row?.note ?? '',
@@ -73,6 +78,7 @@ async function save() {
   if (!form.expiresOn && !form.rotationPeriodDays) return void (formError.value = '請至少填「到期日」或「輪替週期（天）」其中一項，系統才能提醒屆期')
   saving.value = true
   formError.value = null
+  formErrors.clearAll()
   const body = {
     kind: form.kind, label: form.label.trim(), externalRef: nullIfBlank(form.externalRef), createdOn: form.createdOn || null,
     lastRotatedOn: form.lastRotatedOn || null, expiresOn: form.expiresOn || null, rotationPeriodDays: form.rotationPeriodDays, note: nullIfBlank(form.note),
@@ -84,6 +90,7 @@ async function save() {
     visible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = errText(e, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -114,6 +121,7 @@ function openRotate(row: CredentialDto) {
   rotateTarget.value = row
   rotateExpires.value = null
   rotateError.value = null
+  formErrors.clearAll()
   rotateVisible.value = true
 }
 async function doRotate() {
@@ -126,6 +134,7 @@ async function doRotate() {
     rotateVisible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     rotateError.value = errText(e, '記錄失敗，請稍後再試')
   } finally {
     rotating.value = false
@@ -171,13 +180,13 @@ async function doRotate() {
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="cr__block" />
       <el-form label-position="top">
         <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="種類"><el-select v-model="form.kind" style="width: 100%"><el-option v-for="k in KINDS" :key="k.value" :label="k.label" :value="k.value" /></el-select></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="名稱" required><el-input v-model="form.label" maxlength="100" /></el-form-item></el-col>
+          <el-col :xs="24" :sm="12"><FormField field="kind" label="種類"><el-select v-model="form.kind" style="width: 100%"><el-option v-for="k in KINDS" :key="k.value" :label="k.label" :value="k.value" /></el-select></FormField></el-col>
+          <el-col :xs="24" :sm="12"><FormField field="label" label="名稱" required><el-input v-model="form.label" maxlength="100" /></FormField></el-col>
           <el-col :xs="24"><el-form-item label="金鑰編號（選填，只填編號，不是金鑰本身）"><el-input v-model="form.externalRef" maxlength="100" /></el-form-item></el-col>
           <el-col :xs="24" :sm="8"><el-form-item label="建立日"><el-date-picker v-model="form.createdOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
           <el-col :xs="24" :sm="8"><el-form-item label="上次輪替日"><el-date-picker v-model="form.lastRotatedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="到期日（沒有就留空）"><el-date-picker v-model="form.expiresOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="輪替週期（天）"><el-input-number v-model="form.rotationPeriodDays" :min="1" controls-position="right" style="width: 100%" /></el-form-item></el-col>
+          <el-col :xs="24" :sm="8"><FormField field="expiresOn" label="到期日（沒有就留空）"><el-date-picker v-model="form.expiresOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></FormField></el-col>
+          <el-col :xs="24" :sm="12"><FormField field="rotationPeriodDays" label="輪替週期（天）"><el-input-number v-model="form.rotationPeriodDays" :min="1" controls-position="right" style="width: 100%" /></FormField></el-col>
         </el-row>
         <el-form-item label="備註"><el-input v-model="form.note" type="textarea" :rows="2" maxlength="300" /></el-form-item>
       </el-form>

@@ -12,6 +12,10 @@ import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { getAdminLlmsContent, updateAdminLlmsContent, type AdminLlmsContentDto } from '@/api/adminSeo'
@@ -52,7 +56,9 @@ const loadErrorMessage = ref('')
 const form = reactive<LlmsForm>(emptyForm())
 const baselineJson = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 function applyLoaded(dto: AdminLlmsContentDto) {
   form.positioningZh = dto.positioningZh ?? ''
@@ -66,6 +72,7 @@ function applyLoaded(dto: AdminLlmsContentDto) {
   form.contactZh = dto.contactZh ?? ''
   form.contactEn = dto.contactEn ?? ''
   baselineJson.value = JSON.stringify(form)
+  formErrors.clearAll()
 }
 
 async function loadContent() {
@@ -105,6 +112,7 @@ async function handleSave() {
     applyLoaded(saved)
     ElMessage.success('已儲存，前台立即更新')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -144,88 +152,88 @@ async function handleSave() {
         @close="formError = null"
       />
 
-      <el-card shadow="never" header="站點定位" class="llms-content__section">
-        <p class="llms-content__hint">一到兩句話說明這個網站是誰、做什麼，例如俱樂部的定位與主要服務對象。</p>
-        <el-form label-position="top">
-          <BilingualTextareaField
-            label="站點定位"
-            :zh="form.positioningZh"
-            :en="form.positioningEn"
-            :rows="3"
-            placeholder="例如：台中磐石足球俱樂部官方網站，提供球隊資訊、賽程與賽果、球員招募與周邊商品。"
-            @update:zh="(v) => (form.positioningZh = v)"
-            @update:en="(v) => (form.positioningEn = v)"
-          />
-        </el-form>
-      </el-card>
+      <el-form label-position="top">
+        <LangTabsBar>
+          <el-card shadow="never" header="站點定位" class="llms-content__section">
+            <p class="llms-content__hint">一到兩句話說明這個網站是誰、做什麼，例如俱樂部的定位與主要服務對象。</p>
+            <BilingualTextareaField
+              field="positioning"
+              label="站點定位"
+              :zh="form.positioningZh"
+              :en="form.positioningEn"
+              :rows="3"
+              placeholder="例如：台中磐石足球俱樂部官方網站，提供球隊資訊、賽程與賽果、球員招募與周邊商品。"
+              @update:zh="(v) => (form.positioningZh = v)"
+              @update:en="(v) => (form.positioningEn = v)"
+            />
+          </el-card>
 
-      <el-card shadow="never" header="代表頁清單" class="llms-content__section">
-        <p class="llms-content__hint">
-          列出最能代表本站的重要頁面，建議一行一個連結（例如「- [關於我們](/zh/about/)」），系統會原樣輸出，不會另外解析或檢查連結是否存在。留白時系統會自動列出目前啟用單元的清單。
-        </p>
-        <el-form label-position="top">
-          <BilingualTextareaField
-            label="代表頁清單"
-            :zh="form.keyPagesZh"
-            :en="form.keyPagesEn"
-            :rows="6"
-            :placeholder="'- [關於我們](/zh/about/)\n- [賽程與賽果](/zh/teams/matches/)\n- [加入我們](/zh/join/)'"
-            @update:zh="(v) => (form.keyPagesZh = v)"
-            @update:en="(v) => (form.keyPagesEn = v)"
-          />
-        </el-form>
-      </el-card>
+          <el-card shadow="never" header="代表頁清單" class="llms-content__section">
+            <p class="llms-content__hint">
+              列出最能代表本站的重要頁面，建議一行一個連結（例如「- [關於我們](/zh/about/)」），系統會原樣輸出，不會另外解析或檢查連結是否存在。留白時系統會自動列出目前啟用單元的清單。
+            </p>
+            <BilingualTextareaField
+              field="keyPages"
+              label="代表頁清單"
+              :zh="form.keyPagesZh"
+              :en="form.keyPagesEn"
+              :rows="6"
+              :placeholder="'- [關於我們](/zh/about/)\n- [賽程與賽果](/zh/teams/matches/)\n- [加入我們](/zh/join/)'"
+              @update:zh="(v) => (form.keyPagesZh = v)"
+              @update:en="(v) => (form.keyPagesEn = v)"
+            />
+          </el-card>
 
-      <el-card shadow="never" header="事實摘要" class="llms-content__section">
-        <p class="llms-content__hint">
-          成立年份、主場、參與聯賽等重要事實的濃縮摘要，供 AI 系統摘要引用。⚠️ 這裡只是給 AI 看的摘要，不是這些事實的正式維護處——請確保跟網站上明文寫的內容一致，不要出現矛盾的說法。
-        </p>
-        <el-form label-position="top">
-          <BilingualTextareaField
-            label="事實摘要"
-            :zh="form.factsSummaryZh"
-            :en="form.factsSummaryEn"
-            :rows="4"
-            placeholder="例如：台中磐石足球俱樂部（Taichung Rock FC）成立於 2024 年，主場為……，現征戰企業甲級足球聯賽。"
-            @update:zh="(v) => (form.factsSummaryZh = v)"
-            @update:en="(v) => (form.factsSummaryEn = v)"
-          />
-        </el-form>
-      </el-card>
+          <el-card shadow="never" header="事實摘要" class="llms-content__section">
+            <p class="llms-content__hint">
+              成立年份、主場、參與聯賽等重要事實的濃縮摘要，供 AI 系統摘要引用。⚠️ 這裡只是給 AI 看的摘要，不是這些事實的正式維護處——請確保跟網站上明文寫的內容一致，不要出現矛盾的說法。
+            </p>
+            <BilingualTextareaField
+              field="factsSummary"
+              label="事實摘要"
+              :zh="form.factsSummaryZh"
+              :en="form.factsSummaryEn"
+              :rows="4"
+              placeholder="例如：台中磐石足球俱樂部（Taichung Rock FC）成立於 2024 年，主場為……，現征戰企業甲級足球聯賽。"
+              @update:zh="(v) => (form.factsSummaryZh = v)"
+              @update:en="(v) => (form.factsSummaryEn = v)"
+            />
+          </el-card>
 
-      <el-card shadow="never" header="授權與引用方式" class="llms-content__section">
-        <p class="llms-content__hint">說明 AI 系統可以怎麼引用本站內容，例如是否需要標示來源、是否允許摘要轉述等。</p>
-        <el-form label-position="top">
-          <BilingualTextareaField
-            label="授權與引用方式"
-            :zh="form.licenseZh"
-            :en="form.licenseEn"
-            :rows="3"
-            placeholder="例如：歡迎引用本站公開內容並標示來源與連結，請勿逐字大量複製。"
-            @update:zh="(v) => (form.licenseZh = v)"
-            @update:en="(v) => (form.licenseEn = v)"
-          />
-        </el-form>
-      </el-card>
+          <el-card shadow="never" header="授權與引用方式" class="llms-content__section">
+            <p class="llms-content__hint">說明 AI 系統可以怎麼引用本站內容，例如是否需要標示來源、是否允許摘要轉述等。</p>
+            <BilingualTextareaField
+              field="license"
+              label="授權與引用方式"
+              :zh="form.licenseZh"
+              :en="form.licenseEn"
+              :rows="3"
+              placeholder="例如：歡迎引用本站公開內容並標示來源與連結，請勿逐字大量複製。"
+              @update:zh="(v) => (form.licenseZh = v)"
+              @update:en="(v) => (form.licenseEn = v)"
+            />
+          </el-card>
 
-      <el-card shadow="never" header="聯絡窗口" class="llms-content__section">
-        <p class="llms-content__hint">AI 系統或其他單位若想進一步確認資訊來源，可以聯絡的窗口資訊。</p>
-        <el-form label-position="top">
-          <BilingualTextareaField
-            label="聯絡窗口"
-            :zh="form.contactZh"
-            :en="form.contactEn"
-            :rows="2"
-            placeholder="例如：媒體與合作聯繫請洽 info@taichungrock.example"
-            @update:zh="(v) => (form.contactZh = v)"
-            @update:en="(v) => (form.contactEn = v)"
-          />
-        </el-form>
-      </el-card>
+          <el-card shadow="never" header="聯絡窗口" class="llms-content__section">
+            <p class="llms-content__hint">AI 系統或其他單位若想進一步確認資訊來源，可以聯絡的窗口資訊。</p>
+            <BilingualTextareaField
+              field="contact"
+              label="聯絡窗口"
+              :zh="form.contactZh"
+              :en="form.contactEn"
+              :rows="2"
+              placeholder="例如：媒體與合作聯繫請洽 info@taichungrock.example"
+              @update:zh="(v) => (form.contactZh = v)"
+              @update:en="(v) => (form.contactEn = v)"
+            />
+          </el-card>
+        </LangTabsBar>
+      </el-form>
 
-      <div class="llms-content__actions">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -252,9 +260,5 @@ async function handleSave() {
   font-size: 12px;
   color: var(--admin-text-tertiary);
   margin: 4px 0 12px;
-}
-
-.llms-content__actions {
-  margin-top: 16px;
 }
 </style>

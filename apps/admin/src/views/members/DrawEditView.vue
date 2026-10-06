@@ -5,7 +5,7 @@
  * - 「活動辦法」鎖定名單前必填；名單鎖定後不能再改活動代碼與資格基準時間；已結案或已作廢的活動不能編輯。
  * - 時間以台灣時間輸入。基準時間沒填但有開獎時間時，系統以開獎日（台灣時間）當天 00:00 為準。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -14,6 +14,11 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -46,7 +51,11 @@ const canEditDraw = ref(true)
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除封面就清掉該欄位的錯誤
+watch([coverFile, removeCover], () => formErrors.clear('cover'))
 const readOnly = computed(() => !canUpdate.value || !canEditDraw.value)
 /** 名單鎖定後不能改活動代碼與資格基準時間 */
 const locked = computed(() => !isCreate.value && status.value !== 'draft')
@@ -90,16 +99,21 @@ onMounted(load)
 const isDirty = computed(() => loadState.value === 'ready' && (JSON.stringify(form) !== baselineJson.value || !!coverFile.value || removeCover.value))
 useUnsavedChanges(isDirty)
 
-function validate(): string | null {
-  if (!form.nameZh.trim()) return '請輸入中文活動名稱'
-  if (form.drawCode.trim() && !/^[A-Za-z0-9-]{1,32}$/.test(form.drawCode.trim())) return '活動代碼只能用英數字與連字號，最多 32 字'
-  return null
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文活動名稱'
+  if (form.drawCode.trim() && !/^[A-Za-z0-9-]{1,32}$/.test(form.drawCode.trim())) errors.drawCode = '活動代碼只能用英數字與連字號，最多 32 字'
+  return errors
 }
 
 async function handleSave() {
   if (readOnly.value) return
-  formError.value = validate()
-  if (formError.value) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   const payload = {
     drawCode: locked.value ? undefined : nullIfBlank(form.drawCode) ?? undefined,
@@ -127,6 +141,8 @@ async function handleSave() {
     // 儲存後回到活動管理頁，接著就能產生名單
     router.replace(`/members/lottery/${saved?.id ?? drawId.value}`)
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -166,43 +182,57 @@ function back() {
       <el-alert v-if="locked && !readOnly" title="名單已鎖定：活動代碼與資格基準時間不能再修改。" type="info" show-icon :closable="false" class="draw-edit__block" />
 
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="活動內容" class="draw-edit__block">
-          <BilingualShortField label="活動名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-          <BilingualTextareaField label="獎品說明" :zh="form.prizeZh" :en="form.prizeEn" :rows="3" @update:zh="(v) => (form.prizeZh = v)" @update:en="(v) => (form.prizeEn = v)" />
-          <BilingualTextareaField label="活動辦法（鎖定名單前必填）" :zh="form.rulesZh" :en="form.rulesEn" :rows="5" @update:zh="(v) => (form.rulesZh = v)" @update:en="(v) => (form.rulesEn = v)" />
-          <p class="draw-edit__hint">活動辦法必須明示：<strong>同時具備兩隊會籍的人可以分別參加兩隊的抽獎</strong>。</p>
-          <BilingualTextareaField label="注意事項" :zh="form.notesZh" :en="form.notesEn" :rows="3" @update:zh="(v) => (form.notesZh = v)" @update:en="(v) => (form.notesEn = v)" />
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="活動內容">
+                <BilingualShortField field="name" label="活動名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                <BilingualTextareaField field="prize" label="獎品說明" :zh="form.prizeZh" :en="form.prizeEn" :rows="3" @update:zh="(v) => (form.prizeZh = v)" @update:en="(v) => (form.prizeEn = v)" />
+                <BilingualTextareaField field="rules" label="活動辦法（鎖定名單前必填）" :zh="form.rulesZh" :en="form.rulesEn" :rows="5" @update:zh="(v) => (form.rulesZh = v)" @update:en="(v) => (form.rulesEn = v)" />
+                <p class="draw-edit__hint">活動辦法必須明示：<strong>同時具備兩隊會籍的人可以分別參加兩隊的抽獎</strong>。</p>
+                <BilingualTextareaField field="notes" label="注意事項" :zh="form.notesZh" :en="form.notesEn" :rows="3" @update:zh="(v) => (form.notesZh = v)" @update:en="(v) => (form.notesEn = v)" />
+              </el-card>
 
-        <el-card shadow="never" header="時間與代碼" class="draw-edit__block">
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="資格基準時間（台灣時間）"><el-date-picker v-model="form.snapshotAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" :disabled="readOnly || locked" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="開獎時間（台灣時間）"><el-date-picker v-model="form.drawnAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="舉辦場合">
-                <el-select v-model="form.drawOccasion" clearable placeholder="未指定" style="width: 100%"><el-option v-for="o in DRAW_OCCASION_OPTIONS" :key="o.value" :label="o.label" :value="o.value" /></el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="領獎期限"><el-date-picker v-model="form.claimDeadlineOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="活動代碼（選填）"><el-input v-model="form.drawCode" maxlength="32" :disabled="readOnly || locked" placeholder="留空由系統自動產生" /></el-form-item></el-col>
-          </el-row>
-          <p class="draw-edit__hint">基準時間沒填、但有開獎時間時，以開獎日（台灣時間）當天 00:00 為準。活動代碼只能用英數字與連字號，會出現在匯出的檔名裡。</p>
-        </el-card>
+              <el-card shadow="never" header="時間與代碼">
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12"><FormField field="snapshotAt" label="資格基準時間（台灣時間）"><el-date-picker v-model="form.snapshotAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" :disabled="readOnly || locked" style="width: 100%" /></FormField></el-col>
+                  <el-col :xs="24" :sm="12"><el-form-item label="開獎時間（台灣時間）"><el-date-picker v-model="form.drawnAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" /></el-form-item></el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="drawOccasion" label="舉辦場合">
+                      <el-select v-model="form.drawOccasion" clearable placeholder="未指定" style="width: 100%"><el-option v-for="o in DRAW_OCCASION_OPTIONS" :key="o.value" :label="o.label" :value="o.value" /></el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12"><el-form-item label="領獎期限"><el-date-picker v-model="form.claimDeadlineOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="drawCode" label="活動代碼（選填）"><el-input v-model="form.drawCode" maxlength="32" :disabled="readOnly || locked" placeholder="留空由系統自動產生" /></FormField></el-col>
+                </el-row>
+                <p class="draw-edit__hint">基準時間沒填、但有開獎時間時，以開獎日（台灣時間）當天 00:00 為準。活動代碼只能用英數字與連字號，會出現在匯出的檔名裡。</p>
+              </el-card>
 
-        <el-card shadow="never" header="封面與內部備註" class="draw-edit__block">
-          <el-form-item label="封面圖片">
-            <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
-          </el-form-item>
-          <el-form-item label="內部備註（只有後台看得到）"><el-input v-model="form.internalNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
-        </el-card>
+              <el-card shadow="never" header="內部備註">
+                <FormField field="internalNote" label="內部備註（只有後台看得到）"><el-input v-model="form.internalNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></FormField>
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="封面圖片">
+                <FormField field="cover" label="封面圖片">
+                  <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
+                </FormField>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.draw-edit { max-width: 860px; margin: 0 auto 88px; }
+.draw-edit { max-width: 1200px; margin: 0 auto; }
 .draw-edit__block { margin-bottom: 16px; }
 .draw-edit__hint { margin: 4px 0 10px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 </style>

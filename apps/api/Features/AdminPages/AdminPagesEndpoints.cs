@@ -123,7 +123,7 @@ public static class AdminPagesEndpoints
             var ogImageFile = files["ogImage"];
             if (ogImageFile is not null && request.RemoveOgImage)
             {
-                throw new AdminPageValidationException("不能同時上傳新的 OG 圖片與移除 OG 圖片，請擇一。");
+                throw new AdminPageValidationException("不能同時上傳新的分享圖片與移除分享圖片，請擇一。", "ogImage");
             }
 
             // S1-12 新增：OG 圖片三態，語意跟 Features/AdminNews 的封面圖片一致。

@@ -695,7 +695,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         var season = await dbContext.Seasons.FirstOrDefaultAsync(s => s.Id == seasonId, cancellationToken);
         if (season is null || season.ClubId != scope.ClubId)
         {
-            throw new AdminMatchValidationException($"找不到這個俱樂部的球季（id={seasonId}）。");
+            throw new AdminMatchValidationException("找不到這個俱樂部的球季，請重新整理後再試一次。", "seasonId");
         }
         return season;
     }
@@ -710,7 +710,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         var competition = await dbContext.Competitions.FirstOrDefaultAsync(c => c.Id == competitionId, cancellationToken);
         if (competition is null || competition.ClubId != scope.ClubId)
         {
-            throw new AdminMatchValidationException($"找不到這個俱樂部的賽事系列（id={competitionId}）。");
+            throw new AdminMatchValidationException("找不到這個俱樂部的賽事系列，請重新整理後再試一次。", "competitionId");
         }
         return competition;
     }
@@ -726,7 +726,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         var exists = await dbContext.Venues.AsNoTracking().AnyAsync(v => v.Id == venueId, cancellationToken);
         if (!exists)
         {
-            throw new AdminMatchValidationException($"找不到這個場地（id={venueId}）。");
+            throw new AdminMatchValidationException("找不到這個場地，請重新整理後再試一次。", "venueId");
         }
     }
 
@@ -734,13 +734,13 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
 
     /// <summary>進球者必須是這場賽事其中一支所屬球隊底下的球員——見 <see cref="AdminMatchGoalInput"/>
     /// 上的說明，這同時是資料正確性檢查，也順帶把球員限制在已通過列級授權的球隊範圍內。</summary>
-    private async Task<Player> ResolveMatchPlayerAsync(IReadOnlyList<Team> matchTeams, Guid playerId, CancellationToken cancellationToken)
+    private async Task<Player> ResolveMatchPlayerAsync(IReadOnlyList<Team> matchTeams, Guid playerId, string field, CancellationToken cancellationToken)
     {
         var teamIds = matchTeams.Select(t => t.Id).ToHashSet();
         var player = await dbContext.Players.FirstOrDefaultAsync(p => p.Id == playerId, cancellationToken);
         if (player is null || !teamIds.Contains(player.TeamId))
         {
-            throw new AdminMatchValidationException($"找不到這場賽事所屬球隊底下的球員（id={playerId}）。");
+            throw new AdminMatchValidationException("找不到這場賽事所屬球隊底下的這位球員，請重新選擇。", field);
         }
         return player;
     }
@@ -748,9 +748,10 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     private async Task ApplyGoalsAsync(Match match, IReadOnlyList<Team> matchTeams, IReadOnlyList<AdminMatchGoalInput> goals, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        foreach (var input in goals)
+        for (var i = 0; i < goals.Count; i++)
         {
-            var player = await ResolveMatchPlayerAsync(matchTeams, input.PlayerId, cancellationToken);
+            var input = goals[i];
+            var player = await ResolveMatchPlayerAsync(matchTeams, input.PlayerId, FieldKey.Item("goals", i, "playerId"), cancellationToken);
             var goal = new MatchGoal
             {
                 Id = Guid.NewGuid(),
@@ -769,14 +770,15 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     private async Task ApplyCardsAsync(Match match, IReadOnlyList<Team> matchTeams, IReadOnlyList<AdminMatchCardInput> cards, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        foreach (var input in cards)
+        for (var i = 0; i < cards.Count; i++)
         {
+            var input = cards[i];
             if (!AllowedCardTypes.Contains(input.CardType))
             {
-                throw new AdminMatchValidationException("卡牌類型只能是「yellow」（黃牌）或「red」（紅牌）。");
+                throw new AdminMatchValidationException("卡牌類型只能是「黃牌」或「紅牌」。", FieldKey.Item("cards", i, "cardType"));
             }
 
-            var player = await ResolveMatchPlayerAsync(matchTeams, input.PlayerId, cancellationToken);
+            var player = await ResolveMatchPlayerAsync(matchTeams, input.PlayerId, FieldKey.Item("cards", i, "playerId"), cancellationToken);
             var card = new MatchCard
             {
                 Id = Guid.NewGuid(),
@@ -795,9 +797,10 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     private async Task ApplyLineupsAsync(Match match, IReadOnlyList<Team> matchTeams, IReadOnlyList<AdminMatchLineupInput> lineups, CancellationToken cancellationToken)
     {
         var now = DateTime.UtcNow;
-        foreach (var input in lineups)
+        for (var i = 0; i < lineups.Count; i++)
         {
-            var player = await ResolveMatchPlayerAsync(matchTeams, input.PlayerId, cancellationToken);
+            var input = lineups[i];
+            var player = await ResolveMatchPlayerAsync(matchTeams, input.PlayerId, FieldKey.Item("lineups", i, "playerId"), cancellationToken);
             var lineup = new MatchLineup
             {
                 Id = Guid.NewGuid(),
@@ -818,7 +821,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     {
         if (teamIds.Count == 0)
         {
-            throw new AdminMatchValidationException("至少要指定一支所屬球隊。");
+            throw new AdminMatchValidationException("至少要指定一支所屬球隊。", "teamIds");
         }
 
         var teams = new List<Team>();
@@ -827,7 +830,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
             var team = await dbContext.Teams.FirstOrDefaultAsync(t => t.Id == teamId, cancellationToken);
             if (team is null || team.ClubId != scope.ClubId)
             {
-                throw new AdminMatchValidationException($"找不到這個俱樂部的球隊（id={teamId}）。");
+                throw new AdminMatchValidationException("找不到這個俱樂部的球隊，請重新整理後再試一次。", "teamIds");
             }
             teams.Add(team);
         }
@@ -861,7 +864,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     {
         if (!AllowedStatuses.Contains(status))
         {
-            throw new AdminMatchValidationException("狀態只能是「scheduled」（未開始）、「live」（進行中）、「played」（已結束）、「postponed」（延賽）或「cancelled」（取消）。");
+            throw new AdminMatchValidationException("狀態只能是「未開始」「進行中」「已結束」「延賽」或「取消」。", "status");
         }
     }
 
@@ -869,7 +872,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     {
         if (homeAway is not null && !AllowedHomeAway.Contains(homeAway))
         {
-            throw new AdminMatchValidationException("主客場只能是「HOME」或「AWAY」，或留空。");
+            throw new AdminMatchValidationException("主客場只能選「主場」或「客場」，或留空。", "homeAway");
         }
     }
 
@@ -877,7 +880,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     {
         if (competitionTag is not null && !AllowedCompetitionTags.Contains(competitionTag))
         {
-            throw new AdminMatchValidationException("賽事類型只能是「league」「cup」「friendly」「other」之一，或留空。");
+            throw new AdminMatchValidationException("賽事類型只能選「聯賽」「盃賽」「友誼賽」「其他」，或留空。", "competitionTag");
         }
     }
 
@@ -885,7 +888,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     {
         if (string.IsNullOrWhiteSpace(opponent))
         {
-            throw new AdminMatchValidationException("對手為必填欄位。");
+            throw new AdminMatchValidationException("對手為必填欄位。", "opponent");
         }
     }
 
@@ -901,12 +904,12 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         {
             if (originalMatchOn is null)
             {
-                throw new AdminMatchValidationException("狀態為「延賽」時，必須填寫原定日期。");
+                throw new AdminMatchValidationException("狀態為「延賽」時，必須填寫原定日期。", "originalMatchOn");
             }
         }
         else if (originalMatchOn is not null || originalKickoff is not null)
         {
-            throw new AdminMatchValidationException("只有狀態為「延賽」時才能填寫原定日期／原定時間。");
+            throw new AdminMatchValidationException("只有狀態為「延賽」時才能填寫原定日期／原定時間。", originalMatchOn is not null ? "originalMatchOn" : "originalKickoff");
         }
     }
 

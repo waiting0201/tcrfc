@@ -8,12 +8,12 @@
  * - 排序用上移／下移按鈕（規劃書寫「拖曳排序」，按鈕版鍵盤與觸控皆可用，拖曳為後續優化）。
  * - 前台在 API 沒有選單資料時沿用寫死的過渡選單，所以「還沒設定」的位置前台不會是空的。
  */
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MenuNodeList from './parts/MenuNodeList.vue'
-import { MENU_MAX_DEPTH, countNodes, fromDto, newMenuKey, toRequest, validateTree, type MenuNode } from './parts/menuNode'
+import { MENU_MAX_DEPTH, countNodes, fromDto, newMenuKey, toRequest, validateTreeAll, type MenuNode } from './parts/menuNode'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -36,7 +36,24 @@ const labels = reactive<Record<MenuLocation, string>>({ main: '主選單', mega:
 const trees = reactive<Record<MenuLocation, MenuNode[]>>({ main: [], mega: [], footer: [] })
 const baselines = reactive<Record<MenuLocation, string>>({ main: '[]', mega: '[]', footer: '[]' })
 const savingLocation = ref<MenuLocation | null>(null)
+/** 頁首（分頁內）提示：只放沒有項目歸屬的錯誤（儲存失敗、項目總數過多）。 */
 const errors = reactive<Record<MenuLocation, string | null>>({ main: null, mega: null, footer: null })
+/** 各位置的項目欄位錯誤：項目 key → 訊息。 */
+const nodeErrors = reactive<Record<MenuLocation, Record<string, string>>>({ main: {}, mega: {}, footer: {} })
+
+function clearNodeError(location: MenuLocation, key: string) {
+  if (nodeErrors[location][key]) delete nodeErrors[location][key]
+}
+
+/** 捲到第一個有問題的項目並聚焦它的第一個輸入框。 */
+async function focusFirstNodeError(location: MenuLocation) {
+  await nextTick()
+  const el = document.querySelector<HTMLElement>(`[data-menu-location="${location}"] .menu-node__card--error`)
+  if (!el) return
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' })
+  el.querySelector<HTMLElement>('input')?.focus({ preventScroll: true })
+}
 
 /** 比對用快照：不含畫面 key。 */
 function snap(nodes: MenuNode[]): string {
@@ -60,6 +77,7 @@ async function load() {
       trees[location] = fromDto(found?.items ?? [])
       baselines[location] = snap(trees[location])
       errors[location] = null
+      nodeErrors[location] = {}
     }
     loadState.value = 'ready'
   } catch (error) {
@@ -74,11 +92,34 @@ function addRoot(location: MenuLocation) {
   trees[location].push({ key: newMenuKey(), id: null, labelZh: '', labelEn: '', url: '', isExternal: false, children: [] })
 }
 
+/** 後端欄位鍵 `items[i].children[j].labelZh` → 依索引走樹找到項目，標在該項目的錯誤上。全部對得到才回傳 true。 */
+async function markNodeErrorsFromApi(location: MenuLocation, error: AdminApiError): Promise<boolean> {
+  const fieldErrors = error.fieldErrors
+  if (!fieldErrors) return false
+  const byKey: Record<string, string> = {}
+  let allMatched = true
+  for (const [key, message] of Object.entries(fieldErrors)) {
+    const m = /^items\[(\d+)\]((?:\.children\[\d+\])*)/.exec(key)
+    let node: MenuNode | undefined = m ? trees[location][Number(m[1])] : undefined
+    if (m && node) {
+      for (const c of m[2].matchAll(/\.children\[(\d+)\]/g)) node = node?.children[Number(c[1])]
+    }
+    if (node) byKey[node.key] ??= message
+    else allMatched = false
+  }
+  if (Object.keys(byKey).length === 0) return false
+  nodeErrors[location] = byKey
+  await focusFirstNodeError(location)
+  return allMatched
+}
+
 async function handleSave(location: MenuLocation) {
   if (!canUpdate.value) return
-  const problem = validateTree(trees[location])
-  if (problem) {
-    errors[location] = problem
+  const problems = validateTreeAll(trees[location])
+  nodeErrors[location] = problems.byKey
+  errors[location] = problems.general
+  if (problems.general || Object.keys(problems.byKey).length > 0) {
+    await focusFirstNodeError(location)
     return
   }
   // 刪掉既有項目是整棵取代的副作用，先講清楚
@@ -122,6 +163,7 @@ async function handleSave(location: MenuLocation) {
     baselines[location] = snap(trees[location])
     ElMessage.success(`已儲存${labels[location]}`)
   } catch (error) {
+    if (error instanceof AdminApiError && (await markNodeErrorsFromApi(location, error))) return
     errors[location] = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     savingLocation.value = null
@@ -160,7 +202,20 @@ async function handleSave(location: MenuLocation) {
           <p class="menu-settings__hint">{{ l.hint }}共 {{ countNodes(trees[l.location]) }} 個項目，最多 3 層。</p>
           <el-alert v-if="errors[l.location]" :title="errors[l.location]!" type="warning" show-icon class="menu-settings__block" @close="errors[l.location] = null" />
           <el-empty v-if="trees[l.location].length === 0" description="這個位置還沒有任何項目（前台目前沿用預設選單）" :image-size="64" />
-          <MenuNodeList :nodes="trees[l.location]" :depth="1" :max-depth="MENU_MAX_DEPTH" :disabled="!canUpdate" :new-key="newMenuKey" />
+          <p v-if="Object.keys(nodeErrors[l.location]).length > 0" class="menu-settings__count" role="status">
+            有 {{ Object.keys(nodeErrors[l.location]).length }} 個項目需要修正，請看標示的項目。
+          </p>
+          <div :data-menu-location="l.location">
+            <MenuNodeList
+              :nodes="trees[l.location]"
+              :depth="1"
+              :max-depth="MENU_MAX_DEPTH"
+              :disabled="!canUpdate"
+              :new-key="newMenuKey"
+              :errors="nodeErrors[l.location]"
+              @edit="(key: string) => clearNodeError(l.location, key)"
+            />
+          </div>
           <div v-if="canUpdate" class="menu-settings__footer">
             <el-button @click="addRoot(l.location)">+ 新增項目</el-button>
             <el-button type="primary" :loading="savingLocation === l.location" :disabled="!isLocationDirty(l.location)" @click="handleSave(l.location)">
@@ -178,5 +233,6 @@ async function handleSave(location: MenuLocation) {
 .menu-settings__block { margin-bottom: 16px; }
 .menu-settings__hint { margin: 0 0 12px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 .menu-settings__dirty { margin-left: 6px; }
+.menu-settings__count { margin: 0 0 12px; font-size: 13px; color: var(--admin-danger-text); }
 .menu-settings__footer { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; margin-top: 16px; }
 </style>

@@ -8,6 +8,9 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
@@ -35,7 +38,9 @@ const baseline = ref('')
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const isDirty = computed(() => !loading.value && JSON.stringify(form) !== baseline.value)
 useUnsavedChanges(isDirty)
 
@@ -73,18 +78,32 @@ watch(club, load)
 
 const text = (zh: string, en: string): ShopLocaleText => ({ zh: nullIfBlank(zh), en: nullIfBlank(en) })
 
-function validate(): string | null {
-  if (form.shippingFee === null || form.shippingFee < 0) return '運費不能是負數'
-  if (form.useThreshold && (form.freeShippingThreshold === null || form.freeShippingThreshold < 0)) return '免運門檻不能是負數'
-  if (form.excludedRegions.length > 60) return '不配送地區最多 60 項'
-  if (!Number.isInteger(form.pendingTimeoutMinutes) || form.pendingTimeoutMinutes < 5 || form.pendingTimeoutMinutes > 1440) return '待付款保留時間要在 5 到 1440 分鐘之間'
-  if ([form.entryIntroZh, form.entryIntroEn, form.noticeZh, form.noticeEn, form.shippingZh, form.shippingEn, form.returnsZh, form.returnsEn, form.termsZh, form.termsEn].some((t) => t.length > 20000)) return '每段說明最多 20000 字'
-  return null
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (form.shippingFee === null || form.shippingFee < 0) errors.shippingFee = '運費不能是負數'
+  if (form.useThreshold && (form.freeShippingThreshold === null || form.freeShippingThreshold < 0)) errors.freeShippingThreshold = '免運門檻不能是負數'
+  if (form.excludedRegions.length > 60) errors.excludedRegions = '不配送地區最多 60 項'
+  if (!Number.isInteger(form.pendingTimeoutMinutes) || form.pendingTimeoutMinutes < 5 || form.pendingTimeoutMinutes > 1440) errors.pendingTimeoutMinutes = '待付款保留時間要在 5 到 1440 分鐘之間'
+  const longTexts: Record<string, string> = {
+    entryIntroZh: form.entryIntroZh, entryIntroEn: form.entryIntroEn,
+    noticeZh: form.noticeZh, noticeEn: form.noticeEn,
+    shippingZh: form.shippingZh, shippingEn: form.shippingEn,
+    returnsZh: form.returnsZh, returnsEn: form.returnsEn,
+    termsZh: form.termsZh, termsEn: form.termsEn,
+  }
+  for (const [key, value] of Object.entries(longTexts)) {
+    if (value.length > 20000) errors[key] = '每段說明最多 20000 字'
+  }
+  return errors
 }
 
 async function save() {
-  formError.value = validate()
-  if (formError.value) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     apply(
@@ -104,6 +123,8 @@ async function save() {
     )
     ElMessage.success('已儲存商店設定')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -121,40 +142,42 @@ async function save() {
       <el-alert v-if="subject" type="warning" show-icon :closable="false" class="settings__block" :title="`收款主體：${subject.name}`" :description="subject.notice" />
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="settings__block" @close="formError = null" />
       <el-form label-position="top" :disabled="!canUpdate">
-        <el-card shadow="never" header="運費與庫存" class="settings__block">
-          <p class="settings__hint">運費設定是每個俱樂部各自一份，採單一固定運費，不做重量或級距計費。現場自取免運。</p>
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="8"><el-form-item label="固定運費（元）"><el-input-number v-model="form.shippingFee" :min="0" :controls="false" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="8">
-              <el-form-item label="免運門檻">
-                <div class="settings__threshold">
-                  <el-switch v-model="form.useThreshold" active-text="設定免運門檻" />
-                  <el-input-number v-if="form.useThreshold" v-model="form.freeShippingThreshold" :min="0" :controls="false" />
-                </div>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="8"><el-form-item label="庫存偏低門檻（預設）"><el-input-number v-model="form.lowStockThreshold" :min="0" :controls="false" style="width: 100%" /></el-form-item></el-col>
-          </el-row>
-          <el-form-item label="離島與不配送地區">
-            <el-select v-model="form.excludedRegions" multiple filterable allow-create default-first-option :reserve-keyword="false" placeholder="輸入地區名稱後按 Enter 新增" style="width: 100%" />
-          </el-form-item>
-          <el-form-item label="待付款保留時間（分鐘）">
-            <el-input-number v-model="form.pendingTimeoutMinutes" :min="5" :max="1440" :step="5" />
-            <p class="settings__hint">超過這段時間仍未付款的訂單，系統會定時自動取消並釋回庫存；也可以到「訂單」按「釋回逾時未付款訂單」立即處理。</p>
-          </el-form-item>
-        </el-card>
+        <LangTabsBar>
+          <el-card shadow="never" header="運費與庫存" class="settings__block">
+            <p class="settings__hint">運費設定是每個俱樂部各自一份，採單一固定運費，不做重量或級距計費。現場自取免運。</p>
+            <el-row :gutter="12">
+              <el-col :xs="24" :sm="8"><FormField field="shippingFee" label="固定運費（元）"><el-input-number v-model="form.shippingFee" :min="0" :controls="false" style="width: 100%" @change="formErrors.clear('shippingFee')" /></FormField></el-col>
+              <el-col :xs="24" :sm="8">
+                <FormField field="freeShippingThreshold" label="免運門檻">
+                  <div class="settings__threshold">
+                    <el-switch v-model="form.useThreshold" active-text="設定免運門檻" @change="formErrors.clear('freeShippingThreshold')" />
+                    <el-input-number v-if="form.useThreshold" v-model="form.freeShippingThreshold" :min="0" :controls="false" @change="formErrors.clear('freeShippingThreshold')" />
+                  </div>
+                </FormField>
+              </el-col>
+              <el-col :xs="24" :sm="8"><FormField field="lowStockThreshold" label="庫存偏低門檻（預設）"><el-input-number v-model="form.lowStockThreshold" :min="0" :controls="false" style="width: 100%" /></FormField></el-col>
+            </el-row>
+            <FormField field="excludedRegions" label="離島與不配送地區">
+              <el-select v-model="form.excludedRegions" multiple filterable allow-create default-first-option :reserve-keyword="false" placeholder="輸入地區名稱後按 Enter 新增" style="width: 100%" @change="formErrors.clear('excludedRegions')" />
+            </FormField>
+            <FormField field="pendingTimeoutMinutes" label="待付款保留時間（分鐘）">
+              <el-input-number v-model="form.pendingTimeoutMinutes" :min="5" :max="1440" :step="5" @change="formErrors.clear('pendingTimeoutMinutes')" />
+              <p class="settings__hint">超過這段時間仍未付款的訂單，系統會定時自動取消並釋回庫存；也可以到「訂單」按「釋回逾時未付款訂單」立即處理。</p>
+            </FormField>
+          </el-card>
 
-        <el-card shadow="never" header="商店入口說明" class="settings__block">
-          <BilingualShortField label="商店標題" :zh="form.entryTitleZh" :en="form.entryTitleEn" @update:zh="(v) => (form.entryTitleZh = v)" @update:en="(v) => (form.entryTitleEn = v)" />
-          <BilingualTextareaField label="商店簡介" :zh="form.entryIntroZh" :en="form.entryIntroEn" :rows="4" @update:zh="(v) => (form.entryIntroZh = v)" @update:en="(v) => (form.entryIntroEn = v)" />
-        </el-card>
+          <el-card shadow="never" header="商店入口說明" class="settings__block">
+            <BilingualShortField field="entryTitle" label="商店標題" :zh="form.entryTitleZh" :en="form.entryTitleEn" @update:zh="(v) => (form.entryTitleZh = v)" @update:en="(v) => (form.entryTitleEn = v)" />
+            <BilingualTextareaField field="entryIntro" label="商店簡介" :zh="form.entryIntroZh" :en="form.entryIntroEn" :rows="4" @update:zh="(v) => (form.entryIntroZh = v)" @update:en="(v) => (form.entryIntroEn = v)" />
+          </el-card>
 
-        <el-card shadow="never" header="購物政策" class="settings__block">
-          <BilingualTextareaField label="購物須知" :zh="form.noticeZh" :en="form.noticeEn" :rows="4" @update:zh="(v) => (form.noticeZh = v)" @update:en="(v) => (form.noticeEn = v)" />
-          <BilingualTextareaField label="運送說明" :zh="form.shippingZh" :en="form.shippingEn" :rows="4" @update:zh="(v) => (form.shippingZh = v)" @update:en="(v) => (form.shippingEn = v)" />
-          <BilingualTextareaField label="退換貨說明" :zh="form.returnsZh" :en="form.returnsEn" :rows="4" @update:zh="(v) => (form.returnsZh = v)" @update:en="(v) => (form.returnsEn = v)" />
-          <BilingualTextareaField label="購物條款" :zh="form.termsZh" :en="form.termsEn" :rows="4" @update:zh="(v) => (form.termsZh = v)" @update:en="(v) => (form.termsEn = v)" />
-        </el-card>
+          <el-card shadow="never" header="購物政策" class="settings__block">
+            <BilingualTextareaField field="notice" label="購物須知" :zh="form.noticeZh" :en="form.noticeEn" :rows="4" @update:zh="(v) => (form.noticeZh = v)" @update:en="(v) => (form.noticeEn = v)" />
+            <BilingualTextareaField field="shipping" label="運送說明" :zh="form.shippingZh" :en="form.shippingEn" :rows="4" @update:zh="(v) => (form.shippingZh = v)" @update:en="(v) => (form.shippingEn = v)" />
+            <BilingualTextareaField field="returns" label="退換貨說明" :zh="form.returnsZh" :en="form.returnsEn" :rows="4" @update:zh="(v) => (form.returnsZh = v)" @update:en="(v) => (form.returnsEn = v)" />
+            <BilingualTextareaField field="terms" label="購物條款" :zh="form.termsZh" :en="form.termsEn" :rows="4" @update:zh="(v) => (form.termsZh = v)" @update:en="(v) => (form.termsEn = v)" />
+          </el-card>
+        </LangTabsBar>
       </el-form>
       <div class="settings__foot">
         <el-button v-if="canUpdate" type="primary" :loading="saving" :disabled="!isDirty" @click="save">儲存商店設定</el-button>

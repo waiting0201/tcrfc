@@ -170,7 +170,7 @@ public sealed class AdminSessionsRepository(ClubDbContext dbContext, IQueryCache
         var exists = await dbContext.Venues.AsNoTracking().AnyAsync(v => v.Id == venueId, cancellationToken);
         if (!exists)
         {
-            throw new AdminSessionValidationException("找不到指定的場地，請確認場地是否存在。");
+            throw new AdminSessionValidationException("找不到指定的場地，請確認場地是否存在。", "venueId");
         }
 
         return venueId;
@@ -180,31 +180,31 @@ public sealed class AdminSessionsRepository(ClubDbContext dbContext, IQueryCache
         string? weeklySchedule, int? capacity, int? price, int? earlyBirdPrice,
         DateOnly? startOn, DateOnly? endOn, DateTime? signupOpensAt, DateTime? signupClosesAt, string? status)
     {
-        AdminProgramsRepository.ValidateContentJson(weeklySchedule);
+        AdminProgramsRepository.ValidateContentJson(weeklySchedule, "weeklySchedule");
 
         if (capacity is int cap && cap < 0)
         {
-            throw new AdminSessionValidationException("名額上限不能是負數。");
+            throw new AdminSessionValidationException("名額上限不能是負數。", "capacity");
         }
         if (price is int p && p < 0)
         {
-            throw new AdminSessionValidationException("費用不能是負數。");
+            throw new AdminSessionValidationException("費用不能是負數。", "price");
         }
         if (earlyBirdPrice is int eb && eb < 0)
         {
-            throw new AdminSessionValidationException("早鳥價不能是負數。");
+            throw new AdminSessionValidationException("早鳥價不能是負數。", "earlyBirdPrice");
         }
         if (startOn is DateOnly s && endOn is DateOnly e && s > e)
         {
-            throw new AdminSessionValidationException("開始日期不能晚於結束日期。");
+            throw new AdminSessionValidationException("開始日期不能晚於結束日期。", "startOn");
         }
         if (signupOpensAt is DateTime so && signupClosesAt is DateTime sc && so > sc)
         {
-            throw new AdminSessionValidationException("報名開始時間不能晚於報名截止時間。");
+            throw new AdminSessionValidationException("報名開始時間不能晚於報名截止時間。", "signupOpensAt");
         }
         if (status is not null && !AllowedStatuses.Contains(status))
         {
-            throw new AdminSessionValidationException("狀態只能是「開放」「額滿」「候補」或「已結束」。");
+            throw new AdminSessionValidationException("狀態只能是「開放」「額滿」「候補」或「已結束」。", "status");
         }
     }
 

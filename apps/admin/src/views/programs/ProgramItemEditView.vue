@@ -12,14 +12,20 @@
  * `AdminProgramLocaleContent` 檔頭），沒有現成的區塊編輯器可以重用（B1 的 `pageBlocks/` 是
  * 針對 `Page` 模型設計，區塊型別完全不同），比照後端自身「不超出範圍另外發明一套」的判斷。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -62,7 +68,11 @@ const staffOptions = ref<AdminStaffListItemDto[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除封面就清掉該欄位的錯誤
+watch([coverFile, removeCover], () => formErrors.clear('cover'))
 
 async function loadStaffOptions() {
   try {
@@ -121,36 +131,28 @@ function isEnEmpty(): boolean {
   return !form.nameEn.trim() && !form.introEn.trim() && !form.contentEn.trim()
 }
 
-/** JSON 語法先在前端擋一次——後端只驗證語法合法性（見檔頭說明），送出不合法的 JSON 只會換來
- * 「課程內容不是合法的 JSON 格式」這種 400，不如提早在畫面上說清楚。留空視為沒有內容，不驗證。 */
-function validateJsonField(value: string, label: string): boolean {
-  if (!value.trim()) return true
+/** JSON 語法先在前端擋一次——後端只驗證語法合法性（見檔頭說明）。留空視為沒有內容，不驗證。 */
+function isInvalidJson(value: string): boolean {
+  if (!value.trim()) return false
   try {
     JSON.parse(value)
-    return true
-  } catch {
-    formError.value = `${label}不是合法的 JSON 格式，請確認內容（或留空）`
     return false
+  } catch {
+    return true
   }
 }
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.slug.trim()) {
-    formError.value = '請輸入網址代稱（slug）'
-    return false
-  }
-  if (!form.nameZh.trim()) {
-    formError.value = '請輸入中文名稱'
-    return false
-  }
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.slug.trim()) errors.slug = '請輸入網址代稱'
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
   if (form.ageMin != null && form.ageMax != null && form.ageMin > form.ageMax) {
-    formError.value = '最小年齡不能大於最大年齡'
-    return false
+    errors.ageMax = '最小年齡不能大於最大年齡'
   }
-  if (!validateJsonField(form.contentZh, '課程內容（中文）')) return false
-  if (!validateJsonField(form.contentEn, '課程內容（英文）')) return false
-  return true
+  if (isInvalidJson(form.contentZh)) errors.contentZh = '中文的課程內容格式不正確，請確認內容或留空'
+  if (isInvalidJson(form.contentEn)) errors.contentEn = '英文的課程內容格式不正確，請確認內容或留空'
+  return errors
 }
 
 function buildPayload(): SaveProgramPayload {
@@ -171,9 +173,12 @@ function buildPayload(): SaveProgramPayload {
 
 async function handleSave() {
   if (isReadOnly.value) return
-  if (!validate()) return
-  saving.value = true
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     if (isCreate.value) {
       const created = await createAdminProgram(activeClubId.value, buildPayload(), coverFile.value)
@@ -195,6 +200,7 @@ async function handleSave() {
     removeCover.value = false
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -257,118 +263,129 @@ function retryLoad() {
       />
 
       <el-form label-position="top" :disabled="isReadOnly">
-        <el-card shadow="never" header="基本資料" class="program-item-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="網址代稱（slug）" required>
-                <el-input v-model="form.slug" placeholder="例如 u8-summer-camp" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="類型">
-                <el-select v-model="form.programType" clearable placeholder="請選擇類型" style="width: 100%">
-                  <el-option v-for="t in PROGRAM_TYPE_ORDER" :key="t" :label="PROGRAM_TYPE_LABEL[t]" :value="t" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="適合對象">
-                <el-input v-model="form.audience" placeholder="例如 國小中低年級" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="最小年齡">
-                <el-input-number v-model="form.ageMin" :min="0" :max="99" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="最大年齡">
-                <el-input-number v-model="form.ageMax" :min="0" :max="99" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="狀態">
-                <el-radio-group v-model="form.status">
-                  <el-radio value="draft">草稿</el-radio>
-                  <el-radio value="published">已發布</el-radio>
-                </el-radio-group>
-              </el-form-item>
-            </el-col>
-          </el-row>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="基本資料">
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <FormField field="slug" label="網址代稱" required>
+                      <el-input v-model="form.slug" placeholder="例如 u8-summer-camp" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <FormField field="programType" label="類型">
+                      <el-select v-model="form.programType" clearable placeholder="請選擇類型" style="width: 100%">
+                        <el-option v-for="t in PROGRAM_TYPE_ORDER" :key="t" :label="PROGRAM_TYPE_LABEL[t]" :value="t" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="適合對象">
+                      <el-input v-model="form.audience" placeholder="例如 國小中低年級" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <FormField field="ageMin" label="最小年齡">
+                      <el-input-number v-model="form.ageMin" :min="0" :max="99" style="width: 100%" @change="formErrors.clear('ageMin')" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <FormField field="ageMax" label="最大年齡">
+                      <el-input-number v-model="form.ageMax" :min="0" :max="99" style="width: 100%" @change="formErrors.clear('ageMax')" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <FormField field="status" label="狀態">
+                      <el-radio-group v-model="form.status">
+                        <el-radio value="draft">草稿</el-radio>
+                        <el-radio value="published">已發布</el-radio>
+                      </el-radio-group>
+                    </FormField>
+                  </el-col>
+                </el-row>
 
-          <BilingualShortField
-            label="名稱"
-            :zh="form.nameZh"
-            :en="form.nameEn"
-            required
-            @update:zh="(v) => (form.nameZh = v)"
-            @update:en="(v) => (form.nameEn = v)"
-          />
-          <BilingualTextareaField
-            label="簡介"
-            :zh="form.introZh"
-            :en="form.introEn"
-            @update:zh="(v) => (form.introZh = v)"
-            @update:en="(v) => (form.introEn = v)"
-          />
-        </el-card>
+                <BilingualShortField
+                  field="name"
+                  label="名稱"
+                  :zh="form.nameZh"
+                  :en="form.nameEn"
+                  required
+                  @update:zh="(v) => (form.nameZh = v)"
+                  @update:en="(v) => (form.nameEn = v)"
+                />
+                <BilingualTextareaField
+                  field="intro"
+                  label="簡介"
+                  :zh="form.introZh"
+                  :en="form.introEn"
+                  @update:zh="(v) => (form.introZh = v)"
+                  @update:en="(v) => (form.introEn = v)"
+                />
+              </el-card>
 
-        <el-card shadow="never" header="課程內容" class="program-item-edit__section">
-          <p class="program-item-edit__hint">
-            區塊編輯器的原始 JSON 輸出（選填）。後端只檢查語法是否為合法 JSON，不檢查區塊結構；留空表示這個語言版本沒有內文。
-          </p>
-          <BilingualTextareaField
-            label="內容（JSON）"
-            :zh="form.contentZh"
-            :en="form.contentEn"
-            :rows="6"
-            @update:zh="(v) => (form.contentZh = v)"
-            @update:en="(v) => (form.contentEn = v)"
-          />
-        </el-card>
+              <el-card shadow="never" header="課程內容">
+                <p class="program-item-edit__hint">
+                  區塊編輯器的原始 JSON 輸出（選填）。後端只檢查語法是否為合法 JSON，不檢查區塊結構；留空表示這個語言版本沒有內文。
+                </p>
+                <BilingualTextareaField
+                  field="content"
+                  label="內容（JSON）"
+                  :zh="form.contentZh"
+                  :en="form.contentEn"
+                  :rows="6"
+                  @update:zh="(v) => (form.contentZh = v)"
+                  @update:en="(v) => (form.contentEn = v)"
+                />
+              </el-card>
 
-        <el-card shadow="never" header="教練團與封面圖" class="program-item-edit__section">
-          <el-form-item label="教練團">
-            <el-select v-model="form.staffIds" multiple filterable placeholder="請選擇負責教練（可複選）" style="width: 100%">
-              <el-option v-for="s in staffOptions" :key="s.id" :label="s.nameZh || '（未命名）'" :value="s.id" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="合作夥伴">
-            <p class="program-item-edit__hint">
-              合作夥伴管理（E1）尚未開發，後台目前沒有清單可以選擇，這裡暫不開放設定。
-            </p>
-          </el-form-item>
-          <el-form-item label="封面圖">
-            <ImageUploader
-              v-model:file="coverFile"
-              v-model:remove-cover="removeCover"
-              :has-existing-image="!!coverKey"
-              :disabled="saving || isReadOnly"
-            />
-          </el-form-item>
-        </el-card>
+              <el-card shadow="never" header="教練團與合作夥伴">
+                <FormField field="staffIds" label="教練團">
+                  <el-select v-model="form.staffIds" multiple filterable placeholder="請選擇負責教練（可複選）" style="width: 100%">
+                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.nameZh || '（未命名）'" :value="s.id" />
+                  </el-select>
+                </FormField>
+                <FormField field="partnerIds" label="合作夥伴">
+                  <p class="program-item-edit__hint">
+                    合作夥伴管理（E1）尚未開發，後台目前沒有清單可以選擇，這裡暫不開放設定。
+                  </p>
+                </FormField>
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="封面圖">
+                <FormField field="cover" label="封面圖">
+                  <ImageUploader
+                    v-model:file="coverFile"
+                    v-model:remove-cover="removeCover"
+                    :has-existing-image="!!coverKey"
+                    :disabled="saving || isReadOnly"
+                  />
+                </FormField>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
 
-      <div v-if="!isReadOnly" class="program-item-edit__action-bar">
+      <EditActionBar v-if="!isReadOnly">
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
 .program-item-edit {
-  max-width: 780px;
-  margin: 0 auto 88px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .program-item-edit__form-error {
-  margin-bottom: 16px;
-}
-
-.program-item-edit__section {
   margin-bottom: 16px;
 }
 
@@ -377,35 +394,5 @@ function retryLoad() {
   font-size: 12px;
   color: var(--admin-text-tertiary);
   line-height: 1.6;
-}
-
-.program-item-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .program-item-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .program-item-edit__action-bar {
-    justify-content: stretch;
-  }
-
-  .program-item-edit__action-bar :deep(.el-button) {
-    flex: 1;
-  }
 }
 </style>

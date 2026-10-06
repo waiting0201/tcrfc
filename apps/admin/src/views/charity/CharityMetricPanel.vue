@@ -3,13 +3,17 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { enOrUndefined, nullIfBlank } from '@/api/adminCommon'
 import { createMetric, deleteMetric, listMetrics, listPrograms, updateMetric, type MetricDto, type ProgramListItemDto } from '@/api/adminCharity'
+import FormField from '@/components/FormField.vue'
 
 const { breakpoint } = useBreakpoint()
 const isMobile = computed(() => breakpoint.value === 'mobile')
@@ -46,12 +50,15 @@ watch(club, () => {
 
 const dialog = ref(false)
 const saving = ref(false)
+/** 對話框頁首提示：只放沒有欄位歸屬的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const dialogError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const form = reactive({ id: null as string | null, isShared: false, programId: '', value: null as number | null, isPublic: false, sortOrder: 0, nameZh: '', nameEn: '', unitZh: '', unitEn: '' })
 const dialogReadOnly = computed(() => form.isShared || (form.id ? !canUpdate.value : !canCreate.value))
 
 function open(m: MetricDto | null) {
   dialogError.value = null
+  formErrors.clearAll()
   Object.assign(form, {
     id: m?.id ?? null,
     isShared: m?.isShared ?? false,
@@ -65,10 +72,20 @@ function open(m: MetricDto | null) {
   dialog.value = true
 }
 
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文項目名稱'
+  return errors
+}
+
 async function save() {
-  if (!form.nameZh.trim()) return void (dialogError.value = '請輸入中文項目名稱')
-  saving.value = true
   dialogError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   const payload = {
     charityProgramId: form.programId || null,
     value: form.value,
@@ -86,6 +103,8 @@ async function save() {
     dialog.value = false
     await load()
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首（送出失敗不關對話框）
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     dialogError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -158,20 +177,23 @@ const valueLabel = (m: MetricDto) => (m.value == null ? '—' : `${m.value.toLoc
       <el-alert v-if="dialogError" :title="dialogError" type="warning" show-icon class="panel__block" @close="dialogError = null" />
       <el-alert v-if="form.isShared" title="這是台中磐石與台中藍鯨共用的項目，只能檢視。" type="info" show-icon :closable="false" class="panel__block" />
       <el-form label-position="top" :disabled="dialogReadOnly">
-        <BilingualShortField label="項目名稱" :zh="form.nameZh" :en="form.nameEn" required placeholder="例如 受惠人數" @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-        <BilingualShortField label="單位" :zh="form.unitZh" :en="form.unitEn" placeholder="例如 人、場、元" @update:zh="(v) => (form.unitZh = v)" @update:en="(v) => (form.unitEn = v)" />
+        <LangTabsBar variant="bare">
+          <BilingualShortField field="name" label="項目名稱" :zh="form.nameZh" :en="form.nameEn" required placeholder="例如 受惠人數" @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+          <BilingualShortField field="unit" label="單位" :zh="form.unitZh" :en="form.unitEn" placeholder="例如 人、場、元" @update:zh="(v) => (form.unitZh = v)" @update:en="(v) => (form.unitEn = v)" />
+        </LangTabsBar>
         <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="數值"><el-input-number v-model="form.value" :controls="false" style="width: 100%" /></el-form-item></el-col>
+          <el-col :xs="24" :sm="12"><FormField field="value" label="數值"><el-input-number v-model="form.value" :controls="false" style="width: 100%" /></FormField></el-col>
           <el-col :xs="24" :sm="12"><el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
         </el-row>
-        <el-form-item label="所屬計畫">
+        <FormField field="programId" label="所屬計畫">
           <el-select v-model="form.programId" clearable filterable placeholder="不選＝整體統計項目" style="width: 100%">
             <el-option v-for="p in programs" :key="p.id" :label="p.nameZh || '（未命名）'" :value="p.id" />
           </el-select>
-        </el-form-item>
+        </FormField>
         <el-form-item label="前台公開"><el-switch v-model="form.isPublic" active-text="公開顯示" inactive-text="不公開" /></el-form-item>
       </el-form>
       <template #footer>
+        <FormErrorStatus />
         <el-button @click="dialog = false">關閉</el-button>
         <el-button v-if="!dialogReadOnly" type="primary" :loading="saving" @click="save">儲存</el-button>
       </template>

@@ -165,7 +165,7 @@ public sealed class AdminRolesRepository(ClubDbContext dbContext)
         {
             // 🔴（2026-09-24，回應 E-52）不得把原始權限碼內插進使用者看得到的訊息——只回報筆數，
             // 技術細節（哪幾個代碼查無資料）留給呼叫端自行比對送出的內容，不進 detail。
-            throw new AdminRoleValidationException($"有 {missing.Count} 個權限碼查無資料，請重新整理權限清單後再試一次。");
+            throw new AdminRoleValidationException($"有 {missing.Count} 個權限已經不存在，請重新整理權限清單後再試一次。", "permissions");
         }
 
         var sysadminOnlyCodes = permissions.Values.Where(p => p.SysadminOnly).Select(p => p.Code).ToList();
@@ -206,15 +206,15 @@ public sealed class AdminRolesRepository(ClubDbContext dbContext)
     {
         if (string.IsNullOrWhiteSpace(code))
         {
-            throw new AdminRoleValidationException("角色代碼為必填欄位。");
+            throw new AdminRoleValidationException("角色代碼為必填欄位。", "code");
         }
         if (code.Length > 64)
         {
-            throw new AdminRoleValidationException("角色代碼長度不能超過 64 個字元。");
+            throw new AdminRoleValidationException("角色代碼長度不能超過 64 個字元。", "code");
         }
         if (!code.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '_'))
         {
-            throw new AdminRoleValidationException("角色代碼只能使用小寫英文字母、數字與底線（_）組成。");
+            throw new AdminRoleValidationException("角色代碼只能使用小寫英文字母、數字與底線（_）組成。", "code");
         }
     }
 
@@ -223,7 +223,7 @@ public sealed class AdminRolesRepository(ClubDbContext dbContext)
         if (!ValidScopeModes.Contains(scopeMode))
         {
             throw new AdminRoleValidationException(
-                $"資料範圍模式「{scopeMode}」不合法，只能是「all_clubs」（跨俱樂部）或「own_clubs」（僅授權範圍內）。");
+                "資料範圍只能選「跨俱樂部」或「僅授權範圍內」。", "scopeMode");
         }
     }
 
@@ -232,7 +232,7 @@ public sealed class AdminRolesRepository(ClubDbContext dbContext)
         if (!ValidScopeTypes.Contains(scopeType))
         {
             throw new AdminRoleValidationException(
-                $"權限範圍「{scopeType}」不合法，只能是：{string.Join("、", ValidScopeTypes)}。");
+                "有一項權限的資料範圍不正確，請重新選擇。", "permissions");
         }
     }
 

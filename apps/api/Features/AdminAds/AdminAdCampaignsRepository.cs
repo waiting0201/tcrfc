@@ -176,7 +176,7 @@ public sealed class AdminAdCampaignsRepository(ClubDbContext dbContext, AdCreati
             Require(c, [AdCampaignLifecycle.Scheduled, AdCampaignLifecycle.Running], "只有已排程或投放中的檔期可以暫停。");
             c.PausedFrom = c.Status;
             c.Status = AdCampaignLifecycle.Paused;
-            c.PauseReason = AdminInput.RequireText(reason, "暫停原因", 255);
+            c.PauseReason = AdminInput.RequireText(reason, "暫停原因", 255, "reason");
             return Task.CompletedTask;
         }, ct);
 
@@ -224,7 +224,7 @@ public sealed class AdminAdCampaignsRepository(ClubDbContext dbContext, AdCreati
                 throw new AdminConflictException("已經作廢", "這個檔期已經作廢了。");
             }
 
-            c.PauseReason = AdminInput.RequireText(reason, "作廢原因", 255);
+            c.PauseReason = AdminInput.RequireText(reason, "作廢原因", 255, "reason");
             c.PausedFrom = null;
             c.Status = AdCampaignLifecycle.Voided;
             return Task.CompletedTask;
@@ -277,7 +277,7 @@ public sealed class AdminAdCampaignsRepository(ClubDbContext dbContext, AdCreati
         var windowTo = to ?? windowFrom.AddDays(30);
         if (windowTo <= windowFrom)
         {
-            throw new AdminValidationException("結束時間必須晚於開始時間。");
+            throw new AdminValidationException("結束時間必須晚於開始時間。", "to");
         }
 
         string[] live = [AdCampaignLifecycle.PendingReview, AdCampaignLifecycle.Scheduled, AdCampaignLifecycle.Running, AdCampaignLifecycle.Paused];
@@ -318,21 +318,21 @@ public sealed class AdminAdCampaignsRepository(ClubDbContext dbContext, AdCreati
 
     private async Task<(DateTime Starts, DateTime Ends)> ValidateAsync(UpsertAdminAdCampaignRequest r, CancellationToken cancellationToken)
     {
-        AdminInput.RequireText(r.Name, "檔期名稱", 160);
+        AdminInput.RequireText(r.Name, "檔期名稱", 160, "name");
         var starts = r.StartsAt.UtcDateTime;
         var ends = r.EndsAt.UtcDateTime;
         if (ends <= starts)
         {
-            throw new AdminValidationException("檔期的結束時間必須晚於開始時間。");
+            throw new AdminValidationException("檔期的結束時間必須晚於開始時間。", "endsAt");
         }
 
         if (r.Weight is < 1 or > 100)
         {
-            throw new AdminValidationException("輪播權重只能是 1 到 100。");
+            throw new AdminValidationException("輪播權重只能是 1 到 100。", "weight");
         }
 
-        AdminInput.OptionalNonNegative(r.DailyImpressionCap, "每日曝光上限");
-        AdminInput.OptionalNonNegative(r.PerDeviceDailyCap, "每人頻次上限");
+        AdminInput.OptionalNonNegative(r.DailyImpressionCap, "每日曝光上限", "dailyImpressionCap");
+        AdminInput.OptionalNonNegative(r.PerDeviceDailyCap, "每人頻次上限", "perDeviceDailyCap");
         var goalType = r.GoalType ?? "traffic";
         AdminInput.OneOf(goalType, GoalTypes, "目標類型", "「曝光保證」或「導流」");
         if (goalType == "guaranteed" && r.GoalImpressions is null or <= 0)

@@ -11,6 +11,8 @@
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
 import {
@@ -35,6 +37,9 @@ const canEditTranslations = computed(() => canUpdate.value || canTranslate.value
 
 const enabledLocales = computed(() => props.locales.filter((l) => l.isEnabled).sort((a, b) => a.sortOrder - b.sortOrder))
 const defaultLocale = computed(() => props.locales.find((l) => l.isDefault)?.code ?? 'zh-Hant')
+/** 後端對「其他語系的譯文」只回單一鍵 `values`，標在第一個非預設語系的欄位上。 */
+const firstOtherLocale = computed(() => enabledLocales.value.find((l) => l.code !== defaultLocale.value)?.code)
+const valueFieldKey = (code: string) => (code === defaultLocale.value ? 'defaultValue' : code === firstOtherLocale.value ? 'values' : `value-${code}`)
 const otherLocales = computed(() => enabledLocales.value.filter((l) => l.code !== defaultLocale.value))
 
 const rows = ref<AdminUiString[]>([])
@@ -96,7 +101,9 @@ const dialogMode = ref<'create' | 'edit'>('edit')
 const editing = ref<AdminUiString | null>(null)
 const form = reactive({ key: '', group: '', values: {} as Record<string, string> })
 const saving = ref(false)
+/** 對話框內的欄位錯誤（對話框自己一份；沒有欄位歸屬的錯誤才放 dialogError）。 */
 const dialogError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 /** 翻譯人員（沒有更新權限）不能動繁中與分組。 */
 const sourceLocked = computed(() => dialogMode.value === 'edit' && !canUpdate.value)
@@ -108,6 +115,7 @@ function openCreate() {
   form.group = ''
   form.values = Object.fromEntries(enabledLocales.value.map((l) => [l.code, '']))
   dialogError.value = null
+  formErrors.clearAll()
   dialogOpen.value = true
 }
 
@@ -118,27 +126,31 @@ function openEdit(row: AdminUiString) {
   form.group = row.group ?? ''
   form.values = Object.fromEntries(enabledLocales.value.map((l) => [l.code, row.values[l.code] ?? '']))
   dialogError.value = null
+  formErrors.clearAll()
   dialogOpen.value = true
 }
 
-function validate(): boolean {
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
   if (dialogMode.value === 'create') {
     const key = form.key.trim()
     if (!key || key.length > 128 || !KEY_RE.test(key)) {
-      dialogError.value = '字串代號只能用小寫英文、數字、底線、連字號，並以句點分段（例如 button.submit），最長 128 字。'
-      return false
+      errors.key = '字串代號只能用小寫英文、數字、底線、連字號，並以句點分段（例如 button.submit），最長 128 字。'
     }
   }
   if (!sourceLocked.value && !(form.values[defaultLocale.value] ?? '').trim()) {
-    dialogError.value = `請填寫${localeName(defaultLocale.value)}原文，原文不能留空。`
-    return false
+    errors.defaultValue = `請填寫${localeName(defaultLocale.value)}原文，原文不能留空。`
   }
-  dialogError.value = null
-  return true
+  return errors
 }
 
 async function handleSave() {
-  if (!validate()) return
+  dialogError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     if (dialogMode.value === 'create') {
@@ -163,6 +175,7 @@ async function handleSave() {
     void loadGroups()
   } catch (error) {
     // 409：代號重複；403：翻譯人員的請求動到繁中或分組
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     dialogError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -258,15 +271,15 @@ function isMissing(row: AdminUiString, code: string): boolean {
     <el-dialog v-model="dialogOpen" :title="dialogMode === 'create' ? '新增介面字串' : '編輯介面字串'" width="min(600px, 94vw)" :close-on-click-modal="false">
       <el-alert v-if="dialogError" :title="dialogError" type="warning" show-icon class="ui-strings__block" @close="dialogError = null" />
       <el-form label-position="top">
-        <el-form-item label="字串代號">
+        <FormField field="key" label="字串代號">
           <el-input v-model="form.key" :disabled="dialogMode === 'edit'" maxlength="128" placeholder="例如 button.submit" />
           <p v-if="dialogMode === 'create'" class="ui-strings__hint">建立後不能更改。只能用小寫英文、數字、底線、連字號，並以句點分段。</p>
-        </el-form-item>
-        <el-form-item label="分組">
+        </FormField>
+        <FormField field="group" label="分組">
           <el-input v-model="form.group" :disabled="sourceLocked" maxlength="64" placeholder="例如 按鈕、表單（可留空）" list="ui-string-groups" />
           <datalist id="ui-string-groups"><option v-for="g in groups" :key="g" :value="g" /></datalist>
-        </el-form-item>
-        <el-form-item v-for="l in enabledLocales" :key="l.code" :label="`${l.name}${l.code === defaultLocale ? '（原文，必填）' : ''}`">
+        </FormField>
+        <FormField v-for="l in enabledLocales" :key="l.code" :field="valueFieldKey(l.code)" :label="`${l.name}${l.code === defaultLocale ? '（原文，必填）' : ''}`">
           <el-input
             v-model="form.values[l.code]"
             type="textarea"
@@ -275,7 +288,7 @@ function isMissing(row: AdminUiString, code: string): boolean {
             maxlength="2000"
             :placeholder="l.code === defaultLocale ? '' : '留空代表沒有翻譯'"
           />
-        </el-form-item>
+        </FormField>
       </el-form>
       <template #footer>
         <el-button @click="dialogOpen = false">取消</el-button>

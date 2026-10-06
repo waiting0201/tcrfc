@@ -167,7 +167,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
     {
         if (!AllowedStatuses.Contains(request.Status))
         {
-            throw new AdminEnquiryValidationException("狀態只能是「新進」「處理中」「已回覆」「已結案」或「無效」其中一種。");
+            throw new AdminEnquiryValidationException("狀態只能是「新進」「處理中」「已回覆」「已結案」或「無效」其中一種。", "status");
         }
 
         var enquiry = await dbContext.Enquiries
@@ -357,7 +357,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
             .FirstOrDefaultAsync(u => u.Id == assigneeId, cancellationToken);
         if (assignee is null)
         {
-            throw new AdminEnquiryValidationException("找不到指定的負責人帳號。");
+            throw new AdminEnquiryValidationException("找不到指定的負責人帳號。", "assigneeAdminUserId");
         }
         if (assignee.IsSuperAdmin)
         {
@@ -370,7 +370,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
                         && (g.ExpiresOn == null || g.ExpiresOn >= today), cancellationToken);
         if (!hasClubGrant)
         {
-            throw new AdminEnquiryValidationException("指定的負責人帳號目前沒有這個俱樂部的授權，無法指派。");
+            throw new AdminEnquiryValidationException("指定的負責人帳號目前沒有這個俱樂部的授權，無法指派。", "assigneeAdminUserId");
         }
 
         var candidateCodes = CandidateUpdateCodesForFormCode(formCode);
@@ -382,7 +382,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
             .AnyAsync(p => candidateCodes.Contains(p.Code) && !p.SysadminOnly, cancellationToken);
         if (!hasCategoryPermission)
         {
-            throw new AdminEnquiryValidationException("指定的負責人帳號對這一類詢問沒有處理權限，無法指派。");
+            throw new AdminEnquiryValidationException("指定的負責人帳號對這一類詢問沒有處理權限，無法指派。", "assigneeAdminUserId");
         }
     }
 

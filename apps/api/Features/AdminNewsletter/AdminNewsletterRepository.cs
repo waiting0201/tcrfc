@@ -85,14 +85,14 @@ public sealed class AdminNewsletterRepository(ClubDbContext dbContext, Sensitive
         AdminClubScope scope, CreateAdminNewsletterSubscriberRequest request, CancellationToken cancellationToken)
     {
         var email = NormalizeEmail(request.Email);
-        var source = AdminInput.OptionalText(request.Source, "來源說明", 64) ?? "後台新增";
+        var source = AdminInput.OptionalText(request.Source, "來源說明", 64, "source") ?? "後台新增";
         var existing = await dbContext.NewsletterSubscribers
             .FirstOrDefaultAsync(s => s.ClubId == scope.ClubId && s.Email == email, cancellationToken);
         if (existing is not null)
         {
             throw existing.Status == StatusUnsubscribed
-                ? new AdminConflictException("此信箱曾經退訂", "這個信箱已經退訂過電子報，不能由後台直接加回；若是本人要求重新訂閱，請在名單中改狀態並註明原因。")
-                : new AdminConflictException("信箱已在名單中", "這個信箱已經在電子報名單裡了。");
+                ? new AdminConflictException("此信箱曾經退訂", "這個信箱已經退訂過電子報，不能由後台直接加回；若是本人要求重新訂閱，請在名單中改狀態並註明原因。", "email")
+                : new AdminConflictException("信箱已在名單中", "這個信箱已經在電子報名單裡了。", "email");
         }
 
         var now = DateTime.UtcNow;
@@ -130,7 +130,7 @@ public sealed class AdminNewsletterRepository(ClubDbContext dbContext, Sensitive
         else
         {
             // 重新訂閱：退訂是法遵事實，只有「訂閱者本人要求」才能改回，原因必填並留敏感操作日誌。
-            var reason = AdminInput.RequireText(request.Reason, "重新訂閱的原因", 200);
+            var reason = AdminInput.RequireText(request.Reason, "重新訂閱的原因", 200, "reason");
             row.SubscribedAt = now;
             row.UnsubscribedAt = null;
             audit.Record(scope, "電子報重新訂閱", $"名單 {row.Id}", 1, reason);
@@ -197,7 +197,7 @@ public sealed class AdminNewsletterRepository(ClubDbContext dbContext, Sensitive
 
     internal static string NormalizeEmail(string? raw)
     {
-        var email = AdminInput.OptionalEmail(raw, "Email") ?? throw new AdminValidationException("Email 為必填欄位。");
+        var email = AdminInput.OptionalEmail(raw, "Email", "email") ?? throw new AdminValidationException("Email 為必填欄位。", "email");
         return email.ToLowerInvariant();
     }
 

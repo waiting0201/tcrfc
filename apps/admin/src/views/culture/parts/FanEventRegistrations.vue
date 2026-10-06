@@ -22,6 +22,10 @@ import {
   type FanEventRegistrationDto,
   type FanEventRegistrationStatus,
 } from '@/api/adminFanEvents'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const props = defineProps<{ eventId: string; isPaidMembersOnly: boolean }>()
 const emit = defineEmits<{ (e: 'changed'): void }>()
@@ -124,6 +128,7 @@ const searching = ref(false)
 function openAdd() {
   Object.assign(addForm, { isMember: false, memberId: '', applicantName: '', phone: '', email: '', note: '' })
   addError.value = null
+  formErrors.clearAll()
   memberOptions.value = []
   addOpen.value = true
 }
@@ -144,6 +149,7 @@ async function searchMembers(keyword: string) {
 }
 async function saveAdd() {
   addError.value = null
+  formErrors.clearAll()
   if (addForm.isMember) {
     if (!addForm.memberId) return (addError.value = '請先搜尋並選擇會員')
   } else {
@@ -167,6 +173,7 @@ async function saveAdd() {
     await load()
     emit('changed')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     addError.value = error instanceof AdminApiError ? error.message : '新增失敗，請稍後再試'
   } finally {
     addSaving.value = false
@@ -261,23 +268,23 @@ async function saveAdd() {
         </el-form-item>
         <template v-if="addForm.isMember">
           <p v-if="!canSearchMembers" class="regs__hint">你的帳號沒有查詢會員名單的權限，無法代填會員報名。</p>
-          <el-form-item v-else label="搜尋會員">
+          <FormField v-else field="memberId" label="搜尋會員">
             <el-select v-model="addForm.memberId" filterable remote clearable :remote-method="searchMembers" :loading="searching" placeholder="輸入會員編號搜尋" style="width: 100%">
               <el-option v-for="m in memberOptions" :key="m.id" :label="`${m.memberNo} ${m.name || ''}`" :value="m.id" />
             </el-select>
-          </el-form-item>
+          </FormField>
           <p v-if="isPaidMembersOnly" class="regs__hint">這場活動限付費會員，沒有有效球迷會員會籍的會員會被系統擋下。</p>
         </template>
         <template v-else>
           <p v-if="isPaidMembersOnly" class="regs__hint">這場活動限付費會員，不能代填非會員。</p>
-          <el-form-item label="姓名" required><el-input v-model="addForm.applicantName" maxlength="64" /></el-form-item>
+          <FormField field="applicantName" label="姓名" required><el-input v-model="addForm.applicantName" maxlength="64" /></FormField>
           <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="電話"><el-input v-model="addForm.phone" maxlength="32" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="Email"><el-input v-model="addForm.email" maxlength="128" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="phone" label="電話"><el-input v-model="addForm.phone" maxlength="32" /></FormField></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="email" label="Email"><el-input v-model="addForm.email" maxlength="128" /></FormField></el-col>
           </el-row>
           <p class="regs__hint">電話與 Email 至少要填一項。</p>
         </template>
-        <el-form-item label="備註"><el-input v-model="addForm.note" type="textarea" :rows="2" maxlength="500" /></el-form-item>
+        <FormField field="note" label="備註"><el-input v-model="addForm.note" type="textarea" :rows="2" maxlength="500" /></FormField>
       </el-form>
       <template #footer>
         <el-button @click="addOpen = false">取消</el-button>

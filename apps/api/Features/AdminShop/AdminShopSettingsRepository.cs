@@ -37,28 +37,28 @@ public sealed class AdminShopSettingsRepository(ClubDbContext db, ClubTextSettin
     {
         if (request.ShippingFee < 0)
         {
-            throw new AdminValidationException("運費不可為負數。");
+            throw new AdminValidationException("運費不可為負數。", "shippingFee");
         }
 
         if (request.FreeShippingThreshold is < 0)
         {
-            throw new AdminValidationException("免運門檻不可為負數。");
+            throw new AdminValidationException("免運門檻不可為負數。", "freeShippingThreshold");
         }
 
         if (request.LowStockThreshold is < 0 or > 100000)
         {
-            throw new AdminValidationException("低庫存門檻必須介於 0 與 100000 之間。");
+            throw new AdminValidationException("低庫存門檻必須介於 0 與 100000 之間。", "lowStockThreshold");
         }
 
         if (request.PendingTimeoutMinutes is < 5 or > 1440)
         {
-            throw new AdminValidationException("待付款保留時間必須介於 5 與 1440 分鐘之間。");
+            throw new AdminValidationException("待付款保留時間必須介於 5 與 1440 分鐘之間。", "pendingTimeoutMinutes");
         }
 
         var regions = (request.ExcludedRegions ?? []).Select(r => r?.Trim() ?? "").Where(r => r.Length > 0).Distinct().ToList();
         if (regions.Count > 60 || regions.Any(r => r.Length > 32))
         {
-            throw new AdminValidationException("不配送地區最多 60 個，每個名稱不可超過 32 個字。");
+            throw new AdminValidationException("不配送地區最多 60 個，每個名稱不可超過 32 個字。", "excludedRegions");
         }
 
         var map = await texts.LoadAsync(scope.ClubId, AllKeys, cancellationToken);
@@ -69,19 +69,19 @@ public sealed class AdminShopSettingsRepository(ClubDbContext db, ClubTextSettin
         texts.SetValue(map, scope.ClubId, ShopSettingKeys.ExcludedRegions, g, regions.Count == 0 ? null : JsonSerializer.Serialize(regions), op);
         texts.SetValue(map, scope.ClubId, ShopSettingKeys.LowStockThreshold, g, request.LowStockThreshold?.ToString(CultureInfo.InvariantCulture), op);
         texts.SetValue(map, scope.ClubId, ShopSettingKeys.PendingTimeoutMinutes, g, request.PendingTimeoutMinutes?.ToString(CultureInfo.InvariantCulture), op);
-        SetText(map, scope, ShopSettingKeys.EntryTitle, request.EntryTitle, "商店入口標題", 200);
-        SetText(map, scope, ShopSettingKeys.EntryIntro, request.EntryIntro, "商店入口說明", 5000);
-        SetText(map, scope, ShopSettingKeys.PolicyNotice, request.PolicyNotice, "購物須知", 20000);
-        SetText(map, scope, ShopSettingKeys.PolicyShipping, request.PolicyShipping, "運送說明", 20000);
-        SetText(map, scope, ShopSettingKeys.PolicyReturns, request.PolicyReturns, "退換貨政策", 20000);
-        SetText(map, scope, ShopSettingKeys.PolicyTerms, request.PolicyTerms, "交易條款", 20000);
+        SetText(map, scope, ShopSettingKeys.EntryTitle, request.EntryTitle, "商店入口標題", 200, "entryTitle");
+        SetText(map, scope, ShopSettingKeys.EntryIntro, request.EntryIntro, "商店入口說明", 5000, "entryIntro");
+        SetText(map, scope, ShopSettingKeys.PolicyNotice, request.PolicyNotice, "購物須知", 20000, "notice");
+        SetText(map, scope, ShopSettingKeys.PolicyShipping, request.PolicyShipping, "運送說明", 20000, "shipping");
+        SetText(map, scope, ShopSettingKeys.PolicyReturns, request.PolicyReturns, "退換貨政策", 20000, "returns");
+        SetText(map, scope, ShopSettingKeys.PolicyTerms, request.PolicyTerms, "交易條款", 20000, "terms");
         await db.SaveChangesAsync(cancellationToken);
         return Build(map, await CollectingSubjectAsync(cancellationToken));
     }
 
-    private void SetText(Dictionary<string, Data.EfEntities.Setting> map, AdminClubScope scope, string key, AdminShopBilingualText? value, string label, int max)
-        => texts.SetText(map, scope.ClubId, key, ShopSettingKeys.Group, AdminInput.OptionalText(value?.Zh, $"中文{label}", max),
-            AdminInput.OptionalText(value?.En, $"英文{label}", max), scope.Identity.AdminUserId);
+    private void SetText(Dictionary<string, Data.EfEntities.Setting> map, AdminClubScope scope, string key, AdminShopBilingualText? value, string label, int max, string field)
+        => texts.SetText(map, scope.ClubId, key, ShopSettingKeys.Group, AdminInput.OptionalText(value?.Zh, $"中文{label}", max, field + "Zh"),
+            AdminInput.OptionalText(value?.En, $"英文{label}", max, field + "En"), scope.Identity.AdminUserId);
 
     private static AdminShopSettingsDto Build(IReadOnlyDictionary<string, Data.EfEntities.Setting> map, AdminCollectingSubjectDto subject)
     {

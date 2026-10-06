@@ -4,6 +4,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
@@ -35,21 +38,29 @@ onMounted(load)
 const visible = ref(false)
 const editing = ref<DeepLinkDto | null>(null)
 const saving = ref(false)
+/** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const form = reactive({ code: '', appLink: 'tcrfc://', webUrl: '', requiresLogin: false, isActive: true, labelZh: '', labelEn: '' })
 function openDialog(row: DeepLinkDto | null) {
   editing.value = row
   formError.value = null
+  formErrors.clearAll()
   Object.assign(form, { code: row?.code ?? '', appLink: row?.appLink ?? 'tcrfc://', webUrl: row?.webUrl ?? '', requiresLogin: row?.requiresLogin ?? false, isActive: row?.isActive ?? true, labelZh: row?.labelZh ?? '', labelEn: row?.labelEn ?? '' })
   visible.value = true
 }
 async function save() {
   if (!canUpdate.value) return
-  if (!/^[a-z0-9]+(_[a-z0-9]+)*$/.test(form.code.trim())) return void (formError.value = '識別名稱請用小寫英數字與底線，不可留空')
-  if (!form.appLink.trim().startsWith('tcrfc://')) return void (formError.value = 'App 內頁面連結格式不正確，請向 App 工程團隊確認')
-  if (!form.labelZh.trim()) return void (formError.value = '請輸入中文名稱')
-  saving.value = true
   formError.value = null
+  const errors: Record<string, string> = {}
+  if (!/^[a-z0-9]+(_[a-z0-9]+)*$/.test(form.code.trim())) errors.code = '識別名稱請用小寫英數字與底線，不可留空'
+  if (!form.appLink.trim().startsWith('tcrfc://')) errors.appLink = 'App 內頁面連結格式不正確，請向 App 工程團隊確認'
+  if (!form.labelZh.trim()) errors.labelZh = '請輸入中文名稱'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   const body = {
     code: form.code.trim(), appLink: form.appLink.trim(), webUrl: nullIfBlank(form.webUrl), requiresLogin: form.requiresLogin, isActive: form.isActive,
     label: { zh: form.labelZh.trim(), en: form.labelEn.trim() || undefined },
@@ -61,6 +72,7 @@ async function save() {
     visible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = errText(e, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -121,15 +133,17 @@ async function remove(row: DeepLinkDto) {
       </template>
     </el-card>
 
-    <el-dialog v-model="visible" :title="editing ? '編輯連結' : '新增連結'" width="560px" :fullscreen="isMobile" :close-on-click-modal="false">
+    <el-dialog v-model="visible" :title="editing ? '編輯連結' : '新增連結'" width="560px" :fullscreen="isMobile" :close-on-click-modal="false" destroy-on-close>
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="dl__block" />
       <el-form label-position="top">
-        <BilingualShortField v-model:zh="form.labelZh" v-model:en="form.labelEn" label="名稱" required />
-        <el-form-item label="識別名稱（不能重複，由 App 工程團隊提供）" required><el-input v-model="form.code" placeholder="請向 App 工程團隊確認" /></el-form-item>
-        <el-form-item label="App 內頁面連結（由 App 工程團隊提供）" required><el-input v-model="form.appLink" /></el-form-item>
-        <el-form-item label="沒有安裝 App 時改開的網頁（選填）"><el-input v-model="form.webUrl" placeholder="不需要時留空即可，如需設定請向網站工程團隊確認" /></el-form-item>
-        <el-form-item label="進入前需要登入"><el-switch v-model="form.requiresLogin" /></el-form-item>
-        <el-form-item label="啟用"><el-switch v-model="form.isActive" /></el-form-item>
+        <LangTabsBar variant="bare">
+          <BilingualShortField v-model:zh="form.labelZh" v-model:en="form.labelEn" field="label" label="名稱" required />
+          <FormField field="code" label="識別名稱（不能重複，由 App 工程團隊提供）" required><el-input v-model="form.code" placeholder="請向 App 工程團隊確認" /></FormField>
+          <FormField field="appLink" label="App 內頁面連結（由 App 工程團隊提供）" required><el-input v-model="form.appLink" /></FormField>
+          <FormField field="webUrl" label="沒有安裝 App 時改開的網頁（選填）"><el-input v-model="form.webUrl" placeholder="不需要時留空即可，如需設定請向網站工程團隊確認" /></FormField>
+          <el-form-item label="進入前需要登入"><el-switch v-model="form.requiresLogin" /></el-form-item>
+          <el-form-item label="啟用"><el-switch v-model="form.isActive" /></el-form-item>
+        </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="visible = false">取消</el-button>

@@ -46,12 +46,12 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext)
     public async Task<AdminRedirectDto> CreateAsync(
         AdminClubScope scope, CreateRedirectRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        RedirectPathPolicy.Validate(request.FromPath, "來源網址");
-        RedirectPathPolicy.Validate(request.ToPath, "目的網址");
+        RedirectPathPolicy.Validate(request.FromPath, "來源網址", "fromPath");
+        RedirectPathPolicy.Validate(request.ToPath, "目的網址", "toPath");
 
         if (string.Equals(request.FromPath, request.ToPath, StringComparison.Ordinal))
         {
-            throw new AdminSeoValidationException("來源網址與目的網址不能相同，那不是一筆有意義的轉址。");
+            throw new AdminSeoValidationException("來源網址與目的網址不能相同，那不是一筆有意義的轉址。", "toPath");
         }
 
         if (await dbContext.Redirects.AsNoTracking()
@@ -83,7 +83,7 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext)
     public async Task<AdminRedirectDto?> UpdateAsync(
         AdminClubScope scope, Guid id, UpdateRedirectRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        RedirectPathPolicy.Validate(request.ToPath, "目的網址");
+        RedirectPathPolicy.Validate(request.ToPath, "目的網址", "toPath");
 
         var redirect = await dbContext.Redirects.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
         if (redirect is null || redirect.ClubId != scope.ClubId)
@@ -93,7 +93,7 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext)
 
         if (string.Equals(redirect.FromPath, request.ToPath, StringComparison.Ordinal))
         {
-            throw new AdminSeoValidationException("來源網址與目的網址不能相同，那不是一筆有意義的轉址。");
+            throw new AdminSeoValidationException("來源網址與目的網址不能相同，那不是一筆有意義的轉址。", "toPath");
         }
 
         redirect.ToPath = request.ToPath;

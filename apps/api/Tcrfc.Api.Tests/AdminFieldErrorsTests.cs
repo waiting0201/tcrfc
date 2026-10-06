@@ -282,4 +282,78 @@ public sealed class AdminFieldErrorsTests(AdminWriteApiFixture fixture)
         var bare = Assert.Throws<AdminValidationException>(() => AdminInput.RequireText("", "名稱", 10));
         Assert.Empty(bare.FieldErrors);
     }
+    // ───────────────────────────── 第 3 階段：其餘模組的補鍵（代表性端點） ─────────────────────────────
+
+    [Fact]
+    public async Task 球隊_完全空的multipart_回400不是500()
+    {
+        using var client = await ClientAsync("team.manager@tcrfc.test");
+        var content = new MultipartFormDataContent("emptyboundary");
+        content.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data; boundary=emptyboundary");
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/admin/tcrfc/teams") { Content = new ByteArrayContent([]) };
+        request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse("multipart/form-data; boundary=emptyboundary");
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Null((await ReadAsync(response)).Errors);
+    }
+
+    [Fact]
+    public async Task 角色_代碼格式錯誤與範圍錯誤_各自標到欄位()
+    {
+        using var client = await ClientAsync("super.admin@tcrfc.test");
+        var badCode = await client.PostAsJsonAsync("/api/v1/admin/roles",
+            new { code = "Bad Code", nameZh = "測試", scopeMode = "own_clubs" });
+        Assert.Equal(HttpStatusCode.BadRequest, badCode.StatusCode);
+        Assert.Equal(["code"], (await ReadAsync(badCode)).Errors!.Keys);
+
+        var badScope = await client.PostAsJsonAsync("/api/v1/admin/roles",
+            new { code = $"fe_{Guid.NewGuid():N}"[..20], nameZh = "測試", scopeMode = "nope" });
+        var (_, errors) = await ReadAsync(badScope);
+        Assert.Equal(["scopeMode"], errors!.Keys);
+        Assert.DoesNotContain("all_clubs", errors["scopeMode"]); // 不顯示英文列舉值
+    }
+
+    [Fact]
+    public async Task 帳號_密碼過短_標到initialPassword()
+    {
+        using var client = await ClientAsync("super.admin@tcrfc.test");
+        var response = await client.PostAsJsonAsync("/api/v1/admin/accounts",
+            new { username = $"fe-{Guid.NewGuid():N}"[..12], displayName = "測試", initialPassword = "short" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(["initialPassword"], (await ReadAsync(response)).Errors!.Keys);
+    }
+
+    [Fact]
+    public async Task 俱樂部_代碼空白與重複網域_標到對應欄位()
+    {
+        using var client = await ClientAsync("super.admin@tcrfc.test");
+        var blank = await client.PostAsJsonAsync("/api/v1/admin/clubs",
+            new { code = "", domain = "x.example", content = new { zh = new { name = "測試" } } });
+        Assert.Equal(["code"], (await ReadAsync(blank)).Errors!.Keys);
+
+        var noName = await client.PostAsJsonAsync("/api/v1/admin/clubs",
+            new { code = "feabc", domain = "x.example", content = new { zh = new { name = " " } } });
+        Assert.Equal(["nameZh"], (await ReadAsync(noName)).Errors!.Keys);
+    }
+
+    [Fact]
+    public async Task 常見問題分類_網址名稱格式錯誤_標到slug()
+    {
+        using var client = await ClientAsync("super.admin@tcrfc.test");
+        var response = await client.PostAsJsonAsync("/api/v1/admin/faq-categories",
+            new { slug = "Bad Slug", sortOrder = 0, content = new { zh = new { name = "測試" } } });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(["slug"], (await ReadAsync(response)).Errors!.Keys);
+    }
+
+    [Fact]
+    public void 欄位鍵_區塊內路徑符合格式()
+    {
+        Assert.True(FieldKey.IsValid(FieldKey.Item("blocks", 2, "items[0].questionZh")));
+        Assert.True(FieldKey.IsValid(FieldKey.Item("winners", 0, "prizeName")));
+        Assert.True(FieldKey.IsValid("items[1].children[0].labelZh"));
+    }
 }

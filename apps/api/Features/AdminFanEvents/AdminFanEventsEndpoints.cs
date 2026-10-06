@@ -48,7 +48,7 @@ public static class AdminFanEventsEndpoints
             var (request, form) = await AdminMultipartForm.ReadAsync<UpsertAdminFanEventRequest>(httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
             if (request.RemoveCover)
             {
-                throw new AdminValidationException("新增活動時不能選擇移除封面。");
+                throw new AdminValidationException("新增活動時不能選擇移除封面。", "cover");
             }
 
             var id = Guid.NewGuid();

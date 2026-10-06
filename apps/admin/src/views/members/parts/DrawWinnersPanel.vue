@@ -9,6 +9,8 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useViewUpdatePermissions, usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -72,7 +74,11 @@ interface Entry {
 let keySeed = 0
 const open = ref(false)
 const saving = ref(false)
+/** 對話框頂部提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+/** 「一次貼上多筆」摺疊區；定位到貼上欄位的錯誤時要先打開。 */
+const pasteOpen = ref<string[]>([])
 const entries = ref<Entry[]>([])
 const reason = ref('')
 const pasteText = ref('')
@@ -85,6 +91,7 @@ function openDialog(preset?: Partial<Entry>) {
   reason.value = ''
   pasteText.value = ''
   formError.value = null
+  formErrors.clearAll()
   open.value = true
 }
 /** 每行一筆：序號、獎項（以逗號、Tab 或空白分隔），行尾多一個「備取」就是備取。 */
@@ -96,31 +103,49 @@ function importPaste() {
     const parts = text.split(/[,\t，\s]+/).filter(Boolean)
     const serial = Number(parts[0])
     if (!Number.isInteger(serial) || serial < 1) {
-      formError.value = `無法辨識這一行：「${text}」，第一欄必須是序號`
+      formErrors.replaceAll({ paste: `無法辨識這一行：「${text}」，第一欄必須是序號` })
+      void formErrors.focusFirst()
       return
     }
     const isBackup = parts[parts.length - 1] === '備取' && parts.length > 1
     const prize = (isBackup ? parts.slice(1, -1) : parts.slice(1)).join(' ')
     parsed.push(newEntry({ serialNo: serial, prizeName: prize, isBackup }))
   }
-  if (parsed.length === 0) return (formError.value = '沒有可匯入的內容')
-  formError.value = null
+  if (parsed.length === 0) {
+    formErrors.replaceAll({ paste: '沒有可匯入的內容' })
+    void formErrors.focusFirst()
+    return
+  }
+  formErrors.clearAll()
   entries.value = parsed
   pasteText.value = ''
 }
-async function save() {
-  formError.value = null
+/** 一次檢查全部；清單屬於同一個群組欄位（winners），只標第一則，原因另標在 reason。 */
+function validateWinners(): Record<string, string> {
+  const errors: Record<string, string> = {}
   const list = entries.value
-  if (list.length === 0 || list.length > 200) return (formError.value = '一次回填 1 到 200 筆')
+  if (list.length === 0 || list.length > 200) errors.winners = '一次回填 1 到 200 筆'
   const serials = new Set<number>()
   for (const e of list) {
-    if (e.serialNo === null || !Number.isInteger(e.serialNo) || e.serialNo < 1) return (formError.value = '每一筆都要填寫抽獎序號')
-    if (serials.has(e.serialNo)) return (formError.value = `序號 ${e.serialNo} 重複了`)
-    serials.add(e.serialNo)
-    if (!e.isBackup && !e.prizeName.trim()) return (formError.value = `序號 ${e.serialNo} 是中獎，必須填寫獎項`)
-    if (e.prizeName.trim().length > 128) return (formError.value = '獎項名稱最多 128 字')
+    if (errors.winners) break
+    if (e.serialNo === null || !Number.isInteger(e.serialNo) || e.serialNo < 1) errors.winners = '每一筆都要填寫抽獎序號'
+    else if (serials.has(e.serialNo)) errors.winners = `序號 ${e.serialNo} 重複了`
+    else {
+      serials.add(e.serialNo)
+      if (!e.isBackup && !e.prizeName.trim()) errors.winners = `序號 ${e.serialNo} 是中獎，必須填寫獎項`
+      else if (e.prizeName.trim().length > 128) errors.winners = '獎項名稱最多 128 字'
+    }
   }
-  if (needReason.value && !reason.value.trim()) return (formError.value = '名單已公布，修改必須填寫原因')
+  if (needReason.value && !reason.value.trim()) errors.reason = '名單已公布，修改必須填寫原因'
+  return errors
+}
+async function save() {
+  formError.value = null
+  if (formErrors.replaceAll(validateWinners())) {
+    await formErrors.focusFirst()
+    return
+  }
+  const list = entries.value
   saving.value = true
   try {
     await saveWinners(club.value, props.draw.id, {
@@ -132,6 +157,8 @@ async function save() {
     await load()
     emit('changed')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放對話框頂部
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = errorText(error, '回填失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -218,23 +245,27 @@ async function doRemove() {
     <el-dialog v-model="open" title="回填中獎人／備取" width="640px" :close-on-click-modal="false" class="winners__dialog">
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="winners__block" @close="formError = null" />
       <p class="winners__hint">序號必須存在於目前版本的名單；中獎必須填獎項，備取可以不填。「遞補」就是把備取的序號改成中獎並填獎項。</p>
-      <div class="winners__entries">
-        <div v-for="(e, i) in entries" :key="e.key" class="winners__entry">
-          <el-input-number v-model="e.serialNo" :min="1" :controls="false" placeholder="序號" class="winners__serial" />
-          <el-input v-model="e.prizeName" maxlength="128" placeholder="獎項名稱" class="winners__prize" />
-          <el-checkbox v-model="e.isBackup">備取</el-checkbox>
-          <el-button size="small" text type="danger" aria-label="移除這一筆" :disabled="entries.length === 1" @click="entries.splice(i, 1)"><el-icon><Delete /></el-icon></el-button>
+      <FormField field="winners" label="回填清單">
+        <div class="winners__entries">
+          <div v-for="(e, i) in entries" :key="e.key" class="winners__entry">
+            <el-input-number v-model="e.serialNo" :min="1" :controls="false" placeholder="序號" class="winners__serial" />
+            <el-input v-model="e.prizeName" maxlength="128" placeholder="獎項名稱" class="winners__prize" />
+            <el-checkbox v-model="e.isBackup">備取</el-checkbox>
+            <el-button size="small" text type="danger" aria-label="移除這一筆" :disabled="entries.length === 1" @click="entries.splice(i, 1)"><el-icon><Delete /></el-icon></el-button>
+          </div>
         </div>
-      </div>
-      <el-button size="small" :disabled="entries.length >= 200" @click="entries.push(newEntry())">+ 再加一筆</el-button>
-      <el-collapse class="winners__paste">
+      </FormField>
+      <el-button size="small" :disabled="entries.length >= 200" @click="entries.push(newEntry()); formErrors.clear('winners')">+ 再加一筆</el-button>
+      <el-collapse v-model="pasteOpen" class="winners__paste">
         <el-collapse-item title="一次貼上多筆" name="paste">
           <p class="winners__hint">每行一筆：序號、獎項（用逗號、Tab 或空白隔開），行尾加「備取」就是備取。貼上後按「帶入清單」會取代上面的清單。</p>
-          <el-input v-model="pasteText" type="textarea" :rows="5" placeholder="例如：&#10;12 球衣一件&#10;305,簽名球&#10;88 備取" />
+          <FormField field="paste" label="貼上內容" :reveal="() => { pasteOpen = ['paste'] }">
+            <el-input v-model="pasteText" type="textarea" :rows="5" placeholder="例如：&#10;12 球衣一件&#10;305,簽名球&#10;88 備取" />
+          </FormField>
           <el-button size="small" class="winners__import" @click="importPaste">帶入清單</el-button>
         </el-collapse-item>
       </el-collapse>
-      <el-form v-if="needReason" label-position="top" class="winners__reason"><el-form-item label="修改原因（名單已公布，必填）" required><el-input v-model="reason" maxlength="200" show-word-limit /></el-form-item></el-form>
+      <el-form v-if="needReason" label-position="top" class="winners__reason"><FormField field="reason" label="修改原因（名單已公布，必填）" required><el-input v-model="reason" maxlength="200" show-word-limit /></FormField></el-form>
       <template #footer>
         <el-button @click="open = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="save">儲存回填</el-button>

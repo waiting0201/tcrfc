@@ -103,7 +103,7 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
             || await db.MembershipPayments.AsNoTracking().AnyAsync(p => p.MembershipPlanId == id, cancellationToken);
         if (inUse && season.Id != plan.SeasonId)
         {
-            throw new AdminValidationException("已經有會員使用這個方案，不能更換球季。請新增一個新球季的方案。");
+            throw new AdminValidationException("已經有會員使用這個方案，不能更換球季。請新增一個新球季的方案。", "seasonId");
         }
 
         if (v.Code != plan.Code || season.Id != plan.SeasonId)
@@ -179,34 +179,34 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
 
     private static Validated Validate(UpsertAdminPlanRequest request)
     {
-        var code = AdminInput.RequireText(request.Code, "方案代碼", 32);
+        var code = AdminInput.RequireText(request.Code, "方案代碼", 32, "code");
         if (!CodeFormat.IsMatch(code))
         {
-            throw new AdminValidationException("方案代碼只能使用小寫英文字母、數字與連字號（-），開頭與結尾不能是連字號。");
+            throw new AdminValidationException("方案代碼只能使用小寫英文字母、數字與連字號（-），開頭與結尾不能是連字號。", "code");
         }
 
         if (request.Fee < 0)
         {
-            throw new AdminValidationException("費用不可為負數。");
+            throw new AdminValidationException("費用不可為負數。", "fee");
         }
 
         if (request.CardQuota is < 1 or > 10)
         {
-            throw new AdminValidationException("發卡數請填 1 到 10。");
+            throw new AdminValidationException("發卡數請填 1 到 10。", "cardQuota");
         }
 
         if (request.JerseyQuota is < 0 or > 10)
         {
-            throw new AdminValidationException("含球衣件數請填 0 到 10。");
+            throw new AdminValidationException("含球衣件數請填 0 到 10。", "jerseyQuota");
         }
 
-        AdminInput.OptionalText(request.MidSeasonRule, "季中入會計價規則", 255);
-        AdminInput.DateRange(request.StartsOn, request.EndsOn, "方案期間");
-        AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」");
-        AdminInput.RequireText(request.Content.Zh.Name, "中文方案名稱", 64);
+        AdminInput.OptionalText(request.MidSeasonRule, "季中入會計價規則", 255, "midSeasonRule");
+        AdminInput.DateRange(request.StartsOn, request.EndsOn, "方案期間", "endsOn");
+        AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」", "status");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文方案名稱", 64, "nameZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文方案名稱", 64);
+            AdminInput.RequireText(request.Content.En.Name, "英文方案名稱", 64, "nameEn");
         }
 
         return new Validated(code);
@@ -217,7 +217,7 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         plan.Fee = request.Fee;
         plan.CardQuota = request.CardQuota;
         plan.JerseyQuota = request.JerseyQuota;
-        plan.MidSeasonRule = AdminInput.OptionalText(request.MidSeasonRule, "季中入會計價規則", 255);
+        plan.MidSeasonRule = AdminInput.OptionalText(request.MidSeasonRule, "季中入會計價規則", 255, "midSeasonRule");
         plan.StartsOn = request.StartsOn;
         plan.EndsOn = request.EndsOn;
         plan.SortOrder = request.SortOrder;
@@ -254,14 +254,14 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
 
     private async Task<Season> ResolveSeasonAsync(AdminClubScope scope, Guid seasonId, CancellationToken cancellationToken)
         => await db.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.Id == seasonId && s.ClubId == scope.ClubId, cancellationToken)
-           ?? throw new AdminValidationException("找不到指定的球季，請確認球季屬於目前的俱樂部。");
+           ?? throw new AdminValidationException("找不到指定的球季，請確認球季屬於目前的俱樂部。", "seasonId");
 
     private async Task EnsureCodeFreeAsync(AdminClubScope scope, Guid seasonId, string code, Guid? exceptId, CancellationToken cancellationToken)
     {
         if (await db.MembershipPlans.AsNoTracking().AnyAsync(
                 p => p.ClubId == scope.ClubId && p.SeasonId == seasonId && p.Code == code && p.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("方案代碼重複", $"這個球季已經有代碼為「{code}」的方案了，請換一個代碼。");
+            throw new AdminConflictException("方案代碼重複", $"這個球季已經有代碼為「{code}」的方案了，請換一個代碼。", "code");
         }
     }
 

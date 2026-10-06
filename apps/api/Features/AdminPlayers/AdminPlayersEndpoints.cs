@@ -112,7 +112,7 @@ public static class AdminPlayersEndpoints
 
             if (file is not null && request.RemovePhoto)
             {
-                throw new AdminPlayerValidationException("不能同時上傳新的照片與移除照片，請擇一。");
+                throw new AdminPlayerValidationException("不能同時上傳新的照片與移除照片，請擇一。", "photo");
             }
 
             string? uploadedKey = null;

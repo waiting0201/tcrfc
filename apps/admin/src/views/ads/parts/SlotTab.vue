@@ -4,11 +4,14 @@
  * 🔴 版位永遠不空白：沒有可投放的檔期時，改顯示自家的備援素材。
  * 🔴 兒童向畫面（課程列表、課程報名表、我的報名）不設版位；不設慈善相關版位，送出時後端會擋。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
@@ -50,9 +53,12 @@ const specText = (s: AdSlotDto) => {
 const visible = ref(false)
 const editing = ref<AdSlotDto | null>(null)
 const saving = ref(false)
+/** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const image = ref<File | null>(null)
 const removeImage = ref(false)
+watch([image, removeImage], () => formErrors.clear('fallbackImage'))
 const form = reactive({
   slotCode: '', nameZh: '', nameEn: '', screenCode: '', blockOrder: null as number | null, aspectRatio: '16:9',
   minWidth: null as number | null, minHeight: null as number | null, maxFileKb: null as number | null, allowedFormats: '',
@@ -62,6 +68,7 @@ const form = reactive({
 function openDialog(row: AdSlotDto | null) {
   editing.value = row
   formError.value = null
+  formErrors.clearAll()
   image.value = null
   removeImage.value = false
   Object.assign(form, {
@@ -76,24 +83,17 @@ function openDialog(row: AdSlotDto | null) {
 const readOnly = computed(() => (editing.value ? !canUpdate.value : !canCreate.value))
 async function save() {
   if (readOnly.value) return
-  if (!editing.value && !/^[a-z0-9]+(_[a-z0-9]+)+$/.test(form.slotCode.trim())) {
-    formError.value = '版位代號只能使用小寫英文字母、數字與底線，且不可留空（建立後不能修改）'
-    return
-  }
-  if (!form.nameZh.trim()) {
-    formError.value = '請輸入版位的中文名稱'
-    return
-  }
-  if (form.aspectRatio.trim() && !/^\d+:\d+$/.test(form.aspectRatio.trim())) {
-    formError.value = '長寬比請用「寬:高」的寫法，例如 16:9'
-    return
-  }
-  if (!Number.isInteger(form.rotationCap) || form.rotationCap < 1 || form.rotationCap > 10) {
-    formError.value = '輪播張數上限請填 1 到 10'
+  formError.value = null
+  const errors: Record<string, string> = {}
+  if (!editing.value && !/^[a-z0-9]+(_[a-z0-9]+)+$/.test(form.slotCode.trim())) errors.slotCode = '版位代號只能使用小寫英文字母、數字與底線，且不可留空（建立後不能修改）'
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入版位的中文名稱'
+  if (form.aspectRatio.trim() && !/^\d+:\d+$/.test(form.aspectRatio.trim())) errors.aspectRatio = '長寬比請用「寬:高」的寫法，例如 16:9'
+  if (!Number.isInteger(form.rotationCap) || form.rotationCap < 1 || form.rotationCap > 10) errors.rotationCap = '輪播張數上限請填 1 到 10'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
     return
   }
   saving.value = true
-  formError.value = null
   const altZh = nullIfBlank(form.fallbackAltZh)
   const altEn = nullIfBlank(form.fallbackAltEn)
   const payload: SaveAdSlotPayload = {
@@ -123,6 +123,7 @@ async function save() {
     visible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = errText(e, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -189,36 +190,37 @@ async function remove(row: AdSlotDto) {
       </template>
     </el-card>
 
-    <el-dialog v-model="visible" :title="editing ? '編輯版位' : '新增版位'" width="720px" :fullscreen="isMobile" :close-on-click-modal="false">
+    <el-dialog v-model="visible" :title="editing ? '編輯版位' : '新增版位'" width="720px" :fullscreen="isMobile" :close-on-click-modal="false" destroy-on-close>
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="slot__block" />
       <el-alert v-if="readOnly" type="info" show-icon :closable="false" title="你的帳號只有檢視權限" class="slot__block" />
       <el-form label-position="top" :disabled="readOnly">
-        <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="版位代號（建立後不能修改）" required><el-input v-model="form.slotCode" :disabled="!!editing" placeholder="小寫英文字母、數字與底線" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="狀態"><el-switch v-model="form.isActive" active-text="啟用" inactive-text="停用" /></el-form-item></el-col>
-        </el-row>
-        <BilingualShortField v-model:zh="form.nameZh" v-model:en="form.nameEn" label="版位名稱" required />
-        <el-row :gutter="12">
-          <el-col :xs="24" :sm="8"><el-form-item label="所在畫面（選填）"><el-input v-model="form.screenCode" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="在畫面中的順序"><el-input-number v-model="form.blockOrder" :min="0" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="圖片長寬比"><el-input v-model="form.aspectRatio" placeholder="例如 16:9" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="圖片最小寬度（像素）"><el-input-number v-model="form.minWidth" :min="1" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="圖片最小高度（像素）"><el-input-number v-model="form.minHeight" :min="1" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="檔案大小上限（KB）"><el-input-number v-model="form.maxFileKb" :min="1" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="允許的檔案格式"><el-input v-model="form.allowedFormats" placeholder="例如 jpg,png,webp" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="同時輪播張數上限（1–10）"><el-input-number v-model="form.rotationCap" :min="1" :max="10" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="每次開啟 App 的曝光上限"><el-input-number v-model="form.sessionImpressionCap" :min="1" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24"><el-form-item label="允許放影片"><el-switch v-model="form.allowVideo" /></el-form-item></el-col>
-        </el-row>
-        <el-divider>備援素材（沒有可投放的廣告時顯示，不計入曝光）</el-divider>
-        <el-form-item label="備援圖片">
-          <ImageUploader v-model:file="image" v-model:remove-cover="removeImage" :has-existing-image="!!editing?.fallbackImageKey" :existing-preview-url="editing?.fallbackImageThumbUrl ?? editing?.fallbackImageUrl ?? null" :min-width="form.minWidth ?? 1" :min-height="form.minHeight ?? 1" :disabled="readOnly || saving" />
-        </el-form-item>
-        <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="備援圖片替代文字（中文）"><el-input v-model="form.fallbackAltZh" maxlength="200" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="備援圖片替代文字（英文）"><el-input v-model="form.fallbackAltEn" maxlength="200" /></el-form-item></el-col>
-          <el-col :xs="24"><el-form-item label="備援素材點擊後前往（選填）"><el-input v-model="form.fallbackLink" placeholder="網址（https:// 開頭）或 App 內頁面連結" /></el-form-item></el-col>
-        </el-row>
+        <LangTabsBar variant="bare">
+          <el-row :gutter="12">
+            <el-col :xs="24" :sm="12"><FormField field="slotCode" label="版位代號（建立後不能修改）" required><el-input v-model="form.slotCode" :disabled="!!editing" placeholder="小寫英文字母、數字與底線" /></FormField></el-col>
+            <el-col :xs="24" :sm="12"><el-form-item label="狀態"><el-switch v-model="form.isActive" active-text="啟用" inactive-text="停用" /></el-form-item></el-col>
+          </el-row>
+          <BilingualShortField v-model:zh="form.nameZh" v-model:en="form.nameEn" field="name" label="版位名稱" required />
+          <el-row :gutter="12">
+            <el-col :xs="24" :sm="8"><FormField field="screenCode" label="所在畫面（選填）"><el-input v-model="form.screenCode" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><el-form-item label="在畫面中的順序"><el-input-number v-model="form.blockOrder" :min="0" controls-position="right" style="width: 100%" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="aspectRatio" label="圖片長寬比"><el-input v-model="form.aspectRatio" placeholder="例如 16:9" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="minWidth" label="圖片最小寬度（像素）"><el-input-number v-model="form.minWidth" :min="1" controls-position="right" style="width: 100%" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="minHeight" label="圖片最小高度（像素）"><el-input-number v-model="form.minHeight" :min="1" controls-position="right" style="width: 100%" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="maxFileKb" label="檔案大小上限（KB）"><el-input-number v-model="form.maxFileKb" :min="1" controls-position="right" style="width: 100%" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><el-form-item label="允許的檔案格式"><el-input v-model="form.allowedFormats" placeholder="例如 jpg,png,webp" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="rotationCap" label="同時輪播張數上限（1–10）"><el-input-number v-model="form.rotationCap" :min="1" :max="10" controls-position="right" style="width: 100%" @change="formErrors.clear('rotationCap')" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><el-form-item label="每次開啟 App 的曝光上限"><el-input-number v-model="form.sessionImpressionCap" :min="1" controls-position="right" style="width: 100%" /></el-form-item></el-col>
+            <el-col :xs="24"><el-form-item label="允許放影片"><el-switch v-model="form.allowVideo" /></el-form-item></el-col>
+          </el-row>
+          <el-divider>備援素材（沒有可投放的廣告時顯示，不計入曝光）</el-divider>
+          <FormField field="fallbackImage" label="備援圖片">
+            <ImageUploader v-model:file="image" v-model:remove-cover="removeImage" :has-existing-image="!!editing?.fallbackImageKey" :existing-preview-url="editing?.fallbackImageThumbUrl ?? editing?.fallbackImageUrl ?? null" :min-width="form.minWidth ?? 1" :min-height="form.minHeight ?? 1" :disabled="readOnly || saving" />
+          </FormField>
+          <BilingualShortField v-model:zh="form.fallbackAltZh" v-model:en="form.fallbackAltEn" field="fallbackAlt" label="備援圖片替代文字" :maxlength="200" />
+          <el-row :gutter="12">
+            <el-col :xs="24"><FormField field="fallbackLink" label="備援素材點擊後前往（選填）"><el-input v-model="form.fallbackLink" placeholder="網址（https:// 開頭）或 App 內頁面連結" /></FormField></el-col>
+          </el-row>
+        </LangTabsBar>
       </el-form>
       <p class="slot__hint">兒童向的畫面（課程列表、課程報名表、我的報名）不能設廣告版位，也不設慈善相關版位；違反時儲存會被系統擋下。</p>
       <template #footer>

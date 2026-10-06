@@ -177,13 +177,13 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
     private static string? Validate(UpsertAdminCharityOrgRequest request)
     {
         var slug = string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
-        AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網連結");
-        AdminInput.OptionalText(request.ContactName, "聯絡窗口姓名", 64);
-        AdminInput.OptionalText(request.ContactPhone, "聯絡窗口電話", 32);
-        AdminInput.RequireText(request.Content.Zh.Name, "中文團體名稱", 128);
+        AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網連結", 500, "websiteUrl");
+        AdminInput.OptionalText(request.ContactName, "聯絡窗口姓名", 64, "contactName");
+        AdminInput.OptionalText(request.ContactPhone, "聯絡窗口電話", 32, "contactPhone");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文團體名稱", 128, "nameZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文團體名稱", 128);
+            AdminInput.RequireText(request.Content.En.Name, "英文團體名稱", 128, "nameEn");
         }
 
         return slug;
@@ -191,9 +191,9 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
 
     private static void Apply(Charity charity, UpsertAdminCharityOrgRequest request)
     {
-        charity.WebsiteUrl = AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網連結");
-        charity.ContactName = AdminInput.OptionalText(request.ContactName, "聯絡窗口姓名", 64);
-        charity.ContactPhone = AdminInput.OptionalText(request.ContactPhone, "聯絡窗口電話", 32);
+        charity.WebsiteUrl = AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網連結", 500, "websiteUrl");
+        charity.ContactName = AdminInput.OptionalText(request.ContactName, "聯絡窗口姓名", 64, "contactName");
+        charity.ContactPhone = AdminInput.OptionalText(request.ContactPhone, "聯絡窗口電話", 32, "contactPhone");
     }
 
     private void SetI18n(Charity charity, AdminCharityOrgContentInput content)
@@ -228,7 +228,7 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
     {
         if (await dbContext.Charities.AsNoTracking().AnyAsync(c => c.ClubId == scope.ClubId && c.Slug == slug && c.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他公益團體使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他公益團體使用，請換一個。", "slug");
         }
     }
 }

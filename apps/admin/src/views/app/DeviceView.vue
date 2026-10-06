@@ -10,6 +10,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
@@ -26,6 +28,7 @@ const errText = (e: unknown, f: string) => (e instanceof AdminApiError ? e.messa
 // ── 統計 ──
 const stats = ref<DeviceStatsDto | null>(null)
 const statsError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const below = reactive({ platform: '', version: '' })
 const belowCount = ref<number | null>(null)
 async function loadStats() {
@@ -38,11 +41,18 @@ async function loadStats() {
   }
 }
 async function calcBelow() {
-  if (!below.platform || !/^\d+\.\d+\.\d+$/.test(below.version.trim())) return void ElMessage.warning('請選擇平台並填入「主.次.修」格式的版本號，例如 1.2.0')
+  const errors: Record<string, string> = {}
+  if (!below.platform) errors.belowPlatform = '請選擇平台'
+  if (!/^\d+\.\d+\.\d+$/.test(below.version.trim())) errors.belowVersion = '請填入「主.次.修」格式的版本號，例如 1.2.0'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
   try {
     const r = await getDeviceStats({ platform: below.platform, belowVersion: below.version.trim() })
     belowCount.value = r.devicesBelowVersion ?? 0
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     ElMessage.error(errText(e, '試算失敗，請稍後再試'))
   }
 }
@@ -171,8 +181,8 @@ const tokenTag = (s: string) => (s === 'valid' ? 'success' : s === 'invalid' ? '
               <div class="dev__below">
                 <div class="dev__muted">想設定「最低支援版本」前，先算算有多少裝置會被強制更新：</div>
                 <div class="dev__below-row">
-                  <el-select v-model="below.platform" placeholder="平台" class="dev__sel"><el-option label="iPhone（iOS）" value="ios" /><el-option label="Android" value="android" /></el-select>
-                  <el-input v-model="below.version" placeholder="版本，例如 1.2.0" class="dev__sel" />
+                  <FormField field="belowPlatform" class="dev__field"><el-select v-model="below.platform" placeholder="平台" class="dev__sel" @change="formErrors.clear('belowPlatform')"><el-option label="iPhone（iOS）" value="ios" /><el-option label="Android" value="android" /></el-select></FormField>
+                  <FormField field="belowVersion" class="dev__field"><el-input v-model="below.version" placeholder="版本，例如 1.2.0" class="dev__sel" /></FormField>
                   <el-button @click="calcBelow">試算</el-button>
                 </div>
                 <div v-if="belowCount !== null" class="dev__result">低於 {{ below.version }} 的 {{ below.platform === 'ios' ? 'iPhone' : 'Android' }} 裝置共 {{ belowCount.toLocaleString() }} 台</div>
@@ -252,7 +262,8 @@ const tokenTag = (s: string) => (s === 'valid' ? 'success' : s === 'invalid' ? '
 .dev__muted { font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 .dev__clean { margin-top: 8px; }
 .dev__below { margin-top: 14px; }
-.dev__below-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.dev__below-row { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; margin-top: 8px; }
+.dev__field { margin-bottom: 0; }
 .dev__result { margin-top: 8px; font-weight: 600; font-size: 13px; }
 .dev__pager { margin-top: 12px; justify-content: flex-end; }
 .dev__reveal { margin-top: 12px; }

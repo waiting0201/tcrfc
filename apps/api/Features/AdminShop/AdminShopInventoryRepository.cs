@@ -166,18 +166,18 @@ public sealed class AdminShopInventoryRepository(ClubDbContext db, InventoryServ
     public async Task<AdminInventoryMovementResultDto> CreateMovementAsync(
         AdminClubScope scope, CreateAdminInventoryMovementRequest request, CancellationToken cancellationToken)
     {
-        AdminInput.OneOf(request.Type, ManualTypes, "異動類型", "「進貨」「盤點」「報損」或「調整」");
-        var reason = AdminInput.OptionalText(request.Reason, "原因", 255);
+        AdminInput.OneOf(request.Type, ManualTypes, "異動類型", "「進貨」「盤點」「報損」或「調整」", "type");
+        var reason = AdminInput.OptionalText(request.Reason, "原因", 255, "reason");
         var (stockDelta, counted) = request.Type switch
         {
             "stock_in" => (Positive(request.Quantity, "進貨數量"), (int?)null),
             "damage" => (-Positive(request.Quantity, "報損數量"), null),
-            "adjust" => (request.Quantity != 0 ? request.Quantity : throw new AdminValidationException("調整數量不可為 0。"), null),
-            _ => (0, request.Quantity >= 0 ? request.Quantity : throw new AdminValidationException("盤點的庫存總數不可為負數。")),
+            "adjust" => (request.Quantity != 0 ? request.Quantity : throw new AdminValidationException("調整數量不可為 0。", "quantity"), null),
+            _ => (0, request.Quantity >= 0 ? request.Quantity : throw new AdminValidationException("盤點的庫存總數不可為負數。", "quantity")),
         };
         if (request.Type is "damage" or "adjust" && reason is null)
         {
-            throw new AdminValidationException("報損與調整必須填寫原因。");
+            throw new AdminValidationException("報損與調整必須填寫原因。", "reason");
         }
 
         if (request.Type == "stocktake")
@@ -204,7 +204,7 @@ public sealed class AdminShopInventoryRepository(ClubDbContext db, InventoryServ
         => await db.ProductsI18ns.AsNoTracking().Where(i => i.ProductId == productId && i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefaultAsync(cancellationToken);
 
     private static int Positive(int value, string label)
-        => value > 0 ? value : throw new AdminValidationException($"{label}必須是大於 0 的整數。");
+        => value > 0 ? value : throw new AdminValidationException($"{label}必須是大於 0 的整數。", "quantity");
 
     private static AdminInventoryItemDto ToItem(Data.EfEntities.ProductVariant v, string? productName, string productStatus, int defaultThreshold)
     {

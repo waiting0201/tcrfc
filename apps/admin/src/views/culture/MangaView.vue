@@ -13,6 +13,9 @@ import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { useClubFeatures } from '@/composables/useClubFeatures'
@@ -48,6 +51,9 @@ const readTab = (): Tab => (validTabs.includes(route.query.tab as Tab) ? (route.
 const tab = ref<Tab>(readTab())
 watch(tab, (t) => router.replace({ query: { tab: t } }))
 
+// 企劃介紹與角色對話框共用一份欄位錯誤（兩者欄位鍵不重疊；同一時間只會驗證其中一個）
+const formErrors = provideFormErrors()
+
 function errorText(error: unknown, fallback: string): string {
   return error instanceof AdminApiError ? error.message : fallback
 }
@@ -78,11 +84,23 @@ async function loadAbout() {
   }
 }
 
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validateAbout(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!about.titleZh.trim()) errors.titleZh = '請輸入中文標題'
+  else if (about.titleZh.trim().length > 200) errors.titleZh = '標題最多 200 字'
+  if (about.titleEn.trim().length > 200) errors.titleEn = '標題最多 200 字'
+  if (about.bodyZh.length > 20000) errors.bodyZh = '內文最多 20000 字'
+  if (about.bodyEn.length > 20000) errors.bodyEn = '內文最多 20000 字'
+  return errors
+}
+
 async function saveAbout() {
   aboutFormError.value = null
-  if (!about.titleZh.trim()) return (aboutFormError.value = '請輸入中文標題')
-  if (about.titleZh.trim().length > 200 || about.titleEn.trim().length > 200) return (aboutFormError.value = '標題最多 200 字')
-  if (about.bodyZh.length > 20000 || about.bodyEn.length > 20000) return (aboutFormError.value = '內文最多 20000 字')
+  if (formErrors.replaceAll(validateAbout())) {
+    await formErrors.focusFirst()
+    return
+  }
   aboutSaving.value = true
   try {
     const en = enOrUndefined({ title: about.titleEn.trim(), body: about.bodyEn }, 'title', 'body')
@@ -90,6 +108,7 @@ async function saveAbout() {
     aboutBaseline.value = JSON.stringify(about)
     ElMessage.success('已儲存')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     aboutFormError.value = errorText(error, '儲存失敗，請稍後再試')
   } finally {
     aboutSaving.value = false
@@ -146,9 +165,11 @@ const charFile = ref<File | null>(null)
 const charRemoveImage = ref(false)
 const charHasImage = ref(false)
 const charImageUrl = ref<string | null>(null)
+watch([charFile, charRemoveImage], () => formErrors.clear('image'))
 
 function openCharacter(c: MangaCharacterDto | null) {
   charFormError.value = null
+  formErrors.clearAll()
   Object.assign(charForm, {
     id: c?.id ?? null,
     playerId: c?.playerId ?? '',
@@ -162,10 +183,19 @@ function openCharacter(c: MangaCharacterDto | null) {
   charDialog.value = true
 }
 
+function validateCharacter(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!charForm.nameZh.trim()) errors.nameZh = '請輸入角色中文名稱'
+  else if (charForm.nameZh.trim().length > 64) errors.nameZh = '角色名稱最多 64 字'
+  return errors
+}
+
 async function saveCharacter() {
   charFormError.value = null
-  if (!charForm.nameZh.trim()) return (charFormError.value = '請輸入角色中文名稱')
-  if (charForm.nameZh.trim().length > 64) return (charFormError.value = '角色名稱最多 64 字')
+  if (formErrors.replaceAll(validateCharacter())) {
+    await formErrors.focusFirst()
+    return
+  }
   charSaving.value = true
   const payload = {
     playerId: charForm.playerId || null,
@@ -182,6 +212,8 @@ async function saveCharacter() {
     ElMessage.success('已儲存')
     await loadCharacters()
   } catch (error) {
+    // 送出失敗不關對話框；對得到欄位的標在欄位上
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     charFormError.value = errorText(error, '儲存失敗，請稍後再試')
   } finally {
     charSaving.value = false
@@ -271,15 +303,17 @@ watch(club, () => {
         <el-card v-else-if="aboutError" shadow="never">
           <el-empty :description="aboutError"><el-button type="primary" @click="loadAbout">重新載入</el-button></el-empty>
         </el-card>
-        <el-card v-else shadow="never" class="manga__about">
-          <p class="manga__hint">這是前台漫畫入口的「世界觀說明」頁。中文為必填，英文留空代表前台沒有英文版。</p>
-          <el-alert v-if="aboutFormError" :title="aboutFormError" type="warning" show-icon class="manga__block" @close="aboutFormError = null" />
-          <el-form label-position="top" :disabled="!canUpdate">
-            <BilingualShortField label="標題" :zh="about.titleZh" :en="about.titleEn" required @update:zh="(v) => (about.titleZh = v)" @update:en="(v) => (about.titleEn = v)" />
-            <BilingualTextareaField label="內文" :zh="about.bodyZh" :en="about.bodyEn" :rows="10" @update:zh="(v) => (about.bodyZh = v)" @update:en="(v) => (about.bodyEn = v)" />
-          </el-form>
-          <el-button v-if="canUpdate" type="primary" :loading="aboutSaving" :disabled="!aboutDirty" @click="saveAbout">儲存企劃介紹</el-button>
-        </el-card>
+        <LangTabsBar v-else>
+          <el-card shadow="never" class="manga__about">
+            <p class="manga__hint">這是前台漫畫入口的「世界觀說明」頁。中文為必填，英文留空代表前台沒有英文版。</p>
+            <el-alert v-if="aboutFormError" :title="aboutFormError" type="warning" show-icon class="manga__block" @close="aboutFormError = null" />
+            <el-form label-position="top" :disabled="!canUpdate">
+              <BilingualShortField field="title" label="標題" :zh="about.titleZh" :en="about.titleEn" required @update:zh="(v) => (about.titleZh = v)" @update:en="(v) => (about.titleEn = v)" />
+              <BilingualTextareaField field="body" label="內文" :zh="about.bodyZh" :en="about.bodyEn" :rows="10" @update:zh="(v) => (about.bodyZh = v)" @update:en="(v) => (about.bodyEn = v)" />
+            </el-form>
+            <el-button v-if="canUpdate" type="primary" :loading="aboutSaving" :disabled="!aboutDirty" @click="saveAbout">儲存企劃介紹</el-button>
+          </el-card>
+        </LangTabsBar>
       </el-tab-pane>
 
       <!-- 角色 -->
@@ -398,16 +432,18 @@ watch(club, () => {
     <el-dialog v-model="charDialog" :title="charForm.id ? '編輯角色' : '新增角色'" width="600px" :close-on-click-modal="false" class="manga__dialog">
       <el-alert v-if="charFormError" :title="charFormError" type="warning" show-icon class="manga__block" @close="charFormError = null" />
       <el-form label-position="top" :disabled="!canUpdate && !!charForm.id">
-        <BilingualShortField label="角色名稱" :zh="charForm.nameZh" :en="charForm.nameEn" required @update:zh="(v) => (charForm.nameZh = v)" @update:en="(v) => (charForm.nameEn = v)" />
-        <BilingualTextareaField label="角色簡介" :zh="charForm.descZh" :en="charForm.descEn" :rows="3" @update:zh="(v) => (charForm.descZh = v)" @update:en="(v) => (charForm.descEn = v)" />
-        <el-form-item label="關聯真實球員（選填）">
-          <el-select v-model="charForm.playerId" clearable filterable placeholder="不關聯球員" style="width: 100%">
+       <LangTabsBar variant="bare">
+        <BilingualShortField field="name" label="角色名稱" :zh="charForm.nameZh" :en="charForm.nameEn" required @update:zh="(v) => (charForm.nameZh = v)" @update:en="(v) => (charForm.nameEn = v)" />
+        <BilingualTextareaField field="desc" label="角色簡介" :zh="charForm.descZh" :en="charForm.descEn" :rows="3" @update:zh="(v) => (charForm.descZh = v)" @update:en="(v) => (charForm.descEn = v)" />
+        <FormField field="playerId" label="關聯真實球員（選填）">
+          <el-select v-model="charForm.playerId" clearable filterable placeholder="不關聯球員" style="width: 100%" @change="formErrors.clear('playerId')">
             <el-option v-for="p in players" :key="p.id" :label="`${p.shirtNo ? p.shirtNo + ' 號 ' : ''}${p.nameZh || p.nameEn || '（未命名）'}`" :value="p.id" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="角色圖片">
+        </FormField>
+        <FormField field="image" label="角色圖片">
           <ImageUploader v-model:file="charFile" v-model:remove-cover="charRemoveImage" :min-width="0" :min-height="0" :has-existing-image="charHasImage" :existing-preview-url="charImageUrl" :disabled="charSaving" />
-        </el-form-item>
+        </FormField>
+       </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="charDialog = false">關閉</el-button>

@@ -26,7 +26,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
         var query = dbContext.CharityPrograms.AsNoTracking().Where(p => p.ClubId == scope.ClubId || p.ClubId == null);
         if (!string.IsNullOrWhiteSpace(status))
         {
-            AdminInput.OneOf(status, Statuses, "狀態", "「draft」或「published」");
+            AdminInput.OneOf(status, Statuses, "狀態", "「草稿」或「發布」");
             query = query.Where(p => p.Status == status);
         }
 
@@ -294,16 +294,16 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
     private static string? Validate(UpsertAdminCharityProgramRequest request)
     {
         var slug = string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
-        AdminInput.OneOf(request.Status, Statuses, "狀態", "「draft」（草稿）或「published」（發布）");
-        AdminInput.DateRange(request.StartOn, request.EndOn, "計畫期間");
-        AdminInput.RequireText(request.Content.Zh.Name, "中文計畫名稱", 128);
-        AdminInput.OptionalText(request.Content.Zh.TargetAudience, "計畫對象", 200);
-        AdminInput.OptionalJson(request.Content.Zh.Content, "中文緣起與內容");
+        AdminInput.OneOf(request.Status, Statuses, "狀態", "「草稿」或「發布」", "status");
+        AdminInput.DateRange(request.StartOn, request.EndOn, "計畫期間", "endOn");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文計畫名稱", 128, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.TargetAudience, "計畫對象", 200, "audienceZh");
+        AdminInput.OptionalJson(request.Content.Zh.Content, "中文緣起與內容", "contentZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文計畫名稱", 128);
-            AdminInput.OptionalText(request.Content.En.TargetAudience, "計畫對象（英文）", 200);
-            AdminInput.OptionalJson(request.Content.En.Content, "英文緣起與內容");
+            AdminInput.RequireText(request.Content.En.Name, "英文計畫名稱", 128, "nameEn");
+            AdminInput.OptionalText(request.Content.En.TargetAudience, "計畫對象（英文）", 200, "audienceEn");
+            AdminInput.OptionalJson(request.Content.En.Content, "英文緣起與內容", "contentEn");
         }
 
         return slug;
@@ -353,7 +353,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
     {
         if (!await dbContext.Charities.AsNoTracking().AnyAsync(c => c.Id == charityId && (c.ClubId == scope.ClubId || c.ClubId == null), cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的受贈公益團體，請重新選擇。");
+            throw new AdminValidationException("找不到指定的受贈公益團體，請重新選擇。", "charityId");
         }
     }
 
@@ -366,7 +366,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
         }
 
         var rows = await dbContext.Partners.Where(p => p.ClubId == scope.ClubId && distinct.Contains(p.Id)).ToListAsync(cancellationToken);
-        return rows.Count == distinct.Count ? rows : throw new AdminValidationException("贊助夥伴清單含有不存在的夥伴，請重新整理後再試。");
+        return rows.Count == distinct.Count ? rows : throw new AdminValidationException("贊助夥伴清單含有不存在的夥伴，請重新整理後再試。", "partnerIds");
     }
 
     private async Task<List<Sponsor>> ResolveSponsorsAsync(AdminClubScope scope, IReadOnlyList<Guid> ids, CancellationToken cancellationToken)
@@ -378,7 +378,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
         }
 
         var rows = await dbContext.Sponsors.Where(s => s.ClubId == scope.ClubId && distinct.Contains(s.Id)).ToListAsync(cancellationToken);
-        return rows.Count == distinct.Count ? rows : throw new AdminValidationException("贊助商清單含有不存在的贊助商，請重新整理後再試。");
+        return rows.Count == distinct.Count ? rows : throw new AdminValidationException("贊助商清單含有不存在的贊助商，請重新整理後再試。", "sponsorIds");
     }
 
     private async Task<List<Article>> ResolveArticlesAsync(AdminClubScope scope, IReadOnlyList<Guid> ids, CancellationToken cancellationToken)
@@ -393,7 +393,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
             .Where(a => distinct.Contains(a.Id) && (a.ClubId == scope.ClubId || a.ClubId == null)).ToListAsync(cancellationToken);
         if (rows.Count != distinct.Count)
         {
-            throw new AdminValidationException("關聯報導清單含有找不到的文章，請重新整理後再試。");
+            throw new AdminValidationException("關聯報導清單含有找不到的文章，請重新整理後再試。", "articleIds");
         }
 
         return distinct.Select(i => rows.First(a => a.Id == i)).ToList();
@@ -411,7 +411,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
     {
         if (await dbContext.CharityPrograms.AsNoTracking().AnyAsync(p => p.ClubId == scope.ClubId && p.Slug == slug && p.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他慈善計畫使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他慈善計畫使用，請換一個。", "slug");
         }
     }
 

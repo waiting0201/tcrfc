@@ -5,6 +5,9 @@ import { ElMessage } from 'element-plus'
 import { useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { getMemberSettings, updateMemberSettings } from '@/api/adminMemberships'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+import { AdminApiError } from '@/api/http'
 import { errorMessage } from './membershipHelpers'
 
 const { canView, canUpdate } = useViewUpdatePermissions('member.setting')
@@ -16,7 +19,9 @@ const preview = ref('')
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 const saving = ref(false)
+/** 只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 async function load() {
   loading.value = true
@@ -38,14 +43,20 @@ watch(club, load)
 async function save() {
   formError.value = null
   const p = prefix.value.trim()
-  if (!/^[A-Za-z0-9]{0,8}$/.test(p)) return void (formError.value = '前綴只能是英文字母或數字，最多 8 個字')
-  if (!Number.isInteger(digits.value) || digits.value < 4 || digits.value > 10) return void (formError.value = '流水號位數必須在 4 到 10 之間')
+  const errors: Record<string, string> = {}
+  if (!/^[A-Za-z0-9]{0,8}$/.test(p)) errors.prefix = '前綴只能是英文字母或數字，最多 8 個字'
+  if (!Number.isInteger(digits.value) || digits.value < 4 || digits.value > 10) errors.digits = '流水號位數必須在 4 到 10 之間'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     await updateMemberSettings(club.value, { memberNoPrefix: p, memberNoDigits: digits.value })
     ElMessage.success('已儲存')
     await load()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = errorMessage(error, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -63,12 +74,12 @@ async function save() {
       </el-alert>
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="num-tab__alert" @close="formError = null" />
       <el-form label-position="top" :disabled="!canUpdate || !canView" @submit.prevent="save">
-        <el-form-item label="編號前綴（英文字母或數字，最多 8 字，可留空）">
+        <FormField field="prefix" label="編號前綴（英文字母或數字，最多 8 字，可留空）">
           <el-input v-model="prefix" maxlength="8" placeholder="例如 M" />
-        </el-form-item>
-        <el-form-item label="流水號位數（4 到 10 位）">
-          <el-input-number v-model="digits" :min="4" :max="10" :precision="0" />
-        </el-form-item>
+        </FormField>
+        <FormField field="digits" label="流水號位數（4 到 10 位）">
+          <el-input-number v-model="digits" :min="4" :max="10" :precision="0" @change="formErrors.clear('digits')" />
+        </FormField>
         <el-form-item label="下一個會員編號預覽">
           <el-input :model-value="preview || '—'" disabled />
         </el-form-item>

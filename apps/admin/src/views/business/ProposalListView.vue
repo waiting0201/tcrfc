@@ -29,6 +29,10 @@ import {
   type LeadListItemDto,
   type ProposalListItemDto,
 } from '@/api/adminProposals'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const route = useRoute()
 const router = useRouter()
@@ -145,6 +149,7 @@ const follow = reactive({ id: '', company: '', name: '', email: '', proposalTitl
 
 async function openFollow(row: LeadListItemDto) {
   followError.value = null
+  formErrors.clearAll()
   try {
     const d: LeadDetailDto = await getLead(club.value, row.id)
     Object.assign(follow, {
@@ -165,6 +170,7 @@ async function openFollow(row: LeadListItemDto) {
 async function saveFollow() {
   followSaving.value = true
   followError.value = null
+  formErrors.clearAll()
   try {
     await updateLead(club.value, follow.id, {
       status: follow.status,
@@ -176,6 +182,7 @@ async function saveFollow() {
     followDialog.value = false
     await loadLeads()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     followError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     followSaving.value = false
@@ -319,13 +326,13 @@ watch(club, () => {
         <el-descriptions-item label="下載時間">{{ formatDateTime(follow.createdAt) }}</el-descriptions-item>
       </el-descriptions>
       <el-form label-position="top" :disabled="!leadPerm.canUpdate.value">
-        <el-form-item label="跟進狀態">
+        <FormField field="status" label="跟進狀態">
           <el-select v-model="follow.status" style="width: 100%"><el-option v-for="s in LEAD_STATUS_OPTIONS" :key="s" :label="s" :value="s" /></el-select>
-        </el-form-item>
-        <el-form-item label="負責人">
+        </FormField>
+        <FormField field="assigneeAdminUserId" label="負責人">
           <el-select v-model="follow.assignee" clearable placeholder="尚未指派" style="width: 100%"><el-option v-for="u in assignees" :key="u.id" :label="u.displayName" :value="u.id" /></el-select>
-        </el-form-item>
-        <el-form-item label="標籤"><el-input v-model="follow.tags" maxlength="255" placeholder="例如 重點客戶、待報價" /></el-form-item>
+        </FormField>
+        <FormField field="tags" label="標籤"><el-input v-model="follow.tags" maxlength="255" placeholder="例如 重點客戶、待報價" /></FormField>
         <el-form-item label="內部備註"><el-input v-model="follow.note" type="textarea" :rows="3" placeholder="只有內部看得到" /></el-form-item>
       </el-form>
       <template #footer>

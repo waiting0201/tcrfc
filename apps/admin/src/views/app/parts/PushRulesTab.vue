@@ -7,6 +7,8 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { getPushRules, savePushRules, type PushRulesDto } from '@/api/adminApp'
 
 const canEdit = usePermission('app.push.approve')
@@ -16,6 +18,7 @@ const rules = ref<PushRulesDto | null>(null)
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 const saving = ref(false)
+const formErrors = provideFormErrors()
 const form = reactive({ matchReminderHours: 2, expiryDays: '30,7', toggles: {} as Record<string, boolean> })
 function apply(r: PushRulesDto) {
   rules.value = r
@@ -38,18 +41,24 @@ async function load() {
 onMounted(load)
 
 async function save() {
+  const errors: Record<string, string> = {}
   const days = form.expiryDays.split(/[,，\s]+/).filter(Boolean).map(Number)
   if (days.length < 1 || days.length > 5 || days.some((d) => !Number.isInteger(d) || d < 1 || d > 365) || new Set(days).size !== days.length) {
-    return void ElMessage.warning('到期提醒天數請填 1 到 5 個不重複的整數（1–365），用逗號分隔，例如 30,7')
+    errors.membershipExpiryDays = '到期提醒天數請填 1 到 5 個不重複的整數（1–365），用逗號分隔，例如 30,7'
   }
   if (!Number.isInteger(form.matchReminderHours) || form.matchReminderHours < 1 || form.matchReminderHours > 72) {
-    return void ElMessage.warning('賽前提醒小時數請填 1 到 72')
+    errors.matchReminderHours = '賽前提醒小時數請填 1 到 72'
+  }
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
   }
   saving.value = true
   try {
     apply(await savePushRules({ matchReminderHours: form.matchReminderHours, membershipExpiryDays: days.sort((a, b) => b - a), toggles: form.toggles }))
     ElMessage.success('已儲存')
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     ElMessage.error(errText(e, '儲存失敗，請稍後再試'))
   } finally {
     saving.value = false
@@ -66,8 +75,8 @@ async function save() {
       <el-alert v-if="!canEdit" type="info" show-icon :closable="false" title="自動推播規則只有系統管理員能修改，你的帳號只能檢視。" class="pr__block" />
       <el-form label-position="top" :disabled="!canEdit">
         <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="賽前幾小時提醒（1–72）"><el-input-number v-model="form.matchReminderHours" :min="1" :max="72" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="會籍到期前幾天提醒（最多 5 個，用逗號分隔）"><el-input v-model="form.expiryDays" placeholder="30,7" /></el-form-item></el-col>
+          <el-col :xs="24" :sm="12"><FormField field="matchReminderHours" label="賽前幾小時提醒（1–72）"><el-input-number v-model="form.matchReminderHours" :min="1" :max="72" controls-position="right" style="width: 100%" /></FormField></el-col>
+          <el-col :xs="24" :sm="12"><FormField field="membershipExpiryDays" label="會籍到期前幾天提醒（最多 5 個，用逗號分隔）"><el-input v-model="form.expiryDays" placeholder="30,7" /></FormField></el-col>
         </el-row>
         <el-form-item label="自動推播項目">
           <div class="pr__toggles"><div v-for="t in rules.toggles" :key="t.key" class="pr__toggle"><el-switch v-model="form.toggles[t.key]" /><span>{{ t.label }}</span></div></div>

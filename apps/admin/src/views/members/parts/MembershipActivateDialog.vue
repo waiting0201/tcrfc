@@ -9,8 +9,13 @@ import MemberPicker from './MemberPicker.vue'
 import { activeClubId, availableClubs } from '@/auth/clubAccess'
 import { activateMembership, type ActivatePrefill, type MembershipDetailDto, type MembershipPlanListItemDto } from '@/api/adminMemberships'
 import { nullIfBlank } from '@/api/adminCommon'
+import { AdminApiError } from '@/api/http'
 import { errorMessage, formatMoney, todayString } from './membershipHelpers'
 import { pickerDateToDateOnly, taipeiToday } from '@/utils/dateTime'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const props = defineProps<{ modelValue: boolean; plans: MembershipPlanListItemDto[]; prefill?: ActivatePrefill | null }>()
 const emit = defineEmits<{
@@ -47,6 +52,7 @@ watch(
       form.value.amount = pre.amount
     }
     error.value = null
+    formErrors.clearAll()
   },
 )
 
@@ -77,6 +83,7 @@ async function submit() {
   }
   saving.value = true
   error.value = null
+  formErrors.clearAll()
   try {
     const f = form.value
     const detail = await activateMembership(activeClubId.value, {
@@ -93,6 +100,7 @@ async function submit() {
     emit('update:modelValue', false)
     emit('done', detail)
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     error.value = errorMessage(e, '開通失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -117,32 +125,32 @@ async function submit() {
     </el-alert>
     <el-alert v-if="error" :title="error" type="warning" show-icon class="dlg__alert" @close="error = null" />
     <el-form label-position="top" @submit.prevent="submit">
-      <el-form-item label="會員" required>
+      <FormField field="memberId" label="會員" required>
         <MemberPicker v-model="form.memberId" :seed="prefill?.member ?? null" />
-      </el-form-item>
-      <el-form-item label="方案（僅列出已上架的方案）" required>
+      </FormField>
+      <FormField field="planId" label="方案（僅列出已上架的方案）" required>
         <el-select v-model="form.planId" placeholder="選擇方案" style="width: 100%" @change="onPlanChange">
           <el-option v-for="p in publishedPlans" :key="p.id" :value="p.id" :label="`${p.seasonCode}｜${p.nameZh || p.code}（${formatMoney(p.fee)}）`" />
         </el-select>
-      </el-form-item>
+      </FormField>
       <el-row :gutter="12">
         <el-col :xs="24" :sm="12">
-          <el-form-item label="付款方式" required>
+          <FormField field="paymentMethod" label="付款方式" required>
             <el-radio-group v-model="form.paymentMethod">
               <el-radio value="onsite">現場付款</el-radio>
               <el-radio value="linepay">LINE Pay（已付款）</el-radio>
             </el-radio-group>
-          </el-form-item>
+          </FormField>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="實收金額（元）" required>
+          <FormField field="amount" label="實收金額（元）" required>
             <el-input-number v-model="form.amount" :min="0" :precision="0" style="width: 100%" />
-          </el-form-item>
+          </FormField>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="付款日（不可晚於今天）" required>
+          <FormField field="paidOn" label="付款日（不可晚於今天）" required>
             <el-date-picker v-model="form.paidOn" type="date" value-format="YYYY-MM-DD" :disabled-date="disabledFuture" style="width: 100%" />
-          </el-form-item>
+          </FormField>
         </el-col>
         <el-col :xs="24" :sm="12">
           <el-form-item label="受益俱樂部">
@@ -150,14 +158,14 @@ async function submit() {
           </el-form-item>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="會籍開始日（可空）">
+          <FormField field="startOn" label="會籍開始日（可空）">
             <el-date-picker v-model="form.startOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-          </el-form-item>
+          </FormField>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="會籍結束日（可空）">
+          <FormField field="endOn" label="會籍結束日（可空）">
             <el-date-picker v-model="form.endOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-          </el-form-item>
+          </FormField>
         </el-col>
       </el-row>
       <p class="dlg__hint">開始日、結束日留空時，依方案設定的期間開通。</p>

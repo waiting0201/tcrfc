@@ -22,6 +22,10 @@ import {
   type InventoryMovementDto,
 } from '@/api/adminShop'
 import { formatDateTime } from '@/utils/dateTime'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const route = useRoute()
 const router = useRouter()
@@ -159,6 +163,7 @@ function openAdjust(row: InventoryItemDto) {
   adjTarget.value = row
   Object.assign(adjForm, { type: 'stock_in', quantity: 1, reason: '' })
   adjError.value = null
+  formErrors.clearAll()
   adjOpen.value = true
 }
 function onTypeChange() {
@@ -168,6 +173,7 @@ async function saveAdjust() {
   const target = adjTarget.value
   if (!target) return
   adjError.value = null
+  formErrors.clearAll()
   const q = adjForm.quantity
   if (q === null || !Number.isInteger(q)) return (adjError.value = '請輸入整數數量')
   if ((adjForm.type === 'stock_in' || adjForm.type === 'damage') && q <= 0) return (adjError.value = '數量必須大於 0')
@@ -181,6 +187,7 @@ async function saveAdjust() {
     ElMessage.success('已記錄庫存異動')
     await Promise.all([load(), loadMovements()])
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     adjError.value = errorText(error, '調整失敗，請稍後再試')
   } finally {
     adjSaving.value = false
@@ -308,14 +315,14 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n))
       <p v-if="adjTarget" class="inventory__target">{{ adjTarget.productName }}・{{ adjTarget.label || adjTarget.sku }}<br><span class="inventory__muted">目前庫存 {{ adjTarget.stockQty }}、已保留 {{ adjTarget.reservedQty }}、可售 {{ adjTarget.availableQty }}</span></p>
       <el-alert v-if="adjError" :title="adjError" type="warning" show-icon class="inventory__block" @close="adjError = null" />
       <el-form label-position="top">
-        <el-form-item label="異動類型">
+        <FormField field="type" label="異動類型">
           <el-radio-group v-model="adjForm.type" @change="onTypeChange">
             <el-radio-button v-for="t in ADJ_TYPES" :key="t.value" :value="t.value">{{ t.label }}</el-radio-button>
           </el-radio-group>
-        </el-form-item>
+        </FormField>
         <p class="inventory__hint">{{ adjHelp }}</p>
-        <el-form-item :label="adjForm.type === 'stocktake' ? '實際盤點的庫存總數' : '數量'"><el-input-number v-model="adjForm.quantity" :controls="false" style="width: 100%" /></el-form-item>
-        <el-form-item label="原因" :required="adjForm.type === 'damage' || adjForm.type === 'adjust'"><el-input v-model="adjForm.reason" type="textarea" :rows="2" maxlength="200" show-word-limit /></el-form-item>
+        <FormField field="quantity" :label="adjForm.type === 'stocktake' ? '實際盤點的庫存總數' : '數量'"><el-input-number v-model="adjForm.quantity" :controls="false" style="width: 100%" /></FormField>
+        <FormField field="reason" label="原因" :required="adjForm.type === 'damage' || adjForm.type === 'adjust'"><el-input v-model="adjForm.reason" type="textarea" :rows="2" maxlength="200" show-word-limit /></FormField>
       </el-form>
       <p class="inventory__hint">扣到低於已保留量或變成負數會被擋下，庫存不變、也不留紀錄。</p>
       <template #footer>

@@ -270,6 +270,9 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             //    訊息固定中文，不回傳框架英文原文（內含參數型別與名稱）。其餘狀態（如 413）保留原碼。
             BadHttpRequestException badRequest when badRequest.StatusCode == StatusCodes.Status400BadRequest =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", "請求缺少必要的參數，或參數格式不正確，請檢查後再試。"),
+            // 上傳表單本體不是合法的 multipart（例如完全沒有任何 part）：用戶端錯誤，不是 500。
+            InvalidDataException when httpContext.Request.HasFormContentType =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", "上傳的表單內容不完整或格式不正確，請重新整理頁面後再試。"),
             BadHttpRequestException badRequestOther =>
                 (badRequestOther.StatusCode, "請求無法處理", "請求內容不符合要求，請檢查後再試。"),
 

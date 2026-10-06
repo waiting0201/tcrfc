@@ -9,7 +9,10 @@ public sealed class AdminFormValidationException(string message, string? field =
 /// <summary>同一張表單內 <c>field_key</c> 重複——比照 <c>ArticleSlugConflictException</c> 轉 409。
 /// 🔴 DB 層沒有 <c>UNIQUE (form_id, field_key)</c>（本輪判斷只在應用層擋，見
 /// <c>AdminFormsRepository</c> 檔頭「規劃書沒寫清楚、自行判斷」），這裡是唯一防線。</summary>
-public sealed class AdminFormFieldKeyConflictException(string message) : Exception(message);
+public sealed class AdminFormFieldKeyConflictException(string message) : Exception(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("fieldKey", Message);
+}
 
 /// <summary>刪除的欄位已有詢問資料引用（<c>enquiry_answers.form_field_id</c> FK 沒有
 /// <c>ON DELETE CASCADE</c>，見 <c>db/club-schema.sql</c> 註解）——轉 409，不是 500。</summary>

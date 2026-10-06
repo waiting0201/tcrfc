@@ -236,26 +236,26 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
         string applicantName, string status, string? phone, string? email, DateOnly? birthOn, string? guardianName, string? guardianPhone,
         bool requireContact = true)
     {
-        var name = AdminInput.RequireText(applicantName, "姓名", 64);
-        AdminInput.OneOf(status, Statuses, "狀態", "「待確認」「已確認」「已繳費」「完成」「取消」或「候補」");
-        var p = AdminInput.OptionalPhone(phone, "電話");
-        var e = AdminInput.OptionalEmail(email, "Email")?.ToLowerInvariant();
+        var name = AdminInput.RequireText(applicantName, "姓名", 64, "applicantName");
+        AdminInput.OneOf(status, Statuses, "狀態", "「待確認」「已確認」「已繳費」「完成」「取消」或「候補」", "status");
+        var p = AdminInput.OptionalPhone(phone, "電話", "phone");
+        var e = AdminInput.OptionalEmail(email, "Email", "email")?.ToLowerInvariant();
         if (requireContact && p is null && e is null)
         {
-            throw new AdminValidationException("電話與 Email 至少需要填寫一項，以便後續聯繫。");
+            throw new AdminValidationException("電話與 Email 至少需要填寫一項，以便後續聯繫。", "phone");
         }
 
         var today = TaiwanClock.Today;
         if (birthOn is { } birth && (birth > today || birth < today.AddYears(-100)))
         {
-            throw new AdminValidationException("出生日期不正確，請重新確認。");
+            throw new AdminValidationException("出生日期不正確，請重新確認。", "birthOn");
         }
 
-        var gName = AdminInput.OptionalText(guardianName, "家長姓名", 64);
-        var gPhone = AdminInput.OptionalPhone(guardianPhone, "家長電話");
+        var gName = AdminInput.OptionalText(guardianName, "家長姓名", 64, "guardianName");
+        var gPhone = AdminInput.OptionalPhone(guardianPhone, "家長電話", "guardianPhone");
         if (birthOn is { } b && b > today.AddYears(-AdultAge) && (gName is null || gPhone is null))
         {
-            throw new AdminValidationException("報名者未滿 18 歲，請填寫家長（監護人）的姓名與電話。");
+            throw new AdminValidationException("報名者未滿 18 歲，請填寫家長（監護人）的姓名與電話。", gName is null ? "guardianName" : "guardianPhone");
         }
 
         return new ValidatedInput(name, p, e, gName, gPhone);
@@ -265,7 +265,7 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
     {
         if (memberId is not null && !await db.Members.AsNoTracking().AnyAsync(m => m.Id == memberId, cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的會員，請確認會員資料是否存在。");
+            throw new AdminValidationException("找不到指定的會員，請確認會員資料是否存在。", "memberId");
         }
     }
 

@@ -4,6 +4,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import EdgeNotice from './EdgeNotice.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { usePermission } from '@/composables/useCrudPermissions'
@@ -74,7 +77,9 @@ async function setFlag(row: ReleaseDto, which: 'min' | 'recommended', on: boolea
 const visible = ref(false)
 const editing = ref<ReleaseDto | null>(null)
 const saving = ref(false)
+/** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const form = reactive({
   platform: 'ios' as ReleasePlatform, version: '', buildNumber: null as number | null, releasedOn: null as string | null, status: 'testing' as ReleaseStatus,
   whatsNewZh: '', whatsNewEn: '', forceZh: '', forceEn: '', recommendZh: '', recommendEn: '',
@@ -82,6 +87,7 @@ const form = reactive({
 function openDialog(row: ReleaseDto | null) {
   editing.value = row
   formError.value = null
+  formErrors.clearAll()
   Object.assign(form, {
     platform: row?.platform ?? (platform.value === 'android' ? 'android' : 'ios'), version: row?.version ?? '',
     buildNumber: row?.buildNumber != null ? Number(row.buildNumber) : null, releasedOn: row?.releasedOn ?? null, status: row?.status ?? 'testing',
@@ -92,9 +98,14 @@ function openDialog(row: ReleaseDto | null) {
 }
 async function save() {
   if (!canUpdate.value) return
-  if (!/^\d+\.\d+\.\d+$/.test(form.version.trim())) return void (formError.value = '版本號請用「主.次.修」的寫法，例如 1.2.0')
-  saving.value = true
   formError.value = null
+  const errors: Record<string, string> = {}
+  if (!/^\d+\.\d+\.\d+$/.test(form.version.trim())) errors.version = '版本號請用「主.次.修」的寫法，例如 1.2.0'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   const en = { whatsNew: nullIfBlank(form.whatsNewEn), forceMessage: nullIfBlank(form.forceEn), recommendMessage: nullIfBlank(form.recommendEn) }
   const payload: SaveReleasePayload = {
     platform: form.platform,
@@ -114,6 +125,7 @@ async function save() {
     visible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = errText(e, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -203,19 +215,21 @@ async function remove(row: ReleaseDto) {
       </template>
     </el-card>
 
-    <el-dialog v-model="visible" :title="editing ? '編輯版本' : '新增版本'" width="720px" :fullscreen="isMobile" :close-on-click-modal="false">
+    <el-dialog v-model="visible" :title="editing ? '編輯版本' : '新增版本'" width="720px" :fullscreen="isMobile" :close-on-click-modal="false" destroy-on-close>
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="rl__block" />
       <el-form label-position="top">
         <el-row :gutter="12">
           <el-col :xs="24" :sm="8"><el-form-item label="平台（建立後不能修改）"><el-select v-model="form.platform" :disabled="!!editing" style="width: 100%"><el-option label="iPhone（iOS）" value="ios" /><el-option label="Android" value="android" /></el-select></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="版本號（建立後不能修改）" required><el-input v-model="form.version" :disabled="!!editing" placeholder="例如 1.2.0" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="建置號（選填）"><el-input-number v-model="form.buildNumber" :min="0" controls-position="right" style="width: 100%" /></el-form-item></el-col>
+          <el-col :xs="24" :sm="8"><FormField field="version" label="版本號（建立後不能修改）" required><el-input v-model="form.version" :disabled="!!editing" placeholder="例如 1.2.0" /></FormField></el-col>
+          <el-col :xs="24" :sm="8"><FormField field="buildNumber" label="建置號（選填）"><el-input-number v-model="form.buildNumber" :min="0" controls-position="right" style="width: 100%" /></FormField></el-col>
           <el-col :xs="24" :sm="12"><el-form-item label="上架日"><el-date-picker v-model="form.releasedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="狀態"><el-select v-model="form.status" style="width: 100%"><el-option v-for="o in STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" /></el-select></el-form-item></el-col>
+          <el-col :xs="24" :sm="12"><FormField field="status" label="狀態"><el-select v-model="form.status" style="width: 100%"><el-option v-for="o in STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" /></el-select></FormField></el-col>
         </el-row>
-        <BilingualTextareaField v-model:zh="form.whatsNewZh" v-model:en="form.whatsNewEn" label="更新內容說明" />
-        <BilingualTextareaField v-model:zh="form.forceZh" v-model:en="form.forceEn" label="強制更新時顯示的訊息" />
-        <BilingualTextareaField v-model:zh="form.recommendZh" v-model:en="form.recommendEn" label="建議更新時顯示的訊息" />
+        <LangTabsBar variant="bare">
+          <BilingualTextareaField v-model:zh="form.whatsNewZh" v-model:en="form.whatsNewEn" field="whatsNew" label="更新內容說明" />
+          <BilingualTextareaField v-model:zh="form.forceZh" v-model:en="form.forceEn" field="forceMessage" label="強制更新時顯示的訊息" />
+          <BilingualTextareaField v-model:zh="form.recommendZh" v-model:en="form.recommendEn" field="recommendMessage" label="建議更新時顯示的訊息" />
+        </LangTabsBar>
       </el-form>
       <p class="rl__muted">被設為門檻的版本，不能改成「測試中」或「已下架」。</p>
       <template #footer>

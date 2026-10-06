@@ -68,14 +68,14 @@ public sealed partial class AdminUiStringsRepository(ClubDbContext db, IPermissi
         var key = request.Key?.Trim() ?? string.Empty;
         if (key.Length is 0 or > 128 || !KeyFormat().IsMatch(key))
         {
-            throw new AdminValidationException("字串鍵只能用小寫英文、數字、底線、連字號與句點（例如 form.submit），最長 128 字。");
+            throw new AdminValidationException("字串鍵只能用小寫英文、數字、底線、連字號與句點（例如 form.submit），最長 128 字。", "key");
         }
 
         var group = ValidateGroup(request.Group);
         var values = await ValidateValuesAsync(request.Values, requireDefault: true, cancellationToken);
         if (await db.UiStrings.AnyAsync(s => s.StringKey == key, cancellationToken))
         {
-            throw new AdminConflictException("字串鍵重複", "這個字串鍵已經存在，請直接編輯既有的字串。");
+            throw new AdminConflictException("字串鍵重複", "這個字串鍵已經存在，請直接編輯既有的字串。", "key");
         }
 
         var now = DateTime.UtcNow;
@@ -141,7 +141,7 @@ public sealed partial class AdminUiStringsRepository(ClubDbContext db, IPermissi
             {
                 if (locale == defaultLocale)
                 {
-                    throw new AdminValidationException("繁中原文不能清空。");
+                    throw new AdminValidationException("繁中原文不能清空。", "defaultValue");
                 }
 
                 if (existing is not null)
@@ -207,7 +207,7 @@ public sealed partial class AdminUiStringsRepository(ClubDbContext db, IPermissi
             return null;
         }
 
-        return GroupFormat().IsMatch(text) ? text : throw new AdminValidationException("分組只能用小寫英文、數字、底線與連字號，最長 64 字。");
+        return GroupFormat().IsMatch(text) ? text : throw new AdminValidationException("分組只能用小寫英文、數字、底線與連字號，最長 64 字。", "group");
     }
 
     /// <summary>檢查語系代碼存在、文字長度；回傳「語系 → 文字（可為空字串，代表清除）」。</summary>
@@ -222,13 +222,13 @@ public sealed partial class AdminUiStringsRepository(ClubDbContext db, IPermissi
             {
                 if (!known.Contains(locale))
                 {
-                    throw new AdminValidationException("語系不正確。");
+                    throw new AdminValidationException("語系不正確。", "values");
                 }
 
                 var trimmed = text?.Trim();
                 if (trimmed is { Length: > MaxValueLength })
                 {
-                    throw new AdminValidationException($"每則文字不可超過 {MaxValueLength} 個字。");
+                    throw new AdminValidationException($"每則文字不可超過 {MaxValueLength} 個字。", "values");
                 }
 
                 result[locale] = trimmed;
@@ -237,7 +237,7 @@ public sealed partial class AdminUiStringsRepository(ClubDbContext db, IPermissi
 
         if (requireDefault && string.IsNullOrEmpty(result.GetValueOrDefault(RequestLocale.DefaultDbLocale)))
         {
-            throw new AdminValidationException("繁中原文為必填欄位。");
+            throw new AdminValidationException("繁中原文為必填欄位。", "defaultValue");
         }
 
         return result;

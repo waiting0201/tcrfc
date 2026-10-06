@@ -18,6 +18,10 @@ import { AdminApiError } from '@/api/http'
 import { nullIfBlank } from '@/api/adminCommon'
 import { listMembers, type MemberListItemDto } from '@/api/adminMembers'
 import { createOrder, DELIVERY_METHOD_OPTIONS, listInventory, type InventoryItemDto } from '@/api/adminShop'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const router = useRouter()
 const { canCreate } = useCrudPermissions('shop.order')
@@ -132,6 +136,7 @@ async function handleSave() {
     ElMessage.success('訂單已建立，庫存已扣減')
     router.replace(order?.id ? `/shop/orders/${order.id}` : '/shop/orders')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '建立失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -152,6 +157,7 @@ async function handleSave() {
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="order-create__block" @close="formError = null" />
 
       <el-card shadow="never" header="訂購品項" class="order-create__block">
+        <FormField field="items" style="margin-bottom: 0">
         <p v-if="!canSearchInventory" class="order-create__hint">你的帳號沒有檢視庫存的權限，無法搜尋商品規格。</p>
         <el-select v-else v-model="picked" filterable remote clearable :remote-method="searchVariants" :loading="searching" placeholder="輸入商品名稱或商品規格編號搜尋，選取後加入" style="width: 100%" @change="addVariant">
           <el-option v-for="o in variantOptions" :key="o.variantId" :label="`${o.productName} ${o.label || ''}（${o.sku}）可售 ${o.availableQty}`" :value="o.variantId" />
@@ -169,38 +175,39 @@ async function handleSave() {
           </div>
         </div>
         <p v-if="overStock.length > 0" class="order-create__warn">有 {{ overStock.length }} 個品項的數量超過可售量。</p>
+        </FormField>
       </el-card>
 
       <el-card shadow="never" header="配送與收件人" class="order-create__block">
         <el-form label-position="top" @change="dirty = true">
-          <el-form-item label="配送方式">
+          <FormField field="deliveryMethod" label="配送方式">
             <el-radio-group v-model="form.deliveryMethod" @change="dirty = true">
               <el-radio-button v-for="o in DELIVERY_METHOD_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-radio-button>
             </el-radio-group>
-          </el-form-item>
+          </FormField>
           <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="收件人姓名" :required="needsPhone"><el-input v-model="form.recipientName" maxlength="64" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="收件人電話" :required="needsPhone"><el-input v-model="form.recipientPhone" maxlength="32" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="recipientName" label="收件人姓名" :required="needsPhone"><el-input v-model="form.recipientName" maxlength="64" /></FormField></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="recipientPhone" label="收件人電話" :required="needsPhone"><el-input v-model="form.recipientPhone" maxlength="32" /></FormField></el-col>
           </el-row>
-          <el-form-item v-if="form.deliveryMethod === 'home_delivery'" label="收件地址" required><el-input v-model="form.recipientAddress" maxlength="200" /></el-form-item>
+          <FormField v-if="form.deliveryMethod === 'home_delivery'" field="recipientAddress" label="收件地址" required><el-input v-model="form.recipientAddress" maxlength="200" /></FormField>
           <el-form-item v-if="form.deliveryMethod === 'cvs_pickup'"><span class="order-create__hint">超商取貨的門市代碼在出貨時填寫。</span></el-form-item>
-          <el-form-item v-if="form.deliveryMethod === 'onsite_pickup'">
+          <FormField v-if="form.deliveryMethod === 'onsite_pickup'" field="completeImmediately">
             <el-checkbox v-model="form.completeImmediately" @change="dirty = true">現場當場取貨，訂單直接標為已完成</el-checkbox>
-          </el-form-item>
-          <el-form-item v-if="canSearchMembers" label="關聯會員（選填）">
+          </FormField>
+          <FormField v-if="canSearchMembers" field="memberId" label="關聯會員（選填）">
             <el-select v-model="form.memberId" filterable remote clearable :remote-method="searchMembers" :loading="memberSearching" placeholder="輸入會員編號搜尋" style="width: 100%" @change="dirty = true">
               <el-option v-for="m in memberOptions" :key="m.id" :label="`${m.memberNo} ${m.name || ''}`" :value="m.id" />
             </el-select>
-          </el-form-item>
+          </FormField>
         </el-form>
       </el-card>
 
       <el-card shadow="never" header="運費與備註" class="order-create__block">
         <el-form label-position="top" @change="dirty = true">
-          <el-form-item label="運費">
+          <FormField field="shippingFee" label="運費">
             <el-checkbox v-model="form.overrideFee" @change="dirty = true">手動指定運費（不勾選則依商店設定：現場自取免運、達免運門檻免運）</el-checkbox>
             <el-input-number v-if="form.overrideFee" v-model="form.shippingFee" :min="0" :controls="false" style="margin-top: 8px" @change="dirty = true" />
-          </el-form-item>
+          </FormField>
           <el-form-item label="顧客備註（選填）"><el-input v-model="form.customerNote" type="textarea" :rows="2" maxlength="200" show-word-limit /></el-form-item>
           <el-form-item label="內部備註（選填，只有後台看得到）"><el-input v-model="form.internalNote" type="textarea" :rows="2" maxlength="500" show-word-limit /></el-form-item>
         </el-form>

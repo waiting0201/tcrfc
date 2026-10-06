@@ -127,17 +127,17 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
     private async Task<(Season Season, Team Team)> ValidateAchievementAsync(
         AdminClubScope scope, UpsertAdminAchievementRequest request, CancellationToken cancellationToken)
     {
-        AdminInput.RequireText(request.CompetitionName, "賽事名稱", 128);
-        AdminInput.RequireText(request.Placing, "名次", 32);
+        AdminInput.RequireText(request.CompetitionName, "賽事名稱", 128, "competitionName");
+        AdminInput.RequireText(request.Placing, "名次", 32, "placing");
         if (request.Year is < 1900 or > 2200)
         {
-            throw new AdminValidationException("年份必須是合理的西元年份。");
+            throw new AdminValidationException("年份必須是合理的西元年份。", "year");
         }
 
         var season = await dbContext.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.Id == request.SeasonId && s.ClubId == scope.ClubId, cancellationToken)
-            ?? throw new AdminValidationException("找不到這個俱樂部的球季，請重新選擇。");
+            ?? throw new AdminValidationException("找不到這個俱樂部的球季，請重新選擇。", "seasonId");
         var team = await dbContext.Teams.AsNoTracking().FirstOrDefaultAsync(t => t.Id == request.TeamId && t.ClubId == scope.ClubId, cancellationToken)
-            ?? throw new AdminValidationException("找不到這個俱樂部的球隊，請重新選擇。");
+            ?? throw new AdminValidationException("找不到這個俱樂部的球隊，請重新選擇。", "teamId");
         return (season, team);
     }
 
@@ -224,12 +224,12 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
 
     private static void ValidateMilestone(UpsertAdminMilestoneRequest request)
     {
-        AdminInput.RequireText(request.Content.Zh.Title, "中文標題", 200);
-        AdminInput.OptionalText(request.Content.Zh.ImageAlt, "圖片替代文字", 200);
+        AdminInput.RequireText(request.Content.Zh.Title, "中文標題", 200, "titleZh");
+        AdminInput.OptionalText(request.Content.Zh.ImageAlt, "圖片替代文字", 200, "altZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Title))
         {
-            AdminInput.RequireText(request.Content.En.Title, "英文標題", 200);
-            AdminInput.OptionalText(request.Content.En.ImageAlt, "圖片替代文字（英文）", 200);
+            AdminInput.RequireText(request.Content.En.Title, "英文標題", 200, "titleEn");
+            AdminInput.OptionalText(request.Content.En.ImageAlt, "圖片替代文字（英文）", 200, "altEn");
         }
     }
 

@@ -6,6 +6,9 @@ import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -24,24 +27,31 @@ const form = reactive({ name: '', email: '', phone: '', birthOn: '', locale: 'zh
 const initialJson = JSON.stringify(form)
 const saving = ref(false)
 const saved = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 const isDirty = computed(() => !saved.value && JSON.stringify(form) !== initialJson)
 useUnsavedChanges(isDirty)
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.name.trim()) return (formError.value = '請輸入姓名'), false
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.name.trim()) errors.name = '請輸入姓名'
   const email = form.email.trim()
-  if (!email) return (formError.value = '請輸入 Email'), false
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return (formError.value = 'Email 格式不正確'), false
-  return true
+  if (!email) errors.email = '請輸入 Email'
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Email 格式不正確'
+  return errors
 }
 
 async function handleSave() {
-  if (!canCreate.value || !isCreate.value || !validate()) return
-  saving.value = true
+  if (!canCreate.value || !isCreate.value) return
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     const created = await createMember(activeClubId.value, {
       name: form.name.trim(),
@@ -55,6 +65,8 @@ async function handleSave() {
     ElMessage.success(`已建立會員 ${created.memberNo}`)
     router.replace(`/members/list/${created.id}`)
   } catch (error) {
+    // 後端標到欄位的錯誤（例如 Email 重複）直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     if (error instanceof AdminApiError && error.status === 409) {
       formError.value = error.message || '這個 Email 已經有會員使用了，請改用其他 Email，或到名單搜尋既有帳號。'
     } else {
@@ -89,31 +101,34 @@ async function handleSave() {
       <el-card shadow="never" header="會員資料" class="member-edit__block">
         <el-row :gutter="12">
           <el-col :xs="24" :sm="12">
-            <el-form-item label="姓名" required><el-input v-model="form.name" maxlength="64" /></el-form-item>
+            <FormField field="name" label="姓名" required><el-input v-model="form.name" maxlength="64" /></FormField>
           </el-col>
           <el-col :xs="24" :sm="12">
-            <el-form-item label="Email" required><el-input v-model="form.email" maxlength="255" inputmode="email" /></el-form-item>
+            <FormField field="email" label="Email" required><el-input v-model="form.email" maxlength="255" inputmode="email" /></FormField>
           </el-col>
           <el-col :xs="24" :sm="12">
-            <el-form-item label="電話"><el-input v-model="form.phone" maxlength="32" inputmode="tel" /></el-form-item>
+            <FormField field="phone" label="電話"><el-input v-model="form.phone" maxlength="32" inputmode="tel" /></FormField>
           </el-col>
           <el-col :xs="24" :sm="12">
-            <el-form-item label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="(d: Date) => pickerDateToDateOnly(d) > taipeiToday()" /></el-form-item>
+            <FormField field="birthOn" label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="(d: Date) => pickerDateToDateOnly(d) > taipeiToday()" /></FormField>
           </el-col>
           <el-col :xs="24" :sm="12">
-            <el-form-item label="語系偏好">
+            <FormField field="locale" label="語系偏好">
               <el-select v-model="form.locale" style="width: 100%">
                 <el-option v-for="o in MEMBER_LOCALE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
-            </el-form-item>
+            </FormField>
           </el-col>
         </el-row>
-        <el-form-item label="內部備註（會員看不到）">
+        <FormField field="internalNote" label="內部備註（會員看不到）">
           <el-input v-model="form.internalNote" type="textarea" :rows="3" maxlength="2000" show-word-limit />
-        </el-form-item>
+        </FormField>
       </el-card>
     </el-form>
-    <EditActionBar v-if="canCreate"><el-button type="primary" :loading="saving" @click="handleSave">建立會員</el-button></EditActionBar>
+    <EditActionBar v-if="canCreate">
+      <template #status><FormErrorStatus /></template>
+      <el-button type="primary" :loading="saving" @click="handleSave">建立會員</el-button>
+    </EditActionBar>
   </div>
 </template>
 

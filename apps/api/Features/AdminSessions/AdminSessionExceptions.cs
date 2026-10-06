@@ -11,4 +11,7 @@ public sealed class AdminSessionValidationException(string message, string? fiel
 /// （不是 404：梯次本身的路由沒有問題，是請求內容裡指定的關聯目標有問題，比照
 /// <c>Features/AdminNews/AdminArticlesRepository</c> 對關聯目標的既有處理）。</summary>
 public sealed class ProgramNotFoundForSessionException()
-    : AdminSessionException("找不到這個俱樂部的課程／營隊項目，請確認課程項目是否存在。");
+    : AdminSessionException("找不到這個俱樂部的課程／營隊項目，請確認課程項目是否存在。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("programId", Message);
+}

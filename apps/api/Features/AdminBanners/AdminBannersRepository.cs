@@ -182,7 +182,7 @@ public sealed class AdminBannersRepository(
             effectiveVideoKey = newVideoKey ?? banner.VideoKey;
             if (effectiveVideoKey is null)
             {
-                throw new AdminBannerValidationException("素材種類為「影片」時，必須先前已上傳過影片，或這次請求一併上傳影片檔案。");
+                throw new AdminBannerValidationException("素材種類為「影片」時，必須先前已上傳過影片，或這次請求一併上傳影片檔案。", "video");
             }
         }
         else
@@ -313,7 +313,7 @@ public sealed class AdminBannersRepository(
         var normalized = mediaType ?? "image";
         if (!AllowedMediaTypes.Contains(normalized))
         {
-            throw new AdminBannerValidationException("素材種類只能是「image」（圖片）或「video」（影片）。");
+            throw new AdminBannerValidationException("素材種類只能選「圖片」或「影片」。", "mediaType");
         }
         return normalized;
     }
@@ -325,11 +325,11 @@ public sealed class AdminBannersRepository(
     {
         if (mediaType == "video" && videoKey is null)
         {
-            throw new AdminBannerValidationException("素材種類為「影片」時，必須上傳影片檔案。");
+            throw new AdminBannerValidationException("素材種類為「影片」時，必須上傳影片檔案。", "video");
         }
         if (mediaType == "image" && videoKey is not null)
         {
-            throw new AdminBannerValidationException("素材種類為「圖片」時，不可上傳影片檔案。");
+            throw new AdminBannerValidationException("素材種類為「圖片」時，不可上傳影片檔案。", "video");
         }
     }
 
@@ -337,7 +337,7 @@ public sealed class AdminBannersRepository(
     {
         if (startAt is DateTime s && endAt is DateTime e && s >= e)
         {
-            throw new AdminBannerValidationException("上架時間必須早於下架時間。");
+            throw new AdminBannerValidationException("上架時間必須早於下架時間。", "period");
         }
     }
 

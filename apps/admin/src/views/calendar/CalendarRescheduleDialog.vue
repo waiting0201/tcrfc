@@ -11,6 +11,8 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import {
   conflictsFromError,
   moveAdminCustomEvent,
@@ -33,6 +35,8 @@ const emit = defineEmits<{
   (e: 'done'): void
 }>()
 
+const formErrors = provideFormErrors()
+
 const isMatch = computed(() => props.event?.sourceType === 'match')
 const currentDay = computed(() => (props.event ? formatDate(props.event.startsAt) : ''))
 
@@ -54,6 +58,7 @@ watch(
     markAsPostponed.value = false
     errorMessage.value = null
     conflicts.value = null
+    formErrors.clearAll()
   },
 )
 
@@ -69,6 +74,7 @@ async function submit(acknowledge: boolean) {
   if (!event || unchanged.value) return
   submitting.value = true
   errorMessage.value = null
+  formErrors.clearAll()
   try {
     const club = activeClubId.value
     if (event.sourceType === 'match') {
@@ -96,6 +102,13 @@ async function submit(acknowledge: boolean) {
       conflicts.value = found
     } else {
       conflicts.value = null
+      // 使用者看得到的只有「改到哪一天」與「開賽時間」：自建活動的結束時間是跟著日期平移出來的，錯誤標在日期欄
+      if (error instanceof AdminApiError && error.fieldErrors) {
+        const remapped = Object.fromEntries(
+          Object.entries(error.fieldErrors).map(([k, v]) => [['endsAt', 'startsAt', 'matchOn'].includes(k) ? 'newDay' : k, v]),
+        )
+        if (formErrors.applyApiError({ fieldErrors: remapped })) return
+      }
       errorMessage.value = error instanceof AdminApiError ? error.message : '調整失敗，請稍後再試'
     }
   } finally {
@@ -121,10 +134,10 @@ function conflictTeams(item: AdminCalendarConflictDto): string {
       <p class="reschedule__meta">目前：{{ formatDateTime(event.startsAt) }}<span v-if="event.isAllDay">（全天）</span></p>
 
       <el-form label-position="top">
-        <el-form-item label="改到哪一天" required>
+        <FormField field="newDay" label="改到哪一天" required>
           <el-date-picker v-model="newDay" type="date" value-format="YYYY-MM-DD" :clearable="false" style="width: 100%" />
-        </el-form-item>
-        <el-form-item v-if="isMatch" label="開賽時間（不改就不用動）">
+        </FormField>
+        <FormField v-if="isMatch" field="kickoff" label="開賽時間（不改就不用動）">
           <el-time-picker
             v-model="kickoff"
             format="HH:mm"
@@ -133,7 +146,7 @@ function conflictTeams(item: AdminCalendarConflictDto): string {
             style="width: 100%"
             @change="kickoffTouched = true"
           />
-        </el-form-item>
+        </FormField>
         <el-form-item v-if="isMatch">
           <el-checkbox v-model="markAsPostponed">同時標示為延賽（並記下原定日期與時間）</el-checkbox>
           <p class="reschedule__hint">沒勾選只會更正日期，賽事狀態不變；改期已開賽、已結束或已取消的賽事不被允許。</p>

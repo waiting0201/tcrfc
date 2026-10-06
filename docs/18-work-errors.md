@@ -185,6 +185,8 @@
 | E-220 | 2026-10-05 | 英文化盤點只看主表欄位，把「賽程對手沒有英文**值**」誤判成「沒有英文**欄位**」，派出一張不必要的 migration 工作；`matches_i18n.opponent`、後台 `opponentEn`、公開 API 回退與 `isFallbackLocale` 早已存在 | ⚠️ 無（每張 `*_i18n` 側表的欄位在 `docs/12c`，查那份就知道） |
 | E-221 | 2026-10-05 | 後端寫死的英文標籤（`ApplicableTierLabel`）自己取名「Fan club members only」，與前台、`docs/06` §1.1 的「Paid Fan Club member」不一致 | ✅ `MembershipPublicTests` 斷言英文標籤；⚠️ 其他寫死英文字串仍無對照表檢查 |
 | E-234 | 2026-10-06 | 後台頂欄的鈴鐺是 v1 版面的視覺佔位（`AppTopbar.vue` 寫死 `<el-badge :value="3">`、無點擊、無資料），上線到測試站後**使用者點了才發現沒有作用**；假數字「3」讓它看起來像真的有 3 筆通知。根因：照設計稿搭版面時把「之後才會有資料」的元件做成完整外觀，卻沒有標示未接線、也沒有列進待辦，後續各模組串接 API 時沒有人回頭盤點全域元件。已改為接儀表板「待辦提醒」（使用者決定）。**下次怎麼避免**：佔位元件不得顯示假數據（數字、徽章、狀態），未接線就不渲染或明確標示「尚未啟用」，並在 STATUS 留一列 | ⚠️ 無（可加「`:value=` 為數字字面值」的 lint 規則，未做） |
+| E-275 | 2026-10-06 | S2-20 六批並行遷移，為避免同時 build 互相覆蓋 `dist`，主 session 指示各批「只跑 `npx vue-tsc --noEmit` 與 `npm run lint`」。但 `npm run build` 用的是 `vue-tsc -b`（依 `tsconfig.app.json` 等專案參照檢查），`--noEmit` 對根 `tsconfig.json` 不會檢查到 `src/`，**兩個型別錯誤因此全部漏過**：`SlotTab.vue` 的 `watch([image, removeImage])` 寫在宣告之前（執行時還會踩暫時性死區）、`DrawWinnersPanel.vue` 的 `:reveal` 回傳陣列；直到收尾 agent 單獨跑 build 才抓到。根因：替代檢查時沒確認它與正式 build 的檢查範圍相同。**下次怎麼避免**：並行時改跑既有的 `npm run typecheck`（＝`vue-tsc -b --noEmit`，與 build 同一套專案參照、不寫 `dist`）；派工提示寫明 | ⚠️ 無（靠派工提示） |
+| E-276 | 2026-10-06 | S2-20 欄位鍵核對：批次把 20 個頁面的 `el-form-item` 換成 `FormField` 補 anchor，換完才發現這些頁面根本沒有 `provideFormErrors()`、catch 也沒呼叫 `applyApiError`——anchor 註冊到一份獨立空實例上，後端欄位錯誤永遠標不到格子（型別檢查、lint、build 全綠）。根因：把「有 anchor」當成「錯誤會標到欄位」，沒驗證接線的另外兩端（provide、套用）。**下次怎麼避免**：新增 anchor 的同一次改動，同時檢查該頁有 `provideFormErrors` 與送出 catch 的 `applyApiError`（`grep -L applyApiError` 對照含 `<FormField` 的檔案）。 | ⚠️ 無 |
 
 ---
 

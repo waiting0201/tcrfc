@@ -308,7 +308,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         var season = await dbContext.Seasons.FirstOrDefaultAsync(s => s.Id == seasonId, cancellationToken);
         if (season is null || season.ClubId != scope.ClubId)
         {
-            throw new AdminStandingValidationException($"找不到這個俱樂部的球季（id={seasonId}）。");
+            throw new AdminStandingValidationException("找不到這個俱樂部的球季，請重新整理後再試一次。", "seasonId");
         }
         return season;
     }
@@ -317,7 +317,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
     {
         if (string.IsNullOrWhiteSpace(teamName))
         {
-            throw new AdminStandingValidationException("球隊名稱為必填欄位。");
+            throw new AdminStandingValidationException("球隊名稱為必填欄位。", "teamName");
         }
     }
 

@@ -72,26 +72,26 @@ public sealed class AdminCalendarSettingsRepository(
     public async Task<AdminCalendarSettingsDto> UpdateAsync(
         AdminClubScope scope, UpdateCalendarSettingsRequest request, CancellationToken cancellationToken)
     {
-        AdminInput.OneOf(request.DefaultView, Views.ToHashSet(), "預設檢視", "「列表」或「月曆」");
-        AdminInput.OneOf(request.DefaultRange, Ranges.ToHashSet(), "預設顯示範圍", "「即將到來」「本月」「未來 30 天」或「整個球季」");
+        AdminInput.OneOf(request.DefaultView, Views.ToHashSet(), "預設檢視", "「列表」或「月曆」", "defaultView");
+        AdminInput.OneOf(request.DefaultRange, Ranges.ToHashSet(), "預設顯示範圍", "「即將到來」「本月」「未來 30 天」或「整個球季」", "defaultRange");
 
         var teamCodes = await db.Teams.AsNoTracking().Where(t => t.ClubId == scope.ClubId).Select(t => t.Code).ToListAsync(cancellationToken);
         var defaultTeam = string.IsNullOrWhiteSpace(request.DefaultTeamCode) ? "all" : request.DefaultTeamCode.Trim();
         if (defaultTeam != "all" && !teamCodes.Contains(defaultTeam))
         {
-            throw new AdminValidationException("預設選取的隊別不存在，請確認隊別屬於目前的俱樂部。");
+            throw new AdminValidationException("預設選取的隊別不存在，請確認隊別屬於目前的俱樂部。", "defaultTeamCode");
         }
 
         var home = (request.HomeTeamCodes ?? []).Select(c => c.Trim()).Where(c => c.Length > 0).Distinct().ToList();
         if (home.Any(c => !teamCodes.Contains(c)))
         {
-            throw new AdminValidationException("首頁顯示的隊別含有不存在的隊別，請確認隊別屬於目前的俱樂部。");
+            throw new AdminValidationException("首頁顯示的隊別含有不存在的隊別，請確認隊別屬於目前的俱樂部。", "homeTeamCodes");
         }
 
         var first = string.IsNullOrWhiteSpace(request.FirstTeamCode) ? null : request.FirstTeamCode.Trim();
         if (first is not null && !teamCodes.Contains(first))
         {
-            throw new AdminValidationException("一線隊頁固定顯示的隊別不存在，請確認隊別屬於目前的俱樂部。");
+            throw new AdminValidationException("一線隊頁固定顯示的隊別不存在，請確認隊別屬於目前的俱樂部。", "firstTeamCode");
         }
 
         var operatorId = scope.Identity.AdminUserId;
@@ -164,25 +164,26 @@ public sealed class AdminCalendarSettingsRepository(
     {
         if (request.Teams.Count == 0 || request.Teams.Select(t => t.TeamId).Distinct().Count() != request.Teams.Count)
         {
-            throw new AdminValidationException("隊別設定不可為空，也不可重複。");
+            throw new AdminValidationException("隊別設定不可為空，也不可重複。", "teams");
         }
 
         var teamIds = await db.Teams.AsNoTracking().Where(t => t.ClubId == scope.ClubId).Select(t => t.Id).ToListAsync(cancellationToken);
-        foreach (var input in request.Teams)
+        for (var i = 0; i < request.Teams.Count; i++)
         {
+            var input = request.Teams[i];
             if (!teamIds.Contains(input.TeamId))
             {
-                throw new AdminValidationException("設定裡含有不存在的隊別，請確認隊別屬於目前的俱樂部。");
+                throw new AdminValidationException("設定裡含有不存在的隊別，請確認隊別屬於目前的俱樂部。", FieldKey.Item("teams", i, "teamId"));
             }
 
             if (!string.IsNullOrWhiteSpace(input.Colour) && !Hex.IsMatch(input.Colour.Trim()))
             {
-                throw new AdminValidationException("代表色請填 6 位色碼，例如 #0B3D91。");
+                throw new AdminValidationException("代表色請填 6 位色碼，例如 #0B3D91。", FieldKey.Item("teams", i, "colour"));
             }
 
-            AdminInput.OptionalText(input.DisplayNameZh, "中文顯示名稱", 64);
-            AdminInput.OptionalText(input.DisplayNameEn, "英文顯示名稱", 64);
-            AdminInput.OptionalNonNegative(input.SortOrder, "排序");
+            AdminInput.OptionalText(input.DisplayNameZh, "中文顯示名稱", 64, FieldKey.Item("teams", i, "displayNameZh"));
+            AdminInput.OptionalText(input.DisplayNameEn, "英文顯示名稱", 64, FieldKey.Item("teams", i, "displayNameEn"));
+            AdminInput.OptionalNonNegative(input.SortOrder, "排序", FieldKey.Item("teams", i, "sortOrder"));
         }
 
         var existing = await db.CalendarTeamSettings.Include(s => s.CalendarTeamSettingsI18ns)
@@ -253,7 +254,7 @@ public sealed class AdminCalendarSettingsRepository(
         var (code, colour, icon) = ValidateType(request);
         if (await db.EventTypes.AsNoTracking().AnyAsync(t => t.Code == code, cancellationToken))
         {
-            throw new AdminConflictException("類型代碼重複", $"已經有代碼為「{code}」的賽事類型了，請換一個代碼。");
+            throw new AdminConflictException("類型代碼重複", $"已經有代碼為「{code}」的賽事類型了，請換一個代碼。", "code");
         }
 
         var now = DateTime.UtcNow;
@@ -281,7 +282,7 @@ public sealed class AdminCalendarSettingsRepository(
 
         if (!string.Equals(code, type.Code, StringComparison.Ordinal))
         {
-            throw new AdminValidationException("類型代碼建立後不能變更；需要換代碼請新增一個新的類型。");
+            throw new AdminValidationException("類型代碼建立後不能變更；需要換代碼請新增一個新的類型。", "code");
         }
 
         type.Colour = colour;
@@ -353,27 +354,27 @@ public sealed class AdminCalendarSettingsRepository(
 
     private static (string Code, string? Colour, string? Icon) ValidateType(UpsertEventTypeRequest request)
     {
-        var code = AdminInput.RequireText(request.Code, "類型代碼", 32);
+        var code = AdminInput.RequireText(request.Code, "類型代碼", 32, "code");
         if (!TypeCode.IsMatch(code))
         {
-            throw new AdminValidationException("類型代碼只能使用小寫英文字母、數字、底線與連字號，且要以英文字母開頭。");
+            throw new AdminValidationException("類型代碼只能使用小寫英文字母、數字、底線與連字號，且要以英文字母開頭。", "code");
         }
 
-        AdminInput.RequireText(request.NameZh, "中文名稱", 64);
-        AdminInput.OptionalText(request.NameEn, "英文名稱", 64);
+        AdminInput.RequireText(request.NameZh, "中文名稱", 64, "nameZh");
+        AdminInput.OptionalText(request.NameEn, "英文名稱", 64, "nameEn");
         var colour = string.IsNullOrWhiteSpace(request.Colour) ? null : request.Colour.Trim().ToUpperInvariant();
         if (colour is not null && !Hex.IsMatch(colour))
         {
-            throw new AdminValidationException("識別色請填 6 位色碼，例如 #B91C1C。");
+            throw new AdminValidationException("識別色請填 6 位色碼，例如 #B91C1C。", "colour");
         }
 
         var icon = string.IsNullOrWhiteSpace(request.Icon) ? null : request.Icon.Trim();
         if (icon is not null && Icons.All(i => i.Code != icon))
         {
-            throw new AdminValidationException("圖示請從系統提供的圖示清單中選擇。");
+            throw new AdminValidationException("圖示請從系統提供的圖示清單中選擇。", "icon");
         }
 
-        AdminInput.OptionalNonNegative(request.SortOrder, "排序");
+        AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
         return (code, colour, icon);
     }
 

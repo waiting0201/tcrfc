@@ -217,12 +217,13 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         AdminClubScope scope, IReadOnlyList<AdminStaffTeamAssignmentInput> assignments, CancellationToken cancellationToken)
     {
         var result = new List<(Team, string?)>();
-        foreach (var assignment in assignments)
+        for (var i = 0; i < assignments.Count; i++)
         {
+            var assignment = assignments[i];
             var team = await dbContext.Teams.FirstOrDefaultAsync(t => t.Id == assignment.TeamId, cancellationToken);
             if (team is null || team.ClubId != scope.ClubId)
             {
-                throw new AdminStaffValidationException($"找不到這個俱樂部的球隊（id={assignment.TeamId}）。");
+                throw new AdminStaffValidationException("找不到這個俱樂部的球隊，請重新整理後再試一次。", Tcrfc.Api.Common.FieldKey.Item("teams", i, "teamId"));
             }
             result.Add((team, assignment.RoleCode));
         }
@@ -252,7 +253,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
     {
         if (staffGroup is not null && !AllowedStaffGroups.Contains(staffGroup))
         {
-            throw new AdminStaffValidationException("分組只能是「管理層」「行政」「醫療」或「後勤」。");
+            throw new AdminStaffValidationException("分組只能是「管理層」「行政」「醫療」或「後勤」。", "staffGroup");
         }
     }
 
@@ -261,8 +262,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         if (portraitConsentStatus is not null && !AllowedPortraitConsentStatuses.Contains(portraitConsentStatus))
         {
             throw new AdminStaffValidationException(
-                "肖像同意狀態只能是「not_consented」（未同意）、「consented」（本人已同意）或" +
-                "「consented_by_guardian」（監護人已同意）。");
+                "肖像同意狀態只能選「未同意」「本人已同意」或「監護人已同意」。", "portraitConsentStatus");
         }
     }
 
@@ -270,7 +270,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
-            throw new AdminStaffValidationException("中文姓名為必填欄位。");
+            throw new AdminStaffValidationException("中文姓名為必填欄位。", "nameZh");
         }
     }
 

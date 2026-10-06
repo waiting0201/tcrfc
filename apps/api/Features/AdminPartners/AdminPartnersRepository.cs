@@ -224,14 +224,14 @@ public sealed class AdminPartnersRepository(ClubDbContext dbContext, IQueryCache
     private static Validated Validate(UpsertAdminPartnerRequest request)
     {
         var slug = string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
-        var type = AdminInput.RequireText(request.PartnerType, "夥伴類型", 32);
-        var country = AdminInput.OptionalText(request.Country, "國家", 32);
-        var website = AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網連結");
-        AdminInput.DateRange(request.StartOn, request.EndOn, "合作期間");
-        AdminInput.RequireText(request.Content.Zh.Name, "中文名稱", 128);
+        var type = AdminInput.RequireText(request.PartnerType, "夥伴類型", 32, "partnerType");
+        var country = AdminInput.OptionalText(request.Country, "國家", 32, "country");
+        var website = AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網連結", 500, "websiteUrl");
+        AdminInput.DateRange(request.StartOn, request.EndOn, "合作期間", "endOn");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文名稱", 128, "nameZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文名稱", 128);
+            AdminInput.RequireText(request.Content.En.Name, "英文名稱", 128, "nameEn");
         }
 
         return new Validated(slug, type, country, website);
@@ -282,7 +282,7 @@ public sealed class AdminPartnersRepository(ClubDbContext dbContext, IQueryCache
         if (await dbContext.Partners.AsNoTracking().AnyAsync(
                 p => p.ClubId == scope.ClubId && p.Slug == slug && p.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他夥伴使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他夥伴使用，請換一個。", "slug");
         }
     }
 

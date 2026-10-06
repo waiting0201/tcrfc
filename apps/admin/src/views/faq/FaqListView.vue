@@ -10,6 +10,9 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { activeClubId } from '@/auth/clubAccess'
 import {
@@ -75,13 +78,16 @@ function emptyCategoryForm(): CategoryFormState {
 const categoryDialogVisible = ref(false)
 const categoryDialogMode = ref<'create' | 'edit'>('create')
 const categoryForm = reactive<CategoryFormState>(emptyCategoryForm())
+/** 對話框頂部提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const categoryFormError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const categorySaving = ref(false)
 
 function openCreateCategoryDialog() {
   categoryDialogMode.value = 'create'
   Object.assign(categoryForm, emptyCategoryForm())
   categoryFormError.value = null
+  formErrors.clearAll()
   categoryDialogVisible.value = true
 }
 
@@ -96,20 +102,25 @@ function openEditCategoryDialog(row: AdminFaqCategoryListItemDto) {
     nameEn: row.nameEn ?? '',
   })
   categoryFormError.value = null
+  formErrors.clearAll()
   categoryDialogVisible.value = true
 }
 
+/** 一次檢查全部必填，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validateCategory(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!categoryForm.slug.trim()) errors.slug = '請輸入網址名稱'
+  if (!categoryForm.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  return errors
+}
+
 async function saveCategory() {
-  if (!categoryForm.slug.trim()) {
-    categoryFormError.value = '請輸入網址名稱'
-    return
-  }
-  if (!categoryForm.nameZh.trim()) {
-    categoryFormError.value = '請輸入中文名稱'
+  categoryFormError.value = null
+  if (formErrors.replaceAll(validateCategory())) {
+    await formErrors.focusFirst()
     return
   }
   categorySaving.value = true
-  categoryFormError.value = null
   try {
     const content = {
       zh: { name: categoryForm.nameZh },
@@ -135,6 +146,8 @@ async function saveCategory() {
     categoryDialogVisible.value = false
     await loadCategories()
   } catch (error) {
+    // 送出失敗不關對話框；對得到欄位的標在欄位上
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     categoryFormError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     categorySaving.value = false
@@ -614,10 +627,12 @@ async function handleCsvFileChange(event: Event) {
         @close="categoryFormError = null"
       />
       <el-form label-position="top">
-        <el-form-item label="網址名稱" required>
+       <LangTabsBar variant="bare">
+        <FormField field="slug" label="網址名稱" required>
           <el-input v-model="categoryForm.slug" placeholder="例如 join-team" />
-        </el-form-item>
+        </FormField>
         <BilingualShortField
+          field="name"
           label="名稱"
           :zh="categoryForm.nameZh"
           :en="categoryForm.nameEn"
@@ -631,6 +646,7 @@ async function handleCsvFileChange(event: Event) {
         <el-form-item label="啟用">
           <el-switch v-model="categoryForm.isEnabled" />
         </el-form-item>
+       </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="categoryDialogVisible = false">取消</el-button>

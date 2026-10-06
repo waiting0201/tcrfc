@@ -11,4 +11,7 @@ public sealed class AdminMatchValidationException(string message, string? field 
 /// competition_id, match_no)</c> 在應用層檢查（<c>matches.match_no</c> 沒有 DB 唯一索引，
 /// 見 <c>AdminMatchesRepository.EnsureMatchNoUniqueAsync</c> 上的說明）。</summary>
 public sealed class AdminMatchNoConflictException(int matchNo)
-    : AdminMatchException($"場次編號「{matchNo}」在這個賽季、這個賽事系列已經被使用，請確認或換一個編號。");
+    : AdminMatchException($"場次編號「{matchNo}」在這個賽季、這個賽事系列已經被使用，請確認或換一個編號。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("matchNo", Message);
+}

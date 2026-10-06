@@ -71,12 +71,12 @@ public sealed class AdminSeoSettingsRepository(ClubDbContext dbContext, IImagePu
     {
         if (string.IsNullOrWhiteSpace(request.TitleTemplateZh))
         {
-            throw new AdminSeoValidationException("標題樣板（中文）為必填欄位。");
+            throw new AdminSeoValidationException("標題樣板（中文）為必填欄位。", "titleTemplateZh");
         }
 
         if (string.IsNullOrWhiteSpace(request.DefaultDescriptionZh))
         {
-            throw new AdminSeoValidationException("預設描述（中文）為必填欄位。");
+            throw new AdminSeoValidationException("預設描述（中文）為必填欄位。", "defaultDescriptionZh");
         }
 
         var settings = await dbContext.Settings

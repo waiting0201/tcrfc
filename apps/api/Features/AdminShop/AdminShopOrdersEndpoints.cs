@@ -161,7 +161,7 @@ public static class AdminShopOrdersEndpoints
                 return Results.NotFound();
             }
 
-            var reason = AdminInput.RequireText(request.Reason, "取消原因", 255);
+            var reason = AdminInput.RequireText(request.Reason, "取消原因", 255, "reason");
             await lifecycle.CancelAsync(id, reason, scope.Identity.AdminUserId, cancellationToken);
             return Results.Ok(await repository.DetailAfterActionAsync(scope, id, cancellationToken));
         }).WithName("AdminCancelShopOrder").Produces<AdminOrderDetailDto>().Produces(StatusCodes.Status400BadRequest)

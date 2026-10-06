@@ -81,7 +81,7 @@ public static class AdminVenuesEndpoints
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
             if (request.RemovePhoto)
             {
-                throw new Common.AdminValidationException("建立場地時不能選擇移除照片。");
+                throw new Common.AdminValidationException("建立場地時不能選擇移除照片。", "photo");
             }
 
             var id = Guid.NewGuid();

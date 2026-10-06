@@ -12,26 +12,26 @@ internal static class RedirectPathPolicy
 {
     private const int MaxLength = 500;
 
-    public static void Validate(string? path, string fieldLabel)
+    public static void Validate(string? path, string fieldLabel, string? field = null)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            throw new AdminSeoValidationException($"{fieldLabel}為必填欄位。");
+            throw new AdminSeoValidationException($"{fieldLabel}為必填欄位。", field);
         }
 
         if (!path.StartsWith('/'))
         {
-            throw new AdminSeoValidationException($"{fieldLabel}必須以「/」開頭（僅支援站內相對路徑，不支援完整網址）。");
+            throw new AdminSeoValidationException($"{fieldLabel}必須以「/」開頭（僅支援站內相對路徑，不支援完整網址）。", field);
         }
 
         if (path.Length > MaxLength)
         {
-            throw new AdminSeoValidationException($"{fieldLabel}長度不能超過 {MaxLength} 字元。");
+            throw new AdminSeoValidationException($"{fieldLabel}長度不能超過 {MaxLength} 字元。", field);
         }
 
         if (path.Any(char.IsWhiteSpace))
         {
-            throw new AdminSeoValidationException($"{fieldLabel}不能包含空白字元。");
+            throw new AdminSeoValidationException($"{fieldLabel}不能包含空白字元。", field);
         }
     }
 }

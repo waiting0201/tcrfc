@@ -297,33 +297,33 @@ public sealed class AdminFanEventsRepository(
             member = await db.Members.AsNoTracking().FirstOrDefaultAsync(m => m.Id == memberId, cancellationToken);
             if (member is null || member.Status == "deleted")
             {
-                throw new AdminValidationException("找不到指定的會員，或這個帳號已刪除。");
+                throw new AdminValidationException("找不到指定的會員，或這個帳號已刪除。", "memberId");
             }
 
             if (await db.FanEventRegistrations.AsNoTracking().AnyAsync(r => r.FanEventId == eventId && r.MemberId == memberId && r.Status != "cancelled", cancellationToken))
             {
-                throw new AdminConflictException("已報名", "這位會員已經報名這場活動了。");
+                throw new AdminConflictException("已報名", "這位會員已經報名這場活動了。", "memberId");
             }
         }
         else
         {
             if (ev.IsPaidMembersOnly)
             {
-                throw new AdminValidationException("這場活動限付費球迷會員報名，請選擇會員。");
+                throw new AdminValidationException("這場活動限付費球迷會員報名，請選擇會員。", "memberId");
             }
 
-            name = AdminInput.RequireText(request.ApplicantName, "報名人姓名", 64);
-            phone = AdminInput.OptionalText(request.Phone, "電話", 32);
-            email = AdminInput.OptionalEmail(request.Email, "Email");
+            name = AdminInput.RequireText(request.ApplicantName, "報名人姓名", 64, "applicantName");
+            phone = AdminInput.OptionalText(request.Phone, "電話", 32, "phone");
+            email = AdminInput.OptionalEmail(request.Email, "Email", "email");
             if (phone is null && email is null)
             {
-                throw new AdminValidationException("非會員報名請至少填寫電話或 Email，方便聯絡。");
+                throw new AdminValidationException("非會員報名請至少填寫電話或 Email，方便聯絡。", "phone");
             }
         }
 
         if (ev.IsPaidMembersOnly && member is not null && !await HasPaidMembershipAsync(scope, member.Id, cancellationToken))
         {
-            throw new AdminValidationException("這場活動限付費球迷會員報名，這位會員目前沒有有效的球迷會員會籍。");
+            throw new AdminValidationException("這場活動限付費球迷會員報名，這位會員目前沒有有效的球迷會員會籍。", "memberId");
         }
 
         var registered = await db.FanEventRegistrations.AsNoTracking().CountAsync(r => r.FanEventId == eventId && OccupyingStatuses.Contains(r.Status), cancellationToken);
@@ -332,7 +332,7 @@ public sealed class AdminFanEventsRepository(
         var row = new FanEventRegistration
         {
             Id = Guid.NewGuid(), ClubId = scope.ClubId, FanEventId = eventId, MemberId = member?.Id, Status = status,
-            ApplicantName = name, Phone = phone, Email = email, Note = AdminInput.OptionalText(request.Note, "備註", 500),
+            ApplicantName = name, Phone = phone, Email = email, Note = AdminInput.OptionalText(request.Note, "備註", 500, "note"),
             CreatedAt = now, UpdatedAt = now, CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
         };
         db.FanEventRegistrations.Add(row);
@@ -344,7 +344,7 @@ public sealed class AdminFanEventsRepository(
     public async Task<AdminFanEventRegistrationDto?> UpdateRegistrationAsync(
         AdminClubScope scope, Guid eventId, Guid registrationId, UpdateAdminFanEventRegistrationRequest request, CancellationToken cancellationToken)
     {
-        AdminInput.OneOf(request.Status, RegistrationLabels.Keys.ToHashSet(), "狀態", "「已報名」「候補」「已取消」或「已到場」");
+        AdminInput.OneOf(request.Status, RegistrationLabels.Keys.ToHashSet(), "狀態", "「已報名」「候補」「已取消」或「已到場」", "status");
         var ev = await db.FanEvents.AsNoTracking().FirstOrDefaultAsync(e => e.Id == eventId && e.ClubId == scope.ClubId, cancellationToken);
         var row = ev is null ? null : await db.FanEventRegistrations.Include(r => r.Member)
             .FirstOrDefaultAsync(r => r.Id == registrationId && r.FanEventId == eventId && r.ClubId == scope.ClubId, cancellationToken);
@@ -365,7 +365,7 @@ public sealed class AdminFanEventsRepository(
             if (row.MemberId is Guid memberId
                 && await db.FanEventRegistrations.AsNoTracking().AnyAsync(r => r.FanEventId == eventId && r.MemberId == memberId && r.Status != "cancelled" && r.Id != row.Id, cancellationToken))
             {
-                throw new AdminConflictException("已報名", "這位會員已經有另一筆有效的報名了。");
+                throw new AdminConflictException("已報名", "這位會員已經有另一筆有效的報名了。", "status");
             }
 
             var registered = await db.FanEventRegistrations.AsNoTracking().CountAsync(r => r.FanEventId == eventId && OccupyingStatuses.Contains(r.Status), cancellationToken);
@@ -378,7 +378,7 @@ public sealed class AdminFanEventsRepository(
         row.Status = request.Status;
         if (request.Note is not null)
         {
-            row.Note = AdminInput.OptionalText(request.Note, "備註", 500);
+            row.Note = AdminInput.OptionalText(request.Note, "備註", 500, "note");
         }
 
         row.UpdatedAt = DateTime.UtcNow;
@@ -413,41 +413,41 @@ public sealed class AdminFanEventsRepository(
 
     private static string? Validate(UpsertAdminFanEventRequest request, int currentRegistered)
     {
-        AdminInput.OneOf(request.Status, StatusLabels.Keys.ToHashSet(), "狀態", "「草稿」或「已發布」");
-        AdminInput.RequireText(request.Content.Zh.Name, "中文活動名稱", 128);
-        AdminInput.OptionalText(request.Content.Zh.Location, "中文活動地點", 200);
+        AdminInput.OneOf(request.Status, StatusLabels.Keys.ToHashSet(), "狀態", "「草稿」或「已發布」", "status");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文活動名稱", 128, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.Location, "中文活動地點", 200, "locZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文活動名稱", 128);
-            AdminInput.OptionalText(request.Content.En.Location, "英文活動地點", 200);
+            AdminInput.RequireText(request.Content.En.Name, "英文活動名稱", 128, "nameEn");
+            AdminInput.OptionalText(request.Content.En.Location, "英文活動地點", 200, "locEn");
         }
 
         if (request.Capacity is int cap)
         {
             if (cap < 1)
             {
-                throw new AdminValidationException("名額上限至少要 1 人；不限名額請留空。");
+                throw new AdminValidationException("名額上限至少要 1 人；不限名額請留空。", "capacity");
             }
 
             if (cap < currentRegistered)
             {
-                throw new AdminConflictException("名額低於已報名人數", $"目前已有 {currentRegistered} 人報名，名額不能調到比這個少。");
+                throw new AdminConflictException("名額低於已報名人數", $"目前已有 {currentRegistered} 人報名，名額不能調到比這個少。", "capacity");
             }
         }
 
         if (request.StartsAt is DateTime start && request.EndsAt is DateTime end && end < start)
         {
-            throw new AdminValidationException("活動結束時間不可早於開始時間。");
+            throw new AdminValidationException("活動結束時間不可早於開始時間。", "endsAt");
         }
 
         if (request.StartsAt is DateTime s && request.RegistrationDeadlineAt is DateTime deadline && deadline > s)
         {
-            throw new AdminValidationException("報名截止時間不可晚於活動開始時間。");
+            throw new AdminValidationException("報名截止時間不可晚於活動開始時間。", "registrationDeadlineAt");
         }
 
         if (request.Status == "published" && request.StartsAt is null)
         {
-            throw new AdminValidationException("發布活動前請先填寫活動開始時間。");
+            throw new AdminValidationException("發布活動前請先填寫活動開始時間。", "startsAt");
         }
 
         return string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
@@ -471,7 +471,7 @@ public sealed class AdminFanEventsRepository(
     {
         if (venueId is Guid v && !await db.Venues.AsNoTracking().AnyAsync(x => x.Id == v, cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的場地。");
+            throw new AdminValidationException("找不到指定的場地。", "venueId");
         }
     }
 
@@ -479,7 +479,7 @@ public sealed class AdminFanEventsRepository(
     {
         if (await db.FanEvents.AsNoTracking().AnyAsync(e => e.ClubId == scope.ClubId && e.Slug == slug && e.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的另一場活動使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的另一場活動使用，請換一個。", "slug");
         }
     }
 
@@ -489,7 +489,7 @@ public sealed class AdminFanEventsRepository(
         var rows = await db.Articles.Where(a => distinct.Contains(a.Id) && (a.ClubId == scope.ClubId || a.ClubId == null)).ToListAsync(cancellationToken);
         if (rows.Count != distinct.Count)
         {
-            throw new AdminValidationException("關聯文章含有不存在的文章，請重新選擇。");
+            throw new AdminValidationException("關聯文章含有不存在的文章，請重新選擇。", "articleIds");
         }
 
         return distinct.Select(id => rows.First(r => r.Id == id)).ToList();

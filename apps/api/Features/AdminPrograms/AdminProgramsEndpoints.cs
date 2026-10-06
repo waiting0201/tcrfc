@@ -110,7 +110,7 @@ public static class AdminProgramsEndpoints
 
             if (file is not null && request.RemoveCover)
             {
-                throw new AdminProgramValidationException("不能同時上傳新的封面圖與移除封面圖，請擇一。");
+                throw new AdminProgramValidationException("不能同時上傳新的封面圖與移除封面圖，請擇一。", "cover");
             }
 
             string? uploadedKey = null;

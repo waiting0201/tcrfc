@@ -76,21 +76,23 @@ public sealed class AdminGeoCrawlerRepository(ClubDbContext dbContext)
     {
         if (agents.Count > MaxAgentCount)
         {
-            throw new AdminSeoValidationException($"AI 使用者代理清單最多 {MaxAgentCount} 筆。");
+            throw new AdminSeoValidationException($"AI 爬蟲清單最多 {MaxAgentCount} 筆。", "userAgents");
         }
 
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var agent in agents)
+        for (var i = 0; i < agents.Count; i++)
         {
+            var agent = agents[i];
             if (string.IsNullOrWhiteSpace(agent.UserAgent) || !UserAgentPattern.IsMatch(agent.UserAgent))
             {
                 throw new AdminSeoValidationException(
-                    $"使用者代理「{agent.UserAgent}」格式不正確，只能包含英數字、句點、連字號或底線，長度 1 至 {MaxUserAgentLength} 字元。");
+                    $"爬蟲名稱「{agent.UserAgent}」格式不正確，只能包含英數字、句點、連字號或底線，長度 1 至 {MaxUserAgentLength} 字元。",
+                    Tcrfc.Api.Common.FieldKey.Item("userAgents", i, "userAgent"));
             }
 
             if (!seen.Add(agent.UserAgent))
             {
-                throw new AdminSeoValidationException($"使用者代理「{agent.UserAgent}」重複，同一份清單不能有兩筆相同的代理名稱。");
+                throw new AdminSeoValidationException($"爬蟲名稱「{agent.UserAgent}」重複，同一份清單不能有兩筆相同的名稱。", Tcrfc.Api.Common.FieldKey.Item("userAgents", i, "userAgent"));
             }
         }
     }
@@ -99,21 +101,23 @@ public sealed class AdminGeoCrawlerRepository(ClubDbContext dbContext)
     {
         if (paths.Count > MaxPathCount)
         {
-            throw new AdminSeoValidationException($"排除路徑最多 {MaxPathCount} 筆。");
+            throw new AdminSeoValidationException($"排除路徑最多 {MaxPathCount} 筆。", "additionalExcludePaths");
         }
 
-        foreach (var path in paths)
+        for (var i = 0; i < paths.Count; i++)
         {
-            RedirectPathPolicy.Validate(path, "排除路徑");
+            var path = paths[i];
+            var key = Tcrfc.Api.Common.FieldKey.Item("additionalExcludePaths", i);
+            RedirectPathPolicy.Validate(path, "排除路徑", key);
 
             if (path.Length > MaxPathLength)
             {
-                throw new AdminSeoValidationException($"排除路徑「{path}」長度不能超過 {MaxPathLength} 字元。");
+                throw new AdminSeoValidationException($"排除路徑「{path}」長度不能超過 {MaxPathLength} 字元。", key);
             }
 
             if (!path.EndsWith('/'))
             {
-                throw new AdminSeoValidationException($"排除路徑「{path}」必須以「/」結尾（僅接受目錄前綴，不接受單一檔案路徑）。");
+                throw new AdminSeoValidationException($"排除路徑「{path}」必須以「/」結尾（僅接受目錄前綴，不接受單一檔案路徑）。", key);
             }
         }
     }

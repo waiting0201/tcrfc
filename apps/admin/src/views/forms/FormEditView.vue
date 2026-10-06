@@ -15,6 +15,11 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -53,7 +58,9 @@ const fields = ref<AdminFormFieldDto[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors，頁面與欄位對話框共用，鍵不重疊）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 async function loadForm() {
   loadState.value = 'loading'
@@ -85,36 +92,34 @@ useUnsavedChanges(isDirty)
 
 const pageTitle = computed(() => `${canManageForms.value ? '編輯' : '檢視'}表單：${formCodeLabel(formCode.value)}`)
 
-function validateEmails(raw: string): boolean {
-  if (!raw.trim()) return true
+function emailError(raw: string): string | null {
+  if (!raw.trim()) return null
   const parts = raw.split(/[,;]/).map((s) => s.trim()).filter(Boolean)
   const pattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
   const bad = parts.find((p) => !pattern.test(p))
-  if (bad) {
-    formError.value = `「${bad}」不是合法的 Email 格式，請確認收件通知欄位（可用逗號分隔多人）`
-    return false
-  }
-  return true
+  return bad ? `「${bad}」不是合法的 Email 格式，請確認收件通知欄位（可用逗號分隔多人）` : null
 }
 
-function validate(): boolean {
-  formError.value = null
-  if (!validateEmails(form.notifyEmails)) return false
-  if (form.redirectPath.trim()) {
-    const p = form.redirectPath.trim()
-    if (!p.startsWith('/') && !/^https?:\/\//i.test(p)) {
-      formError.value = '送出後導向的網址要用「/」開頭的相對路徑，或完整的 http(s):// 網址'
-      return false
-    }
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  const mailError = emailError(form.notifyEmails)
+  if (mailError) errors.notifyEmails = mailError
+  const p = form.redirectPath.trim()
+  if (p && !p.startsWith('/') && !/^https?:\/\//i.test(p)) {
+    errors.redirectPath = '送出後導向的網址要用「/」開頭的相對路徑，或完整的 http(s):// 網址'
   }
-  return true
+  return errors
 }
 
 async function handleSave() {
   if (isReadOnly.value) return
-  if (!validate()) return
-  saving.value = true
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     await updateAdminForm(activeClubId.value, formId.value!, {
       notifyEmails: form.notifyEmails.trim() || null,
@@ -126,6 +131,7 @@ async function handleSave() {
     ElMessage.success('已儲存')
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -179,6 +185,7 @@ function openCreateFieldDialog() {
   fieldForm.isSummary = false
   newOptionText.value = ''
   fieldDialogError.value = null
+  formErrors.clearAll()
   fieldDialogVisible.value = true
 }
 
@@ -196,6 +203,7 @@ function openEditFieldDialog(field: AdminFormFieldDto) {
   fieldForm.isSummary = field.isSummary
   newOptionText.value = ''
   fieldDialogError.value = null
+  formErrors.clearAll()
   fieldDialogVisible.value = true
 }
 
@@ -203,17 +211,19 @@ function addOption() {
   const value = newOptionText.value.trim()
   if (!value) return
   if (fieldForm.options.includes(value)) {
-    fieldDialogError.value = '這個選項已經存在了'
+    formErrors.set('options', '這個選項已經存在了')
     return
   }
   fieldForm.options.push(value)
   fieldForm.optionLabelsEn.push('')
   newOptionText.value = ''
+  formErrors.clear('options')
 }
 
 function removeOption(index: number) {
   fieldForm.options.splice(index, 1)
   fieldForm.optionLabelsEn.splice(index, 1)
+  formErrors.clear('options')
 }
 
 /** 選項的英文顯示文字**要嘛全部填、要嘛全部留空**（後端 `ValidateOptionLabelsEn`：提供時筆數
@@ -227,39 +237,36 @@ function buildOptionLabelsEnPayload(): string[] | null {
 
 const FIELD_KEY_PATTERN = /^[a-z][a-z0-9_]{0,63}$/
 
-function validateFieldForm(): boolean {
-  fieldDialogError.value = null
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validateFieldForm(): Record<string, string> {
+  const errors: Record<string, string> = {}
   if (!FIELD_KEY_PATTERN.test(fieldForm.fieldKey)) {
-    fieldDialogError.value = '欄位代碼只能使用小寫英文字母、數字與底線，須以英文字母開頭，長度 1–64 字'
-    return false
+    errors.fieldKey = '欄位代碼只能使用小寫英文字母、數字與底線，須以英文字母開頭，長度 1–64 字'
+  } else {
+    const isDuplicate = fields.value.some(
+      (f) => f.fieldKey === fieldForm.fieldKey && (fieldDialogMode.value === 'create' || f.id !== editingFieldId.value),
+    )
+    if (isDuplicate) errors.fieldKey = `這張表單已經有欄位代碼「${fieldForm.fieldKey}」，請換一個名稱`
   }
-  const isDuplicate = fields.value.some(
-    (f) => f.fieldKey === fieldForm.fieldKey && (fieldDialogMode.value === 'create' || f.id !== editingFieldId.value),
-  )
-  if (isDuplicate) {
-    fieldDialogError.value = `這張表單已經有欄位代碼「${fieldForm.fieldKey}」，請換一個名稱`
-    return false
-  }
-  if (!fieldForm.labelZh.trim()) {
-    fieldDialogError.value = '題目文字（中文）為必填欄位'
-    return false
-  }
-  if (fieldNeedsOptions.value && fieldForm.options.length === 0) {
-    fieldDialogError.value = '下拉或多選欄位至少要有一個選項'
-    return false
-  }
+  if (!fieldForm.labelZh.trim()) errors.labelZh = '題目文字（中文）為必填欄位'
   if (fieldNeedsOptions.value) {
-    const filledCount = fieldForm.optionLabelsEn.filter((v) => v.trim()).length
-    if (filledCount > 0 && filledCount < fieldForm.optionLabelsEn.length) {
-      fieldDialogError.value = '選項的英文顯示文字要嘛每一項都填，要嘛整組留空（尚未翻譯），不能只填一部分'
-      return false
+    if (fieldForm.options.length === 0) errors.options = '下拉或多選欄位至少要有一個選項'
+    else {
+      const filledCount = fieldForm.optionLabelsEn.filter((v) => v.trim()).length
+      if (filledCount > 0 && filledCount < fieldForm.optionLabelsEn.length) {
+        errors.optionLabelsEn = '選項的英文顯示文字要嘛每一項都填，要嘛整組留空（尚未翻譯），不能只填一部分'
+      }
     }
   }
-  return true
+  return errors
 }
 
 async function submitFieldDialog() {
-  if (!validateFieldForm()) return
+  fieldDialogError.value = null
+  if (formErrors.replaceAll(validateFieldForm())) {
+    await formErrors.focusFirst()
+    return
+  }
   fieldSaving.value = true
   try {
     const payload = {
@@ -287,6 +294,8 @@ async function submitFieldDialog() {
     fieldDialogVisible.value = false
     await loadForm()
   } catch (error) {
+    // 送出失敗不關對話框；對得到欄位的標在欄位上
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     fieldDialogError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     fieldSaving.value = false
@@ -403,14 +412,15 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
         class="form-edit__form-error"
       />
 
+      <LangTabsBar>
       <el-form label-position="top" :disabled="isReadOnly">
         <el-card shadow="never" header="表單設定" class="form-edit__section">
-          <el-form-item label="收件通知 Email（可多人，以逗號分隔）">
+          <FormField field="notifyEmails" label="收件通知 Email（可多人，以逗號分隔）">
             <el-input v-model="form.notifyEmails" placeholder="例如 academy@tcrfc.tw, office@tcrfc.tw" />
-          </el-form-item>
-          <el-form-item label="送出後導向頁（選填，留空維持在原頁顯示送出成功）">
+          </FormField>
+          <FormField field="redirectPath" label="送出後導向頁（選填，留空維持在原頁顯示送出成功）">
             <el-input v-model="form.redirectPath" placeholder="例如 /zh/thank-you/ 或完整網址" />
-          </el-form-item>
+          </FormField>
           <el-form-item label="防機器人驗證">
             <el-switch v-model="form.captchaEnabled" />
             <p class="form-edit__hint">
@@ -418,6 +428,7 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
             </p>
           </el-form-item>
           <BilingualTextareaField
+            field="autoReplyBody"
             label="自動回覆信內容"
             :zh="form.autoReplyBodyZh"
             :en="form.autoReplyBodyEn"
@@ -481,9 +492,12 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
         </el-empty>
       </el-card>
 
-      <div v-if="!isReadOnly" class="form-edit__action-bar">
+      </LangTabsBar>
+
+      <EditActionBar v-if="!isReadOnly">
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存表單設定</el-button>
-      </div>
+      </EditActionBar>
     </template>
 
     <el-dialog
@@ -494,10 +508,12 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
     >
       <el-alert v-if="fieldDialogError" :title="fieldDialogError" type="warning" show-icon class="form-edit__dialog-error" />
       <el-form label-position="top">
-        <el-form-item label="欄位代碼（英文小寫，例如 experience）" required>
+       <LangTabsBar variant="bare">
+        <FormField field="fieldKey" label="欄位代碼（英文小寫，例如 experience）" required>
           <el-input v-model="fieldForm.fieldKey" placeholder="英文小寫字母開頭，可含數字與底線" />
-        </el-form-item>
+        </FormField>
         <BilingualShortField
+          field="label"
           label="題目文字"
           required
           :zh="fieldForm.labelZh"
@@ -506,39 +522,44 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
           @update:zh="(v) => (fieldForm.labelZh = v)"
           @update:en="(v) => (fieldForm.labelEn = v)"
         />
-        <el-form-item label="欄位型別" required>
+        <FormField field="fieldType" label="欄位型別" required>
           <el-select v-model="fieldForm.fieldType" style="width: 100%">
             <el-option v-for="t in FIELD_TYPE_ORDER" :key="t" :label="FIELD_TYPE_LABEL[t]" :value="t" />
           </el-select>
           <p v-if="fieldForm.fieldType === 'file'" class="form-edit__hint form-edit__hint--warning">
             「檔案上傳」目前只能填文字或網址（例如雲端硬碟連結），系統還沒有真正接收檔案的功能。
           </p>
-        </el-form-item>
+        </FormField>
         <el-form-item label="是否必填">
           <el-switch v-model="fieldForm.isRequired" />
         </el-form-item>
-        <el-form-item v-if="fieldNeedsOptions" label="選項清單（下拉／多選必填，至少一項；英文顯示文字選填，要嘛全部填、要嘛全部留空）">
-          <div v-if="fieldForm.options.length > 0" class="form-edit__option-rows">
+        <FormField v-if="fieldNeedsOptions" field="options" label="選項清單（下拉／多選必填，至少一項；英文顯示文字選填，要嘛全部填、要嘛全部留空）">
+         <div>
+          <FormField v-if="fieldForm.options.length > 0" field="optionLabelsEn" style="margin-bottom: 8px">
+           <div class="form-edit__option-rows">
             <div v-for="(opt, index) in fieldForm.options" :key="opt" class="form-edit__option-row">
               <span class="form-edit__option-row-zh">{{ opt }}</span>
               <el-input v-model="fieldForm.optionLabelsEn[index]" placeholder="英文顯示文字（選填）" />
               <el-button text type="danger" @click="removeOption(index)">刪除</el-button>
             </div>
-          </div>
+           </div>
+          </FormField>
           <div class="form-edit__option-add">
             <el-input v-model="newOptionText" placeholder="輸入選項內容（中文）後按新增" @keyup.enter="addOption" />
             <el-button @click="addOption">新增選項</el-button>
           </div>
-        </el-form-item>
-        <el-form-item v-if="!['select', 'multiselect', 'consent', 'file'].includes(fieldForm.fieldType)" label="驗證規則（選填，正規表示式）">
+         </div>
+        </FormField>
+        <FormField v-if="!['select', 'multiselect', 'consent', 'file'].includes(fieldForm.fieldType)" field="validationRule" label="驗證規則（選填，正規表示式）">
           <el-input v-model="fieldForm.validationRule" placeholder="例如電話格式，留空表示不額外驗證格式" />
-        </el-form-item>
+        </FormField>
         <el-form-item label="標記為內容摘要">
           <el-switch v-model="fieldForm.isSummary" />
           <p class="form-edit__hint">
             收件匣清單的「內容摘要」欄會取這個欄位的值。同一張表單最多一個欄位可以標記，設定新的會自動取代舊的。
           </p>
         </el-form-item>
+       </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="fieldDialogVisible = false">取消</el-button>
@@ -612,35 +633,5 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
 
 .form-edit__dialog-error {
   margin-bottom: 12px;
-}
-
-.form-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .form-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .form-edit__action-bar {
-    justify-content: stretch;
-  }
-
-  .form-edit__action-bar :deep(.el-button) {
-    flex: 1;
-  }
 }
 </style>

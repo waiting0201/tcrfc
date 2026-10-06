@@ -298,7 +298,7 @@ public static class AdminCharityEndpoints
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, ContentCreate, cancellationToken);
             var (request, form) = await AdminMultipartForm.ReadAsync<UpsertAdminImpactRecordRequest>(httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
-            var file = form.Files["image"] ?? throw new AdminValidationException("事蹟紀錄必須上傳活動圖片（欄位 image）。");
+            var file = form.Files["image"] ?? throw new AdminValidationException("事蹟紀錄必須上傳活動圖片。", "image");
             var id = Guid.NewGuid();
             var tx = new UploadTransaction(images, documents);
             try

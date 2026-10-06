@@ -67,10 +67,10 @@ public sealed class AdminShopRefundsRepository(
 
     public async Task<AdminRefundDetailDto> CreateAsync(AdminClubScope scope, CreateAdminRefundRequest request, CancellationToken cancellationToken)
     {
-        var reason = AdminInput.RequireText(request.Reason, "退貨原因", 255);
+        var reason = AdminInput.RequireText(request.Reason, "退貨原因", 255, "reason");
         if (request.Items is null || request.Items.Count == 0)
         {
-            throw new AdminValidationException("請選擇要退的品項。");
+            throw new AdminValidationException("請選擇要退的品項。", "items");
         }
 
         var order = await db.Orders.AsNoTracking().Include(o => o.OrderItems).FirstOrDefaultAsync(o => o.Id == request.OrderId && o.SellingClubId == scope.ClubId, cancellationToken)
@@ -94,11 +94,11 @@ public sealed class AdminShopRefundsRepository(
         foreach (var line in request.Items.GroupBy(i => i.OrderItemId).Select(g => (Id: g.Key, Quantity: g.Sum(x => x.Quantity))))
         {
             var item = order.OrderItems.FirstOrDefault(i => i.Id == line.Id)
-                ?? throw new AdminValidationException("退貨品項含有不屬於這張訂單的品項。");
+                ?? throw new AdminValidationException("退貨品項含有不屬於這張訂單的品項。", "items");
             var left = item.Quantity - refundedQty.GetValueOrDefault(item.Id);
             if (line.Quantity < 1 || line.Quantity > left)
             {
-                throw new AdminValidationException($"「{item.ProductNameSnapshot}」最多還能退 {left} 件。");
+                throw new AdminValidationException($"「{item.ProductNameSnapshot}」最多還能退 {left} 件。", "items");
             }
 
             items.Add((item, line.Quantity));
@@ -108,7 +108,7 @@ public sealed class AdminShopRefundsRepository(
         var remaining = order.Total - refundedAmount;
         if (amount < 1 || amount > remaining)
         {
-            throw new AdminValidationException($"退款金額必須介於 1 與這張訂單尚可退的 {remaining} 元之間。");
+            throw new AdminValidationException($"退款金額必須介於 1 與這張訂單尚可退的 {remaining} 元之間。", "refundAmount");
         }
 
         var now = DateTime.UtcNow;
@@ -146,7 +146,7 @@ public sealed class AdminShopRefundsRepository(
             return null;
         }
 
-        var note = AdminInput.OptionalText(request.Note, "審核意見", 500);
+        var note = AdminInput.OptionalText(request.Note, "審核意見", 500, "note");
         var affected = await db.RefundRequests.Where(r => r.Id == id && r.Status == "requested")
             .ExecuteUpdateAsync(s => s.SetProperty(r => r.Status, "approved").SetProperty(r => r.ApprovedBy, scope.Identity.AdminUserId)
                 .SetProperty(r => r.ReviewNote, note).SetProperty(r => r.UpdatedAt, DateTime.UtcNow).SetProperty(r => r.UpdatedBy, scope.Identity.AdminUserId), cancellationToken);
@@ -166,7 +166,7 @@ public sealed class AdminShopRefundsRepository(
             return null;
         }
 
-        var note = AdminInput.RequireText(request.Note, "駁回原因", 500);
+        var note = AdminInput.RequireText(request.Note, "駁回原因", 500, "note");
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var affected = await db.RefundRequests.Where(r => r.Id == id && (r.Status == "requested" || r.Status == "approved"))
@@ -196,7 +196,7 @@ public sealed class AdminShopRefundsRepository(
             throw new AdminConflictException("不需要驗收", "這個案件不需要顧客退回商品，核准後可直接執行退款。");
         }
 
-        var note = AdminInput.OptionalText(request.Note, "驗收備註", 500);
+        var note = AdminInput.OptionalText(request.Note, "驗收備註", 500, "note");
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var affected = await db.RefundRequests.Where(r => r.Id == id && r.Status == "approved")

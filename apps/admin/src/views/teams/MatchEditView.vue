@@ -17,6 +17,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
@@ -102,7 +107,9 @@ const venues = ref<AdminVenueListItemDto[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有欄位歸屬的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 async function loadCompetitionsForSeason(seasonId: string) {
   if (!seasonId) {
@@ -245,51 +252,23 @@ const outOfScopeTeamNames = computed(() =>
 const isReadOnly = computed(() => loadState.value === 'ready' && outOfScopeTeamIds.value.length > 0)
 const teamSelectOptions = computed(() => buildOptions(teams.value, form.teamIds))
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.seasonId) {
-    formError.value = '請選擇賽季'
-    return false
-  }
-  if (form.teamIds.length === 0) {
-    formError.value = '請至少選擇一支所屬球隊'
-    return false
-  }
-  if (!form.matchOn) {
-    formError.value = '請選擇日期'
-    return false
-  }
-  if (!form.opponent.trim()) {
-    formError.value = '請輸入對手'
-    return false
-  }
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.seasonId) errors.seasonId = '請選擇賽季'
+  if (form.teamIds.length === 0) errors.teamIds = '請至少選擇一支所屬球隊'
+  if (!form.matchOn) errors.matchOn = '請選擇日期'
+  if (!form.opponent.trim()) errors.opponent = '請輸入對手'
   if (isPostponed.value && !form.originalMatchOn) {
-    formError.value = '狀態為「延賽」時必須填寫原定日期'
-    return false
+    errors.originalMatchOn = '狀態為「延賽」時必須填寫原定日期'
   }
   if (!isPostponed.value && (form.originalMatchOn || form.originalKickoff)) {
-    formError.value = '只有狀態為「延賽」時才能填寫原定日期／時間，請先清空或改回延賽狀態'
-    return false
+    errors.status = '只有狀態為「延賽」時才能填寫原定日期／時間，請先清空或改回延賽狀態'
   }
-  for (const g of form.goals) {
-    if (!g.playerId) {
-      formError.value = '每一筆進球紀錄都要選擇球員'
-      return false
-    }
-  }
-  for (const c of form.cards) {
-    if (!c.playerId) {
-      formError.value = '每一筆卡牌紀錄都要選擇球員'
-      return false
-    }
-  }
-  for (const l of form.lineups) {
-    if (!l.playerId) {
-      formError.value = '出賽名單裡每一列都要選擇球員'
-      return false
-    }
-  }
-  return true
+  if (form.goals.some((g) => !g.playerId)) errors.goals = '每一筆進球紀錄都要選擇球員'
+  if (form.cards.some((c) => !c.playerId)) errors.cards = '每一筆卡牌紀錄都要選擇球員'
+  if (form.lineups.some((l) => !l.playerId)) errors.lineups = '出賽名單裡每一列都要選擇球員'
+  return errors
 }
 
 function buildPayload(): SaveMatchPayload {
@@ -321,9 +300,12 @@ function buildPayload(): SaveMatchPayload {
 
 async function handleSave() {
   if (isReadOnly.value) return
-  if (!validate()) return
-  saving.value = true
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     if (isCreate.value) {
       const created = await createAdminMatch(activeClubId.value, buildPayload())
@@ -338,6 +320,8 @@ async function handleSave() {
   } catch (error) {
     if (error instanceof AdminApiError && error.kind === 'forbidden') {
       await ElMessageBox.alert(error.message, '沒有權限', { confirmButtonText: '我知道了' })
+    } else if (error instanceof AdminApiError && formErrors.applyApiError(error)) {
+      // 已標到欄位
     } else {
       formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
     }
@@ -354,14 +338,22 @@ function retryLoad() {
   loadMatch()
 }
 
+function clearRowErrors() {
+  formErrors.clear('goals')
+  formErrors.clear('cards')
+  formErrors.clear('lineups')
+}
 function addGoal() {
   form.goals.push({ playerId: '', minute: null, goalType: '' })
+  formErrors.clear('goals')
 }
 function addCard() {
   form.cards.push({ playerId: '', cardType: 'yellow', minute: null })
+  formErrors.clear('cards')
 }
 function addLineup() {
   form.lineups.push({ playerId: '', isStarter: true })
+  formErrors.clear('lineups')
 }
 </script>
 
@@ -408,249 +400,266 @@ function addLineup() {
       />
 
       <el-form label-position="top" :disabled="isReadOnly">
-        <el-card shadow="never" header="基本資料" class="match-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="賽季" required>
-                <el-select v-model="form.seasonId" placeholder="請選擇賽季" filterable style="width: 100%">
-                  <el-option v-for="s in seasons" :key="s.id" :label="s.code" :value="s.id" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="賽事系列（選填）">
-                <el-select
-                  v-model="form.competitionId"
-                  clearable
-                  filterable
-                  placeholder="不指定即可（用下方賽事類型分類）"
-                  style="width: 100%"
-                  :no-data-text="form.seasonId ? '這個賽季還沒有任何賽事系列' : '請先選擇賽季'"
-                >
-                  <el-option v-for="c in competitions" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <el-form-item label="所屬球隊（跨梯隊友誼賽可複選多支）" required>
-            <el-select
-              v-model="form.teamIds"
-              multiple
-              filterable
-              placeholder="請選擇球隊"
-              style="width: 100%"
-              no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
-            >
-              <el-option v-for="t in teamSelectOptions" :key="t.id" :label="t.label" :value="t.id" :disabled="t.disabled" />
-            </el-select>
-          </el-form-item>
-
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="日期" required>
-                <el-date-picker v-model="form.matchOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" placeholder="請選擇日期" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="時間（選填）">
-                <el-input v-model="form.kickoff" placeholder="例如 19:00" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="主客場（選填）">
-                <el-select v-model="form.homeAway" clearable placeholder="不指定" style="width: 100%">
-                  <el-option v-for="v in MATCH_HOME_AWAY_ORDER" :key="v" :label="matchHomeAwayLabel(v)" :value="v" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="賽事類型（選填）">
-                <el-select v-model="form.competitionTag" clearable placeholder="不指定" style="width: 100%">
-                  <el-option v-for="v in MATCH_COMPETITION_TAG_ORDER" :key="v" :label="matchCompetitionTagLabel(v)" :value="v" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="狀態" required>
-                <el-select v-model="form.status" style="width: 100%">
-                  <el-option v-for="v in MATCH_STATUS_ORDER" :key="v" :label="matchStatusLabel(v)" :value="v" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <BilingualShortField
-            label="對手"
-            :zh="form.opponent"
-            :en="form.opponentEn"
-            required
-            @update:zh="(v) => (form.opponent = v)"
-            @update:en="(v) => (form.opponentEn = v)"
-          />
-          <el-form-item label="選擇既有場地（選填，客場等清單裡沒有的場地可略過，直接填下方文字欄位）">
-            <el-select
-              v-model="form.venueId"
-              placeholder="選擇既有場地"
-              filterable
-              clearable
-              style="width: 100%"
-              @change="handleVenuePicked"
-            >
-              <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
-            </el-select>
-          </el-form-item>
-          <BilingualShortField
-            label="場地顯示文字（選填）"
-            :zh="form.venue"
-            :en="form.venueEn"
-            @update:zh="(v) => (form.venue = v)"
-            @update:en="(v) => (form.venueEn = v)"
-          />
-
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="場次編號（選填，同賽季同賽事系列不可重複）">
-                <el-input-number v-model="form.matchNo" :min="1" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="輪次（選填）">
-                <el-input-number v-model="form.roundNo" :min="1" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <template v-if="isPostponed">
-            <el-alert
-              title="狀態為「延賽」，請填寫原定日期時間，前台賽事卡片會顯示這場比賽原本排定的時間。"
-              type="warning"
-              show-icon
-              :closable="false"
-              class="match-edit__postponed-hint"
-            />
+        <LangTabsBar>
+          <el-card shadow="never" header="基本資料" class="match-edit__section">
             <el-row :gutter="12">
               <el-col :span="12">
-                <el-form-item label="原定日期" required>
-                  <el-date-picker v-model="form.originalMatchOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" placeholder="請選擇原定日期" />
-                </el-form-item>
+                <FormField field="seasonId" label="賽季" required>
+                  <el-select v-model="form.seasonId" placeholder="請選擇賽季" filterable style="width: 100%" @change="formErrors.clear('seasonId')">
+                    <el-option v-for="s in seasons" :key="s.id" :label="s.code" :value="s.id" />
+                  </el-select>
+                </FormField>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="原定時間（選填）">
-                  <el-input v-model="form.originalKickoff" placeholder="例如 19:00" />
+                <FormField field="competitionId" label="賽事系列（選填）">
+                  <el-select
+                    v-model="form.competitionId"
+                    clearable
+                    filterable
+                    placeholder="不指定即可（用下方賽事類型分類）"
+                    style="width: 100%"
+                    :no-data-text="form.seasonId ? '這個賽季還沒有任何賽事系列' : '請先選擇賽季'"
+                    @change="formErrors.clear('competitionId')"
+                  >
+                    <el-option v-for="c in competitions" :key="c.id" :label="c.nameZh || c.code" :value="c.id" />
+                  </el-select>
+                </FormField>
+              </el-col>
+            </el-row>
+
+            <FormField field="teamIds" label="所屬球隊（跨梯隊友誼賽可複選多支）" required>
+              <el-select
+                v-model="form.teamIds"
+                multiple
+                filterable
+                placeholder="請選擇球隊"
+                style="width: 100%"
+                no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+                @change="formErrors.clear('teamIds')"
+              >
+                <el-option v-for="t in teamSelectOptions" :key="t.id" :label="t.label" :value="t.id" :disabled="t.disabled" />
+              </el-select>
+            </FormField>
+
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <FormField field="matchOn" label="日期" required>
+                  <el-date-picker v-model="form.matchOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" placeholder="請選擇日期" @change="formErrors.clear('matchOn')" />
+                </FormField>
+              </el-col>
+              <el-col :span="12">
+                <FormField field="kickoff" label="時間（選填）">
+                  <el-input v-model="form.kickoff" placeholder="例如 19:00" />
+                </FormField>
+              </el-col>
+            </el-row>
+
+            <el-row :gutter="12">
+              <el-col :span="8">
+                <FormField field="homeAway" label="主客場（選填）">
+                  <el-select v-model="form.homeAway" clearable placeholder="不指定" style="width: 100%" @change="formErrors.clear('homeAway')">
+                    <el-option v-for="v in MATCH_HOME_AWAY_ORDER" :key="v" :label="matchHomeAwayLabel(v)" :value="v" />
+                  </el-select>
+                </FormField>
+              </el-col>
+              <el-col :span="8">
+                <FormField field="competitionTag" label="賽事類型（選填）">
+                  <el-select v-model="form.competitionTag" clearable placeholder="不指定" style="width: 100%" @change="formErrors.clear('competitionTag')">
+                    <el-option v-for="v in MATCH_COMPETITION_TAG_ORDER" :key="v" :label="matchCompetitionTagLabel(v)" :value="v" />
+                  </el-select>
+                </FormField>
+              </el-col>
+              <el-col :span="8">
+                <FormField field="status" label="狀態" required>
+                  <el-select v-model="form.status" style="width: 100%" @change="formErrors.clear('status')">
+                    <el-option v-for="v in MATCH_STATUS_ORDER" :key="v" :label="matchStatusLabel(v)" :value="v" />
+                  </el-select>
+                </FormField>
+              </el-col>
+            </el-row>
+
+            <BilingualShortField
+              field="opponent"
+              field-zh="opponent"
+              field-en="opponentEn"
+              label="對手"
+              :zh="form.opponent"
+              :en="form.opponentEn"
+              required
+              @update:zh="(v) => (form.opponent = v)"
+              @update:en="(v) => (form.opponentEn = v)"
+            />
+            <FormField field="venueId" label="選擇既有場地（選填，客場等清單裡沒有的場地可略過，直接填下方文字欄位）">
+              <el-select
+                v-model="form.venueId"
+                placeholder="選擇既有場地"
+                filterable
+                clearable
+                style="width: 100%"
+                @change="(v: string | null) => { formErrors.clear('venueId'); handleVenuePicked(v) }"
+              >
+                <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+              </el-select>
+            </FormField>
+            <BilingualShortField
+              field="venue"
+              field-zh="venue"
+              field-en="venueEn"
+              label="場地顯示文字（選填）"
+              :zh="form.venue"
+              :en="form.venueEn"
+              @update:zh="(v) => (form.venue = v)"
+              @update:en="(v) => (form.venueEn = v)"
+            />
+
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <FormField field="matchNo" label="場次編號（選填，同賽季同賽事系列不可重複）">
+                  <el-input-number v-model="form.matchNo" :min="1" style="width: 100%" />
+                </FormField>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="輪次（選填）">
+                  <el-input-number v-model="form.roundNo" :min="1" style="width: 100%" />
                 </el-form-item>
               </el-col>
             </el-row>
-          </template>
-        </el-card>
 
-        <el-card shadow="never" header="比分" class="match-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="我方進球（選填）">
-                <el-input-number v-model="form.scoreHome" :min="0" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="對方進球（選填）">
-                <el-input-number v-model="form.scoreAway" :min="0" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-card>
+            <template v-if="isPostponed">
+              <el-alert
+                title="狀態為「延賽」，請填寫原定日期時間，前台賽事卡片會顯示這場比賽原本排定的時間。"
+                type="warning"
+                show-icon
+                :closable="false"
+                class="match-edit__postponed-hint"
+              />
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <FormField field="originalMatchOn" label="原定日期" required>
+                    <el-date-picker v-model="form.originalMatchOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" placeholder="請選擇原定日期" @change="formErrors.clear('originalMatchOn'); formErrors.clear('status')" />
+                  </FormField>
+                </el-col>
+                <el-col :span="12">
+                  <FormField field="originalKickoff" label="原定時間（選填）">
+                    <el-input v-model="form.originalKickoff" placeholder="例如 19:00" />
+                  </FormField>
+                </el-col>
+              </el-row>
+            </template>
+          </el-card>
 
-        <el-card shadow="never" header="進球者與時間" class="match-edit__section">
-          <p v-if="form.teamIds.length === 0" class="match-edit__hint">請先選擇所屬球隊，才能選擇球員。</p>
-          <el-table v-if="form.goals.length > 0" :data="form.goals" class="match-edit__table">
-            <el-table-column label="球員" min-width="200">
-              <template #default="{ row }">
-                <el-select v-model="row.playerId" filterable placeholder="選擇球員" style="width: 100%">
-                  <el-option v-for="p in matchPlayers" :key="p.id" :label="playerLabel(p.id)" :value="p.id" />
-                </el-select>
-              </template>
-            </el-table-column>
-            <el-table-column label="時間（分鐘，選填）" width="160">
-              <template #default="{ row }">
-                <el-input-number v-model="row.minute" :min="0" :max="130" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column label="類型（選填）" min-width="160">
-              <template #default="{ row }">
-                <el-input v-model="row.goalType" placeholder="例如：頭槌、點球、烏龍球" />
-              </template>
-            </el-table-column>
-            <el-table-column v-if="!isReadOnly" label="操作" width="80">
-              <template #default="{ $index }">
-                <el-button text type="danger" @click="form.goals.splice($index, 1)">移除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addGoal">+ 新增進球紀錄</el-button>
-        </el-card>
+          <el-card shadow="never" header="比分" class="match-edit__section">
+            <el-row :gutter="12">
+              <el-col :span="12">
+                <el-form-item label="我方進球（選填）">
+                  <el-input-number v-model="form.scoreHome" :min="0" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="對方進球（選填）">
+                  <el-input-number v-model="form.scoreAway" :min="0" style="width: 100%" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-card>
 
-        <el-card shadow="never" header="卡牌" class="match-edit__section">
-          <el-table v-if="form.cards.length > 0" :data="form.cards" class="match-edit__table">
-            <el-table-column label="球員" min-width="200">
-              <template #default="{ row }">
-                <el-select v-model="row.playerId" filterable placeholder="選擇球員" style="width: 100%">
-                  <el-option v-for="p in matchPlayers" :key="p.id" :label="playerLabel(p.id)" :value="p.id" />
-                </el-select>
-              </template>
-            </el-table-column>
-            <el-table-column label="卡牌顏色" width="140">
-              <template #default="{ row }">
-                <el-select v-model="row.cardType" style="width: 100%">
-                  <el-option v-for="v in MATCH_CARD_TYPE_ORDER" :key="v" :label="matchCardTypeLabel(v)" :value="v" />
-                </el-select>
-              </template>
-            </el-table-column>
-            <el-table-column label="時間（分鐘，選填）" width="160">
-              <template #default="{ row }">
-                <el-input-number v-model="row.minute" :min="0" :max="130" style="width: 100%" />
-              </template>
-            </el-table-column>
-            <el-table-column v-if="!isReadOnly" label="操作" width="80">
-              <template #default="{ $index }">
-                <el-button text type="danger" @click="form.cards.splice($index, 1)">移除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addCard">+ 新增卡牌紀錄</el-button>
-        </el-card>
+          <el-card shadow="never" header="進球者與時間" class="match-edit__section">
+            <p v-if="form.teamIds.length === 0" class="match-edit__hint">請先選擇所屬球隊，才能選擇球員。</p>
+            <FormField v-if="form.goals.length > 0" field="goals">
+              <el-table v-if="form.goals.length > 0" :data="form.goals" class="match-edit__table">
+                <el-table-column label="球員" min-width="200">
+                  <template #default="{ row }">
+                    <el-select v-model="row.playerId" filterable placeholder="選擇球員" style="width: 100%" @change="clearRowErrors">
+                      <el-option v-for="p in matchPlayers" :key="p.id" :label="playerLabel(p.id)" :value="p.id" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="時間（分鐘，選填）" width="160">
+                  <template #default="{ row }">
+                    <el-input-number v-model="row.minute" :min="0" :max="130" style="width: 100%" />
+                  </template>
+                </el-table-column>
+                <el-table-column label="類型（選填）" min-width="160">
+                  <template #default="{ row }">
+                    <el-input v-model="row.goalType" placeholder="例如：頭槌、點球、烏龍球" />
+                  </template>
+                </el-table-column>
+                <el-table-column v-if="!isReadOnly" label="操作" width="80">
+                  <template #default="{ $index }">
+                    <el-button text type="danger" @click="form.goals.splice($index, 1); formErrors.clear('goals')">移除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </FormField>
+            <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addGoal">+ 新增進球紀錄</el-button>
+          </el-card>
 
-        <el-card shadow="never" header="出賽名單" class="match-edit__section">
-          <el-table v-if="form.lineups.length > 0" :data="form.lineups" class="match-edit__table">
-            <el-table-column label="球員" min-width="200">
-              <template #default="{ row }">
-                <el-select v-model="row.playerId" filterable placeholder="選擇球員" style="width: 100%">
-                  <el-option v-for="p in matchPlayers" :key="p.id" :label="playerLabel(p.id)" :value="p.id" />
-                </el-select>
-              </template>
-            </el-table-column>
-            <el-table-column label="先發／替補" width="160">
-              <template #default="{ row }">
-                <el-radio-group v-model="row.isStarter">
-                  <el-radio :value="true">先發</el-radio>
-                  <el-radio :value="false">替補</el-radio>
-                </el-radio-group>
-              </template>
-            </el-table-column>
-            <el-table-column v-if="!isReadOnly" label="操作" width="80">
-              <template #default="{ $index }">
-                <el-button text type="danger" @click="form.lineups.splice($index, 1)">移除</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addLineup">+ 新增出賽名單</el-button>
-        </el-card>
+          <el-card shadow="never" header="卡牌" class="match-edit__section">
+            <FormField v-if="form.cards.length > 0" field="cards">
+              <el-table v-if="form.cards.length > 0" :data="form.cards" class="match-edit__table">
+                <el-table-column label="球員" min-width="200">
+                  <template #default="{ row }">
+                    <el-select v-model="row.playerId" filterable placeholder="選擇球員" style="width: 100%" @change="clearRowErrors">
+                      <el-option v-for="p in matchPlayers" :key="p.id" :label="playerLabel(p.id)" :value="p.id" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="卡牌顏色" width="140">
+                  <template #default="{ row }">
+                    <el-select v-model="row.cardType" style="width: 100%">
+                      <el-option v-for="v in MATCH_CARD_TYPE_ORDER" :key="v" :label="matchCardTypeLabel(v)" :value="v" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="時間（分鐘，選填）" width="160">
+                  <template #default="{ row }">
+                    <el-input-number v-model="row.minute" :min="0" :max="130" style="width: 100%" />
+                  </template>
+                </el-table-column>
+                <el-table-column v-if="!isReadOnly" label="操作" width="80">
+                  <template #default="{ $index }">
+                    <el-button text type="danger" @click="form.cards.splice($index, 1); formErrors.clear('cards')">移除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </FormField>
+            <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addCard">+ 新增卡牌紀錄</el-button>
+          </el-card>
+
+          <el-card shadow="never" header="出賽名單" class="match-edit__section">
+            <FormField v-if="form.lineups.length > 0" field="lineups">
+              <el-table v-if="form.lineups.length > 0" :data="form.lineups" class="match-edit__table">
+                <el-table-column label="球員" min-width="200">
+                  <template #default="{ row }">
+                    <el-select v-model="row.playerId" filterable placeholder="選擇球員" style="width: 100%" @change="clearRowErrors">
+                      <el-option v-for="p in matchPlayers" :key="p.id" :label="playerLabel(p.id)" :value="p.id" />
+                    </el-select>
+                  </template>
+                </el-table-column>
+                <el-table-column label="先發／替補" width="160">
+                  <template #default="{ row }">
+                    <el-radio-group v-model="row.isStarter">
+                      <el-radio :value="true">先發</el-radio>
+                      <el-radio :value="false">替補</el-radio>
+                    </el-radio-group>
+                  </template>
+                </el-table-column>
+                <el-table-column v-if="!isReadOnly" label="操作" width="80">
+                  <template #default="{ $index }">
+                    <el-button text type="danger" @click="form.lineups.splice($index, 1); formErrors.clear('lineups')">移除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </FormField>
+            <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addLineup">+ 新增出賽名單</el-button>
+          </el-card>
+        </LangTabsBar>
       </el-form>
 
-      <div v-if="!isReadOnly" class="match-edit__action-bar">
+      <EditActionBar v-if="!isReadOnly">
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -690,35 +699,5 @@ function addLineup() {
 
 .match-edit__table {
   margin-bottom: 12px;
-}
-
-.match-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .match-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .match-edit__action-bar {
-    justify-content: stretch;
-  }
-
-  .match-edit__action-bar :deep(.el-button) {
-    flex: 1;
-  }
 }
 </style>

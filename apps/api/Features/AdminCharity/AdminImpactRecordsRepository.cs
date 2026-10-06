@@ -122,7 +122,7 @@ public sealed class AdminImpactRecordsRepository(ClubDbContext dbContext, IQuery
         {
             if (image.Key is null)
             {
-                throw new AdminValidationException("事蹟紀錄的活動圖片是必填的，不能移除；如要更換請直接上傳新圖片。");
+                throw new AdminValidationException("事蹟紀錄的活動圖片是必填的，不能移除；如要更換請直接上傳新圖片。", "image");
             }
 
             orphans.Image(record.ImageKey);
@@ -244,11 +244,11 @@ public sealed class AdminImpactRecordsRepository(ClubDbContext dbContext, IQuery
 
     private static void Validate(UpsertAdminImpactRecordRequest request)
     {
-        AdminInput.RequireText(request.Content.Zh.DonationContent, "中文捐助內容", 4000);
-        AdminInput.OptionalText(request.Content.Zh.Location, "地點", 128);
+        AdminInput.RequireText(request.Content.Zh.DonationContent, "中文捐助內容", 4000, "donationZh");
+        AdminInput.OptionalText(request.Content.Zh.Location, "地點", 128, "locationZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.DonationContent))
         {
-            AdminInput.OptionalText(request.Content.En.Location, "地點（英文）", 128);
+            AdminInput.OptionalText(request.Content.En.Location, "地點（英文）", 128, "locationEn");
         }
     }
 
@@ -256,13 +256,13 @@ public sealed class AdminImpactRecordsRepository(ClubDbContext dbContext, IQuery
     {
         if (!await dbContext.Charities.AsNoTracking().AnyAsync(c => c.Id == request.CharityId && (c.ClubId == scope.ClubId || c.ClubId == null), cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的公益團體，請重新選擇（公益團體名稱為必填）。");
+            throw new AdminValidationException("找不到指定的公益團體，請重新選擇（公益團體名稱為必填）。", "charityId");
         }
 
         if (request.CharityProgramId is Guid programId
             && !await dbContext.CharityPrograms.AsNoTracking().AnyAsync(p => p.Id == programId && (p.ClubId == scope.ClubId || p.ClubId == null), cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的慈善計畫，請重新選擇。");
+            throw new AdminValidationException("找不到指定的慈善計畫，請重新選擇。", "programId");
         }
     }
 

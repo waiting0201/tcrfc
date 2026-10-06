@@ -23,6 +23,10 @@ import {
   type StandingCsvImportResultDto,
 } from '@/api/adminStandings'
 import { AdminApiError } from '@/api/http'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const club = computed(() => activeClubId.value)
 
@@ -103,6 +107,7 @@ function openCreateDialog() {
   dialogMode.value = 'create'
   Object.assign(form, emptyForm())
   formError.value = null
+  formErrors.clearAll()
   dialogVisible.value = true
 }
 
@@ -116,6 +121,7 @@ function openEditDialog(row: AdminStandingListItemDto) {
     points: row.points ?? null,
   })
   formError.value = null
+  formErrors.clearAll()
   dialogVisible.value = true
 }
 
@@ -126,6 +132,7 @@ async function saveForm() {
   }
   saving.value = true
   formError.value = null
+  formErrors.clearAll()
   try {
     const payload = {
       seasonId: seasonId.value,
@@ -144,6 +151,7 @@ async function saveForm() {
     dialogVisible.value = false
     await loadStandings()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     if (error instanceof AdminApiError && error.kind === 'forbidden') {
       formError.value = error.message
     } else {
@@ -283,12 +291,12 @@ async function handleCsvFileChange(event: Event) {
     <el-dialog v-model="dialogVisible" :title="dialogMode === 'create' ? '新增積分榜列' : '編輯積分榜列'" width="480px">
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="standing-list__form-error" @close="formError = null" />
       <el-form label-position="top">
-        <el-form-item label="賽季">
+        <FormField field="seasonId" label="賽季">
           <el-input :model-value="seasonCode" disabled />
-        </el-form-item>
-        <el-form-item label="球隊名稱" required>
+        </FormField>
+        <FormField field="teamName" label="球隊名稱" required>
           <el-input v-model="form.teamName" placeholder="例如：台中磐石，或聯賽其他球隊名稱" />
-        </el-form-item>
+        </FormField>
         <el-form-item label="名次（選填）">
           <el-input-number v-model="form.rank" :min="1" style="width: 100%" />
         </el-form-item>

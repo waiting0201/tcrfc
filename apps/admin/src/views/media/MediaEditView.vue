@@ -3,7 +3,7 @@
  * 媒體專區——新增／編輯。檔案規則：新聞稿與品牌識別包是 PDF 或壓縮檔（≤50 MB）；高解析圖是圖片，
  * 系統會自動產生縮圖，不需要另外上傳封面。共用資源整頁唯讀。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -13,6 +13,11 @@ import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import SharedContentNotice from '@/components/SharedContentNotice.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -51,7 +56,12 @@ const fileInput = ref<HTMLInputElement | null>(null)
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除封面就清掉該欄位的錯誤
+watch(resourceFile, () => formErrors.clear('file'))
+watch([coverFile, removeCover], () => formErrors.clear('cover'))
 const readOnly = computed(() => isShared.value || (isCreate.value ? !canCreate.value : !canUpdate.value))
 const isImageType = computed(() => form.resourceType === 'hires_image')
 const pageTitle = computed(() => (isCreate.value ? '新增媒體資源' : `${readOnly.value ? '檢視' : '編輯'}：${form.titleZh || '（未命名）'}`))
@@ -116,11 +126,13 @@ function pickFile(event: Event) {
   resourceFile.value = f
 }
 
-function validate(): string | null {
-  if (!form.titleZh.trim()) return '請輸入中文標題'
-  if (isCreate.value && !resourceFile.value) return '請選擇要上傳的檔案'
-  if (crossesImageBoundary.value && !resourceFile.value) return '在「高解析圖」與其他類別之間切換時，必須重新上傳檔案'
-  return null
+/** 一次檢查全部必填，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.titleZh.trim()) errors.titleZh = '請輸入中文標題'
+  if (isCreate.value && !resourceFile.value) errors.file = '請選擇要上傳的檔案'
+  else if (crossesImageBoundary.value && !resourceFile.value) errors.file = '在「高解析圖」與其他類別之間切換時，必須重新上傳檔案'
+  return errors
 }
 
 function buildPayload(): SavePressPayload {
@@ -139,8 +151,11 @@ function buildPayload(): SavePressPayload {
 
 async function handleSave() {
   if (readOnly.value) return
-  formError.value = validate()
-  if (formError.value) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     // 高解析圖不可傳封面，避免帶到舊選擇
@@ -160,6 +175,8 @@ async function handleSave() {
   } catch (error) {
     if (error instanceof AdminApiError && error.kind === 'forbidden') {
       await ElMessageBox.alert(error.message, '沒有編輯權限', { confirmButtonText: '我知道了' })
+    } else if (error instanceof AdminApiError && formErrors.applyApiError(error)) {
+      return
     } else {
       formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
     }
@@ -198,44 +215,57 @@ const back = () => router.push('/content/media')
     <template v-else>
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="media-edit__block" @close="formError = null" />
       <el-form label-position="top" :disabled="readOnly">
+       <LangTabsBar>
+        <EditLayout>
+         <template #main>
         <el-card shadow="never" header="資源資料" class="media-edit__block">
-          <BilingualShortField label="標題" :zh="form.titleZh" :en="form.titleEn" required @update:zh="(v) => (form.titleZh = v)" @update:en="(v) => (form.titleEn = v)" />
-          <BilingualTextareaField label="說明" :zh="form.descZh" :en="form.descEn" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
+          <BilingualShortField field="title" label="標題" :zh="form.titleZh" :en="form.titleEn" required @update:zh="(v) => (form.titleZh = v)" @update:en="(v) => (form.titleEn = v)" />
+          <BilingualTextareaField field="desc" label="說明" :zh="form.descZh" :en="form.descEn" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
           <el-row :gutter="12">
             <el-col :xs="24" :sm="12">
-              <el-form-item label="類別" required>
-                <el-select v-model="form.resourceType" style="width: 100%"><el-option v-for="t in PRESS_TYPE_ORDER" :key="t" :label="PRESS_TYPE_LABEL[t]" :value="t" /></el-select>
-              </el-form-item>
+              <FormField field="resourceType" label="類別" required>
+                <el-select v-model="form.resourceType" style="width: 100%" @change="formErrors.clear('resourceType')"><el-option v-for="t in PRESS_TYPE_ORDER" :key="t" :label="PRESS_TYPE_LABEL[t]" :value="t" /></el-select>
+              </FormField>
             </el-col>
             <el-col :xs="24" :sm="12">
-              <el-form-item label="狀態"><el-radio-group v-model="form.status"><el-radio value="draft">隱藏</el-radio><el-radio value="published">顯示</el-radio></el-radio-group></el-form-item>
+              <FormField field="status" label="狀態"><el-radio-group v-model="form.status"><el-radio value="draft">隱藏</el-radio><el-radio value="published">顯示</el-radio></el-radio-group></FormField>
             </el-col>
             <el-col :xs="24" :sm="12"><el-form-item label="發布日期"><el-date-picker v-model="form.publishedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
             <el-col :xs="24" :sm="12"><el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
           </el-row>
           <p class="media-edit__hint">設為「顯示」且沒填發布日期時，系統會自動填入當天。</p>
         </el-card>
-
+         </template>
+         <template #aside>
         <el-card shadow="never" header="檔案" class="media-edit__block">
           <el-alert v-if="crossesImageBoundary" type="warning" show-icon :closable="false" class="media-edit__block" title="你更改了類別，請重新上傳符合新類別的檔案。" />
           <p v-if="!isCreate" class="media-edit__hint">目前檔案：{{ formatFileSize(fileBytes) }}・累計下載 {{ downloadCount }} 次。不重新上傳就維持原檔。</p>
           <p class="media-edit__hint">{{ isImageType ? '高解析圖請上傳圖片（JPG、PNG 或 WebP，10 MB 以內），系統會自動產生縮圖。' : '新聞稿與品牌識別包請上傳 PDF 或壓縮檔（ZIP），50 MB 以內。' }}</p>
           <input ref="fileInput" type="file" :accept="fileAccept" class="media-edit__input" @change="pickFile">
-          <el-button :disabled="readOnly" @click="fileInput?.click()">{{ resourceFile ? '重新選擇檔案' : isCreate ? '選擇檔案' : '更換檔案' }}</el-button>
-          <span v-if="resourceFile" class="media-edit__picked">{{ resourceFile.name }}（{{ formatFileSize(resourceFile.size) }}，儲存時才會上傳）</span>
+          <FormField field="file" label="檔案">
+            <div>
+              <el-button :disabled="readOnly" @click="fileInput?.click()">{{ resourceFile ? '重新選擇檔案' : isCreate ? '選擇檔案' : '更換檔案' }}</el-button>
+              <span v-if="resourceFile" class="media-edit__picked">{{ resourceFile.name }}（{{ formatFileSize(resourceFile.size) }}，儲存時才會上傳）</span>
+            </div>
+          </FormField>
         </el-card>
 
         <el-card v-if="!isImageType" shadow="never" header="封面圖片（選填）" class="media-edit__block">
-          <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
+          <FormField field="cover" label="封面圖片">
+            <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
+          </FormField>
         </el-card>
+         </template>
+        </EditLayout>
+       </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly"><template #status><FormErrorStatus /></template><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.media-edit { max-width: 780px; margin: 0 auto 88px; }
+.media-edit { max-width: 1200px; margin: 0 auto 88px; }
 .media-edit__block { margin-bottom: 16px; }
 .media-edit__hint { margin: 4px 0 10px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 .media-edit__input { display: none; }

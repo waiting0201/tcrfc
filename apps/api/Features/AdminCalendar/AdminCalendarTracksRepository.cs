@@ -276,7 +276,7 @@ public sealed class AdminCalendarTracksRepository(
 
         if (!TimeOnly.TryParseExact(requested, "HH:mm", out _))
         {
-            throw new AdminValidationException("開賽時間請填 24 小時制的「時:分」，例如 19:00；不填則維持原開賽時間。");
+            throw new AdminValidationException("開賽時間請填 24 小時制的「時:分」，例如 19:00；不填則維持原開賽時間。", "kickoff");
         }
 
         return requested;
@@ -297,7 +297,7 @@ public sealed class AdminCalendarTracksRepository(
         var isAllDay = request.IsAllDay ?? ev.IsAllDay;
         if (request.EndsAt is DateTime end && end < request.StartsAt)
         {
-            throw new AdminValidationException("結束時間不可早於開始時間。");
+            throw new AdminValidationException("結束時間不可早於開始時間。", "endsAt");
         }
 
         var teamCodes = await db.CalendarEventTeams.AsNoTracking().Where(t => t.SourceType == "custom" && t.SourceId == id)

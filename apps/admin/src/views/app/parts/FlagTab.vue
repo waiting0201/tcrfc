@@ -15,6 +15,10 @@ import { AdminApiError } from '@/api/http'
 import { formatDateTime } from '@/utils/dateTime'
 import { nullIfBlank } from '@/api/adminCommon'
 import { createFlag, deleteFlag, listFlags, updateFlag, type EdgePublishDto, type FlagDto, type FlagPlatform } from '@/api/adminApp'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const { breakpoint } = useBreakpoint()
 const isMobile = computed(() => breakpoint.value === 'mobile')
@@ -87,6 +91,7 @@ const paymentOptions = computed(() => PAYMENT_OPTIONS.map((o) => ({ ...o, disabl
 function openDialog(row: FlagDto | null) {
   editing.value = row
   formError.value = null
+  formErrors.clearAll()
   Object.assign(form, { flagKey: row?.flagKey ?? '', platform: row?.platform ?? 'all', isEnabled: row?.isEnabled ?? true, stringValue: row?.stringValue ?? 'external', description: row?.description ?? '' })
   flagChoice.value = row ? (FLAG_LABELS[row.flagKey] ? row.flagKey : CUSTOM_FLAG) : flagOptions[0]!.value
   if (!row) form.flagKey = flagOptions[0]!.value
@@ -100,6 +105,7 @@ async function save() {
   if (!editing.value && !/^[a-z0-9]+(_[a-z0-9]+)+$/.test(form.flagKey.trim())) return void (formError.value = '識別名稱請用小寫英數字與底線、至少兩段（由 App 工程團隊提供），建立後不能修改')
   saving.value = true
   formError.value = null
+  formErrors.clearAll()
   const body = {
     flagKey: editing.value ? undefined : form.flagKey.trim(),
     platform: editing.value ? undefined : form.platform,
@@ -114,6 +120,7 @@ async function save() {
     visible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = errText(e, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -190,16 +197,16 @@ async function remove(row: FlagDto) {
             <el-option label="其他（由 App 工程團隊提供識別名稱）" :value="CUSTOM_FLAG" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="flagChoice === CUSTOM_FLAG" label="識別名稱（建立後不能修改）" required>
+        <FormField v-if="flagChoice === CUSTOM_FLAG" field="flagKey" label="識別名稱（建立後不能修改）" required>
           <el-input v-model="form.flagKey" :disabled="!!editing" placeholder="請向 App 工程團隊確認" />
-        </el-form-item>
-        <el-form-item label="適用平台（建立後不能修改）">
+        </FormField>
+        <FormField field="platform" label="適用平台（建立後不能修改）">
           <el-select v-model="form.platform" :disabled="!!editing" style="width: 100%"><el-option label="全部平台" value="all" /><el-option label="iPhone（iOS）" value="ios" /><el-option label="Android" value="android" /></el-select>
-        </el-form-item>
-        <el-form-item v-if="isPayment" label="付款模式">
+        </FormField>
+        <FormField v-if="isPayment" field="stringValue" label="付款模式">
           <el-select v-model="form.stringValue" style="width: 100%"><el-option v-for="o in paymentOptions" :key="o.value" :label="o.label" :value="o.value" :disabled="o.disabled" /></el-select>
           <div class="fl__muted">只能降級：不能新增為「App 內付款」，也不能從其他模式改成「App 內付款」。</div>
-        </el-form-item>
+        </FormField>
         <el-form-item v-else label="狀態"><el-switch v-model="form.isEnabled" active-text="開啟" inactive-text="關閉" /></el-form-item>
         <el-form-item label="說明"><el-input v-model="form.description" maxlength="200" placeholder="這個開關控制什麼功能" /></el-form-item>
       </el-form>

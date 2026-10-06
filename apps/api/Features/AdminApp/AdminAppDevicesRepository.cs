@@ -87,7 +87,7 @@ public sealed class AdminAppDevicesRepository(ClubDbContext dbContext, PushToken
             var pf = AppInput.RequirePlatform(platform);
             if (!AppVersion.IsValid(belowVersion))
             {
-                throw new AdminValidationException("版本號格式不正確（例如 1.2.0）。");
+                throw new AdminValidationException("版本號格式不正確（例如 1.2.0）。", "belowVersion");
             }
 
             below = versionRows.Where(r => r.Platform == pf && r.AppVersion is not null && AppVersion.Compare(r.AppVersion, belowVersion) is < 0).Sum(r => r.Count);

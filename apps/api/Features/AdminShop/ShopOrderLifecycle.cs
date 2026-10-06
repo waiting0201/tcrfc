@@ -177,12 +177,12 @@ public sealed class ShopOrderLifecycle(ClubDbContext db, InventoryService invent
     {
         var order = await db.Orders.AsNoTracking().FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
             ?? throw new AdminValidationException("找不到指定的訂單。");
-        var carrier = AdminInput.OptionalText(request.Carrier, "物流商", 32);
-        var tracking = AdminInput.OptionalText(request.TrackingNo, "物流單號", 64);
-        var branch = AdminInput.OptionalText(request.StoreBranchCode, "門市代碼", 32);
+        var carrier = AdminInput.OptionalText(request.Carrier, "物流商", 32, "carrier");
+        var tracking = AdminInput.OptionalText(request.TrackingNo, "物流單號", 64, "trackingNo");
+        var branch = AdminInput.OptionalText(request.StoreBranchCode, "門市代碼", 32, "storeBranchCode");
         if (order.DeliveryMethod == "cvs_pickup" && branch is null)
         {
-            throw new AdminValidationException("超商取貨請填寫門市代碼。");
+            throw new AdminValidationException("超商取貨請填寫門市代碼。", "storeBranchCode");
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -226,9 +226,9 @@ public sealed class ShopOrderLifecycle(ClubDbContext db, InventoryService invent
             return false;
         }
 
-        shipment.Carrier = AdminInput.OptionalText(request.Carrier, "物流商", 32);
-        shipment.TrackingNo = AdminInput.OptionalText(request.TrackingNo, "物流單號", 64);
-        shipment.StoreBranchCode = AdminInput.OptionalText(request.StoreBranchCode, "門市代碼", 32);
+        shipment.Carrier = AdminInput.OptionalText(request.Carrier, "物流商", 32, "carrier");
+        shipment.TrackingNo = AdminInput.OptionalText(request.TrackingNo, "物流單號", 64, "trackingNo");
+        shipment.StoreBranchCode = AdminInput.OptionalText(request.StoreBranchCode, "門市代碼", 32, "storeBranchCode");
         if (request.PickupDeadlineOn is not null)
         {
             shipment.PickupDeadlineOn = request.PickupDeadlineOn;

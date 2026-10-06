@@ -23,6 +23,10 @@ import {
 } from '@/api/adminMemberships'
 import { clubNameOf, effectiveStatusLabel, errorMessage, expiryText, formatMoney, STATUS_TAG, tierLabel } from './parts/membershipHelpers'
 import { formatDateTime } from '@/utils/dateTime'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -70,6 +74,7 @@ function openAdjust() {
   if (!x) return
   adjust.value = { tier: x.tier, status: x.status, startOn: x.startOn ?? '', endOn: x.endOn ?? '', reason: '' }
   adjustError.value = null
+  formErrors.clearAll()
   adjustOpen.value = true
 }
 async function submitAdjust() {
@@ -86,11 +91,13 @@ async function submitAdjust() {
   if (!payload.tier && !payload.status && !payload.startOn && !payload.endOn) return void (adjustError.value = '請至少修改層級、狀態或起訖日其中一項')
   busy.value = true
   adjustError.value = null
+  formErrors.clearAll()
   try {
     detail.value = await adjustMembership(club.value, props.id, payload)
     adjustOpen.value = false
     ElMessage.success('已調整會籍')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     adjustError.value = errorMessage(error, '調整失敗，請稍後再試')
   } finally {
     busy.value = false
@@ -259,23 +266,23 @@ const fmtTime = (iso?: string | null) => formatDateTime(iso) || '—'
       <el-form label-position="top">
         <el-row :gutter="12">
           <el-col :xs="24" :sm="12">
-            <el-form-item label="會員層級">
+            <FormField field="tier" label="會員層級">
               <el-select v-model="adjust.tier" style="width: 100%"><el-option label="一般會員" value="registered" /><el-option label="付費球迷會員" value="fan_club" /></el-select>
-            </el-form-item>
+            </FormField>
           </el-col>
           <el-col :xs="24" :sm="12">
-            <el-form-item label="會籍狀態">
+            <FormField field="status" label="會籍狀態">
               <el-select v-model="adjust.status" style="width: 100%">
                 <el-option label="待確認" value="pending" /><el-option label="有效" value="active" /><el-option label="已到期" value="expired" /><el-option label="已取消" value="cancelled" />
               </el-select>
-            </el-form-item>
+            </FormField>
           </el-col>
           <el-col :xs="24" :sm="12"><el-form-item label="開始日"><el-date-picker v-model="adjust.startOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
           <el-col :xs="24" :sm="12"><el-form-item label="結束日"><el-date-picker v-model="adjust.endOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
         </el-row>
-        <el-form-item label="調整原因（必填）" required>
+        <FormField field="reason" label="調整原因（必填）" required>
           <el-input v-model="adjust.reason" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="例如：會員來電更正，原登記層級有誤" />
-        </el-form-item>
+        </FormField>
       </el-form>
       <template #footer>
         <el-button :disabled="busy" @click="adjustOpen = false">取消</el-button>

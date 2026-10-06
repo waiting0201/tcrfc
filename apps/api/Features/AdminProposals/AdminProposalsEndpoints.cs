@@ -99,7 +99,7 @@ public static class AdminProposalsEndpoints
             var (request, form) = await AdminMultipartForm.ReadAsync<AddAdminProposalFileRequest>(
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
             AdminProposalsRepository.ToDbLocale(request.Locale); // fail fast：先驗證再上傳。
-            var file = form.Files["file"] ?? throw new AdminValidationException("請選擇要上傳的提案檔案。");
+            var file = form.Files["file"] ?? throw new AdminValidationException("請選擇要上傳的提案檔案。", "file");
 
             var tx = new UploadTransaction(images, documents);
             try

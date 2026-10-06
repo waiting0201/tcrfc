@@ -61,12 +61,12 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
     {
         if (slot.MaxFileKb is { } maxKb && originalBytes > maxKb * 1024L)
         {
-            throw new AdminValidationException($"這個版位的素材檔案大小上限是 {maxKb} KB，請壓縮後再上傳。");
+            throw new AdminValidationException($"這個版位的素材檔案大小上限是 {maxKb} KB，請壓縮後再上傳。", "image");
         }
 
         if (slot.MinWidth is { } minW && image.Width < minW || slot.MinHeight is { } minH && image.Height < minH)
         {
-            throw new AdminValidationException($"這個版位的素材最小尺寸是 {slot.MinWidth ?? 0}×{slot.MinHeight ?? 0} 像素，目前上傳的是 {image.Width}×{image.Height}。");
+            throw new AdminValidationException($"這個版位的素材最小尺寸是 {slot.MinWidth ?? 0}×{slot.MinHeight ?? 0} 像素，目前上傳的是 {image.Width}×{image.Height}。", "image");
         }
 
         if (slot.AspectRatio is { } ratio)
@@ -76,7 +76,7 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
             var actual = (double)image.Width / image.Height;
             if (Math.Abs(actual - target) / target > 0.02)
             {
-                throw new AdminValidationException($"這個版位的素材長寬比必須是 {ratio}，目前上傳的圖是 {image.Width}×{image.Height}。");
+                throw new AdminValidationException($"這個版位的素材長寬比必須是 {ratio}，目前上傳的圖是 {image.Width}×{image.Height}。", "image");
             }
         }
     }
@@ -117,7 +117,7 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
         {
             if (image.Key is null)
             {
-                throw new AdminValidationException("素材一定要有圖片（影片素材的圖片是海報），不能移除。");
+                throw new AdminValidationException("素材一定要有圖片（影片素材的圖片是海報），不能移除。", "image");
             }
 
             orphans.Image(c.ImageKey);
@@ -152,7 +152,7 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
         => await ReviewAsync(id, actor, approve: true, reason: null, cancellationToken);
 
     public async Task<AdminAdCreativeDto?> RejectAsync(Guid id, string? reason, AdminIdentity actor, CancellationToken cancellationToken)
-        => await ReviewAsync(id, actor, approve: false, AdminInput.RequireText(reason, "退回原因", 255), cancellationToken);
+        => await ReviewAsync(id, actor, approve: false, AdminInput.RequireText(reason, "退回原因", 255, "reason"), cancellationToken);
 
     private async Task<AdminAdCreativeDto?> ReviewAsync(Guid id, AdminIdentity actor, bool approve, string? reason, CancellationToken cancellationToken)
     {
@@ -217,25 +217,25 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
 
     private static void Validate(UpsertAdminAdCreativeRequest r, AdSlot slot, bool hasVideo)
     {
-        AdminInput.OneOf(r.Locale, Locales, "素材語系", "「繁體中文」或「英文」");
-        AdminInput.RequireText(r.AltText, "替代文字（給讀屏軟體與圖片載入失敗時顯示）", 200);
-        AdminInput.OptionalText(r.Title, "標題", 160);
-        AdminInput.OptionalText(r.CtaText, "按鈕文字", 60);
-        var url = AdminInput.OptionalText(r.ClickUrl, "點擊目的地", 500);
+        AdminInput.OneOf(r.Locale, Locales, "素材語系", "「繁體中文」或「英文」", "locale");
+        AdminInput.RequireText(r.AltText, "替代文字（給讀屏軟體與圖片載入失敗時顯示）", 200, "altText");
+        AdminInput.OptionalText(r.Title, "標題", 160, "title");
+        AdminInput.OptionalText(r.CtaText, "按鈕文字", 60, "ctaText");
+        var url = AdminInput.OptionalText(r.ClickUrl, "點擊目的地", 500, "clickUrl");
         if (url is not null && !url.StartsWith("tcrfc://", StringComparison.Ordinal))
         {
-            AdminInput.OptionalHttpUrl(url, "點擊目的地");
+            AdminInput.OptionalHttpUrl(url, "點擊目的地", 500, "clickUrl");
         }
 
-        AdminInput.OneOf(r.Theme ?? "both", AdLabels.Theme.Keys.ToHashSet(StringComparer.Ordinal), "底色版本", "「淺色底」「深色底」或「深淺底通用」");
+        AdminInput.OneOf(r.Theme ?? "both", AdLabels.Theme.Keys.ToHashSet(StringComparer.Ordinal), "底色版本", "「淺色底」「深色底」或「深淺底通用」", "theme");
         if (r.VariantTag is not null)
         {
-            AdminInput.OneOf(r.VariantTag, Variants, "A/B 標記", "A 或 B");
+            AdminInput.OneOf(r.VariantTag, Variants, "A/B 標記", "A 或 B", "variantTag");
         }
 
         if (hasVideo && !slot.AllowVideo)
         {
-            throw new AdminValidationException("這個版位不允許影片素材。");
+            throw new AdminValidationException("這個版位不允許影片素材。", "video");
         }
     }
 
@@ -246,8 +246,8 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
     private static void Apply(AdCreative c, UpsertAdminAdCreativeRequest r)
     {
         c.AltText = AdminInput.OptionalText(r.AltText, "替代文字", 200);
-        c.Title = AdminInput.OptionalText(r.Title, "標題", 160);
-        c.CtaText = AdminInput.OptionalText(r.CtaText, "按鈕文字", 60);
+        c.Title = AdminInput.OptionalText(r.Title, "標題", 160, "title");
+        c.CtaText = AdminInput.OptionalText(r.CtaText, "按鈕文字", 60, "ctaText");
         c.ClickUrl = AdminInput.OptionalText(r.ClickUrl, "點擊目的地", 500);
         c.Theme = r.Theme ?? "both";
         c.VariantTag = r.VariantTag;

@@ -31,6 +31,10 @@ import {
   type MembershipLookupDto,
   type UpdateJerseyPayload,
 } from '@/api/adminJerseys'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const { breakpoint } = useBreakpoint()
 const isMobile = computed(() => breakpoint.value === 'mobile')
@@ -175,6 +179,7 @@ function openEdit(row: JerseyDto) {
     size: row.size ?? '', deliveryMethod: row.deliveryMethod, status: row.status,
   })
   editError.value = null
+  formErrors.clearAll()
   editOpen.value = true
 }
 
@@ -196,12 +201,14 @@ async function handleEditSave() {
   }
   editSaving.value = true
   editError.value = null
+  formErrors.clearAll()
   try {
     await updateJersey(club.value, row.id, payload)
     editOpen.value = false
     ElMessage.success('已儲存')
     reloadAll()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     editError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     editSaving.value = false
@@ -219,6 +226,7 @@ const searching = ref(false)
 function openCreate() {
   Object.assign(createForm, { membershipId: '', recipientName: '', phone: '', size: '', deliveryMethod: 'ship', address: '' })
   createError.value = null
+  formErrors.clearAll()
   memberOptions.value = []
   createOpen.value = true
 }
@@ -241,6 +249,7 @@ async function searchMemberships(keyword: string) {
 
 async function handleCreate() {
   createError.value = null
+  formErrors.clearAll()
   if (!createForm.membershipId) return (createError.value = '請先搜尋並選擇會籍')
   if (!createForm.recipientName.trim()) return (createError.value = '請輸入領用人姓名')
   if (!createForm.size.trim()) return (createError.value = '請選擇或輸入尺寸')
@@ -261,6 +270,7 @@ async function handleCreate() {
     ElMessage.success('已新增球衣發放')
     reloadAll()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     createError.value = error instanceof AdminApiError ? error.message : '新增失敗，請稍後再試'
   } finally {
     createSaving.value = false
@@ -433,25 +443,25 @@ const canMarkShipped = (row: JerseyDto) => row.deliveryMethod === 'ship' && row.
       <el-alert v-if="editError" :title="editError" type="warning" show-icon class="jersey__gap" @close="editError = null" />
       <el-alert v-if="!recipientEditable" type="info" show-icon :closable="false" class="jersey__gap" title="收件資訊為遮罩或你沒有檢視完整個資的權限，領用人、電話、地址無法修改。" />
       <el-form label-position="top">
-        <el-form-item label="領用人"><el-input v-model="editForm.recipientName" :disabled="!recipientEditable" maxlength="64" /></el-form-item>
-        <el-form-item label="電話"><el-input v-model="editForm.phone" :disabled="!recipientEditable" maxlength="32" /></el-form-item>
-        <el-form-item label="地址"><el-input v-model="editForm.address" :disabled="!recipientEditable" maxlength="255" /></el-form-item>
-        <el-form-item label="尺寸">
+        <FormField field="recipientName" label="領用人"><el-input v-model="editForm.recipientName" :disabled="!recipientEditable" maxlength="64" /></FormField>
+        <FormField field="phone" label="電話"><el-input v-model="editForm.phone" :disabled="!recipientEditable" maxlength="32" /></FormField>
+        <FormField field="address" label="地址"><el-input v-model="editForm.address" :disabled="!recipientEditable" maxlength="255" /></FormField>
+        <FormField field="size" label="尺寸">
           <el-select v-model="editForm.size" filterable allow-create default-first-option placeholder="選擇或輸入尺寸" style="width: 100%">
             <el-option v-for="s in JERSEY_SIZE_OPTIONS" :key="s" :label="s" :value="s" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="領取方式">
+        </FormField>
+        <FormField field="deliveryMethod" label="領取方式">
           <el-radio-group v-model="editForm.deliveryMethod">
             <el-radio v-for="o in JERSEY_DELIVERY_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
           </el-radio-group>
-        </el-form-item>
-        <el-form-item label="狀態">
+        </FormField>
+        <FormField field="status" label="狀態">
           <el-select v-model="editForm.status" style="width: 100%">
             <el-option v-for="o in JERSEY_STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" :disabled="o.value === 'shipped' && editForm.deliveryMethod === 'pickup'" />
           </el-select>
           <p class="jersey__hint">到場領取的球衣請直接標為已領取；改回待處理會清掉寄出與領取日期。</p>
-        </el-form-item>
+        </FormField>
       </el-form>
       <template #footer>
         <el-button :disabled="editSaving" @click="editOpen = false">取消</el-button>
@@ -462,25 +472,25 @@ const canMarkShipped = (row: JerseyDto) => row.deliveryMethod === 'ship' && row.
     <el-dialog v-model="createOpen" title="代填球衣" width="520px" :close-on-click-modal="false">
       <el-alert v-if="createError" :title="createError" type="warning" show-icon class="jersey__gap" @close="createError = null" />
       <el-form label-position="top">
-        <el-form-item label="會籍" required>
+        <FormField field="membershipId" label="會籍" required>
           <el-select v-model="createForm.membershipId" filterable remote reserve-keyword :remote-method="searchMemberships" :loading="searching" placeholder="輸入會員編號搜尋會籍" style="width: 100%">
             <el-option v-for="m in memberOptions" :key="m.membershipId" :value="m.membershipId" :label="`${m.memberNo}・${m.memberName || '—'}・${m.seasonCode}・${m.planName || '未指定方案'}（${m.effectiveStatusLabel}）`" />
           </el-select>
           <p class="jersey__hint">球衣件數不能超過方案的球衣份數，免費會籍不含球衣。</p>
-        </el-form-item>
-        <el-form-item label="領用人" required><el-input v-model="createForm.recipientName" maxlength="64" /></el-form-item>
-        <el-form-item label="尺寸" required>
+        </FormField>
+        <FormField field="recipientName" label="領用人" required><el-input v-model="createForm.recipientName" maxlength="64" /></FormField>
+        <FormField field="size" label="尺寸" required>
           <el-select v-model="createForm.size" filterable allow-create default-first-option placeholder="選擇或輸入尺寸" style="width: 100%">
             <el-option v-for="s in JERSEY_SIZE_OPTIONS" :key="s" :label="s" :value="s" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="領取方式" required>
+        </FormField>
+        <FormField field="deliveryMethod" label="領取方式" required>
           <el-radio-group v-model="createForm.deliveryMethod">
             <el-radio v-for="o in JERSEY_DELIVERY_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-radio>
           </el-radio-group>
-        </el-form-item>
-        <el-form-item :label="createForm.deliveryMethod === 'ship' ? '電話（寄送必填）' : '電話'"><el-input v-model="createForm.phone" maxlength="32" /></el-form-item>
-        <el-form-item v-if="createForm.deliveryMethod === 'ship'" label="地址（寄送必填）"><el-input v-model="createForm.address" maxlength="255" /></el-form-item>
+        </FormField>
+        <FormField field="phone" :label="createForm.deliveryMethod === 'ship' ? '電話（寄送必填）' : '電話'"><el-input v-model="createForm.phone" maxlength="32" /></FormField>
+        <FormField v-if="createForm.deliveryMethod === 'ship'" field="address" label="地址（寄送必填）"><el-input v-model="createForm.address" maxlength="255" /></FormField>
       </el-form>
       <template #footer>
         <el-button :disabled="createSaving" @click="createOpen = false">取消</el-button>

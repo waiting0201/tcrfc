@@ -59,7 +59,7 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
         Validate(request);
         if (request.Status == "published")
         {
-            throw new AdminValidationException("提案還沒有上傳任何檔案，不能直接發布。請先建立草稿並上傳檔案。");
+            throw new AdminValidationException("提案還沒有上傳任何檔案，不能直接發布。請先建立草稿並上傳檔案。", "status");
         }
 
         var now = DateTime.UtcNow;
@@ -87,7 +87,7 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
 
         if (request.Status == "published" && proposal.ProposalFiles.Count == 0)
         {
-            throw new AdminValidationException("提案還沒有上傳任何檔案，不能發布。");
+            throw new AdminValidationException("提案還沒有上傳任何檔案，不能發布。", "status");
         }
 
         proposal.Title = request.Title.Trim();
@@ -135,12 +135,12 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
         var version = request.VersionNo ?? proposal.VersionNo;
         if (version < 1)
         {
-            throw new AdminValidationException("版本號必須是 1 以上的整數。");
+            throw new AdminValidationException("版本號必須是 1 以上的整數。", "versionNo");
         }
 
         if (proposal.ProposalFiles.Any(f => f.Locale == locale && f.VersionNo == version))
         {
-            throw new AdminConflictException("檔案已存在", "這份提案已經有相同語言與版本號的檔案，請先刪除舊檔，或改用其他版本號。");
+            throw new AdminConflictException("檔案已存在", "這份提案已經有相同語言與版本號的檔案，請先刪除舊檔，或改用其他版本號。", "versionNo");
         }
 
         var now = DateTime.UtcNow;
@@ -191,13 +191,13 @@ public sealed class AdminProposalsRepository(ClubDbContext dbContext, Caching.IQ
 
     private static void Validate(UpsertAdminProposalRequest request)
     {
-        AdminInput.RequireText(request.Title, "提案名稱", 128);
+        AdminInput.RequireText(request.Title, "提案名稱", 128, "title");
         if (request.VersionNo < 1)
         {
-            throw new AdminValidationException("版本號必須是 1 以上的整數。");
+            throw new AdminValidationException("版本號必須是 1 以上的整數。", "versionNo");
         }
 
-        AdminInput.OneOf(request.Status, Statuses, "狀態", "「draft」（草稿）或「published」（發布）");
+        AdminInput.OneOf(request.Status, Statuses, "狀態", "「草稿」或「發布」", "status");
     }
 
     internal static string ToDbLocale(string external)

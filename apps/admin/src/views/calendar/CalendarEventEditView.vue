@@ -7,14 +7,20 @@
  * ⚠️ **L2 的 `.ics` 下載本輪未實作**——後端只做了單場賽事的 `.ics`（規劃書明確要求），自建事件
  * 加入行事曆的能力規劃書沒有明文要求，見 apps/api/README.md「S1-11」「規劃書沒寫清楚」第 7 點。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCalendarPermissions } from '@/composables/useCalendarPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -70,7 +76,11 @@ const venues = ref<AdminVenueListItemDto[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除封面圖就清掉該欄位的錯誤
+watch([coverFile, removeCover], () => formErrors.clear('cover'))
 
 async function loadOptions() {
   try {
@@ -151,25 +161,16 @@ function removeExceptionDate(value: string) {
   form.exceptionDates = form.exceptionDates.filter((d) => d !== value)
 }
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.startsAt) {
-    formError.value = '請選擇開始時間'
-    return false
-  }
-  if (form.endsAt && form.endsAt < form.startsAt) {
-    formError.value = '結束時間不能早於開始時間'
-    return false
-  }
-  if (!form.titleZh.trim()) {
-    formError.value = '請輸入中文標題'
-    return false
-  }
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.startsAt) errors.startsAt = '請選擇開始時間'
+  else if (form.endsAt && form.endsAt < form.startsAt) errors.endsAt = '結束時間不能早於開始時間'
+  if (!form.titleZh.trim()) errors.titleZh = '請輸入中文標題'
   if (form.descriptionEn.trim() && !form.titleEn.trim()) {
-    formError.value = '有英文說明時請一併填寫英文標題（或清空英文說明）'
-    return false
+    errors.titleEn = '有英文說明時請一併填寫英文標題（或清空英文說明）'
   }
-  return true
+  return errors
 }
 
 function buildPayload(): SaveCalendarCustomEventPayload {
@@ -195,9 +196,12 @@ function buildPayload(): SaveCalendarCustomEventPayload {
 
 async function handleSave() {
   if (isReadOnly.value) return
-  if (!validate()) return
-  saving.value = true
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     if (isCreate.value) {
       const created = await createAdminCalendarCustomEvent(activeClubId.value, buildPayload(), coverFile.value)
@@ -219,6 +223,7 @@ async function handleSave() {
     removeCover.value = false
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -281,144 +286,153 @@ function retryLoad() {
       />
 
       <el-form label-position="top" :disabled="isReadOnly">
-        <el-card shadow="never" header="時間與重複規則" class="calendar-event-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="開始時間" required>
-                <el-date-picker v-model="form.startsAt" type="datetime" style="width: 100%" placeholder="選擇開始時間" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="結束時間">
-                <el-date-picker v-model="form.endsAt" type="datetime" style="width: 100%" placeholder="選填，支援跨日" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="全天活動">
-                <el-switch v-model="form.isAllDay" />
-              </el-form-item>
-            </el-col>
-          </el-row>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="時間與重複規則">
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <FormField field="startsAt" label="開始時間" required>
+                      <el-date-picker v-model="form.startsAt" type="datetime" style="width: 100%" placeholder="選擇開始時間" @change="formErrors.clear('startsAt')" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <FormField field="endsAt" label="結束時間">
+                      <el-date-picker v-model="form.endsAt" type="datetime" style="width: 100%" placeholder="選填，支援跨日" @change="formErrors.clear('endsAt')" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="全天活動">
+                      <el-switch v-model="form.isAllDay" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
 
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="重複規則">
-                <el-select v-model="form.repeatRule" clearable placeholder="不重複" style="width: 100%">
-                  <el-option v-for="r in REPEAT_RULE_ORDER" :key="r" :label="REPEAT_RULE_LABEL[r]" :value="r" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="重複結束日期">
-                <el-date-picker
-                  v-model="form.repeatUntil"
-                  type="date"
-                  :disabled="!form.repeatRule || isReadOnly"
-                  style="width: 100%"
-                  placeholder="留空表示不設結束日期"
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <FormField field="repeatRule" label="重複規則">
+                      <el-select v-model="form.repeatRule" clearable placeholder="不重複" style="width: 100%">
+                        <el-option v-for="r in REPEAT_RULE_ORDER" :key="r" :label="REPEAT_RULE_LABEL[r]" :value="r" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="重複結束日期">
+                      <el-date-picker
+                        v-model="form.repeatUntil"
+                        type="date"
+                        :disabled="!form.repeatRule || isReadOnly"
+                        style="width: 100%"
+                        placeholder="留空表示不設結束日期"
+                      />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+
+                <el-form-item v-if="form.repeatRule" label="例外日期（這幾天不會出現重複發生的活動）">
+                  <div class="calendar-event-edit__exception-row">
+                    <el-date-picker v-model="exceptionDatePicker" type="date" placeholder="選擇日期" :disabled="isReadOnly" />
+                    <el-button :disabled="!exceptionDatePicker || isReadOnly" @click="addExceptionDate">加入</el-button>
+                  </div>
+                  <div v-if="form.exceptionDates.length > 0" class="calendar-event-edit__exception-tags">
+                    <el-tag
+                      v-for="d in form.exceptionDates"
+                      :key="d"
+                      closable
+                      :disable-transitions="true"
+                      @close="removeExceptionDate(d)"
+                    >
+                      {{ d }}
+                    </el-tag>
+                  </div>
+                </el-form-item>
+              </el-card>
+
+              <el-card shadow="never" header="分類、地點與所屬隊別">
+                <el-row :gutter="12">
+                  <el-col :span="12">
+                    <FormField field="eventTypeId" label="分類">
+                      <el-select v-model="form.eventTypeId" clearable placeholder="請選擇分類" style="width: 100%">
+                        <el-option v-for="t in eventTypes" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="是否公開於前台">
+                      <el-switch v-model="form.isPublic" active-text="公開" inactive-text="不公開" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+
+                <FormField field="venueId" label="場地">
+                  <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
+                    <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+                  </el-select>
+                </FormField>
+
+                <FormField field="teamIds" label="所屬隊別（可複選；留空＝俱樂部活動）">
+                  <el-select v-model="form.teamIds" multiple filterable placeholder="留空表示俱樂部活動" style="width: 100%">
+                    <el-option v-for="t in teams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
+                  </el-select>
+                </FormField>
+
+                <FormField field="ctaUrl" label="外部連結或 CTA 網址">
+                  <el-input v-model="form.ctaUrl" placeholder="選填，例如報名連結" />
+                </FormField>
+              </el-card>
+
+              <el-card shadow="never" header="標題與說明">
+                <BilingualShortField
+                  field="title"
+                  label="標題"
+                  :zh="form.titleZh"
+                  :en="form.titleEn"
+                  required
+                  @update:zh="(v) => (form.titleZh = v)"
+                  @update:en="(v) => (form.titleEn = v)"
                 />
-              </el-form-item>
-            </el-col>
-          </el-row>
+                <BilingualTextareaField
+                  field="description"
+                  label="說明"
+                  :zh="form.descriptionZh"
+                  :en="form.descriptionEn"
+                  @update:zh="(v) => (form.descriptionZh = v)"
+                  @update:en="(v) => (form.descriptionEn = v)"
+                />
+              </el-card>
+            </template>
 
-          <el-form-item v-if="form.repeatRule" label="例外日期（這幾天不會出現重複發生的活動）">
-            <div class="calendar-event-edit__exception-row">
-              <el-date-picker v-model="exceptionDatePicker" type="date" placeholder="選擇日期" :disabled="isReadOnly" />
-              <el-button :disabled="!exceptionDatePicker || isReadOnly" @click="addExceptionDate">加入</el-button>
-            </div>
-            <div v-if="form.exceptionDates.length > 0" class="calendar-event-edit__exception-tags">
-              <el-tag
-                v-for="d in form.exceptionDates"
-                :key="d"
-                closable
-                :disable-transitions="true"
-                @close="removeExceptionDate(d)"
-              >
-                {{ d }}
-              </el-tag>
-            </div>
-          </el-form-item>
-        </el-card>
-
-        <el-card shadow="never" header="分類、地點與所屬隊別" class="calendar-event-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="分類">
-                <el-select v-model="form.eventTypeId" clearable placeholder="請選擇分類" style="width: 100%">
-                  <el-option v-for="t in eventTypes" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="是否公開於前台">
-                <el-switch v-model="form.isPublic" active-text="公開" inactive-text="不公開" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <el-form-item label="場地">
-            <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
-              <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
-            </el-select>
-          </el-form-item>
-
-          <el-form-item label="所屬隊別（可複選；留空＝俱樂部活動）">
-            <el-select v-model="form.teamIds" multiple filterable placeholder="留空表示俱樂部活動" style="width: 100%">
-              <el-option v-for="t in teams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
-            </el-select>
-          </el-form-item>
-
-          <el-form-item label="外部連結或 CTA 網址">
-            <el-input v-model="form.ctaUrl" placeholder="選填，例如報名連結" />
-          </el-form-item>
-        </el-card>
-
-        <el-card shadow="never" header="標題、說明與封面圖" class="calendar-event-edit__section">
-          <BilingualShortField
-            label="標題"
-            :zh="form.titleZh"
-            :en="form.titleEn"
-            required
-            @update:zh="(v) => (form.titleZh = v)"
-            @update:en="(v) => (form.titleEn = v)"
-          />
-          <BilingualTextareaField
-            label="說明"
-            :zh="form.descriptionZh"
-            :en="form.descriptionEn"
-            @update:zh="(v) => (form.descriptionZh = v)"
-            @update:en="(v) => (form.descriptionEn = v)"
-          />
-
-          <el-form-item label="封面圖">
-            <ImageUploader
-              v-model:file="coverFile"
-              v-model:remove-cover="removeCover"
-              :has-existing-image="!!coverKey"
-              :disabled="saving || isReadOnly"
-            />
-          </el-form-item>
-        </el-card>
+            <template #aside>
+              <el-card shadow="never" header="封面圖">
+                <FormField field="cover" label="封面圖">
+                  <ImageUploader
+                    v-model:file="coverFile"
+                    v-model:remove-cover="removeCover"
+                    :has-existing-image="!!coverKey"
+                    :disabled="saving || isReadOnly"
+                  />
+                </FormField>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
 
-      <div v-if="!isReadOnly" class="calendar-event-edit__action-bar">
+      <EditActionBar v-if="!isReadOnly">
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
 .calendar-event-edit {
-  max-width: 780px;
-  margin: 0 auto 88px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .calendar-event-edit__form-error {
-  margin-bottom: 16px;
-}
-
-.calendar-event-edit__section {
   margin-bottom: 16px;
 }
 
@@ -440,35 +454,5 @@ function retryLoad() {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-}
-
-.calendar-event-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .calendar-event-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .calendar-event-edit__action-bar {
-    justify-content: stretch;
-  }
-
-  .calendar-event-edit__action-bar :deep(.el-button) {
-    flex: 1;
-  }
 }
 </style>

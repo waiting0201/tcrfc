@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 特約店家——新增／編輯。對照 apps/api/README.md「B1」節「K4 特約店家與權益」。 */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -10,6 +10,11 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { useIsSuperAdmin } from '@/composables/useRolePermissions'
@@ -81,7 +86,11 @@ const locateNotice = ref<{ type: 'success' | 'warning' | 'info'; text: string } 
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除照片就清掉該欄位的錯誤
+watch([imageFile, removeImage], () => formErrors.clear('image'))
 
 const sharedReadOnly = computed(() => !isCreate.value && loadedShared.value && !isSuperAdmin.value)
 const readOnly = computed(() => sharedReadOnly.value || (isCreate.value ? !canCreate.value : !canUpdate.value))
@@ -152,6 +161,8 @@ async function handleLocate() {
     const { lat, lng } = await locatePartnerStoreAddress(activeClubId.value, address)
     form.lat = lat
     form.lng = lng
+    formErrors.clear('lat')
+    formErrors.clear('lng')
     locateNotice.value = { type: 'success', text: '已依地址填入座標，請對照地圖確認無誤後再儲存。' }
   } catch (error) {
     if (error instanceof AdminApiError && error.status === 503 && (error.body as { code?: string } | undefined)?.code === 'geocoder_unavailable') {
@@ -180,17 +191,20 @@ const AUTO_LOCATE_NOTICE: Partial<Record<AutoLocateStatus, { type: 'success' | '
 
 const isHttp = (v: string) => /^https?:\/\//i.test(v.trim())
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.nameZh.trim()) return (formError.value = '請輸入中文名稱'), false
-  if (form.slug.trim() && !/^[a-z0-9-]+$/.test(form.slug.trim())) return (formError.value = '網址名稱只能用小寫英文字母、數字與連字號'), false
-  if ((form.lat === null) !== (form.lng === null)) return (formError.value = '緯度與經度要一起填寫，或兩個都留空'), false
-  if (form.lat !== null && (form.lat < -90 || form.lat > 90)) return (formError.value = '緯度必須介於 -90 到 90 之間'), false
-  if (form.lng !== null && (form.lng < -180 || form.lng > 180)) return (formError.value = '經度必須介於 -180 到 180 之間'), false
-  if (form.mapUrl.trim() && !isHttp(form.mapUrl)) return (formError.value = '地圖連結必須是以 http:// 或 https:// 開頭的完整網址'), false
-  if (form.websiteUrl.trim() && !isHttp(form.websiteUrl)) return (formError.value = '官網連結必須是以 http:// 或 https:// 開頭的完整網址'), false
-  if (form.startOn && form.endOn && form.endOn < form.startOn) return (formError.value = '合作結束日不能早於開始日'), false
-  return true
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  if (form.slug.trim() && !/^[a-z0-9-]+$/.test(form.slug.trim())) errors.slug = '網址名稱只能用小寫英文字母、數字與連字號'
+  if ((form.lat === null) !== (form.lng === null)) {
+    errors[form.lat === null ? 'lat' : 'lng'] = '緯度與經度要一起填寫，或兩個都留空'
+  }
+  if (form.lat !== null && (form.lat < -90 || form.lat > 90)) errors.lat = '緯度必須介於 -90 到 90 之間'
+  if (form.lng !== null && (form.lng < -180 || form.lng > 180)) errors.lng = '經度必須介於 -180 到 180 之間'
+  if (form.mapUrl.trim() && !isHttp(form.mapUrl)) errors.mapUrl = '地圖連結必須是以 http:// 或 https:// 開頭的完整網址'
+  if (form.websiteUrl.trim() && !isHttp(form.websiteUrl)) errors.websiteUrl = '官網連結必須是以 http:// 或 https:// 開頭的完整網址'
+  if (form.startOn && form.endOn && form.endOn < form.startOn) errors.endOn = '合作結束日不能早於開始日'
+  return errors
 }
 
 function buildPayload(): SavePartnerStorePayload {
@@ -227,9 +241,13 @@ function buildPayload(): SavePartnerStorePayload {
 }
 
 async function handleSave() {
-  if (readOnly.value || !validate()) return
-  saving.value = true
+  if (readOnly.value) return
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   locateNotice.value = null
   try {
     const saved = isCreate.value
@@ -248,6 +266,8 @@ async function handleSave() {
     if (hint) locateNotice.value = hint
     autoLocate.value = false
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -290,105 +310,117 @@ const backToList = () => router.push({ path: '/members/partner-stores', query: {
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="store-edit__error" @close="formError = null" />
       <el-alert v-if="readOnly && !sharedReadOnly" title="你的帳號只能檢視特約店家，不能修改。" type="info" show-icon :closable="false" class="store-edit__error" />
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="基本資料" class="store-edit__section">
-          <BilingualShortField label="店家名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="分類">
-                <el-select v-model="form.category" filterable allow-create clearable default-first-option placeholder="選擇或直接輸入新分類" style="width: 100%">
-                  <el-option v-for="c in categoryOptions" :key="c" :label="c" :value="c" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="地區">
-                <el-select v-model="form.region" filterable allow-create clearable default-first-option placeholder="選擇或直接輸入新地區" style="width: 100%">
-                  <el-option v-for="r in regionOptions" :key="r" :label="r" :value="r" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <BilingualShortField label="地址" :zh="form.addressZh" :en="form.addressEn" @update:zh="(v) => (form.addressZh = v)" @update:en="(v) => (form.addressEn = v)" />
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="電話"><el-input v-model="form.phone" maxlength="32" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="營業時間（自由填寫）"><el-input v-model="form.businessHours" maxlength="500" placeholder="例如：週一至週五 11:00–21:00" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="地圖連結"><el-input v-model="form.mapUrl" placeholder="https://" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="官網連結"><el-input v-model="form.websiteUrl" placeholder="https://" /></el-form-item></el-col>
-          </el-row>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="基本資料">
+                <BilingualShortField field="name" label="店家名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="category" label="分類">
+                      <el-select v-model="form.category" filterable allow-create clearable default-first-option placeholder="選擇或直接輸入新分類" style="width: 100%">
+                        <el-option v-for="c in categoryOptions" :key="c" :label="c" :value="c" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="region" label="地區">
+                      <el-select v-model="form.region" filterable allow-create clearable default-first-option placeholder="選擇或直接輸入新地區" style="width: 100%">
+                        <el-option v-for="r in regionOptions" :key="r" :label="r" :value="r" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                </el-row>
+                <BilingualShortField field="address" label="地址" :zh="form.addressZh" :en="form.addressEn" @update:zh="(v) => (form.addressZh = v)" @update:en="(v) => (form.addressEn = v)" />
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12"><FormField field="phone" label="電話"><el-input v-model="form.phone" maxlength="32" /></FormField></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="businessHours" label="營業時間（自由填寫）"><el-input v-model="form.businessHours" maxlength="500" placeholder="例如：週一至週五 11:00–21:00" /></FormField></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="mapUrl" label="地圖連結"><el-input v-model="form.mapUrl" placeholder="https://" /></FormField></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="websiteUrl" label="官網連結"><el-input v-model="form.websiteUrl" placeholder="https://" /></FormField></el-col>
+                </el-row>
+              </el-card>
 
-        <el-card shadow="never" header="地圖座標" class="store-edit__section">
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="緯度（-90 到 90）"><el-input-number v-model="form.lat" :controls="false" :precision="6" :min="-90" :max="90" :value-on-clear="null" style="width: 100%" placeholder="例如 24.1477" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="經度（-180 到 180）"><el-input-number v-model="form.lng" :controls="false" :precision="6" :min="-180" :max="180" :value-on-clear="null" style="width: 100%" placeholder="例如 120.6736" /></el-form-item>
-            </el-col>
-          </el-row>
-          <div class="store-edit__locate">
-            <el-button size="small" :loading="locating" :disabled="!canLocate" @click="handleLocate">由地址定位</el-button>
-            <span v-if="locateUnavailable" class="store-edit__hint store-edit__hint--inline">定位服務尚未啟用，請手動輸入座標。</span>
-            <span v-else-if="!form.addressZh.trim()" class="store-edit__hint store-edit__hint--inline">請先在上方填寫中文地址。</span>
-          </div>
-          <el-checkbox v-model="autoLocate" :disabled="locateUnavailable">儲存時由地址定位</el-checkbox>
-          <p class="store-edit__hint">
-            緯度與經度要一起填。「由地址定位」只會把結果填入欄位供你確認，不會自動儲存；勾選「儲存時由地址定位」則在儲存時依中文地址補上座標（已手動填寫座標時以手動為準）。找不到或服務無法使用時不影響儲存，請改為手動輸入。
-          </p>
-          <el-alert v-if="locateNotice" :title="locateNotice.text" :type="locateNotice.type" show-icon class="store-edit__error" @close="locateNotice = null" />
-          <el-button v-if="mapSearchUrl" tag="a" :href="mapSearchUrl" target="_blank" rel="noopener noreferrer" size="small">
-            在地圖開啟目前地址查詢（另開分頁，僅供輔助）
-          </el-button>
-        </el-card>
+              <el-card shadow="never" header="地圖座標">
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="lat" label="緯度（-90 到 90）"><el-input-number v-model="form.lat" :controls="false" :precision="6" :min="-90" :max="90" :value-on-clear="null" style="width: 100%" placeholder="例如 24.1477" @change="formErrors.clear('lat'); formErrors.clear('lng')" /></FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="lng" label="經度（-180 到 180）"><el-input-number v-model="form.lng" :controls="false" :precision="6" :min="-180" :max="180" :value-on-clear="null" style="width: 100%" placeholder="例如 120.6736" @change="formErrors.clear('lat'); formErrors.clear('lng')" /></FormField>
+                  </el-col>
+                </el-row>
+                <div class="store-edit__locate">
+                  <el-button size="small" :loading="locating" :disabled="!canLocate" @click="handleLocate">由地址定位</el-button>
+                  <span v-if="locateUnavailable" class="store-edit__hint store-edit__hint--inline">定位服務尚未啟用，請手動輸入座標。</span>
+                  <span v-else-if="!form.addressZh.trim()" class="store-edit__hint store-edit__hint--inline">請先在上方填寫中文地址。</span>
+                </div>
+                <el-checkbox v-model="autoLocate" :disabled="locateUnavailable">儲存時由地址定位</el-checkbox>
+                <p class="store-edit__hint">
+                  緯度與經度要一起填。「由地址定位」只會把結果填入欄位供你確認，不會自動儲存；勾選「儲存時由地址定位」則在儲存時依中文地址補上座標（已手動填寫座標時以手動為準）。找不到或服務無法使用時不影響儲存，請改為手動輸入。
+                </p>
+                <el-alert v-if="locateNotice" :title="locateNotice.text" :type="locateNotice.type" show-icon class="store-edit__error" @close="locateNotice = null" />
+                <el-button v-if="mapSearchUrl" tag="a" :href="mapSearchUrl" target="_blank" rel="noopener noreferrer" size="small">
+                  在地圖開啟目前地址查詢（另開分頁，僅供輔助）
+                </el-button>
+              </el-card>
 
-        <el-card shadow="never" header="優惠與合作" class="store-edit__section">
-          <BilingualTextareaField label="優惠內容" :zh="form.offerZh" :en="form.offerEn" @update:zh="(v) => (form.offerZh = v)" @update:en="(v) => (form.offerEn = v)" />
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="適用會員">
-                <el-radio-group v-model="form.applicableTier">
-                  <el-radio value="all">全部會員</el-radio>
-                  <el-radio value="fan_club">限付費球迷會員</el-radio>
-                </el-radio-group>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="狀態">
-                <el-radio-group v-model="form.status"><el-radio value="published">已發布</el-radio><el-radio value="draft">草稿</el-radio></el-radio-group>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="合作開始日"><el-date-picker v-model="form.startOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="合作結束日"><el-date-picker v-model="form.endOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-          </el-row>
-          <p class="store-edit__hint">兩個日期都不填代表長期合作；合作結束後前台不再顯示。</p>
-          <el-form-item label="排序值">
-            <el-input-number v-model="form.sortOrder" :min="0" />
-            <p class="store-edit__hint">數字小的排前面；也可以在店家列表用上移、下移調整。</p>
-          </el-form-item>
-          <el-form-item label="網址名稱（選填）">
-            <el-input v-model="form.slug" maxlength="80" placeholder="小寫英文、數字與連字號；留空由系統自動產生" />
-          </el-form-item>
-          <el-form-item v-if="isCreate && isSuperAdmin" label="兩隊共用">
-            <el-checkbox v-model="form.isShared">建立為台中磐石與台中藍鯨共用的店家</el-checkbox>
-            <p class="store-edit__hint">只有系統管理員能建立共用店家，建立後所有俱樂部都看得到，且只有系統管理員能修改；建立之後無法再更改這個設定。</p>
-          </el-form-item>
-          <p v-else-if="!isCreate && loadedShared" class="store-edit__hint">這是兩隊共用的店家。</p>
-        </el-card>
+              <el-card shadow="never" header="優惠與合作">
+                <BilingualTextareaField field="offer" label="優惠內容" :zh="form.offerZh" :en="form.offerEn" @update:zh="(v) => (form.offerZh = v)" @update:en="(v) => (form.offerEn = v)" />
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="applicableTier" label="適用會員">
+                      <el-radio-group v-model="form.applicableTier">
+                        <el-radio value="all">全部會員</el-radio>
+                        <el-radio value="fan_club">限付費球迷會員</el-radio>
+                      </el-radio-group>
+                    </FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="status" label="狀態">
+                      <el-radio-group v-model="form.status"><el-radio value="published">已發布</el-radio><el-radio value="draft">草稿</el-radio></el-radio-group>
+                    </FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12"><el-form-item label="合作開始日"><el-date-picker v-model="form.startOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endOn')" /></el-form-item></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="endOn" label="合作結束日"><el-date-picker v-model="form.endOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endOn')" /></FormField></el-col>
+                </el-row>
+                <p class="store-edit__hint">兩個日期都不填代表長期合作；合作結束後前台不再顯示。</p>
+                <el-form-item label="排序值">
+                  <el-input-number v-model="form.sortOrder" :min="0" />
+                  <p class="store-edit__hint">數字小的排前面；也可以在店家列表用上移、下移調整。</p>
+                </el-form-item>
+                <FormField field="slug" label="網址名稱（選填）">
+                  <el-input v-model="form.slug" maxlength="80" placeholder="小寫英文、數字與連字號；留空由系統自動產生" />
+                </FormField>
+                <el-form-item v-if="isCreate && isSuperAdmin" label="兩隊共用">
+                  <el-checkbox v-model="form.isShared">建立為台中磐石與台中藍鯨共用的店家</el-checkbox>
+                  <p class="store-edit__hint">只有系統管理員能建立共用店家，建立後所有俱樂部都看得到，且只有系統管理員能修改；建立之後無法再更改這個設定。</p>
+                </el-form-item>
+                <p v-else-if="!isCreate && loadedShared" class="store-edit__hint">這是兩隊共用的店家。</p>
+              </el-card>
+            </template>
 
-        <el-card shadow="never" header="店家照片" class="store-edit__section">
-          <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeImage" variant="photo" :min-width="0" :min-height="0" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
-        </el-card>
+            <template #aside>
+              <el-card shadow="never" header="店家照片">
+                <FormField field="image" label="店家照片">
+                  <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeImage" variant="photo" :min-width="0" :min-height="0" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
+                </FormField>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.store-edit { max-width: 780px; margin: 0 auto 88px; min-width: 0; }
+.store-edit { max-width: 1200px; margin: 0 auto; min-width: 0; }
 .store-edit__meta { display: flex; flex-direction: column; gap: 4px; }
 .store-edit__error { margin-bottom: 16px; }
-.store-edit__section { margin-bottom: 16px; }
 .store-edit__locate { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
 .store-edit__hint { margin: 6px 0 12px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 .store-edit__hint--inline { margin: 0; }

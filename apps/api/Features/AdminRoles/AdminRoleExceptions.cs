@@ -11,7 +11,10 @@ public sealed class AdminRoleValidationException(string message, string? field =
 
 /// <summary><c>admin_roles.code</c> 全域唯一已被使用。對應 409。</summary>
 public sealed class AdminRoleCodeConflictException(string code)
-    : AdminRoleException($"角色代碼「{code}」已經被使用，請換一個。");
+    : AdminRoleException($"角色代碼「{code}」已經被使用，請換一個。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("code", Message);
+}
 
 /// <summary>種子角色（<c>is_system = true</c>）不可刪除，但權限可調（docs/12b-database-tables.md §7.2）。對應 403。</summary>
 public sealed class AdminRoleSystemDeleteException()
@@ -34,4 +37,7 @@ public sealed class AdminRoleInUseException(int assignedAccountCount)
 /// 「介面不顯示權限碼」），只是換了一個建構函式當載體。
 /// </summary>
 public sealed class AdminRoleSysadminOnlyPermissionException(IReadOnlyList<string> codes)
-    : AdminRoleException($"有 {codes.Count} 個權限碼僅供系統管理員使用，不透過角色指派，請重新選擇。");
+    : AdminRoleException($"有 {codes.Count} 個權限僅供系統管理員使用，不透過角色指派，請重新選擇。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("permissions", Message);
+}

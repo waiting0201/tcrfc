@@ -7,6 +7,8 @@
  */
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
@@ -41,7 +43,9 @@ const form = reactive({
   contractAmount: null as number | null, isAmountHidden: false,
 })
 const saving = ref(false)
+/** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 const isEdit = computed(() => !!props.campaign)
 /** 只有草稿能改全部欄位；已排程／投放中／已暫停只能改名稱、權重與上限。 */
@@ -53,6 +57,7 @@ watch(
   async (open) => {
     if (!open) return
     formError.value = null
+    formErrors.clearAll()
     optionError.value = null
     const c = props.campaign
     Object.assign(form, {
@@ -77,20 +82,24 @@ const selectableSlots = computed(() => slots.value.filter((s) => s.isActive || s
 
 async function save() {
   if (fullyLocked.value) return
+  formError.value = null
   const name = form.name.trim()
-  if (!name) return void (formError.value = '請輸入檔期名稱')
-  if (!form.advertiserId) return void (formError.value = '請選擇廣告主')
-  if (!form.slotId) return void (formError.value = '請選擇廣告版位')
+  const errors: Record<string, string> = {}
+  if (!name) errors.name = '請輸入檔期名稱'
+  if (!form.advertiserId) errors.advertiserId = '請選擇廣告主'
+  if (!form.slotId) errors.slotId = '請選擇廣告版位'
   const startsAt = pickerDateToUtc(form.startsAt)
   const endsAt = pickerDateToUtc(form.endsAt)
-  if (!startsAt || !endsAt) return void (formError.value = '請選擇開始與結束時間')
-  if (form.endsAt!.getTime() <= form.startsAt!.getTime()) return void (formError.value = '結束時間必須晚於開始時間')
-  if (!Number.isInteger(form.weight) || form.weight < 1 || form.weight > 100) return void (formError.value = '權重請填 1 到 100')
-  if (form.goalType === 'guaranteed' && (!form.goalImpressions || form.goalImpressions < 1)) {
-    return void (formError.value = '曝光保證型的檔期必須填寫目標曝光數')
+  if (!startsAt) errors.startsAt = '請選擇開始時間'
+  if (!endsAt) errors.endsAt = '請選擇結束時間'
+  else if (startsAt && form.endsAt!.getTime() <= form.startsAt!.getTime()) errors.endsAt = '結束時間必須晚於開始時間'
+  if (!Number.isInteger(form.weight) || form.weight < 1 || form.weight > 100) errors.weight = '權重請填 1 到 100'
+  if (form.goalType === 'guaranteed' && (!form.goalImpressions || form.goalImpressions < 1)) errors.goalImpressions = '曝光保證型的檔期必須填寫目標曝光數'
+  if (formErrors.replaceAll(errors) || !startsAt || !endsAt) {
+    await formErrors.focusFirst()
+    return
   }
   saving.value = true
-  formError.value = null
   const payload = {
     advertiserId: form.advertiserId,
     slotId: form.slotId,
@@ -111,6 +120,7 @@ async function save() {
     emit('saved', saved)
     emit('update:modelValue', false)
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = e instanceof AdminApiError ? e.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -125,27 +135,27 @@ async function save() {
     <el-alert v-if="fullyLocked" type="info" show-icon :closable="false" title="這個檔期已結束、結案或作廢，不能再修改" class="cf__block" />
     <el-alert v-else-if="structureLocked" type="info" show-icon :closable="false" title="這個檔期已送審通過或正在投放，只能修改名稱、權重與曝光上限；要改廣告主、版位、期間或目標，請先作廢再重新建立。" class="cf__block" />
     <el-form label-position="top" :disabled="fullyLocked">
-      <el-form-item label="檔期名稱" required><el-input v-model="form.name" maxlength="100" /></el-form-item>
+      <FormField field="name" label="檔期名稱" required><el-input v-model="form.name" maxlength="100" /></FormField>
       <el-row :gutter="12">
         <el-col :xs="24" :sm="12">
-          <el-form-item label="廣告主" required>
-            <el-select v-model="form.advertiserId" filterable :disabled="structureLocked" placeholder="選擇廣告主" style="width: 100%">
+          <FormField field="advertiserId" label="廣告主" required>
+            <el-select v-model="form.advertiserId" filterable :disabled="structureLocked" placeholder="選擇廣告主" style="width: 100%" @change="formErrors.clear('advertiserId')">
               <el-option v-for="a in selectableAdvertisers" :key="a.id" :label="a.nameZh || '（未命名）'" :value="a.id" />
             </el-select>
-          </el-form-item>
+          </FormField>
         </el-col>
         <el-col :xs="24" :sm="12">
-          <el-form-item label="廣告版位" required>
-            <el-select v-model="form.slotId" filterable :disabled="structureLocked" placeholder="選擇版位" style="width: 100%">
+          <FormField field="slotId" label="廣告版位" required>
+            <el-select v-model="form.slotId" filterable :disabled="structureLocked" placeholder="選擇版位" style="width: 100%" @change="formErrors.clear('slotId')">
               <el-option v-for="s in selectableSlots" :key="s.id" :label="s.nameZh || s.slotCode" :value="s.id" />
             </el-select>
-          </el-form-item>
+          </FormField>
         </el-col>
-        <el-col :xs="24" :sm="12"><el-form-item label="開始時間（台灣時間）" required><el-date-picker v-model="form.startsAt" type="datetime" :disabled="structureLocked" style="width: 100%" /></el-form-item></el-col>
-        <el-col :xs="24" :sm="12"><el-form-item label="結束時間（台灣時間）" required><el-date-picker v-model="form.endsAt" type="datetime" :disabled="structureLocked" style="width: 100%" /></el-form-item></el-col>
-        <el-col :xs="24" :sm="8"><el-form-item label="投放權重（1–100）"><el-input-number v-model="form.weight" :min="1" :max="100" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-        <el-col :xs="24" :sm="8"><el-form-item label="每日曝光上限（選填）"><el-input-number v-model="form.dailyImpressionCap" :min="1" controls-position="right" style="width: 100%" /></el-form-item></el-col>
-        <el-col :xs="24" :sm="8"><el-form-item label="每人每日曝光上限（選填）"><el-input-number v-model="form.perDeviceDailyCap" :min="1" controls-position="right" style="width: 100%" /></el-form-item></el-col>
+        <el-col :xs="24" :sm="12"><FormField field="startsAt" label="開始時間（台灣時間）" required><el-date-picker v-model="form.startsAt" type="datetime" :disabled="structureLocked" style="width: 100%" @change="formErrors.clear('startsAt')" /></FormField></el-col>
+        <el-col :xs="24" :sm="12"><FormField field="endsAt" label="結束時間（台灣時間）" required><el-date-picker v-model="form.endsAt" type="datetime" :disabled="structureLocked" style="width: 100%" @change="formErrors.clear('endsAt')" /></FormField></el-col>
+        <el-col :xs="24" :sm="8"><FormField field="weight" label="投放權重（1–100）"><el-input-number v-model="form.weight" :min="1" :max="100" controls-position="right" style="width: 100%" @change="formErrors.clear('weight')" /></FormField></el-col>
+        <el-col :xs="24" :sm="8"><FormField field="dailyImpressionCap" label="每日曝光上限（選填）"><el-input-number v-model="form.dailyImpressionCap" :min="1" controls-position="right" style="width: 100%" /></FormField></el-col>
+        <el-col :xs="24" :sm="8"><FormField field="perDeviceDailyCap" label="每人每日曝光上限（選填）"><el-input-number v-model="form.perDeviceDailyCap" :min="1" controls-position="right" style="width: 100%" /></FormField></el-col>
         <el-col :xs="24" :sm="12">
           <el-form-item label="投放目標">
             <el-radio-group v-model="form.goalType" :disabled="structureLocked">
@@ -154,7 +164,7 @@ async function save() {
             </el-radio-group>
           </el-form-item>
         </el-col>
-        <el-col :xs="24" :sm="12"><el-form-item :label="form.goalType === 'guaranteed' ? '目標曝光數（必填）' : '目標曝光數（選填）'"><el-input-number v-model="form.goalImpressions" :min="1" :disabled="structureLocked" controls-position="right" style="width: 100%" /></el-form-item></el-col>
+        <el-col :xs="24" :sm="12"><FormField field="goalImpressions" :label="form.goalType === 'guaranteed' ? '目標曝光數（必填）' : '目標曝光數（選填）'"><el-input-number v-model="form.goalImpressions" :min="1" :disabled="structureLocked" controls-position="right" style="width: 100%" @change="formErrors.clear('goalImpressions')" /></FormField></el-col>
       </el-row>
       <template v-if="canViewAmount || canEditAmount">
         <el-row :gutter="12">

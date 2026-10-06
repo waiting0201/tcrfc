@@ -22,6 +22,10 @@ import {
   type ShopEnvironment,
 } from '@/api/adminShop'
 import { formatDateTime } from '@/utils/dateTime'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const club = computed(() => activeClubId.value)
 const data = ref<ShopCredentialsDto | null>(null)
@@ -78,6 +82,7 @@ const paySaving = ref(false)
 const payError = ref<string | null>(null)
 async function savePay() {
   payError.value = null
+  formErrors.clearAll()
   const current = data.value?.linePay[pay.environment]
   if (!pay.channelId.trim()) return (payError.value = '請輸入商店識別碼')
   if (!current?.configured && !pay.channelSecret.trim()) return (payError.value = '第一次設定必須輸入商店密鑰')
@@ -88,6 +93,7 @@ async function savePay() {
     pay.channelSecret = ''
     ElMessage.success('已存放 LINE Pay 憑證（尚未串接，不會實際連線）')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     payError.value = errorText(error, '儲存失敗，請稍後再試')
   } finally {
     paySaving.value = false
@@ -100,6 +106,7 @@ const invSaving = ref(false)
 const invError = ref<string | null>(null)
 async function saveInv() {
   invError.value = null
+  formErrors.clearAll()
   const prefix = inv.invoicePrefix.trim().toUpperCase()
   if (!/^[A-Z]{2}$/.test(prefix)) return (invError.value = '發票字軌必須是兩位英文字母')
   invSaving.value = true
@@ -114,6 +121,7 @@ async function saveInv() {
     inv.apiKey = ''
     ElMessage.success('已存放電子發票憑證（尚未串接，不會實際開立發票）')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     invError.value = errorText(error, '儲存失敗，請稍後再試')
   } finally {
     invSaving.value = false
@@ -131,6 +139,7 @@ async function saveRetry() {
     data.value = await saveInvoiceRetry(club.value, { maxRetries: retry.maxRetries, intervalMinutes: retry.intervalMinutes })
     ElMessage.success('已儲存')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     ElMessage.error(errorText(error, '儲存失敗，請稍後再試'))
   } finally {
     retrySaving.value = false
@@ -169,9 +178,9 @@ function envStatus(env?: CredentialEnvDto): string {
         <el-alert v-if="payError" :title="payError" type="warning" show-icon class="cred__block" @close="payError = null" />
         <el-form label-position="top" autocomplete="off">
           <el-row :gutter="12">
-            <el-col :xs="24" :sm="8"><el-form-item label="要設定的環境"><el-select v-model="pay.environment" style="width: 100%"><el-option label="測試環境" value="sandbox" /><el-option label="正式環境" value="production" /></el-select></el-form-item></el-col>
-            <el-col :xs="24" :sm="8"><el-form-item label="商店識別碼"><el-input v-model="pay.channelId" autocomplete="off" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="8"><el-form-item label="商店密鑰（只寫不讀）"><el-input v-model="pay.channelSecret" type="password" show-password autocomplete="new-password" :placeholder="data.linePay[pay.environment]?.configured ? '留空＝沿用原本的密鑰' : '第一次設定必填'" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="environment" label="要設定的環境"><el-select v-model="pay.environment" style="width: 100%"><el-option label="測試環境" value="sandbox" /><el-option label="正式環境" value="production" /></el-select></FormField></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="channelId" label="商店識別碼"><el-input v-model="pay.channelId" autocomplete="off" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="channelSecret" label="商店密鑰（只寫不讀）"><el-input v-model="pay.channelSecret" type="password" show-password autocomplete="new-password" :placeholder="data.linePay[pay.environment]?.configured ? '留空＝沿用原本的密鑰' : '第一次設定必填'" /></FormField></el-col>
           </el-row>
         </el-form>
         <el-button type="primary" :loading="paySaving" @click="savePay">存放憑證</el-button>
@@ -185,10 +194,10 @@ function envStatus(env?: CredentialEnvDto): string {
         <el-alert v-if="invError" :title="invError" type="warning" show-icon class="cred__block" @close="invError = null" />
         <el-form label-position="top" autocomplete="off">
           <el-row :gutter="12">
-            <el-col :xs="24" :sm="6"><el-form-item label="要設定的環境"><el-select v-model="inv.environment" style="width: 100%"><el-option label="測試環境" value="sandbox" /><el-option label="正式環境" value="production" /></el-select></el-form-item></el-col>
-            <el-col :xs="24" :sm="6"><el-form-item label="商店代號"><el-input v-model="inv.merchantId" autocomplete="off" placeholder="留空＝不變" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="6"><el-form-item label="服務金鑰（只寫不讀）"><el-input v-model="inv.apiKey" type="password" show-password autocomplete="new-password" placeholder="留空＝不變" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="6"><el-form-item label="發票字軌（兩位英文字母）" required><el-input v-model="inv.invoicePrefix" maxlength="2" autocomplete="off" placeholder="例如 AB" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="6"><FormField field="environment" label="要設定的環境"><el-select v-model="inv.environment" style="width: 100%"><el-option label="測試環境" value="sandbox" /><el-option label="正式環境" value="production" /></el-select></FormField></el-col>
+            <el-col :xs="24" :sm="6"><FormField field="merchantId" label="商店代號"><el-input v-model="inv.merchantId" autocomplete="off" placeholder="留空＝不變" /></FormField></el-col>
+            <el-col :xs="24" :sm="6"><FormField field="apiKey" label="服務金鑰（只寫不讀）"><el-input v-model="inv.apiKey" type="password" show-password autocomplete="new-password" placeholder="留空＝不變" /></FormField></el-col>
+            <el-col :xs="24" :sm="6"><FormField field="invoicePrefix" label="發票字軌（兩位英文字母）" required><el-input v-model="inv.invoicePrefix" maxlength="2" autocomplete="off" placeholder="例如 AB" /></FormField></el-col>
           </el-row>
         </el-form>
         <el-button type="primary" :loading="invSaving" @click="saveInv">存放憑證</el-button>
@@ -197,8 +206,8 @@ function envStatus(env?: CredentialEnvDto): string {
       <el-card shadow="never" header="發票開立與作廢的重試" class="cred__block">
         <el-form label-position="top">
           <el-row :gutter="12">
-            <el-col :xs="24" :sm="8"><el-form-item label="最多重試次數（0–10）"><el-input-number v-model="retry.maxRetries" :min="0" :max="10" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="8"><el-form-item label="重試間隔（分鐘，1–1440）"><el-input-number v-model="retry.intervalMinutes" :min="1" :max="1440" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="maxRetries" label="最多重試次數（0–10）"><el-input-number v-model="retry.maxRetries" :min="0" :max="10" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="intervalMinutes" label="重試間隔（分鐘，1–1440）"><el-input-number v-model="retry.intervalMinutes" :min="1" :max="1440" /></FormField></el-col>
           </el-row>
         </el-form>
         <el-button :loading="retrySaving" @click="saveRetry">儲存重試設定</el-button>

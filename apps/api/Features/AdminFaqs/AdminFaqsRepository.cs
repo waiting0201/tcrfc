@@ -755,14 +755,14 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
     {
         if (categoryIds.Count == 0)
         {
-            throw new AdminFaqValidationException("至少要選擇一個所屬分類。");
+            throw new AdminFaqValidationException("至少要選擇一個所屬分類。", "categoryIds");
         }
 
         var distinctIds = categoryIds.Distinct().ToList();
         var categories = await dbContext.FaqCategories.Where(c => distinctIds.Contains(c.Id)).ToListAsync(cancellationToken);
         if (categories.Count != distinctIds.Count)
         {
-            throw new AdminFaqValidationException("所屬分類包含不存在的項目，請重新整理分類清單後再試一次。");
+            throw new AdminFaqValidationException("所屬分類包含不存在的項目，請重新整理分類清單後再試一次。", "categoryIds");
         }
 
         return categories;
@@ -782,7 +782,7 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         var slots = await dbContext.FaqEmbedSlots.Where(s => distinctIds.Contains(s.Id)).ToListAsync(cancellationToken);
         if (slots.Count != distinctIds.Count)
         {
-            throw new AdminFaqValidationException("指定的掛載點包含不存在的項目，請重新整理清單後再試一次。");
+            throw new AdminFaqValidationException("指定的掛載點包含不存在的項目，請重新整理清單後再試一次。", "embedSlotIds");
         }
 
         return slots;
@@ -819,8 +819,7 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         if (!AllowedStatuses.Contains(status))
         {
             throw new AdminFaqValidationException(
-                "狀態只能是「draft」（草稿／隱藏）或「published」（顯示）——這個型別不支援排程發布" +
-                "（docs/14-invariants.md「S0-7g」：沒有 published_at 欄位可以記排定時間）。");
+                "狀態只能是「草稿（隱藏）」或「顯示」，常見問題不支援排程發布。", "status");
         }
     }
 
@@ -828,11 +827,11 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Question))
         {
-            throw new AdminFaqValidationException("中文問題為必填欄位。");
+            throw new AdminFaqValidationException("中文問題為必填欄位。", "questionZh");
         }
         if (string.IsNullOrWhiteSpace(content.Zh.Answer))
         {
-            throw new AdminFaqValidationException("中文答案為必填欄位。");
+            throw new AdminFaqValidationException("中文答案為必填欄位。", "answerZh");
         }
     }
 

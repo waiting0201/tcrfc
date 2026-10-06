@@ -44,14 +44,14 @@ public sealed class AdminHomeSectionsRepository(ClubDbContext dbContext, IQueryC
             if (sectionCode != "hero")
             {
                 throw new AdminHomeSectionValidationException(
-                    "只有「Hero 輪播」區塊可以指定精選輪播，其餘區塊目前沒有可以指定的欄位（見 apps/api/README.md 綱要缺口）。");
+                    "只有首頁最上方的大圖輪播區塊可以指定精選輪播，其餘區塊沒有這個設定。", "featuredBannerId");
             }
 
             var bannerBelongsToClub = await dbContext.Banners.AsNoTracking()
                 .AnyAsync(b => b.Id == bannerId && b.ClubId == scope.ClubId, cancellationToken);
             if (!bannerBelongsToClub)
             {
-                throw new AdminHomeSectionValidationException("指定的精選輪播不存在，或不屬於這個俱樂部。");
+                throw new AdminHomeSectionValidationException("指定的精選輪播不存在，或不屬於這個俱樂部。", "featuredBannerId");
             }
         }
 

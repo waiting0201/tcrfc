@@ -8,6 +8,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { AdminApiError } from '@/api/http'
 import { createDonationCode, deleteDonationCode, listDonationCodes, updateDonationCode, type DonationCodeDto } from '@/api/adminShop'
 import { computed } from 'vue'
@@ -36,17 +38,25 @@ onMounted(load)
 
 const open = ref(false)
 const saving = ref(false)
+/** 對話框頂部提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const form = reactive({ id: null as string | null, code: '', orgName: '', isActive: true, sortOrder: 0 })
 function openDialog(row: DonationCodeDto | null) {
   formError.value = null
+  formErrors.clearAll()
   Object.assign(form, row ? { id: row.id, code: row.code, orgName: row.orgName, isActive: row.isActive, sortOrder: row.sortOrder } : { id: null, code: '', orgName: '', isActive: true, sortOrder: rows.value.length })
   open.value = true
 }
 async function save() {
   formError.value = null
-  if (!/^\d{3,7}$/.test(form.code.trim())) return (formError.value = '捐贈碼必須是 3 到 7 位數字')
-  if (!form.orgName.trim()) return (formError.value = '請輸入受贈團體名稱')
+  const errors: Record<string, string> = {}
+  if (!/^\d{3,7}$/.test(form.code.trim())) errors.code = '捐贈碼必須是 3 到 7 位數字'
+  if (!form.orgName.trim()) errors.orgName = '請輸入受贈團體名稱'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   const body = { code: form.code.trim(), orgName: form.orgName.trim(), isActive: form.isActive, sortOrder: form.sortOrder }
   try {
@@ -56,6 +66,8 @@ async function save() {
     ElMessage.success('已儲存')
     await load()
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放對話框頂部
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = errorText(error, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -117,11 +129,11 @@ async function remove(row: DonationCodeDto) {
     <el-dialog v-model="open" :title="form.id ? '編輯捐贈碼' : '新增捐贈碼'" width="440px" :close-on-click-modal="false" class="codes__dialog">
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="codes__block" @close="formError = null" />
       <el-form label-position="top" :disabled="form.id ? !canUpdate : !canCreate">
-        <el-form-item label="捐贈碼（3 到 7 位數字）" required><el-input v-model="form.code" maxlength="7" /></el-form-item>
-        <el-form-item label="受贈團體名稱" required><el-input v-model="form.orgName" maxlength="128" /></el-form-item>
+        <FormField field="code" label="捐贈碼（3 到 7 位數字）" required><el-input v-model="form.code" maxlength="7" /></FormField>
+        <FormField field="orgName" label="受贈團體名稱" required><el-input v-model="form.orgName" maxlength="128" /></FormField>
         <el-row :gutter="12">
           <el-col :xs="24" :sm="12"><el-form-item label="啟用"><el-switch v-model="form.isActive" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
+          <el-col :xs="24" :sm="12"><FormField field="sortOrder" label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></FormField></el-col>
         </el-row>
       </el-form>
       <template #footer>

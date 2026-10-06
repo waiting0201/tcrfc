@@ -12,7 +12,10 @@ public sealed class AdminAccountValidationException(string message, string? fiel
 
 /// <summary><c>admin_users.username</c> 全域唯一已被使用。對應 409。</summary>
 public sealed class AdminAccountUsernameConflictException(string username)
-    : AdminAccountException($"帳號「{username}」已經被使用，請換一個。");
+    : AdminAccountException($"帳號「{username}」已經被使用，請換一個。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("username", Message);
+}
 
 /// <summary>
 /// 🔴 這個操作會讓系統歸零到「沒有任何啟用中的最高管理權限帳號」——

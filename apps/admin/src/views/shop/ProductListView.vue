@@ -12,6 +12,9 @@ import PageHeader from '@/components/PageHeader.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions, usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -99,10 +102,13 @@ async function removeCollection(c: CollectionListItemDto) {
 
 const colDialog = ref(false)
 const colSaving = ref(false)
+/** 對話框頂部提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const colFormError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const colForm = reactive({ id: null as string | null, slug: '', sortOrder: 0, status: 'draft' as ShopPublishStatus, nameZh: '', nameEn: '', narrZh: '', narrEn: '' })
 async function openCollection(c: CollectionListItemDto | null) {
   colFormError.value = null
+  formErrors.clearAll()
   if (!c) {
     Object.assign(colForm, { id: null, slug: '', sortOrder: collections.value.length, status: 'draft', nameZh: '', nameEn: '', narrZh: '', narrEn: '' })
     colDialog.value = true
@@ -121,7 +127,12 @@ async function openCollection(c: CollectionListItemDto | null) {
 }
 async function saveCollection() {
   colFormError.value = null
-  if (!colForm.nameZh.trim()) return (colFormError.value = '請輸入系列中文名稱')
+  const errors: Record<string, string> = {}
+  if (!colForm.nameZh.trim()) errors.nameZh = '請輸入系列中文名稱'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
   colSaving.value = true
   const payload = {
     slug: nullIfBlank(colForm.slug) ?? undefined,
@@ -139,6 +150,8 @@ async function saveCollection() {
     ElMessage.success('已儲存')
     await loadCollections()
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放對話框頂部
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     colFormError.value = errorText(error, '儲存失敗，請稍後再試')
   } finally {
     colSaving.value = false
@@ -349,16 +362,18 @@ const goEdit = (row: ProductListItemDto) => router.push(`/shop/products/${row.id
     <el-dialog v-model="colDialog" :title="colForm.id ? '編輯系列' : '新增系列'" width="620px" :close-on-click-modal="false" class="products__dialog">
       <el-alert v-if="colFormError" :title="colFormError" type="warning" show-icon class="products__block" @close="colFormError = null" />
       <el-form label-position="top" :disabled="colForm.id ? !collectionPerm.canUpdate.value : !collectionPerm.canCreate.value">
-        <BilingualShortField label="系列名稱" :zh="colForm.nameZh" :en="colForm.nameEn" required @update:zh="(v) => (colForm.nameZh = v)" @update:en="(v) => (colForm.nameEn = v)" />
-        <BilingualTextareaField label="系列介紹" :zh="colForm.narrZh" :en="colForm.narrEn" :rows="3" @update:zh="(v) => (colForm.narrZh = v)" @update:en="(v) => (colForm.narrEn = v)" />
-        <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="網址名稱（選填）"><el-input v-model="colForm.slug" maxlength="128" placeholder="留空由系統自動產生" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12">
-            <el-form-item label="狀態">
-              <el-radio-group v-model="colForm.status"><el-radio-button value="draft">草稿</el-radio-button><el-radio-button value="published">已發布</el-radio-button></el-radio-group>
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <LangTabsBar variant="bare">
+          <BilingualShortField field="name" label="系列名稱" :zh="colForm.nameZh" :en="colForm.nameEn" required @update:zh="(v) => (colForm.nameZh = v)" @update:en="(v) => (colForm.nameEn = v)" />
+          <BilingualTextareaField field="narr" label="系列介紹" :zh="colForm.narrZh" :en="colForm.narrEn" :rows="3" @update:zh="(v) => (colForm.narrZh = v)" @update:en="(v) => (colForm.narrEn = v)" />
+          <el-row :gutter="12">
+            <el-col :xs="24" :sm="12"><FormField field="slug" label="網址名稱（選填）"><el-input v-model="colForm.slug" maxlength="128" placeholder="留空由系統自動產生" /></FormField></el-col>
+            <el-col :xs="24" :sm="12">
+              <FormField field="status" label="狀態">
+                <el-radio-group v-model="colForm.status"><el-radio-button value="draft">草稿</el-radio-button><el-radio-button value="published">已發布</el-radio-button></el-radio-group>
+              </FormField>
+            </el-col>
+          </el-row>
+        </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="colDialog = false">關閉</el-button>

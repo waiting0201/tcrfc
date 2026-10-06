@@ -144,7 +144,7 @@ public sealed class AdminShopShipmentsRepository(ClubDbContext db, IPermissionCh
             throw new AdminValidationException("一次最多處理 200 筆，至少選 1 筆。");
         }
 
-        var carrier = AdminInput.OptionalText(request.Carrier, "物流商", 32);
+        var carrier = AdminInput.OptionalText(request.Carrier, "物流商", 32, "carrier");
         var ids = request.Ids.Distinct().ToList();
         var known = await db.Orders.AsNoTracking().Where(o => o.SellingClubId == scope.ClubId && ids.Contains(o.Id)).Select(o => o.Id).ToListAsync(cancellationToken);
         var skipped = new List<BatchSkippedItemDto>();

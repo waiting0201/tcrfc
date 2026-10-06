@@ -195,41 +195,41 @@ public sealed class AdminShopOrdersRepository(
 
     public async Task<AdminOrderDetailDto> CreateManualAsync(AdminClubScope scope, CreateAdminOrderRequest request, CancellationToken cancellationToken)
     {
-        AdminInput.OneOf(request.DeliveryMethod, ShopLabels.Delivery.Keys.ToHashSet(), "配送方式", "宅配、超商取貨或現場自取");
+        AdminInput.OneOf(request.DeliveryMethod, ShopLabels.Delivery.Keys.ToHashSet(), "配送方式", "宅配、超商取貨或現場自取", "deliveryMethod");
         if (request.Items is null || request.Items.Count is 0 or > 50)
         {
-            throw new AdminValidationException("訂單至少要有 1 個品項，最多 50 個。");
+            throw new AdminValidationException("訂單至少要有 1 個品項，最多 50 個。", "items");
         }
 
-        var name = AdminInput.OptionalText(request.RecipientName, "收件人姓名", 64);
-        var phone = AdminInput.OptionalText(request.RecipientPhone, "收件人電話", 32);
-        var address = AdminInput.OptionalText(request.RecipientAddress, "收件地址", 500);
-        var customerNote = AdminInput.OptionalText(request.CustomerNote, "顧客備註", 500);
-        var internalNote = AdminInput.OptionalText(request.InternalNote, "內部註記", 2000);
+        var name = AdminInput.OptionalText(request.RecipientName, "收件人姓名", 64, "recipientName");
+        var phone = AdminInput.OptionalText(request.RecipientPhone, "收件人電話", 32, "recipientPhone");
+        var address = AdminInput.OptionalText(request.RecipientAddress, "收件地址", 500, "recipientAddress");
+        var customerNote = AdminInput.OptionalText(request.CustomerNote, "顧客備註", 500, "customerNote");
+        var internalNote = AdminInput.OptionalText(request.InternalNote, "內部註記", 2000, "internalNote");
         if (request.DeliveryMethod == "home_delivery" && (name is null || phone is null || address is null))
         {
-            throw new AdminValidationException("宅配訂單必須填寫收件人姓名、電話與地址。");
+            throw new AdminValidationException("宅配訂單必須填寫收件人姓名、電話與地址。", name is null ? "recipientName" : phone is null ? "recipientPhone" : "recipientAddress");
         }
 
         if (request.DeliveryMethod == "cvs_pickup" && (name is null || phone is null))
         {
-            throw new AdminValidationException("超商取貨訂單必須填寫收件人姓名與電話。");
+            throw new AdminValidationException("超商取貨訂單必須填寫收件人姓名與電話。", name is null ? "recipientName" : "recipientPhone");
         }
 
         if (request.ShippingFee is < 0)
         {
-            throw new AdminValidationException("運費不可為負數。");
+            throw new AdminValidationException("運費不可為負數。", "shippingFee");
         }
 
         if (request.CompleteImmediately && request.DeliveryMethod != "onsite_pickup")
         {
-            throw new AdminValidationException("只有「現場自取」的訂單可以當場完成。");
+            throw new AdminValidationException("只有「現場自取」的訂單可以當場完成。", "completeImmediately");
         }
 
         var lines = request.Items.GroupBy(i => i.VariantId).Select(g => (VariantId: g.Key, Quantity: g.Sum(x => x.Quantity))).ToList();
         if (lines.Any(l => l.Quantity is < 1 or > 999))
         {
-            throw new AdminValidationException("每個品項的數量必須是 1 到 999。");
+            throw new AdminValidationException("每個品項的數量必須是 1 到 999。", "items");
         }
 
         Guid? memberId = null;
@@ -237,7 +237,7 @@ public sealed class AdminShopOrdersRepository(
         {
             if (!await db.Members.AsNoTracking().AnyAsync(m => m.Id == mid && m.Status != "deleted", cancellationToken))
             {
-                throw new AdminValidationException("找不到指定的會員，或這個帳號已刪除。");
+                throw new AdminValidationException("找不到指定的會員，或這個帳號已刪除。", "memberId");
             }
 
             memberId = mid;
@@ -252,13 +252,13 @@ public sealed class AdminShopOrdersRepository(
             }).ToListAsync(cancellationToken);
         if (variants.Count != lines.Count)
         {
-            throw new AdminValidationException("品項含有不存在的商品規格，請確認規格屬於目前的俱樂部。");
+            throw new AdminValidationException("品項含有不存在的商品規格，請確認規格屬於目前的俱樂部。", "items");
         }
 
         var inactive = variants.FirstOrDefault(v => v.Variant.Status != "active");
         if (inactive is not null)
         {
-            throw new AdminValidationException($"規格「{inactive.Variant.Sku}」已停售，不能建立訂單。");
+            throw new AdminValidationException($"規格「{inactive.Variant.Sku}」已停售，不能建立訂單。", "items");
         }
 
         var collecting = await db.Clubs.AsNoTracking().Where(c => c.IsCollectingSubject).OrderBy(c => c.SortOrder).Select(c => c.Id).FirstOrDefaultAsync(cancellationToken);
@@ -347,7 +347,7 @@ public sealed class AdminShopOrdersRepository(
             return null;
         }
 
-        order.InternalNote = AdminInput.OptionalText(request.InternalNote, "內部註記", 2000);
+        order.InternalNote = AdminInput.OptionalText(request.InternalNote, "內部註記", 2000, "internalNote");
         order.UpdatedAt = DateTime.UtcNow;
         order.UpdatedBy = scope.Identity.AdminUserId;
         await db.SaveChangesAsync(cancellationToken);

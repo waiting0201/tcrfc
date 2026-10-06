@@ -8,6 +8,11 @@ import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -54,7 +59,9 @@ const seasonsFailed = ref(false)
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 const readOnly = computed(() => (isCreate.value ? !canCreate.value : !canUpdate.value))
 const pageTitle = computed(() => (isCreate.value ? '新增方案' : `編輯：${form.nameZh || '（未命名）'}`))
@@ -102,16 +109,17 @@ onMounted(load)
 const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== baselineJson.value)
 useUnsavedChanges(isDirty)
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.seasonId) return (formError.value = '請選擇球季'), false
-  if (!form.nameZh.trim()) return (formError.value = '請輸入中文名稱'), false
-  if (!/^[a-z0-9-]{1,32}$/.test(form.code.trim())) return (formError.value = '方案代號只能用小寫英文字母、數字與連字號，最多 32 字'), false
-  if (form.fee === null || form.fee < 0) return (formError.value = '費用不能是負數'), false
-  if (form.cardQuota < 1 || form.cardQuota > 10) return (formError.value = '會員卡數上限要在 1 到 10 之間'), false
-  if (form.jerseyQuota < 0 || form.jerseyQuota > 10) return (formError.value = '球衣件數上限要在 0 到 10 之間'), false
-  if (form.startsOn && form.endsOn && form.endsOn < form.startsOn) return (formError.value = '方案結束日不能早於開始日'), false
-  return true
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.seasonId) errors.seasonId = '請選擇球季'
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  if (!/^[a-z0-9-]{1,32}$/.test(form.code.trim())) errors.code = '方案代號只能用小寫英文字母、數字與連字號，最多 32 字'
+  if (form.fee === null || form.fee < 0) errors.fee = '費用不能是負數'
+  if (form.cardQuota < 1 || form.cardQuota > 10) errors.cardQuota = '會員卡數上限要在 1 到 10 之間'
+  if (form.jerseyQuota < 0 || form.jerseyQuota > 10) errors.jerseyQuota = '球衣件數上限要在 0 到 10 之間'
+  if (form.startsOn && form.endsOn && form.endsOn < form.startsOn) errors.endsOn = '方案結束日不能早於開始日'
+  return errors
 }
 
 function buildPayload(): SavePlanPayload {
@@ -134,9 +142,13 @@ function buildPayload(): SavePlanPayload {
 }
 
 async function handleSave() {
-  if (readOnly.value || !validate()) return
-  saving.value = true
+  if (readOnly.value) return
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     const saved = isCreate.value
       ? await createMembershipPlan(activeClubId.value, buildPayload())
@@ -149,6 +161,8 @@ async function handleSave() {
     baselineJson.value = JSON.stringify(form)
     ElMessage.success('已儲存')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -184,67 +198,75 @@ const backToList = () => router.push({ path: '/members/plans', query: { tab: 'pl
       <el-alert v-if="readOnly" title="你的帳號只能檢視方案，不能修改。" type="info" show-icon :closable="false" class="plan-edit__error" />
       <el-alert v-if="seasonsFailed" title="球季清單載入失敗，無法更換球季。" type="warning" show-icon :closable="false" class="plan-edit__error" />
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="基本資料" class="plan-edit__section">
-          <BilingualShortField label="方案名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-          <BilingualTextareaField label="權益說明" :zh="form.noteZh" :en="form.noteEn" @update:zh="(v) => (form.noteZh = v)" @update:en="(v) => (form.noteEn = v)" />
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="球季" required>
-                <el-select v-model="form.seasonId" :disabled="seasonLocked" placeholder="選擇球季" style="width: 100%">
-                  <el-option v-for="s in seasonOptions" :key="s.id" :label="s.code" :value="s.id" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="方案代號（小寫英文、數字與連字號）" required>
-                <el-input v-model="form.code" maxlength="32" placeholder="例如 single、family" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <p class="plan-edit__hint">
-            方案代號在同一球季內不能重複。已經有會籍或付款紀錄使用的方案，不能更換球季。
-            <template v-if="seasonLocked">這個方案已有 {{ membershipCount }} 份會籍，球季已鎖定。</template>
-          </p>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="基本資料">
+                <BilingualShortField field="name" label="方案名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                <BilingualTextareaField field="note" label="權益說明" :zh="form.noteZh" :en="form.noteEn" @update:zh="(v) => (form.noteZh = v)" @update:en="(v) => (form.noteEn = v)" />
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="seasonId" label="球季" required>
+                      <el-select v-model="form.seasonId" :disabled="seasonLocked" placeholder="選擇球季" style="width: 100%" @change="formErrors.clear('seasonId')">
+                        <el-option v-for="s in seasonOptions" :key="s.id" :label="s.code" :value="s.id" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="code" label="方案代號（小寫英文、數字與連字號）" required>
+                      <el-input v-model="form.code" maxlength="32" placeholder="例如 single、family" />
+                    </FormField>
+                  </el-col>
+                </el-row>
+                <p class="plan-edit__hint">
+                  方案代號在同一球季內不能重複。已經有會籍或付款紀錄使用的方案，不能更換球季。
+                  <template v-if="seasonLocked">這個方案已有 {{ membershipCount }} 份會籍，球季已鎖定。</template>
+                </p>
+              </el-card>
 
-        <el-card shadow="never" header="費用與額度" class="plan-edit__section">
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="8"><el-form-item label="費用（元）" required><el-input-number v-model="form.fee" :min="0" :precision="0" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="8"><el-form-item label="會員卡數上限（1–10）" required><el-input-number v-model="form.cardQuota" :min="1" :max="10" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="8"><el-form-item label="球衣件數上限（0–10）" required><el-input-number v-model="form.jerseyQuota" :min="0" :max="10" style="width: 100%" /></el-form-item></el-col>
-          </el-row>
-          <el-form-item label="期中加入規則">
-            <el-input v-model="form.midSeasonRule" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="例如：球季中途加入，費用不打折" />
-          </el-form-item>
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="方案開始日"><el-date-picker v-model="form.startsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="方案結束日"><el-date-picker v-model="form.endsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-          </el-row>
-          <p class="plan-edit__hint">開始日、結束日留空時，會籍期間依球季起訖計算。</p>
-        </el-card>
+              <el-card shadow="never" header="費用與額度">
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="8"><FormField field="fee" label="費用（元）" required><el-input-number v-model="form.fee" :min="0" :precision="0" style="width: 100%" @change="formErrors.clear('fee')" /></FormField></el-col>
+                  <el-col :xs="24" :sm="8"><FormField field="cardQuota" label="會員卡數上限（1–10）" required><el-input-number v-model="form.cardQuota" :min="1" :max="10" style="width: 100%" @change="formErrors.clear('cardQuota')" /></FormField></el-col>
+                  <el-col :xs="24" :sm="8"><FormField field="jerseyQuota" label="球衣件數上限（0–10）" required><el-input-number v-model="form.jerseyQuota" :min="0" :max="10" style="width: 100%" @change="formErrors.clear('jerseyQuota')" /></FormField></el-col>
+                </el-row>
+                <FormField field="midSeasonRule" label="期中加入規則">
+                  <el-input v-model="form.midSeasonRule" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="例如：球季中途加入，費用不打折" />
+                </FormField>
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12"><el-form-item label="方案開始日"><el-date-picker v-model="form.startsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></el-form-item></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="endsOn" label="方案結束日"><el-date-picker v-model="form.endsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></FormField></el-col>
+                </el-row>
+                <p class="plan-edit__hint">開始日、結束日留空時，會籍期間依球季起訖計算。</p>
+              </el-card>
 
-        <el-card shadow="never" header="上架設定" class="plan-edit__section">
-          <el-form-item label="狀態">
-            <el-radio-group v-model="form.status">
-              <el-radio value="published">上架</el-radio>
-              <el-radio value="draft">下架</el-radio>
-            </el-radio-group>
-          </el-form-item>
-          <p class="plan-edit__hint">只有上架的方案，會員才看得到，客服也才能用它手動開通。</p>
-          <el-form-item label="排序值">
-            <el-input-number v-model="form.sortOrder" :min="0" />
-            <p class="plan-edit__hint">數字小的排前面；也可以在方案列表用上移、下移調整。</p>
-          </el-form-item>
-        </el-card>
+              <el-card shadow="never" header="上架設定">
+                <FormField field="status" label="狀態">
+                  <el-radio-group v-model="form.status">
+                    <el-radio value="published">上架</el-radio>
+                    <el-radio value="draft">下架</el-radio>
+                  </el-radio-group>
+                </FormField>
+                <p class="plan-edit__hint">只有上架的方案，會員才看得到，客服也才能用它手動開通。</p>
+                <el-form-item label="排序值">
+                  <el-input-number v-model="form.sortOrder" :min="0" />
+                  <p class="plan-edit__hint">數字小的排前面；也可以在方案列表用上移、下移調整。</p>
+                </el-form-item>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.plan-edit { max-width: 780px; margin: 0 auto 88px; }
+.plan-edit { max-width: 1200px; margin: 0 auto; }
 .plan-edit__error { margin-bottom: 16px; }
-.plan-edit__section { margin-bottom: 16px; }
 .plan-edit__hint { margin: 6px 0 12px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 </style>

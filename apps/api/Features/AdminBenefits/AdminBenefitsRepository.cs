@@ -118,7 +118,7 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
 
         if (request.PlanId != benefit.MembershipPlanId)
         {
-            throw new AdminValidationException("權益條目不能搬到其他方案；請在新方案底下新增，再刪除這一條。");
+            throw new AdminValidationException("權益條目不能搬到其他方案；請在新方案底下新增，再刪除這一條。", "planId");
         }
 
         benefit.BenefitGroup = request.Group;
@@ -184,26 +184,26 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
 
     private static void Validate(UpsertAdminBenefitRequest request)
     {
-        AdminInput.OneOf(request.Group, GroupLabels.Keys.ToHashSet(), "分組", "「會員卡」「店家折扣」「球衣」或「活動」");
-        AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」");
-        AdminInput.OptionalNonNegative(request.SortOrder, "排序");
-        ValidateLocale(request.Content.Zh, "中文");
+        AdminInput.OneOf(request.Group, GroupLabels.Keys.ToHashSet(), "分組", "「會員卡」「店家折扣」「球衣」或「活動」", "group");
+        AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」", "status");
+        AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
+        ValidateLocale(request.Content.Zh, "中文", "Zh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            ValidateLocale(request.Content.En, "英文");
+            ValidateLocale(request.Content.En, "英文", "En");
         }
     }
 
-    private static void ValidateLocale(AdminBenefitLocaleContent content, string prefix)
+    private static void ValidateLocale(AdminBenefitLocaleContent content, string prefix, string suffix)
     {
-        AdminInput.RequireText(content.Name, $"{prefix}條目名稱", 128);
-        AdminInput.OptionalText(content.FreeValue, $"{prefix}免費層對應值", 255);
-        AdminInput.OptionalText(content.PaidValue, $"{prefix}付費層對應值", 255);
+        AdminInput.RequireText(content.Name, $"{prefix}條目名稱", 128, "name" + suffix);
+        AdminInput.OptionalText(content.FreeValue, $"{prefix}免費層對應值", 255, "freeValue" + suffix);
+        AdminInput.OptionalText(content.PaidValue, $"{prefix}付費層對應值", 255, "paidValue" + suffix);
     }
 
     private async Task<MembershipPlan> ResolvePlanAsync(AdminClubScope scope, Guid planId, CancellationToken cancellationToken)
         => await db.MembershipPlans.AsNoTracking().FirstOrDefaultAsync(p => p.Id == planId && p.ClubId == scope.ClubId, cancellationToken)
-           ?? throw new AdminValidationException("找不到指定的方案，請確認方案屬於目前的俱樂部。");
+           ?? throw new AdminValidationException("找不到指定的方案，請確認方案屬於目前的俱樂部。", "planId");
 
     private void SetI18n(MembershipBenefit benefit, UpsertAdminBenefitRequest request)
     {

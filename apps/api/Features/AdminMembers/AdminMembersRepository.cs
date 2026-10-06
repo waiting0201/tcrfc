@@ -522,21 +522,21 @@ public sealed class AdminMembersRepository(
     public async Task<AdminMemberDetailDto> CreateAsync(
         AdminClubScope scope, CreateAdminMemberRequest request, CancellationToken cancellationToken)
     {
-        var name = AdminInput.RequireText(request.Name, "姓名", 64);
-        var email = AdminInput.OptionalEmail(request.Email, "Email") ?? throw new AdminValidationException("Email 為必填欄位。");
-        var phone = AdminInput.OptionalText(request.Phone, "電話", 32);
-        var note = AdminInput.OptionalText(request.InternalNote, "內部備註", 2000);
+        var name = AdminInput.RequireText(request.Name, "姓名", 64, "name");
+        var email = AdminInput.OptionalEmail(request.Email, "Email", "email") ?? throw new AdminValidationException("Email 為必填欄位。", "email");
+        var phone = AdminInput.OptionalText(request.Phone, "電話", 32, "phone");
+        var note = AdminInput.OptionalText(request.InternalNote, "內部備註", 2000, "internalNote");
         var locale = string.IsNullOrWhiteSpace(request.Locale) ? RequestLocale.DefaultDbLocale : request.Locale;
-        AdminInput.OneOf(locale, MemberLabels.Locale.Keys.ToHashSet(), "語系偏好", "「繁體中文」或「English」");
+        AdminInput.OneOf(locale, MemberLabels.Locale.Keys.ToHashSet(), "語系偏好", "「繁體中文」或「English」", "locale");
         if (request.BirthOn is DateOnly birth && birth > DateOnly.FromDateTime(DateTime.UtcNow))
         {
-            throw new AdminValidationException("生日不可晚於今天。");
+            throw new AdminValidationException("生日不可晚於今天。", "birthOn");
         }
 
         if (await db.Members.AsNoTracking().AnyAsync(m => m.Email == email, cancellationToken))
         {
             // 🔴 會員帳號全站唯一（一人一帳號，跨俱樂部）：撞號的可能是對方俱樂部的會員，訊息不得確認「這個人存在」或暗示去搜尋。
-            throw new AdminConflictException("Email 無法使用", "這個 Email 目前無法用來建立新的會員帳號，請確認輸入是否正確；若這位會員已經加入，請直接在會員名單裡搜尋。");
+            throw new AdminConflictException("Email 無法使用", "這個 Email 目前無法用來建立新的會員帳號，請確認輸入是否正確；若這位會員已經加入，請直接在會員名單裡搜尋。", "email");
         }
 
         Member? created = null;
@@ -583,8 +583,8 @@ public sealed class AdminMembersRepository(
     public async Task<AdminMemberDetailDto?> UpdateStatusAsync(
         AdminClubScope scope, Guid id, UpdateAdminMemberStatusRequest request, CancellationToken cancellationToken)
     {
-        AdminInput.OneOf(request.Status, new HashSet<string> { "active", "suspended" }, "帳號狀態", "「啟用」或「停用」");
-        var reason = AdminInput.OptionalText(request.Reason, "原因", 255);
+        AdminInput.OneOf(request.Status, new HashSet<string> { "active", "suspended" }, "帳號狀態", "「啟用」或「停用」", "status");
+        var reason = AdminInput.OptionalText(request.Reason, "原因", 255, "reason");
         var member = await FindWritableAsync(scope, id, cancellationToken);
         if (member is null)
         {
@@ -611,7 +611,7 @@ public sealed class AdminMembersRepository(
     public async Task<AdminMemberDetailDto?> UpdateNoteAsync(
         AdminClubScope scope, Guid id, UpdateAdminMemberNoteRequest request, CancellationToken cancellationToken)
     {
-        var note = AdminInput.OptionalText(request.InternalNote, "內部備註", 2000);
+        var note = AdminInput.OptionalText(request.InternalNote, "內部備註", 2000, "internalNote");
         var member = await FindWritableAsync(scope, id, cancellationToken);
         if (member is null)
         {

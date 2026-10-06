@@ -179,7 +179,7 @@ public sealed class AdminCompetitionsRepository(ClubDbContext dbContext, Tcrfc.A
         var season = await dbContext.Seasons.FirstOrDefaultAsync(s => s.Id == seasonId, cancellationToken);
         if (season is null || season.ClubId != scope.ClubId)
         {
-            throw new AdminCompetitionValidationException($"找不到這個俱樂部的球季（id={seasonId}）。");
+            throw new AdminCompetitionValidationException("找不到這個俱樂部的球季，請重新整理後再試一次。", "seasonId");
         }
         return season;
     }
@@ -202,11 +202,11 @@ public sealed class AdminCompetitionsRepository(ClubDbContext dbContext, Tcrfc.A
     {
         if (string.IsNullOrWhiteSpace(code))
         {
-            throw new AdminCompetitionValidationException("賽事系列代號為必填欄位。");
+            throw new AdminCompetitionValidationException("賽事系列代號為必填欄位。", "code");
         }
         if (code.Length > 16)
         {
-            throw new AdminCompetitionValidationException("賽事系列代號長度不能超過 16 個字元。");
+            throw new AdminCompetitionValidationException("賽事系列代號長度不能超過 16 個字元。", "code");
         }
     }
 
@@ -215,8 +215,7 @@ public sealed class AdminCompetitionsRepository(ClubDbContext dbContext, Tcrfc.A
         if (!AllowedStatuses.Contains(status))
         {
             throw new AdminCompetitionValidationException(
-                "狀態只能是「draft」（草稿）或「published」（已發布）——這個型別不支援排程發布" +
-                "（docs/14-invariants.md「S0-7g」：沒有 published_at 欄位可以記排定時間）。");
+                "狀態只能是「草稿」或「已發布」，賽事系列不支援排程發布。", "status");
         }
     }
 
@@ -224,7 +223,7 @@ public sealed class AdminCompetitionsRepository(ClubDbContext dbContext, Tcrfc.A
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
-            throw new AdminCompetitionValidationException("中文名稱為必填欄位。");
+            throw new AdminCompetitionValidationException("中文名稱為必填欄位。", "nameZh");
         }
     }
 

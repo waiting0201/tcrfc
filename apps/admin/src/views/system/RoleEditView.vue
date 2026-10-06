@@ -13,6 +13,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import BilingualShortField from '@/components/BilingualShortField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import {
   createAdminRole,
@@ -88,7 +94,9 @@ function selectionSnapshot(): Record<string, RoleScopeType> {
 const loadState = ref<'loading' | 'ready' | 'error'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 async function loadData() {
   loadState.value = 'loading'
@@ -130,29 +138,29 @@ function isChecked(code: string): boolean {
 
 function toggle(permission: AdminPermissionDto, checked: boolean) {
   if (permission.sysadminOnly) return
+  formErrors.clear('permissions')
   if (checked) selection.set(permission.code, selection.get(permission.code) ?? 'all')
   else selection.delete(permission.code)
 }
 
 function setScope(code: string, scope: RoleScopeType) {
+  formErrors.clear('permissions')
   if (selection.has(code)) selection.set(code, scope)
 }
 
-function validate(): boolean {
-  formError.value = null
-  if (isCreate.value && !form.code.trim()) {
-    formError.value = '請輸入角色代碼'
-    return false
-  }
-  if (!form.nameZh.trim()) {
-    formError.value = '請輸入角色名稱'
-    return false
-  }
-  return true
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (isCreate.value && !form.code.trim()) errors.code = '請輸入角色代碼'
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入角色名稱'
+  return errors
 }
 
 async function handleSave() {
-  if (!validate()) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     let id = roleId.value
@@ -185,6 +193,7 @@ async function handleSave() {
     }
     baselineJson.value = JSON.stringify({ form: { ...form }, selection: selectionSnapshot() })
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -230,57 +239,67 @@ function handleBack() {
         @close="formError = null"
       />
 
-      <el-card shadow="never" header="基本資料" class="role-edit__section">
-        <el-form label-position="top" :disabled="isSystem">
-          <el-form-item label="角色代碼" required>
-            <el-input v-model="form.code" :disabled="!isCreate" placeholder="建立後不可修改" />
-          </el-form-item>
-          <el-form-item label="角色名稱（中文）" required>
-            <el-input v-model="form.nameZh" />
-          </el-form-item>
-          <el-form-item label="角色名稱（英文）">
-            <el-input v-model="form.nameEn" placeholder="選填" />
-          </el-form-item>
-          <el-form-item label="資料範圍">
-            <el-radio-group v-model="form.scopeMode">
-              <el-radio value="all_clubs">全部俱樂部</el-radio>
-              <el-radio value="own_clubs">僅授權的俱樂部</el-radio>
-            </el-radio-group>
-          </el-form-item>
-        </el-form>
-        <el-alert v-if="isSystem" title="這是系統內建角色，基本資料無法修改，僅能調整權限。" type="info" show-icon :closable="false" />
-      </el-card>
+      <LangTabsBar>
+        <el-card shadow="never" header="基本資料" class="role-edit__section">
+          <el-form label-position="top" :disabled="isSystem">
+            <FormField field="code" label="角色代碼" required>
+              <el-input v-model="form.code" :disabled="!isCreate" placeholder="建立後不可修改" />
+            </FormField>
+            <BilingualShortField
+              field="name"
+              label="角色名稱"
+              :zh="form.nameZh"
+              :en="form.nameEn"
+              required
+              @update:zh="(v) => (form.nameZh = v)"
+              @update:en="(v) => (form.nameEn = v)"
+            />
+            <FormField field="scopeMode" label="資料範圍">
+              <el-radio-group v-model="form.scopeMode">
+                <el-radio value="all_clubs">全部俱樂部</el-radio>
+                <el-radio value="own_clubs">僅授權的俱樂部</el-radio>
+              </el-radio-group>
+            </FormField>
+          </el-form>
+          <el-alert v-if="isSystem" title="這是系統內建角色，基本資料無法修改，僅能調整權限。" type="info" show-icon :closable="false" />
+        </el-card>
 
-      <el-card shadow="never" header="權限" class="role-edit__section">
-        <div v-for="group in moduleGroups" :key="group.moduleCode" class="role-edit__module-group">
-          <h3 class="role-edit__module-title">{{ moduleName(group.moduleCode) }}</h3>
-          <div v-for="permission in group.items" :key="permission.code" class="role-edit__permission-row">
-            <el-checkbox
-              :model-value="isChecked(permission.code)"
-              :disabled="permission.sysadminOnly"
-              @change="(val: boolean) => toggle(permission, val)"
-            >
-              {{ permission.nameZh }}
-              <el-tag v-if="permission.sysadminOnly" type="info" size="small" class="role-edit__inline-tag">
-                僅系統管理員
-              </el-tag>
-            </el-checkbox>
-            <el-select
-              v-if="isChecked(permission.code)"
-              :model-value="selection.get(permission.code)"
-              size="small"
-              class="role-edit__scope-select"
-              @update:model-value="(v: RoleScopeType) => setScope(permission.code, v)"
-            >
-              <el-option v-for="(label, value) in SCOPE_TYPE_LABEL" :key="value" :label="label" :value="value" />
-            </el-select>
-          </div>
-        </div>
-      </el-card>
+        <el-card shadow="never" header="權限" class="role-edit__section">
+          <FormField field="permissions">
+            <div class="role-edit__permissions">
+              <div v-for="group in moduleGroups" :key="group.moduleCode" class="role-edit__module-group">
+                <h3 class="role-edit__module-title">{{ moduleName(group.moduleCode) }}</h3>
+                <div v-for="permission in group.items" :key="permission.code" class="role-edit__permission-row">
+                  <el-checkbox
+                    :model-value="isChecked(permission.code)"
+                    :disabled="permission.sysadminOnly"
+                    @change="(val: boolean) => toggle(permission, val)"
+                  >
+                    {{ permission.nameZh }}
+                    <el-tag v-if="permission.sysadminOnly" type="info" size="small" class="role-edit__inline-tag">
+                      僅系統管理員
+                    </el-tag>
+                  </el-checkbox>
+                  <el-select
+                    v-if="isChecked(permission.code)"
+                    :model-value="selection.get(permission.code)"
+                    size="small"
+                    class="role-edit__scope-select"
+                    @update:model-value="(v: RoleScopeType) => setScope(permission.code, v)"
+                  >
+                    <el-option v-for="(label, value) in SCOPE_TYPE_LABEL" :key="value" :label="label" :value="value" />
+                  </el-select>
+                </div>
+              </div>
+            </div>
+          </FormField>
+        </el-card>
+      </LangTabsBar>
 
-      <div class="role-edit__actions">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -319,8 +338,7 @@ function handleBack() {
 .role-edit__scope-select {
   width: 160px;
 }
-
-.role-edit__actions {
-  margin-top: 16px;
+.role-edit__permissions {
+  width: 100%;
 }
 </style>

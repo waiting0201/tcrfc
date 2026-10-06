@@ -142,7 +142,7 @@ public sealed class AdminShopProductsRepository(
         var slug = Validate(request) ?? AdminInput.GenerateSlug("product", request.Content.En?.Name);
         if (request.Status == "published")
         {
-            throw new AdminValidationException("新商品還沒有規格，請先存成下架、新增規格後再上架。");
+            throw new AdminValidationException("新商品還沒有規格，請先存成下架、新增規格後再上架。", "status");
         }
 
         await EnsureSlugFreeAsync(scope, slug, null, cancellationToken);
@@ -174,7 +174,7 @@ public sealed class AdminShopProductsRepository(
         if (request.Status == "published"
             && !await db.ProductVariants.AsNoTracking().AnyAsync(v => v.ProductId == id && v.Status == "active", cancellationToken))
         {
-            throw new AdminValidationException("上架前請先新增至少一個販售中的規格。");
+            throw new AdminValidationException("上架前請先新增至少一個販售中的規格。", "status");
         }
 
         if (newSlug is not null && !string.Equals(newSlug, row.Slug, StringComparison.Ordinal))
@@ -358,7 +358,7 @@ public sealed class AdminShopProductsRepository(
         RequireCostRight(request, access);
         if (request.InitialStock is < 0)
         {
-            throw new AdminValidationException("初始庫存不可為負數。");
+            throw new AdminValidationException("初始庫存不可為負數。", "initialStock");
         }
 
         await EnsureSkuFreeAsync(scope, sku, null, cancellationToken);
@@ -493,54 +493,54 @@ public sealed class AdminShopProductsRepository(
 
     private static string? Validate(UpsertAdminProductRequest request)
     {
-        AdminInput.OneOf(request.Status, new HashSet<string>(["draft", "published"]), "狀態", "「下架」或「上架」");
-        AdminInput.RequireText(request.Content.Zh.Name, "中文商品名稱", 128);
-        AdminInput.OptionalText(request.Content.Zh.SeoTitle, "中文 SEO 標題", 200);
-        AdminInput.OptionalText(request.Content.Zh.SeoDescription, "中文 SEO 描述", 300);
-        AdminInput.OptionalText(request.Content.Zh.Tags, "中文標籤", 255);
+        AdminInput.OneOf(request.Status, new HashSet<string>(["draft", "published"]), "狀態", "「下架」或「上架」", "status");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文商品名稱", 128, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.SeoTitle, "中文搜尋標題", 200, "seoTitleZh");
+        AdminInput.OptionalText(request.Content.Zh.SeoDescription, "中文搜尋描述", 300, "seoDescZh");
+        AdminInput.OptionalText(request.Content.Zh.Tags, "中文標籤", 255, "tagsZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文商品名稱", 128);
-            AdminInput.OptionalText(request.Content.En.SeoTitle, "英文 SEO 標題", 200);
-            AdminInput.OptionalText(request.Content.En.SeoDescription, "英文 SEO 描述", 300);
-            AdminInput.OptionalText(request.Content.En.Tags, "英文標籤", 255);
+            AdminInput.RequireText(request.Content.En.Name, "英文商品名稱", 128, "nameEn");
+            AdminInput.OptionalText(request.Content.En.SeoTitle, "英文搜尋標題", 200, "seoTitleEn");
+            AdminInput.OptionalText(request.Content.En.SeoDescription, "英文搜尋描述", 300, "seoDescEn");
+            AdminInput.OptionalText(request.Content.En.Tags, "英文標籤", 255, "tagsEn");
         }
 
         if (request.OutOfStockBehavior is not null)
         {
-            AdminInput.OneOf(request.OutOfStockBehavior, ShopLabels.OutOfStock.Keys.ToHashSet(), "缺貨顯示方式", "「顯示但不可購買」或「自動隱藏」");
+            AdminInput.OneOf(request.OutOfStockBehavior, ShopLabels.OutOfStock.Keys.ToHashSet(), "缺貨顯示方式", "「顯示但不可購買」或「自動隱藏」", "outOfStockBehavior");
         }
 
-        AdminInput.OptionalNonNegative(request.SortOrder, "排序");
+        AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
         return string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
     }
 
     private static string ValidateVariant(UpsertAdminVariantRequest request)
     {
-        var sku = AdminInput.RequireText(request.Sku, "商品規格編號", 64);
+        var sku = AdminInput.RequireText(request.Sku, "商品規格編號", 64, "sku");
         if (sku.Any(char.IsWhiteSpace))
         {
-            throw new AdminValidationException("商品規格編號不可包含空白。");
+            throw new AdminValidationException("商品規格編號不可包含空白。", "sku");
         }
 
-        AdminInput.OptionalText(request.Size, "尺寸", 32);
-        AdminInput.OptionalText(request.Colour, "顏色", 32);
+        AdminInput.OptionalText(request.Size, "尺寸", 32, "size");
+        AdminInput.OptionalText(request.Colour, "顏色", 32, "colour");
         if (request.Price < 0)
         {
-            throw new AdminValidationException("售價不可為負數。");
+            throw new AdminValidationException("售價不可為負數。", "price");
         }
 
         if (request.SalePrice is int sale && (sale < 0 || sale > request.Price))
         {
-            throw new AdminValidationException("促銷價必須介於 0 與售價之間。");
+            throw new AdminValidationException("促銷價必須介於 0 與售價之間。", "salePrice");
         }
 
-        AdminInput.OptionalNonNegative(request.Cost, "成本");
-        AdminInput.OptionalNonNegative(request.LowStockThreshold, "低庫存門檻");
-        AdminInput.OptionalNonNegative(request.SortOrder, "排序");
+        AdminInput.OptionalNonNegative(request.Cost, "成本", "cost");
+        AdminInput.OptionalNonNegative(request.LowStockThreshold, "低庫存門檻", "lowStockThreshold");
+        AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
         if (request.Status is not null)
         {
-            AdminInput.OneOf(request.Status, ShopLabels.VariantStatus.Keys.ToHashSet(), "規格狀態", "「販售中」或「停售」");
+            AdminInput.OneOf(request.Status, ShopLabels.VariantStatus.Keys.ToHashSet(), "規格狀態", "「販售中」或「停售」", "status");
         }
 
         return sku;
@@ -558,7 +558,7 @@ public sealed class AdminShopProductsRepository(
     {
         if (await db.Products.AsNoTracking().AnyAsync(p => p.ClubId == scope.ClubId && p.Slug == slug && p.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的另一件商品使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的另一件商品使用，請換一個。", "slug");
         }
     }
 
@@ -574,15 +574,15 @@ public sealed class AdminShopProductsRepository(
         }
 
         throw clashes.Contains(scope.ClubId)
-            ? new AdminConflictException("商品規格編號重複", $"商品規格編號「{sku}」已經被這個俱樂部的另一個規格使用，請換一個。")
-            : new AdminConflictException("商品規格編號無法使用", $"商品規格編號「{sku}」無法使用，請換一個。");
+            ? new AdminConflictException("商品規格編號重複", $"商品規格編號「{sku}」已經被這個俱樂部的另一個規格使用，請換一個。", "sku")
+            : new AdminConflictException("商品規格編號無法使用", $"商品規格編號「{sku}」無法使用，請換一個。", "sku");
     }
 
     private async Task EnsureCollectionAsync(AdminClubScope scope, Guid? collectionId, CancellationToken cancellationToken)
     {
         if (collectionId is Guid c && !await db.Collections.AsNoTracking().AnyAsync(x => x.Id == c && x.ClubId == scope.ClubId, cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的商品系列，請確認系列屬於目前的俱樂部。");
+            throw new AdminValidationException("找不到指定的商品系列，請確認系列屬於目前的俱樂部。", "collectionId");
         }
     }
 
@@ -596,7 +596,7 @@ public sealed class AdminShopProductsRepository(
         // 原生 json 欄位只收物件或陣列，純量會在資料庫層變成 500（docs/18 E-111），在這裡擋成 400。
         if (e.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
         {
-            throw new AdminValidationException("尺寸表格式不正確，請重新填寫尺寸表。");
+            throw new AdminValidationException("尺寸表格式不正確，請重新填寫尺寸表。", "sizeChart");
         }
 
         return e.GetRawText();

@@ -70,7 +70,7 @@ public static class AdminComicsEndpoints
             var (request, form) = await AdminMultipartForm.ReadAsync<UpsertAdminComicCharacterRequest>(httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
             if (request.RemoveImage)
             {
-                throw new AdminValidationException("新增角色時不能選擇移除圖片。");
+                throw new AdminValidationException("新增角色時不能選擇移除圖片。", "image");
             }
 
             var id = Guid.NewGuid();
@@ -172,7 +172,7 @@ public static class AdminComicsEndpoints
             var (request, form) = await AdminMultipartForm.ReadAsync<UpsertAdminComicEpisodeRequest>(httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
             if (request.RemoveCover)
             {
-                throw new AdminValidationException("新增集數時不能選擇移除封面。");
+                throw new AdminValidationException("新增集數時不能選擇移除封面。", "cover");
             }
 
             var id = Guid.NewGuid();

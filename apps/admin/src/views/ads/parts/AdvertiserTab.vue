@@ -4,6 +4,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
@@ -58,7 +61,9 @@ onMounted(load)
 const visible = ref(false)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
+/** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const form = reactive({
   nameZh: '', nameEn: '', taxId: '', contactName: '', contactPhone: '', contactEmail: '', contractNote: '',
   cooperationStartOn: null as string | null, cooperationEndOn: null as string | null,
@@ -79,6 +84,7 @@ async function searchSponsors(keyword: string) {
 function openDialog(row: AdvertiserDto | null) {
   editingId.value = row?.id ?? null
   formError.value = null
+  formErrors.clearAll()
   Object.assign(form, {
     nameZh: row?.nameZh ?? '', nameEn: row?.nameEn ?? '', taxId: row?.taxId ?? '', contactName: row?.contactName ?? '',
     contactPhone: row?.contactPhone ?? '', contactEmail: row?.contactEmail ?? '', contractNote: row?.contractNote ?? '',
@@ -92,24 +98,17 @@ function openDialog(row: AdvertiserDto | null) {
 const readOnly = computed(() => (editingId.value ? !canUpdate.value : !canCreate.value))
 async function save() {
   if (readOnly.value) return
-  if (!form.nameZh.trim()) {
-    formError.value = '請輸入廣告主的中文名稱'
-    return
-  }
-  if (form.contactEmail.trim() && !isValidEmail(form.contactEmail)) {
-    formError.value = '聯絡 Email 的格式不正確，請檢查後再儲存'
-    return
-  }
-  if (form.contactPhone.trim() && !isValidPhone(form.contactPhone)) {
-    formError.value = '聯絡電話的格式不正確，只能包含數字、+、-、空白與括號，且至少 6 碼數字'
-    return
-  }
-  if (form.cooperationStartOn && form.cooperationEndOn && form.cooperationEndOn < form.cooperationStartOn) {
-    formError.value = '合作結束日不能早於開始日'
+  formError.value = null
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入廣告主的中文名稱'
+  if (form.contactEmail.trim() && !isValidEmail(form.contactEmail)) errors.contactEmail = '聯絡 Email 的格式不正確，請檢查後再儲存'
+  if (form.contactPhone.trim() && !isValidPhone(form.contactPhone)) errors.contactPhone = '聯絡電話的格式不正確，只能包含數字、+、-、空白與括號，且至少 6 碼數字'
+  if (form.cooperationStartOn && form.cooperationEndOn && form.cooperationEndOn < form.cooperationStartOn) errors.cooperationEndOn = '合作結束日不能早於開始日'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
     return
   }
   saving.value = true
-  formError.value = null
   const body = {
     taxId: nullIfBlank(form.taxId),
     contactName: nullIfBlank(form.contactName),
@@ -129,6 +128,7 @@ async function save() {
     visible.value = false
     await load()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     formError.value = errText(e, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -208,31 +208,33 @@ async function remove(row: AdvertiserDto) {
       </template>
     </el-card>
 
-    <el-dialog v-model="visible" :title="editingId ? '編輯廣告主' : '新增廣告主'" width="640px" :fullscreen="isMobile" :close-on-click-modal="false">
+    <el-dialog v-model="visible" :title="editingId ? '編輯廣告主' : '新增廣告主'" width="640px" :fullscreen="isMobile" :close-on-click-modal="false" destroy-on-close>
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="adv__block" />
       <el-alert v-if="readOnly" type="info" show-icon :closable="false" title="你的帳號只有檢視權限" class="adv__block" />
       <el-form label-position="top" :disabled="readOnly">
-        <BilingualShortField v-model:zh="form.nameZh" v-model:en="form.nameEn" label="廣告主名稱" required />
-        <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="統一編號（選填）"><el-input v-model="form.taxId" maxlength="20" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12">
-            <el-form-item label="合作狀態">
-              <el-select v-model="form.status" style="width: 100%"><el-option v-for="o in STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" /></el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="聯絡人"><el-input v-model="form.contactName" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="聯絡電話"><el-input v-model="form.contactPhone" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="8"><el-form-item label="聯絡 Email"><el-input v-model="form.contactEmail" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="合作開始日"><el-date-picker v-model="form.cooperationStartOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-          <el-col :xs="24" :sm="12"><el-form-item label="合作結束日"><el-date-picker v-model="form.cooperationEndOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-        </el-row>
-        <el-form-item label="關聯既有贊助商（選填）">
-          <el-select v-model="form.sponsorId" filterable remote clearable :remote-method="searchSponsors" :loading="sponsorLoading" placeholder="輸入贊助商名稱搜尋" style="width: 100%">
-            <el-option v-for="s in sponsorOptions" :key="s.id" :label="s.name" :value="s.id" />
-          </el-select>
-          <div class="adv__hint">關聯只是為了避免重複維護聯絡窗口，不會把兩邊的資料合併。</div>
-        </el-form-item>
-        <el-form-item label="合約備註"><el-input v-model="form.contractNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+        <LangTabsBar variant="bare">
+          <BilingualShortField v-model:zh="form.nameZh" v-model:en="form.nameEn" field="name" label="廣告主名稱" required />
+          <el-row :gutter="12">
+            <el-col :xs="24" :sm="12"><FormField field="taxId" label="統一編號（選填）"><el-input v-model="form.taxId" maxlength="20" /></FormField></el-col>
+            <el-col :xs="24" :sm="12">
+              <FormField field="status" label="合作狀態">
+                <el-select v-model="form.status" style="width: 100%"><el-option v-for="o in STATUS_OPTIONS" :key="o.value" :label="o.label" :value="o.value" /></el-select>
+              </FormField>
+            </el-col>
+            <el-col :xs="24" :sm="8"><FormField field="contactName" label="聯絡人"><el-input v-model="form.contactName" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="contactPhone" label="聯絡電話"><el-input v-model="form.contactPhone" /></FormField></el-col>
+            <el-col :xs="24" :sm="8"><FormField field="contactEmail" label="聯絡 Email"><el-input v-model="form.contactEmail" /></FormField></el-col>
+            <el-col :xs="24" :sm="12"><el-form-item label="合作開始日"><el-date-picker v-model="form.cooperationStartOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
+            <el-col :xs="24" :sm="12"><FormField field="cooperationEndOn" label="合作結束日"><el-date-picker v-model="form.cooperationEndOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('cooperationEndOn')" /></FormField></el-col>
+          </el-row>
+          <FormField field="sponsorId" label="關聯既有贊助商（選填）">
+            <el-select v-model="form.sponsorId" filterable remote clearable :remote-method="searchSponsors" :loading="sponsorLoading" placeholder="輸入贊助商名稱搜尋" style="width: 100%">
+              <el-option v-for="s in sponsorOptions" :key="s.id" :label="s.name" :value="s.id" />
+            </el-select>
+            <div class="adv__hint">關聯只是為了避免重複維護聯絡窗口，不會把兩邊的資料合併。</div>
+          </FormField>
+          <el-form-item label="合約備註"><el-input v-model="form.contractNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+        </LangTabsBar>
       </el-form>
       <p class="adv__hint">合作已結束的廣告主不能再建立新的投放檔期。</p>
       <template #footer>

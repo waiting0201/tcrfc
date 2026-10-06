@@ -52,10 +52,10 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
     public async Task<AdminComicAboutDto> UpdateAboutAsync(AdminClubScope scope, UpdateAdminComicAboutRequest request, CancellationToken cancellationToken)
     {
         EnsureSupported(scope);
-        var titleZh = AdminInput.OptionalText(request.Zh.Title, "中文標題", 200);
-        var bodyZh = AdminInput.OptionalText(request.Zh.Body, "中文世界觀說明", 20000);
-        var titleEn = AdminInput.OptionalText(request.En?.Title, "英文標題", 200);
-        var bodyEn = AdminInput.OptionalText(request.En?.Body, "英文世界觀說明", 20000);
+        var titleZh = AdminInput.OptionalText(request.Zh.Title, "中文標題", 200, "titleZh");
+        var bodyZh = AdminInput.OptionalText(request.Zh.Body, "中文世界觀說明", 20000, "bodyZh");
+        var titleEn = AdminInput.OptionalText(request.En?.Title, "英文標題", 200, "titleEn");
+        var bodyEn = AdminInput.OptionalText(request.En?.Body, "英文世界觀說明", 20000, "bodyEn");
         var map = await texts.LoadAsync(scope.ClubId, AboutKeys, cancellationToken);
         texts.SetText(map, scope.ClubId, KeyAboutTitle, SettingsGroup, titleZh, titleEn, scope.Identity.AdminUserId);
         texts.SetText(map, scope.ClubId, KeyAboutBody, SettingsGroup, bodyZh, bodyEn, scope.Identity.AdminUserId);
@@ -188,22 +188,22 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
 
     private static void ValidateCharacter(UpsertAdminComicCharacterRequest request)
     {
-        AdminInput.RequireText(request.Content.Zh.Name, "中文角色名稱", 64);
-        AdminInput.OptionalText(request.Content.Zh.Description, "中文角色設定", 20000);
+        AdminInput.RequireText(request.Content.Zh.Name, "中文角色名稱", 64, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.Description, "中文角色設定", 20000, "descZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文角色名稱", 64);
-            AdminInput.OptionalText(request.Content.En.Description, "英文角色設定", 20000);
+            AdminInput.RequireText(request.Content.En.Name, "英文角色名稱", 64, "nameEn");
+            AdminInput.OptionalText(request.Content.En.Description, "英文角色設定", 20000, "descEn");
         }
 
-        AdminInput.OptionalNonNegative(request.SortOrder, "排序");
+        AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
     }
 
     private async Task EnsurePlayerAsync(AdminClubScope scope, Guid? playerId, CancellationToken cancellationToken)
     {
         if (playerId is Guid p && !await db.Players.AsNoTracking().AnyAsync(x => x.Id == p && x.ClubId == scope.ClubId, cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的球員，請確認球員屬於目前的俱樂部。");
+            throw new AdminValidationException("找不到指定的球員，請確認球員屬於目前的俱樂部。", "playerId");
         }
     }
 
@@ -307,7 +307,7 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         ValidateEpisode(request);
         if (request.Status == "published")
         {
-            throw new AdminValidationException("新集數還沒有內頁，請先存成草稿、上傳內頁後再發布。");
+            throw new AdminValidationException("新集數還沒有內頁，請先存成草稿、上傳內頁後再發布。", "status");
         }
 
         await EnsureEpisodeNoFreeAsync(scope, request.EpisodeNo, null, cancellationToken);
@@ -339,7 +339,7 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
 
         if (request.Status == "published" && !await db.ComicPages.AnyAsync(p => p.ComicEpisodeId == id, cancellationToken))
         {
-            throw new AdminValidationException("這一集還沒有內頁，請先上傳內頁再發布。");
+            throw new AdminValidationException("這一集還沒有內頁，請先上傳內頁再發布。", "status");
         }
 
         await EnsureEpisodeNoFreeAsync(scope, request.EpisodeNo, id, cancellationToken);
@@ -483,14 +483,14 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
     {
         if (request.EpisodeNo < 1)
         {
-            throw new AdminValidationException("集數編號必須是 1 以上的整數。");
+            throw new AdminValidationException("集數編號必須是 1 以上的整數。", "episodeNo");
         }
 
-        AdminInput.OneOf(request.Status, StatusLabels.Keys.ToHashSet(), "狀態", "「草稿」或「已發布」");
-        AdminInput.RequireText(request.Content.Zh.Title, "中文集數標題", 128);
+        AdminInput.OneOf(request.Status, StatusLabels.Keys.ToHashSet(), "狀態", "「草稿」或「已發布」", "status");
+        AdminInput.RequireText(request.Content.Zh.Title, "中文集數標題", 128, "titleZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Title))
         {
-            AdminInput.RequireText(request.Content.En.Title, "英文集數標題", 128);
+            AdminInput.RequireText(request.Content.En.Title, "英文集數標題", 128, "titleEn");
         }
     }
 
@@ -498,7 +498,7 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
     {
         if (await db.ComicEpisodes.AsNoTracking().AnyAsync(e => e.ClubId == scope.ClubId && e.EpisodeNo == episodeNo && e.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("集數編號重複", $"第 {episodeNo} 集已經存在，請換一個集數編號。");
+            throw new AdminConflictException("集數編號重複", $"第 {episodeNo} 集已經存在，請換一個集數編號。", "episodeNo");
         }
     }
 

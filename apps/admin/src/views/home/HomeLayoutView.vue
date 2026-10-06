@@ -12,6 +12,9 @@ import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import VideoUploader from '@/components/VideoUploader.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { activeClubId } from '@/auth/clubAccess'
 import {
   createAdminBanner,
@@ -99,7 +102,9 @@ const bannerDialogVisible = ref(false)
 const bannerDialogMode = ref<'create' | 'edit'>('create')
 const bannerDialogLoading = ref(false)
 const bannerSaving = ref(false)
+/** 對話框頂部提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const bannerFormError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const bannerForm = reactive<BannerFormState>(emptyBannerForm())
 const bannerImageFile = ref<File | null>(null)
 const bannerHasExistingImage = ref(false)
@@ -112,8 +117,13 @@ watch(
   () => bannerForm.mediaType,
   (mediaType) => {
     if (mediaType === 'image') bannerVideoFile.value = null
+    formErrors.clear('image')
+    formErrors.clear('video')
   },
 )
+// 選了新檔案就清掉該欄位的錯誤
+watch(bannerImageFile, () => formErrors.clear('image'))
+watch(bannerVideoFile, () => formErrors.clear('video'))
 
 function openCreateBannerDialog() {
   bannerDialogMode.value = 'create'
@@ -123,12 +133,14 @@ function openCreateBannerDialog() {
   bannerVideoFile.value = null
   bannerHasExistingVideo.value = false
   bannerFormError.value = null
+  formErrors.clearAll()
   bannerDialogVisible.value = true
 }
 
 async function openEditBannerDialog(row: AdminBannerListItemDto) {
   bannerDialogMode.value = 'edit'
   bannerFormError.value = null
+  formErrors.clearAll()
   bannerImageFile.value = null
   bannerVideoFile.value = null
   bannerDialogVisible.value = true
@@ -214,21 +226,28 @@ function buildBannerPayload(): SaveBannerPayload {
   }
 }
 
-async function saveBanner() {
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validateBanner(): Record<string, string> {
+  const errors: Record<string, string> = {}
   if (bannerForm.startAt && bannerForm.endAt && bannerForm.startAt.getTime() >= bannerForm.endAt.getTime()) {
-    bannerFormError.value = '上架時間必須早於下架時間'
-    return
+    errors.period = '上架時間必須早於下架時間'
   }
   if (bannerDialogMode.value === 'create' && !bannerImageFile.value) {
-    bannerFormError.value = bannerForm.mediaType === 'video' ? '請選擇影片海報圖' : '請選擇輪播圖片'
-    return
+    errors.image = bannerForm.mediaType === 'video' ? '請選擇影片海報圖' : '請選擇輪播圖片'
   }
   if (bannerForm.mediaType === 'video' && !bannerVideoFile.value && !bannerHasExistingVideo.value) {
-    bannerFormError.value = '素材種類為「影片」時，必須上傳影片檔案'
+    errors.video = '素材種類為「影片」時，必須上傳影片檔案'
+  }
+  return errors
+}
+
+async function saveBanner() {
+  bannerFormError.value = null
+  if (formErrors.replaceAll(validateBanner())) {
+    await formErrors.focusFirst()
     return
   }
   bannerSaving.value = true
-  bannerFormError.value = null
   try {
     const payload = buildBannerPayload()
     if (bannerDialogMode.value === 'create') {
@@ -241,6 +260,8 @@ async function saveBanner() {
     bannerDialogVisible.value = false
     await loadBanners()
   } catch (error) {
+    // 送出失敗不關對話框；對得到欄位的標在欄位上
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     bannerFormError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     bannerSaving.value = false
@@ -494,14 +515,15 @@ watch(club, bootstrap)
           @close="bannerFormError = null"
         />
         <el-form label-position="top">
-          <el-form-item label="素材種類" required>
+         <LangTabsBar variant="bare">
+          <FormField field="mediaType" label="素材種類" required>
             <el-radio-group v-model="bannerForm.mediaType" :disabled="bannerSaving">
               <el-radio value="image">圖片</el-radio>
               <el-radio value="video">影片</el-radio>
             </el-radio-group>
-          </el-form-item>
+          </FormField>
 
-          <el-form-item :label="bannerForm.mediaType === 'video' ? '影片海報圖' : '輪播圖片'" required>
+          <FormField field="image" :label="bannerForm.mediaType === 'video' ? '影片海報圖' : '輪播圖片'" required>
             <ImageUploader
               v-model:file="bannerImageFile"
               :remove-cover="false"
@@ -512,17 +534,18 @@ watch(club, bootstrap)
             <p v-if="bannerForm.mediaType === 'video'" class="home-layout__hint">
               影片模式仍必須提供一張圖片，作為影片載入前與行動網路關閉自動播放時顯示的海報畫面。
             </p>
-          </el-form-item>
+          </FormField>
 
-          <el-form-item v-if="bannerForm.mediaType === 'video'" label="輪播影片" required>
+          <FormField v-if="bannerForm.mediaType === 'video'" field="video" label="輪播影片" required>
             <VideoUploader
               v-model:file="bannerVideoFile"
               :has-existing-video="bannerHasExistingVideo"
               :disabled="bannerSaving"
             />
-          </el-form-item>
+          </FormField>
 
           <BilingualShortField
+            field="title"
             label="標題"
             :zh="bannerForm.titleZh"
             :en="bannerForm.titleEn"
@@ -530,6 +553,7 @@ watch(club, bootstrap)
             @update:en="(v) => (bannerForm.titleEn = v)"
           />
           <BilingualShortField
+            field="subtitle"
             label="副標題"
             :zh="bannerForm.subtitleZh"
             :en="bannerForm.subtitleEn"
@@ -537,6 +561,7 @@ watch(club, bootstrap)
             @update:en="(v) => (bannerForm.subtitleEn = v)"
           />
           <BilingualShortField
+            field="alt"
             label="圖片替代文字"
             :zh="bannerForm.altZh"
             :en="bannerForm.altEn"
@@ -548,6 +573,7 @@ watch(club, bootstrap)
           <el-row :gutter="12">
             <el-col :span="12">
               <BilingualShortField
+                field="cta1Label"
                 label="按鈕一文字"
                 :zh="bannerForm.cta1LabelZh"
                 :en="bannerForm.cta1LabelEn"
@@ -564,6 +590,7 @@ watch(club, bootstrap)
           <el-row :gutter="12">
             <el-col :span="12">
               <BilingualShortField
+                field="cta2Label"
                 label="按鈕二文字"
                 :zh="bannerForm.cta2LabelZh"
                 :en="bannerForm.cta2LabelEn"
@@ -580,13 +607,13 @@ watch(club, bootstrap)
 
           <el-row :gutter="12">
             <el-col :span="16">
-              <el-form-item label="上架期間（不設定＝不限期間）">
+              <FormField field="period" label="上架期間（不設定＝不限期間）">
                 <div class="home-layout__date-range">
-                  <el-date-picker v-model="bannerForm.startAt" type="datetime" placeholder="上架時間" style="width: 100%" />
+                  <el-date-picker v-model="bannerForm.startAt" type="datetime" placeholder="上架時間" style="width: 100%" @change="formErrors.clear('period')" />
                   <span>～</span>
-                  <el-date-picker v-model="bannerForm.endAt" type="datetime" placeholder="下架時間" style="width: 100%" />
+                  <el-date-picker v-model="bannerForm.endAt" type="datetime" placeholder="下架時間" style="width: 100%" @change="formErrors.clear('period')" />
                 </div>
-              </el-form-item>
+              </FormField>
             </el-col>
             <el-col :span="8">
               <el-form-item label="排序">
@@ -594,6 +621,7 @@ watch(club, bootstrap)
               </el-form-item>
             </el-col>
           </el-row>
+         </LangTabsBar>
         </el-form>
       </template>
       <template #footer>

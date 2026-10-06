@@ -40,32 +40,32 @@ public sealed class AdminCharitySettingsRepository(ClubDbContext dbContext, IQue
     public async Task<AdminCharitySettingsDto> UpdateAsync(
         AdminClubScope scope, AdminCharitySettingsDto request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var donationUrl = AdminInput.OptionalText(request.DonationUrl, "捐款平台網址", 500);
+        var donationUrl = AdminInput.OptionalText(request.DonationUrl, "捐款平台網址", 500, "donationUrl");
         if (donationUrl is not null
             && (!Uri.TryCreate(donationUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps))
         {
-            throw new AdminValidationException("捐款平台網址必須是以 https:// 開頭的完整網址。");
+            throw new AdminValidationException("捐款平台網址必須是以 https:// 開頭的完整網址。", "donationUrl");
         }
 
-        var donationCtaZh = AdminInput.OptionalText(request.DonationCta?.Zh, "捐款按鈕文案", 200);
+        var donationCtaZh = AdminInput.OptionalText(request.DonationCta?.Zh, "捐款按鈕文案", 200, "donationCtaZh");
         if (donationUrl is not null)
         {
             if (donationCtaZh is null)
             {
-                throw new AdminValidationException("設定捐款平台網址時，必須同時填寫捐款按鈕的中文文案。");
+                throw new AdminValidationException("設定捐款平台網址時，必須同時填寫捐款按鈕的中文文案。", "donationCtaZh");
             }
 
             if (!donationCtaZh.Contains(RequiredReceiverName, StringComparison.Ordinal))
             {
-                throw new AdminValidationException($"捐款按鈕的中文文案必須說明捐款由「{RequiredReceiverName}」收受，避免讓人誤以為是捐款給台中磐石。");
+                throw new AdminValidationException($"捐款按鈕的中文文案必須說明捐款由「{RequiredReceiverName}」收受，避免讓人誤以為是捐款給台中磐石。", "donationCtaZh");
             }
         }
 
-        var corporateUrl = AdminInput.OptionalText(request.CorporateUrl, "企業合作連結", 500);
+        var corporateUrl = AdminInput.OptionalText(request.CorporateUrl, "企業合作連結", 500, "corporateUrl");
         if (corporateUrl is not null && !IsSiteRelativePath(corporateUrl)
             && !(Uri.TryCreate(corporateUrl, UriKind.Absolute, out var cUri) && cUri.Scheme == Uri.UriSchemeHttps))
         {
-            throw new AdminValidationException("企業合作連結必須是站內路徑（以 / 開頭）或 https:// 開頭的完整網址。");
+            throw new AdminValidationException("企業合作連結必須是站內路徑（以 / 開頭）或 https:// 開頭的完整網址。", "corporateUrl");
         }
 
         var settings = await dbContext.Settings.Include(s => s.SettingsI18ns)
@@ -73,11 +73,11 @@ public sealed class AdminCharitySettingsRepository(ClubDbContext dbContext, IQue
 
         UpsertValue(settings, KeyDonationUrl, scope.ClubId, donationUrl, operatorId);
         UpsertValue(settings, KeyCorporateUrl, scope.ClubId, corporateUrl, operatorId);
-        UpsertI18n(settings, KeyDonationCta, scope.ClubId, donationCtaZh, AdminInput.OptionalText(request.DonationCta?.En, "捐款按鈕英文文案", 200), operatorId);
+        UpsertI18n(settings, KeyDonationCta, scope.ClubId, donationCtaZh, AdminInput.OptionalText(request.DonationCta?.En, "捐款按鈕英文文案", 200, "donationCtaEn"), operatorId);
         UpsertI18n(settings, KeyCorporateCta, scope.ClubId,
-            AdminInput.OptionalText(request.CorporateCta?.Zh, "企業合作按鈕文案", 200), AdminInput.OptionalText(request.CorporateCta?.En, "企業合作按鈕英文文案", 200), operatorId);
+            AdminInput.OptionalText(request.CorporateCta?.Zh, "企業合作按鈕文案", 200, "corporateCtaZh"), AdminInput.OptionalText(request.CorporateCta?.En, "企業合作按鈕英文文案", 200, "corporateCtaEn"), operatorId);
         UpsertI18n(settings, KeyFanCta, scope.ClubId,
-            AdminInput.OptionalText(request.FanCta?.Zh, "球迷捐款按鈕文案", 200), AdminInput.OptionalText(request.FanCta?.En, "球迷捐款按鈕英文文案", 200), operatorId);
+            AdminInput.OptionalText(request.FanCta?.Zh, "球迷捐款按鈕文案", 200, "fanCtaZh"), AdminInput.OptionalText(request.FanCta?.En, "球迷捐款按鈕英文文案", 200, "fanCtaEn"), operatorId);
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync(AdminCharityOrgsRepository.CacheEntity, scope.ClubCode, cancellationToken);

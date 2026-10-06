@@ -50,7 +50,7 @@ public sealed class PushRulesStore(ClubDbContext dbContext)
         {
             if (hours is < 1 or > 72)
             {
-                throw new AdminValidationException("賽事提醒的提前時數只能是 1 到 72 小時。");
+                throw new AdminValidationException("賽事提醒的提前時數只能是 1 到 72 小時。", "matchReminderHours");
             }
 
             stored.MatchReminderHours = hours;
@@ -60,7 +60,7 @@ public sealed class PushRulesStore(ClubDbContext dbContext)
         {
             if (days.Count is 0 or > 5 || days.Any(d => d is < 1 or > 365) || days.Distinct().Count() != days.Count)
             {
-                throw new AdminValidationException("會籍到期提醒請設 1 到 5 個不重複的天數（每個 1 到 365 天）。");
+                throw new AdminValidationException("會籍到期提醒請設 1 到 5 個不重複的天數（每個 1 到 365 天）。", "membershipExpiryDays");
             }
 
             stored.MembershipExpiryDays = days.OrderByDescending(d => d).ToList();

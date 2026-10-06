@@ -65,7 +65,7 @@ public static class AdminPartnersEndpoints
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
             if (request.RemoveLogoDark || request.RemoveLogoLight)
             {
-                throw new AdminValidationException("建立夥伴時不能選擇移除 Logo。");
+                throw new AdminValidationException("建立夥伴時不能選擇移除 Logo。", "logoLight");
             }
 
             var id = Guid.NewGuid();

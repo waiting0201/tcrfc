@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Tcrfc.Api.Common;
 using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminPages;
@@ -47,12 +48,12 @@ internal static class PageBlockContentProcessor
         if (!PageBlockTypes.IsKnown(blockType))
         {
             throw new AdminPageValidationException(
-                $"第 {blockIndex + 1} 個區塊的型別「{blockType}」不是支援的區塊類型。");
+                $"第 {blockIndex + 1} 個區塊的型別「{blockType}」不是支援的區塊類型。", BlockKey(blockIndex, "type"));
         }
 
         if (content is not JsonObject obj)
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的內容格式錯誤，必須是一個 JSON 物件。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的內容格式錯誤，請重新整理頁面後再編輯。", BlockKey(blockIndex));
         }
 
         switch (blockType)
@@ -91,33 +92,37 @@ internal static class PageBlockContentProcessor
             case PageBlockTypes.AccordionFaq:
                 RequireItemArray(obj, "items", blockIndex, minCount: 1, (item, itemIndex) =>
                 {
-                    RequireBilingualText(item, "question", blockIndex, $"第 {itemIndex + 1} 筆的問題");
-                    RequireBilingualText(item, "answer", blockIndex, $"第 {itemIndex + 1} 筆的答案");
+                    var prefix = $"items[{itemIndex}].";
+                    RequireBilingualText(item, "question", blockIndex, $"第 {itemIndex + 1} 筆的問題", prefix);
+                    RequireBilingualText(item, "answer", blockIndex, $"第 {itemIndex + 1} 筆的答案", prefix);
                 });
                 break;
 
             case PageBlockTypes.Timeline:
                 RequireItemArray(obj, "items", blockIndex, minCount: 1, (item, itemIndex) =>
                 {
-                    RequireNonEmptyString(item, "date", blockIndex, $"第 {itemIndex + 1} 筆的日期"); // 日期本身不分語言
-                    RequireBilingualText(item, "title", blockIndex, $"第 {itemIndex + 1} 筆的標題");
-                    RequireOptionalBilingualText(item, "description", blockIndex);
+                    var prefix = $"items[{itemIndex}].";
+                    RequireNonEmptyString(item, "date", blockIndex, $"第 {itemIndex + 1} 筆的日期", prefix); // 日期本身不分語言
+                    RequireBilingualText(item, "title", blockIndex, $"第 {itemIndex + 1} 筆的標題", prefix);
+                    RequireOptionalBilingualText(item, "description", blockIndex, prefix);
                 });
                 break;
 
             case PageBlockTypes.Steps:
                 RequireItemArray(obj, "items", blockIndex, minCount: 1, (item, itemIndex) =>
                 {
-                    RequireBilingualText(item, "title", blockIndex, $"第 {itemIndex + 1} 筆的標題");
-                    RequireOptionalBilingualText(item, "description", blockIndex);
+                    var prefix = $"items[{itemIndex}].";
+                    RequireBilingualText(item, "title", blockIndex, $"第 {itemIndex + 1} 筆的標題", prefix);
+                    RequireOptionalBilingualText(item, "description", blockIndex, prefix);
                 });
                 break;
 
             case PageBlockTypes.StatCards:
                 RequireItemArray(obj, "items", blockIndex, minCount: 1, (item, itemIndex) =>
                 {
-                    RequireNonEmptyString(item, "value", blockIndex, $"第 {itemIndex + 1} 筆的數據值"); // 數值本身不分語言
-                    RequireBilingualText(item, "label", blockIndex, $"第 {itemIndex + 1} 筆的說明文字");
+                    var prefix = $"items[{itemIndex}].";
+                    RequireNonEmptyString(item, "value", blockIndex, $"第 {itemIndex + 1} 筆的數據值", prefix); // 數值本身不分語言
+                    RequireBilingualText(item, "label", blockIndex, $"第 {itemIndex + 1} 筆的說明文字", prefix);
                 });
                 break;
 
@@ -177,10 +182,10 @@ internal static class PageBlockContentProcessor
     {
         if (parent[propertyName] is not JsonObject imageObj)
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊缺少必要的圖片欄位。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊缺少必要的圖片欄位。", BlockKey(blockIndex, propertyName));
         }
 
-        await ResolveSingleImageAsync(imageObj, blockIndex, uploadPath, resolveUpload, cancellationToken);
+        await ResolveSingleImageAsync(imageObj, blockIndex, uploadPath, propertyName, resolveUpload, cancellationToken);
     }
 
     private static async Task ResolveImageArrayAsync(
@@ -188,22 +193,22 @@ internal static class PageBlockContentProcessor
     {
         if (parent[propertyName] is not JsonArray array || array.Count == 0)
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（圖片藝廊）至少需要 1 張圖片。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（圖片藝廊）至少需要 1 張圖片。", BlockKey(blockIndex, propertyName));
         }
 
         for (var i = 0; i < array.Count; i++)
         {
             if (array[i] is not JsonObject imageObj)
             {
-                throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊第 {i + 1} 張圖片的格式錯誤。");
+                throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊第 {i + 1} 張圖片的格式錯誤。", BlockKey(blockIndex, $"{propertyName}[{i}]"));
             }
 
-            await ResolveSingleImageAsync(imageObj, blockIndex, $"images:{i}", resolveUpload, cancellationToken);
+            await ResolveSingleImageAsync(imageObj, blockIndex, $"images:{i}", $"{propertyName}[{i}]", resolveUpload, cancellationToken);
         }
     }
 
     private static async Task ResolveSingleImageAsync(
-        JsonObject imageObj, int blockIndex, string uploadPath, ImageUploadResolver resolveUpload, CancellationToken cancellationToken)
+        JsonObject imageObj, int blockIndex, string uploadPath, string fieldPath, ImageUploadResolver resolveUpload, CancellationToken cancellationToken)
     {
         var isPending = imageObj["pendingUpload"] is JsonValue pendingValue
             && pendingValue.TryGetValue<bool>(out var pendingBool) && pendingBool;
@@ -212,7 +217,7 @@ internal static class PageBlockContentProcessor
         {
             var uploaded = await resolveUpload(uploadPath, cancellationToken)
                 ?? throw new AdminPageValidationException(
-                    $"第 {blockIndex + 1} 個區塊標示了新圖片待上傳，但這次請求沒有夾對應的檔案（欄位 file:{blockIndex}:{uploadPath}）。");
+                    $"第 {blockIndex + 1} 個區塊有圖片還沒有選擇檔案，請重新選擇圖片。", BlockKey(blockIndex, fieldPath));
 
             imageObj.Remove("pendingUpload");
             imageObj["key"] = uploaded.Key;
@@ -225,14 +230,14 @@ internal static class PageBlockContentProcessor
             if (string.IsNullOrWhiteSpace(existingKey))
             {
                 throw new AdminPageValidationException(
-                    $"第 {blockIndex + 1} 個區塊的圖片欄位缺少既有圖片，且未標示要上傳新圖片（缺少 pendingUpload 或 key）。");
+                    $"第 {blockIndex + 1} 個區塊的圖片欄位還沒有圖片，請選擇要上傳的圖片。", BlockKey(blockIndex, fieldPath));
             }
         }
 
         var altZh = GetString(imageObj, "altZh");
         if (string.IsNullOrWhiteSpace(altZh))
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的圖片替代文字（中文）為必填。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的圖片替代文字（中文）為必填。", BlockKey(blockIndex, fieldPath + ".altZh"));
         }
 
         // 英文可空但欄位必須存在（CLAUDE.md 全域規定 4）。
@@ -246,17 +251,17 @@ internal static class PageBlockContentProcessor
 
     /// <summary>雙語文字欄位（必填）：<c>{ "zh": "非空白字串", "en": null|"字串" }</c>。
     /// <c>en</c> 缺鍵時就地補一個值為 <c>null</c> 的鍵（CLAUDE.md 全域規定 4）。</summary>
-    private static void RequireBilingualText(JsonObject obj, string property, int blockIndex, string fieldLabel)
+    private static void RequireBilingualText(JsonObject obj, string property, int blockIndex, string fieldLabel, string prefix = "")
     {
         if (obj[property] is not JsonObject textObj)
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的「{fieldLabel}」為必填欄位，且必須是雙語物件（{{zh, en}}）。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的「{fieldLabel}」為必填欄位。", BlockKey(blockIndex, prefix + property + "Zh"));
         }
 
         var zh = GetString(textObj, "zh");
         if (string.IsNullOrWhiteSpace(zh))
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的「{fieldLabel}」中文為必填欄位。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的「{fieldLabel}」中文為必填欄位。", BlockKey(blockIndex, prefix + property + "Zh"));
         }
 
         if (textObj["en"] is null)
@@ -267,22 +272,22 @@ internal static class PageBlockContentProcessor
 
     /// <summary>雙語文字欄位（整個欄位可省略，例：引言的來源署名、影音的說明文字）。
     /// 一旦提供，中文一樣必填非空白，理由與 <see cref="RequireBilingualText"/> 相同。</summary>
-    private static void RequireOptionalBilingualText(JsonObject obj, string property, int blockIndex)
+    private static void RequireOptionalBilingualText(JsonObject obj, string property, int blockIndex, string prefix = "")
     {
         if (obj[property] is null)
         {
             return;
         }
 
-        RequireBilingualText(obj, property, blockIndex, property);
+        RequireBilingualText(obj, property, blockIndex, OptionalLabel(property), prefix);
     }
 
-    private static void RequireNonEmptyString(JsonObject obj, string property, int blockIndex, string fieldLabel)
+    private static void RequireNonEmptyString(JsonObject obj, string property, int blockIndex, string fieldLabel, string prefix = "")
     {
         var value = GetString(obj, property);
         if (string.IsNullOrWhiteSpace(value))
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的「{fieldLabel}」為必填欄位。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的「{fieldLabel}」為必填欄位。", BlockKey(blockIndex, prefix + property));
         }
     }
 
@@ -292,7 +297,7 @@ internal static class PageBlockContentProcessor
         if (value is null || !allowedValues.Contains(value, StringComparer.Ordinal))
         {
             throw new AdminPageValidationException(
-                $"第 {blockIndex + 1} 個區塊的「{fieldLabel}」必須是「{string.Join("、", allowedValues)}」其中之一。");
+                $"第 {blockIndex + 1} 個區塊的「{fieldLabel}」必須從選項中擇一。", BlockKey(blockIndex, property));
         }
     }
 
@@ -301,14 +306,14 @@ internal static class PageBlockContentProcessor
     {
         if (obj[property] is not JsonArray array || array.Count < minCount)
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊至少需要 {minCount} 筆項目。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊至少需要 {minCount} 筆項目。", BlockKey(blockIndex, property));
         }
 
         for (var i = 0; i < array.Count; i++)
         {
             if (array[i] is not JsonObject item)
             {
-                throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊第 {i + 1} 筆項目格式錯誤。");
+                throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊第 {i + 1} 筆項目格式錯誤。", BlockKey(blockIndex, $"{property}[{i}]"));
             }
 
             validateItem(item, i);
@@ -323,7 +328,7 @@ internal static class PageBlockContentProcessor
     {
         if (obj["headers"] is not JsonArray headers || headers.Count == 0)
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（表格）至少需要 1 個欄位標題。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（表格）至少需要 1 個欄位標題。", BlockKey(blockIndex, "headers"));
         }
 
         for (var h = 0; h < headers.Count; h++)
@@ -332,13 +337,13 @@ internal static class PageBlockContentProcessor
             // headers 是 JsonArray，元素要用位置索引，兩者索引方式不同，這裡直接展開同一套檢查。
             if (headers[h] is not JsonObject headerObj)
             {
-                throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（表格）第 {h + 1} 個欄位標題必須是雙語物件（{{zh, en}}）。");
+                throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（表格）第 {h + 1} 個欄位標題格式錯誤，請重新輸入。", BlockKey(blockIndex, $"headers[{h}].zh"));
             }
 
             var headerZh = GetString(headerObj, "zh");
             if (string.IsNullOrWhiteSpace(headerZh))
             {
-                throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（表格）第 {h + 1} 個欄位標題中文為必填。");
+                throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（表格）第 {h + 1} 個欄位標題中文為必填。", BlockKey(blockIndex, $"headers[{h}].zh"));
             }
 
             if (headerObj["en"] is null)
@@ -349,7 +354,7 @@ internal static class PageBlockContentProcessor
 
         if (obj["rows"] is not JsonArray rows)
         {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（表格）缺少資料列（可以是空陣列，但欄位必須存在）。");
+            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊（表格）缺少資料列，請重新整理頁面後再編輯。", BlockKey(blockIndex, "rows"));
         }
 
         for (var r = 0; r < rows.Count; r++)
@@ -357,10 +362,22 @@ internal static class PageBlockContentProcessor
             if (rows[r] is not JsonArray row || row.Count != headers.Count)
             {
                 throw new AdminPageValidationException(
-                    $"第 {blockIndex + 1} 個區塊（表格）第 {r + 1} 列的欄數（{(rows[r] as JsonArray)?.Count ?? 0}）與標題欄數（{headers.Count}）不一致。");
+                    $"第 {blockIndex + 1} 個區塊（表格）第 {r + 1} 列的欄數（{(rows[r] as JsonArray)?.Count ?? 0}）與標題欄數（{headers.Count}）不一致。", BlockKey(blockIndex, $"rows[{r}]"));
             }
         }
     }
+
+    /// <summary>區塊內欄位的欄位鍵：<c>blocks[2].items[0].questionZh</c>。路徑沿用區塊內容 JSON 的屬性名，
+    /// 雙語物件攤平成 <c>xxxZh</c>／<c>xxxEn</c>；不帶 <paramref name="path"/> 則是整個區塊 <c>blocks[2]</c>。</summary>
+    private static string BlockKey(int blockIndex, string? path = null) => FieldKey.Item("blocks", blockIndex, path);
+
+    private static string OptionalLabel(string property) => property switch
+    {
+        "caption" => "影片說明",
+        "attribution" => "引言來源",
+        "description" => "說明",
+        _ => property,
+    };
 
     private static string? GetString(JsonObject obj, string property)
         => obj[property] is JsonValue value && value.TryGetValue<string>(out var text) ? text : null;

@@ -11,6 +11,11 @@ import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import {
@@ -60,7 +65,9 @@ const seasonLabel = (season: AdminSeasonListItemDto) => `${season.code}（${seas
 const loadState = ref<'loading' | 'ready' | 'error'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有欄位歸屬的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 async function loadCompetition() {
   loadState.value = 'loading'
@@ -104,25 +111,21 @@ function isEnEmpty(): boolean {
   return !form.nameEn.trim()
 }
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.seasonId) {
-    formError.value = '請選擇賽季'
-    return false
-  }
-  if (!form.code.trim()) {
-    formError.value = '請輸入代碼'
-    return false
-  }
-  if (!form.nameZh.trim()) {
-    formError.value = '請輸入中文名稱'
-    return false
-  }
-  return true
+/** 一次檢查全部，回傳 欄位鍵 → 訊息。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.seasonId) errors.seasonId = '請選擇賽季'
+  if (!form.code.trim()) errors.code = '請輸入代碼'
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  return errors
 }
 
 async function handleSave() {
-  if (!validate()) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -147,6 +150,7 @@ async function handleSave() {
     }
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -192,59 +196,65 @@ function handleBack() {
         @close="formError = null"
       />
 
-      <el-card shadow="never" header="基本資料" class="competition-edit__section">
-        <el-form label-position="top">
-          <el-form-item label="賽季" required>
-            <el-select
-              v-model="form.seasonId"
-              placeholder="請選擇賽季"
-              filterable
-              style="width: 100%"
-              :no-data-text="seasonsLoadError ?? '目前這個俱樂部還沒有任何球季資料'"
-            >
-              <el-option v-for="season in seasons" :key="season.id" :label="seasonLabel(season)" :value="season.id" />
-            </el-select>
-            <span v-if="existingSeasonCode" class="competition-edit__hint">目前的賽季代碼：{{ existingSeasonCode }}</span>
-            <span v-if="seasonsLoadError" class="competition-edit__hint competition-edit__hint--warning">
-              {{ seasonsLoadError }}
-            </span>
-          </el-form-item>
-          <el-form-item label="代碼" required>
-            <el-input v-model="form.code" placeholder="例如 corp-a" />
-          </el-form-item>
-          <el-form-item label="類型">
-            <el-input v-model="form.compType" placeholder="選填，例如：聯賽、盃賽、友誼賽" />
-          </el-form-item>
-          <BilingualShortField
-            label="名稱"
-            :zh="form.nameZh"
-            :en="form.nameEn"
-            required
-            @update:zh="(v) => (form.nameZh = v)"
-            @update:en="(v) => (form.nameEn = v)"
-          />
-          <BilingualShortField
-            label="主辦單位"
-            :zh="form.organizerZh"
-            :en="form.organizerEn"
-            @update:zh="(v) => (form.organizerZh = v)"
-            @update:en="(v) => (form.organizerEn = v)"
-          />
-          <el-form-item label="排序">
-            <el-input-number v-model="form.sortOrder" :min="0" />
-          </el-form-item>
-          <el-form-item label="狀態">
-            <el-radio-group v-model="form.status">
-              <el-radio value="draft">草稿</el-radio>
-              <el-radio value="published">已發布</el-radio>
-            </el-radio-group>
-          </el-form-item>
-        </el-form>
-      </el-card>
+      <el-form label-position="top">
+        <LangTabsBar>
+          <el-card shadow="never" header="基本資料" class="competition-edit__section">
+            <FormField field="seasonId" label="賽季" required>
+              <el-select
+                v-model="form.seasonId"
+                placeholder="請選擇賽季"
+                filterable
+                style="width: 100%"
+                :no-data-text="seasonsLoadError ?? '目前這個俱樂部還沒有任何球季資料'"
+                @change="formErrors.clear('seasonId')"
+              >
+                <el-option v-for="season in seasons" :key="season.id" :label="seasonLabel(season)" :value="season.id" />
+              </el-select>
+              <span v-if="existingSeasonCode" class="competition-edit__hint">目前的賽季代碼：{{ existingSeasonCode }}</span>
+              <span v-if="seasonsLoadError" class="competition-edit__hint competition-edit__hint--warning">
+                {{ seasonsLoadError }}
+              </span>
+            </FormField>
+            <FormField field="code" label="代碼" required>
+              <el-input v-model="form.code" placeholder="例如 corp-a" />
+            </FormField>
+            <el-form-item label="類型">
+              <el-input v-model="form.compType" placeholder="選填，例如：聯賽、盃賽、友誼賽" />
+            </el-form-item>
+            <BilingualShortField
+              field="name"
+              label="名稱"
+              :zh="form.nameZh"
+              :en="form.nameEn"
+              required
+              @update:zh="(v) => (form.nameZh = v)"
+              @update:en="(v) => (form.nameEn = v)"
+            />
+            <BilingualShortField
+              field="organizer"
+              label="主辦單位"
+              :zh="form.organizerZh"
+              :en="form.organizerEn"
+              @update:zh="(v) => (form.organizerZh = v)"
+              @update:en="(v) => (form.organizerEn = v)"
+            />
+            <el-form-item label="排序">
+              <el-input-number v-model="form.sortOrder" :min="0" />
+            </el-form-item>
+            <FormField field="status" label="狀態">
+              <el-radio-group v-model="form.status">
+                <el-radio value="draft">草稿</el-radio>
+                <el-radio value="published">已發布</el-radio>
+              </el-radio-group>
+            </FormField>
+          </el-card>
+        </LangTabsBar>
+      </el-form>
 
-      <div class="competition-edit__actions">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -269,7 +279,4 @@ function handleBack() {
   color: var(--el-color-warning);
 }
 
-.competition-edit__actions {
-  margin-top: 16px;
-}
 </style>

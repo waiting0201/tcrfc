@@ -25,6 +25,10 @@ import {
   type FulfilmentRowDto,
   type FulfilmentStatus,
 } from '@/api/adminDraws'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const props = defineProps<{ draw: DrawDetailDto }>()
 const emit = defineEmits<{ (e: 'changed'): void }>()
@@ -102,12 +106,14 @@ function openEdit(row: FulfilmentRowDto) {
   editRow.value = row
   Object.assign(editForm, { claimMethod: row.claimMethod ?? '', recipientName: row.recipientName ?? '', recipientPhone: row.recipientPhone ?? '', recipientAddress: row.recipientAddress ?? '', status: row.fulfilmentStatus, note: row.note ?? '' })
   editError.value = null
+  formErrors.clearAll()
   editOpen.value = true
 }
 async function saveEdit() {
   const row = editRow.value
   if (!row) return
   editError.value = null
+  formErrors.clearAll()
   const body: Parameters<typeof updateFulfilment>[3] = {}
   if (editForm.claimMethod && editForm.claimMethod !== (row.claimMethod ?? '')) body.claimMethod = editForm.claimMethod
   if (recipientEditable.value) {
@@ -131,6 +137,7 @@ async function saveEdit() {
     await load()
     emit('changed')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     editError.value = errorText(error, '儲存失敗，請稍後再試')
   } finally {
     editSaving.value = false
@@ -256,14 +263,14 @@ async function doExport(purpose: string) {
       <el-alert v-if="editError" :title="editError" type="warning" show-icon class="fulfil__block" @close="editError = null" />
       <p v-if="editRow" class="fulfil__hint">序號 {{ editRow.serialNo }}・{{ editRow.memberName || '—' }}・{{ editRow.prizeName || '—' }}</p>
       <el-form label-position="top">
-        <el-form-item label="領獎方式"><el-radio-group v-model="editForm.claimMethod"><el-radio-button value="ship">寄送</el-radio-button><el-radio-button value="pickup">現場領取</el-radio-button></el-radio-group></el-form-item>
+        <FormField field="claimMethod" label="領獎方式"><el-radio-group v-model="editForm.claimMethod"><el-radio-button value="ship">寄送</el-radio-button><el-radio-button value="pickup">現場領取</el-radio-button></el-radio-group></FormField>
         <template v-if="editForm.claimMethod === 'ship'">
           <p v-if="!recipientEditable" class="fulfil__hint">你的帳號沒有檢視完整個資的權限（或這筆是遮罩值），不能修改收件資訊。</p>
-          <el-form-item label="收件人姓名"><el-input v-model="editForm.recipientName" :disabled="!recipientEditable" maxlength="64" /></el-form-item>
-          <el-form-item label="收件人電話"><el-input v-model="editForm.recipientPhone" :disabled="!recipientEditable" maxlength="32" /></el-form-item>
-          <el-form-item label="收件地址"><el-input v-model="editForm.recipientAddress" :disabled="!recipientEditable" maxlength="200" /></el-form-item>
+          <FormField field="recipientName" label="收件人姓名"><el-input v-model="editForm.recipientName" :disabled="!recipientEditable" maxlength="64" /></FormField>
+          <FormField field="recipientPhone" label="收件人電話"><el-input v-model="editForm.recipientPhone" :disabled="!recipientEditable" maxlength="32" /></FormField>
+          <FormField field="recipientAddress" label="收件地址"><el-input v-model="editForm.recipientAddress" :disabled="!recipientEditable" maxlength="200" /></FormField>
         </template>
-        <el-form-item label="發放狀態"><el-radio-group v-model="editForm.status"><el-radio-button value="pending">待處理</el-radio-button><el-radio-button value="shipped">已寄出</el-radio-button><el-radio-button value="claimed">已領取</el-radio-button></el-radio-group></el-form-item>
+        <FormField field="status" label="發放狀態"><el-radio-group v-model="editForm.status"><el-radio-button value="pending">待處理</el-radio-button><el-radio-button value="shipped">已寄出</el-radio-button><el-radio-button value="claimed">已領取</el-radio-button></el-radio-group></FormField>
         <el-form-item label="備註（清空即清除）"><el-input v-model="editForm.note" type="textarea" :rows="2" maxlength="200" show-word-limit /></el-form-item>
       </el-form>
       <template #footer>

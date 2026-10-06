@@ -34,6 +34,12 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { getAdminSiteFacts, updateAdminSiteFacts, type AdminSiteFactsDto } from '@/api/adminSiteFacts'
@@ -112,7 +118,9 @@ const availableVenueOptions = computed(() =>
 )
 
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 function snapshot() {
   return JSON.stringify({ form, squadCodes, homeVenues })
@@ -188,14 +196,17 @@ function moveItem<T>(list: T[], index: number, delta: number) {
 
 function addSquadCode() {
   squadCodes.push({ value: '' })
+  formErrors.clear('squadCodes')
 }
 
 function removeSquadCode(index: number) {
   squadCodes.splice(index, 1)
+  formErrors.clear('squadCodes')
 }
 
 function addHomeVenue() {
   homeVenues.push({ id: null, nameZh: '', nameEn: '', address: '' })
+  formErrors.clear('homeVenues')
 }
 
 function addVenueFromPicker() {
@@ -203,11 +214,14 @@ function addVenueFromPicker() {
   const picked = allVenues.value.find((v) => v.id === venuePickerId.value)
   if (!picked) return
   homeVenues.push({ id: picked.id, nameZh: picked.nameZh, nameEn: picked.nameEn ?? '', address: picked.address ?? '' })
+  formErrors.clear('homeVenues')
   venuePickerId.value = null
 }
 
 function removeHomeVenue(index: number) {
   homeVenues.splice(index, 1)
+  // 列刪除後索引會位移，舊的逐列錯誤已不準，整批清掉讓使用者重新儲存取得最新結果
+  formErrors.clearAll()
 }
 
 /** 新建列（`id` 為空）的名稱若與既有場地重複，前端提示（不擋存檔）——避免重複建檔，
@@ -218,46 +232,28 @@ function venueNameDuplicate(nameZh: string): boolean {
   return allVenues.value.some((v) => v.nameZh.trim().toLowerCase() === trimmed)
 }
 
-function validate(): boolean {
-  formError.value = null
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
 
-  if (!form.foundedYear.trim()) {
-    formError.value = '請輸入成立年份'
-    return false
-  }
-  if (!form.foundingDateDisplayZh.trim()) {
-    formError.value = '請輸入成立年份／日期顯示文字（中文）'
-    return false
-  }
-  if (!form.leagueNameZh.trim()) {
-    formError.value = '請輸入所屬聯賽名稱（中文）'
-    return false
-  }
-  if (!form.squadStructureZh.trim()) {
-    formError.value = '請輸入梯隊組成敘述（中文）'
-    return false
+  if (!form.foundedYear.trim()) errors.foundedYear = '請輸入成立年份'
+  if (!form.foundingDateDisplayZh.trim()) errors.foundingDateDisplayZh = '請輸入成立年份／日期顯示文字（中文）'
+  if (!form.leagueNameZh.trim()) errors.leagueNameZh = '請輸入所屬聯賽名稱（中文）'
+  if (!form.squadStructureZh.trim()) errors.squadStructureZh = '請輸入梯隊組成敘述（中文）'
+
+  if (squadCodes.some((row) => !row.value.trim())) {
+    errors.squadCodes = '梯隊年齡層代碼不能留空，請刪除空白列或填入代碼'
   }
 
-  for (const row of squadCodes) {
-    if (!row.value.trim()) {
-      formError.value = '梯隊年齡層代碼不能留空，請刪除空白列或填入代碼'
-      return false
-    }
-  }
-
-  for (const venue of homeVenues) {
-    if (!venue.nameZh.trim()) {
-      formError.value = '每一筆主場的名稱（中文）為必填欄位，請刪除空白列或填入名稱'
-      return false
-    }
-  }
+  homeVenues.forEach((venue, index) => {
+    if (!venue.nameZh.trim()) errors[`homeVenues[${index}].nameZh`] = '請填寫這筆主場的中文名稱，或刪除這一列'
+  })
 
   if (showBlueWhaleField.value && form.blueWhaleSiteUrl.trim() && !isValidHttpsUrl(form.blueWhaleSiteUrl.trim())) {
-    formError.value = '台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。'
-    return false
+    errors.blueWhaleSiteUrl = '台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。'
   }
 
-  return true
+  return errors
 }
 
 /** 前端預檢，錯誤訊息逐字對照 `AdminSiteFactsRepository.ValidateBlueWhaleSiteUrl`——後端才是
@@ -271,7 +267,11 @@ function isValidHttpsUrl(value: string): boolean {
 }
 
 async function handleSave() {
-  if (!validate()) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const saved = await updateAdminSiteFacts(club.value, {
@@ -302,6 +302,7 @@ async function handleSave() {
     applyLoaded(saved)
     ElMessage.success('已儲存')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -341,184 +342,203 @@ async function handleSave() {
         @close="formError = null"
       />
 
-      <el-card shadow="never" header="成立沿革" class="site-facts__section">
-        <el-form label-position="top">
-          <el-form-item label="成立年份" required>
-            <el-input v-model="form.foundedYear" placeholder="例如：2024" class="site-facts__short-input" />
-          </el-form-item>
-          <el-form-item label="確切成立日期（選填）">
-            <el-date-picker
-              v-model="form.foundingDateIso"
-              type="date"
-              value-format="YYYY-MM-DD"
-              placeholder="尚未核實確切日期時可留空"
-              class="site-facts__short-input"
-            />
-          </el-form-item>
-          <BilingualShortField
-            label="成立年份／日期顯示文字"
-            :zh="form.foundingDateDisplayZh"
-            :en="form.foundingDateDisplayEn"
-            required
-            placeholder="例如：2024 年創立"
-            @update:zh="(v) => (form.foundingDateDisplayZh = v)"
-            @update:en="(v) => (form.foundingDateDisplayEn = v)"
-          />
-          <BilingualShortField
-            label="首季頭銜（選填）"
-            :zh="form.foundingTitleZh"
-            :en="form.foundingTitleEn"
-            placeholder="成立當年若有奪冠等頭銜才填寫，沒有可留空"
-            @update:zh="(v) => (form.foundingTitleZh = v)"
-            @update:en="(v) => (form.foundingTitleEn = v)"
-          />
-        </el-form>
-      </el-card>
+      <LangTabsBar>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never" header="成立沿革">
+              <el-form label-position="top">
+                <FormField field="foundedYear" label="成立年份" required>
+                  <el-input v-model="form.foundedYear" placeholder="例如：2024" class="site-facts__short-input" />
+                </FormField>
+                <el-form-item label="確切成立日期（選填）">
+                  <el-date-picker
+                    v-model="form.foundingDateIso"
+                    type="date"
+                    value-format="YYYY-MM-DD"
+                    placeholder="尚未核實確切日期時可留空"
+                    class="site-facts__short-input"
+                  />
+                </el-form-item>
+                <BilingualShortField
+                  field="foundingDateDisplay"
+                  label="成立年份／日期顯示文字"
+                  :zh="form.foundingDateDisplayZh"
+                  :en="form.foundingDateDisplayEn"
+                  required
+                  placeholder="例如：2024 年創立"
+                  @update:zh="(v) => (form.foundingDateDisplayZh = v)"
+                  @update:en="(v) => (form.foundingDateDisplayEn = v)"
+                />
+                <BilingualShortField
+                  field="foundingTitle"
+                  label="首季頭銜（選填）"
+                  :zh="form.foundingTitleZh"
+                  :en="form.foundingTitleEn"
+                  placeholder="成立當年若有奪冠等頭銜才填寫，沒有可留空"
+                  @update:zh="(v) => (form.foundingTitleZh = v)"
+                  @update:en="(v) => (form.foundingTitleEn = v)"
+                />
+              </el-form>
+            </el-card>
 
-      <el-card shadow="never" header="所屬聯賽" class="site-facts__section">
-        <el-form label-position="top">
-          <BilingualShortField
-            label="聯賽全名"
-            :zh="form.leagueNameZh"
-            :en="form.leagueNameEn"
-            required
-            placeholder="例如：企業甲級聯賽"
-            @update:zh="(v) => (form.leagueNameZh = v)"
-            @update:en="(v) => (form.leagueNameEn = v)"
-          />
-          <BilingualShortField
-            label="聯賽簡稱（選填）"
-            :zh="form.leagueShortNameZh"
-            :en="form.leagueShortNameEn"
-            placeholder="有常用簡稱才填寫，沒有可留空"
-            @update:zh="(v) => (form.leagueShortNameZh = v)"
-            @update:en="(v) => (form.leagueShortNameEn = v)"
-          />
-        </el-form>
-      </el-card>
+            <el-card shadow="never" header="所屬聯賽">
+              <el-form label-position="top">
+                <BilingualShortField
+                  field="leagueName"
+                  label="聯賽全名"
+                  :zh="form.leagueNameZh"
+                  :en="form.leagueNameEn"
+                  required
+                  placeholder="例如：企業甲級聯賽"
+                  @update:zh="(v) => (form.leagueNameZh = v)"
+                  @update:en="(v) => (form.leagueNameEn = v)"
+                />
+                <BilingualShortField
+                  field="leagueShortName"
+                  label="聯賽簡稱（選填）"
+                  :zh="form.leagueShortNameZh"
+                  :en="form.leagueShortNameEn"
+                  placeholder="有常用簡稱才填寫，沒有可留空"
+                  @update:zh="(v) => (form.leagueShortNameZh = v)"
+                  @update:en="(v) => (form.leagueShortNameEn = v)"
+                />
+              </el-form>
+            </el-card>
 
-      <el-card shadow="never" header="梯隊組成" class="site-facts__section">
-        <el-form label-position="top">
-          <BilingualTextareaField
-            label="梯隊組成敘述"
-            :zh="form.squadStructureZh"
-            :en="form.squadStructureEn"
-            required
-            :rows="3"
-            placeholder="例如：一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系"
-            @update:zh="(v) => (form.squadStructureZh = v)"
-            @update:en="(v) => (form.squadStructureEn = v)"
-          />
-        </el-form>
-        <p class="site-facts__hint">梯隊年齡層代碼（依顯示順序，例如 U15、U14、U12）：</p>
-        <div v-if="squadCodes.length > 0" class="site-facts__list">
-          <div v-for="(row, index) in squadCodes" :key="index" class="site-facts__row">
-            <el-input v-model="row.value" placeholder="例如：U15" class="site-facts__code-input" />
-            <el-button-group class="site-facts__order-buttons">
-              <el-button :disabled="index === 0" @click="moveItem(squadCodes, index, -1)">
-                <el-icon><ArrowUp /></el-icon>
-              </el-button>
-              <el-button :disabled="index === squadCodes.length - 1" @click="moveItem(squadCodes, index, 1)">
-                <el-icon><ArrowDown /></el-icon>
-              </el-button>
-            </el-button-group>
-            <el-button text type="danger" @click="removeSquadCode(index)">刪除</el-button>
-          </div>
-        </div>
-        <el-empty v-else description="目前沒有設定任何梯隊年齡層" :image-size="64" />
-        <el-button class="site-facts__add-button" @click="addSquadCode">+ 新增梯隊年齡層</el-button>
-      </el-card>
+            <el-card shadow="never" header="梯隊組成">
+              <el-form label-position="top">
+                <BilingualTextareaField
+                  field="squadStructure"
+                  label="梯隊組成敘述"
+                  :zh="form.squadStructureZh"
+                  :en="form.squadStructureEn"
+                  required
+                  :rows="3"
+                  placeholder="例如：一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系"
+                  @update:zh="(v) => (form.squadStructureZh = v)"
+                  @update:en="(v) => (form.squadStructureEn = v)"
+                />
+              </el-form>
+              <p class="site-facts__hint">梯隊年齡層代碼（依顯示順序，例如 U15、U14、U12）：</p>
+              <FormField field="squadCodes" label="">
+                <div v-if="squadCodes.length > 0" class="site-facts__list">
+                  <div v-for="(row, index) in squadCodes" :key="index" class="site-facts__row">
+                    <el-input v-model="row.value" placeholder="例如：U15" class="site-facts__code-input" />
+                    <el-button-group class="site-facts__order-buttons">
+                      <el-button :disabled="index === 0" @click="moveItem(squadCodes, index, -1)">
+                        <el-icon><ArrowUp /></el-icon>
+                      </el-button>
+                      <el-button :disabled="index === squadCodes.length - 1" @click="moveItem(squadCodes, index, 1)">
+                        <el-icon><ArrowDown /></el-icon>
+                      </el-button>
+                    </el-button-group>
+                    <el-button text type="danger" @click="removeSquadCode(index)">刪除</el-button>
+                  </div>
+                </div>
+                <el-empty v-else description="目前沒有設定任何梯隊年齡層" :image-size="64" />
+              </FormField>
+              <el-button class="site-facts__add-button" @click="addSquadCode">+ 新增梯隊年齡層</el-button>
+            </el-card>
 
-      <el-card shadow="never" header="主場與場地" class="site-facts__section">
-        <p class="site-facts__hint">
-          依顯示順序排列，第一筆是主要主場（聯絡地址會自動取自這一筆場地，不需要另外填寫）。從清單移除不會刪除場地資料本身，只是不再視為這個俱樂部的主場。
-        </p>
-
-        <div class="site-facts__venue-picker">
-          <el-select
-            v-model="venuePickerId"
-            placeholder="選擇既有場地加入主場清單"
-            filterable
-            clearable
-            class="site-facts__venue-picker-select"
-          >
-            <el-option v-for="v in availableVenueOptions" :key="v.id" :label="v.nameZh" :value="v.id" />
-          </el-select>
-          <el-button type="primary" :disabled="!venuePickerId" @click="addVenueFromPicker">加入</el-button>
-        </div>
-
-        <div v-if="homeVenues.length > 0" class="site-facts__venue-list">
-          <el-card v-for="(venue, index) in homeVenues" :key="index" shadow="never" class="site-facts__venue-card">
-            <div class="site-facts__venue-head">
-              <span class="site-facts__venue-index">{{ index === 0 ? '主要主場' : `第 ${index + 1} 順位` }}</span>
-              <div class="site-facts__venue-head-actions">
-                <el-button-group class="site-facts__order-buttons">
-                  <el-button :disabled="index === 0" @click="moveItem(homeVenues, index, -1)">
-                    <el-icon><ArrowUp /></el-icon>
-                  </el-button>
-                  <el-button :disabled="index === homeVenues.length - 1" @click="moveItem(homeVenues, index, 1)">
-                    <el-icon><ArrowDown /></el-icon>
-                  </el-button>
-                </el-button-group>
-                <el-button text type="danger" @click="removeHomeVenue(index)">移除</el-button>
-              </div>
-            </div>
-            <p v-if="venue.id" class="site-facts__venue-shared-hint">
-              這是既有共用場地資料，修改名稱或地址會同步套用到所有引用這座場地的資料（例如其他俱樂部的賽事），請確認後再修改。
-            </p>
-            <el-form label-position="top">
-              <BilingualShortField
-                label="場地名稱"
-                :zh="venue.nameZh"
-                :en="venue.nameEn"
-                required
-                placeholder="例如：西屯足球場"
-                @update:zh="(v) => (venue.nameZh = v)"
-                @update:en="(v) => (venue.nameEn = v)"
-              />
-              <el-form-item label="地址（選填）">
-                <el-input v-model="venue.address" placeholder="例如：台中市北屯區崇平路二段景谷巷 11 弄 41 號" />
-              </el-form-item>
-              <p v-if="!venue.id && venueNameDuplicate(venue.nameZh)" class="site-facts__venue-duplicate-hint">
-                已有相同名稱的既有場地，建議改用上方「選擇既有場地加入」，避免建立重複資料。
+            <el-card shadow="never" header="主場與場地">
+              <p class="site-facts__hint">
+                依顯示順序排列，第一筆是主要主場（聯絡地址會自動取自這一筆場地，不需要另外填寫）。從清單移除不會刪除場地資料本身，只是不再視為這個俱樂部的主場。
               </p>
-            </el-form>
-          </el-card>
-        </div>
-        <el-empty v-else description="目前沒有設定任何主場場地" :image-size="64" />
-        <el-button class="site-facts__add-button" @click="addHomeVenue">+ 建立新場地資料（清單裡沒有這座場地時才使用）</el-button>
-      </el-card>
 
-      <el-card v-if="showBlueWhaleField" shadow="never" header="台中藍鯨官網連結" class="site-facts__section">
-        <el-alert type="info" :closable="false" show-icon class="site-facts__hint-alert">
-          這個網址會用在「女子足球」入口頁「前往台中藍鯨官網」按鈕的連結目標。台中藍鯨官網有自己獨立的網站設定，這裡填寫的網址只影響主站這一個按鈕。
-        </el-alert>
-        <el-form label-position="top">
-          <el-form-item label="台中藍鯨官網網址（選填，須為 https:// 開頭的完整網址）">
-            <el-input v-model="form.blueWhaleSiteUrl" placeholder="例如：https://bluewhale.tcrfc.tw" />
-          </el-form-item>
-        </el-form>
-      </el-card>
+              <div class="site-facts__venue-picker">
+                <el-select
+                  v-model="venuePickerId"
+                  placeholder="選擇既有場地加入主場清單"
+                  filterable
+                  clearable
+                  class="site-facts__venue-picker-select"
+                >
+                  <el-option v-for="v in availableVenueOptions" :key="v.id" :label="v.nameZh" :value="v.id" />
+                </el-select>
+                <el-button type="primary" :disabled="!venuePickerId" @click="addVenueFromPicker">加入</el-button>
+              </div>
 
-      <el-card shadow="never" header="聯絡方式" class="site-facts__section">
-        <el-form label-position="top">
-          <el-form-item label="聯絡電話（選填，目前尚未核實可留空）">
-            <el-input v-model="form.contactPhone" placeholder="選填" class="site-facts__short-input" />
-          </el-form-item>
-          <BilingualShortField
-            label="營業時間（選填）"
-            :zh="form.contactHoursZh"
-            :en="form.contactHoursEn"
-            placeholder="例如：平日 09:00–18:00"
-            @update:zh="(v) => (form.contactHoursZh = v)"
-            @update:en="(v) => (form.contactHoursEn = v)"
-          />
-        </el-form>
-      </el-card>
+              <FormField field="homeVenues" label="">
+                <div v-if="homeVenues.length > 0" class="site-facts__venue-list">
+                  <el-card v-for="(venue, index) in homeVenues" :key="index" shadow="never" class="site-facts__venue-card">
+                    <div class="site-facts__venue-head">
+                      <span class="site-facts__venue-index">{{ index === 0 ? '主要主場' : `第 ${index + 1} 順位` }}</span>
+                      <div class="site-facts__venue-head-actions">
+                        <el-button-group class="site-facts__order-buttons">
+                          <el-button :disabled="index === 0" @click="moveItem(homeVenues, index, -1)">
+                            <el-icon><ArrowUp /></el-icon>
+                          </el-button>
+                          <el-button :disabled="index === homeVenues.length - 1" @click="moveItem(homeVenues, index, 1)">
+                            <el-icon><ArrowDown /></el-icon>
+                          </el-button>
+                        </el-button-group>
+                        <el-button text type="danger" @click="removeHomeVenue(index)">移除</el-button>
+                      </div>
+                    </div>
+                    <p v-if="venue.id" class="site-facts__venue-shared-hint">
+                      這是既有共用場地資料，修改名稱或地址會同步套用到所有引用這座場地的資料（例如其他俱樂部的賽事），請確認後再修改。
+                    </p>
+                    <el-form label-position="top">
+                      <BilingualShortField
+                        :field-zh="`homeVenues[${index}].nameZh`"
+                        :field-en="`homeVenues[${index}].nameEn`"
+                        label="場地名稱"
+                        :zh="venue.nameZh"
+                        :en="venue.nameEn"
+                        required
+                        placeholder="例如：西屯足球場"
+                        @update:zh="(v) => (venue.nameZh = v)"
+                        @update:en="(v) => (venue.nameEn = v)"
+                      />
+                      <el-form-item label="地址（選填）">
+                        <el-input v-model="venue.address" placeholder="例如：台中市北屯區崇平路二段景谷巷 11 弄 41 號" />
+                      </el-form-item>
+                      <p v-if="!venue.id && venueNameDuplicate(venue.nameZh)" class="site-facts__venue-duplicate-hint">
+                        已有相同名稱的既有場地，建議改用上方「選擇既有場地加入」，避免建立重複資料。
+                      </p>
+                    </el-form>
+                  </el-card>
+                </div>
+                <el-empty v-else description="目前沒有設定任何主場場地" :image-size="64" />
+              </FormField>
+              <el-button class="site-facts__add-button" @click="addHomeVenue">+ 建立新場地資料（清單裡沒有這座場地時才使用）</el-button>
+            </el-card>
 
-      <div class="site-facts__actions">
+            <el-card v-if="showBlueWhaleField" shadow="never" header="台中藍鯨官網連結">
+              <el-alert type="info" :closable="false" show-icon class="site-facts__hint-alert">
+                這個網址會用在「女子足球」入口頁「前往台中藍鯨官網」按鈕的連結目標。台中藍鯨官網有自己獨立的網站設定，這裡填寫的網址只影響主站這一個按鈕。
+              </el-alert>
+              <el-form label-position="top">
+                <FormField field="blueWhaleSiteUrl" label="台中藍鯨官網網址（選填，須為 https:// 開頭的完整網址）">
+                  <el-input v-model="form.blueWhaleSiteUrl" placeholder="例如：https://bluewhale.tcrfc.tw" />
+                </FormField>
+              </el-form>
+            </el-card>
+
+            <el-card shadow="never" header="聯絡方式">
+              <el-form label-position="top">
+                <FormField field="contactPhone" label="聯絡電話（選填，目前尚未核實可留空）">
+                  <el-input v-model="form.contactPhone" placeholder="選填" class="site-facts__short-input" />
+                </FormField>
+                <BilingualShortField
+                  field="contactHours"
+                  label="營業時間（選填）"
+                  :zh="form.contactHoursZh"
+                  :en="form.contactHoursEn"
+                  placeholder="例如：平日 09:00–18:00"
+                  @update:zh="(v) => (form.contactHoursZh = v)"
+                  @update:en="(v) => (form.contactHoursEn = v)"
+                />
+              </el-form>
+            </el-card>
+          </template>
+        </EditLayout>
+      </LangTabsBar>
+
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -531,10 +551,6 @@ async function handleSave() {
 
 .site-facts__notice,
 .site-facts__form-error {
-  margin-bottom: 12px;
-}
-
-.site-facts__section {
   margin-bottom: 12px;
 }
 
@@ -631,7 +647,4 @@ async function handleSave() {
   gap: 8px;
 }
 
-.site-facts__actions {
-  margin-top: 16px;
-}
 </style>

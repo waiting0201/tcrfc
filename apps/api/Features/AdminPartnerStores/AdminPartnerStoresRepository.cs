@@ -224,38 +224,38 @@ public sealed class AdminPartnerStoresRepository(
     private static Validated Validate(UpsertAdminPartnerStoreRequest request)
     {
         var slug = string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
-        var category = AdminInput.OptionalText(request.Category, "類別", 32);
-        var region = AdminInput.OptionalText(request.Region, "地區", 32);
-        var phone = AdminInput.OptionalText(request.Phone, "電話", 32);
-        var mapUrl = AdminInput.OptionalHttpUrl(request.MapUrl, "地圖連結");
-        var website = AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網或社群連結");
-        var hours = AdminInput.OptionalText(request.BusinessHours, "營業時間", 500);
-        AdminInput.OneOf(request.ApplicableTier, Tiers, "適用層級", "「全會員」或「限付費」");
-        AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」");
-        AdminInput.DateRange(request.StartOn, request.EndOn, "合作期間");
+        var category = AdminInput.OptionalText(request.Category, "類別", 32, "category");
+        var region = AdminInput.OptionalText(request.Region, "地區", 32, "region");
+        var phone = AdminInput.OptionalText(request.Phone, "電話", 32, "phone");
+        var mapUrl = AdminInput.OptionalHttpUrl(request.MapUrl, "地圖連結", 500, "mapUrl");
+        var website = AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網或社群連結", 500, "websiteUrl");
+        var hours = AdminInput.OptionalText(request.BusinessHours, "營業時間", 500, "businessHours");
+        AdminInput.OneOf(request.ApplicableTier, Tiers, "適用層級", "「全會員」或「限付費」", "applicableTier");
+        AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」", "status");
+        AdminInput.DateRange(request.StartOn, request.EndOn, "合作期間", "endOn");
         if ((request.Lat is null) != (request.Lng is null))
         {
-            throw new AdminValidationException("緯度與經度必須一起填寫，或兩個都留空。");
+            throw new AdminValidationException("緯度與經度必須一起填寫，或兩個都留空。", request.Lat is null ? "lat" : "lng");
         }
 
         if (request.Lat is < -90 or > 90 || request.Lng is < -180 or > 180)
         {
-            throw new AdminValidationException("座標超出範圍：緯度須在 -90 到 90 之間，經度須在 -180 到 180 之間。");
+            throw new AdminValidationException("座標超出範圍：緯度須在 -90 到 90 之間，經度須在 -180 到 180 之間。", request.Lat is < -90 or > 90 ? "lat" : "lng");
         }
 
         // 座標 (0,0) 是常見的「沒有座標」替代值（海上的幾內亞灣），不是任何一家店的位置；NULL 才代表「未確認」。
         // DDL 另有 CK_partner_stores_coords 當最後防線（docs/12b §8）。
         if (request.Lat == 0 && request.Lng == 0)
         {
-            throw new AdminValidationException("座標 0, 0 不是有效的店家位置（那是「沒有座標」的替代值）。尚未確認座標請把緯度與經度都留空。");
+            throw new AdminValidationException("座標 0, 0 不是有效的店家位置（那是「沒有座標」的替代值）。尚未確認座標請把緯度與經度都留空。", "lat");
         }
 
-        AdminInput.RequireText(request.Content.Zh.Name, "中文店名", 128);
-        AdminInput.OptionalText(request.Content.Zh.Address, "中文地址", 500);
+        AdminInput.RequireText(request.Content.Zh.Name, "中文店名", 128, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.Address, "中文地址", 500, "addressZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文店名", 128);
-            AdminInput.OptionalText(request.Content.En.Address, "英文地址", 500);
+            AdminInput.RequireText(request.Content.En.Name, "英文店名", 128, "nameEn");
+            AdminInput.OptionalText(request.Content.En.Address, "英文地址", 500, "addressEn");
         }
 
         return new Validated(slug, category, region, phone, mapUrl, website, hours);
@@ -367,7 +367,7 @@ public sealed class AdminPartnerStoresRepository(
     {
         if (await db.PartnerStores.AsNoTracking().AnyAsync(s => s.ClubId == clubId && s.Slug == slug && s.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被其他特約店家使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被其他特約店家使用，請換一個。", "slug");
         }
     }
 

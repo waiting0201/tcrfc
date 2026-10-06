@@ -52,7 +52,7 @@ public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IIma
         Validate(request, out var code);
         if (await dbContext.AdSlots.AnyAsync(s => s.SlotCode == code, cancellationToken))
         {
-            throw new AdminConflictException("版位代號重複", $"版位代號「{code}」已經有人使用，請換一個。");
+            throw new AdminConflictException("版位代號重複", $"版位代號「{code}」已經有人使用，請換一個。", "slotCode");
         }
 
         var now = DateTime.UtcNow;
@@ -83,7 +83,7 @@ public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IIma
 
         if (!string.Equals(slot.SlotCode, code, StringComparison.Ordinal))
         {
-            throw new AdminValidationException("版位代號建立後不能修改（App 端是用代號取得廣告的）。");
+            throw new AdminValidationException("版位代號建立後不能修改（App 端是用代號取得廣告的）。", "slotCode");
         }
 
         Apply(slot, request);
@@ -123,41 +123,41 @@ public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IIma
 
     private static void Validate(UpsertAdminAdSlotRequest request, out string code)
     {
-        var raw = AdminInput.RequireText(request.SlotCode, "版位代號", 64);
+        var raw = AdminInput.RequireText(request.SlotCode, "版位代號", 64, "slotCode");
         if (!SlotCodeFormat().IsMatch(raw))
         {
-            throw new AdminValidationException("版位代號的格式是「畫面_位置」，只能用小寫英文字母、數字與底線，例如 home_top。");
+            throw new AdminValidationException("版位代號的格式是「畫面_位置」，只能用小寫英文字母、數字與底線，例如 home_top。", "slotCode");
         }
 
         if (raw.Contains("charity", StringComparison.Ordinal) || raw.Contains("donation", StringComparison.Ordinal))
         {
-            throw new AdminValidationException("不設慈善相關的廣告版位：慈善捐款的主辦與收款主體是協會，俱樂部的 App 不販售慈善版位。");
+            throw new AdminValidationException("不設慈善相關的廣告版位：慈善捐款的主辦與收款主體是協會，俱樂部的 App 不販售慈善版位。", "slotCode");
         }
 
         code = raw;
-        var screen = AdminInput.OptionalText(request.ScreenCode, "畫面代碼", 16);
+        var screen = AdminInput.OptionalText(request.ScreenCode, "畫面代碼", 16, "screenCode");
         if (screen is not null && ChildFacingScreens.Contains(screen))
         {
-            throw new AdminValidationException("學院與課程相關畫面是兒童向畫面，不設廣告版位。");
+            throw new AdminValidationException("學院與課程相關畫面是兒童向畫面，不設廣告版位。", "screenCode");
         }
 
         if (request.AspectRatio is { } ratio && !RatioFormat().IsMatch(ratio))
         {
-            throw new AdminValidationException("長寬比的格式是「寬:高」，例如 16:9。");
+            throw new AdminValidationException("長寬比的格式是「寬:高」，例如 16:9。", "aspectRatio");
         }
 
-        AdminInput.OptionalNonNegative(request.MinWidth, "最小寬度");
-        AdminInput.OptionalNonNegative(request.MinHeight, "最小高度");
-        AdminInput.OptionalNonNegative(request.MaxFileKb, "檔案大小上限");
-        AdminInput.OptionalNonNegative(request.SessionImpressionCap, "單次使用的曝光上限");
+        AdminInput.OptionalNonNegative(request.MinWidth, "最小寬度", "minWidth");
+        AdminInput.OptionalNonNegative(request.MinHeight, "最小高度", "minHeight");
+        AdminInput.OptionalNonNegative(request.MaxFileKb, "檔案大小上限", "maxFileKb");
+        AdminInput.OptionalNonNegative(request.SessionImpressionCap, "單次使用的曝光上限", "sessionImpressionCap");
         if (request.RotationCap is < 1 or > 10)
         {
-            throw new AdminValidationException("輪播張數上限只能是 1 到 10。");
+            throw new AdminValidationException("輪播張數上限只能是 1 到 10。", "rotationCap");
         }
 
-        AdminInput.OptionalHttpUrl(request.FallbackLink, "備援連結");
-        AdminInput.RequireText(request.Content.Zh.Name, "版位名稱（繁中）", 128);
-        AdminInput.OptionalText(request.Content.En?.Name, "版位名稱（英文）", 128);
+        AdminInput.OptionalHttpUrl(request.FallbackLink, "備援連結", 500, "fallbackLink");
+        AdminInput.RequireText(request.Content.Zh.Name, "版位名稱（繁中）", 128, "nameZh");
+        AdminInput.OptionalText(request.Content.En?.Name, "版位名稱（英文）", 128, "nameEn");
     }
 
     private static void Apply(AdSlot slot, UpsertAdminAdSlotRequest r)

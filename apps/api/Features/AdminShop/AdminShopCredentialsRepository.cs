@@ -65,15 +65,15 @@ public sealed partial class AdminShopCredentialsRepository(
 
     public async Task<AdminShopCredentialsDto> UpdateLinePayAsync(AdminClubScope scope, UpdateAdminLinePayCredentialRequest request, CancellationToken cancellationToken)
     {
-        AdminInput.OneOf(request.Environment, Environments, "環境", "「測試」或「正式」");
-        var channelId = AdminInput.RequireText(request.ChannelId, "Channel ID", 64);
-        var secret = AdminInput.OptionalText(request.ChannelSecret, "Channel Secret", 200);
+        AdminInput.OneOf(request.Environment, Environments, "環境", "「測試」或「正式」", "environment");
+        var channelId = AdminInput.RequireText(request.ChannelId, "Channel ID", 64, "channelId");
+        var secret = AdminInput.OptionalText(request.ChannelSecret, "Channel Secret", 200, "channelSecret");
         var owner = await OwnerAsync(cancellationToken);
         var row = await db.PaymentChannels.FirstOrDefaultAsync(c => c.OwnerClubId == owner && c.ChannelType == "linepay" && c.Environment == request.Environment, cancellationToken);
         var existing = row is null ? null : Read(row);
         if (secret is null && (existing is null || string.IsNullOrEmpty(existing.Secret)))
         {
-            throw new AdminValidationException("第一次設定必須填寫 Channel Secret。");
+            throw new AdminValidationException("第一次設定必須填寫 Channel Secret。", "channelSecret");
         }
 
         var changedSecret = secret is not null && secret != existing?.Secret;
@@ -86,14 +86,14 @@ public sealed partial class AdminShopCredentialsRepository(
     public async Task<AdminShopCredentialsDto> UpdateEInvoiceAsync(AdminClubScope scope, UpdateAdminEInvoiceCredentialRequest request, CancellationToken cancellationToken)
     {
         AdminInput.OneOf(request.Environment, Environments, "環境", "「測試」或「正式」");
-        var prefix = AdminInput.RequireText(request.InvoicePrefix, "字軌", 2).ToUpperInvariant();
+        var prefix = AdminInput.RequireText(request.InvoicePrefix, "字軌", 2, "invoicePrefix").ToUpperInvariant();
         if (!PrefixFormat().IsMatch(prefix))
         {
-            throw new AdminValidationException("字軌必須是兩位大寫英文字母，例如 AB。");
+            throw new AdminValidationException("字軌必須是兩位大寫英文字母，例如 AB。", "invoicePrefix");
         }
 
-        var merchant = AdminInput.OptionalText(request.MerchantId, "店家代號", 64);
-        var apiKey = AdminInput.OptionalText(request.ApiKey, "服務金鑰", 200);
+        var merchant = AdminInput.OptionalText(request.MerchantId, "店家代號", 64, "merchantId");
+        var apiKey = AdminInput.OptionalText(request.ApiKey, "服務金鑰", 200, "apiKey");
         var owner = await OwnerAsync(cancellationToken);
         var row = await db.PaymentChannels.FirstOrDefaultAsync(c => c.OwnerClubId == owner && c.ChannelType == "einvoice" && c.Environment == request.Environment, cancellationToken);
         var existing = row is null ? null : Read(row);
@@ -120,7 +120,7 @@ public sealed partial class AdminShopCredentialsRepository(
     {
         if (request.MaxRetries is < 0 or > 10 || request.IntervalMinutes is < 1 or > 1440)
         {
-            throw new AdminValidationException("重試次數必須介於 0 與 10 之間，間隔必須介於 1 與 1440 分鐘之間。");
+            throw new AdminValidationException("重試次數必須介於 0 與 10 之間，間隔必須介於 1 與 1440 分鐘之間。", request.MaxRetries is < 0 or > 10 ? "maxRetries" : "intervalMinutes");
         }
 
         var owner = await OwnerAsync(cancellationToken);

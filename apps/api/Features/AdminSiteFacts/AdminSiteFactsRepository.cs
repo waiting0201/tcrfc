@@ -81,30 +81,30 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
     {
         if (string.IsNullOrWhiteSpace(request.FoundedYear))
         {
-            throw new AdminSiteFactsValidationException("成立年份為必填欄位。");
+            throw new AdminSiteFactsValidationException("成立年份為必填欄位。", "foundedYear");
         }
 
         if (string.IsNullOrWhiteSpace(request.FoundingDateDisplayZh))
         {
-            throw new AdminSiteFactsValidationException("成立年份／日期顯示文字（中文）為必填欄位。");
+            throw new AdminSiteFactsValidationException("成立年份／日期顯示文字（中文）為必填欄位。", "foundingDateDisplayZh");
         }
 
         if (string.IsNullOrWhiteSpace(request.LeagueNameZh))
         {
-            throw new AdminSiteFactsValidationException("所屬聯賽名稱（中文）為必填欄位。");
+            throw new AdminSiteFactsValidationException("所屬聯賽名稱（中文）為必填欄位。", "leagueNameZh");
         }
 
         if (string.IsNullOrWhiteSpace(request.SquadStructureZh))
         {
-            throw new AdminSiteFactsValidationException("梯隊組成敘述（中文）為必填欄位。");
+            throw new AdminSiteFactsValidationException("梯隊組成敘述（中文）為必填欄位。", "squadStructureZh");
         }
 
         var homeVenueRequests = request.HomeVenues ?? [];
-        foreach (var v in homeVenueRequests)
+        for (var i = 0; i < homeVenueRequests.Count; i++)
         {
-            if (string.IsNullOrWhiteSpace(v.NameZh))
+            if (string.IsNullOrWhiteSpace(homeVenueRequests[i].NameZh))
             {
-                throw new AdminSiteFactsValidationException("每一筆場地的名稱（中文）為必填欄位。");
+                throw new AdminSiteFactsValidationException("每一筆場地的名稱（中文）為必填欄位。", Tcrfc.Api.Common.FieldKey.Item("homeVenues", i, "nameZh"));
             }
         }
 
@@ -146,7 +146,7 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
 
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
         {
-            throw new AdminSiteFactsValidationException("台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。");
+            throw new AdminSiteFactsValidationException("台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。", "blueWhaleSiteUrl");
         }
     }
 
@@ -181,15 +181,16 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
 
         var now = DateTime.UtcNow;
 
-        foreach (var request in requests)
+        for (var index = 0; index < requests.Count; index++)
         {
+            var request = requests[index];
             Venue venue;
 
             if (request.Id.HasValue)
             {
                 if (!existingVenues.TryGetValue(request.Id.Value, out venue!))
                 {
-                    throw new AdminSiteFactsValidationException($"找不到場地（id={request.Id}），無法更新，請重新整理後再試。");
+                    throw new AdminSiteFactsValidationException("有一筆場地已經不存在，無法更新，請重新整理後再試。", Tcrfc.Api.Common.FieldKey.Item("homeVenues", index));
                 }
 
                 venue.UpdatedAt = now;

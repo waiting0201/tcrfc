@@ -6,6 +6,11 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import BilingualShortField from '@/components/BilingualShortField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -26,7 +31,9 @@ const baseline = ref('')
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 const saving = ref(false)
+/** 頁首提示：只放沒有欄位歸屬的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const isDirty = computed(() => !loading.value && JSON.stringify(form) !== baseline.value)
 useUnsavedChanges(isDirty)
 
@@ -59,23 +66,28 @@ function bilingual(zh: string, en: string): BilingualTextDto | null {
   return z || e ? { zh: z, en: e } : null
 }
 
-function validate(): string | null {
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
   const url = form.donationUrl.trim()
   if (url) {
-    if (!/^https:\/\//i.test(url)) return '捐款網址必須是以 https:// 開頭的完整網址'
-    if (!form.donationCtaZh.trim()) return '設定了捐款網址，就必須填寫中文的捐款按鈕文案'
-    if (!form.donationCtaZh.includes(ASSOCIATION)) return `捐款按鈕文案必須點明捐款由「${ASSOCIATION}」收受，不能讓人誤以為捐給台中磐石`
+    if (!/^https:\/\//i.test(url)) errors.donationUrl = '捐款網址必須是以 https:// 開頭的完整網址'
+    if (!form.donationCtaZh.trim()) errors.donationCtaZh = '設定了捐款網址，就必須填寫中文的捐款按鈕文案'
+    else if (!form.donationCtaZh.includes(ASSOCIATION)) errors.donationCtaZh = `捐款按鈕文案必須點明捐款由「${ASSOCIATION}」收受，不能讓人誤以為捐給台中磐石`
   }
   const corp = form.corporateUrl.trim()
   if (corp && !(/^https:\/\//i.test(corp) || (corp.startsWith('/') && !corp.startsWith('//')))) {
-    return '企業合作連結必須是以 / 開頭的站內路徑，或以 https:// 開頭的網址'
+    errors.corporateUrl = '企業合作連結必須是以 / 開頭的站內路徑，或以 https:// 開頭的網址'
   }
-  return null
+  return errors
 }
 
 async function handleSave() {
-  formError.value = validate()
-  if (formError.value) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     // 整份取代：沒填的欄位就是清空
@@ -89,6 +101,8 @@ async function handleSave() {
     baseline.value = JSON.stringify(form)
     ElMessage.success('已儲存')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -104,26 +118,24 @@ async function handleSave() {
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="settings__block" @close="formError = null" />
       <el-alert v-if="!canUpdate" title="你的帳號只能檢視這些設定，不能修改。" type="info" show-icon :closable="false" class="settings__block" />
       <el-form label-position="top" :disabled="!canUpdate">
-        <el-card shadow="never" header="球迷捐款導流" class="settings__block">
-          <p class="settings__hint">前台各慈善頁的「捐款」按鈕會導向這個網址。不填網址就不會顯示球迷捐款按鈕。</p>
-          <el-form-item label="捐款網址（慈善捐款平台）"><el-input v-model="form.donationUrl" placeholder="https://" /></el-form-item>
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="捐款按鈕文案（中文）"><el-input v-model="form.donationCtaZh" :placeholder="`例如 前往${ASSOCIATION}捐款平台`" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="捐款按鈕文案（英文）"><el-input v-model="form.donationCtaEn" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="球迷參與文案（中文）"><el-input v-model="form.fanCtaZh" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="球迷參與文案（英文）"><el-input v-model="form.fanCtaEn" /></el-form-item></el-col>
-          </el-row>
-          <p class="settings__hint">中文捐款文案必須包含「{{ ASSOCIATION }}」，因為捐款由協會收受，不是台中磐石。球迷參與按鈕固定導向上面的捐款網址。</p>
-        </el-card>
-        <el-card shadow="never" header="企業合作" class="settings__block">
-          <el-form-item label="企業合作連結"><el-input v-model="form.corporateUrl" placeholder="/zh/partners/ 或 https://" /></el-form-item>
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="企業合作文案（中文）"><el-input v-model="form.corporateCtaZh" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="企業合作文案（英文）"><el-input v-model="form.corporateCtaEn" /></el-form-item></el-col>
-          </el-row>
-        </el-card>
+        <LangTabsBar>
+          <el-card shadow="never" header="球迷捐款導流" class="settings__block">
+            <p class="settings__hint">前台各慈善頁的「捐款」按鈕會導向這個網址。不填網址就不會顯示球迷捐款按鈕。</p>
+            <FormField field="donationUrl" label="捐款網址（慈善捐款平台）"><el-input v-model="form.donationUrl" placeholder="https://" /></FormField>
+            <BilingualShortField field="donationCta" label="捐款按鈕文案" :zh="form.donationCtaZh" :en="form.donationCtaEn" :placeholder="`例如 前往${ASSOCIATION}捐款平台`" @update:zh="(v) => (form.donationCtaZh = v)" @update:en="(v) => (form.donationCtaEn = v)" />
+            <BilingualShortField field="fanCta" label="球迷參與文案" :zh="form.fanCtaZh" :en="form.fanCtaEn" @update:zh="(v) => (form.fanCtaZh = v)" @update:en="(v) => (form.fanCtaEn = v)" />
+            <p class="settings__hint">中文捐款文案必須包含「{{ ASSOCIATION }}」，因為捐款由協會收受，不是台中磐石。球迷參與按鈕固定導向上面的捐款網址。</p>
+          </el-card>
+          <el-card shadow="never" header="企業合作" class="settings__block">
+            <FormField field="corporateUrl" label="企業合作連結"><el-input v-model="form.corporateUrl" placeholder="/zh/partners/ 或 https://" /></FormField>
+            <BilingualShortField field="corporateCta" label="企業合作文案" :zh="form.corporateCtaZh" :en="form.corporateCtaEn" @update:zh="(v) => (form.corporateCtaZh = v)" @update:en="(v) => (form.corporateCtaEn = v)" />
+          </el-card>
+        </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="canUpdate"><el-button type="primary" :loading="saving" @click="handleSave">儲存設定</el-button></EditActionBar>
+      <EditActionBar v-if="canUpdate">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存設定</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>

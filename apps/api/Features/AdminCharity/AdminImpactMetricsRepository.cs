@@ -105,13 +105,13 @@ public sealed class AdminImpactMetricsRepository(ClubDbContext dbContext, IQuery
     private static void Validate(UpsertAdminImpactMetricRequest request)
     {
         // 規劃書 B5「影響力數據」的統計項目是件數、人數、金額這類累計值，沒有允許負數的情境（例如要記錄減少量，應改以單位與項目名稱表達）。
-        AdminInput.OptionalNonNegative(request.Value, "數值");
-        AdminInput.RequireText(request.Content.Zh.Name, "中文項目名稱", 64);
-        AdminInput.OptionalText(request.Content.Zh.Unit, "單位", 16);
+        AdminInput.OptionalNonNegative(request.Value, "數值", "value");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文項目名稱", 64, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.Unit, "單位", 16, "unitZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文項目名稱", 64);
-            AdminInput.OptionalText(request.Content.En.Unit, "單位（英文）", 16);
+            AdminInput.RequireText(request.Content.En.Name, "英文項目名稱", 64, "nameEn");
+            AdminInput.OptionalText(request.Content.En.Unit, "單位（英文）", 16, "unitEn");
         }
     }
 
@@ -120,7 +120,7 @@ public sealed class AdminImpactMetricsRepository(ClubDbContext dbContext, IQuery
         if (programId is Guid p
             && !await dbContext.CharityPrograms.AsNoTracking().AnyAsync(x => x.Id == p && (x.ClubId == scope.ClubId || x.ClubId == null), cancellationToken))
         {
-            throw new AdminValidationException("找不到指定的慈善計畫，請重新選擇。");
+            throw new AdminValidationException("找不到指定的慈善計畫，請重新選擇。", "programId");
         }
     }
 

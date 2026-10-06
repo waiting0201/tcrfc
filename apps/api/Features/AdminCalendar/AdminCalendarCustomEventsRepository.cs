@@ -335,7 +335,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
 
         if (teams.Count != teamIds.Distinct().Count())
         {
-            throw new AdminCalendarValidationException("所屬隊別裡有找不到的球隊，請確認選擇的隊伍屬於本俱樂部。");
+            throw new AdminCalendarValidationException("所屬隊別裡有找不到的球隊，請確認選擇的隊伍屬於本俱樂部。", "teamIds");
         }
 
         return teams;
@@ -345,7 +345,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
     {
         if (eventTypeId is { } id && !await dbContext.EventTypes.AsNoTracking().AnyAsync(t => t.Id == id, cancellationToken))
         {
-            throw new AdminCalendarValidationException("找不到指定的事件分類。");
+            throw new AdminCalendarValidationException("找不到指定的事件分類。", "eventTypeId");
         }
     }
 
@@ -353,7 +353,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
     {
         if (venueId is { } id && !await dbContext.Venues.AsNoTracking().AnyAsync(v => v.Id == id, cancellationToken))
         {
-            throw new AdminCalendarValidationException("找不到指定的場地。");
+            throw new AdminCalendarValidationException("找不到指定的場地。", "venueId");
         }
     }
 
@@ -361,7 +361,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Title))
         {
-            throw new AdminCalendarValidationException("中文標題為必填欄位。");
+            throw new AdminCalendarValidationException("中文標題為必填欄位。", "titleZh");
         }
     }
 
@@ -369,7 +369,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
     {
         if (endsAt is { } end && end < startsAt)
         {
-            throw new AdminCalendarValidationException("結束時間不能早於起始時間。");
+            throw new AdminCalendarValidationException("結束時間不能早於起始時間。", "endsAt");
         }
     }
 
@@ -382,7 +382,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
 
         if (!RecurrenceExpander.AllowedRepeatRules.Contains(repeatRule))
         {
-            throw new AdminCalendarValidationException("重複規則只能是「weekly」「biweekly」或「monthly」其中一種。");
+            throw new AdminCalendarValidationException("重複規則只能選「每週」「每兩週」或「每月」。", "repeatRule");
         }
     }
 

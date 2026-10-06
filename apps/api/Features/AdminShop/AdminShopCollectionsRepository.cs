@@ -135,14 +135,14 @@ public sealed class AdminShopCollectionsRepository(ClubDbContext db)
 
     private static string? Validate(UpsertAdminCollectionRequest request)
     {
-        AdminInput.OneOf(request.Status, ShopLabels.CollectionStatus.Keys.ToHashSet(), "狀態", "「草稿」或「已發布」");
-        AdminInput.RequireText(request.Content.Zh.Name, "中文系列名稱", 64);
+        AdminInput.OneOf(request.Status, ShopLabels.CollectionStatus.Keys.ToHashSet(), "狀態", "「草稿」或「已發布」", "status");
+        AdminInput.RequireText(request.Content.Zh.Name, "中文系列名稱", 64, "nameZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文系列名稱", 64);
+            AdminInput.RequireText(request.Content.En.Name, "英文系列名稱", 64, "nameEn");
         }
 
-        AdminInput.OptionalNonNegative(request.SortOrder, "排序");
+        AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
         return string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
     }
 
@@ -150,7 +150,7 @@ public sealed class AdminShopCollectionsRepository(ClubDbContext db)
     {
         if (await db.Collections.AsNoTracking().AnyAsync(c => c.ClubId == scope.ClubId && c.Slug == slug && c.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的另一個系列使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的另一個系列使用，請換一個。", "slug");
         }
     }
 

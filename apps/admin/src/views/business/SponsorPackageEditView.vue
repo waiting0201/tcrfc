@@ -8,6 +8,11 @@ import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -42,7 +47,9 @@ const baselineJson = ref('')
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有欄位歸屬的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const readOnly = computed(() => (isCreate.value ? !canCreate.value : !canUpdate.value))
 const pageTitle = computed(() => (isCreate.value ? '新增贊助方案' : `編輯：${form.nameZh || '（未命名）'}`))
 
@@ -81,10 +88,12 @@ onMounted(load)
 const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== baselineJson.value)
 useUnsavedChanges(isDirty)
 
-function validate(): string | null {
-  if (!form.nameZh.trim()) return '請輸入中文方案名稱'
-  if (form.priceMin != null && form.priceMax != null && form.priceMax < form.priceMin) return '價格上限不能低於下限'
-  return null
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文方案名稱'
+  if (form.priceMin != null && form.priceMax != null && form.priceMax < form.priceMin) errors.priceMax = '價格上限不能低於下限'
+  return errors
 }
 
 function buildPayload(): SaveSponsorPackagePayload {
@@ -106,8 +115,11 @@ function buildPayload(): SaveSponsorPackagePayload {
 
 async function handleSave() {
   if (readOnly.value) return
-  formError.value = validate()
-  if (formError.value) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const saved = isCreate.value
@@ -120,6 +132,8 @@ async function handleSave() {
     baselineJson.value = JSON.stringify(form)
     ElMessage.success('已儲存')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -156,35 +170,44 @@ function back() {
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="package-edit__block" @close="formError = null" />
       <el-alert v-if="readOnly" title="你的帳號只能檢視贊助方案，不能修改。" type="info" show-icon :closable="false" class="package-edit__block" />
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="方案內容" class="package-edit__block">
-          <BilingualShortField label="方案名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-          <BilingualTextareaField label="方案內容" :zh="form.contentZh" :en="form.contentEn" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
-          <BilingualTextareaField label="權益清單" :zh="form.benefitZh" :en="form.benefitEn" :rows="5" placeholder="一行寫一項權益" @update:zh="(v) => (form.benefitZh = v)" @update:en="(v) => (form.benefitEn = v)" />
-          <BilingualShortField label="適合對象" :zh="form.audienceZh" :en="form.audienceEn" @update:zh="(v) => (form.audienceZh = v)" @update:en="(v) => (form.audienceEn = v)" />
-        </el-card>
-        <el-card shadow="never" header="價格與發布" class="package-edit__block">
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="價格下限（元）"><el-input-number v-model="form.priceMin" :min="0" :controls="false" style="width: 100%" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="價格上限（元）"><el-input-number v-model="form.priceMax" :min="0" :controls="false" style="width: 100%" /></el-form-item></el-col>
-          </el-row>
-          <el-form-item label="是否公開價格">
-            <el-switch v-model="form.isPricePublic" active-text="前台顯示價格區間" inactive-text="前台不顯示價格" />
-          </el-form-item>
-          <el-form-item label="狀態">
-            <el-radio-group v-model="form.status">
-              <el-radio value="draft">草稿（前台不顯示）</el-radio>
-              <el-radio value="published">已發布</el-radio>
-            </el-radio-group>
-          </el-form-item>
-          <el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="方案內容">
+                <BilingualShortField field="name" label="方案名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                <BilingualTextareaField field="content" label="方案內容" :zh="form.contentZh" :en="form.contentEn" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
+                <BilingualTextareaField field="benefit" label="權益清單" :zh="form.benefitZh" :en="form.benefitEn" :rows="5" placeholder="一行寫一項權益" @update:zh="(v) => (form.benefitZh = v)" @update:en="(v) => (form.benefitEn = v)" />
+                <BilingualShortField field="audience" label="適合對象" :zh="form.audienceZh" :en="form.audienceEn" @update:zh="(v) => (form.audienceZh = v)" @update:en="(v) => (form.audienceEn = v)" />
+              </el-card>
+              <el-card shadow="never" header="價格與發布">
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12"><FormField field="priceMin" label="價格下限（元）"><el-input-number v-model="form.priceMin" :min="0" :controls="false" style="width: 100%" @change="formErrors.clear('priceMax')" /></FormField></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="priceMax" label="價格上限（元）"><el-input-number v-model="form.priceMax" :min="0" :controls="false" style="width: 100%" @change="formErrors.clear('priceMax')" /></FormField></el-col>
+                </el-row>
+                <el-form-item label="是否公開價格">
+                  <el-switch v-model="form.isPricePublic" active-text="前台顯示價格區間" inactive-text="前台不顯示價格" />
+                </el-form-item>
+                <FormField field="status" label="狀態">
+                  <el-radio-group v-model="form.status">
+                    <el-radio value="draft">草稿（前台不顯示）</el-radio>
+                    <el-radio value="published">已發布</el-radio>
+                  </el-radio-group>
+                </FormField>
+                <el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.package-edit { max-width: 780px; margin: 0 auto 88px; }
+.package-edit { max-width: 780px; margin: 0 auto; }
 .package-edit__block { margin-bottom: 16px; }
 </style>

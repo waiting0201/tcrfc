@@ -11,6 +11,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
+import BilingualShortField from '@/components/BilingualShortField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import {
@@ -80,6 +84,8 @@ interface TeamDraft {
 }
 const teamDrafts = ref<TeamDraft[]>([])
 const savingTeams = ref(false)
+/** 欄位錯誤（隊別分類的後端驗證、類型對話框共用同一份；鍵各自不重複）。 */
+const formErrors = provideFormErrors()
 
 function applySettings(s: CalendarSettingsDto) {
   settings.value = s
@@ -158,8 +164,11 @@ async function saveTeams() {
       })),
     )
     applySettings(result)
+    formErrors.clearAll()
     ElMessage.success('已儲存')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才用提示訊息
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     ElMessage.error(error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試')
   } finally {
     savingTeams.value = false
@@ -186,14 +195,25 @@ function openTypeDialog(row?: AdminEventTypeDto) {
   typeForm.isPublic = row?.isPublic ?? true
   typeForm.sortOrder = row?.sortOrder ?? eventTypes.value.length
   typeError.value = null
+  formErrors.clearAll()
   typeDialog.value = true
+}
+
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validateType(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!typeEditingId.value && !/^[a-z][a-z0-9_-]*$/.test(typeForm.code)) {
+    errors.code = '類型代碼要以小寫英文字母開頭，只能用小寫英數、底線與連字號'
+  }
+  if (!typeForm.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  return errors
 }
 
 async function saveType() {
   typeError.value = null
-  if (!typeForm.nameZh.trim()) return void (typeError.value = '請輸入中文名稱')
-  if (!typeEditingId.value && !/^[a-z][a-z0-9_-]*$/.test(typeForm.code)) {
-    return void (typeError.value = '類型代碼要以小寫英文字母開頭，只能用小寫英數、底線與連字號')
+  if (formErrors.replaceAll(validateType())) {
+    await formErrors.focusFirst()
+    return
   }
   typeSaving.value = true
   try {
@@ -212,6 +232,7 @@ async function saveType() {
     ElMessage.success('已儲存')
     await load()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     typeError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     typeSaving.value = false
@@ -273,41 +294,41 @@ async function moveType(index: number, delta: -1 | 1) {
           <el-form label-position="top" :disabled="!canUpdate" class="calendar-categories__form">
             <el-row :gutter="16">
               <el-col :xs="24" :sm="12">
-                <el-form-item label="行事曆預設檢視">
+                <FormField field="defaultView" label="行事曆預設檢視">
                   <el-radio-group v-model="display.defaultView">
                     <el-radio-button v-for="o in VIEW_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-radio-button>
                   </el-radio-group>
-                </el-form-item>
+                </FormField>
               </el-col>
               <el-col :xs="24" :sm="12">
-                <el-form-item label="預設顯示範圍">
+                <FormField field="defaultRange" label="預設顯示範圍">
                   <el-select v-model="display.defaultRange" style="width: 100%">
                     <el-option v-for="o in RANGE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
                   </el-select>
-                </el-form-item>
+                </FormField>
               </el-col>
               <el-col :xs="24" :sm="12">
-                <el-form-item label="預設顯示的球隊">
+                <FormField field="defaultTeamCode" label="預設顯示的球隊">
                   <el-select v-model="display.defaultTeamCode" style="width: 100%">
                     <el-option label="全部球隊" value="all" />
                     <el-option v-for="t in teamOptions" :key="t.code" :label="t.label" :value="t.code" />
                   </el-select>
-                </el-form-item>
+                </FormField>
               </el-col>
               <el-col :xs="24" :sm="12">
-                <el-form-item label="一線隊頁面固定顯示的球隊">
+                <FormField field="firstTeamCode" label="一線隊頁面固定顯示的球隊">
                   <el-select v-model="display.firstTeamCode" clearable placeholder="不指定" style="width: 100%">
                     <el-option v-for="t in teamOptions" :key="t.code" :label="t.label" :value="t.code" />
                   </el-select>
                   <p class="calendar-categories__hint">各梯隊頁面會自動顯示自己那一隊，不需要設定。</p>
-                </el-form-item>
+                </FormField>
               </el-col>
             </el-row>
-            <el-form-item label="首頁近期賽事顯示哪些球隊">
+            <FormField field="homeTeamCodes" label="首頁近期賽事顯示哪些球隊">
               <el-select v-model="display.homeTeamCodes" multiple clearable placeholder="不選＝顯示全部公開的球隊" style="width: 100%">
                 <el-option v-for="t in teamOptions" :key="t.code" :label="t.label" :value="t.code" />
               </el-select>
-            </el-form-item>
+            </FormField>
             <el-form-item label="試訓是否同步到行事曆">
               <el-switch v-model="display.syncTrials" active-text="同步" inactive-text="不同步" />
               <p class="calendar-categories__hint">
@@ -325,37 +346,48 @@ async function moveType(index: number, delta: -1 | 1) {
             關閉「前台選單顯示」的球隊不會出現在前台選單，它的行事曆訂閱連結也會失效。
           </p>
           <el-empty v-if="teamDrafts.length === 0" description="這個俱樂部還沒有球隊" />
-          <div v-else class="calendar-categories__team-grid">
-            <el-card v-for="t in teamDrafts" :key="t.teamId" shadow="never" class="calendar-categories__team-card">
-              <div class="calendar-categories__team-title">
-                <span class="calendar-categories__dot" :style="{ background: t.colour || t.effectiveColour || 'var(--admin-text-tertiary)' }" />
-                {{ t.teamNameZh }}
-              </div>
-              <el-form label-position="top" :disabled="!canUpdate">
-                <el-form-item label="前台顯示名稱（中文）">
-                  <el-input v-model="t.displayNameZh" :placeholder="t.teamNameZh" maxlength="64" />
-                </el-form-item>
-                <el-form-item label="前台顯示名稱（英文）"><el-input v-model="t.displayNameEn" maxlength="64" /></el-form-item>
-                <el-row :gutter="12">
-                  <el-col :span="12">
-                    <el-form-item label="代表色">
-                      <el-color-picker v-model="t.colour" color-format="hex" />
-                      <el-button v-if="t.colour" size="small" text @click="t.colour = null">沿用球隊設定</el-button>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="排序值">
-                      <el-input-number v-model="t.sortOrder" :min="0" controls-position="right" style="width: 100%" />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-                <el-form-item>
-                  <el-switch v-model="t.isPublic" active-text="前台選單顯示" inactive-text="不公開" />
-                </el-form-item>
-              </el-form>
-            </el-card>
-          </div>
-          <el-button v-if="canUpdate && teamDrafts.length > 0" type="primary" :loading="savingTeams" @click="saveTeams">儲存隊別分類</el-button>
+          <LangTabsBar v-else>
+            <div class="calendar-categories__team-grid">
+              <el-card v-for="(t, i) in teamDrafts" :key="t.teamId" shadow="never" class="calendar-categories__team-card">
+                <FormField :field="`teams[${i}].teamId`" style="margin-bottom: 0">
+                  <div class="calendar-categories__team-title">
+                    <span class="calendar-categories__dot" :style="{ background: t.colour || t.effectiveColour || 'var(--admin-text-tertiary)' }" />
+                    {{ t.teamNameZh }}
+                  </div>
+                </FormField>
+                <el-form label-position="top" :disabled="!canUpdate">
+                  <BilingualShortField
+                    :field-zh="`teams[${i}].displayNameZh`"
+                    :field-en="`teams[${i}].displayNameEn`"
+                    label="前台顯示名稱"
+                    :zh="t.displayNameZh"
+                    :en="t.displayNameEn"
+                    :maxlength="64"
+                    placeholder="留空沿用球隊本身的名稱"
+                    @update:zh="(v) => (t.displayNameZh = v)"
+                    @update:en="(v) => (t.displayNameEn = v)"
+                  />
+                  <el-row :gutter="12">
+                    <el-col :span="12">
+                      <FormField :field="`teams[${i}].colour`" label="代表色">
+                        <el-color-picker v-model="t.colour" color-format="hex" />
+                        <el-button v-if="t.colour" size="small" text @click="t.colour = null">沿用球隊設定</el-button>
+                      </FormField>
+                    </el-col>
+                    <el-col :span="12">
+                      <FormField :field="`teams[${i}].sortOrder`" label="排序值">
+                        <el-input-number v-model="t.sortOrder" :min="0" controls-position="right" style="width: 100%" />
+                      </FormField>
+                    </el-col>
+                  </el-row>
+                  <el-form-item>
+                    <el-switch v-model="t.isPublic" active-text="前台選單顯示" inactive-text="不公開" />
+                  </el-form-item>
+                </el-form>
+              </el-card>
+            </div>
+            <el-button v-if="canUpdate" type="primary" :loading="savingTeams" @click="saveTeams">儲存隊別分類</el-button>
+          </LangTabsBar>
         </el-tab-pane>
 
         <!-- 類型 -->
@@ -432,25 +464,35 @@ async function moveType(index: number, delta: -1 | 1) {
     <el-dialog v-model="typeDialog" :title="typeEditingId ? '編輯類型' : '新增類型'" width="480px" :close-on-click-modal="false">
       <el-alert v-if="typeError" :title="typeError" type="warning" show-icon :closable="false" class="calendar-categories__alert" />
       <el-form label-position="top">
-        <el-form-item label="類型代碼（全站不可重複，建立後不能修改）">
-          <el-input v-model="typeForm.code" :disabled="!!typeEditingId" maxlength="32" placeholder="例如 fan-day" />
-        </el-form-item>
-        <el-form-item label="中文名稱" required><el-input v-model="typeForm.nameZh" maxlength="64" /></el-form-item>
-        <el-form-item label="英文名稱"><el-input v-model="typeForm.nameEn" maxlength="64" /></el-form-item>
-        <el-row :gutter="12">
-          <el-col :span="12">
-            <el-form-item label="顏色"><el-color-picker v-model="typeForm.colour" color-format="hex" /></el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="排序值"><el-input-number v-model="typeForm.sortOrder" :min="0" controls-position="right" style="width: 100%" /></el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="圖示">
-          <el-select v-model="typeForm.icon" clearable placeholder="不使用圖示" style="width: 100%">
-            <el-option v-for="i in icons" :key="i.code" :label="i.label" :value="i.code" />
-          </el-select>
-        </el-form-item>
-        <el-form-item><el-switch v-model="typeForm.isPublic" active-text="前台公開" inactive-text="不公開" /></el-form-item>
+        <LangTabsBar variant="bare">
+          <FormField field="code" label="類型代碼（全站不可重複，建立後不能修改）">
+            <el-input v-model="typeForm.code" :disabled="!!typeEditingId" maxlength="32" placeholder="例如 fan-day" />
+          </FormField>
+          <BilingualShortField
+            field="name"
+            label="名稱"
+            required
+            :zh="typeForm.nameZh"
+            :en="typeForm.nameEn"
+            :maxlength="64"
+            @update:zh="(v) => (typeForm.nameZh = v)"
+            @update:en="(v) => (typeForm.nameEn = v)"
+          />
+          <el-row :gutter="12">
+            <el-col :span="12">
+              <FormField field="colour" label="顏色"><el-color-picker v-model="typeForm.colour" color-format="hex" /></FormField>
+            </el-col>
+            <el-col :span="12">
+              <FormField field="sortOrder" label="排序值"><el-input-number v-model="typeForm.sortOrder" :min="0" controls-position="right" style="width: 100%" /></FormField>
+            </el-col>
+          </el-row>
+          <FormField field="icon" label="圖示">
+            <el-select v-model="typeForm.icon" clearable placeholder="不使用圖示" style="width: 100%">
+              <el-option v-for="i in icons" :key="i.code" :label="i.label" :value="i.code" />
+            </el-select>
+          </FormField>
+          <el-form-item><el-switch v-model="typeForm.isPublic" active-text="前台公開" inactive-text="不公開" /></el-form-item>
+        </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button :disabled="typeSaving" @click="typeDialog = false">取消</el-button>

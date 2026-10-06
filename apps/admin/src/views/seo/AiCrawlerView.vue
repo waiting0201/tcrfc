@@ -11,7 +11,11 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import {
@@ -34,7 +38,9 @@ const additionalPaths = reactive<{ value: string }[]>([])
 const mandatoryPaths = ref<string[]>([])
 const baselineJson = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 function snapshot() {
   return JSON.stringify({ agents, additionalPaths: additionalPaths.map((p) => p.value) })
@@ -45,6 +51,7 @@ function applyLoaded(dto: AdminCrawlerSettingsDto) {
   additionalPaths.splice(0, additionalPaths.length, ...dto.additionalExcludePaths.map((p) => ({ value: p })))
   mandatoryPaths.value = dto.mandatoryExcludePaths
   baselineJson.value = snapshot()
+  formErrors.clearAll()
 }
 
 async function loadSettings() {
@@ -66,68 +73,61 @@ const isDirty = computed(() => loadState.value === 'ready' && snapshot() !== bas
 useUnsavedChanges(isDirty)
 
 function addAgent() {
+  formErrors.clearAll()
   agents.push({ userAgent: '', allowed: true })
 }
 
 function removeAgent(index: number) {
+  formErrors.clearAll()
   agents.splice(index, 1)
 }
 
 function addPath() {
+  formErrors.clearAll()
   additionalPaths.push({ value: '' })
 }
 
 function removePath(index: number) {
+  formErrors.clearAll()
   additionalPaths.splice(index, 1)
 }
 
-function validate(): boolean {
-  formError.value = null
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
 
   const seenAgents = new Set<string>()
-  for (const agent of agents) {
+  agents.forEach((agent, index) => {
+    const key = `userAgents[${index}].userAgent`
     const name = agent.userAgent.trim()
     if (!name) {
-      formError.value = 'AI 服務名稱不能留空，請刪除空白列或填入名稱'
-      return false
+      errors[key] = 'AI 服務名稱不能留空，請刪除空白列或填入名稱'
+    } else if (!USER_AGENT_PATTERN.test(name)) {
+      errors[key] = `「${name}」格式不正確，只能包含英數字、句點、連字號或底線`
+    } else if (seenAgents.has(name.toLowerCase())) {
+      errors[key] = `「${name}」重複，同一份清單不能有兩筆相同的名稱`
+    } else {
+      seenAgents.add(name.toLowerCase())
     }
-    if (!USER_AGENT_PATTERN.test(name)) {
-      formError.value = `「${name}」格式不正確，只能包含英數字、句點、連字號或底線`
-      return false
-    }
-    const key = name.toLowerCase()
-    if (seenAgents.has(key)) {
-      formError.value = `「${name}」重複，同一份清單不能有兩筆相同的名稱`
-      return false
-    }
-    seenAgents.add(key)
-  }
+  })
 
-  for (const path of additionalPaths) {
+  additionalPaths.forEach((path, index) => {
+    const key = `additionalExcludePaths[${index}]`
     const value = path.value.trim()
-    if (!value) {
-      formError.value = '排除路徑不能留空，請刪除空白列或填入路徑'
-      return false
-    }
-    if (!value.startsWith('/')) {
-      formError.value = `「${value}」必須以「/」開頭`
-      return false
-    }
-    if (!value.endsWith('/')) {
-      formError.value = `「${value}」必須以「/」結尾（僅接受目錄前綴）`
-      return false
-    }
-    if (/\s/.test(value)) {
-      formError.value = `「${value}」不能包含空白字元`
-      return false
-    }
-  }
+    if (!value) errors[key] = '排除路徑不能留空，請刪除空白列或填入路徑'
+    else if (!value.startsWith('/')) errors[key] = `「${value}」必須以「/」開頭`
+    else if (!value.endsWith('/')) errors[key] = `「${value}」必須以「/」結尾（僅接受目錄前綴）`
+    else if (/\s/.test(value)) errors[key] = `「${value}」不能包含空白字元`
+  })
 
-  return true
+  return errors
 }
 
 async function handleSave() {
-  if (!validate()) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const saved = await updateAdminCrawlerSettings(club.value, {
@@ -137,6 +137,7 @@ async function handleSave() {
     applyLoaded(saved)
     ElMessage.success('已儲存')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -182,7 +183,9 @@ async function handleSave() {
         </p>
         <div v-if="agents.length > 0" class="ai-crawler__agent-list">
           <div v-for="(agent, index) in agents" :key="index" class="ai-crawler__agent-row">
-            <el-input v-model="agent.userAgent" placeholder="例如：GPTBot" class="ai-crawler__agent-name" />
+            <FormField :field="`userAgents[${index}].userAgent`" class="ai-crawler__agent-name">
+              <el-input v-model="agent.userAgent" placeholder="例如：GPTBot" />
+            </FormField>
             <div class="ai-crawler__agent-toggle">
               <el-switch v-model="agent.allowed" active-text="允許" inactive-text="拒絕" inline-prompt />
             </div>
@@ -199,7 +202,9 @@ async function handleSave() {
         </p>
         <div v-if="additionalPaths.length > 0" class="ai-crawler__path-list">
           <div v-for="(path, index) in additionalPaths" :key="index" class="ai-crawler__path-row">
-            <el-input v-model="path.value" placeholder="例如：/zh/private-event/" class="ai-crawler__path-input" />
+            <FormField :field="`additionalExcludePaths[${index}]`" class="ai-crawler__path-input">
+              <el-input v-model="path.value" placeholder="例如：/zh/private-event/" />
+            </FormField>
             <el-button text type="danger" @click="removePath(index)">刪除</el-button>
           </div>
         </div>
@@ -218,9 +223,10 @@ async function handleSave() {
         </div>
       </el-card>
 
-      <div class="ai-crawler__actions">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -257,11 +263,17 @@ async function handleSave() {
 .ai-crawler__agent-row,
 .ai-crawler__path-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
+.ai-crawler__agent-row :deep(.el-form-item),
+.ai-crawler__path-row :deep(.el-form-item) {
+  margin-bottom: 0;
+}
+
 .ai-crawler__agent-name {
+  flex: 1;
   max-width: 260px;
 }
 
@@ -270,7 +282,10 @@ async function handleSave() {
 }
 
 .ai-crawler__agent-toggle {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
+  min-height: 32px;
 }
 
 .ai-crawler__add-button {
@@ -285,9 +300,5 @@ async function handleSave() {
 
 .ai-crawler__mandatory-tag {
   font-family: var(--admin-font-mono, monospace);
-}
-
-.ai-crawler__actions {
-  margin-top: 16px;
 }
 </style>

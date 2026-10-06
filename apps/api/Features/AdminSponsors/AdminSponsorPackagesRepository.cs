@@ -23,7 +23,7 @@ public sealed class AdminSponsorPackagesRepository(ClubDbContext dbContext, IQue
         var query = dbContext.SponsorPackages.AsNoTracking().Where(p => p.ClubId == scope.ClubId);
         if (!string.IsNullOrWhiteSpace(status))
         {
-            AdminInput.OneOf(status, Statuses, "狀態", "「draft」或「published」");
+            AdminInput.OneOf(status, Statuses, "狀態", "「草稿」或「顯示」");
             query = query.Where(p => p.Status == status);
         }
 
@@ -147,22 +147,22 @@ public sealed class AdminSponsorPackagesRepository(ClubDbContext dbContext, IQue
     private static string? Validate(UpsertAdminSponsorPackageRequest request)
     {
         var slug = string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
-        AdminInput.OneOf(request.Status, Statuses, "狀態", "「draft」（不顯示）或「published」（顯示）");
-        AdminInput.OptionalNonNegative(request.PriceMin, "價格下限");
-        AdminInput.OptionalNonNegative(request.PriceMax, "價格上限");
+        AdminInput.OneOf(request.Status, Statuses, "狀態", "「草稿（不顯示）」或「顯示」", "status");
+        AdminInput.OptionalNonNegative(request.PriceMin, "價格下限", "priceMin");
+        AdminInput.OptionalNonNegative(request.PriceMax, "價格上限", "priceMax");
         if (request.PriceMin is not null && request.PriceMax is not null && request.PriceMax < request.PriceMin)
         {
-            throw new AdminValidationException("價格上限不可低於價格下限。");
+            throw new AdminValidationException("價格上限不可低於價格下限。", "priceMax");
         }
 
-        AdminInput.RequireText(request.Content.Zh.Name, "中文名稱", 128);
+        AdminInput.RequireText(request.Content.Zh.Name, "中文名稱", 128, "nameZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
-            AdminInput.RequireText(request.Content.En.Name, "英文名稱", 128);
+            AdminInput.RequireText(request.Content.En.Name, "英文名稱", 128, "nameEn");
         }
 
-        AdminInput.OptionalText(request.Content.Zh.Audience, "適合對象", 128);
-        AdminInput.OptionalText(request.Content.En?.Audience, "適合對象（英文）", 128);
+        AdminInput.OptionalText(request.Content.Zh.Audience, "適合對象", 128, "audienceZh");
+        AdminInput.OptionalText(request.Content.En?.Audience, "適合對象（英文）", 128, "audienceEn");
         return slug;
     }
 
@@ -210,7 +210,7 @@ public sealed class AdminSponsorPackagesRepository(ClubDbContext dbContext, IQue
         if (await dbContext.SponsorPackages.AsNoTracking().AnyAsync(
                 p => p.ClubId == scope.ClubId && p.Slug == slug && p.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他贊助方案使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他贊助方案使用，請換一個。", "slug");
         }
     }
 

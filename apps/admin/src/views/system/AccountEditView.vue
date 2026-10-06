@@ -12,7 +12,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import FormField from '@/components/FormField.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import {
   createAdminAccount,
@@ -65,7 +67,9 @@ const roles = ref<AdminRoleListItemDto[]>([])
 const loadState = ref<'loading' | 'ready' | 'error'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 async function loadReferenceData() {
   const [clubList, roleList] = await Promise.all([listAdminClubs(), listAdminRoles()])
@@ -103,25 +107,20 @@ useUnsavedChanges(isDirty)
 
 const pageTitle = computed(() => (isCreate.value ? '新增帳號' : `編輯帳號：${form.username}`))
 
-function validate(): boolean {
-  formError.value = null
-  if (isCreate.value && !form.username.trim()) {
-    formError.value = '請輸入帳號'
-    return false
-  }
-  if (!form.displayName.trim()) {
-    formError.value = '請輸入姓名'
-    return false
-  }
-  if (isCreate.value && form.initialPassword.length < 9) {
-    formError.value = '初始密碼長度至少需要 9 個字元'
-    return false
-  }
-  return true
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (isCreate.value && !form.username.trim()) errors.username = '請輸入帳號'
+  if (!form.displayName.trim()) errors.displayName = '請輸入姓名'
+  if (isCreate.value && form.initialPassword.length < 9) errors.initialPassword = '初始密碼長度至少需要 9 個字元'
+  return errors
 }
 
 async function handleSave() {
-  if (!validate()) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     if (isCreate.value) {
@@ -152,6 +151,7 @@ async function handleSave() {
       baselineJson.value = JSON.stringify(form)
     }
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     if (error instanceof AdminApiError && error.kind === 'validation') {
       formError.value = error.message
     } else if (error instanceof AdminApiError && error.kind === 'unknown') {
@@ -234,8 +234,8 @@ async function loadClubGrants() {
 }
 
 async function submitClubGrant() {
-  if (!newClubGrant.clubId) {
-    ElMessage.warning('請選擇要授權的俱樂部')
+  if (formErrors.replaceAll(newClubGrant.clubId ? {} : { clubGrantClubId: '請選擇要授權的俱樂部' })) {
+    await formErrors.focusFirst()
     return
   }
   clubGrantSubmitting.value = true
@@ -249,6 +249,7 @@ async function submitClubGrant() {
     newClubGrant.expiresOn = ''
     await loadClubGrants()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     ElMessage.error(error instanceof AdminApiError ? error.message : '新增失敗，請稍後再試')
   } finally {
     clubGrantSubmitting.value = false
@@ -320,8 +321,8 @@ async function loadTeamGrants() {
 }
 
 async function submitTeamGrant() {
-  if (!newTeamGrant.teamId) {
-    ElMessage.warning('請選擇要授權的球隊')
+  if (formErrors.replaceAll(newTeamGrant.teamId ? {} : { teamGrantTeamId: '請選擇要授權的球隊' })) {
+    await formErrors.focusFirst()
     return
   }
   teamGrantSubmitting.value = true
@@ -335,6 +336,7 @@ async function submitTeamGrant() {
     newTeamGrant.expiresOn = ''
     await loadTeamGrants()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     ElMessage.error(error instanceof AdminApiError ? error.message : '新增失敗，請稍後再試（請確認這個帳號已被授權該球隊所屬的俱樂部）')
   } finally {
     teamGrantSubmitting.value = false
@@ -402,32 +404,32 @@ function handleBack() {
 
       <el-card shadow="never" header="基本資料" class="account-edit__section">
         <el-form label-position="top">
-          <el-form-item label="帳號" required>
+          <FormField field="username" label="帳號" required>
             <el-input v-model="form.username" :disabled="!isCreate" placeholder="登入用帳號，可用中文，不含空白，最多 64 字；建立後不可修改" />
-          </el-form-item>
-          <el-form-item label="姓名" required>
+          </FormField>
+          <FormField field="displayName" label="姓名" required>
             <el-input v-model="form.displayName" />
-          </el-form-item>
+          </FormField>
           <el-form-item label="Email">
             <el-input v-model="form.email" placeholder="選填" />
           </el-form-item>
-          <el-form-item label="預設俱樂部">
+          <FormField field="primaryClubId" label="預設俱樂部">
             <el-select v-model="form.primaryClubId" placeholder="登入後站台切換器的初始站台（選填）" clearable style="width: 100%">
               <el-option v-for="club in clubs" :key="club.id" :label="club.nameZh ?? club.code" :value="club.id" />
             </el-select>
-          </el-form-item>
-          <el-form-item v-if="isCreate" label="初始密碼" required>
+          </FormField>
+          <FormField v-if="isCreate" field="initialPassword" label="初始密碼" required>
             <el-input v-model="form.initialPassword" type="password" show-password placeholder="至少 9 個字元，建立後請透過站外管道轉交" />
-          </el-form-item>
+          </FormField>
           <el-form-item label="系統管理員">
             <el-switch v-model="form.isSuperAdmin" />
             <span class="account-edit__hint">系統管理員可存取全部俱樂部與全部模組，跳過角色權限檢查</span>
           </el-form-item>
-          <el-form-item label="角色">
-            <el-select v-model="form.roleCodes" multiple placeholder="請選擇角色" style="width: 100%">
+          <FormField field="roleCodes" label="角色">
+            <el-select v-model="form.roleCodes" multiple placeholder="請選擇角色" style="width: 100%" @change="formErrors.clear('roleCodes')">
               <el-option v-for="role in roles" :key="role.code" :label="role.nameZh" :value="role.code" />
             </el-select>
-          </el-form-item>
+          </FormField>
         </el-form>
         <div class="account-edit__actions">
           <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
@@ -461,10 +463,14 @@ function handleBack() {
           </el-table-column>
         </el-table>
         <div class="account-edit__grant-form">
-          <el-select v-model="newClubGrant.clubId" placeholder="選擇俱樂部" style="width: 200px">
-            <el-option v-for="club in clubs" :key="club.id" :label="club.nameZh ?? club.code" :value="club.id" />
-          </el-select>
-          <el-date-picker v-model="newClubGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填，無期限請留空）" />
+          <FormField field="clubGrantClubId" class="account-edit__grant-field">
+            <el-select v-model="newClubGrant.clubId" placeholder="選擇俱樂部" style="width: 200px" @change="formErrors.clear('clubGrantClubId')">
+              <el-option v-for="club in clubs" :key="club.id" :label="club.nameZh ?? club.code" :value="club.id" />
+            </el-select>
+          </FormField>
+          <FormField field="clubGrantExpiresOn" class="account-edit__grant-field">
+            <el-date-picker v-model="newClubGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填，無期限請留空）" @change="formErrors.clear('clubGrantExpiresOn')" />
+          </FormField>
           <el-button type="primary" :loading="clubGrantSubmitting" @click="submitClubGrant">新增授權</el-button>
         </div>
       </el-card>
@@ -495,12 +501,16 @@ function handleBack() {
         </template>
         <template v-else>
           <div class="account-edit__grant-form">
-            <el-select v-model="newTeamGrant.teamId" placeholder="選擇球隊" filterable style="width: 260px" :no-data-text="teamsLoadError ?? '目前已授權的俱樂部底下還沒有任何球隊'">
-              <el-option-group v-for="group in selectableTeamGroups" :key="group.clubCode" :label="group.clubNameZh ?? group.clubCode">
-                <el-option v-for="team in group.teams" :key="team.id" :label="teamOptionLabel(team)" :value="team.id" />
-              </el-option-group>
-            </el-select>
-            <el-date-picker v-model="newTeamGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填）" />
+            <FormField field="teamGrantTeamId" class="account-edit__grant-field">
+              <el-select v-model="newTeamGrant.teamId" placeholder="選擇球隊" filterable style="width: 260px" :no-data-text="teamsLoadError ?? '目前已授權的俱樂部底下還沒有任何球隊'" @change="formErrors.clear('teamGrantTeamId')">
+                <el-option-group v-for="group in selectableTeamGroups" :key="group.clubCode" :label="group.clubNameZh ?? group.clubCode">
+                  <el-option v-for="team in group.teams" :key="team.id" :label="teamOptionLabel(team)" :value="team.id" />
+                </el-option-group>
+              </el-select>
+            </FormField>
+            <FormField field="teamGrantExpiresOn" class="account-edit__grant-field">
+              <el-date-picker v-model="newTeamGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填）" @change="formErrors.clear('teamGrantExpiresOn')" />
+            </FormField>
             <el-button type="primary" :loading="teamGrantSubmitting" @click="submitTeamGrant">新增授權</el-button>
           </div>
           <p v-if="teamsLoadError" class="account-edit__note">{{ teamsLoadError }}</p>
@@ -540,7 +550,11 @@ function handleBack() {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
+}
+
+.account-edit__grant-field {
+  margin-bottom: 0;
 }
 
 .account-edit__note {

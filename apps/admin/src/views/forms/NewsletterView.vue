@@ -29,6 +29,10 @@ import {
   type SubscriberDto,
 } from '@/api/adminNewsletter'
 import { formatDateTime } from '@/utils/dateTime'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const { breakpoint } = useBreakpoint()
 const isMobile = computed(() => breakpoint.value === 'mobile')
@@ -129,6 +133,7 @@ const addError = ref<string | null>(null)
 function openAdd() {
   Object.assign(addForm, { email: '', source: '' })
   addError.value = null
+  formErrors.clearAll()
   addVisible.value = true
 }
 async function submitAdd() {
@@ -139,12 +144,14 @@ async function submitAdd() {
   }
   addSaving.value = true
   addError.value = null
+  formErrors.clearAll()
   try {
     await addSubscriber(club.value, { email, source: addForm.source.trim() || undefined })
     ElMessage.success('已加入訂閱名單')
     addVisible.value = false
     refreshAll()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     addError.value = errText(e, '新增失敗，請稍後再試')
   } finally {
     addSaving.value = false
@@ -175,6 +182,7 @@ function openResub(row: SubscriberDto) {
   resubTarget.value = row
   resubReason.value = ''
   resubError.value = null
+  formErrors.clearAll()
   resubVisible.value = true
 }
 async function submitResub() {
@@ -190,6 +198,7 @@ async function submitResub() {
     resubVisible.value = false
     refreshAll()
   } catch (e) {
+    if (e instanceof AdminApiError && formErrors.applyApiError(e)) return
     resubError.value = errText(e, '操作失敗，請稍後再試')
   } finally {
     resubSaving.value = false
@@ -323,8 +332,8 @@ const statusTagType = (s: string) => (s === 'subscribed' ? 'success' : 'info')
     <el-dialog v-model="addVisible" title="新增訂閱者" width="420px" :fullscreen="isMobile" :close-on-click-modal="false">
       <el-alert v-if="addError" type="error" show-icon :closable="false" :title="addError" class="newsletter__block" />
       <el-form label-position="top" @submit.prevent="submitAdd">
-        <el-form-item label="Email" required><el-input v-model="addForm.email" placeholder="name@example.com" /></el-form-item>
-        <el-form-item label="來源（選填）"><el-input v-model="addForm.source" maxlength="50" placeholder="沒填會記為「後台新增」" /></el-form-item>
+        <FormField field="email" label="Email" required><el-input v-model="addForm.email" placeholder="name@example.com" /></FormField>
+        <FormField field="source" label="來源（選填）"><el-input v-model="addForm.source" maxlength="50" placeholder="沒填會記為「後台新增」" /></FormField>
       </el-form>
       <p class="newsletter__hint">已經在名單中的 Email 不能重複加入；曾經退訂的人不能由後台直接加回，需由本人重新訂閱。</p>
       <template #footer>
@@ -336,7 +345,7 @@ const statusTagType = (s: string) => (s === 'subscribed' ? 'success' : 'info')
     <el-dialog v-model="resubVisible" title="改回訂閱" width="440px" :fullscreen="isMobile" :close-on-click-modal="false">
       <p class="newsletter__hint">「{{ resubTarget?.email }}」已經退訂。只有訂閱者本人要求時才能改回訂閱，請寫下說明；系統會留下紀錄。</p>
       <el-alert v-if="resubError" type="error" show-icon :closable="false" :title="resubError" class="newsletter__block" />
-      <el-form label-position="top"><el-form-item label="說明（必填）" required><el-input v-model="resubReason" type="textarea" :rows="3" maxlength="200" show-word-limit /></el-form-item></el-form>
+      <el-form label-position="top"><FormField field="reason" label="說明（必填）" required><el-input v-model="resubReason" type="textarea" :rows="3" maxlength="200" show-word-limit /></FormField></el-form>
       <template #footer>
         <el-button @click="resubVisible = false">取消</el-button>
         <el-button type="primary" :loading="resubSaving" @click="submitResub">確認改回訂閱</el-button>

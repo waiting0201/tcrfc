@@ -5,7 +5,7 @@
  * 「由地址定位」比照特約店家（`PartnerStoreEditView`）：只把結果填進欄位供人工確認，不寫入；
  * 503 依 `code` 區分——`geocoder_unavailable`＝暫時故障（可再試）、其他＝服務尚未啟用（停用按鈕）。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -14,6 +14,11 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -60,7 +65,11 @@ const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
 const deleting = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除照片就清掉該欄位的錯誤
+watch([photoFile, removePhoto], () => formErrors.clear('photo'))
 
 const locating = ref(false)
 /** 後端 503 且不是暫時故障＝定位服務尚未啟用：按鈕停用並說明。 */
@@ -148,22 +157,18 @@ function blankToNull(value: string): string | null {
   return v ? v : null
 }
 
-function validate(): boolean {
-  if (!form.nameZh.trim()) {
-    formError.value = '請填寫場地的中文名稱。'
-    return false
-  }
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請填寫場地的中文名稱。'
   if ((form.lat === null) !== (form.lng === null)) {
-    formError.value = '緯度與經度要一起填寫，或一起留空。'
-    return false
+    errors[form.lat === null ? 'lat' : 'lng'] = '緯度與經度要一起填寫，或一起留空。'
   }
   const enFilled = [form.addressEn, form.directionsEn, form.photoAltEn].some((v) => v.trim())
   if (!form.nameEn.trim() && enFilled) {
-    formError.value = '有填英文內容時，請一併填寫英文名稱；英文名稱留空會刪除整份英文版。'
-    return false
+    errors.nameEn = '有填英文內容時，請一併填寫英文名稱；英文名稱留空會刪除整份英文版。'
   }
-  formError.value = null
-  return true
+  return errors
 }
 
 function buildPayload(): SaveVenuePayload {
@@ -191,9 +196,13 @@ function buildPayload(): SaveVenuePayload {
 }
 
 async function handleSave() {
-  if (readOnly.value || !validate()) return
-  saving.value = true
+  if (readOnly.value) return
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     const saved = isCreate.value
       ? await createAdminVenue(activeClubId.value, buildPayload(), photoFile.value)
@@ -208,6 +217,7 @@ async function handleSave() {
     baselineJson.value = JSON.stringify(form)
     ElMessage.success('已儲存')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -283,59 +293,71 @@ const backToList = () => router.push('/settings/venues')
         class="venue-edit__error"
       />
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="基本資料" class="venue-edit__section">
-          <BilingualShortField label="場地名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-          <BilingualShortField label="地址" :zh="form.addressZh" :en="form.addressEn" @update:zh="(v) => (form.addressZh = v)" @update:en="(v) => (form.addressEn = v)" />
-          <BilingualTextareaField label="交通說明" :zh="form.directionsZh" :en="form.directionsEn" @update:zh="(v) => (form.directionsZh = v)" @update:en="(v) => (form.directionsEn = v)" />
-          <el-form-item label="排序值">
-            <el-input-number v-model="form.sortOrder" :min="0" />
-            <p class="venue-edit__hint">數字小的排前面。</p>
-          </el-form-item>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="基本資料">
+                <BilingualShortField field="name" label="場地名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                <BilingualShortField field="address" label="地址" :zh="form.addressZh" :en="form.addressEn" @update:zh="(v) => (form.addressZh = v)" @update:en="(v) => (form.addressEn = v)" />
+                <BilingualTextareaField field="directions" label="交通說明" :zh="form.directionsZh" :en="form.directionsEn" @update:zh="(v) => (form.directionsZh = v)" @update:en="(v) => (form.directionsEn = v)" />
+                <FormField field="sortOrder" label="排序值">
+                  <el-input-number v-model="form.sortOrder" :min="0" />
+                  <p class="venue-edit__hint">數字小的排前面。</p>
+                </FormField>
+              </el-card>
 
-        <el-card shadow="never" header="地圖座標" class="venue-edit__section">
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="緯度（-90 到 90）"><el-input-number v-model="form.lat" :controls="false" :precision="6" :min="-90" :max="90" :value-on-clear="null" style="width: 100%" placeholder="例如 24.1477" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="經度（-180 到 180）"><el-input-number v-model="form.lng" :controls="false" :precision="6" :min="-180" :max="180" :value-on-clear="null" style="width: 100%" placeholder="例如 120.6736" /></el-form-item>
-            </el-col>
-          </el-row>
-          <div class="venue-edit__locate">
-            <el-button size="small" :loading="locating" :disabled="!canLocate" @click="handleLocate">由地址定位</el-button>
-            <span v-if="locateUnavailable" class="venue-edit__hint venue-edit__hint--inline">定位服務尚未啟用，請手動輸入座標。</span>
-            <span v-else-if="!form.addressZh.trim()" class="venue-edit__hint venue-edit__hint--inline">請先在上方填寫中文地址。</span>
-          </div>
-          <p class="venue-edit__hint">
-            緯度與經度要一起填。「由地址定位」只會把結果填入欄位供你確認，不會自動儲存；找不到或服務無法使用時不影響儲存，請改為手動輸入。
-          </p>
-          <el-alert v-if="locateNotice" :title="locateNotice.text" :type="locateNotice.type" show-icon class="venue-edit__error" @close="locateNotice = null" />
-          <el-button v-if="mapSearchUrl" tag="a" :href="mapSearchUrl" target="_blank" rel="noopener noreferrer" size="small">
-            在地圖開啟目前地址查詢（另開分頁，僅供輔助）
-          </el-button>
-        </el-card>
+              <el-card shadow="never" header="地圖座標">
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="lat" label="緯度（-90 到 90）"><el-input-number v-model="form.lat" :controls="false" :precision="6" :min="-90" :max="90" :value-on-clear="null" style="width: 100%" placeholder="例如 24.1477" @change="formErrors.clear('lat'); formErrors.clear('lng')" /></FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="lng" label="經度（-180 到 180）"><el-input-number v-model="form.lng" :controls="false" :precision="6" :min="-180" :max="180" :value-on-clear="null" style="width: 100%" placeholder="例如 120.6736" @change="formErrors.clear('lat'); formErrors.clear('lng')" /></FormField>
+                  </el-col>
+                </el-row>
+                <div class="venue-edit__locate">
+                  <el-button size="small" :loading="locating" :disabled="!canLocate" @click="handleLocate">由地址定位</el-button>
+                  <span v-if="locateUnavailable" class="venue-edit__hint venue-edit__hint--inline">定位服務尚未啟用，請手動輸入座標。</span>
+                  <span v-else-if="!form.addressZh.trim()" class="venue-edit__hint venue-edit__hint--inline">請先在上方填寫中文地址。</span>
+                </div>
+                <p class="venue-edit__hint">
+                  緯度與經度要一起填。「由地址定位」只會把結果填入欄位供你確認，不會自動儲存；找不到或服務無法使用時不影響儲存，請改為手動輸入。
+                </p>
+                <el-alert v-if="locateNotice" :title="locateNotice.text" :type="locateNotice.type" show-icon class="venue-edit__error" @close="locateNotice = null" />
+                <el-button v-if="mapSearchUrl" tag="a" :href="mapSearchUrl" target="_blank" rel="noopener noreferrer" size="small">
+                  在地圖開啟目前地址查詢（另開分頁，僅供輔助）
+                </el-button>
+              </el-card>
 
-        <el-card shadow="never" header="場地照片" class="venue-edit__section">
-          <ImageUploader v-model:file="photoFile" v-model:remove-cover="removePhoto" variant="photo" :min-width="0" :min-height="0" :has-existing-image="hasPhoto" :existing-preview-url="photoUrl" :disabled="saving || readOnly" />
-          <BilingualShortField label="照片的替代文字" :zh="form.photoAltZh" :en="form.photoAltEn" @update:zh="(v) => (form.photoAltZh = v)" @update:en="(v) => (form.photoAltEn = v)" />
-          <p class="venue-edit__hint">替代文字給看不到圖片的使用者（例如螢幕報讀軟體）閱讀，請簡短描述照片內容。</p>
-        </el-card>
+              <el-card v-if="!isCreate && canDelete" shadow="never" header="刪除場地">
+                <p class="venue-edit__hint">被賽事、課程梯次、試訓、行事曆活動、球迷會活動使用，或登記為主場的場地不能刪除。</p>
+                <el-button type="danger" plain :loading="deleting" @click="handleDelete">刪除這座場地</el-button>
+              </el-card>
+            </template>
 
-        <el-card v-if="!isCreate && canDelete" shadow="never" header="刪除場地" class="venue-edit__section">
-          <p class="venue-edit__hint">被賽事、課程梯次、試訓、行事曆活動、球迷會活動使用，或登記為主場的場地不能刪除。</p>
-          <el-button type="danger" plain :loading="deleting" @click="handleDelete">刪除這座場地</el-button>
-        </el-card>
+            <template #aside>
+              <el-card shadow="never" header="場地照片">
+                <FormField field="photo" label="場地照片">
+                  <ImageUploader v-model:file="photoFile" v-model:remove-cover="removePhoto" variant="photo" :min-width="0" :min-height="0" :has-existing-image="hasPhoto" :existing-preview-url="photoUrl" :disabled="saving || readOnly" />
+                </FormField>
+                <BilingualShortField field="photoAlt" label="照片的替代文字" :zh="form.photoAltZh" :en="form.photoAltEn" @update:zh="(v) => (form.photoAltZh = v)" @update:en="(v) => (form.photoAltEn = v)" />
+                <p class="venue-edit__hint">替代文字給看不到圖片的使用者（例如螢幕報讀軟體）閱讀，請簡短描述照片內容。</p>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.venue-edit { max-width: 780px; margin: 0 auto 88px; min-width: 0; }
+.venue-edit { max-width: 1200px; margin: 0 auto; min-width: 0; }
 .venue-edit__error { margin-bottom: 16px; }
-.venue-edit__section { margin-bottom: 16px; }
 .venue-edit__locate { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
 .venue-edit__hint { margin: 6px 0 12px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 .venue-edit__hint--inline { margin: 0; }

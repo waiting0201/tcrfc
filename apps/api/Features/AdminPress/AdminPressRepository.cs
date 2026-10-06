@@ -40,13 +40,13 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
         var query = dbContext.PressResources.AsNoTracking().Where(r => r.ClubId == scope.ClubId || r.ClubId == null);
         if (!string.IsNullOrWhiteSpace(resourceType))
         {
-            AdminInput.OneOf(resourceType, ResourceTypes, "類別", "「press_release」（新聞稿）、「brand_kit」（品牌識別包）或「hires_image」（高解析圖）");
+            AdminInput.OneOf(resourceType, ResourceTypes, "類別", "「新聞稿」「品牌識別包」或「高解析圖」");
             query = query.Where(r => r.ResourceType == resourceType);
         }
 
         if (!string.IsNullOrWhiteSpace(status))
         {
-            AdminInput.OneOf(status, Statuses, "狀態", "「draft」或「published」");
+            AdminInput.OneOf(status, Statuses, "狀態", "「草稿」或「已發布」");
             query = query.Where(r => r.Status == status);
         }
 
@@ -129,7 +129,7 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
 
         if (IsImageType(resource.ResourceType) != IsImageType(request.ResourceType) && newFile is null)
         {
-            throw new AdminValidationException("把類別改成「高解析圖」或從「高解析圖」改成其他類別時，必須同時重新上傳對應格式的檔案。");
+            throw new AdminValidationException("把類別改成「高解析圖」或從「高解析圖」改成其他類別時，必須同時重新上傳對應格式的檔案。", "file");
         }
 
         if (newSlug is not null && !string.Equals(newSlug, resource.Slug, StringComparison.Ordinal))
@@ -232,7 +232,7 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
     public Task<BatchOperationResultDto> BatchChangeTypeAsync(
         AdminClubScope scope, BatchChangePressTypeRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        AdminInput.OneOf(request.ResourceType, ResourceTypes, "類別", "「press_release」（新聞稿）、「brand_kit」（品牌識別包）或「hires_image」（高解析圖）");
+        AdminInput.OneOf(request.ResourceType, ResourceTypes, "類別", "「新聞稿」「品牌識別包」或「高解析圖」");
         return BatchAsync(scope, request.Ids, (r, _) =>
         {
             if (IsImageType(r.ResourceType) != IsImageType(request.ResourceType))
@@ -311,12 +311,12 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
     private static string? Validate(UpsertAdminPressRequest request)
     {
         var slug = string.IsNullOrWhiteSpace(request.Slug) ? null : AdminInput.Slug(request.Slug.Trim());
-        AdminInput.OneOf(request.ResourceType, ResourceTypes, "類別", "「press_release」（新聞稿）、「brand_kit」（品牌識別包）或「hires_image」（高解析圖）");
-        AdminInput.OneOf(request.Status, Statuses, "狀態", "「draft」（隱藏）或「published」（顯示）");
-        AdminInput.RequireText(request.Content.Zh.Title, "中文標題", 200);
+        AdminInput.OneOf(request.ResourceType, ResourceTypes, "類別", "「新聞稿」「品牌識別包」或「高解析圖」", "resourceType");
+        AdminInput.OneOf(request.Status, Statuses, "狀態", "「草稿（隱藏）」或「顯示」", "status");
+        AdminInput.RequireText(request.Content.Zh.Title, "中文標題", 200, "titleZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Title))
         {
-            AdminInput.RequireText(request.Content.En.Title, "英文標題", 200);
+            AdminInput.RequireText(request.Content.En.Title, "英文標題", 200, "titleEn");
         }
 
         return slug;
@@ -363,7 +363,7 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
     {
         if (await dbContext.PressResources.AsNoTracking().AnyAsync(r => r.ClubId == scope.ClubId && r.Slug == slug && r.Id != exceptId, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他媒體資源使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經被這個俱樂部的其他媒體資源使用，請換一個。", "slug");
         }
     }
 

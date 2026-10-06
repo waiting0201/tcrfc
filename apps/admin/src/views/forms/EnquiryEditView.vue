@@ -38,6 +38,10 @@ import { getPublicForm } from '@/api/publicForms'
 import { AdminApiError } from '@/api/http'
 import { ENQUIRY_STATUS_ORDER, enquiryStatusTagType } from '@/types/forms'
 import { formatDateTime } from '@/utils/dateTime'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const route = useRoute()
 const router = useRouter()
@@ -159,6 +163,7 @@ async function handleSave() {
   if (isReadOnly.value) return
   saving.value = true
   formError.value = null
+  formErrors.clearAll()
   try {
     await updateAdminEnquiry(activeClubId.value, enquiryId.value!, {
       status: form.status,
@@ -169,6 +174,7 @@ async function handleSave() {
     ElMessage.success('已儲存')
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -268,15 +274,15 @@ function retryLoad() {
 
       <el-form label-position="top" :disabled="isReadOnly">
         <el-card shadow="never" header="後台處理" class="enquiry-edit__section">
-          <el-form-item label="狀態" required>
+          <FormField field="status" label="狀態" required>
             <el-select v-model="form.status" style="width: 220px">
               <el-option v-for="s in ENQUIRY_STATUS_ORDER" :key="s" :label="s" :value="s">
                 <el-tag :type="enquiryStatusTagType(s)" size="small">{{ s }}</el-tag>
               </el-option>
             </el-select>
-          </el-form-item>
+          </FormField>
 
-          <el-form-item label="指派負責人">
+          <FormField field="assigneeAdminUserId" label="指派負責人">
             <template v-if="canUpdateInbox && !assigneeOptionsError">
               <el-select v-model="form.assigneeAdminUserId" clearable filterable placeholder="請選擇負責人（可留空）" style="width: 280px">
                 <el-option v-for="a in assigneeOptions" :key="a.id" :label="a.displayName" :value="a.id" />
@@ -297,7 +303,7 @@ function retryLoad() {
                 候選人清單載入失敗，暫時只能指派給自己或取消指派，請稍後重新整理頁面再試。
               </p>
             </template>
-          </el-form-item>
+          </FormField>
 
           <el-form-item label="標籤（自由文字，可用逗號分隔多個）">
             <el-input v-model="form.tags" placeholder="例如 需追蹤,VIP" />

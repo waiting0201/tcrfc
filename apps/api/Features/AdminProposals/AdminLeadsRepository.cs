@@ -53,8 +53,8 @@ public sealed class AdminLeadsRepository(ClubDbContext dbContext)
     public async Task<AdminLeadDetailDto?> UpdateAsync(
         AdminClubScope scope, Guid id, UpdateAdminLeadRequest request, CancellationToken cancellationToken)
     {
-        AdminInput.OneOf(request.Status, Statuses, "跟進狀態", "「新進」「處理中」「已回覆」「已結案」或「無效」");
-        var tags = AdminInput.OptionalText(request.Tags, "標籤", 255);
+        AdminInput.OneOf(request.Status, Statuses, "跟進狀態", "「新進」「處理中」「已回覆」「已結案」或「無效」", "status");
+        var tags = AdminInput.OptionalText(request.Tags, "標籤", 255, "tags");
         var enquiry = await Filter(scope, null, null, null, null, null)
             .Include(e => e.Proposal).Include(e => e.EnquiryAnswers).ThenInclude(a => a.FormField)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
@@ -122,7 +122,7 @@ public sealed class AdminLeadsRepository(ClubDbContext dbContext)
         var allowed = await ListAssignableUsersAsync(scope, cancellationToken);
         if (allowed.All(u => u.Id != assigneeId))
         {
-            throw new AdminValidationException("指定的負責人帳號沒有處理提案下載名單的權限，或沒有這個俱樂部的授權，無法指派。");
+            throw new AdminValidationException("指定的負責人帳號沒有處理提案下載名單的權限，或沒有這個俱樂部的授權，無法指派。", "assigneeAdminUserId");
         }
     }
 

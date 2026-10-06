@@ -8,6 +8,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+import { AdminApiError } from '@/api/http'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -125,7 +129,9 @@ const editingId = ref<string | null>(null)
 const editingSort = ref<number | undefined>(undefined)
 const dialogLoading = ref(false)
 const saving = ref(false)
+/** 對話框頂部提示：只放沒有對到欄位的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const dialogError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const form = reactive({
   planId: '',
   group: 'member_card' as BenefitGroup,
@@ -154,6 +160,7 @@ function openCreate() {
   editingSort.value = undefined
   resetForm()
   dialogError.value = null
+  formErrors.clearAll()
   dialogOpen.value = true
 }
 async function openEdit(row: MembershipBenefitListItemDto) {
@@ -161,6 +168,7 @@ async function openEdit(row: MembershipBenefitListItemDto) {
   editingSort.value = row.sortOrder
   resetForm()
   dialogError.value = null
+  formErrors.clearAll()
   dialogOpen.value = true
   dialogLoading.value = true
   try {
@@ -187,8 +195,13 @@ async function openEdit(row: MembershipBenefitListItemDto) {
 
 async function save() {
   dialogError.value = null
-  if (!form.planId) return void (dialogError.value = '請選擇這個權益屬於哪個方案')
-  if (!form.nameZh.trim()) return void (dialogError.value = '請輸入中文名稱')
+  const errors: Record<string, string> = {}
+  if (!form.planId) errors.planId = '請選擇這個權益屬於哪個方案'
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
+    return
+  }
   const payload: SaveBenefitPayload = {
     planId: form.planId,
     group: form.group,
@@ -220,6 +233,8 @@ async function save() {
     dialogOpen.value = false
     await load()
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放對話框頂部
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     dialogError.value = errorMessage(error, '儲存失敗，請稍後再試')
   } finally {
     saving.value = false
@@ -307,29 +322,31 @@ async function save() {
       <el-alert v-if="dialogError" :title="dialogError" type="warning" show-icon class="ben-tab__alert" @close="dialogError = null" />
       <el-skeleton v-if="dialogLoading" :rows="6" animated />
       <el-form v-else label-position="top" :disabled="readOnly">
-        <el-row :gutter="12">
-          <el-col :xs="24" :sm="12">
-            <el-form-item label="所屬方案" required>
-              <el-select v-model="form.planId" :disabled="!!editingId" placeholder="選擇方案" style="width: 100%">
-                <el-option v-for="p in plans" :key="p.id" :label="planLabel(p)" :value="p.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="12">
-            <el-form-item label="分組" required>
-              <el-select v-model="form.group" style="width: 100%"><el-option v-for="g in groups" :key="g.code" :label="g.label" :value="g.code" /></el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <p v-if="editingId" class="ben-tab__hint">權益建立後，不能更換所屬方案。</p>
-        <BilingualShortField label="權益名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-        <BilingualTextareaField label="說明" :zh="form.descZh" :en="form.descEn" :rows="2" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
-        <BilingualShortField label="一般會員的內容（例如 ✓、✗、9 折）" :zh="form.freeZh" :en="form.freeEn" @update:zh="(v) => (form.freeZh = v)" @update:en="(v) => (form.freeEn = v)" />
-        <BilingualShortField label="付費球迷會員的內容" :zh="form.paidZh" :en="form.paidEn" @update:zh="(v) => (form.paidZh = v)" @update:en="(v) => (form.paidEn = v)" />
-        <p class="ben-tab__hint">英文名稱有填，才會產生英文版；分組名稱的英文由系統自動帶入。</p>
-        <el-form-item label="狀態">
-          <el-radio-group v-model="form.status"><el-radio value="published">已發布</el-radio><el-radio value="draft">草稿</el-radio></el-radio-group>
-        </el-form-item>
+        <LangTabsBar variant="bare">
+          <el-row :gutter="12">
+            <el-col :xs="24" :sm="12">
+              <FormField field="planId" label="所屬方案" required>
+                <el-select v-model="form.planId" :disabled="!!editingId" placeholder="選擇方案" style="width: 100%" @change="formErrors.clear('planId')">
+                  <el-option v-for="p in plans" :key="p.id" :label="planLabel(p)" :value="p.id" />
+                </el-select>
+              </FormField>
+            </el-col>
+            <el-col :xs="24" :sm="12">
+              <FormField field="group" label="分組" required>
+                <el-select v-model="form.group" style="width: 100%"><el-option v-for="g in groups" :key="g.code" :label="g.label" :value="g.code" /></el-select>
+              </FormField>
+            </el-col>
+          </el-row>
+          <p v-if="editingId" class="ben-tab__hint">權益建立後，不能更換所屬方案。</p>
+          <BilingualShortField field="name" label="權益名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+          <BilingualTextareaField field="description" label="說明" :zh="form.descZh" :en="form.descEn" :rows="2" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
+          <BilingualShortField field="freeValue" label="一般會員的內容（例如 ✓、✗、9 折）" :zh="form.freeZh" :en="form.freeEn" @update:zh="(v) => (form.freeZh = v)" @update:en="(v) => (form.freeEn = v)" />
+          <BilingualShortField field="paidValue" label="付費球迷會員的內容" :zh="form.paidZh" :en="form.paidEn" @update:zh="(v) => (form.paidZh = v)" @update:en="(v) => (form.paidEn = v)" />
+          <p class="ben-tab__hint">英文名稱有填，才會產生英文版；分組名稱的英文由系統自動帶入。</p>
+          <FormField field="status" label="狀態">
+            <el-radio-group v-model="form.status"><el-radio value="published">已發布</el-radio><el-radio value="draft">草稿</el-radio></el-radio-group>
+          </FormField>
+        </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button :disabled="saving" @click="dialogOpen = false">{{ readOnly ? '關閉' : '取消' }}</el-button>

@@ -67,18 +67,18 @@ public sealed class AdminEdmSettingsRepository(
     public async Task<AdminEdmSettingsDto> UpdateAsync(
         AdminClubScope scope, UpdateAdminEdmSettingsRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var provider = AdminInput.OptionalText(request.Provider, "平台名稱", 64);
-        var listId = AdminInput.OptionalText(request.ListId, "名單識別", 128);
-        var sender = AdminInput.OptionalEmail(request.SenderEmail, "寄件者信箱")?.ToLowerInvariant();
+        var provider = AdminInput.OptionalText(request.Provider, "平台名稱", 64, "provider");
+        var listId = AdminInput.OptionalText(request.ListId, "名單識別", 128, "listId");
+        var sender = AdminInput.OptionalEmail(request.SenderEmail, "寄件者信箱", "senderEmail")?.ToLowerInvariant();
         var newKey = request.ApiKey?.Trim();
         if (!string.IsNullOrEmpty(newKey) && request.ClearApiKey)
         {
-            throw new AdminValidationException("不能同時輸入新的 API 金鑰與清除金鑰，請擇一。");
+            throw new AdminValidationException("不能同時輸入新的 API 金鑰與清除金鑰，請擇一。", "apiKey");
         }
 
         if (!string.IsNullOrEmpty(newKey) && (newKey.Length is < 8 or > 512 || newKey.Any(char.IsWhiteSpace)))
         {
-            throw new AdminValidationException("API 金鑰長度須為 8 到 512 個字元，且不能含空白。");
+            throw new AdminValidationException("API 金鑰長度須為 8 到 512 個字元，且不能含空白。", "apiKey");
         }
 
         var settings = await settingsEditor.LoadAsync(scope.ClubId, Keys, cancellationToken);
@@ -86,7 +86,7 @@ public sealed class AdminEdmSettingsRepository(
         var willHaveKey = !string.IsNullOrEmpty(newKey) || (hadKey && !request.ClearApiKey);
         if (request.Enabled && (provider is null || !willHaveKey))
         {
-            throw new AdminValidationException("啟用前請先填寫平台名稱與 API 金鑰。");
+            throw new AdminValidationException("啟用前請先填寫平台名稱與 API 金鑰。", provider is null ? "provider" : "apiKey");
         }
 
         settingsEditor.SetValue(settings, scope.ClubId, SiteSettingKeys.EdmEnabled, SiteSettingKeys.GroupEdm, request.Enabled ? "1" : "0", operatorId);

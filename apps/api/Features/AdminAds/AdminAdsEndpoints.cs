@@ -53,7 +53,7 @@ public static class AdminAdsEndpoints
             var (payload, form) = await AdminMultipartForm.ReadAsync<UpsertAdminAdSlotRequest>(request, json.Value.SerializerOptions, ct);
             if (payload.RemoveFallbackImage)
             {
-                throw new AdminValidationException("建立版位時不能選擇移除備援素材。");
+                throw new AdminValidationException("建立版位時不能選擇移除備援素材。", "fallbackImage");
             }
 
             var id = Guid.NewGuid();
@@ -263,7 +263,7 @@ public static class AdminAdsEndpoints
             }
 
             var (payload, form) = await AdminMultipartForm.ReadAsync<UpsertAdminAdCreativeRequest>(request, json.Value.SerializerOptions, ct);
-            var imageFile = form.Files["image"] ?? throw new AdminValidationException("請上傳素材圖片（影片素材的圖片是海報）。");
+            var imageFile = form.Files["image"] ?? throw new AdminValidationException("請上傳素材圖片（影片素材的圖片是海報）。", "image");
             var tx = new UploadTransaction(images, documents, videos);
             try
             {
@@ -273,7 +273,7 @@ public static class AdminAdsEndpoints
                 var videoFile = form.Files["video"];
                 if (videoFile is not null && !slot.AllowVideo)
                 {
-                    throw new AdminValidationException("這個版位不允許影片素材。");
+                    throw new AdminValidationException("這個版位不允許影片素材。", "video");
                 }
 
                 var video = videoFile is null ? null : await tx.AddVideoAsync(videoFile, $"{prefix}/video", ct);

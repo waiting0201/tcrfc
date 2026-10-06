@@ -45,10 +45,10 @@ public sealed partial class AdminI18nRepository(
             return null;
         }
 
-        var name = AdminInput.RequireText(request.Name, "語系名稱", 64);
+        var name = AdminInput.RequireText(request.Name, "語系名稱", 64, "name");
         if (request.SortOrder < 0)
         {
-            throw new AdminValidationException("排序不可為負數。");
+            throw new AdminValidationException("排序不可為負數。", "sortOrder");
         }
 
         var fallback = string.IsNullOrWhiteSpace(request.FallbackCode) ? null : request.FallbackCode.Trim();
@@ -56,26 +56,26 @@ public sealed partial class AdminI18nRepository(
         {
             if (!request.IsEnabled)
             {
-                throw new AdminValidationException("預設語系不能停用。");
+                throw new AdminValidationException("預設語系不能停用。", "isEnabled");
             }
 
             if (fallback is not null)
             {
-                throw new AdminValidationException("預設語系不需要設定備援語系。");
+                throw new AdminValidationException("預設語系不需要設定備援語系。", "fallbackCode");
             }
         }
         else if (fallback is not null)
         {
             var target = all.FirstOrDefault(l => l.Code == fallback)
-                ?? throw new AdminValidationException("備援語系不存在。");
+                ?? throw new AdminValidationException("備援語系不存在。", "fallbackCode");
             if (target.Code == locale.Code)
             {
-                throw new AdminValidationException("備援語系不能是自己。");
+                throw new AdminValidationException("備援語系不能是自己。", "fallbackCode");
             }
 
             if (!target.IsEnabled)
             {
-                throw new AdminValidationException("備援語系必須是啟用中的語系。");
+                throw new AdminValidationException("備援語系必須是啟用中的語系。", "fallbackCode");
             }
 
             // 備援鏈不得成環（A→B→A）。
@@ -84,7 +84,7 @@ public sealed partial class AdminI18nRepository(
             {
                 if (cursor.FallbackCode == locale.Code)
                 {
-                    throw new AdminValidationException("備援語系設定會形成循環。");
+                    throw new AdminValidationException("備援語系設定會形成循環。", "fallbackCode");
                 }
 
                 cursor = all.First(l => l.Code == cursor.FallbackCode);
@@ -93,7 +93,7 @@ public sealed partial class AdminI18nRepository(
 
         if (!request.IsEnabled && all.Any(l => l.Code != locale.Code && l.IsEnabled && l.FallbackCode == locale.Code))
         {
-            throw new AdminValidationException("還有其他語系把它當作備援語系，請先改掉那些語系的備援設定再停用。");
+            throw new AdminValidationException("還有其他語系把它當作備援語系，請先改掉那些語系的備援設定再停用。", "isEnabled");
         }
 
         locale.Name = name;
@@ -131,13 +131,13 @@ public sealed partial class AdminI18nRepository(
         var mode = string.IsNullOrWhiteSpace(request.FallbackMode) ? SiteSettingKeys.FallbackShowDefault : request.FallbackMode.Trim();
         if (mode != SiteSettingKeys.FallbackShowDefault && mode != SiteSettingKeys.FallbackHide)
         {
-            throw new AdminValidationException("未翻譯時的處理方式只能是「顯示繁中」或「隱藏該頁」。");
+            throw new AdminValidationException("未翻譯時的處理方式只能是「顯示繁中」或「隱藏該頁」。", "fallbackMode");
         }
 
-        var dateZh = ValidateDate(request.DateFormatZh, "日期格式（繁中）");
-        var dateEn = ValidateDate(request.DateFormatEn, "日期格式（英文）");
-        var numberZh = ValidateNumber(request.NumberFormatZh, "數字格式（繁中）");
-        var numberEn = ValidateNumber(request.NumberFormatEn, "數字格式（英文）");
+        var dateZh = ValidateDate(request.DateFormatZh, "日期格式（繁中）", "dateFormatZh");
+        var dateEn = ValidateDate(request.DateFormatEn, "日期格式（英文）", "dateFormatEn");
+        var numberZh = ValidateNumber(request.NumberFormatZh, "數字格式（繁中）", "numberFormatZh");
+        var numberEn = ValidateNumber(request.NumberFormatEn, "數字格式（英文）", "numberFormatEn");
 
         var settings = await settingsEditor.LoadAsync(scope.ClubId, SettingKeys, cancellationToken);
         settingsEditor.SetValue(settings, scope.ClubId, SiteSettingKeys.I18nFallbackMode, SiteSettingKeys.GroupI18n, mode, operatorId);
@@ -159,7 +159,7 @@ public sealed partial class AdminI18nRepository(
         NumberFormatEn = ClubSettingsEditor.I18n(settings, SiteSettingKeys.I18nNumberFormat, "en"),
     };
 
-    private static string? ValidateDate(string? value, string label)
+    private static string? ValidateDate(string? value, string label, string field)
     {
         var text = value?.Trim();
         if (string.IsNullOrEmpty(text))
@@ -170,13 +170,13 @@ public sealed partial class AdminI18nRepository(
         if (text.Length > 32 || !DatePattern().IsMatch(text) || !text.Contains("YYYY", StringComparison.Ordinal)
             || !text.Contains('M') || !text.Contains('D'))
         {
-            throw new AdminValidationException($"{label}只能由年（YYYY）、月（M、MM、MMM、MMMM）、日（D、DD）與分隔字元（空白 / - . , 年 月 日）組成，且三者都要有，例如 YYYY/MM/DD。");
+            throw new AdminValidationException($"{label}只能由年（YYYY）、月（M、MM、MMM、MMMM）、日（D、DD）與分隔字元（空白 / - . , 年 月 日）組成，且三者都要有，例如 YYYY/MM/DD。", field);
         }
 
         return text;
     }
 
-    private static string? ValidateNumber(string? value, string label)
+    private static string? ValidateNumber(string? value, string label, string field)
     {
         var text = value?.Trim();
         if (string.IsNullOrEmpty(text))
@@ -184,7 +184,7 @@ public sealed partial class AdminI18nRepository(
             return null;
         }
 
-        return NumberPattern().IsMatch(text) ? text : throw new AdminValidationException($"{label}請用範例格式，例如 1,234.56、1.234,56 或 1 234,56。");
+        return NumberPattern().IsMatch(text) ? text : throw new AdminValidationException($"{label}請用範例格式，例如 1,234.56、1.234,56 或 1 234,56。", field);
     }
 
     // ── 翻譯狀態總覽 ───────────────────────────────────────────────────────────────

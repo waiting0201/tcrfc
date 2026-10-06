@@ -26,6 +26,10 @@ import {
   type AchievementDto,
   type MilestoneDto,
 } from '@/api/adminHonours'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const route = useRoute()
 const router = useRouter()
@@ -73,6 +77,7 @@ const dialogReadOnly = computed(() => {
 
 function openDialog(a: AchievementDto | null) {
   dialogError.value = null
+  formErrors.clearAll()
   Object.assign(form, {
     id: a?.id ?? null,
     seasonId: a?.seasonId ?? '',
@@ -91,6 +96,7 @@ async function saveAchievement() {
   if (!form.placing.trim()) return void (dialogError.value = '請輸入名次，例如「冠軍」')
   saving.value = true
   dialogError.value = null
+  formErrors.clearAll()
   const payload = { seasonId: form.seasonId, teamId: form.teamId, year: form.year, competitionName: form.competitionName.trim(), placing: form.placing.trim() }
   try {
     if (form.id) await updateAchievement(club.value, form.id, payload)
@@ -99,6 +105,7 @@ async function saveAchievement() {
     dialog.value = false
     await loadAchievements()
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     dialogError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -274,17 +281,17 @@ watch(club, () => {
       <el-alert v-if="dialogError" :title="dialogError" type="warning" show-icon class="honours__block" @close="dialogError = null" />
       <el-alert v-if="form.id && dialogReadOnly" title="你沒有這支球隊的管理範圍，只能檢視。" type="info" show-icon :closable="false" class="honours__block" />
       <el-form label-position="top" :disabled="dialogReadOnly">
-        <el-form-item label="球隊" required>
+        <FormField field="teamId" label="球隊" required>
           <el-select v-model="form.teamId" filterable placeholder="請選擇球隊" style="width: 100%">
             <el-option v-for="t in (form.id ? teams : writableTeams)" :key="t.id" :label="t.nameZh || '（未命名球隊）'" :value="t.id" :disabled="!isWritable(t.id)" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="球季" required>
+        </FormField>
+        <FormField field="seasonId" label="球季" required>
           <el-select v-model="form.seasonId" placeholder="請選擇球季" style="width: 100%"><el-option v-for="s in seasons" :key="s.id" :label="s.code" :value="s.id" /></el-select>
-        </el-form-item>
-        <el-form-item label="年份"><el-input-number v-model="form.year" :min="1900" :max="2200" :controls="false" placeholder="不填＝球季開始年份" style="width: 100%" /></el-form-item>
-        <el-form-item label="賽事名稱" required><el-input v-model="form.competitionName" maxlength="128" placeholder="例如 企業甲級聯賽" /></el-form-item>
-        <el-form-item label="名次" required><el-input v-model="form.placing" maxlength="32" placeholder="例如 冠軍" /></el-form-item>
+        </FormField>
+        <FormField field="year" label="年份"><el-input-number v-model="form.year" :min="1900" :max="2200" :controls="false" placeholder="不填＝球季開始年份" style="width: 100%" /></FormField>
+        <FormField field="competitionName" label="賽事名稱" required><el-input v-model="form.competitionName" maxlength="128" placeholder="例如 企業甲級聯賽" /></FormField>
+        <FormField field="placing" label="名次" required><el-input v-model="form.placing" maxlength="32" placeholder="例如 冠軍" /></FormField>
       </el-form>
       <template #footer>
         <el-button @click="dialog = false">關閉</el-button>

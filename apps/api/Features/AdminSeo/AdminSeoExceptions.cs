@@ -17,4 +17,7 @@ public sealed class AdminSeoValidationException(string message, string? field = 
 /// 使用。對應 409。單筆建立時才會丟出——CSV 批次匯入走 upsert 語意，不會撞到這個例外，見
 /// <see cref="AdminRedirectsRepository.ImportCsvAsync"/>。</summary>
 public sealed class RedirectFromPathConflictException(string fromPath)
-    : AdminSeoException($"來源網址「{fromPath}」已經有轉址設定，請直接編輯既有那一筆，或改用批次匯入整批覆寫。");
+    : AdminSeoException($"來源網址「{fromPath}」已經有轉址設定，請直接編輯既有那一筆，或改用批次匯入整批覆寫。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("fromPath", Message);
+}

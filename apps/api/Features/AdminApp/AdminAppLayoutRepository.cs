@@ -47,21 +47,21 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
 
     public async Task<AdminAppLayoutItemDto> CreateItemAsync(UpsertAdminAppLayoutItemRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var kind = AdminInput.OneOf(request.Kind, Kinds, "項目類型", "「快捷入口」或「更多分頁項目」");
+        var kind = AdminInput.OneOf(request.Kind, Kinds, "項目類型", "「快捷入口」或「更多分頁項目」", "kind");
         if (kind == "home_section")
         {
-            throw new AdminValidationException("首頁區塊是固定的九個，不能新增；只能調整開關與排序。");
+            throw new AdminValidationException("首頁區塊是固定的九個，不能新增；只能調整開關與排序。", "kind");
         }
 
-        var key = AdminInput.RequireText(request.ItemKey, "識別代碼", 48);
+        var key = AdminInput.RequireText(request.ItemKey, "識別代碼", 48, "itemKey");
         if (!KeyFormat().IsMatch(key))
         {
-            throw new AdminValidationException("識別代碼只能使用小寫英文字母、數字與底線。");
+            throw new AdminValidationException("識別代碼只能使用小寫英文字母、數字與底線。", "itemKey");
         }
 
         if (await dbContext.AppLayoutItems.AnyAsync(i => i.Kind == kind && i.ItemKey == key, cancellationToken))
         {
-            throw new AdminConflictException("識別代碼重複", $"這個類型已經有識別代碼「{key}」了。");
+            throw new AdminConflictException("識別代碼重複", $"這個類型已經有識別代碼「{key}」了。", "itemKey");
         }
 
         await ValidateLinkAsync(request.DeepLinkId, cancellationToken);
@@ -155,23 +155,23 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
     {
         if (id is { } linkId && !await dbContext.AppDeepLinks.AnyAsync(l => l.Id == linkId, cancellationToken))
         {
-            throw new AdminValidationException("找不到這個深連結，請重新挑選。");
+            throw new AdminValidationException("找不到這個深連結，請重新挑選。", "deepLinkId");
         }
     }
 
     private static void Apply(AppLayoutItem item, UpsertAdminAppLayoutItemRequest r)
     {
         item.DeepLinkId = r.DeepLinkId;
-        item.IconKey = AdminInput.OptionalText(r.IconKey, "圖示代碼", 48);
+        item.IconKey = AdminInput.OptionalText(r.IconKey, "圖示代碼", 48, "iconKey");
         item.IsEnabled = r.IsEnabled;
     }
 
     private static void SetLabel(AppLayoutItem item, AppLabelInput label)
     {
-        Upsert(item, RequestLocale.DefaultDbLocale, AdminInput.RequireText(label.Zh, "名稱（繁中）", 120));
+        Upsert(item, RequestLocale.DefaultDbLocale, AdminInput.RequireText(label.Zh, "名稱（繁中）", 120, "labelZh"));
         if (label.En is not null)
         {
-            Upsert(item, "en", AdminInput.OptionalText(label.En, "名稱（英文）", 120));
+            Upsert(item, "en", AdminInput.OptionalText(label.En, "名稱（英文）", 120, "labelEn"));
         }
     }
 
@@ -210,7 +210,7 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
         var code = ValidateLink(request);
         if (await dbContext.AppDeepLinks.AnyAsync(l => l.Code == code, cancellationToken))
         {
-            throw new AdminConflictException("代碼重複", $"深連結代碼「{code}」已經存在。");
+            throw new AdminConflictException("代碼重複", $"深連結代碼「{code}」已經存在。", "code");
         }
 
         var now = DateTime.UtcNow;
@@ -235,7 +235,7 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
         {
             if (await dbContext.AppDeepLinks.AnyAsync(l => l.Code == code && l.Id != id, cancellationToken))
             {
-                throw new AdminConflictException("代碼重複", $"深連結代碼「{code}」已經存在。");
+                throw new AdminConflictException("代碼重複", $"深連結代碼「{code}」已經存在。", "code");
             }
 
             link.Code = code;
@@ -268,27 +268,27 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
 
     private static string ValidateLink(UpsertAdminAppDeepLinkRequest r)
     {
-        var code = AdminInput.RequireText(r.Code, "代碼", 48);
+        var code = AdminInput.RequireText(r.Code, "代碼", 48, "code");
         if (!KeyFormat().IsMatch(code))
         {
-            throw new AdminValidationException("代碼只能使用小寫英文字母、數字與底線。");
+            throw new AdminValidationException("代碼只能使用小寫英文字母、數字與底線。", "code");
         }
 
-        var appLink = AdminInput.RequireText(r.AppLink, "App 深連結", 200);
+        var appLink = AdminInput.RequireText(r.AppLink, "App 深連結", 200, "appLink");
         if (!AppLinkFormat().IsMatch(appLink) || !appLink.StartsWith("tcrfc://", StringComparison.Ordinal))
         {
-            throw new AdminValidationException("App 深連結必須以 tcrfc:// 開頭（例如 tcrfc://schedule/d1；深連結 scheme 固定為 tcrfc）。");
+            throw new AdminValidationException("App 深連結必須以 tcrfc:// 開頭（例如 tcrfc://schedule/d1）。", "appLink");
         }
 
-        AdminInput.OptionalText(r.WebUrl, "官網網址", 500);
-        AdminInput.RequireText(r.Label.Zh, "名稱（繁中）", 120);
+        AdminInput.OptionalText(r.WebUrl, "官網網址", 500, "webUrl");
+        AdminInput.RequireText(r.Label.Zh, "名稱（繁中）", 120, "labelZh");
         return code;
     }
 
     private static void ApplyLink(AppDeepLink link, UpsertAdminAppDeepLinkRequest r)
     {
         link.AppLink = r.AppLink.Trim();
-        link.WebUrl = AdminInput.OptionalText(r.WebUrl, "官網網址", 500);
+        link.WebUrl = AdminInput.OptionalText(r.WebUrl, "官網網址", 500, "webUrl");
         link.RequiresLogin = r.RequiresLogin;
         link.IsActive = r.IsActive;
         foreach (var (locale, text) in new[] { (RequestLocale.DefaultDbLocale, (string?)r.Label.Zh), ("en", r.Label.En) })
@@ -370,18 +370,18 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
 
     private async Task<Guid?> ValidateAnnouncementAsync(UpsertAdminAppAnnouncementRequest r, CancellationToken cancellationToken)
     {
-        AdminInput.RequireText(r.Message.Zh, "公告文案（繁中）", 200);
-        AdminInput.OptionalText(r.Message.En, "公告文案（英文）", 200);
-        var link = AdminInput.OptionalText(r.LinkUrl, "連結", 500);
+        AdminInput.RequireText(r.Message.Zh, "公告文案（繁中）", 200, "messageZh");
+        AdminInput.OptionalText(r.Message.En, "公告文案（英文）", 200, "messageEn");
+        var link = AdminInput.OptionalText(r.LinkUrl, "連結", 500, "linkUrl");
         if (link is not null && !link.StartsWith("tcrfc://", StringComparison.Ordinal))
         {
-            AdminInput.OptionalHttpUrl(link, "連結");
+            AdminInput.OptionalHttpUrl(link, "連結", 500, "linkUrl");
         }
 
-        AdminInput.OneOf(r.AudienceTier ?? "all", Tcrfc.Api.Features.AppPublic.PushAudienceSpec.Tiers, "目標對象", "「全部」「球迷會員」「一般會員」或「未登入」");
+        AdminInput.OneOf(r.AudienceTier ?? "all", Tcrfc.Api.Features.AppPublic.PushAudienceSpec.Tiers, "目標對象", "「全部」「球迷會員」「一般會員」或「未登入」", "audienceTier");
         if (r.StartsAt is not null && r.EndsAt is not null && r.EndsAt <= r.StartsAt)
         {
-            throw new AdminValidationException("顯示期間的結束時間必須晚於開始時間。");
+            throw new AdminValidationException("顯示期間的結束時間必須晚於開始時間。", "endsAt");
         }
 
         if (string.IsNullOrWhiteSpace(r.AudienceClubCode))
@@ -390,7 +390,7 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
         }
 
         return await dbContext.Clubs.AsNoTracking().Where(c => c.Code == r.AudienceClubCode).Select(c => (Guid?)c.Id).FirstOrDefaultAsync(cancellationToken)
-               ?? throw new AdminValidationException("找不到這個俱樂部代碼。");
+               ?? throw new AdminValidationException("找不到這個俱樂部代碼。", "audienceClubCode");
     }
 
     private static void ApplyAnnouncement(AppAnnouncement a, UpsertAdminAppAnnouncementRequest r, Guid? clubId)

@@ -57,13 +57,13 @@ public sealed partial class AdminGlobalSettingsRepository(
         ImageFieldUpdate logoLight, ImageFieldUpdate logoDark, ImageFieldUpdate favicon,
         OrphanedObjects orphans, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var brandColor = NormalizeColor(request.BrandColor, "品牌主色");
-        var brandSecondary = NormalizeColor(request.BrandSecondaryColor, "品牌輔色");
-        var cookie = ValidatePolicy(request.CookiePolicy, "Cookie 政策");
-        var privacy = ValidatePolicy(request.PrivacyPolicy, "隱私權政策");
-        var terms = ValidatePolicy(request.MemberTerms, "會員條款");
-        var messageZh = LimitText(request.MaintenanceMessageZh, "維護頁訊息（繁中）", MaxMaintenanceMessageLength);
-        var messageEn = LimitText(request.MaintenanceMessageEn, "維護頁訊息（英文）", MaxMaintenanceMessageLength);
+        var brandColor = NormalizeColor(request.BrandColor, "品牌主色", "brandColor");
+        var brandSecondary = NormalizeColor(request.BrandSecondaryColor, "品牌輔色", "brandSecondaryColor");
+        var cookie = ValidatePolicy(request.CookiePolicy, "Cookie 政策", "cookie");
+        var privacy = ValidatePolicy(request.PrivacyPolicy, "隱私權政策", "privacy");
+        var terms = ValidatePolicy(request.MemberTerms, "會員條款", "terms");
+        var messageZh = LimitText(request.MaintenanceMessageZh, "維護頁訊息（繁中）", MaxMaintenanceMessageLength, "maintenanceMessageZh");
+        var messageEn = LimitText(request.MaintenanceMessageEn, "維護頁訊息（英文）", MaxMaintenanceMessageLength, "maintenanceMessageEn");
 
         var club = await db.Clubs.FirstAsync(c => c.Id == scope.ClubId, cancellationToken);
         var settings = await settingsEditor.LoadAsync(scope.ClubId, AllKeys, cancellationToken);
@@ -151,7 +151,7 @@ public sealed partial class AdminGlobalSettingsRepository(
             },
         };
 
-    private static string? NormalizeColor(string? value, string label)
+    private static string? NormalizeColor(string? value, string label, string field)
     {
         var text = value?.Trim();
         if (string.IsNullOrEmpty(text))
@@ -159,13 +159,13 @@ public sealed partial class AdminGlobalSettingsRepository(
             return null;
         }
 
-        return HexColor().IsMatch(text) ? text.ToUpperInvariant() : throw new AdminValidationException($"{label}必須是 #RRGGBB 格式的色碼（例如 #1A5F3A）。");
+        return HexColor().IsMatch(text) ? text.ToUpperInvariant() : throw new AdminValidationException($"{label}必須是 #RRGGBB 格式的色碼（例如 #1A5F3A）。", field);
     }
 
-    private static (string? Zh, string? En) ValidatePolicy(AdminPolicyInput? input, string label)
-        => (CleanPolicyText(input?.BodyZh, $"{label}（繁中）"), CleanPolicyText(input?.BodyEn, $"{label}（英文）"));
+    private static (string? Zh, string? En) ValidatePolicy(AdminPolicyInput? input, string label, string fieldPrefix)
+        => (CleanPolicyText(input?.BodyZh, $"{label}（繁中）", fieldPrefix + "Zh"), CleanPolicyText(input?.BodyEn, $"{label}（英文）", fieldPrefix + "En"));
 
-    private static string? CleanPolicyText(string? value, string label)
+    private static string? CleanPolicyText(string? value, string label, string field)
     {
         var text = value?.Replace("\0", string.Empty).Trim();
         if (string.IsNullOrEmpty(text))
@@ -173,8 +173,8 @@ public sealed partial class AdminGlobalSettingsRepository(
             return null;
         }
 
-        return text.Length > MaxPolicyLength ? throw new AdminValidationException($"{label}不可超過 {MaxPolicyLength} 個字。") : text;
+        return text.Length > MaxPolicyLength ? throw new AdminValidationException($"{label}不可超過 {MaxPolicyLength} 個字。", field) : text;
     }
 
-    private static string? LimitText(string? value, string label, int max) => AdminInput.OptionalText(value, label, max);
+    private static string? LimitText(string? value, string label, int max, string field) => AdminInput.OptionalText(value, label, max, field);
 }

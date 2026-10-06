@@ -14,13 +14,18 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminProgramSessions, type AdminSessionListItemDto } from '@/api/adminProgramSessions'
 import { createAdminRegistration, getAdminRegistration, updateAdminRegistration } from '@/api/adminRegistrations'
 import { AdminApiError } from '@/api/http'
-import { validateContact } from '@/utils/contactValidation'
+import { isValidEmail, isValidPhone } from '@/utils/contactValidation'
 import { REGISTRATION_STATUS_ORDER, type RegistrationStatus } from '@/types/program'
 import { dateOnlyToPickerDate as fromDateOnlyString, pickerDateToDateOnly as toDateOnlyString } from '@/utils/dateTime'
 
@@ -59,7 +64,9 @@ const sessionLabelById = computed(() => {
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 const overCapacity = ref(false)
 
 async function loadSessions() {
@@ -113,25 +120,26 @@ const pageTitle = computed(() => (isCreate.value ? '新增報名（後台代填�
 const canEditThisPage = computed(() => (isCreate.value ? canCreateRegistrations.value : canProcessRegistrations.value))
 const isReadOnly = computed(() => !canEditThisPage.value)
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.sessionId) {
-    formError.value = '請選擇梯次'
-    return false
+/** 聯絡資料檢查（規則同 validateContact），逐項回傳 欄位鍵 → 訊息，一次標出所有問題。 */
+function contactErrors(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  const phone = form.phone.trim()
+  const email = form.email.trim()
+  if (!phone && !email) errors.phone = '電話與 Email 至少要填一項'
+  if (phone && !isValidPhone(phone)) errors.phone = '電話格式不正確，請填寫數字（可含 - 與括號），例如 0912-345-678'
+  if (email && !isValidEmail(email)) errors.email = 'Email 格式不正確，請檢查後再儲存'
+  if (form.guardianPhone.trim() && !isValidPhone(form.guardianPhone)) {
+    errors.guardianPhone = '家長電話格式不正確，請填寫數字（可含 - 與括號）'
   }
-  if (!form.applicantName.trim()) {
-    formError.value = '請輸入報名人姓名'
-    return false
-  }
-  const contactError = validateContact(
-    { phone: form.phone, email: form.email, guardianPhone: form.guardianPhone },
-    { requireGuardianForMinor: false },
-  )
-  if (contactError) {
-    formError.value = contactError
-    return false
-  }
-  return true
+  return errors
+}
+
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.sessionId) errors.sessionId = '請選擇梯次'
+  if (!form.applicantName.trim()) errors.applicantName = '請輸入報名人姓名'
+  return { ...errors, ...contactErrors() }
 }
 
 // 🔴 刻意不標註回傳型別為 `CreateRegistrationPayload`（其 `status` 是可省略／可為 null）——
@@ -156,9 +164,12 @@ function buildPayload() {
 
 async function handleSave() {
   if (isReadOnly.value) return
-  if (!validate()) return
-  saving.value = true
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     if (isCreate.value) {
       const created = await createAdminRegistration(activeClubId.value, buildPayload())
@@ -175,6 +186,7 @@ async function handleSave() {
     }
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -246,87 +258,93 @@ function retryLoad() {
       />
 
       <el-form label-position="top" :disabled="isReadOnly">
-        <el-card shadow="never" header="梯次與狀態" class="registration-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="16">
-              <el-form-item label="梯次" required>
-                <el-select
-                  v-model="form.sessionId"
-                  filterable
-                  style="width: 100%"
-                  no-data-text="目前這個俱樂部還沒有任何梯次，請先到「梯次」新增一筆"
-                >
-                  <el-option v-for="s in sessions" :key="s.id" :label="sessionLabelById.get(s.id)" :value="s.id" />
-                </el-select>
-                <p v-if="!isCreate" class="registration-edit__hint">更換梯次即為「轉梯次」，會自動調整新舊梯次的已報名數。</p>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="狀態" required>
-                <el-select v-model="form.status" style="width: 100%">
-                  <el-option v-for="s in REGISTRATION_STATUS_ORDER" :key="s" :label="s" :value="s" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <p v-if="memberId" class="registration-edit__hint">
-            這筆報名關聯既有會員（會員系統 K1 尚未開發，這裡僅顯示是否關聯，無法在此變更或搜尋會員）。
-          </p>
-        </el-card>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never" header="梯次與狀態">
+              <el-row :gutter="12">
+                <el-col :span="16">
+                  <FormField field="sessionId" label="梯次" required>
+                    <el-select
+                      v-model="form.sessionId"
+                      filterable
+                      style="width: 100%"
+                      no-data-text="目前這個俱樂部還沒有任何梯次，請先到「梯次」新增一筆"
+                      @change="formErrors.clear('sessionId')"
+                    >
+                      <el-option v-for="s in sessions" :key="s.id" :label="sessionLabelById.get(s.id)" :value="s.id" />
+                    </el-select>
+                    <p v-if="!isCreate" class="registration-edit__hint">更換梯次即為「轉梯次」，會自動調整新舊梯次的已報名數。</p>
+                  </FormField>
+                </el-col>
+                <el-col :span="8">
+                  <FormField field="status" label="狀態" required>
+                    <el-select v-model="form.status" style="width: 100%">
+                      <el-option v-for="s in REGISTRATION_STATUS_ORDER" :key="s" :label="s" :value="s" />
+                    </el-select>
+                  </FormField>
+                </el-col>
+              </el-row>
+              <p v-if="memberId" class="registration-edit__hint">
+                這筆報名關聯既有會員（會員系統 K1 尚未開發，這裡僅顯示是否關聯，無法在此變更或搜尋會員）。
+              </p>
+            </el-card>
 
-        <el-card shadow="never" header="學員資料" class="registration-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="報名人姓名" required>
-                <el-input v-model="form.applicantName" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="生日">
-                <el-date-picker v-model="form.birthOn" type="date" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="電話">
-                <el-input v-model="form.phone" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="Email">
-                <el-input v-model="form.email" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <p class="registration-edit__hint">電話與 Email 至少要填一項。</p>
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="家長姓名">
-                <el-input v-model="form.guardianName" placeholder="選填，未成年學員建議填寫" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="家長電話">
-                <el-input v-model="form.guardianPhone" placeholder="選填" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-card>
+            <el-card shadow="never" header="學員資料">
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <FormField field="applicantName" label="報名人姓名" required>
+                    <el-input v-model="form.applicantName" />
+                  </FormField>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="生日">
+                    <el-date-picker v-model="form.birthOn" type="date" style="width: 100%" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <FormField field="phone" label="電話">
+                    <el-input v-model="form.phone" />
+                  </FormField>
+                </el-col>
+                <el-col :span="12">
+                  <FormField field="email" label="Email">
+                    <el-input v-model="form.email" />
+                  </FormField>
+                </el-col>
+              </el-row>
+              <p class="registration-edit__hint">電話與 Email 至少要填一項。</p>
+              <el-row :gutter="12">
+                <el-col :span="12">
+                  <el-form-item label="家長姓名">
+                    <el-input v-model="form.guardianName" placeholder="選填，未成年學員建議填寫" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <FormField field="guardianPhone" label="家長電話">
+                    <el-input v-model="form.guardianPhone" placeholder="選填" />
+                  </FormField>
+                </el-col>
+              </el-row>
+            </el-card>
 
-        <el-card shadow="never" header="健康聲明與備註" class="registration-edit__section">
-          <el-form-item label="健康聲明">
-            <el-input v-model="form.healthDeclaration" type="textarea" :rows="3" placeholder="選填，依報名人填寫內容原樣顯示" />
-          </el-form-item>
-          <el-form-item label="備註">
-            <el-input v-model="form.note" type="textarea" :rows="2" placeholder="選填" />
-          </el-form-item>
-        </el-card>
+            <el-card shadow="never" header="健康聲明與備註">
+              <el-form-item label="健康聲明">
+                <el-input v-model="form.healthDeclaration" type="textarea" :rows="3" placeholder="選填，依報名人填寫內容原樣顯示" />
+              </el-form-item>
+              <el-form-item label="備註">
+                <el-input v-model="form.note" type="textarea" :rows="2" placeholder="選填" />
+              </el-form-item>
+            </el-card>
+          </template>
+        </EditLayout>
       </el-form>
 
-      <div v-if="!isReadOnly" class="registration-edit__action-bar">
+      <EditActionBar v-if="!isReadOnly">
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -334,7 +352,7 @@ function retryLoad() {
 <style scoped>
 .registration-edit {
   max-width: 780px;
-  margin: 0 auto 88px;
+  margin: 0 auto;
 }
 
 .registration-edit__no {
@@ -346,44 +364,10 @@ function retryLoad() {
   margin-bottom: 16px;
 }
 
-.registration-edit__section {
-  margin-bottom: 16px;
-}
-
 .registration-edit__hint {
   margin: 6px 0 0;
   font-size: 12px;
   color: var(--admin-text-tertiary);
   line-height: 1.6;
-}
-
-.registration-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .registration-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .registration-edit__action-bar {
-    justify-content: stretch;
-  }
-
-  .registration-edit__action-bar :deep(.el-button) {
-    flex: 1;
-  }
 }
 </style>

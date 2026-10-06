@@ -19,14 +19,14 @@ internal static partial class PlayerSlug
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
-            throw new AdminPlayerValidationException("網址代稱不能是空白。");
+            throw new AdminPlayerValidationException("網址代稱不能是空白。", "slug");
         }
 
         if (slug.Length > MaxLength || !Format().IsMatch(slug))
         {
             throw new AdminPlayerValidationException(
                 $"網址代稱「{slug}」格式不正確：只能使用小寫英文字母、數字與連字號（-），開頭與結尾不能是連字號，" +
-                $"不能連續兩個連字號，長度最多 {MaxLength} 個字元。");
+                $"不能連續兩個連字號，長度最多 {MaxLength} 個字元。", "slug");
         }
     }
 

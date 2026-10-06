@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 公益團體——新增／編輯。共用團體整頁唯讀。 */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -10,6 +10,11 @@ import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import SharedContentNotice from '@/components/SharedContentNotice.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -35,7 +40,11 @@ const records = ref<OrgDetailDto['records']>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有欄位歸屬的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除標誌就清掉該欄位的錯誤
+watch([logoFile, removeLogo], () => formErrors.clear('logo'))
 const readOnly = computed(() => isShared.value || (isCreate.value ? !canCreate.value : !canUpdate.value))
 const pageTitle = computed(() => (isCreate.value ? '新增公益團體' : `${readOnly.value ? '檢視' : '編輯'}：${form.nameZh || '（未命名）'}`))
 
@@ -75,11 +84,21 @@ onMounted(load)
 const isDirty = computed(() => loadState.value === 'ready' && (JSON.stringify(form) !== baselineJson.value || !!logoFile.value || removeLogo.value))
 useUnsavedChanges(isDirty)
 
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文團體名稱'
+  if (form.websiteUrl.trim() && !/^https?:\/\//i.test(form.websiteUrl.trim())) errors.websiteUrl = '官網連結必須是以 http:// 或 https:// 開頭的完整網址'
+  return errors
+}
+
 async function handleSave() {
   if (readOnly.value) return
   formError.value = null
-  if (!form.nameZh.trim()) return void (formError.value = '請輸入中文團體名稱')
-  if (form.websiteUrl.trim() && !/^https?:\/\//i.test(form.websiteUrl.trim())) return void (formError.value = '官網連結必須是以 http:// 或 https:// 開頭的完整網址')
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -105,6 +124,8 @@ async function handleSave() {
     baselineJson.value = JSON.stringify(form)
     ElMessage.success('已儲存')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -141,34 +162,48 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'organi
     <template v-else>
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="org-edit__block" @close="formError = null" />
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="團體資料" class="org-edit__block">
-          <BilingualShortField label="團體名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-          <BilingualTextareaField label="團體簡介" :zh="form.introZh" :en="form.introEn" @update:zh="(v) => (form.introZh = v)" @update:en="(v) => (form.introEn = v)" />
-          <el-form-item label="官網連結"><el-input v-model="form.websiteUrl" placeholder="https://" /></el-form-item>
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><el-form-item label="聯絡人"><el-input v-model="form.contactName" maxlength="64" /></el-form-item></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="聯絡電話"><el-input v-model="form.contactPhone" maxlength="32" /></el-form-item></el-col>
-          </el-row>
-        </el-card>
-        <el-card shadow="never" header="標誌或代表圖" class="org-edit__block">
-          <ImageUploader v-model:file="logoFile" v-model:remove-cover="removeLogo" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLogo" :existing-preview-url="logoUrl" :disabled="saving || readOnly" />
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="團體資料">
+                <BilingualShortField field="name" label="團體名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                <BilingualTextareaField field="intro" label="團體簡介" :zh="form.introZh" :en="form.introEn" @update:zh="(v) => (form.introZh = v)" @update:en="(v) => (form.introEn = v)" />
+                <FormField field="websiteUrl" label="官網連結"><el-input v-model="form.websiteUrl" placeholder="https://" /></FormField>
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12"><FormField field="contactName" label="聯絡人"><el-input v-model="form.contactName" maxlength="64" /></FormField></el-col>
+                  <el-col :xs="24" :sm="12"><FormField field="contactPhone" label="聯絡電話"><el-input v-model="form.contactPhone" maxlength="32" /></FormField></el-col>
+                </el-row>
+              </el-card>
+              <el-card v-if="!isCreate" shadow="never" header="合作紀錄">
+                <p class="org-edit__hint">這個團體受贈的計畫與事蹟（唯讀彙整）。仍有計畫或事蹟引用時，團體不能刪除。</p>
+                <p v-if="programs.length === 0 && records.length === 0" class="org-edit__hint">目前沒有合作紀錄。</p>
+                <ul v-else class="org-edit__list">
+                  <li v-for="p in programs" :key="p.id">計畫：{{ p.nameZh || '（未命名）' }}（{{ p.status === 'published' ? '已發布' : '草稿' }}）</li>
+                  <li v-for="r in records" :key="r.id">事蹟：{{ r.donationContentZh || '（未填捐助內容）' }}{{ r.happenedOn ? `（${r.happenedOn}）` : '' }}</li>
+                </ul>
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="標誌或代表圖">
+                <FormField field="logo" label="標誌或代表圖">
+                  <ImageUploader v-model:file="logoFile" v-model:remove-cover="removeLogo" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLogo" :existing-preview-url="logoUrl" :disabled="saving || readOnly" />
+                </FormField>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
-      <el-card v-if="!isCreate" shadow="never" header="合作紀錄" class="org-edit__block">
-        <p class="org-edit__hint">這個團體受贈的計畫與事蹟（唯讀彙整）。仍有計畫或事蹟引用時，團體不能刪除。</p>
-        <p v-if="programs.length === 0 && records.length === 0" class="org-edit__hint">目前沒有合作紀錄。</p>
-        <ul v-else class="org-edit__list">
-          <li v-for="p in programs" :key="p.id">計畫：{{ p.nameZh || '（未命名）' }}（{{ p.status === 'published' ? '已發布' : '草稿' }}）</li>
-          <li v-for="r in records" :key="r.id">事蹟：{{ r.donationContentZh || '（未填捐助內容）' }}{{ r.happenedOn ? `（${r.happenedOn}）` : '' }}</li>
-        </ul>
-      </el-card>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.org-edit { max-width: 780px; margin: 0 auto 88px; }
+.org-edit { max-width: 1200px; margin: 0 auto; }
 .org-edit__block { margin-bottom: 16px; }
 .org-edit__hint { margin: 0 0 8px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 .org-edit__list { margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; }

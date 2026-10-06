@@ -32,7 +32,7 @@ internal static class PageSlugPolicy
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
-            throw new AdminPageValidationException("網址名稱為必填欄位。");
+            throw new AdminPageValidationException("網址名稱為必填欄位。", "slug");
         }
 
         if (!SlugFormat.IsMatch(slug))
@@ -40,7 +40,7 @@ internal static class PageSlugPolicy
             throw new AdminPageValidationException(
                 $"網址名稱「{slug}」格式不正確：只能使用小寫英文字母、數字、連字號（-）與斜線（/，用來表示分層路徑）組成，" +
                 "不能以斜線或連字號開頭或結尾，也不能出現連續的斜線或連字號（例如大寫字母、空白、句點都不能出現）。" +
-                "請修改後再試一次。");
+                "請修改後再試一次。", "slug");
         }
     }
 }

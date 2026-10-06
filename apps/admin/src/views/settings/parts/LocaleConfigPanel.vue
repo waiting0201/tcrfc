@@ -16,6 +16,10 @@ import {
   type AdminI18nSettings,
   type AdminLocale,
 } from '@/api/adminSiteSettings'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
+
+const formErrors = provideFormErrors()
 
 const props = defineProps<{ club: string; locales: AdminLocale[] }>()
 const emit = defineEmits<{ (e: 'locales-changed'): void }>()
@@ -123,6 +127,7 @@ async function saveSettings() {
   if (!canUpdate.value) return
   savingSettings.value = true
   settingsFormError.value = null
+  formErrors.clearAll()
   try {
     applySettings(
       await updateAdminI18nSettings(props.club, {
@@ -135,6 +140,7 @@ async function saveSettings() {
     )
     ElMessage.success('已儲存')
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     settingsFormError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     savingSettings.value = false
@@ -186,41 +192,41 @@ async function saveSettings() {
       <template v-else>
         <el-alert v-if="settingsFormError" :title="settingsFormError" type="warning" show-icon class="locale-config__block" @close="settingsFormError = null" />
         <el-form label-position="top" :disabled="!canUpdate">
-          <el-form-item label="內容尚未翻譯時">
+          <FormField field="fallbackMode" label="內容尚未翻譯時">
             <el-radio-group v-model="settings.fallbackMode">
               <el-radio value="show_default">顯示繁體中文內容</el-radio>
               <el-radio value="hide">隱藏該頁面</el-radio>
             </el-radio-group>
             <p class="locale-config__hint">這裡只儲存您的選擇。目前前台一律先顯示繁體中文內容；「隱藏該頁面」尚未套用到各內容頁，詳見待決事項。</p>
-          </el-form-item>
+          </FormField>
           <el-row :gutter="16">
             <el-col :xs="24" :sm="12">
-              <el-form-item label="日期格式（中文版）">
+              <FormField field="dateFormatZh" label="日期格式（中文版）">
                 <el-select v-model="settings.dateFormatZh" clearable filterable allow-create default-first-option placeholder="使用預設格式">
                   <el-option v-for="f in DATE_PRESETS_ZH" :key="f" :label="f" :value="f" />
                 </el-select>
-              </el-form-item>
+              </FormField>
             </el-col>
             <el-col :xs="24" :sm="12">
-              <el-form-item label="日期格式（英文版）">
+              <FormField field="dateFormatEn" label="日期格式（英文版）">
                 <el-select v-model="settings.dateFormatEn" clearable filterable allow-create default-first-option placeholder="使用預設格式">
                   <el-option v-for="f in DATE_PRESETS_EN" :key="f" :label="f" :value="f" />
                 </el-select>
-              </el-form-item>
+              </FormField>
             </el-col>
             <el-col :xs="24" :sm="12">
-              <el-form-item label="數字格式（中文版）">
+              <FormField field="numberFormatZh" label="數字格式（中文版）">
                 <el-select v-model="settings.numberFormatZh" clearable placeholder="使用預設格式">
                   <el-option v-for="f in NUMBER_PRESETS" :key="f" :label="f" :value="f" />
                 </el-select>
-              </el-form-item>
+              </FormField>
             </el-col>
             <el-col :xs="24" :sm="12">
-              <el-form-item label="數字格式（英文版）">
+              <FormField field="numberFormatEn" label="數字格式（英文版）">
                 <el-select v-model="settings.numberFormatEn" clearable placeholder="使用預設格式">
                   <el-option v-for="f in NUMBER_PRESETS" :key="f" :label="f" :value="f" />
                 </el-select>
-              </el-form-item>
+              </FormField>
             </el-col>
           </el-row>
           <p class="locale-config__hint">

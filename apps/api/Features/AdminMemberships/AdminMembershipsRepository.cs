@@ -304,35 +304,35 @@ public sealed class AdminMembershipsRepository(
     {
         if (request.BeneficiaryClubId is Guid beneficiary && beneficiary != scope.ClubId)
         {
-            throw new AdminValidationException("受益俱樂部必須是目前操作的俱樂部；要替另一個俱樂部開通，請切換到那個俱樂部再操作。");
+            throw new AdminValidationException("受益俱樂部必須是目前操作的俱樂部；要替另一個俱樂部開通，請切換到那個俱樂部再操作。", "beneficiaryClubId");
         }
 
-        AdminInput.OneOf(request.PaymentMethod, PaymentMethods, "付款方式", "「LINE Pay」或「現場收款」");
+        AdminInput.OneOf(request.PaymentMethod, PaymentMethods, "付款方式", "「LINE Pay」或「現場收款」", "paymentMethod");
         if (request.Amount < 0)
         {
-            throw new AdminValidationException("金額不可為負數。");
+            throw new AdminValidationException("金額不可為負數。", "amount");
         }
 
-        var note = AdminInput.OptionalText(request.Note, "交易備註", 255);
+        var note = AdminInput.OptionalText(request.Note, "交易備註", 255, "note");
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         if (request.PaidOn > today.AddDays(1))
         {
-            throw new AdminValidationException("付款日期不可晚於今天。");
+            throw new AdminValidationException("付款日期不可晚於今天。", "paidOn");
         }
 
         var plan = await db.MembershipPlans.Include(p => p.Season)
             .FirstOrDefaultAsync(p => p.Id == request.PlanId && p.ClubId == scope.ClubId, cancellationToken)
-            ?? throw new AdminValidationException("找不到指定的方案，請確認方案屬於目前的俱樂部。");
+            ?? throw new AdminValidationException("找不到指定的方案，請確認方案屬於目前的俱樂部。", "planId");
         if (plan.Status != "published")
         {
-            throw new AdminValidationException("這個方案目前是下架狀態，請先上架，或改選其他方案。");
+            throw new AdminValidationException("這個方案目前是下架狀態，請先上架，或改選其他方案。", "planId");
         }
 
         var member = await db.Members.FirstOrDefaultAsync(m => m.Id == request.MemberId, cancellationToken)
-            ?? throw new AdminValidationException("找不到指定的會員，請確認會員資料是否存在。");
+            ?? throw new AdminValidationException("找不到指定的會員，請確認會員資料是否存在。", "memberId");
         if (member.Status == "deleted")
         {
-            throw new AdminValidationException("這個帳號已刪除或已合併，無法開通會籍。");
+            throw new AdminValidationException("這個帳號已刪除或已合併，無法開通會籍。", "memberId");
         }
 
         var startOn = request.StartOn ?? (plan.StartsOn is DateOnly ps && ps > today ? ps : today);
@@ -341,7 +341,7 @@ public sealed class AdminMembershipsRepository(
         {
             throw new AdminValidationException(request.StartOn is null && request.EndOn is null
                 ? $"這個方案的期間已經在 {endOn:yyyy-MM-dd} 結束了，不能用今天當開始日。請改選其他方案，或自行指定開始日與到期日（補登過去的會籍）。"
-                : "到期日不可早於開始日。");
+                : "到期日不可早於開始日。", "endOn");
         }
 
         var collectingClubId = await db.Clubs.AsNoTracking().Where(c => c.IsCollectingSubject).OrderBy(c => c.SortOrder)
@@ -356,7 +356,7 @@ public sealed class AdminMembershipsRepository(
                 p => p.MembershipId == membership.Id && p.MembershipPlanId == plan.Id && p.PaidOn == request.PaidOn && p.Amount == request.Amount,
                 cancellationToken))
         {
-            throw new AdminConflictException("重複開通", "這位會員已經有同一方案、同一天、同一金額的開通紀錄了，請確認是否重複送出。");
+            throw new AdminConflictException("重複開通", "這位會員已經有同一方案、同一天、同一金額的開通紀錄了，請確認是否重複送出。", "planId");
         }
 
         if (membership is null)
@@ -418,17 +418,17 @@ public sealed class AdminMembershipsRepository(
         AdminClubScope scope, RegisterMembershipRequest request, CancellationToken cancellationToken)
     {
         var season = await db.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.Id == request.SeasonId && s.ClubId == scope.ClubId, cancellationToken)
-            ?? throw new AdminValidationException("找不到指定的球季，請確認球季屬於目前的俱樂部。");
+            ?? throw new AdminValidationException("找不到指定的球季，請確認球季屬於目前的俱樂部。", "seasonId");
         var member = await db.Members.AsNoTracking().FirstOrDefaultAsync(m => m.Id == request.MemberId, cancellationToken)
-            ?? throw new AdminValidationException("找不到指定的會員，請確認會員資料是否存在。");
+            ?? throw new AdminValidationException("找不到指定的會員，請確認會員資料是否存在。", "memberId");
         if (member.Status == "deleted")
         {
-            throw new AdminValidationException("這個帳號已刪除或已合併，無法建立會籍。");
+            throw new AdminValidationException("這個帳號已刪除或已合併，無法建立會籍。", "memberId");
         }
 
         if (await db.Memberships.AsNoTracking().AnyAsync(m => m.MemberId == member.Id && m.ClubId == scope.ClubId && m.SeasonId == season.Id, cancellationToken))
         {
-            throw new AdminConflictException("會籍已存在", "這位會員在這個球季已經有會籍了。");
+            throw new AdminConflictException("會籍已存在", "這位會員在這個球季已經有會籍了。", "memberId");
         }
 
         var now = DateTime.UtcNow;
@@ -456,20 +456,20 @@ public sealed class AdminMembershipsRepository(
     public async Task<AdminMembershipDetailDto?> AdjustAsync(
         AdminClubScope scope, Guid id, AdjustMembershipRequest request, CancellationToken cancellationToken)
     {
-        var reason = AdminInput.RequireText(request.Reason, "異動原因", 255);
+        var reason = AdminInput.RequireText(request.Reason, "異動原因", 255, "reason");
         if (request.Tier is null && request.Status is null && request.StartOn is null && request.EndOn is null)
         {
-            throw new AdminValidationException("請至少調整一項（層級、狀態或起訖日）。");
+            throw new AdminValidationException("請至少調整一項（層級、狀態或起訖日）。", "reason");
         }
 
         if (request.Tier is not null)
         {
-            AdminInput.OneOf(request.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「一般會員」或「球迷會員」");
+            AdminInput.OneOf(request.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「一般會員」或「球迷會員」", "tier");
         }
 
         if (request.Status is not null)
         {
-            AdminInput.OneOf(request.Status, AdjustableStatuses, "會籍狀態", "「待確認」「有效」「已到期」或「已取消」");
+            AdminInput.OneOf(request.Status, AdjustableStatuses, "會籍狀態", "「待確認」「有效」「已到期」或「已取消」", "status");
         }
 
         var membership = await db.Memberships.Include(m => m.MemberCards)
@@ -481,7 +481,7 @@ public sealed class AdminMembershipsRepository(
 
         var newStart = request.StartOn ?? membership.MembershipStartOn;
         var newEnd = request.EndOn ?? membership.MembershipEndOn;
-        AdminInput.DateRange(newStart, newEnd, "會籍期間");
+        AdminInput.DateRange(newStart, newEnd, "會籍期間", "endOn");
 
         var before = $"{membership.Tier}/{membership.Status}";
         membership.Tier = request.Tier ?? membership.Tier;
@@ -515,7 +515,7 @@ public sealed class AdminMembershipsRepository(
     public async Task<AdminMembershipDetailDto?> AddCardAsync(
         AdminClubScope scope, Guid membershipId, AddMemberCardRequest request, CancellationToken cancellationToken)
     {
-        var holder = AdminInput.RequireText(request.HolderName, "持卡人姓名", 64);
+        var holder = AdminInput.RequireText(request.HolderName, "持卡人姓名", 64, "holderName");
         var membership = await db.Memberships.Include(m => m.MembershipPlan)
             .FirstOrDefaultAsync(m => m.Id == membershipId && m.ClubId == scope.ClubId, cancellationToken);
         if (membership is null)
@@ -659,12 +659,12 @@ public sealed class AdminMembershipsRepository(
         var prefix = (request.MemberNoPrefix ?? "").Trim();
         if (prefix.Length > 8 || !prefix.All(char.IsAsciiLetterOrDigit))
         {
-            throw new AdminValidationException("會員編號前綴只能使用英文字母與數字，最多 8 個字。");
+            throw new AdminValidationException("會員編號前綴只能使用英文字母與數字，最多 8 個字。", "prefix");
         }
 
         if (request.MemberNoDigits is < 4 or > 10)
         {
-            throw new AdminValidationException("會員編號的流水號位數請填 4 到 10。");
+            throw new AdminValidationException("會員編號的流水號位數請填 4 到 10。", "digits");
         }
 
         await settings.UpsertAsync(scope.ClubId, MemberNumberGenerator.PrefixKey, prefix, "member", scope.Identity.AdminUserId, cancellationToken);

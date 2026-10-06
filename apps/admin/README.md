@@ -394,7 +394,7 @@ async function handleSave() {
 
 `focusFirst()` 遇到錯誤在另一語言時會切整頁語言再捲動；欄位的 `scroll-margin` 已計入 sticky 分頁列高度。
 `bare` 分頁只用於對話框裡有雙語欄位的情況；只有單語欄位的對話框（如新聞排程）不需要。
-未來 lint（第 2 階段）：雙語元件的祖先須有 `LangTabsBar`（頁面層或對話框）；頁面層分頁每頁恰好一個。
+lint（`scripts/check-edit-layout.mjs`，已上線）：雙語元件的祖先須有 `LangTabsBar`（頁面層或對話框）；頁面層分頁每頁恰好一個；規則全文見 `docs/21` §3.8。
 欄位在頁面層 `el-tabs` 分頁或摺疊區裡時，`FormField` 傳 `:reveal="() => (activeTab = 'xxx')"`，`focusFirst()` 會先打開再捲動。
 未翻譯數＝中文有值且英文空。對比度：錯誤外框與訊息色（`--admin-danger-text`）已納入 `check-contrast.mjs`【4】對五層背景驗算。
 

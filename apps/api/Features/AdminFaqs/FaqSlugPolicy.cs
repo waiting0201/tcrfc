@@ -24,7 +24,7 @@ internal static class FaqSlugPolicy
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
-            throw new AdminFaqValidationException($"{fieldLabel}為必填欄位。");
+            throw new AdminFaqValidationException($"{fieldLabel}為必填欄位。", "slug");
         }
 
         if (!SlugFormat.IsMatch(slug))
@@ -32,7 +32,7 @@ internal static class FaqSlugPolicy
             throw new AdminFaqValidationException(
                 $"{fieldLabel}「{slug}」格式不正確：只能使用小寫英文字母、數字與連字號（-）組成，" +
                 "開頭與結尾不能是連字號，也不能連續出現兩個連字號（例如大寫字母、空白、斜線、句點都不能出現）。" +
-                "請修改後再試一次。");
+                "請修改後再試一次。", "slug");
         }
     }
 }

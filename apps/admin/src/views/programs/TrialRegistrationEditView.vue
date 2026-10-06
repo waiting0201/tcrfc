@@ -12,6 +12,10 @@ import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -25,7 +29,7 @@ import {
   type TrialRegistrationDetailDto,
 } from '@/api/adminTrials'
 import { REGISTRATION_STATUS_ORDER } from '@/types/program'
-import { isUnder18, validateContact } from '@/utils/contactValidation'
+import { isUnder18, isValidEmail, isValidPhone } from '@/utils/contactValidation'
 
 const props = defineProps<{ id: string }>()
 
@@ -75,7 +79,9 @@ const quotaWarning = computed(() => {
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 const listPath = computed(() => `/programs/trials/${props.id}/registrations`)
 const pageTitle = computed(() => (isCreate.value ? '新增試訓報名（後台代填）' : `處理試訓報名：${form.applicantName || '（未命名）'}`))
@@ -122,13 +128,30 @@ const minor = computed(() => isUnder18(form.birthOn))
 const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== baselineJson.value)
 useUnsavedChanges(isDirty)
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.applicantName.trim()) return (formError.value = '請輸入報名人姓名'), false
+/** 聯絡資料檢查（規則同 validateContact），逐項回傳 欄位鍵 → 訊息，一次標出所有問題。 */
+function contactErrors(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  const phone = form.phone.trim()
+  const email = form.email.trim()
+  if (!phone && !email) errors.phone = '電話與 Email 至少要填一項'
+  if (phone && !isValidPhone(phone)) errors.phone = '電話格式不正確，請填寫數字（可含 - 與括號），例如 0912-345-678'
+  if (email && !isValidEmail(email)) errors.email = 'Email 格式不正確，請檢查後再儲存'
+  if (form.guardianPhone.trim() && !isValidPhone(form.guardianPhone)) {
+    errors.guardianPhone = '家長電話格式不正確，請填寫數字（可含 - 與括號）'
+  }
+  if (isUnder18(form.birthOn)) {
+    if (!form.guardianName.trim()) errors.guardianName = '報名者未滿 18 歲，請填寫家長（監護人）的姓名'
+    if (!form.guardianPhone.trim()) errors.guardianPhone ??= '報名者未滿 18 歲，請填寫家長（監護人）的電話'
+  }
+  return errors
+}
+
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.applicantName.trim()) errors.applicantName = '請輸入報名人姓名'
   // 與公開報名同一套規則：電話或 Email 至少一項、格式正確、未滿 18 歲須有家長姓名與電話
-  const contactError = validateContact(form, { requireGuardianForMinor: true })
-  if (contactError) return (formError.value = contactError), false
-  return true
+  return { ...errors, ...contactErrors() }
 }
 
 function buildPayload(): SaveTrialRegistrationPayload {
@@ -148,9 +171,13 @@ function buildPayload(): SaveTrialRegistrationPayload {
 }
 
 async function handleSave() {
-  if (readOnly.value || !validate()) return
-  saving.value = true
+  if (readOnly.value) return
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     const wasCreate = isCreate.value
     const saved = wasCreate
@@ -168,6 +195,7 @@ async function handleSave() {
       .then((t) => { trialQuota.value = { capacity: t.capacity ?? null, enrolled: t.enrolledCount } })
       .catch(() => {})
   } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -206,56 +234,63 @@ async function handleSave() {
       <el-alert v-if="readOnly" title="你的帳號只能檢視這筆報名，不能修改。" type="info" show-icon :closable="false" class="trial-reg-edit__block" />
 
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="報名狀態" class="trial-reg-edit__block">
-          <el-form-item label="狀態" required>
-            <el-select v-model="form.status" style="width: 200px; max-width: 100%">
-              <el-option v-for="s in REGISTRATION_STATUS_ORDER" :key="s" :label="s" :value="s" />
-            </el-select>
-          </el-form-item>
-          <p class="trial-reg-edit__hint">「待確認、已確認、已繳費、完成」會佔用名額，「取消、候補」不佔。候補要遞補時，請回名單按「遞補」。</p>
-          <p v-if="memberId" class="trial-reg-edit__hint">這筆報名已關聯會員帳號，這裡不能變更。</p>
-        </el-card>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never" header="報名狀態">
+              <FormField field="status" label="狀態" required>
+                <el-select v-model="form.status" style="width: 200px; max-width: 100%">
+                  <el-option v-for="s in REGISTRATION_STATUS_ORDER" :key="s" :label="s" :value="s" />
+                </el-select>
+              </FormField>
+              <p class="trial-reg-edit__hint">「待確認、已確認、已繳費、完成」會佔用名額，「取消、候補」不佔。候補要遞補時，請回名單按「遞補」。</p>
+              <p v-if="memberId" class="trial-reg-edit__hint">這筆報名已關聯會員帳號，這裡不能變更。</p>
+            </el-card>
 
-        <el-card shadow="never" header="報名人資料" class="trial-reg-edit__block">
-          <p class="trial-reg-edit__hint trial-reg-edit__hint--top">電話與 Email 至少填一項；報名者未滿 18 歲時，家長姓名與電話必填。</p>
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="報名人姓名" required><el-input v-model="form.applicantName" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="電話" :required="!form.email.trim()"><el-input v-model="form.phone" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="Email" :required="!form.phone.trim()"><el-input v-model="form.email" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="家長姓名" :required="minor"><el-input v-model="form.guardianName" placeholder="未滿 18 歲必填" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="家長電話" :required="minor"><el-input v-model="form.guardianPhone" placeholder="未滿 18 歲必填" /></el-form-item>
-            </el-col>
-          </el-row>
-        </el-card>
+            <el-card shadow="never" header="報名人資料">
+              <p class="trial-reg-edit__hint trial-reg-edit__hint--top">電話與 Email 至少填一項；報名者未滿 18 歲時，家長姓名與電話必填。</p>
+              <el-row :gutter="12">
+                <el-col :xs="24" :sm="12">
+                  <FormField field="applicantName" label="報名人姓名" required><el-input v-model="form.applicantName" /></FormField>
+                </el-col>
+                <el-col :xs="24" :sm="12">
+                  <FormField field="birthOn" label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></FormField>
+                </el-col>
+                <el-col :xs="24" :sm="12">
+                  <FormField field="phone" label="電話" :required="!form.email.trim()"><el-input v-model="form.phone" /></FormField>
+                </el-col>
+                <el-col :xs="24" :sm="12">
+                  <FormField field="email" label="Email" :required="!form.phone.trim()"><el-input v-model="form.email" /></FormField>
+                </el-col>
+                <el-col :xs="24" :sm="12">
+                  <FormField field="guardianName" label="家長姓名" :required="minor"><el-input v-model="form.guardianName" placeholder="未滿 18 歲必填" /></FormField>
+                </el-col>
+                <el-col :xs="24" :sm="12">
+                  <FormField field="guardianPhone" label="家長電話" :required="minor"><el-input v-model="form.guardianPhone" placeholder="未滿 18 歲必填" /></FormField>
+                </el-col>
+              </el-row>
+            </el-card>
 
-        <el-card shadow="never" header="健康聲明與備註" class="trial-reg-edit__block">
-          <el-form-item label="健康聲明">
-            <el-input v-model="form.healthDeclaration" type="textarea" :rows="3" placeholder="選填，依報名人填寫內容原樣顯示" />
-          </el-form-item>
-          <el-form-item label="備註">
-            <el-input v-model="form.note" type="textarea" :rows="2" placeholder="選填" />
-          </el-form-item>
-        </el-card>
+            <el-card shadow="never" header="健康聲明與備註">
+              <el-form-item label="健康聲明">
+                <el-input v-model="form.healthDeclaration" type="textarea" :rows="3" placeholder="選填，依報名人填寫內容原樣顯示" />
+              </el-form-item>
+              <el-form-item label="備註">
+                <el-input v-model="form.note" type="textarea" :rows="2" placeholder="選填" />
+              </el-form-item>
+            </el-card>
+          </template>
+        </EditLayout>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.trial-reg-edit { max-width: 780px; margin: 0 auto 88px; }
+.trial-reg-edit { max-width: 780px; margin: 0 auto; }
 .trial-reg-edit__block { margin-bottom: 16px; }
 .trial-reg-edit__meta { font-size: 13px; color: var(--admin-text-secondary); margin-left: 12px; }
 .trial-reg-edit__hint--top { margin: 0 0 12px; }

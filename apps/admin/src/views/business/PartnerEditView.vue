@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** 夥伴——新增／編輯。對照 apps/api/README.md「E1a」節「E1 夥伴」。 */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -9,6 +9,11 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -51,7 +56,12 @@ const typeOptions = ref<string[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放沒有欄位歸屬的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除標誌就清掉該欄位的錯誤
+watch([darkFile, removeDark], () => formErrors.clear('logoDark'))
+watch([lightFile, removeLight], () => formErrors.clear('logoLight'))
 
 const readOnly = computed(() => (isCreate.value ? !canCreate.value : !canUpdate.value))
 const pageTitle = computed(() => (isCreate.value ? '新增夥伴' : `編輯：${form.nameZh || '（未命名）'}`))
@@ -105,15 +115,16 @@ const isDirty = computed(
 )
 useUnsavedChanges(isDirty)
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.nameZh.trim()) return (formError.value = '請輸入中文名稱'), false
-  if (!form.partnerType.trim()) return (formError.value = '請選擇或輸入夥伴類型'), false
-  if (form.startOn && form.endOn && form.endOn < form.startOn) return (formError.value = '合作結束日不能早於開始日'), false
+/** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  if (!form.partnerType.trim()) errors.partnerType = '請選擇或輸入夥伴類型'
+  if (form.startOn && form.endOn && form.endOn < form.startOn) errors.endOn = '合作結束日不能早於開始日'
   if (form.websiteUrl.trim() && !/^https?:\/\//i.test(form.websiteUrl.trim())) {
-    return (formError.value = '官網連結必須是以 http:// 或 https:// 開頭的完整網址'), false
+    errors.websiteUrl = '官網連結必須是以 http:// 或 https:// 開頭的完整網址'
   }
-  return true
+  return errors
 }
 
 function buildPayload(): SavePartnerPayload {
@@ -138,9 +149,13 @@ function buildPayload(): SavePartnerPayload {
 }
 
 async function handleSave() {
-  if (readOnly.value || !validate()) return
-  saving.value = true
+  if (readOnly.value) return
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     const files = { logoDark: darkFile.value, logoLight: lightFile.value }
     const saved = isCreate.value
@@ -156,6 +171,8 @@ async function handleSave() {
     baselineJson.value = JSON.stringify(form)
     ElMessage.success('已儲存')
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -188,65 +205,71 @@ async function handleSave() {
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="partner-edit__error" @close="formError = null" />
       <el-alert v-if="readOnly" title="你的帳號只能檢視夥伴資料，不能修改。" type="info" show-icon :closable="false" class="partner-edit__error" />
       <el-form label-position="top" :disabled="readOnly">
-        <el-card shadow="never" header="基本資料" class="partner-edit__section">
-          <BilingualShortField label="名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-          <BilingualTextareaField label="合作內容" :zh="form.contentZh" :en="form.contentEn" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="夥伴類型" required>
-                <el-select v-model="form.partnerType" filterable allow-create default-first-option placeholder="選擇或直接輸入新類型" style="width: 100%">
-                  <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="國家"><el-input v-model="form.country" maxlength="32" placeholder="例如 台灣、斯洛伐克" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="合作開始日"><el-date-picker v-model="form.startOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="合作結束日"><el-date-picker v-model="form.endOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
-            </el-col>
-          </el-row>
-          <p class="partner-edit__hint">兩個日期都不填代表長期合作；合作結束後前台會自動不再顯示。</p>
-          <el-form-item label="官網連結"><el-input v-model="form.websiteUrl" placeholder="https://" /></el-form-item>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="基本資料">
+                <BilingualShortField field="name" label="名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                <BilingualTextareaField field="content" label="合作內容" :zh="form.contentZh" :en="form.contentEn" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="partnerType" label="夥伴類型" required>
+                      <el-select v-model="form.partnerType" filterable allow-create default-first-option placeholder="選擇或直接輸入新類型" style="width: 100%" @change="formErrors.clear('partnerType')">
+                        <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="country" label="國家"><el-input v-model="form.country" maxlength="32" placeholder="例如 台灣、斯洛伐克" /></FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <el-form-item label="合作開始日"><el-date-picker v-model="form.startOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endOn')" /></el-form-item>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="endOn" label="合作結束日"><el-date-picker v-model="form.endOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endOn')" /></FormField>
+                  </el-col>
+                </el-row>
+                <p class="partner-edit__hint">兩個日期都不填代表長期合作；合作結束後前台會自動不再顯示。</p>
+                <FormField field="websiteUrl" label="官網連結"><el-input v-model="form.websiteUrl" placeholder="https://" /></FormField>
+              </el-card>
 
-        <el-card shadow="never" header="前台呈現" class="partner-edit__section">
-          <el-form-item label="曝光位置">
-            <el-checkbox v-model="form.showOnHome">顯示在首頁夥伴標誌牆</el-checkbox>
-            <el-checkbox v-model="form.showInFooter">顯示在頁尾</el-checkbox>
-          </el-form-item>
-          <el-form-item label="排序值">
-            <el-input-number v-model="form.sortOrder" :min="0" />
-            <p class="partner-edit__hint">數字小的排前面；也可以在夥伴列表用上移、下移調整。</p>
-          </el-form-item>
-        </el-card>
+              <el-card shadow="never" header="前台呈現">
+                <el-form-item label="曝光位置">
+                  <el-checkbox v-model="form.showOnHome">顯示在首頁夥伴標誌牆</el-checkbox>
+                  <el-checkbox v-model="form.showInFooter">顯示在頁尾</el-checkbox>
+                </el-form-item>
+                <el-form-item label="排序值">
+                  <el-input-number v-model="form.sortOrder" :min="0" />
+                  <p class="partner-edit__hint">數字小的排前面；也可以在夥伴列表用上移、下移調整。</p>
+                </el-form-item>
+              </el-card>
+            </template>
 
-        <el-card shadow="never" header="標誌圖片" class="partner-edit__section">
-          <el-row :gutter="16">
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="深色底用標誌（放在深色背景上）">
-                <ImageUploader v-model:file="darkFile" v-model:remove-cover="removeDark" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasDark" :existing-preview-url="darkUrl" :disabled="saving || readOnly" />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="12">
-              <el-form-item label="淺色底用標誌（放在淺色背景上）">
-                <ImageUploader v-model:file="lightFile" v-model:remove-cover="removeLight" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLight" :existing-preview-url="lightUrl" :disabled="saving || readOnly" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-        </el-card>
+            <template #aside>
+              <el-card shadow="never" header="深色底用標誌">
+                <FormField field="logoDark" label="放在深色背景上的標誌">
+                  <ImageUploader v-model:file="darkFile" v-model:remove-cover="removeDark" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasDark" :existing-preview-url="darkUrl" :disabled="saving || readOnly" />
+                </FormField>
+              </el-card>
+              <el-card shadow="never" header="淺色底用標誌">
+                <FormField field="logoLight" label="放在淺色背景上的標誌">
+                  <ImageUploader v-model:file="lightFile" v-model:remove-cover="removeLight" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLight" :existing-preview-url="lightUrl" :disabled="saving || readOnly" />
+                </FormField>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
-      <EditActionBar v-if="!readOnly"><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
+      <EditActionBar v-if="!readOnly">
+        <template #status><FormErrorStatus /></template>
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
-.partner-edit { max-width: 780px; margin: 0 auto 88px; }
+.partner-edit { max-width: 1200px; margin: 0 auto; }
 .partner-edit__error { margin-bottom: 16px; }
-.partner-edit__section { margin-bottom: 16px; }
 .partner-edit__hint { margin: 6px 0 12px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 </style>

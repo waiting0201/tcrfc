@@ -186,7 +186,7 @@ public sealed class AdminAuthService(
             return false;
         }
 
-        ValidatePasswordPolicy(newPassword, user.Username);
+        ValidatePasswordPolicy(newPassword, user.Username, "newPassword");
 
         user.PasswordHash = PasswordHasher.Hash(newPassword);
         user.MustChangePassword = false;
@@ -198,15 +198,15 @@ public sealed class AdminAuthService(
     /// <summary>密碼政策——J1「密碼政策」的最小落地：長度、不得等於帳號本身。
     /// ⚠️ 規劃書沒有寫死具體規則（長度、字元類別、輪替週期），這是執行層判斷，
     /// 見 apps/api/README.md「密碼政策」段落列出的取捨。</summary>
-    public static void ValidatePasswordPolicy(string password, string username)
+    public static void ValidatePasswordPolicy(string password, string username, string? field = null)
     {
         if (password.Length < MinPasswordLength)
         {
-            throw new AdminAuthValidationException($"密碼長度至少需要 {MinPasswordLength} 個字元。");
+            throw new AdminAuthValidationException($"密碼長度至少需要 {MinPasswordLength} 個字元。", field);
         }
         if (string.Equals(password, username, StringComparison.OrdinalIgnoreCase))
         {
-            throw new AdminAuthValidationException("密碼不得與帳號相同。");
+            throw new AdminAuthValidationException("密碼不得與帳號相同。", field);
         }
     }
 

@@ -49,12 +49,12 @@ public static class AdminPressEndpoints
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionCreate, cancellationToken);
             var (request, form) = await AdminMultipartForm.ReadAsync<UpsertAdminPressRequest>(httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
-            AdminInput.OneOf(request.ResourceType, AdminPressRepository.ResourceTypes, "類別", "「press_release」（新聞稿）、「brand_kit」（品牌識別包）或「hires_image」（高解析圖）");
-            var file = form.Files["file"] ?? throw new AdminValidationException("請選擇要上傳的資源檔案。");
+            AdminInput.OneOf(request.ResourceType, AdminPressRepository.ResourceTypes, "類別", "「新聞稿」「品牌識別包」或「高解析圖」", "resourceType");
+            var file = form.Files["file"] ?? throw new AdminValidationException("請選擇要上傳的資源檔案。", "file");
             var coverFile = form.Files["cover"];
             if (coverFile is not null && AdminPressRepository.IsImageType(request.ResourceType))
             {
-                throw new AdminValidationException("高解析圖不需要另外上傳封面，系統會直接用圖片本身產生縮圖。");
+                throw new AdminValidationException("高解析圖不需要另外上傳封面，系統會直接用圖片本身產生縮圖。", "cover");
             }
 
             var id = Guid.NewGuid();
@@ -81,12 +81,12 @@ public static class AdminPressEndpoints
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
             var (request, form) = await AdminMultipartForm.ReadAsync<UpsertAdminPressRequest>(httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
-            AdminInput.OneOf(request.ResourceType, AdminPressRepository.ResourceTypes, "類別", "「press_release」（新聞稿）、「brand_kit」（品牌識別包）或「hires_image」（高解析圖）");
+            AdminInput.OneOf(request.ResourceType, AdminPressRepository.ResourceTypes, "類別", "「新聞稿」「品牌識別包」或「高解析圖」", "resourceType");
             var coverFile = form.Files["cover"];
             var isImage = AdminPressRepository.IsImageType(request.ResourceType);
             if (coverFile is not null && isImage)
             {
-                throw new AdminValidationException("高解析圖不需要另外上傳封面，系統會直接用圖片本身產生縮圖。");
+                throw new AdminValidationException("高解析圖不需要另外上傳封面，系統會直接用圖片本身產生縮圖。", "cover");
             }
 
             var tx = new UploadTransaction(images, documents);

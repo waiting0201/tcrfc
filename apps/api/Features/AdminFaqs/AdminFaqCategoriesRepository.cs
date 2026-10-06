@@ -173,7 +173,7 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
-            throw new AdminFaqValidationException("分類中文名稱為必填欄位。");
+            throw new AdminFaqValidationException("分類中文名稱為必填欄位。", "nameZh");
         }
     }
 

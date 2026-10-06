@@ -12,7 +12,10 @@ const props = defineProps<{
   maxDepth: number
   disabled?: boolean
   newKey: () => string
+  /** 項目 key → 該項目的欄位錯誤（由外層驗證後傳入）。 */
+  errors?: Record<string, string>
 }>()
+const emit = defineEmits<{ (e: 'edit', key: string): void }>()
 
 const canAddChild = computed(() => props.depth < props.maxDepth)
 /** 刻意就地修改外層持有的 reactive 陣列（遞迴編輯器，不逐層 emit）；用 computed 別名避開 props 變異規則的誤判。 */
@@ -42,13 +45,14 @@ function urlHint(node: MenuNode): string {
 <template>
   <ul class="menu-nodes" :class="{ 'menu-nodes--nested': depth > 1 }">
     <li v-for="(node, index) in nodes" :key="node.key" class="menu-node">
-      <div class="menu-node__card">
+      <div class="menu-node__card" :class="{ 'menu-node__card--error': errors?.[node.key] }" :data-node-key="node.key">
         <div class="menu-node__fields">
-          <el-input v-model="node.labelZh" :disabled="disabled" maxlength="100" placeholder="中文名稱（必填）" aria-label="中文名稱" />
-          <el-input v-model="node.labelEn" :disabled="disabled" maxlength="100" placeholder="英文名稱（留空時英文版顯示中文）" aria-label="英文名稱" />
-          <el-input v-model="node.url" :disabled="disabled" maxlength="500" :placeholder="urlHint(node)" aria-label="連結" />
-          <el-checkbox v-model="node.isExternal" :disabled="disabled">外部連結（另開網站）</el-checkbox>
+          <el-input v-model="node.labelZh" :aria-invalid="errors?.[node.key] ? 'true' : undefined" :disabled="disabled" maxlength="100" placeholder="中文名稱（必填）" aria-label="中文名稱" @input="emit('edit', node.key)" />
+          <el-input v-model="node.labelEn" :aria-invalid="errors?.[node.key] ? 'true' : undefined" :disabled="disabled" maxlength="100" placeholder="英文名稱（留空時英文版顯示中文）" aria-label="英文名稱" @input="emit('edit', node.key)" />
+          <el-input v-model="node.url" :aria-invalid="errors?.[node.key] ? 'true' : undefined" :disabled="disabled" maxlength="500" :placeholder="urlHint(node)" aria-label="連結" @input="emit('edit', node.key)" />
+          <el-checkbox v-model="node.isExternal" :disabled="disabled" @change="emit('edit', node.key)">外部連結（另開網站）</el-checkbox>
         </div>
+        <p v-if="errors?.[node.key]" class="menu-node__error" role="alert"><span aria-hidden="true">⚠ </span>{{ errors[node.key] }}</p>
         <div v-if="!disabled" class="menu-node__actions">
           <el-button size="small" :disabled="index === 0" aria-label="上移" @click="move(index, -1)"><el-icon><ArrowUp /></el-icon></el-button>
           <el-button size="small" :disabled="index === nodes.length - 1" aria-label="下移" @click="move(index, 1)"><el-icon><ArrowDown /></el-icon></el-button>
@@ -63,6 +67,8 @@ function urlHint(node: MenuNode): string {
         :max-depth="maxDepth"
         :disabled="disabled"
         :new-key="newKey"
+        :errors="errors"
+        @edit="(key: string) => emit('edit', key)"
       />
     </li>
   </ul>
@@ -74,6 +80,8 @@ function urlHint(node: MenuNode): string {
 .menu-node { min-width: 0; }
 .menu-node__card { border: 1px solid var(--admin-border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--admin-bg-surface); }
 .menu-node__fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; align-items: center; min-width: 0; }
+.menu-node__card--error { border: 2px solid var(--admin-danger-text); }
+.menu-node__error { margin: 0; font-size: 13px; line-height: 1.5; color: var(--admin-danger-text); }
 .menu-node__actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .menu-node__actions .el-button { margin-left: 0; }
 </style>

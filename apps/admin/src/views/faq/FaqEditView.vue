@@ -9,6 +9,11 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import {
@@ -56,7 +61,9 @@ const embedSlots = ref<AdminFaqEmbedSlotDto[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
 
 async function loadLookups() {
   const [categoryList, embedSlotList] = await Promise.all([listAdminFaqCategories(), listAdminFaqEmbedSlots()])
@@ -108,26 +115,23 @@ function isEnEmpty(): boolean {
   return !form.questionEn.trim() && !form.answerEn.trim()
 }
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.slug.trim()) {
-    formError.value = '請輸入網址名稱'
-    return false
-  }
-  if (form.categoryIds.length === 0) {
-    formError.value = '請至少選擇一個分類（沒有分類的題目在前台主題導覽完全找不到）'
-    return false
-  }
-  if (!form.questionZh.trim() || !form.answerZh.trim()) {
-    formError.value = '請輸入中文問題與答案'
-    return false
-  }
-  return true
+/** 一次檢查全部必填，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.slug.trim()) errors.slug = '請輸入網址名稱'
+  if (form.categoryIds.length === 0) errors.categoryIds = '請至少選擇一個分類（沒有分類的題目在前台主題導覽完全找不到）'
+  if (!form.questionZh.trim()) errors.questionZh = '請輸入中文問題'
+  if (!form.answerZh.trim()) errors.answerZh = '請輸入中文答案'
+  return errors
 }
 
 async function handleSave() {
   if (isReadOnly.value) return
-  if (!validate()) return
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   try {
     const payload = {
@@ -154,6 +158,8 @@ async function handleSave() {
   } catch (error) {
     if (error instanceof AdminApiError && error.kind === 'forbidden') {
       await ElMessageBox.alert(error.message, '沒有編輯權限', { confirmButtonText: '我知道了' })
+    } else if (error instanceof AdminApiError && formErrors.applyApiError(error)) {
+      return
     } else {
       formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
     }
@@ -212,15 +218,23 @@ function retryLoad() {
       />
 
       <el-form label-position="top" :disabled="isReadOnly">
+       <LangTabsBar>
         <el-card shadow="never" header="基本資訊" class="faq-edit__section">
-          <el-form-item label="網址名稱" required>
+          <FormField field="slug" label="網址名稱" required>
             <el-input v-model="form.slug" placeholder="例如 how-to-join" />
-          </el-form-item>
-          <el-form-item label="所屬分類（可複選）" required>
-            <el-select v-model="form.categoryIds" multiple filterable placeholder="請選擇分類" style="width: 100%">
+          </FormField>
+          <FormField field="categoryIds" label="所屬分類（可複選）" required>
+            <el-select
+              v-model="form.categoryIds"
+              multiple
+              filterable
+              placeholder="請選擇分類"
+              style="width: 100%"
+              @change="formErrors.clear('categoryIds')"
+            >
               <el-option v-for="c in categories" :key="c.id" :label="c.nameZh || c.slug" :value="c.id" />
             </el-select>
-          </el-form-item>
+          </FormField>
           <el-row :gutter="12">
             <el-col :span="12">
               <el-form-item label="排序">
@@ -228,18 +242,19 @@ function retryLoad() {
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="狀態">
+              <FormField field="status" label="狀態">
                 <el-radio-group v-model="form.status">
                   <el-radio value="published">顯示</el-radio>
                   <el-radio value="draft">隱藏</el-radio>
                 </el-radio-group>
-              </el-form-item>
+              </FormField>
             </el-col>
           </el-row>
         </el-card>
 
         <el-card shadow="never" header="題目內容" class="faq-edit__section">
           <BilingualShortField
+            field="question"
             label="問題"
             :zh="form.questionZh"
             :en="form.questionEn"
@@ -248,6 +263,7 @@ function retryLoad() {
             @update:en="(v) => (form.questionEn = v)"
           />
           <BilingualTextareaField
+            field="answer"
             label="答案"
             :zh="form.answerZh"
             :en="form.answerEn"
@@ -263,11 +279,11 @@ function retryLoad() {
           <p class="faq-edit__hint">
             這題會依所屬分類自動出現在對應頁面的常見問題快捷區塊；下方可以額外指定這題也出現在其他掛載點（疊加，不是取代）。
           </p>
-          <el-form-item label="額外指定出現的頁面">
+          <FormField field="embedSlotIds" label="額外指定出現的頁面">
             <el-select v-model="form.embedSlotIds" multiple placeholder="不指定即可（維持只依分類自動對應）" style="width: 100%">
               <el-option v-for="slot in embedSlots" :key="slot.id" :label="slot.name" :value="slot.id" />
             </el-select>
-          </el-form-item>
+          </FormField>
         </el-card>
 
         <el-card v-if="!isCreate" shadow="never" header="成效數據" class="faq-edit__section">
@@ -277,11 +293,13 @@ function retryLoad() {
             <span>👎 沒有幫助：{{ unhelpfulCount.toLocaleString('zh-Hant') }}</span>
           </div>
         </el-card>
+       </LangTabsBar>
       </el-form>
 
-      <div v-if="!isReadOnly" class="faq-edit__action-bar">
+      <EditActionBar v-if="!isReadOnly">
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
@@ -312,35 +330,5 @@ function retryLoad() {
   gap: 24px;
   font-size: 14px;
   color: var(--admin-text-secondary);
-}
-
-.faq-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .faq-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .faq-edit__action-bar {
-    justify-content: stretch;
-  }
-
-  .faq-edit__action-bar :deep(.el-button) {
-    flex: 1;
-  }
 }
 </style>

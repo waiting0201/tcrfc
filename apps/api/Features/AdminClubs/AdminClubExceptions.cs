@@ -9,8 +9,14 @@ public sealed class AdminClubValidationException(string message, string? field =
 
 /// <summary><c>clubs.code</c> 全域唯一（<c>UQ_clubs_code</c>）已被使用。對應 409。</summary>
 public sealed class AdminClubCodeConflictException(string code)
-    : AdminClubException($"俱樂部代碼「{code}」已經被使用，請換一個。");
+    : AdminClubException($"俱樂部代碼「{code}」已經被使用，請換一個。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("code", Message);
+}
 
 /// <summary><c>clubs.domain</c> 全域唯一（<c>UQ_clubs_domain</c>）已被使用。對應 409。</summary>
 public sealed class AdminClubDomainConflictException(string domain)
-    : AdminClubException($"網域「{domain}」已經被其他俱樂部使用。");
+    : AdminClubException($"網域「{domain}」已經被其他俱樂部使用。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("domain", Message);
+}
