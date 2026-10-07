@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.21
-> **Date**: 2026-08-14 (v3.21 revision: 2026-10-07)
+> **Document version**: v3.22
+> **Date**: 2026-08-14 (v3.22 revision: 2026-10-07)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.21*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.22*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.22 revision summary — public-site menus are fixed; the admin offers no menu management**
+> **The public menus look the same; how they are managed in the admin is tightened.** The primary menu, mega menu and footer menu are defined by the public-site templates: their items, levels, order, links and Chinese / English labels ship with each public-site release, and the admin offers no menu management and cannot add, delete, reorder or relink menu items. This applies to both websites (Taichung Rock and Taichung Blue Whale). 4.9 module I is narrowed accordingly, and the number of types that require `club_id` in 5.4 goes from 50 to 49. Landing points: 2.2 global navigation, 4.0 public-to-admin mapping, 4.9 I, the module tree, 5.4.
 
 > **v3.21 revision summary — B1 Pages manages fixed pages with fixed fields**
 > **The public pages are unchanged; how B1 is managed in the admin is tightened.** B1 manages only the existing list of fixed static pages on the public site and offers no way to add or delete pages. The content fields of each page are predefined by the page template: the admin fills in content only and cannot add, delete or reorder fields. Repeatable items (such as the Blue Whale history's yearly entries or the player-story cases) can be added or removed as rows within their field. **What the admin edits is the main-body passage of each public page**: page titles, page-header key visuals, breadcrumbs and action buttons, as well as sections outside the main body (such as the organisation chart, the partner-club list, trial sessions and embedded FAQs), follow the public-site template or come from other modules and are outside B1. Taichung Rock has 12 pages and Blue Whale 10 (Blue Whale has no Women's Football entry and no Our Commitment page). Status (draft / published / scheduled), SEO settings, bilingual content, revision history with rollback and shareable preview links for unpublished pages are retained. Where it lands: 4.2 B1, the 4.0 public/admin mapping table, the 4.0 image-upload rule (inline images), the 3.6 page type, 11.1 and the module tree.
@@ -290,6 +293,7 @@ The following assets must be inventoried before launch to determine migration sc
 
 ### 2.2 Global navigation
 
+- **Menus are fixed by the public-site templates**: the items, levels, order and links of the menus below ship with each public-site release; the admin offers no menu management.
 - **Primary menu (desktop)**: ABOUT / CLUB / ACADEMY / PROGRAMS / WOMEN'S / SCHEDULE / NEWS / CULTURE / PARTNERS / CHARITY, with a persistent right-hand group: `JOIN` (accent button), **`Cart` (with item count, added in v2.6)**, `Sign in / Member Centre`, and the language switch `繁中 / EN`.
 - **Mega menu**: each top-level category expands to show its second level plus one key visual and one primary CTA for that category. Women's Football and Charity are single pages and link directly without expanding.
 - **Mobile**: full-screen hamburger drawer (including language switch, member entry, and **the cart**), plus a sticky bottom CTA bar (`Join the Club` / `Contact Us`); **on product detail pages the CTA bar becomes "Add to cart"**.
@@ -920,7 +924,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 │   ├── G2 Inbox (7 form types + deck downloads + donation enquiries)
 │   └── G3 Newsletter Subscribers
 ├── H. Search & AI Visibility
-├── I. Site Settings (menus / footer / languages / contact info / venues / external services)
+├── I. Site Settings (languages / contact info / venues / external services)
 ├── J. System
 │   ├── J1 Accounts
 │   ├── J2 Roles & permissions
@@ -999,7 +1003,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > | Form designer, Enquiry inbox | The seven enquiry forms under 10 Join / Contact (**data arrives in the admin**) |
 > | Newsletter | The footer subscription block |
 > | Search & AI visibility | **The whole site** (no single page): meta and OG tags, sitemap, `robots.txt`, `llms.txt`, structured data, redirects |
-> | Site settings | Site-wide navigation, footer, contact details, venues, the shop entry, external links |
+> | Site settings | Footer contact details, venues, the shop entry, external links |
 > | System administration | **Nothing public** (for admin use) |
 > | Members, Memberships & plans, Jersey issue, Draw rosters | MEMBER Member Centre, the digital card and its public verification page |
 > | Partner stores & benefits | 8.4 Partner store list, the membership benefits table |
@@ -1245,7 +1249,6 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 ### 4.9 I. Site Settings
 
-- **Menu management**: primary menu / mega menu / footer menu, drag-and-drop ordering, multiple levels, external links, bilingual labels
 - **Language management**:
   - Enabled languages: Traditional Chinese (default) / English; **retain the ability to add languages** (Japanese deferred for evaluation)
   - **Translation status overview**: a matrix of every content item's zh / en completion status, filterable by "missing English"
@@ -1616,7 +1619,7 @@ Under a multi-club architecture every table must answer "which club does this be
 > **If it can be derived from a parent, do not store it** — the same fact in two places will drift apart.
 > **Adding `club_id` obliges you to settle three things at once: the unique key, the admin list's default filter, and the public route.** Otherwise the column is dead.
 
-**Mandatory (50 tables)**: all team and fixture types (`Team` / `Player` / `Match` / `Standing` / `Achievement` / `Milestone` / `Season` / `Competition`), site-level content (`Page` / `Banner` / `HomeSection` / `MenuItem` / `Redirect` / `Setting` / `EmailTemplate` / `Form`), personal data (`Registration` / `Trial` / `Enquiry` / `NewsletterSubscriber` / `FanEventRegistration` / `Membership` / `MemberCard` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` / `DrawRoster`), commercial counterparties (`Partner` / `Sponsor` / `SponsorPackage` / `Proposal`), programmes (`Program` / `Session`), the shop (`Collection` / `Product` / `ProductVariant` / `Cart` / `Order` / `OrderItem` / `Shipment` / `RefundRequest` / `StoreInvoice` / `InventoryMovement`), plus `EmailLog`, `FaqSearchMiss`, `CalendarCustomEvent`, `ComicCharacter` / `ComicEpisode` / `FanEvent`, **`MembershipPlan`** (each club has its own fees, card quota, and season rules — see 5.1).
+**Mandatory (49 tables)**: all team and fixture types (`Team` / `Player` / `Match` / `Standing` / `Achievement` / `Milestone` / `Season` / `Competition`), site-level content (`Page` / `Banner` / `HomeSection` / `Redirect` / `Setting` / `EmailTemplate` / `Form`), personal data (`Registration` / `Trial` / `Enquiry` / `NewsletterSubscriber` / `FanEventRegistration` / `Membership` / `MemberCard` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` / `DrawRoster`), commercial counterparties (`Partner` / `Sponsor` / `SponsorPackage` / `Proposal`), programmes (`Program` / `Session`), the shop (`Collection` / `Product` / `ProductVariant` / `Cart` / `Order` / `OrderItem` / `Shipment` / `RefundRequest` / `StoreInvoice` / `InventoryMovement`), plus `EmailLog`, `FaqSearchMiss`, `CalendarCustomEvent`, `ComicCharacter` / `ComicEpisode` / `FanEvent`, **`MembershipPlan`** (each club has its own fees, card quota, and season rules — see 5.1).
 
 **Nullable, meaning "shared by both clubs" (9 tables)**: `Article`, `PressResource`, `Faq`, `Staff`, `Charity`, `CharityProgram`, `ImpactRecord`, `ImpactMetric`, **`PartnerStore`** (a store's applicable scope may be set to one club or both — see 3.14).
 

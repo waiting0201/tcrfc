@@ -1,7 +1,7 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.8
-> **Date**: 2026-09-14 (v1.8 revision: 2026-10-07)
+> **Document version**: v1.9
+> **Date**: 2026-09-14 (v1.9 revision: 2026-10-07)
 > **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.11
 > **Content principal**: Taichung Blue Whale Women's Football Club
 
@@ -140,7 +140,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | | Inbox | Form submissions | Blue Whale's submissions |
 | | Newsletter list | Subscriptions and unsubscribes | Blue Whale's list |
 | **Search & AI visibility** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** | Blue Whale's pages (**its own settings**) |
-| **Site settings** | — | Menus, footer, languages, contact details, venues | This site's settings |
+| **Site settings** | — | Languages, contact details, venues (the site menus and footer links are fixed by the site templates and are not adjusted in the admin) | This site's settings |
 | **System** | Accounts | Admin accounts | **Shared; administrators only** |
 | | Roles and permissions | Who can do what | **Shared; administrators only** |
 | | Audit and backup | Operation records and backups | **Shared; administrators only** |

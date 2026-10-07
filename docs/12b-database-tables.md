@@ -342,7 +342,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 | 權限碼 | 子模組 | `is_club_scoped` | `sysadmin_only` | 持有者 |
 |---|---|---|---|---|
-| `site.menu.view`／`update` | `I2` 選單管理 | 1 | 1 | 僅系統管理員 |
+| `site.menu.view`／`update` | `I2` 選單管理（⚠️ **規劃書 v3.22 起無此子模組，權限碼暫留待移除**） | 1 | 1 | 僅系統管理員 |
 | `site.global.view`／`update` | `I3` 全域設定（Logo、品牌色、Favicon、政策頁、維護模式） | 1 | 1 | 僅系統管理員 |
 | `site.locale.view`／`update` | `I4` 多語系管理（語系、備援規則、日期數字格式、翻譯狀態總覽） | 1 | 1 | 僅系統管理員 |
 | `site.string.view`／`update`／`translate` | `I4` 字串翻譯表 | 0（全站共用主檔） | **0** | 系統管理員全部；**翻譯人員 `view`＋`translate`**（`scope_type='translate_only'`） |

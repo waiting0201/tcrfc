@@ -239,6 +239,8 @@ A new module would create a second place to maintain players and products — tw
 
 **Page management (`B1`) has 10 pages for Blue Whale**: two fewer than Taichung Rock (no 06 Women's Football entry and no 11.1 Our Commitment). For the page names, fields and fixed item counts of the remaining 10, see the page-by-page table (Blue Whale column) in main-site specification §4.2 B1.
 
+**Menus are fixed**: as on the main site, the Blue Whale primary menu, mega menu and footer menu are defined by the public-site templates, and the admin offers no menu management (see main-site specification 4.9 I).
+
 ### 4.2 Site switcher
 
 Staff sign in with **one account through one entry point** and pick the club from a site switcher at the top of the admin. See main-site specification 4.0.

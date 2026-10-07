@@ -1,7 +1,7 @@
 # Taichung Rock FC — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.5
-> **Date**: 2026-09-14 (v1.5 revision: 2026-10-07)
+> **Document version**: v1.6
+> **Date**: 2026-09-14 (v1.6 revision: 2026-10-07)
 > **Corresponds to**: *TCRFC Website Functional Specification* v3.9
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
@@ -155,7 +155,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | | Inbox | Seven form types plus proposal downloads and donation enquiries |
 | | Newsletter list | Subscriptions and unsubscribes |
 | **Search & AI visibility** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** |
-| **Site settings** | — | Menus, footer, languages, contact details, venues, external services |
+| **Site settings** | — | Languages, contact details, venues, external services (the site menus and footer links are fixed by the site templates and are not adjusted in the admin) |
 | **System** | Accounts | Admin accounts |
 | | Roles and permissions | Who can do what |
 | | Audit and backup | Operation records and backups |

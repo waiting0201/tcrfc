@@ -49,7 +49,8 @@ export const NAV_GROUPS: NavGroup[] = [
         // 僅系統管理員；多語系的「介面字串」另開放給翻譯人員（只能改非繁中語系，伺服器強制）。
         children: [
           { code: 'I1', label: '基本資料與聯絡方式', path: '/settings/site', implemented: true },
-          { code: 'I2', label: '選單管理', path: '/settings/menus', implemented: true },
+          // 選單管理：側欄隱藏（2026-10-07 使用者指示，規劃書 v3.22 起前台選單固定，不由後台維護）
+          { code: 'I2', label: '選單管理', path: '/settings/menus', implemented: true, hidden: true },
           { code: 'I3', label: '全域設定', path: '/settings/global', implemented: true },
           // 多語系：側欄隱藏（2026-10-07 使用者指示）。路由、畫面與 API 保留，直接進 /settings/locales
           { code: 'I4', label: '多語系', path: '/settings/locales', implemented: true, hidden: true },

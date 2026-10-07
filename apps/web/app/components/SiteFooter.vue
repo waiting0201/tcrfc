@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { PublicPartner } from '#shared/utils/partners'
-import { menuItemHref, type PublicMenuItem } from '#shared/utils/site-settings'
 // app/components/SiteFooter.vue — 由 site/src/partials/footer.html 轉來（DOM／class 不動）
 //
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：品牌欄一句話介紹、
@@ -42,23 +41,6 @@ const { data: footerPartnerData } = useFetch<PublicPartner[]>(() => `/api/backen
   key: `partners-footer-${config.public.club}-${locale.value}`,
 })
 const footerPartners = computed(() => (footerPartnerData.value ?? []).slice(0, 8))
-
-// I2 選單管理（H 批）：後台設定了頁尾選單就改讀 API，沒有時沿用下方寫死的三欄連結（過渡策略，見 useSiteMenus.ts）。
-// 每個有子項目的頂層項目是一欄（標題＋連結）；沒有子項目的頂層項目集中放進最後一欄「更多連結」。
-const { footer: apiFooter } = useSiteMenus()
-const useApiFooter = computed(() => apiFooter.value.length > 0)
-interface FooterColumn { id: string, title: string, links: PublicMenuItem[] }
-const footerColumns = computed<FooterColumn[]>(() => {
-  const columns: FooterColumn[] = apiFooter.value
-    .filter((i) => i.children.length > 0)
-    .map((i) => ({ id: i.id, title: i.label, links: i.children }))
-  const loose = apiFooter.value.filter((i) => i.children.length === 0)
-  if (loose.length > 0) columns.push({ id: 'loose', title: tx('更多連結', 'More links'), links: loose })
-  return columns
-})
-function hrefOf(item: PublicMenuItem): string | null {
-  return menuItemHref(item, lp)
-}
 
 // G-09 電子報訂閱（H 批）：POST newsletter/subscribe。單一確認（勾選同意即訂閱）、不寄確認信；
 // 曾退訂的信箱再送出不會改回訂閱，且回應不透露名單狀態，所以成功文案刻意中性（「已收到」而非「訂閱完成」）。
@@ -117,18 +99,6 @@ async function onSubscribe() {
           </nav>
         </div>
 
-        <template v-if="useApiFooter">
-          <div v-for="col in footerColumns" :key="col.id" class="footer-col">
-            <h4 aria-level="2">{{ col.title }}</h4>
-            <ul>
-              <li v-for="link in col.links" :key="link.id">
-                <a v-if="hrefOf(link)" :href="hrefOf(link)!" v-bind="link.isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {}">{{ link.label }}</a>
-                <span v-else>{{ link.label }}</span>
-              </li>
-            </ul>
-          </div>
-        </template>
-        <template v-else>
         <div class="footer-col">
           <h4 aria-level="2">{{ tx('俱樂部', 'Club') }}</h4>
           <ul>
@@ -162,7 +132,6 @@ async function onSubscribe() {
             <li><a :href="lp('/zh/app/')">{{ tx('下載 App', 'Download the app') }}</a></li>
           </ul>
         </div>
-        </template>
         <div class="footer-col newsletter">
           <h4 aria-level="2">{{ t('newsletter.title', tx('訂閱電子報', 'Newsletter')) }}</h4>
           <p>{{ t('newsletter.lede', isEn ? `Get ${clubShortName} match reports and event news first.` : `第一時間收到${assets.shortNameZh}賽事戰報與活動資訊。`) }}</p>

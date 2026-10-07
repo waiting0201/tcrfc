@@ -50,7 +50,7 @@
 
 ## 3. 全域導覽
 
-**主選單（Desktop）**
+**主選單（Desktop）**（🔒 **v3.22：主選單、Mega Menu、行動版與 Footer 選單都由前台版型固定定義，後台不提供選單管理**，不能新增、刪除、排序或改連結；兩站一體適用）
 `ABOUT / CLUB / ACADEMY / PROGRAMS / WOMEN'S / SCHEDULE / NEWS / CULTURE / PARTNERS / CHARITY`
 右側常駐：`JOIN 加入我們`（強調色按鈕）、**`購物車`（顯示件數）**、`會員登入 / 會員中心`、語系切換 `繁中 / EN`
 

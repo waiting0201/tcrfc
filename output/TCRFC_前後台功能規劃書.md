@@ -1,8 +1,11 @@
 # TCRFC 台中磐石足球俱樂部 — 官方網站前後台功能規劃書
 
-> **文件版本**：v3.21
-> **建立日期**：2026-08-14（v3.21 修訂：2026-10-07）
+> **文件版本**：v3.22
+> **建立日期**：2026-08-14（v3.22 修訂：2026-10-07）
 > **品牌主張**：LOCAL ROOTS. GLOBAL PATHWAYS. 在地扎根 · 放眼世界
+
+> **v3.22 修訂摘要——前台選單固定，後台不提供選單管理**
+> **前台選單的樣貌不變，後台的管理方式收斂。** 主選單、Mega Menu 與 Footer 選單由前台版型固定定義，項目、層級、排序、連結與中英標籤均隨前台版本發布，後台不提供選單管理，也不能新增、刪除、排序或修改選單連結。兩個官網（台中磐石、台中藍鯨）一體適用。4.9 I 網站設定隨之收斂，5.4 `club_id` 必填型別由 50 張收斂為 49 張。落點：2.2 全域導覽、4.0 前後台對照表、4.9 I、模組樹、5.4。
 
 > **v3.21 修訂摘要——B1 頁面管理為固定頁、固定欄位**
 > **前台頁面不變，後台 B1 的管理方式收斂。** B1 只管理前台既有的固定靜態頁清單，不提供新增或刪除頁面；每一頁的內容欄位由版型事先定義，後台只填內容，不能新增、刪除或調整欄位順序；可重複的項目（如藍鯨沿革的年度條目、球員故事案例）可在該欄位內增刪列。**後台能改的是前台各頁的主內文那一段**：頁面標題、頁首主視覺、麵包屑與行動按鈕，以及主內文以外的區段（如組織架構、合作俱樂部清單、試訓場次、常見問題嵌入），依前台版型或由其他模組提供，不在 B1 編輯範圍。磐石 12 頁、藍鯨 10 頁（藍鯨不設女子足球入口與慈善理念）。狀態（草稿／已發布／排程）、SEO 設定、中英雙語、版本歷程與還原、未發布可分享的預覽連結維持。落點：4.2 B1、4.0 前後台對照表、4.0 後台圖片上傳通則〈內文插圖〉、3.6 頁面型態、3.11 11.1、模組樹。
@@ -285,6 +288,7 @@
 
 ### 2.2 全域導覽建議
 
+- **選單由前台版型固定定義**：以下主選單、Mega Menu、行動版與 Footer 的項目、層級、排序與連結隨前台版本發布，後台不提供選單管理。
 - **主選單（Desktop）**：ABOUT / CLUB / ACADEMY / PROGRAMS / WOMEN'S / SCHEDULE / NEWS / CULTURE / PARTNERS / CHARITY，右側常駐 `JOIN 加入我們`（強調色按鈕）、**`購物車`（顯示件數，v2.6 新增）**、`會員登入 / 會員中心`、語系切換 `繁中 / EN`。
 - **Mega Menu**：每個主分類展開顯示第二層項目 + 一張主視覺圖 + 一個該分類主 CTA。女足與慈善為單層頁面，直接連結不展開。
 - **行動版**：漢堡選單全屏抽屜（含語系、會員與**購物車**入口），底部固定 CTA Bar（`加入球隊` / `聯絡我們`）；**商品詳情頁的 CTA Bar 改為「加入購物車」**。
@@ -911,7 +915,7 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 │   ├── G2 收件匣（7 類表單 + 提案下載 + 捐助洽詢）
 │   └── G3 電子報訂閱名單
 ├── H. 搜尋與 AI 能見度 Visibility
-├── I. 網站設定 Settings（選單／Footer／語系／聯絡資訊／場地／外部服務）
+├── I. 網站設定 Settings（語系／聯絡資訊／場地／外部服務）
 ├── J. 系統管理 System
 │   ├── J1 帳號管理
 │   ├── J2 角色與權限
@@ -990,7 +994,7 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 > | 表單設計、詢問收件匣 | 10 加入／聯絡我們的七類表單（**資料進後台**） |
 > | 電子報 | 頁尾訂閱區塊 |
 > | 搜尋與 AI 能見度 | **全站**（不對應單一頁面）：各頁 Meta 與 OG、網站地圖、`robots.txt`、`llms.txt`、結構化資料、轉址 |
-> | 網站設定 | 全站導覽、頁尾、聯絡資訊、場地、商店入口、外部連結 |
+> | 網站設定 | 頁尾聯絡資訊、場地、商店入口、外部連結 |
 > | 系統管理 | **無前台產出**（後台自用） |
 > | 會員名單、會籍與方案、球衣發放、抽獎名單 | MEMBER 會員中心、電子會員卡與公開驗證頁 |
 > | 特約店家與權益 | 8.4 特約店家清單、會員權益對照表 |
@@ -1234,7 +1238,6 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 
 ### 4.9 I. 網站設定
 
-- **選單管理**：主選單／Mega Menu／Footer 選單，拖曳排序、多層級、外部連結、雙語
 - **多語系管理**：
   - 啟用語系：繁中（預設）／英文；**保留新增語系的擴充能力**（日文列為後續評估）
   - **翻譯狀態總覽**：以矩陣列出每筆內容的 zh / en 完成狀態，可篩選「缺英文」
@@ -1608,7 +1611,7 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 > **能經由父表推導的一律不加**——同一事實存兩處必然不同步。
 > **加了 `club_id` 就必須同時決定「唯一鍵、後台清單預設過濾、前台站台路由」三件事**，否則這個欄位是死的。
 
-**必填（50 張）**：`Club` 相關的全部球隊與賽事型別（`Team`／`Player`／`Match`／`Standing`／`Achievement`／`Milestone`／`Season`／`Competition`）、站台級內容（`Page`／`Banner`／`HomeSection`／`MenuItem`／`Redirect`／`Setting`／`EmailTemplate`／`Form`）、個資（`Registration`／`Trial`／`Enquiry`／`NewsletterSubscriber`／`FanEventRegistration`／`Membership`／`MemberCard`／`MembershipPayment`／`JerseyIssue`／`MemberDraw`／`DrawRoster`）、商業對象（`Partner`／`Sponsor`／`SponsorPackage`／`Proposal`）、課程（`Program`／`Session`）、商店（`Collection`／`Product`／`ProductVariant`／`Cart`／`Order`／`OrderItem`／`Shipment`／`RefundRequest`／`StoreInvoice`／`InventoryMovement`）、`EmailLog`、`FaqSearchMiss`、`CalendarCustomEvent`、`ComicCharacter`／`ComicEpisode`／`FanEvent`、**`MembershipPlan`**（兩隊的費用、發卡數與球季規則各自獨立，見 5.1）。
+**必填（49 張）**：`Club` 相關的全部球隊與賽事型別（`Team`／`Player`／`Match`／`Standing`／`Achievement`／`Milestone`／`Season`／`Competition`）、站台級內容（`Page`／`Banner`／`HomeSection`／`Redirect`／`Setting`／`EmailTemplate`／`Form`）、個資（`Registration`／`Trial`／`Enquiry`／`NewsletterSubscriber`／`FanEventRegistration`／`Membership`／`MemberCard`／`MembershipPayment`／`JerseyIssue`／`MemberDraw`／`DrawRoster`）、商業對象（`Partner`／`Sponsor`／`SponsorPackage`／`Proposal`）、課程（`Program`／`Session`）、商店（`Collection`／`Product`／`ProductVariant`／`Cart`／`Order`／`OrderItem`／`Shipment`／`RefundRequest`／`StoreInvoice`／`InventoryMovement`）、`EmailLog`、`FaqSearchMiss`、`CalendarCustomEvent`、`ComicCharacter`／`ComicEpisode`／`FanEvent`、**`MembershipPlan`**（兩隊的費用、發卡數與球季規則各自獨立，見 5.1）。
 
 **可為空＝兩隊共同（9 張）**：`Article`、`PressResource`、`Faq`、`Staff`、`Charity`、`CharityProgram`、`ImpactRecord`、`ImpactMetric`、**`PartnerStore`**（適用範圍可設為單一俱樂部或兩隊共同，見 3.14）。
 

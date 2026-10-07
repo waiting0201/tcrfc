@@ -1,20 +1,5 @@
 // shared/utils/site-settings.ts — I 網站設定公開端點的型別與純函式（H 批，2026-10-02）。
-// 對應 apps/api/README.md「H 批」§5「公開讀取」：menus／site-settings／policies／ui-strings／venues。
-
-export interface PublicMenuItem {
-  id: string
-  label: string
-  /** 內部連結是不含語系前綴的路徑（`/about/`），外部連結是完整網址；沒有連結（只當分類標題）為 null。 */
-  url: string | null
-  isExternal: boolean
-  children: PublicMenuItem[]
-}
-
-export interface PublicMenus {
-  main: PublicMenuItem[]
-  mega: PublicMenuItem[]
-  footer: PublicMenuItem[]
-}
+// 對應 apps/api/README.md「H 批」§5「公開讀取」：site-settings／policies／ui-strings／venues。
 
 export interface PublicSiteSettings {
   // 主站規劃書 v3.20：標誌、Favicon、品牌色由前台靜態資產與樣式定義，`site-settings` 不再有 `brand`；
@@ -47,18 +32,6 @@ export interface PublicVenue {
   photoHeight: number | null
   photoAlt: string | null
   isHome: boolean
-}
-
-/**
- * 選單項目 → 連結。內部連結補上語系前綴（`/about/` → `/zh/about/` 或 `/en/about/`，透過 `localize`，即 `lp`），
- * 外部連結只接受 http／https（其他協定一律視為沒有連結，避免 `javascript:` 之類被塞進選單）。
- */
-export function menuItemHref(item: PublicMenuItem, localize: (zhPath: string) => string): string | null {
-  const url = item.url?.trim()
-  if (!url) return null
-  if (item.isExternal) return /^https?:\/\/\S+$/i.test(url) ? url : null
-  if (!url.startsWith('/') || url.startsWith('//')) return null
-  return localize(`/zh${url}`)
 }
 
 /** Google 地圖連結：有座標用座標，否則用地址；兩者都沒有回 null。 */
