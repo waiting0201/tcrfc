@@ -1,0 +1,71 @@
+Taichung Rock FC (the "Club", "we" or "us") respects your privacy. This policy explains, in accordance with Taiwan's Personal Data Protection Act, how we collect, process, use and protect the personal data you provide through this website, our membership services, the official shop and related activities. Please read it before using this website.
+
+1. Scope
+This policy applies to the Club's official website (Chinese and English versions), the Member Centre, the official shop, online forms, the newsletter, and the account-related services of the Club's official mobile app.
+It does not apply to other websites or third-party services linked from this website (such as LINE, YouTube and Google Maps), or to the charity donation platform operated by the Taiwan Football Strategic Development Association. Those websites and services have their own privacy policies.
+
+2. Purposes of collection
+We collect, process and use your personal data for the following purposes:
+(a) Membership management: creating accounts, verifying identity, membership applications and renewals, digital membership cards and member benefits.
+(b) Contractual and similar relationships: providing memberships, course and event registrations, jersey registration and other services.
+(c) Online shopping and e-commerce: processing orders, payments, shipping, returns and e-invoices for the official shop.
+(d) Customer management and service: responding to your enquiries, feedback and form submissions.
+(e) Marketing: sending newsletters and information about matches, events and merchandise, only if you have subscribed. You may unsubscribe at any time.
+(f) Statistics and analysis: analysing website use in de-identified form to improve our content and services.
+(g) Other activities within the Club's registered business or articles: team operations, academy and course management, fan events, member prize draws and prize delivery.
+
+3. Categories of personal data
+Depending on the services you use, we may collect:
+(a) Member account: name, email address, mobile number, password (stored as a hash, so we cannot see it), date of birth and language preference. If you sign in with LINE, your LINE account identifier (stored encrypted).
+(b) Members under 18: the name of the legal guardian (parent or guardian), their relationship to the member, and the time of consent.
+(c) Membership and membership card: member number, membership type and validity period, jersey size and collection method. If you choose delivery, the recipient's name, phone number and address.
+(d) Shop orders: recipient name, email, phone number, delivery method and address or convenience-store branch, order notes, invoice type and carrier or tax ID number. All payments are made through LINE Pay; we never receive or store your card number.
+(e) Forms and registrations: depending on the form, your name, date of birth, contact details, emergency contact, guardian details, football experience, video links and the content of your enquiry. For course registrations, the health declaration is a checkbox only; we do not collect medical records or other health examination data.
+(f) Newsletter: email address.
+(g) Prize-draw winners: where the value of a prize reaches the income-tax withholding threshold, your national ID number and registered address, as required by law.
+(h) Usage data: browser type, IP address, pages visited, time of access and other technical data, as well as cookies (see our Cookie Policy).
+
+4. Period, region, recipients and manner of use
+(a) Period: from the date of collection until the purpose of collection no longer exists, you ask us to stop using or to delete the data, or the retention period required by law or contract expires. Transaction data that must be kept under tax, accounting or consumer-protection law is kept for the statutory period. Data collected for prize-draw tax withholding is destroyed when its statutory retention period ends.
+(b) Region: the location of the Club and of the service providers we engage. This website is hosted in a cloud provider's data centre in Japan, and content delivery and security are provided by a network security provider. Your data may therefore be stored or transferred outside Taiwan.
+(c) Recipients: the Club and its authorised staff; third parties engaged to provide our services, including cloud hosting and databases, network security and content delivery, payments (LINE Pay), LINE Login, e-invoicing, email and newsletter delivery, and logistics; and government or judicial authorities where required by law. We require our service providers to protect your data in accordance with the law. We do not sell or rent your data to anyone.
+(d) Manner: collection, processing, use and international transfer, by automated or non-automated means, within the purposes above.
+
+5. Information made public
+(a) Membership card verification page: anyone who scans your membership card QR code sees only the first character of your name, your member number, your membership type and whether it is valid. You can regenerate the QR code in the Member Centre, which disables the old verification link.
+(b) Member prize draws: winners are announced only in the News section of this website, showing the draw number, member number and masked name (for example, 王○明). Full names and contact details are never published.
+
+6. Your rights
+Under Article 3 of the Personal Data Protection Act, you may:
+(a) enquire about or review your personal data;
+(b) request a copy;
+(c) request that it be supplemented or corrected;
+(d) request that we stop collecting, processing or using it;
+(e) request that it be deleted.
+You can update your details, unsubscribe from the newsletter or delete your account yourself in the Member Centre, or contact us through the Contact Us page of this website. We will act on your request promptly once we have confirmed your identity. Data we are required by law to keep, such as transaction and invoice records, cannot be deleted during the retention period.
+
+7. If you do not provide your data
+Providing personal data is voluntary. If you do not complete the required fields, we may be unable to create your account, process your membership or order, accept your registration or reply to your enquiry.
+
+8. Account deletion
+When you delete your account, we erase the personal data in your account, deactivate your membership card and sign you out on all devices. Order and payment records required by law, and the member number and masked name in prize-draw rosters, are kept for the applicable retention period.
+
+9. Minors
+A person under 18 may register only with the consent of their legal guardian, who must provide their name and relationship to the member. For family plans, the main account holder fills in the details of family members and is responsible for their accuracy. Most participants in academy, course and camp registrations are minors; we use their data only as needed to manage registrations and activities.
+
+10. Photographs and video
+Photographs and video taken at matches, training sessions and events may be used on this website, on social media and for promotional purposes. We obtain consent from the legal guardian before using images of minors. If you do not want a particular image to remain public, please let us know through the Contact Us page.
+
+11. Cookies
+This website uses cookies and similar technologies to keep you signed in, keep your shopping cart and support basic functions, and may use them for traffic analysis and to measure marketing performance. See our Cookie Policy for details.
+
+12. Security
+We protect your personal data by: encrypting all traffic with HTTPS; hashing passwords; encrypting sensitive fields such as LINE account identifiers and invoice carriers; limiting back-office access by role, so that unauthorised staff see only masked data; keeping audit logs of every view and export of personal data; and backing up data regularly.
+
+13. Changes to this policy
+We may update this policy because of changes in the law or in our services. The updated policy will be posted on this page with the date of the latest update. For significant changes, we will also notify you by a website announcement or by email.
+
+14. Contact
+If you have any questions or requests about this policy or your personal data, please contact us through the Contact Us page of this website.
+
+If there is any inconsistency between this English version and the Chinese version, the Chinese version prevails.

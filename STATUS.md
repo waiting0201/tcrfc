@@ -415,6 +415,7 @@
 | C-1 | 🚫 | **取回 113 篇 Google Docs 文稿**（`.gdoc` 是捷徑，本機讀不到） | [`docs/09`](docs/09-intake-inventory.md) | B-3 |
 | C-2 | ⬜ | **文稿改寫成網頁文案** | [`docs/07`](docs/07-content-pipeline.md) | C-1 |
 | C-3 | ⬜ | **212 張原始照片挑選、裁切、命名、Alt 文字** | `docs/07`、`docs/06` §5 | — |
+| C-11 | 🔄 | **Cookie 政策／隱私權政策／會員條款中英文**：母稿已擬（2026-10-07，兩俱樂部 × 三份 × 中英＝12 份），見 [`content/legal/`](content/legal/README.md)。本機種子已接（`backoffice_seed.py` 區段 60，不進正式庫）。⬜ 正式站：後台「政策與條款」貼上；⬜ 法務核定（B-9）。⚠️ README 列了未定事項（保存期限、退費、法人全名），以及 **G-07 追蹤碼同意橫幅尚未實作**（目前追蹤碼一有 ID 就載入） | 主站 §4.9 I 全域設定、§4.11 K5 | B-9 |
 | C-4 | ⬜ | **既有官網內容遷移範圍拍板**（www.tcrfc.tw 哪些保留／改寫／捨棄） | `docs/08` §3 第 2 點 | 客戶 |
 | C-5 | ⬜ | **舊官網 128 筆 URL 的 301 對應表**（[`content/migration/舊官網URL盤點.csv`](content/migration/) 的兩欄目前全空） | `docs/12b` §10 | C-4 |
 | C-6 | 🟡 | **英文翻譯由誰產出**：✅ **已定案（2026-10-05 使用者指示「目前的網站要翻譯英文」）：由開發端產出初稿**，範圍是主站（tcrfc）；藍鯨英文不在內（C-10）。**待客戶確認**：聯賽正式英文名（現用 `Enterprise Premier League`，規劃書英文版縮寫 TFPL）、協會英文名（台灣足球策略發展協會／臺中市女子足球協會）、賽程場地英文名（5 處）、職稱與影響指標單位、7 支對手隊英文名（新聞標題另有約 40 個球隊／人名／學校專名）、新聞標題採用的英文初稿（維羅納 Hellas Verona、臺中市政府運動局 Taichung City Government Sports Bureau、東京農業大學 Tokyo University of Agriculture、港超聯 Hong Kong Premier League、台中磐石國際足球盃 Taichung Rock FC International Cup、預備隊 Taichung Rock FC Reserves）、英文地址、`ApplicableTierLabel` 後端英文「Fan club members only」與前台「Paid Fan Club members」不一致；校對由客戶或母語審稿人另行安排 | `docs/08` §3 第 10 點 | 客戶 |
@@ -441,6 +442,7 @@
 
 | 日期 | 事項 |
 |---|---|
+| 2026-10-07 | **政策與條款中英文母稿（C-11）**：依規劃書與現行實作擬寫兩俱樂部的 Cookie 政策、隱私權政策、會員條款（純文字、空行分段，對應 `policy.*` 設定），放在 `content/legal/`。會員條款已逐字納入規劃書要求的抽獎蒐集告知。本機種子區段 60 已改為讀取母稿（`db/prod/` 不變）。正式站尚未貼入，法務核定仍待辦（B-9）。盤點時發現 **G-07 同意橫幅未實作**，已記入 C-11 |
 | 2026-10-05 | **藍鯨資料收件夾建立**：[`藍鯨_資料收件夾/`](藍鯨_資料收件夾/) 與磐石的收件夾分開，頂層編號照主站（不設 06／11、08 自 8.2 起、04 為青年隊、09 只收藍鯨自己簽約的夥伴），68 個資料夾＋說明檔＋zip（以 Python 打包，UTF-8 旗標已確認）。`.gitignore`、`CLAUDE.md`、`docs/07` §2.1、`docs/09` 已同步。後續追蹤見 `BW-0i` |
 | 2026-10-05 | **藍鯨站英文版（C-10 第三輪，`frontend-architect`／`backend-engineer`）**：`isEn` 在藍鯨以 `enReadyBw` 逐頁開啟、77 頁宣告、名稱常數 `BW_NAME_EN`／`BW_FULL_NAME_EN`（舊 `BW_NAME_EN_PENDING` 移除）、`check-bw-en-name.mjs` 改為只允許兩種定案寫法、`check-en-pages.mjs --bw`、藍鯨 `*_i18n` en 列回填與 `clubs_i18n` 補名（正式庫參照／內容種子重產，兩支 `--check` 一致）、3 組 API 測試改寫（全套 1397 綠）。藍鯨 `check-club-brand-leak` 160 條路由（zh／en）全無磐石字樣。未完成與待確認見 S2-13、C-10 |
 | 2026-10-05 | **藍鯨英文名稱定案（使用者拍板，`system-analyst`）**：簡稱 `Taichung Blue Whale`、全名 `Taichung Blue Whale Women's Football Club`。**藍鯨規劃書升 v1.10**（§8.2 品牌資產表加「用法」、§7／§10 第 2 項收斂）、**主站升 v3.18**（§10 第 38 點）、**App 升 v3.15**（§16.2 第 1 項），中英雙版、藍鯨客戶版（v1.7）中英雙版與 PDF 已同步；B-5 的英文名部分解除（向量主檔與印刷色票照舊）。`docs/13` 踩雷點 17、`docs/14` 藍鯨名稱規則、`docs/08`、`docs/00`／`11` 行號與 CLAUDE.md 已同步。⚠️ 前台程式的 `BW_NAME_EN_PENDING` 與 C-10 的依賴欄由翻譯作業另行處理 |

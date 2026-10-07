@@ -19,6 +19,7 @@
 
 import hashlib
 import json
+import pathlib
 from urllib.parse import quote
 
 TEST = "【測試】"
@@ -1892,3 +1893,12 @@ BEGIN
 {pages_sql}
 END
 """)
+
+    # 區段 60 續：政策與條款母稿（Cookie／隱私權／會員條款，兩俱樂部 × 中英）。內文取自 content/legal/（草稿未經法務核定，B-9），
+    # 只給本機，讓前台三頁不是空的；正式庫由後台「網站設定 → 政策與條款」貼上，見 content/legal/README.md。
+    # 刻意掛在區段 60 而不開新區段：新區段會改變 db/prod/*-content-seed.sql 檔頭與 sha256（manifest 要重新演練）。
+    legal_dir = pathlib.Path(__file__).resolve().parents[2] / "content" / "legal"
+    for ccode in ("tcrfc", "bw"):
+        for file_code, key in (("cookie", "policy.cookie"), ("privacy", "policy.privacy"), ("member-terms", "policy.member_terms")):
+            zh_body, en_body = ((legal_dir / ccode / f"{file_code}.{suffix}.txt").read_text(encoding="utf-8").strip() for suffix in ("zh", "en"))
+            setting_i18n(ccode, key, zh_body, en_body, "policy")

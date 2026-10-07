@@ -1,0 +1,39 @@
+This policy explains how the official website of Taichung Blue Whale Women's Football Club, a team of the Taichung City Women's Football Association (the "Club", "we" or "us") uses cookies and similar technologies, and how you can manage them.
+
+1. What are cookies?
+Cookies are small text files that a website stores in your browser to remember information such as your sign-in status and shopping cart. Similar technologies include your browser's session storage (sessionStorage), which is cleared when you close the tab.
+
+2. Strictly necessary cookies
+These are required for the website to work and cannot be switched off. Without them, sign-in, the shopping cart and checkout will not work.
+(a) Member sign-in: keeps you signed in to the Member Centre. It is HttpOnly and SameSite-protected, so scripts on the page cannot read it. It lasts 30 days if you tick "Remember me"; otherwise it expires when you close your browser.
+(b) Shop cart and order: lets visitors who are not signed in keep their cart and look up an order they have just placed. Kept for 30 days.
+(c) Cart count: records only the number of items in your cart, to show it on the cart icon. It contains no personal data. Kept for 30 days.
+(d) Session storage: a security code used during LINE sign-in, identifiers that prevent an order or application from being submitted twice, and a record that prevents an article view from being counted twice. All are cleared when you close the tab.
+(e) Bot protection: some forms use Cloudflare Turnstile to prevent automated abuse. This service may set the cookies it needs to work.
+
+3. Functional cookies
+The language of this website is set by the address (/zh/ or /en/), not by a cookie. We do not currently use any other functional cookies.
+
+4. Analytics and marketing cookies
+We may use the following third-party tools to understand how the website is used and to measure the performance of our promotions. These tools set their own cookies. The data they collect is used mainly for statistics, and we do not use it to identify you personally:
+(a) Google Analytics and Google Tag Manager: traffic and usage statistics.
+(b) Meta Pixel: measuring Facebook and Instagram advertising.
+(c) LINE Tag: measuring LINE advertising.
+For how each third party uses data, please see its own privacy policy.
+
+5. Embedded content
+Some pages embed Google Maps, YouTube (in privacy-enhanced mode) or Vimeo videos. When you view these pages or play a video, these services may set cookies under their own policies.
+
+6. Managing cookies
+You can delete stored cookies, or block cookies from all or specific websites, in your browser settings. See your browser's help pages for instructions. You can also opt out of analytics or advertising tracking with these tools:
+(a) Google Analytics Opt-out Browser Add-on: https://tools.google.com/dlpage/gaoptout
+(b) Facebook ad preferences: https://www.facebook.com/adpreferences
+Blocking strictly necessary cookies will stop sign-in, the shopping cart and checkout from working.
+
+7. Changes to this policy
+We may update this policy from time to time. The updated policy will be posted on this page with the date of the latest update.
+
+8. Contact
+If you have any questions about this policy, please contact us through the Contact Us page of this website or by email at fbbh2014@gmail.com. For how we handle personal data, please see our Privacy Policy.
+
+If there is any inconsistency between this English version and the Chinese version, the Chinese version prevails.
