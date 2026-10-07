@@ -196,6 +196,7 @@
 | E-286 | 2026-10-07 | 使用者要求「Cookie 政策、隱私權政策、會員條款請幫我填入中英文版」，只產出 `content/legal/` 檔案就收尾，回報「尚未貼入後台、待法務核定」，使用者得再說一次「只是不想讓欄位空空的，先放上」。根因：把規格上的阻塞（B-9 法務）當成可以不完成使用者明確動作的理由。**下次怎麼避免**：使用者說「填入／放上」，同一輪就寫進實際的儲存路徑（本機種子或後台），阻塞事項在回報中註明即可 | ⚠️ 無 |
 | E-287 | 2026-10-07 | `backoffice_seed.py` 新增程式碼使用 `pathlib.Path`，看到檔內已有 `pathlib` 就假設是模組層級匯入，實際上是函式內的局部 `import`，產生器執行時拋出 `NameError`。根因：沿用檔內識別字前沒查它的匯入位置。**下次怎麼避免**：新程式碼用到的模組，先 `grep -n '^import\|^from'` 確認是模組層級匯入 | ✅ 產生器執行即失敗（`generate-club-seed-sql.py` exit 1） |
 | E-288 | 2026-10-07 | 移除後端選單功能時，用 macOS 的 `sed -i '/pattern/d; s/…/…/' file`（沒給備份副檔名）刪測試檔一行：BSD `sed` 把整段 script 當成備份副檔名，沒有改到任何檔案卻回傳成功；緊接著跑全套 `dotnet test` 才因編譯錯誤（找不到已刪的 `GetMenusAsync`）發現，白跑一輪約 6 分鐘；同一輪又用相對路徑導出 log 而落到不存在的目錄 | 在 macOS 改檔一律用 Python 或 Edit 工具，不用 `sed -i`（要用就 `sed -i ''`）；刪掉任何公開方法後先 `dotnet build` 全方案（含測試專案）再跑測試；log 一律寫絕對路徑 | ⚠️ 無 |
+| E-289 | 2026-10-07 | 主 session 收到使用者「push」後直接推 `master`，`deploy.yml` 把新版 API 部署到 VM，但同批新增的展開型遷移 `ClubCoverAltExpand`（`fan_events_i18n`／`press_resources_i18n.cover_alt`）尚未套用到 VM 的資料庫，新 API 一讀該欄位就失敗：測試站 `GET /api/v1/{club}/fan-events`、`/press` 回 500。根因：push 前只查了「push 會不會觸發 `db-migrate`」（不會），沒有反過來查「這批 API 是否依賴尚未套用的結構」；`docs/20` §5 明寫展開型要**先 migrate 後 deploy**，`deploy.yml` 不碰資料庫，而 `db-migrate.yml` 又只能一次套用全部待套用遷移（含收縮型），沒有把順序衝突當成 push 前的檢查項。**下次怎麼避免**：push `master` 前若本批含 `apps/api/Data/Migrations/*Expand*`，先停下告知使用者「須先套遷移再部署」，或先推不含新欄位讀取的版本；`db-migrate.yml` 宜支援只套用展開型。 | 無（待補：push 前檢查腳本或 `deploy.yml` 比對待套用遷移） |
 
 ---
 
