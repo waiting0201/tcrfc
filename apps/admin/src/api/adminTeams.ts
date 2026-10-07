@@ -52,6 +52,9 @@ export interface AdminTeamAdminListItemDto {
   ageBand?: string | null
   teamColor?: string | null
   heroKey?: string | null
+  /** 後端依 heroKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  heroUrl?: string | null
+  heroThumbUrl?: string | null
   sortOrder: number
   nameZh?: string | null
   nameEn?: string | null
@@ -66,6 +69,9 @@ export interface AdminTeamDetailDto {
   ageBand?: string | null
   teamColor?: string | null
   heroKey?: string | null
+  /** 後端依 heroKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  heroUrl?: string | null
+  heroThumbUrl?: string | null
   sortOrder: number
   zh: AdminTeamLocaleContentDto
   en?: AdminTeamLocaleContentDto | null

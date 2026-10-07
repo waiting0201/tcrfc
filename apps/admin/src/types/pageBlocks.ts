@@ -70,6 +70,8 @@ export function emptyBilingualText(): BilingualText {
  */
 export interface ImageSlotState {
   existingKey: string | null
+  /** 既有圖片的預覽網址（後端在圖片物件上附帶的 thumbUrl／url，沒有就是 null）。唯讀，不送回後端。 */
+  existingPreviewUrl: string | null
   existingWidth: number | null
   existingHeight: number | null
   file: File | null
@@ -79,7 +81,7 @@ export interface ImageSlotState {
 }
 
 export function emptyImageSlot(): ImageSlotState {
-  return { existingKey: null, existingWidth: null, existingHeight: null, file: null, cleared: false, altZh: '', altEn: '' }
+  return { existingKey: null, existingPreviewUrl: null, existingWidth: null, existingHeight: null, file: null, cleared: false, altZh: '', altEn: '' }
 }
 
 export interface TextBlockContent {

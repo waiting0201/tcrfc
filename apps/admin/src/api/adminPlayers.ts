@@ -24,6 +24,9 @@ export interface AdminPlayerListItemDto {
   birthOn?: string | null
   status?: string | null
   photoKey?: string | null
+  /** 後端依 photoKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  photoUrl?: string | null
+  photoThumbUrl?: string | null
   /** 肖像同意狀態（S1-7a），必填三態字串，見 apps/admin/src/types/team.ts。 */
   portraitConsentStatus: string
   nameZh?: string | null
@@ -46,6 +49,9 @@ export interface AdminPlayerDetailDto {
   joinedOn?: string | null
   status?: string | null
   photoKey?: string | null
+  /** 後端依 photoKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  photoUrl?: string | null
+  photoThumbUrl?: string | null
   portraitConsentStatus: string
   zh: AdminPlayerLocaleContentDto
   en?: AdminPlayerLocaleContentDto | null

@@ -108,6 +108,8 @@ const formErrors = provideFormErrors()
 const bannerForm = reactive<BannerFormState>(emptyBannerForm())
 const bannerImageFile = ref<File | null>(null)
 const bannerHasExistingImage = ref(false)
+/** 既有輪播圖片的預覽網址（imageThumbUrl／imageUrl，沒有就是 null）。 */
+const bannerPreviewUrl = ref<string | null>(null)
 const bannerVideoFile = ref<File | null>(null)
 const bannerHasExistingVideo = ref(false)
 
@@ -130,6 +132,7 @@ function openCreateBannerDialog() {
   Object.assign(bannerForm, emptyBannerForm())
   bannerImageFile.value = null
   bannerHasExistingImage.value = false
+  bannerPreviewUrl.value = null
   bannerVideoFile.value = null
   bannerHasExistingVideo.value = false
   bannerFormError.value = null
@@ -167,6 +170,7 @@ async function openEditBannerDialog(row: AdminBannerListItemDto) {
       cta2Url: detail.zh.cta2Url ?? '',
     })
     bannerHasExistingImage.value = true
+    bannerPreviewUrl.value = detail.imageThumbUrl ?? detail.imageUrl ?? null
     bannerHasExistingVideo.value = detail.mediaType === 'video' && Boolean(detail.videoKey)
   } catch (error) {
     bannerFormError.value = error instanceof AdminApiError ? error.message : '資料載入失敗，請稍後再試'
@@ -528,6 +532,7 @@ watch(club, bootstrap)
               v-model:file="bannerImageFile"
               :remove-cover="false"
               :has-existing-image="bannerHasExistingImage"
+              :existing-preview-url="bannerPreviewUrl"
               :disabled="bannerSaving"
               @update:remove-cover="handleBannerRemoveCoverAttempt"
             />

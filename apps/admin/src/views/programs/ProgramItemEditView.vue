@@ -106,6 +106,8 @@ function snapshot(): string {
   return JSON.stringify({ form, blocks: blocks.value })
 }
 const coverKey = ref<string | null>(null)
+/** 既有圖片的預覽網址（後端附帶的 coverThumbUrl／coverUrl，沒有就是 null）。 */
+const coverPreviewUrl = ref<string | null>(null)
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 
@@ -166,6 +168,7 @@ async function loadProgram() {
         }
       }
       coverKey.value = detail.coverKey ?? null
+      coverPreviewUrl.value = detail.coverThumbUrl ?? detail.coverUrl ?? null
     }
     coverFile.value = null
     removeCover.value = false
@@ -260,6 +263,7 @@ async function handleSave() {
       router.replace(`/programs/items/${created.id}/edit`)
       programId.value = created.id
       coverKey.value = created.coverKey ?? null
+      coverPreviewUrl.value = created.coverThumbUrl ?? created.coverUrl ?? null
     } else {
       const updated = await updateAdminProgram(
         activeClubId.value,
@@ -268,6 +272,7 @@ async function handleSave() {
         coverFile.value,
       )
       coverKey.value = updated.coverKey ?? null
+      coverPreviewUrl.value = updated.coverThumbUrl ?? updated.coverUrl ?? null
       ElMessage.success('已儲存')
     }
     coverFile.value = null
@@ -425,6 +430,7 @@ function retryLoad() {
                       v-model:file="coverFile"
                       v-model:remove-cover="removeCover"
                       :has-existing-image="!!coverKey"
+                      :existing-preview-url="coverPreviewUrl"
                       :disabled="saving || isReadOnly"
                     />
                   </FormField>

@@ -45,6 +45,9 @@ export interface AdminArticleListItemDto {
   slug: string
   categoryCode: string
   coverKey?: string | null
+  /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  coverUrl?: string | null
+  coverThumbUrl?: string | null
   isFeatured: boolean
   /** `draft`／`published`／`scheduled`，⛔ 沒有 `disabled`（articles.status 的 CHECK 約束只有三態） */
   status: 'draft' | 'published' | 'scheduled'
@@ -64,6 +67,9 @@ export interface AdminArticleDetailDto {
   slug: string
   categoryCode: string
   coverKey?: string | null
+  /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  coverUrl?: string | null
+  coverThumbUrl?: string | null
   /** 封面主檔縮小後的實際寬高（S0-7h G 批，唯讀；沒有封面為 null）。 */
   coverWidth?: number | null
   coverHeight?: number | null
@@ -340,11 +346,8 @@ export function detailDtoToArticle(dto: AdminArticleDetailDto): NewsArticle {
     title: pair.title,
     urlName: dto.slug,
     category: dto.categoryCode as NewsCategory,
-    // coverKey 不是可直接顯示的網址（物件儲存容器是私有的，也還沒有任何「用 key 換可顯示網址」
-    // 的端點），這裡先固定給 null；等這條路徑真的補上時，把這行換成真正算出來的網址即可，
-    // ImageUploader.vue 的 existingPreviewUrl 已經接好這個欄位，不需要再改呼叫端。見
-    // apps/admin/README.md「圖片上傳共用元件的前端接線」已知限制。
-    coverImageUrl: null,
+    coverUrl: dto.coverUrl ?? null,
+    coverThumbUrl: dto.coverThumbUrl ?? null,
     coverKey: dto.coverKey ?? null,
     coverWidth: dto.coverWidth ?? null,
     coverHeight: dto.coverHeight ?? null,
@@ -379,7 +382,8 @@ export function listItemDtoToArticle(dto: AdminArticleListItemDto): NewsArticle 
     title: { zh: dto.titleZh ?? '', en: dto.titleEn ?? '' },
     urlName: dto.slug,
     category: dto.categoryCode as NewsCategory,
-    coverImageUrl: null,
+    coverUrl: dto.coverUrl ?? null,
+    coverThumbUrl: dto.coverThumbUrl ?? null,
     coverKey: dto.coverKey ?? null,
     coverWidth: null,
     coverHeight: null,

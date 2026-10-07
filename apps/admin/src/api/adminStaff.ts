@@ -33,6 +33,9 @@ export interface AdminStaffListItemDto {
   staffGroup?: string | null
   licence?: string | null
   photoKey?: string | null
+  /** 後端依 photoKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  photoUrl?: string | null
+  photoThumbUrl?: string | null
   portraitConsentStatus: string
   nameZh?: string | null
   nameEn?: string | null
@@ -46,6 +49,9 @@ export interface AdminStaffDetailDto {
   staffGroup?: string | null
   licence?: string | null
   photoKey?: string | null
+  /** 後端依 photoKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  photoUrl?: string | null
+  photoThumbUrl?: string | null
   portraitConsentStatus: string
   zh: AdminStaffLocaleContentDto
   en?: AdminStaffLocaleContentDto | null

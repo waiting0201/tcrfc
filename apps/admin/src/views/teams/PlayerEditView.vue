@@ -67,6 +67,8 @@ const baselineJson = ref('')
 // 載入時的網址代稱：改了它會讓舊的球員頁連結失效，要在欄位旁提醒。
 const originalSlug = ref('')
 const photoKey = ref<string | null>(null)
+/** 既有圖片的預覽網址（後端附帶的 photoThumbUrl／photoUrl，沒有就是 null）。 */
+const photoPreviewUrl = ref<string | null>(null)
 const photoFile = ref<File | null>(null)
 const removePhoto = ref(false)
 
@@ -106,6 +108,7 @@ async function loadPlayer() {
       form.bioZh = detail.zh.bio ?? ''
       form.bioEn = detail.en?.bio ?? ''
       photoKey.value = detail.photoKey ?? null
+      photoPreviewUrl.value = detail.photoThumbUrl ?? detail.photoUrl ?? null
     } else if (writableTeams.value.length > 0) {
       form.teamId = writableTeams.value[0].id
     }
@@ -201,6 +204,7 @@ async function handleSave() {
       router.replace(`/teams/players/${created.id}/edit`)
       playerId.value = created.id
       photoKey.value = created.photoKey ?? null
+      photoPreviewUrl.value = created.photoThumbUrl ?? created.photoUrl ?? null
       form.slug = created.slug ?? ''
       originalSlug.value = created.slug ?? ''
     } else {
@@ -211,6 +215,7 @@ async function handleSave() {
         photoFile.value,
       )
       photoKey.value = updated.photoKey ?? null
+      photoPreviewUrl.value = updated.photoThumbUrl ?? updated.photoUrl ?? null
       form.slug = updated.slug ?? form.slug
       originalSlug.value = updated.slug ?? originalSlug.value
       ElMessage.success('已儲存')
@@ -394,6 +399,7 @@ function retryLoad() {
                       v-model:file="photoFile"
                       v-model:remove-cover="removePhoto"
                       :has-existing-image="!!photoKey"
+                      :existing-preview-url="photoPreviewUrl"
                       :disabled="saving || isReadOnly"
                     />
                   </FormField>

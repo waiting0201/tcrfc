@@ -28,6 +28,9 @@ export interface AdminProgramListItemDto {
   ageMax?: number | null
   status: string
   coverKey?: string | null
+  /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  coverUrl?: string | null
+  coverThumbUrl?: string | null
   nameZh?: string | null
   nameEn?: string | null
   sessionCount: number
@@ -54,6 +57,9 @@ export interface AdminProgramDetailDto {
   ageMax?: number | null
   status: string
   coverKey?: string | null
+  /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  coverUrl?: string | null
+  coverThumbUrl?: string | null
   zh: AdminProgramLocaleContentDto
   en?: AdminProgramLocaleContentDto | null
   staff: AdminProgramStaffDto[]

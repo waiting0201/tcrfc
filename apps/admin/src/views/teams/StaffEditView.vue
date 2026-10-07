@@ -61,6 +61,8 @@ const form = reactive({
 })
 const baselineJson = ref('')
 const photoKey = ref<string | null>(null)
+/** 既有圖片的預覽網址（後端附帶的 photoThumbUrl／photoUrl，沒有就是 null）。 */
+const photoPreviewUrl = ref<string | null>(null)
 const photoFile = ref<File | null>(null)
 const removePhoto = ref(false)
 const isShared = ref(false)
@@ -98,6 +100,7 @@ async function loadStaff() {
       form.bioEn = detail.en?.bio ?? ''
       form.teams = detail.teams.map((t) => ({ teamId: t.teamId, teamCode: t.teamCode, roleCode: t.roleCode ?? '' }))
       photoKey.value = detail.photoKey ?? null
+      photoPreviewUrl.value = detail.photoThumbUrl ?? detail.photoUrl ?? null
       isShared.value = detail.isShared
     }
     photoFile.value = null
@@ -194,6 +197,7 @@ async function handleSave() {
       router.replace(`/teams/staff/${created.id}/edit`)
       staffId.value = created.id
       photoKey.value = created.photoKey ?? null
+      photoPreviewUrl.value = created.photoThumbUrl ?? created.photoUrl ?? null
     } else {
       const updated = await updateAdminStaff(
         activeClubId.value,
@@ -202,6 +206,7 @@ async function handleSave() {
         photoFile.value,
       )
       photoKey.value = updated.photoKey ?? null
+      photoPreviewUrl.value = updated.photoThumbUrl ?? updated.photoUrl ?? null
       ElMessage.success('已儲存')
     }
     photoFile.value = null
@@ -369,6 +374,7 @@ function retryLoad() {
                       v-model:file="photoFile"
                       v-model:remove-cover="removePhoto"
                       :has-existing-image="!!photoKey"
+                      :existing-preview-url="photoPreviewUrl"
                       :disabled="saving || isReadOnly"
                     />
                   </FormField>

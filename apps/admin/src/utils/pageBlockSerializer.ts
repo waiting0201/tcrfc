@@ -44,9 +44,10 @@ function parseBilingual(raw: unknown): BilingualText {
 }
 
 function parseImageSlot(raw: unknown): ImageSlotState {
-  const obj = (raw ?? {}) as { key?: string | null; width?: number | null; height?: number | null; altZh?: string | null; altEn?: string | null }
+  const obj = (raw ?? {}) as { key?: string | null; url?: string | null; thumbUrl?: string | null; width?: number | null; height?: number | null; altZh?: string | null; altEn?: string | null }
   return {
     existingKey: obj.key ?? null,
+    existingPreviewUrl: obj.thumbUrl ?? obj.url ?? null,
     existingWidth: obj.width ?? null,
     existingHeight: obj.height ?? null,
     file: null,

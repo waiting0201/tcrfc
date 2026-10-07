@@ -67,6 +67,8 @@ const form = reactive({
 })
 const baselineJson = ref('')
 const coverKey = ref<string | null>(null)
+/** 既有圖片的預覽網址（後端附帶的 coverThumbUrl／coverUrl，沒有就是 null）。 */
+const coverPreviewUrl = ref<string | null>(null)
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 const exceptionDatePicker = ref<Date | null>(null)
@@ -122,6 +124,7 @@ async function loadEvent() {
       form.titleEn = detail.en?.title ?? ''
       form.descriptionEn = detail.en?.description ?? ''
       coverKey.value = detail.coverKey ?? null
+      coverPreviewUrl.value = detail.coverThumbUrl ?? detail.coverUrl ?? null
     } else {
       form.isPublic = true
     }
@@ -214,6 +217,7 @@ async function handleSave() {
       router.replace(`/calendar/events/${created.id}/edit`)
       eventId.value = created.id
       coverKey.value = created.coverKey ?? null
+      coverPreviewUrl.value = created.coverThumbUrl ?? created.coverUrl ?? null
     } else {
       const updated = await updateAdminCalendarCustomEvent(
         activeClubId.value,
@@ -222,6 +226,7 @@ async function handleSave() {
         coverFile.value,
       )
       coverKey.value = updated.coverKey ?? null
+      coverPreviewUrl.value = updated.coverThumbUrl ?? updated.coverUrl ?? null
       ElMessage.success('已儲存')
     }
     coverFile.value = null
@@ -409,6 +414,7 @@ function retryLoad() {
                       v-model:file="coverFile"
                       v-model:remove-cover="removeCover"
                       :has-existing-image="!!coverKey"
+                      :existing-preview-url="coverPreviewUrl"
                       :disabled="saving || isReadOnly"
                     />
                   </FormField>

@@ -399,9 +399,10 @@ async function handleBatchDelete() {
           >
             <el-table-column type="selection" width="44" />
             <el-table-column label="封面" width="72">
-              <template #default>
+              <template #default="{ row }">
                 <div class="news-list__thumb">
-                  <div class="news-list__thumb-placeholder">
+                  <img v-if="row.coverThumbUrl || row.coverUrl" :src="(row.coverThumbUrl || row.coverUrl)!" alt="" class="news-list__thumb-img">
+                  <div v-else class="news-list__thumb-placeholder">
                     <el-icon><Picture /></el-icon>
                   </div>
                 </div>
@@ -473,7 +474,8 @@ async function handleBatchDelete() {
             <el-card v-for="row in articles" :key="row.id" shadow="never" class="news-list__card">
               <div class="news-list__card-main">
                 <div class="news-list__thumb">
-                  <div class="news-list__thumb-placeholder">
+                  <img v-if="row.coverThumbUrl || row.coverUrl" :src="(row.coverThumbUrl || row.coverUrl)!" alt="" class="news-list__thumb-img">
+                  <div v-else class="news-list__thumb-placeholder">
                     <el-icon><Picture /></el-icon>
                   </div>
                 </div>
@@ -603,6 +605,14 @@ async function handleBatchDelete() {
 .news-list__thumb {
   width: 48px;
   height: 48px;
+}
+
+.news-list__thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+  background: var(--admin-bg-surface-2);
 }
 
 .news-list__thumb-placeholder {

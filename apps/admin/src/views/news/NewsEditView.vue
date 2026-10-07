@@ -72,7 +72,8 @@ function emptyArticle(): NewsArticle {
     title: { zh: '', en: '' },
     urlName: '',
     category: 'club',
-    coverImageUrl: null,
+    coverUrl: null,
+    coverThumbUrl: null,
     coverKey: null,
     coverWidth: null,
     coverHeight: null,
@@ -792,7 +793,7 @@ function retryLoad() {
                       v-model:file="coverFile"
                       v-model:remove-cover="removeCover"
                       :has-existing-image="!!form.coverKey"
-                      :existing-preview-url="form.coverImageUrl"
+                      :existing-preview-url="form.coverThumbUrl ?? form.coverUrl"
                       :disabled="saving"
                     />
                   </FormField>

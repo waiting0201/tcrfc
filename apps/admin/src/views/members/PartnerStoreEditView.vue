@@ -120,7 +120,7 @@ function applyDetail(d: PartnerStoreDetailDto) {
   form.offerZh = d.zh.offerContent ?? ''
   form.offerEn = d.en?.offerContent ?? ''
   loadedShared.value = d.isShared
-  imageUrl.value = d.imageUrl ?? null
+  imageUrl.value = d.imageThumbUrl ?? d.imageUrl ?? null
   hasImage.value = !!d.imageKey
 }
 

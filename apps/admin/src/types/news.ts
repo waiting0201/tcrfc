@@ -116,9 +116,9 @@ export interface NewsArticle {
   /** 網址名稱（畫面翻譯自 API 的 slug，見 docs/06 §1） */
   urlName: string
   category: NewsCategory
-  /** 目前恆為 null（見 api/adminNews.ts 的 detailDtoToArticle 說明），保留欄位給日後補上
-   * 「用 coverKey 換可顯示網址」的機制時使用，ImageUploader.vue 的 existingPreviewUrl 已經接好。 */
-  coverImageUrl: string | null
+  /** 封面圖片大圖／160px 縮圖網址（後端依 coverKey 附帶回傳；沒有封面為 null）。預覽優先用縮圖。 */
+  coverUrl: string | null
+  coverThumbUrl: string | null
   /** 對應 API 的 coverKey，圖片上傳共用元件（S0-8）的物件鍵，見 apps/api/README.md */
   coverKey: string | null
   /** 封面主檔實際寬高（S0-7h，唯讀，由後端上傳時寫入；沒有封面為 null）。不送回 API。 */

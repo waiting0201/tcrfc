@@ -180,6 +180,7 @@ function removeTableRow(rowIndex: number) {
           v-model:file="textImageC.image.file"
           v-model:remove-cover="textImageC.image.cleared"
           :has-existing-image="!!textImageC.image.existingKey"
+          :existing-preview-url="textImageC.image.existingPreviewUrl"
         />
       </FormField>
       <BilingualShortField
@@ -215,6 +216,7 @@ function removeTableRow(rowIndex: number) {
             v-model:file="slot.file"
             v-model:remove-cover="slot.cleared"
             :has-existing-image="!!slot.existingKey"
+            :existing-preview-url="slot.existingPreviewUrl"
           />
         </FormField>
         <BilingualShortField

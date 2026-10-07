@@ -21,12 +21,12 @@
  * 持有並在載入／存檔成功後重置——這樣「離開或取消表單不留下任何檔案」自然成立：使用者選了圖片
  * 但沒按儲存就離開，`File` 物件只是被瀏覽器分頁的記憶體釋放，從來沒有任何 HTTP 請求送出過。
  *
- * ⚠️ **已知限制**：既有封面圖片（`hasExistingImage` 為真、這次瀏覽階段沒有選過新檔案）沒有辦法
- * 在後台預覽——物件儲存容器目前是私有（`PublicAccessType.None`），也還沒有任何「用物件鍵換可
- * 顯示網址」的端點（見 `docs/21-admin-ui.md` §9 與 `apps/admin/README.md` 的說明）。這種情況畫面
- * 上顯示「已上傳但無法預覽」的提示區塊，不是空的上傳框（空框會讓人誤以為沒有圖片），也不是硬把
- * 物件鍵塞進 `<img src>` 假裝能顯示。等後端補上這個管道時，呼叫端把換算出來的網址傳進
- * `existingPreviewUrl` 就會自動改顯示真正的預覽圖，本元件不需要再改。
+ * **既有圖片的預覽**：後端在每個圖片鍵欄位 `{x}Key` 旁邊一併回傳 `{x}Url`（大圖）與 `{x}ThumbUrl`
+ * （160px 方形縮圖），呼叫端把 `{x}ThumbUrl ?? {x}Url` 傳進 `existingPreviewUrl`，本元件就顯示真正
+ * 的預覽圖（沿用 docs/21 §9.1 的中性看片台，不另外加色）。
+ * 退路：`hasExistingImage` 為真、沒選過新檔案、而且呼叫端沒有傳網址（`existingPreviewUrl` 為空）時，
+ * 畫面顯示「已上傳但無法預覽」的提示區塊，不是空的上傳框（空框會讓人誤以為沒有圖片），也不是硬把
+ * 物件鍵塞進 `<img src>` 假裝能顯示。新增圖片欄位時，一定要把網址傳進來，不要只傳 `hasExistingImage`。
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { convertHeicIfNeeded, looksUnsupportedFormat, readImageDimensions, HeicConversionError } from '@/utils/imageFile'
@@ -42,8 +42,8 @@ const props = withDefaults(
      * 伺服器端的既有圖片並沒有真的被動到）。 */
     hasExistingImage: boolean
     /**
-     * 如果呼叫端有辦法把既有封面圖片換成一個可以直接顯示的網址就傳進來（目前系統還沒有這個
-     * 管道，見上方檔頭「已知限制」），沒有就留 `null`，元件會改顯示「已上傳但無法預覽」。
+     * 既有圖片的可顯示網址（後端附帶的 `{x}ThumbUrl ?? {x}Url`，見上方檔頭說明）。沒有就留
+     * `null`，元件會改顯示「已上傳但無法預覽」。
      */
     existingPreviewUrl?: string | null
     minWidth?: number
@@ -99,7 +99,7 @@ onBeforeUnmount(() => {
  * 既有圖片其實還沒被動到（要等按下儲存）。 */
 const showingExisting = computed(() => !props.file && props.hasExistingImage && !props.removeCover)
 
-/** 本機預覽優先；沒有本機預覽但呼叫端有給既有圖片的可顯示網址時才用它（見檔頭「已知限制」）。 */
+/** 本機預覽優先；沒有本機預覽但呼叫端有給既有圖片的可顯示網址時才用它（見檔頭「既有圖片的預覽」）。 */
 const previewUrl = computed(() => {
   if (localPreviewUrl.value) return localPreviewUrl.value
   return showingExisting.value ? props.existingPreviewUrl ?? null : null
@@ -235,7 +235,7 @@ const fileSizeLabel = computed(() => {
       </p>
     </div>
 
-    <!-- 既有圖片，但這個瀏覽階段沒有可顯示的網址：見檔頭「已知限制」 -->
+    <!-- 既有圖片，但這個瀏覽階段沒有可顯示的網址：見檔頭「既有圖片的預覽」的退路說明 -->
     <div
       v-else-if="hasUnpreviewableExisting"
       class="image-uploader__existing"

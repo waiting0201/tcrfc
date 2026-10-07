@@ -52,6 +52,7 @@ export interface PressDetailDto {
   fileBytes?: number | null
   coverKey?: string | null
   coverUrl?: string | null
+  coverThumbUrl?: string | null
   coverWidth?: number | null
   coverHeight?: number | null
   zh: PressLocaleContent

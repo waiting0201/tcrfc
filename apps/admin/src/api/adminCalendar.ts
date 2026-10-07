@@ -174,6 +174,9 @@ export interface AdminCalendarCustomEventListItemDto {
   repeatRule?: string | null
   isPublic: boolean
   coverKey?: string | null
+  /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  coverUrl?: string | null
+  coverThumbUrl?: string | null
   teamCodes: string[]
   eventTypeCode?: string | null
   titleZh?: string | null
@@ -194,6 +197,9 @@ export interface AdminCalendarCustomEventDetailDto {
   exceptionDates: string[]
   isPublic: boolean
   coverKey?: string | null
+  /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  coverUrl?: string | null
+  coverThumbUrl?: string | null
   ctaUrl?: string | null
   teamIds: string[]
   teamCodes: string[]

@@ -84,7 +84,7 @@ function apply(d: PressDetailDto) {
   form.coverAltZh = d.zh.coverAlt ?? ''
   form.coverAltEn = d.en?.coverAlt ?? ''
   originalType.value = d.resourceType
-  coverUrl.value = d.coverUrl ?? null
+  coverUrl.value = d.coverThumbUrl ?? d.coverUrl ?? null
   hasCover.value = !!d.coverKey
   fileBytes.value = d.fileBytes ?? null
   fileUrl.value = d.fileUrl ?? null

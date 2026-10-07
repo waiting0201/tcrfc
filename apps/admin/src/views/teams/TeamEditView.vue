@@ -53,6 +53,8 @@ const form = reactive({
 })
 const baselineJson = ref('')
 const heroKey = ref<string | null>(null)
+/** 既有圖片的預覽網址（後端附帶的 heroThumbUrl／heroUrl，沒有就是 null）。 */
+const heroPreviewUrl = ref<string | null>(null)
 const heroFile = ref<File | null>(null)
 const removeHero = ref(false)
 
@@ -81,6 +83,7 @@ async function loadTeam() {
       form.introZh = detail.zh.intro ?? ''
       form.introEn = detail.en?.intro ?? ''
       heroKey.value = detail.heroKey ?? null
+      heroPreviewUrl.value = detail.heroThumbUrl ?? detail.heroUrl ?? null
     }
     heroFile.value = null
     removeHero.value = false
@@ -146,6 +149,7 @@ async function handleSave() {
       router.replace(`/teams/clubs/${created.id}/edit`)
       teamId.value = created.id
       heroKey.value = created.heroKey ?? null
+      heroPreviewUrl.value = created.heroThumbUrl ?? created.heroUrl ?? null
     } else {
       const updated = await updateAdminClubTeam(
         activeClubId.value,
@@ -154,6 +158,7 @@ async function handleSave() {
         heroFile.value,
       )
       heroKey.value = updated.heroKey ?? null
+      heroPreviewUrl.value = updated.heroThumbUrl ?? updated.heroUrl ?? null
       ElMessage.success('已儲存')
     }
     heroFile.value = null
@@ -271,6 +276,7 @@ function retryLoad() {
                       v-model:file="heroFile"
                       v-model:remove-cover="removeHero"
                       :has-existing-image="!!heroKey"
+                      :existing-preview-url="heroPreviewUrl"
                       :disabled="saving"
                     />
                   </FormField>

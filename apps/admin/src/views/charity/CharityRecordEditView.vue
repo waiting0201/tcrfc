@@ -83,7 +83,7 @@ function apply(d: RecordDetailDto) {
   form.locationEn = d.en?.location ?? ''
   form.briefZh = d.zh.briefDescription ?? ''
   form.briefEn = d.en?.briefDescription ?? ''
-  imageUrl.value = d.imageUrl ?? null
+  imageUrl.value = d.imageThumbUrl ?? d.imageUrl ?? null
   hasImage.value = !!d.imageKey
   gallery.value = d.images
   isShared.value = d.isShared

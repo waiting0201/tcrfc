@@ -29,6 +29,9 @@ export interface AdminBannerListItemDto {
   id: string
   mediaType: 'image' | 'video'
   imageKey: string
+  /** 後端依 imageKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  imageUrl?: string | null
+  imageThumbUrl?: string | null
   imageWidth?: number | null
   imageHeight?: number | null
   videoKey?: string | null
@@ -45,6 +48,9 @@ export interface AdminBannerDetailDto {
   id: string
   mediaType: 'image' | 'video'
   imageKey: string
+  /** 後端依 imageKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
+  imageUrl?: string | null
+  imageThumbUrl?: string | null
   imageWidth?: number | null
   imageHeight?: number | null
   videoKey?: string | null

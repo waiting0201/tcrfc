@@ -119,7 +119,7 @@ function apply(d: ProgramDetailDto) {
   mergeOptions(partnerOptions.value, d.partners)
   mergeOptions(sponsorOptions.value, d.sponsors)
   articleSeed.value = d.articles.map((r) => ({ id: r.id, label: r.title || r.slug }))
-  coverUrl.value = d.coverUrl ?? null
+  coverUrl.value = d.coverThumbUrl ?? d.coverUrl ?? null
   hasCover.value = !!d.coverKey
   gallery.value = d.images
   isShared.value = d.isShared

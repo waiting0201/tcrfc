@@ -33,6 +33,8 @@ export interface AdminClubDetailDto {
   code: string
   domain: string
   ogImageKey?: string | null
+  ogImageUrl?: string | null
+  ogImageThumbUrl?: string | null
   invoiceTitle?: string | null
   taxId?: string | null
   isCollectingSubject: boolean

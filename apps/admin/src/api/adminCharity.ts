@@ -140,6 +140,7 @@ export interface ProgramDetailDto {
   charityNameZh?: string | null
   coverKey?: string | null
   coverUrl?: string | null
+  coverThumbUrl?: string | null
   zh: ProgramLocaleContent
   en?: ProgramLocaleContent | null
   partners: LinkRefDto[]
@@ -241,6 +242,7 @@ export interface RecordDetailDto {
   isPinned: boolean
   imageKey?: string | null
   imageUrl?: string | null
+  imageThumbUrl?: string | null
   imageWidth?: number | null
   imageHeight?: number | null
   zh: RecordLocaleContent
