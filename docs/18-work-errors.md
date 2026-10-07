@@ -192,6 +192,9 @@
 | E-279 | 2026-10-06 | 公開行事曆「俱樂部活動」不展開重複規則、不分球隊、不看活動類型是否公開（詳見下方 E-279 段落）。根因：同一份資料三條公開讀取路徑各寫一份篩選 SQL，新規則只補一條。**下次怎麼避免**：可見性條件抽成單一方法共用。（後端 agent 原誤編為 E-234 與既有編號重複，已改號） | ✅ `CalendarPublicTests` 5 項 |
 | E-280 | 2026-10-06 | 榮譽（賽事名稱、名次）、積分榜隊名、課程適合對象、會籍方案季中規則、提案標題都只有單一欄位，英文頁顯示中文（後台→前台串接稽核 D 類）。2026-09-22 曾裁決榮譽、積分榜、提案「不建側表」。根因：判斷要不要雙語時，以「規劃書有沒有逐表標雙語」為準，沒有回到全域規定 4「前台可見內容一律 zh／en」的通則。**下次怎麼避免**：審查或新增資料表時，以「前台會不會顯示這段文字」判斷，會顯示就進 `*_i18n`。已補三張側表與兩個側表欄位（`db/migrations/20261006_d-bilingual-gaps_*`）。 | ⚠️ 寫入 `docs/14`；無自動掃描 |
 | E-281 | 2026-10-06 | 後台 agent 為了比較 ESLint 警告是否既有，在多個 agent 並行寫入同一工作樹時執行 `git stash`／`git stash pop`：stash 收走全部 170 個未提交的追蹤檔案（含使用者先前的改動與當天各輪成果），pop 因另一個 agent 同時改檔而衝突中止，工作樹只剩 HEAD＋零星新改動，另外三個 agent 繼續在缺檔的基礎上寫入。主流程停下三個 agent、備份後 `checkout` 半成品檔案再 `stash pop` 還原，三組重跑。根因：把 `git stash` 當成「只影響自己」的比較工具，沒有意識到它作用於整個共用工作樹；派工 prompt 只寫「不要 commit／push」，沒有禁止其他改動工作樹狀態的 git 指令。**下次怎麼避免**：並行派工時，所有 agent 一律不得執行 `git stash`、`git checkout -- <path>`、`git reset`、`git restore`、`git clean` 等改動工作樹或索引的指令；要比較基準用 `git diff`、`git show HEAD:<path>` 或另開 `git worktree`。 | ✅ 寫入 `docs/14`；派工 prompt 範本加禁令。🔴 **2026-10-07 同類第四次**（S2-22 四批並行）：主 session 的派工 prompt 漏寫禁令，C 批 agent 又為比對 eslint 下了 `stash`／`pop`（事後 48 個改動檔案皆在、lint 與型別檢查通過）。「派工時記得寫」靠人記已失效 → 待使用者同意改為機制：專案 `.claude/settings.json` 以 `permissions.deny` 擋 `git stash`／`reset`／`restore`／`clean`／`checkout --`。🔴 **2026-10-07 同類第五次**（S2-23）：派工 prompt 已寫明禁令，後端 agent 仍執行 `git rm --cached` 動到索引（隨即 `git add` 還原，索引與 HEAD 一致）——**寫進 prompt 也擋不住，必須是機制**；禁令清單需加上 `git rm`／`git add`。🔴 **2026-10-07 同類第六次**（v3.22 選單固定）：主 session 派前台與規格兩個 agent 並行，prompt 又漏寫禁令，前台 agent 為比對型別檢查基準下 `stash`／`pop`，規格 agent 寫到一半的 docs 改動被收走、它看到後重做一輪（事後核對無重複、`check-linerefs`／`check-revision-summary` 通過）。✅ **2026-10-07 已改為機制**：使用者於專案 `.claude/settings.json` 加 `permissions.deny` 擋 `git stash`／`reset`／`restore`／`clean`／`checkout --`／`rm`／`switch`／`pull`／`rebase`（`.claude/settings.json` 已納版控） |
+| E-285 | 2026-10-07 | 為了把政策母稿種進正式庫內容種子，新增種子區段並歸為 `IMPORT`，連帶改動 `db/prod/club-content-seed.sql`，使 manifest 的 sha256 與筆數過期；接著想手算更新 manifest（被權限擋下），改歸 `PERSONAL` 後檔頭區段清單仍變、sha 仍變。根因：動種子前沒先追「區段清單 → 內容種子檔頭 → sha256 → manifest（需本機演練才能重錄）」這條下游鏈。**下次怎麼避免**：只給本機的種子掛在既有的本機區段（如 60），不開新區段；必須開新區段時，把重錄 manifest 的演練當成同一件事一起排。詳見下方 | ⚠️ 無（CI `prod-seed` 只比對 SQL，不比對 manifest 的 `#sha256`） |
+| E-286 | 2026-10-07 | 使用者要求「Cookie 政策、隱私權政策、會員條款請幫我填入中英文版」，只產出 `content/legal/` 檔案就收尾，回報「尚未貼入後台、待法務核定」，使用者得再說一次「只是不想讓欄位空空的，先放上」。根因：把規格上的阻塞（B-9 法務）當成可以不完成使用者明確動作的理由。**下次怎麼避免**：使用者說「填入／放上」，同一輪就寫進實際的儲存路徑（本機種子或後台），阻塞事項在回報中註明即可 | ⚠️ 無 |
+| E-287 | 2026-10-07 | `backoffice_seed.py` 新增程式碼使用 `pathlib.Path`，看到檔內已有 `pathlib` 就假設是模組層級匯入，實際上是函式內的局部 `import`，產生器執行時拋出 `NameError`。根因：沿用檔內識別字前沒查它的匯入位置。**下次怎麼避免**：新程式碼用到的模組，先 `grep -n '^import\|^from'` 確認是模組層級匯入 | ✅ 產生器執行即失敗（`generate-club-seed-sql.py` exit 1） |
 
 ---
 
@@ -2907,3 +2910,26 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：描述「後台能編輯哪些欄位」之前，先逐頁讀前台對應頁的可替換區段；規格只寫後台真的能改的部分，並分列兩個俱樂部。
 - **修正**：使用者 2026-10-07 拍板「照現況，規格對齊程式」；規劃書 §4.2 B1 改寫為逐頁逐俱樂部欄位表（磐石 12 頁、藍鯨 10 頁），中英與導航層同步。
 - **防呆**：無（欄位表的程式端唯一來源為 `apps/api/Features/AdminPages/PageTemplates.cs`，`AdminPageTemplatesTests` 對資料庫核對）。
+
+### E-285 為正式庫內容種子開新區段，連帶讓 manifest 過期（2026-10-07，種子）
+
+- **錯在哪**：為了讓政策母稿（`content/legal/`）也進正式庫，在 `generate-club-seed-sql.py` 新增區段 `24d` 並在 `generate-prod-content-sql.py` 歸為 `IMPORT`。`db/prod/club-content-seed.sql` 因此多了 923 行，但 `db/prod/club-content-manifest.tsv` 的 `#sha256` 與 `settings`／`settings_i18n` 筆數沒有跟著更新。接著想用「舊筆數＋6／＋12、重算 sha」手動改 manifest，被權限分類器判為正式環境部署而擋下。改歸 `PERSONAL` 之後，內容種子檔頭的「`PERSONAL` 區段清單」多了 `24d`，sha 仍然會變。最後改掛在既有的本機區段 60（`backoffice_seed.py`），`db/prod/` 才完全不變。
+- **根因（可改掉的行為）**：決定「放進哪個種子區段」之前，沒先追下游產物的依賴鏈：區段清單 → 內容種子的檔頭 → 檔案 sha256 → manifest。manifest 的筆數依規定要在本機演練庫實跑 `prod-seed-import.sh record-manifest` 才能重錄，不能手算。CI 的 `--check` 只保證 SQL 與產生器一致，不會發現 manifest 過期，所以「`--check` 全綠」被誤當成「正式庫產物都一致」。
+- **下次怎麼避免**：①只給本機的種子資料，掛在既有的本機區段（區段 60），不開新區段；②真的要讓內容進正式庫內容種子時，把「本機演練＋`record-manifest`」排進同一件工作，不手改 manifest；③改種子後除了兩支 `--check`，再看 `git diff --stat db/prod/`，有任何變動就表示 manifest 要重錄。
+- **與 E-157 的關係**：同屬「改種子沒顧到 `db/prod/` 下游」。E-157 是忘了重產 SQL（已有 CI 防呆），這次是重產之後 manifest 跟著過期（還沒有防呆）。**再犯一次就要把防呆補上，不再加新的一筆。**
+- **防呆**：無（待補：`ci.yml` 的 `prod-seed` job 比對 `db/prod/*-content-manifest.tsv` 的 `#sha256` 與對應 `*-content-seed.sql` 的實際 sha256，不一致就失敗）。
+
+### E-286 使用者要求「填入」，卻只產出檔案就收尾（2026-10-07，內容）
+
+- **錯在哪**：使用者要求「cookie政策, 隱私權政策, 會員條款 請幫我填入中 英文版」。我寫了 12 份母稿到 `content/legal/`，回報卻是「尚未貼入後台，仍待法務核定（B-9）」，前台三頁仍然是空的。使用者必須再說一次「我只是不想讓欄位空空的，先放上」。
+- **根因（可改掉的行為）**：把規格上的阻塞（B-9 法務核定、程式註解「不自擬條款」）當成不必完成使用者明確動作的理由。草稿能不能用，是使用者的決定；我要做的是完成動作，同時把風險說清楚。
+- **下次怎麼避免**：使用者說「填入／放上」，同一輪就寫進實際的儲存路徑。本機寫進種子；正式環境屬於對外動作，先問一次或請使用者在後台貼上。法務、待確認事項寫在回報裡，不能因此只停在產出檔案。
+- **防呆**：無。
+
+### E-287 沿用檔內識別字前沒查匯入位置（2026-10-07，種子）
+
+- **錯在哪**：在 `db/seed/backoffice_seed.py` 的 `emit_all` 尾端新增的程式碼使用 `pathlib.Path`。因為檔內其他地方出現過 `pathlib`，就假設是模組層級匯入；實際上那是另一個函式內的局部 `import pathlib`，產生器執行時拋出 `NameError`。
+- **根因（可改掉的行為）**：看到識別字在檔內出現過，就當成全檔可用，沒有確認它的匯入範圍。
+- **下次怎麼避免**：新程式碼用到的模組，先 `grep -n '^import\|^from'` 確認是模組層級匯入，再決定要不要補一行。
+- **修正**：檔頭補上 `import pathlib`。
+- **防呆**：✅ 產生器執行就會失敗（`generate-club-seed-sql.py` exit 1），不會進到 SQL 產物。
