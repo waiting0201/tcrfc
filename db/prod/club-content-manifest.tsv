@@ -1,5 +1,6 @@
-#sha256	d1a4b3141cb1f9a3680bdbc975448dcc05996423f06880054e31fa58bfd5a6de
+#sha256	2813a175d7ed8fdc49f1ff925b2b2e891c5d162d57e6c89672ec1ba7b18a3754
 achievements	3
+achievements_i18n	6
 ad_campaigns	2
 ad_creatives	1
 ad_daily_stats	28
@@ -54,9 +55,9 @@ impact_records	2
 impact_records_i18n	4
 inventory_movements	11
 invoice_donation_codes	2
-match_teams	42
-matches	42
-matches_i18n	84
+match_teams	63
+matches	63
+matches_i18n	107
 membership_benefits	6
 membership_benefits_i18n	12
 membership_plans	3
@@ -81,11 +82,12 @@ products_i18n	12
 programs	18
 programs_i18n	30
 proposals	2
+proposals_i18n	4
 redirects	71
-seasons	3
+seasons	4
 sessions	19
-settings	80
-settings_i18n	71
+settings	90
+settings_i18n	75
 sponsor_activations	2
 sponsor_activations_i18n	4
 sponsor_package_links	4
@@ -97,6 +99,7 @@ staff	13
 staff_i18n	26
 staff_teams	9
 standings	12
+standings_i18n	24
 tags	5
 tags_i18n	10
 teams	4

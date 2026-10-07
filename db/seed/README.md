@@ -58,7 +58,7 @@
 |---|---|---|---|
 | 1 | **球隊（`D1`／`BW1`／`BW-U15`／`BW-U12`）、球季、賽事系列（企甲）、場地（西屯足球場）** | 後台都能建，屬內容；但 `site.squad_codes`、行事曆訂閱網址（`/schedule/d1/`）依賴球隊代號。球季起訖是種子由賽程**推導**（非官方）。`BW-U15`／`BW-U12` 的性別與年齡帶沒有來源 | 不灌；上線前在後台建，或決定匯入範圍後另案 |
 | 2 | **`site.*` 站台事實**（成立年、聯賽名、梯隊敘述、藍鯨網址；GEO-03／04 與 `llms.txt` 的事實來源） | 種子的值是「已核實真實值」，但電話與營業時間是測試值、藍鯨英文全名待確認 | 不灌；後台「網站設定」填 |
-| 3 | **藍鯨舊站整理的真實內容**（2024 名單、教練團、賽事 21 場、里程碑、夥伴 26、FAQ 10、課程 12、活動） | 含真人姓名與經歷；規劃書與 CLAUDE.md 第 7 條要求肖像／個資同意在先 | 不灌 |
+| 3 | **藍鯨舊站整理的真實內容**（2024 名單、教練團、賽事 21 場（另有 2026-10-07 補的 25/26 木蘭 21 場，同屬內容種子）、里程碑、夥伴 26、FAQ 10、課程 12、活動） | 含真人姓名與經歷；規劃書與 CLAUDE.md 第 7 條要求肖像／個資同意在先 | 不灌 |
 | 4 | **頁面真實文案、SEO／GEO 預設**（願景使命、`seo.title_template`、`geo.llms_*`） | 已核實但屬內容；是否以種子文案為起點由客戶決定 | 不灌 |
 | 5 | **301 轉址**（舊網址 → 新網址） | 客戶「決定」欄至今為空，對應頁是種子推測 | 不灌；切正式網址前處理 |
 | 6 | **`event_types` 的色碼與圖示** | 種子註解自述「隨意選用」，不是客戶定案 | 已灌（後台可改）；若要等客戶定案再灌，從 `ALLOW_CLUB` 移除 `23` |
@@ -101,6 +101,8 @@ B-5 已於 2026-10-05 拍板：藍鯨英文簡稱 `Taichung Blue Whale`、全名
 - **待客戶確認的寫法**：`Sport i Taiwan 2.0 sports hotspot`（運動 i 台灣 2.0 運動熱區）、Pick-up Adult Football Matches（野團）、`Taichung Blue Whale Football School`、賽程場地的地名拼音（Kaohsiung Nanzih、Qingpu、Meilun Junior High School、Ming Chuan University）、教育部體育署／國立臺灣體育運動大學的英文名、教練經歷中的賽事名（Chinese Taipei women's national team、East Asian Cup 等）、2022 里程碑「疫情有成舉辦首場頂級足球開門賽」原文語意不明（採字面譯）。
 - **品牌外洩**：藍鯨英文內容不含 Taichung Rock／TCRFC／Academy（詞表見 `apps/web/scripts/check-club-brand-leak.mjs`），產生的 SQL 已 grep 驗證。
 - **正式庫內容種子與 manifest**：重產 `club-content-seed.sql` 後，`club-content-manifest.tsv` 的 sha256 與各 `*_i18n` 筆數以腳本精準更新（斷言舊值）：articles_i18n +3、banners_i18n +1、calendar_custom_events_i18n +3、competitions_i18n +2、faqs_i18n +10、matches_i18n +21、milestones_i18n +12、pages_i18n +4（2026-10-07 固定頁改版後：pages 22／page_blocks 33／page_versions 22／pages_i18n 44；manifest 以計算值更新，尚未經本機演練 record-manifest 核對）、partner_stores_i18n +1、partners_i18n +8、programs_i18n +12、settings_i18n +6、venues_i18n +2。
+- **藍鯨 25/26 木蘭 21 場（2026-10-07）**：`generate-club-seed-sql.py` §13 加 `emit_bw_matches("matches-2025-26-mulan.json", "league")`（來源 [`content/blue-whale/data/matches-2025-26-mulan.json`](../../content/blue-whale/data/matches-2025-26-mulan.json)，官方行事曆）、§11 的 `seasons.json` 補 `2025-26`。藍鯨 `matches` 21→42、`matches_i18n`／`match_teams` 同步、`seasons` 2→3。競賽沿用 `mulan` 那一列（唯一鍵 `(club_id, code)`，不依球季另建，`competitions` 不變）；`status=played`、比分 NULL；**場地只連太原**（`venue_id` 其餘為 NULL，西屯足球場等寫在 `matches_i18n.venue` 原文，因 §13 在 §24 建西屯之前執行）；**`venue_address_zh`、`calendar_home_tag` 無對應欄位，不匯入**。開幕戰採行事曆版本（見 `calendar.md` §3）。這批屬 `IMPORT` 區段，`db/prod/club-content-seed.sql` 與 manifest 已重產／重錄。
+  - ⚠️ **本機（Apple Silicon）演練踩雷**：`deploy/prod-seed-import.sh import` 內用的 `mssql-tools`（sqlcmd 13.1，linux/amd64 在 arm64 上以模擬跑）讀到區段 61 的 `UPDATE … FROM` 批次時會吐 `SqlState 24000, Invalid cursor state`，但**結束碼仍是 0**、整個交易隨連線關閉**靜默回滾**（腳本印「完成」，表卻是空的；改動前的 HEAD 種子檔同樣重現）。演練時改用 `mssql-tools18` 的 sqlcmd（`docker exec -i sqlserver /opt/mssql-tools18/bin/sqlcmd … -b -f 65001 < club-content-seed.sql`，`IMPORT_BATCH`／`CHARITY_DOMAIN` 以環境變數傳入）匯入，再以腳本的 `record-manifest`／`verify` 完成。VM（x86）是否同樣踩到未驗證。
 - **API 測試**：`AppContractBatch4Tests`（俱樂部簡稱）、`AppContractBatch5Tests`（後台簡稱讀寫）、`LocalizationFallbackTests`（俱樂部名稱）原本把「藍鯨沒有英文」當前提，已改為新定案值斷言；回退行為改經後台 `PUT /admin/clubs/{id}`（`en = null` 即刪列）自建並於 `finally` 還原。⚠️ 後台 PUT 的 `en = null` 會**刪掉英文列**，測試改動藍鯨時必須把原英文內容帶回。
 
 ## 這個目錄有什麼

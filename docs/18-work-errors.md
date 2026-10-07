@@ -2947,3 +2947,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：抓取的原始檔一律放 `content/<站>/_raw/`（已加進 `.gitignore`）。收件夾只放客戶交來的檔案，規則寫在 [`docs/07`](07-content-pipeline.md) §2.2。
 - **修正**：原檔已移到 `content/blue-whale/_raw/`。Drive 上的那份會隨本機刪除同步移除，**仍需到 Drive 垃圾桶確認並永久刪除**。
 - **防呆**：無（規則寫在 `docs/07` §2.2 與 `content/blue-whale/README.md` §4 第 6 條）。
+
+### E-295 本機演練 `prod-seed-import.sh import` 結束碼 0 卻整批回滾（2026-10-07，部署工具）
+
+- **錯在哪**：本機（Apple Silicon）演練正式庫內容種子時，`prod-seed-import.sh import` 用的 `mcr.microsoft.com/mssql-tools`（sqlcmd 13.1，以 amd64 模擬執行）讀到區段 61 的 `UPDATE … FROM` 批次時，印出 `SqlState 24000, Invalid cursor state`，但結束碼是 0（已加 `-b` 也一樣）。單一交易隨連線關閉而回滾，腳本卻印「完成」，直到 `verify` 才報「沒有匯入標記」。HEAD 的舊種子檔也能重現。2026-10-03 在 VM（x86）上的正式匯入是成功的。
+- **根因（可改掉的行為）**：腳本只用 sqlcmd 的結束碼判斷成敗，但舊版 sqlcmd 在模擬環境下，遇到游標錯誤不會回傳非 0。
+- **下次怎麼避免**：本機演練改用 `mssql-tools18`（`sqlcmd -b -f 65001`）匯入，再用腳本的 `record-manifest`／`verify` 收尾（做法見 `db/seed/README.md`）。在 VM 上 `import` 印出「完成」之後，一律以腳本自動接著跑的 `verify` 結果為準，`verify` 沒過就等於沒匯入。
+- **防呆**：✅ 部分有：`import` 之後的 `verify` 會檢查標記與逐表筆數，回滾一定會被抓到；但 `import` 本身仍會誤報「完成」（待補：`import` 結束後立刻查標記是否存在）。

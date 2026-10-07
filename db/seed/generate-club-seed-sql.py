@@ -599,7 +599,7 @@ END
 #     唯一鍵 (club_id, code)，與磐石球季各自獨立，不需要同一套 code 命名。
 # ============================================================================
 bw_seasons = load_bw("seasons.json")
-emit("-- ── 11. seasons：藍鯨 2023／2025 兩個球季（球季不與磐石同步，docs/13 踩雷點 6/14） ──")
+emit("-- ── 11. seasons：藍鯨 2023／2025／2025-26 球季（球季不與磐石同步，docs/13 踩雷點 6/14） ──")
 for s in bw_seasons:
     bw_season_id = new_id("season", "bw", s["code"])
     block(f"""
@@ -635,7 +635,7 @@ END
 """)
 
 # ============================================================================
-# 13. 台中藍鯨（bw）賽事（Match）：2023 木蘭聯賽 15 場 ＋ 2025 總統盃 6 場，逐場匯入。
+# 13. 台中藍鯨（bw）賽事（Match）：2023 木蘭聯賽 15 場 ＋ 2025 總統盃 6 場 ＋ 25/26 木蘭 21 場，逐場匯入。
 #     自然鍵 club_id+season_id+match_on+opponent（兩個競賽分屬不同球季，日期＋對手
 #     在各自批次內已足夠唯一，不需要再疊 round_no／match_no 進鍵——round_no／match_no
 #     的定義與可得性兩批不同，見各自 JSON 檔頭註解，勉強塞進同一套鍵值語意反而混淆）。
@@ -645,7 +645,7 @@ END
 #     全部是已經打完、有比分的歷史賽事，套用磐石 schedule.json 那套「一律 scheduled」
 #     慣例會與事實矛盾；status 欄位本身無 CHECK 約束（db/club-schema.sql 已確認）。
 # ============================================================================
-emit("-- ── 13. matches：藍鯨 2023 木蘭聯賽 15 場 ＋ 2025 總統盃 6 場 ─────────────────")
+emit("-- ── 13. matches：藍鯨 2023 木蘭 15 場 ＋ 2025 總統盃 6 場 ＋ 25/26 木蘭 21 場 ──────")
 
 
 def emit_bw_matches(file_name: str, comp_tag: str):
@@ -677,7 +677,12 @@ END
 
 bw_mulan_count = emit_bw_matches("matches-2023-mulan.json", "league")
 bw_cup_count = emit_bw_matches("matches-2025-presidents-cup.json", "cup")
-print(f"INFO: 藍鯨 matches 匯入 {bw_mulan_count} 筆（2023 木蘭）＋ {bw_cup_count} 筆（2025 總統盃）", file=sys.stderr)
+# 2026-10-07 補 25/26 木蘭 21 場（官方 Google 行事曆，見 content/blue-whale/calendar.md）。
+# 競賽沿用 §12 既有 code=mulan 那一列（UQ_competitions_club_code 為 (club_id, code)，一個系列只有一列，
+# 不依球季另建）；球季走 §11 的 2025-26。比分未知留 NULL、status 維持 played；venue_address_zh 與
+# calendar_home_tag 在 schema 沒有對應欄位，不匯入；場地仍只連太原（西屯等其他場地 venue_id = NULL）。
+bw_mulan2526_count = emit_bw_matches("matches-2025-26-mulan.json", "league")
+print(f"INFO: 藍鯨 matches 匯入 {bw_mulan_count} 筆（2023 木蘭）＋ {bw_cup_count} 筆（2025 總統盃）＋ {bw_mulan2526_count} 筆（25/26 木蘭）", file=sys.stderr)
 
 # ============================================================================
 # 14. 台中藍鯨（bw）球員（Player）：只匯 2024 年度名單（客戶 2026-09-22 拍板，見本次回報）。

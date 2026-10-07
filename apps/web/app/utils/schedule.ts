@@ -113,6 +113,18 @@ const MATCH_STATUS_MAP: Record<string, MatchStatusMeta> = {
   live: { code: 'live', label: '比賽中', labelEn: 'Live', schemaOrg: 'https://schema.org/EventScheduled' },
 }
 
+/**
+ * 這場比賽是否「有可顯示的比分」：主客雙方比分都不是 null／undefined 才算。
+ * 🔴 已完賽（`status = 'played'`）不代表有比分——來源（例如藍鯨 25/26 木蘭聯賽行事曆）
+ * 可能只有賽程沒有比分，`score_home`／`score_away` 皆為 NULL。畫面印比分前一律先過這個
+ * 判斷，沒有比分就整段不渲染（不得出現 ` : `、`null`、`undefined`），也不要用 `0 : 0` 頂替。
+ * 比分是數字 0 時是真的 0 分，必須算「有比分」，所以不可用 truthy 判斷。
+ * 全站唯一判斷來源，各頁不要自己再寫一份。
+ */
+export function hasScore(m: { scoreHome?: number | null; scoreAway?: number | null } | null | undefined): boolean {
+  return m != null && m.scoreHome != null && m.scoreAway != null
+}
+
 /** 未知或空值一律 fallback 為「未開始」，與 mockup 原本 switch 的 default 行為一致 */
 const DEFAULT_STATUS_META: MatchStatusMeta = MATCH_STATUS_MAP.scheduled!
 

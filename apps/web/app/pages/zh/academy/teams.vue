@@ -183,7 +183,7 @@ useSeoMeta({
             <li v-for="m in matchesForTeam(tab.teamCode!)" :key="m.id">
               {{ m.matchOn }}{{ tx('　', ' | ') }}{{ m.homeAway === 'home' ? tx('主場', 'Home') : m.homeAway === 'away' ? tx('客場', 'Away') : '' }}
               {{ tx('對', 'vs') }} {{ m.opponent }}
-              <template v-if="mapMatchStatus(m.status).code === 'finished'">{{ tx('　', ' | ') }}{{ m.scoreHome }} : {{ m.scoreAway }}</template>
+              <template v-if="mapMatchStatus(m.status).code === 'finished' && hasScore(m)">{{ tx('　', ' | ') }}{{ m.scoreHome }} : {{ m.scoreAway }}</template>
             </li>
           </ul>
           <button type="button" class="btn btn--dark btn--sm" style="margin-top:1.25rem;" disabled aria-disabled="true">

@@ -255,7 +255,7 @@ const rosterStrip = computed<RosterPlayer[]>(() => {
 const d1Sorted = computed(() =>
   allMatches.value.filter((m) => m.teamCode === firstTeamCode.value).slice().sort((a, b) => a.matchOn.localeCompare(b.matchOn)),
 )
-const d1Played = computed(() => d1Sorted.value.filter((m) => m.status === 'played' && m.matchOn <= todayStr))
+const d1Played = computed(() => d1Sorted.value.filter((m) => m.status === 'played' && m.matchOn <= todayStr && hasScore(m)))
 const d1Upcoming = computed(() => d1Sorted.value.filter((m) => m.status === 'scheduled' && m.matchOn >= todayStr))
 const latestResult = computed(() => d1Played.value.at(-1) ?? null)
 const previousResult = computed(() => d1Played.value.at(-2) ?? null)

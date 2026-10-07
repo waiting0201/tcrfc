@@ -318,7 +318,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
             <td><span :class="['sched-ha', m.homeAway === 'home' ? 'sched-ha--home' : 'sched-ha--away']">{{ homeAwayLabel(m.homeAway) }}</span></td>
             <td>
               {{ matchupLabel(m) }}
-              <template v-if="mapMatchStatus(m.status).code === 'finished'">（{{ m.scoreHome }} : {{ m.scoreAway }}）</template>
+              <template v-if="mapMatchStatus(m.status).code === 'finished' && hasScore(m)">（{{ m.scoreHome }} : {{ m.scoreAway }}）</template>
               <template v-else-if="mapMatchStatus(m.status).code !== 'upcoming'">　{{ matchStatusText(m.status) }}</template>
             </td>
             <td>{{ m.venue ?? 'TBC' }}</td>
@@ -343,7 +343,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
         <li v-for="m in results" :key="m.id">
           <span class="results-list__date">{{ formatMatchDate(m.matchOn) }}</span>
           <span class="results-list__matchup">{{ matchupLabel(m) }}</span>
-          <span class="results-list__score">{{ m.scoreHome }} : {{ m.scoreAway }}</span>
+          <span v-if="hasScore(m)" class="results-list__score">{{ m.scoreHome }} : {{ m.scoreAway }}</span>
           <span v-if="m.competitionName" class="results-list__comp">{{ m.competitionName }}</span>
         </li>
       </ul>

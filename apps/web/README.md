@@ -3541,3 +3541,15 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - `shared/utils/member.ts` 的 `FanEvent`、`shared/utils/press.ts` 的 `PressResource` 補可選欄位 `coverAlt`。
 - 球迷會列表兩處、活動詳情封面、媒體專區三處列表封面與高解析圖庫的 `<img alt>` 改為 `coverAlt` 優先，為 null／空白時沿用現行 alt（活動名稱、資源標題、說明）。
 - 檢查：`npm run lint` 與 `npm run build` 通過。
+
+## 已完賽但沒有比分的場次（2026-10-07，`frontend-architect`）
+
+藍鯨 25/26 木蘭聯賽 21 場為 `status = 'played'`，但來源行事曆沒有比分，`score_home`／`score_away` 皆 NULL。前台原本在已完賽時直接印 `{{ m.scoreHome }} : {{ m.scoreAway }}`，會顯示成 ` : `。
+- **共用判斷**：`app/utils/schedule.ts` 新增 `hasScore(m)`（兩個比分都不是 null／undefined 才為真；數字 0 算有比分）。全站唯一來源，Nuxt auto-import，各頁不要自寫。
+- **一線隊頁**（`club/first-team`）：賽程表比分括號、成績列表比分 `<span>` 皆以 `hasScore(m)` 把關；沒有比分時只顯示日期、對戰、賽事名稱，狀態文字照舊。
+- **學院隊別頁**（`academy/teams`）：同上，沒有比分就不接比分段。
+- **首頁**「最新戰績／上一場」：`d1Played` 篩選條件加 `hasScore(m)`，沒有符合場次沿用既有空狀態。
+- 新聞詳情頁原本就以 `!= null` 判斷，未改。賽程頁（`schedule.vue`）的 SportsEvent JSON-LD 與前台 `.ics` 本來就不輸出比分，無需處理（後端 `.ics` 在 `apps/api`，本輪未碰）。
+- `/en/` 孿生路由共用同一份檔案，自動套用。未新增任何客戶可見文案。
+- 防呆：`scripts/check-has-score.mjs`（`npm run lint:has-score`，已掛 `npm run lint`）驗證 `hasScore` 邊界值，並靜態檢查兩頁印比分處都有把關、首頁篩選含 `hasScore`。
+- 未驗證：未用真實 API／藍鯨 21 場資料渲染，只做單元式腳本與建置；`check-club-brand-leak.mjs` 在未帶站名環境變數的本機容器會因 `og:site_name=TCRFC` 全站命中，與本次無關。

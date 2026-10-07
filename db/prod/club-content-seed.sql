@@ -2487,7 +2487,7 @@ BEGIN
 END
 GO
 
--- ── 11. seasons：藍鯨 2023／2025 兩個球季（球季不與磐石同步，docs/13 踩雷點 6/14） ──
+-- ── 11. seasons：藍鯨 2023／2025／2025-26 球季（球季不與磐石同步，docs/13 踩雷點 6/14） ──
 DECLARE @id uniqueidentifier;
 SELECT @id = id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023';
 IF @id IS NULL
@@ -2508,6 +2508,18 @@ BEGIN
   SET @id = N'7fbb6764-0daf-502f-9de8-be27e45d186b';
   INSERT INTO seasons (id, club_id, code, start_on, end_on)
   VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'2025', N'2025-04-23', N'2025-06-15');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'ecad4545-5f40-5fdd-97b8-cc64b7d516e2';
+  INSERT INTO seasons (id, club_id, code, start_on, end_on)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'2025-26', N'2025-08-16', N'2026-05-23');
   COMMIT TRANSACTION;
 END
 GO
@@ -2539,7 +2551,7 @@ BEGIN
 END
 GO
 
--- ── 13. matches：藍鯨 2023 木蘭聯賽 15 場 ＋ 2025 總統盃 6 場 ─────────────────
+-- ── 13. matches：藍鯨 2023 木蘭 15 場 ＋ 2025 總統盃 6 場 ＋ 25/26 木蘭 21 場 ──────
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
   WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
@@ -2871,6 +2883,342 @@ BEGIN
   INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
   VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'presidents-cup'), NULL, N'2025-06-15', N'16:00', N'AWAY', N'高雄ATTACKERS', N'cup', N'played', 1, 0, NULL, 6);
   INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'高雄楠梓足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-08-16' AND mt.opponent = N'花蓮女足';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'4dffa4e0-bdc8-555d-b935-9f23f0627081';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2025-08-16', N'18:30', N'AWAY', N'花蓮女足', N'league', N'played', NULL, NULL, 1, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'縣立田徑場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-08-23' AND mt.opponent = N'台中櫻花';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'76a22ce9-57cf-5194-bc1a-8184fb246c19';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2025-08-23', N'18:30', N'HOME', N'台中櫻花', N'league', N'played', NULL, NULL, 1, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'西屯足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-09-13' AND mt.opponent = N'高雄Attackers';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'7fc8471d-5463-56e7-9580-067be15045d4';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2025-09-13', N'15:30', N'HOME', N'高雄Attackers', N'league', N'played', NULL, NULL, 1, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'新竹縣第二運動場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-09-20' AND mt.opponent = N'臺北熊讚';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'04ccc7e0-3b34-5ee0-a957-3d1601412299';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2025-09-20', N'16:30', N'HOME', N'臺北熊讚', N'league', N'played', NULL, NULL, 1, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'太原足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-09-27' AND mt.opponent = N'女武神';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'909474ce-98e6-5372-982b-d7aad9758504';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2025-09-27', N'15:30', N'HOME', N'女武神', N'league', N'played', NULL, NULL, 1, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'西屯足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-11-01' AND mt.opponent = N'陽信北競';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'f1ccf262-b7a2-56f9-823c-055b1bec8758';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2025-11-01', N'18:00', N'AWAY', N'陽信北競', N'league', N'played', NULL, NULL, 1, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'臺北田徑場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-11-08' AND mt.opponent = N'新北航源';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'1e9f5dfe-d895-58ff-a8c4-13fdd14d8029';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2025-11-08', N'15:30', N'AWAY', N'新北航源', N'league', N'played', NULL, NULL, 1, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'輔仁大學貴子球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-11-15' AND mt.opponent = N'花蓮女足';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'30ad88e9-eb9b-5703-b0d3-860c903af57c';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2025-11-15', N'15:30', N'HOME', N'花蓮女足', N'league', N'played', NULL, NULL, 2, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'太原足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-12-06' AND mt.opponent = N'台中櫻花';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'db5dee32-15f4-5877-a719-9819951da8db';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2025-12-06', N'15:30', N'HOME', N'台中櫻花', N'league', N'played', NULL, NULL, 2, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'太原足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-12-13' AND mt.opponent = N'高雄Attackers';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'120745b8-b203-573c-966f-8bbdb3a21dc9';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2025-12-13', N'18:00', N'AWAY', N'高雄Attackers', N'league', N'played', NULL, NULL, 2, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'高雄市立楠梓足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-12-20' AND mt.opponent = N'臺北熊讚';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'3344ba3c-af2d-54bb-8d18-c8fca02be664';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2025-12-20', N'15:00', N'AWAY', N'臺北熊讚', N'league', N'played', NULL, NULL, 2, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'縣立田徑場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-01-24' AND mt.opponent = N'新北航源';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'fd85704c-2d4c-5ac3-9d43-c5df16509318';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2026-01-24', N'15:30', N'HOME', N'新北航源', N'league', N'played', NULL, NULL, 2, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'輔仁大學貴子球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-01-31' AND mt.opponent = N'女武神';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'6de7a1a5-3ef9-5ae4-9bd1-a00b163b38ee';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2026-01-31', N'15:00', N'AWAY', N'女武神', N'league', N'played', NULL, NULL, 2, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'縣立田徑場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-02-07' AND mt.opponent = N'陽信北競';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'2647c1bf-797b-5c24-9217-575f7f0155f2';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2026-02-07', N'15:00', N'HOME', N'陽信北競', N'league', N'played', NULL, NULL, 2, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'臺北田徑場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-03-21' AND mt.opponent = N'新北航源';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'ff87eb4e-a159-5cd3-97e2-5f4d247b8fe2';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2026-03-21', N'15:30', N'HOME', N'新北航源', N'league', N'played', NULL, NULL, 3, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'太原足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-03-28' AND mt.opponent = N'花蓮女足';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'4fa70dd0-b787-52e7-992e-61ad47d6823c';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2026-03-28', N'16:00', N'HOME', N'花蓮女足', N'league', N'played', NULL, NULL, 3, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'太原足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-04-25' AND mt.opponent = N'台中櫻花';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'61129a70-29bb-5390-9961-c0c329bf3408';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2026-04-25', N'15:00', N'AWAY', N'台中櫻花', N'league', N'played', NULL, NULL, 3, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'高雄市立楠梓足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-05-02' AND mt.opponent = N'高雄Attackers';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'e642c30a-e997-5586-b0f8-35672b994fb9';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2026-05-02', N'15:30', N'HOME', N'高雄Attackers', N'league', N'played', NULL, NULL, 3, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'西屯足球場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-05-09' AND mt.opponent = N'臺北熊讚';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'ca8c580e-8d91-5aa8-bf99-8c150ddcf6be';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2026-05-09', N'18:30', N'AWAY', N'臺北熊讚', N'league', N'played', NULL, NULL, 3, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'臺北田徑場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-05-16' AND mt.opponent = N'女武神';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'5109f7e8-746a-5b46-bafb-1ad6939cb7b2';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), NULL, N'2026-05-16', N'15:30', N'AWAY', N'女武神', N'league', N'played', NULL, NULL, 3, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'臺北田徑場');
+  INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = mt.id FROM matches mt
+  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-05-23' AND mt.opponent = N'陽信北競';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'756810bc-783c-5dc6-b6be-ca26c8ca30bf';
+  INSERT INTO matches (id, club_id, season_id, competition_id, venue_id, match_on, kickoff, home_away, opponent, competition, status, score_home, score_away, round_no, match_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26'), (SELECT id FROM competitions WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'mulan'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2026-05-23', N'16:30', N'HOME', N'陽信北競', N'league', N'played', NULL, NULL, 3, NULL);
+  INSERT INTO matches_i18n (match_id, locale, venue) VALUES (@id, N'zh-Hant', N'太原足球場');
   INSERT INTO match_teams (match_id, team_id) VALUES (@id, (SELECT id FROM teams WHERE code = N'BW1'));
   COMMIT TRANSACTION;
 END
