@@ -16,6 +16,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangPane from '@/components/LangPane.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -197,53 +198,59 @@ const POLICY_BLOCKS = [
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="政策與條款">
-                <p class="global-settings__hint">內容是純文字，用空白行分段，不支援粗體、連結等格式。每則最多 {{ POLICY_MAX.toLocaleString() }} 字；英文留空時，英文版前台會顯示中文內容。</p>
-                <el-collapse v-model="openPolicies">
-                  <el-collapse-item v-for="p in POLICY_BLOCKS" :key="p.key" :name="p.key">
-                    <template #title>
-                      {{ p.title }}
-                      <el-tag v-if="!form[p.zh].trim()" size="small" type="info" class="global-settings__tag">尚未填寫</el-tag>
-                      <el-tag v-else-if="!form[p.en].trim()" size="small" type="warning" class="global-settings__tag">英文尚未填寫</el-tag>
-                    </template>
-                    <LangPane lang="zh" :field="p.zh">
-                      <FormField :field="p.zh" :label="`${p.title}（中文）`" lang="zh" :reveal="() => revealPolicy(p.key)">
-                        <el-input v-model="form[p.zh]" type="textarea" :rows="10" :maxlength="POLICY_MAX" show-word-limit />
-                      </FormField>
-                    </LangPane>
-                    <LangPane lang="en" :field="p.en" :untranslated="!!form[p.zh].trim() && !form[p.en].trim()">
-                      <FormField :field="p.en" :label="`${p.title}（英文）`" lang="en" :reveal="() => revealPolicy(p.key)">
-                        <el-input v-model="form[p.en]" type="textarea" :rows="10" :maxlength="POLICY_MAX" show-word-limit />
-                      </FormField>
-                    </LangPane>
-                    <div v-if="policyUpdatedAt[p.key]" class="global-settings__hint">最近更新：{{ formatDateTime(policyUpdatedAt[p.key]) }}</div>
-                  </el-collapse-item>
-                </el-collapse>
-              </el-card>
+              <el-card shadow="never">
+                <FormSection title="政策與條款">
+                  <p class="global-settings__hint">內容是純文字，用空白行分段，不支援粗體、連結等格式。每則最多 {{ POLICY_MAX.toLocaleString() }} 字；英文留空時，英文版前台會顯示中文內容。</p>
+                  <el-collapse v-model="openPolicies">
+                    <el-collapse-item v-for="p in POLICY_BLOCKS" :key="p.key" :name="p.key">
+                      <template #title>
+                        {{ p.title }}
+                        <el-tag v-if="!form[p.zh].trim()" size="small" type="info" class="global-settings__tag">尚未填寫</el-tag>
+                        <el-tag v-else-if="!form[p.en].trim()" size="small" type="warning" class="global-settings__tag">英文尚未填寫</el-tag>
+                      </template>
+                      <LangPane lang="zh" :field="p.zh">
+                        <FormField :field="p.zh" :label="`${p.title}（中文）`" lang="zh" :reveal="() => revealPolicy(p.key)">
+                          <el-input v-model="form[p.zh]" type="textarea" :rows="10" :maxlength="POLICY_MAX" show-word-limit />
+                        </FormField>
+                      </LangPane>
+                      <LangPane lang="en" :field="p.en" :untranslated="!!form[p.zh].trim() && !form[p.en].trim()">
+                        <FormField :field="p.en" :label="`${p.title}（英文）`" lang="en" :reveal="() => revealPolicy(p.key)">
+                          <el-input v-model="form[p.en]" type="textarea" :rows="10" :maxlength="POLICY_MAX" show-word-limit />
+                        </FormField>
+                      </LangPane>
+                      <div v-if="policyUpdatedAt[p.key]" class="global-settings__hint">最近更新：{{ formatDateTime(policyUpdatedAt[p.key]) }}</div>
+                    </el-collapse-item>
+                  </el-collapse>
+                </FormSection>
 
-              <el-card shadow="never" header="維護模式">
-                <el-alert
-                  title="開啟後，前台會改顯示維護頁與下方的訊息。切換維護模式會留下系統紀錄。會員卡驗證頁等不能中斷的頁面不受影響。"
-                  type="warning"
-                  show-icon
-                  :closable="false"
-                  class="global-settings__block"
-                />
+                <FormSection title="維護模式">
+                  <el-alert
+                    title="開啟後，前台會改顯示維護頁與下方的訊息。切換維護模式會留下系統紀錄。會員卡驗證頁等不能中斷的頁面不受影響。"
+                    type="warning"
+                    show-icon
+                    :closable="false"
+                    class="global-settings__block"
+                  />
+                  <BilingualTextareaField
+                    field="maintenanceMessage"
+                    label="維護訊息"
+                    :zh="form.maintenanceMessageZh"
+                    :en="form.maintenanceMessageEn"
+                    :maxlength="MAINTENANCE_MAX"
+                    placeholder="例如：網站維護中，預計今晚 22:00 恢復，造成不便敬請見諒。"
+                    @update:zh="(v) => (form.maintenanceMessageZh = v)"
+                    @update:en="(v) => (form.maintenanceMessageEn = v)"
+                  />
+                  <div v-if="maintenanceUpdatedAt" class="global-settings__hint">最近更新：{{ formatDateTime(maintenanceUpdatedAt) }}</div>
+                </FormSection>
+              </el-card>
+            </template>
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
                 <el-form-item label="啟用維護模式">
                   <el-switch v-model="form.maintenanceEnabled" @change="formErrors.clear('maintenanceMessageZh')" />
                   <el-tag v-if="loadedMaintenance" type="danger" size="small" class="global-settings__tag">目前正在維護中</el-tag>
                 </el-form-item>
-                <BilingualTextareaField
-                  field="maintenanceMessage"
-                  label="維護訊息"
-                  :zh="form.maintenanceMessageZh"
-                  :en="form.maintenanceMessageEn"
-                  :maxlength="MAINTENANCE_MAX"
-                  placeholder="例如：網站維護中，預計今晚 22:00 恢復，造成不便敬請見諒。"
-                  @update:zh="(v) => (form.maintenanceMessageZh = v)"
-                  @update:en="(v) => (form.maintenanceMessageEn = v)"
-                />
-                <div v-if="maintenanceUpdatedAt" class="global-settings__hint">最近更新：{{ formatDateTime(maintenanceUpdatedAt) }}</div>
               </el-card>
             </template>
           </EditLayout>

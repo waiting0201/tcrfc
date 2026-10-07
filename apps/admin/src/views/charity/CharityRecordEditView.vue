@@ -17,6 +17,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -212,39 +213,45 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'record
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="事蹟內容">
-                <FormField field="charityId" label="公益團體" required>
-                  <el-select v-model="form.charityId" filterable placeholder="請選擇受贈的公益團體" style="width: 100%" @change="formErrors.clear('charityId')">
-                    <el-option v-for="o in orgs" :key="o.id" :label="o.nameZh || '（未命名）'" :value="o.id" />
-                  </el-select>
-                </FormField>
-                <BilingualTextareaField field="donation" label="捐助內容" :zh="form.donationZh" :en="form.donationEn" required :rows="2" placeholder="例如：足球 50 顆、訓練背心 100 件" @update:zh="(v) => (form.donationZh = v)" @update:en="(v) => (form.donationEn = v)" />
-                <BilingualShortField field="location" label="地點" :zh="form.locationZh" :en="form.locationEn" @update:zh="(v) => (form.locationZh = v)" @update:en="(v) => (form.locationEn = v)" />
-                <BilingualTextareaField field="brief" label="簡述" :zh="form.briefZh" :en="form.briefEn" @update:zh="(v) => (form.briefZh = v)" @update:en="(v) => (form.briefEn = v)" />
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12"><el-form-item label="日期"><el-date-picker v-model="form.happenedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="programId" label="所屬計畫（選填）">
-                      <el-select v-model="form.programId" clearable filterable placeholder="不屬於任何計畫" style="width: 100%"><el-option v-for="p in programs" :key="p.id" :label="p.nameZh || '（未命名）'" :value="p.id" /></el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12"><el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
-                  <el-col :xs="24" :sm="12"><el-form-item label="置頂"><el-switch v-model="form.isPinned" active-text="排在最前面" /></el-form-item></el-col>
-                </el-row>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualTextareaField field="donation" label="捐助內容" :zh="form.donationZh" :en="form.donationEn" required :rows="2" placeholder="例如：足球 50 顆、訓練背心 100 件" @update:zh="(v) => (form.donationZh = v)" @update:en="(v) => (form.donationEn = v)" />
+                  <BilingualShortField field="location" label="地點" :zh="form.locationZh" :en="form.locationEn" @update:zh="(v) => (form.locationZh = v)" @update:en="(v) => (form.locationEn = v)" />
+                  <BilingualTextareaField field="brief" label="簡述" :zh="form.briefZh" :en="form.briefEn" @update:zh="(v) => (form.briefZh = v)" @update:en="(v) => (form.briefEn = v)" />
+                </FormSection>
               </el-card>
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="活動圖片（主圖，必填）">
-                <FormField field="image" label="活動圖片（主圖）" required>
-                  <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeFlag" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
-                </FormField>
-                <p class="record-edit__hint">主圖不能移除，只能更換。</p>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="charityId" label="公益團體" required>
+                    <el-select v-model="form.charityId" filterable placeholder="請選擇受贈的公益團體" style="width: 100%" @change="formErrors.clear('charityId')">
+                      <el-option v-for="o in orgs" :key="o.id" :label="o.nameZh || '（未命名）'" :value="o.id" />
+                    </el-select>
+                  </FormField>
+                  <FormField field="programId" label="所屬計畫（選填）">
+                    <el-select v-model="form.programId" clearable filterable placeholder="不屬於任何計畫" style="width: 100%"><el-option v-for="p in programs" :key="p.id" :label="p.nameZh || '（未命名）'" :value="p.id" /></el-select>
+                  </FormField>
+                  <el-form-item label="日期"><el-date-picker v-model="form.happenedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
+                </FormSection>
+                <FormSection title="活動圖片（主圖，必填）">
+                  <FormField field="image" label="活動圖片（主圖）" required>
+                    <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeFlag" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
+                  </FormField>
+                  <p class="record-edit__hint">主圖不能移除，只能更換。</p>
+                </FormSection>
+                <FormSection title="其他活動圖片">
+                  <p class="record-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
+                  <p v-if="isCreate" class="record-edit__hint">請先儲存基本資料，才能管理相簿</p>
+                  <GalleryManager v-else :images="gallery" :disabled="readOnly" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+                </FormSection>
               </el-card>
-              <el-card shadow="never" header="其他活動圖片">
-                <p class="record-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
-                <p v-if="isCreate" class="record-edit__hint">請先儲存基本資料，才能管理相簿</p>
-                <GalleryManager v-else :images="gallery" :disabled="readOnly" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+              <el-card shadow="never" header="發布設定">
+                <FormSection>
+                  <el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
+                  <el-form-item label="置頂"><el-switch v-model="form.isPinned" active-text="排在最前面" /></el-form-item>
+                </FormSection>
               </el-card>
             </template>
           </EditLayout>

@@ -12,6 +12,8 @@ import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
+import EditLayout from '@/components/EditLayout.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -218,82 +220,88 @@ function retryLoad() {
       />
 
       <el-form label-position="top" :disabled="isReadOnly">
-       <LangTabsBar>
-        <el-card shadow="never" header="基本資訊" class="faq-edit__section">
-          <FormField field="slug" label="網址名稱" required>
-            <el-input v-model="form.slug" placeholder="例如 how-to-join" />
-          </FormField>
-          <FormField field="categoryIds" label="所屬分類（可複選）" required>
-            <el-select
-              v-model="form.categoryIds"
-              multiple
-              filterable
-              placeholder="請選擇分類"
-              style="width: 100%"
-              @change="formErrors.clear('categoryIds')"
-            >
-              <el-option v-for="c in categories" :key="c.id" :label="c.nameZh || c.slug" :value="c.id" />
-            </el-select>
-          </FormField>
-          <el-row :gutter="12">
-            <el-col :span="12">
-              <el-form-item label="排序">
-                <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <FormField field="status" label="狀態">
-                <el-radio-group v-model="form.status">
-                  <el-radio value="published">顯示</el-radio>
-                  <el-radio value="draft">隱藏</el-radio>
-                </el-radio-group>
-              </FormField>
-            </el-col>
-          </el-row>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field="question"
+                    label="問題"
+                    :zh="form.questionZh"
+                    :en="form.questionEn"
+                    required
+                    @update:zh="(v) => (form.questionZh = v)"
+                    @update:en="(v) => (form.questionEn = v)"
+                  />
+                  <BilingualTextareaField
+                    field="answer"
+                    label="答案"
+                    :zh="form.answerZh"
+                    :en="form.answerEn"
+                    required
+                    :rows="6"
+                    placeholder="可包含連結、圖片或檔案的說明文字（此畫面以文字框代替正式的富文本編輯器）"
+                    @update:zh="(v) => (form.answerZh = v)"
+                    @update:en="(v) => (form.answerEn = v)"
+                  />
+                </FormSection>
+              </el-card>
+            </template>
 
-        <el-card shadow="never" header="題目內容" class="faq-edit__section">
-          <BilingualShortField
-            field="question"
-            label="問題"
-            :zh="form.questionZh"
-            :en="form.questionEn"
-            required
-            @update:zh="(v) => (form.questionZh = v)"
-            @update:en="(v) => (form.questionEn = v)"
-          />
-          <BilingualTextareaField
-            field="answer"
-            label="答案"
-            :zh="form.answerZh"
-            :en="form.answerEn"
-            required
-            :rows="6"
-            placeholder="可包含連結、圖片或檔案的說明文字（此畫面以文字框代替正式的富文本編輯器）"
-            @update:zh="(v) => (form.answerZh = v)"
-            @update:en="(v) => (form.answerEn = v)"
-          />
-        </el-card>
-
-        <el-card shadow="never" header="嵌入設定" class="faq-edit__section">
-          <p class="faq-edit__hint">
-            這題會依所屬分類自動出現在對應頁面的常見問題快捷區塊；下方可以額外指定這題也出現在其他掛載點（疊加，不是取代）。
-          </p>
-          <FormField field="embedSlotIds" label="額外指定出現的頁面">
-            <el-select v-model="form.embedSlotIds" multiple placeholder="不指定即可（維持只依分類自動對應）" style="width: 100%">
-              <el-option v-for="slot in embedSlots" :key="slot.id" :label="slot.name" :value="slot.id" />
-            </el-select>
-          </FormField>
-        </el-card>
-
-        <el-card v-if="!isCreate" shadow="never" header="成效數據" class="faq-edit__section">
-          <div class="faq-edit__stats">
-            <span>瀏覽數：{{ viewCount.toLocaleString('zh-Hant') }}</span>
-            <span>👍 有幫助：{{ helpfulCount.toLocaleString('zh-Hant') }}</span>
-            <span>👎 沒有幫助：{{ unhelpfulCount.toLocaleString('zh-Hant') }}</span>
-          </div>
-        </el-card>
-       </LangTabsBar>
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="slug" label="網址名稱" required>
+                    <el-input v-model="form.slug" placeholder="例如 how-to-join" />
+                  </FormField>
+                  <FormField field="categoryIds" label="所屬分類（可複選）" required>
+                    <el-select
+                      v-model="form.categoryIds"
+                      multiple
+                      filterable
+                      placeholder="請選擇分類"
+                      style="width: 100%"
+                      @change="formErrors.clear('categoryIds')"
+                    >
+                      <el-option v-for="c in categories" :key="c.id" :label="c.nameZh || c.slug" :value="c.id" />
+                    </el-select>
+                  </FormField>
+                </FormSection>
+                <FormSection title="嵌入設定">
+                  <p class="faq-edit__hint">
+                    這題會依所屬分類自動出現在對應頁面的常見問題快捷區塊；下方可以額外指定這題也出現在其他掛載點（疊加，不是取代）。
+                  </p>
+                  <FormField field="embedSlotIds" label="額外指定出現的頁面">
+                    <el-select v-model="form.embedSlotIds" multiple placeholder="不指定即可（維持只依分類自動對應）" style="width: 100%">
+                      <el-option v-for="slot in embedSlots" :key="slot.id" :label="slot.name" :value="slot.id" />
+                    </el-select>
+                  </FormField>
+                </FormSection>
+              </el-card>
+              <el-card shadow="never" header="發布設定">
+                <FormSection>
+                  <el-form-item label="排序">
+                    <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
+                  </el-form-item>
+                  <FormField field="status" label="狀態">
+                    <el-radio-group v-model="form.status">
+                      <el-radio value="published">顯示</el-radio>
+                      <el-radio value="draft">隱藏</el-radio>
+                    </el-radio-group>
+                  </FormField>
+                </FormSection>
+                <FormSection v-if="!isCreate" title="成效數據">
+                  <div class="faq-edit__stats">
+                    <span>瀏覽數：{{ viewCount.toLocaleString('zh-Hant') }}</span>
+                    <span>👍 有幫助：{{ helpfulCount.toLocaleString('zh-Hant') }}</span>
+                    <span>👎 沒有幫助：{{ unhelpfulCount.toLocaleString('zh-Hant') }}</span>
+                  </div>
+                </FormSection>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
 
       <EditActionBar v-if="!isReadOnly">
@@ -311,10 +319,6 @@ function retryLoad() {
 }
 
 .faq-edit__form-error {
-  margin-bottom: 16px;
-}
-
-.faq-edit__section {
   margin-bottom: 16px;
 }
 

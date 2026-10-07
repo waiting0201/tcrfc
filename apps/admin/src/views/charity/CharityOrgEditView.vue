@@ -13,6 +13,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -165,30 +166,34 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'organi
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="團體資料">
-                <BilingualShortField field="name" label="團體名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-                <BilingualTextareaField field="intro" label="團體簡介" :zh="form.introZh" :en="form.introEn" @update:zh="(v) => (form.introZh = v)" @update:en="(v) => (form.introEn = v)" />
-                <FormField field="websiteUrl" label="官網連結"><el-input v-model="form.websiteUrl" placeholder="https://" /></FormField>
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12"><FormField field="contactName" label="聯絡人"><el-input v-model="form.contactName" maxlength="64" /></FormField></el-col>
-                  <el-col :xs="24" :sm="12"><FormField field="contactPhone" label="聯絡電話"><el-input v-model="form.contactPhone" maxlength="32" /></FormField></el-col>
-                </el-row>
-              </el-card>
-              <el-card v-if="!isCreate" shadow="never" header="合作紀錄">
-                <p class="org-edit__hint">這個團體受贈的計畫與事蹟（唯讀彙整）。仍有計畫或事蹟引用時，團體不能刪除。</p>
-                <p v-if="programs.length === 0 && records.length === 0" class="org-edit__hint">目前沒有合作紀錄。</p>
-                <ul v-else class="org-edit__list">
-                  <li v-for="p in programs" :key="p.id">計畫：{{ p.nameZh || '（未命名）' }}（{{ p.status === 'published' ? '已發布' : '草稿' }}）</li>
-                  <li v-for="r in records" :key="r.id">事蹟：{{ r.donationContentZh || '（未填捐助內容）' }}{{ r.happenedOn ? `（${r.happenedOn}）` : '' }}</li>
-                </ul>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField field="name" label="團體名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                  <BilingualTextareaField field="intro" label="團體簡介" :zh="form.introZh" :en="form.introEn" @update:zh="(v) => (form.introZh = v)" @update:en="(v) => (form.introEn = v)" />
+                </FormSection>
+                <FormSection v-if="!isCreate" title="合作紀錄">
+                  <p class="org-edit__hint">這個團體受贈的計畫與事蹟（唯讀彙整）。仍有計畫或事蹟引用時，團體不能刪除。</p>
+                  <p v-if="programs.length === 0 && records.length === 0" class="org-edit__hint">目前沒有合作紀錄。</p>
+                  <ul v-else class="org-edit__list">
+                    <li v-for="p in programs" :key="p.id">計畫：{{ p.nameZh || '（未命名）' }}（{{ p.status === 'published' ? '已發布' : '草稿' }}）</li>
+                    <li v-for="r in records" :key="r.id">事蹟：{{ r.donationContentZh || '（未填捐助內容）' }}{{ r.happenedOn ? `（${r.happenedOn}）` : '' }}</li>
+                  </ul>
+                </FormSection>
               </el-card>
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="標誌或代表圖">
-                <FormField field="logo" label="標誌或代表圖">
-                  <ImageUploader v-model:file="logoFile" v-model:remove-cover="removeLogo" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLogo" :existing-preview-url="logoUrl" :disabled="saving || readOnly" />
-                </FormField>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="websiteUrl" label="官網連結"><el-input v-model="form.websiteUrl" placeholder="https://" /></FormField>
+                  <FormField field="contactName" label="聯絡人"><el-input v-model="form.contactName" maxlength="64" /></FormField>
+                  <FormField field="contactPhone" label="聯絡電話"><el-input v-model="form.contactPhone" maxlength="32" /></FormField>
+                </FormSection>
+                <FormSection title="標誌或代表圖">
+                  <FormField field="logo" label="標誌或代表圖">
+                    <ImageUploader v-model:file="logoFile" v-model:remove-cover="removeLogo" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLogo" :existing-preview-url="logoUrl" :disabled="saving || readOnly" />
+                  </FormField>
+                </FormSection>
               </el-card>
             </template>
           </EditLayout>

@@ -12,6 +12,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -155,27 +156,35 @@ const back = () => router.push({ path: '/teams/honours', query: { tab: 'mileston
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="milestone-edit__block" @close="formError = null" />
       <el-alert v-if="readOnly" title="你的帳號只能檢視里程碑，不能修改。" type="info" show-icon :closable="false" class="milestone-edit__block" />
       <el-form label-position="top" :disabled="readOnly">
-       <LangTabsBar>
-        <EditLayout>
-         <template #main>
-        <el-card shadow="never" header="里程碑內容" class="milestone-edit__block">
-          <BilingualShortField field="title" label="標題" :zh="form.titleZh" :en="form.titleEn" required @update:zh="(v) => (form.titleZh = v)" @update:en="(v) => (form.titleEn = v)" />
-          <BilingualTextareaField field="desc" label="說明" :zh="form.descZh" :en="form.descEn" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="12"><FormField field="happenedOn" label="日期" required><el-date-picker v-model="form.happenedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('happenedOn')" /></FormField></el-col>
-            <el-col :xs="24" :sm="12"><el-form-item label="排序值（同一天時的先後）"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
-          </el-row>
-          <el-form-item label="前台顯示"><el-switch v-model="form.isVisible" active-text="顯示在前台時間軸" inactive-text="隱藏" /></el-form-item>
-        </el-card>
-         </template>
-         <template #aside>
-        <el-card shadow="never" header="圖片（選填）" class="milestone-edit__block">
-          <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeImage" :min-width="0" :min-height="0" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
-          <BilingualShortField field="alt" label="圖片替代文字" :zh="form.altZh" :en="form.altEn" placeholder="用一句話描述圖片內容，供視障者與搜尋引擎閱讀" @update:zh="(v) => (form.altZh = v)" @update:en="(v) => (form.altEn = v)" />
-        </el-card>
-         </template>
-        </EditLayout>
-       </LangTabsBar>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField field="title" label="標題" :zh="form.titleZh" :en="form.titleEn" required @update:zh="(v) => (form.titleZh = v)" @update:en="(v) => (form.titleEn = v)" />
+                  <BilingualTextareaField field="desc" label="說明" :zh="form.descZh" :en="form.descEn" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
+                </FormSection>
+              </el-card>
+            </template>
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="happenedOn" label="日期" required><el-date-picker v-model="form.happenedOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('happenedOn')" /></FormField>
+                </FormSection>
+                <FormSection title="圖片（選填）">
+                  <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeImage" :min-width="0" :min-height="0" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
+                  <BilingualShortField field="alt" label="圖片替代文字" :zh="form.altZh" :en="form.altEn" placeholder="用一句話描述圖片內容，供視障者與搜尋引擎閱讀" @update:zh="(v) => (form.altZh = v)" @update:en="(v) => (form.altEn = v)" />
+                </FormSection>
+              </el-card>
+              <el-card shadow="never" header="發布設定">
+                <FormSection>
+                  <el-form-item label="前台顯示"><el-switch v-model="form.isVisible" active-text="顯示在前台時間軸" inactive-text="隱藏" /></el-form-item>
+                  <el-form-item label="排序值（同一天時的先後）"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
+                </FormSection>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
       <EditActionBar v-if="!readOnly"><template #status><FormErrorStatus /></template><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
     </template>

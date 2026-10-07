@@ -9,6 +9,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
@@ -206,54 +207,66 @@ const backToList = () => router.push({ path: '/members/plans', query: { tab: 'pl
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="基本資料">
-                <BilingualShortField field="name" label="方案名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-                <BilingualTextareaField field="note" label="權益說明" :zh="form.noteZh" :en="form.noteEn" @update:zh="(v) => (form.noteZh = v)" @update:en="(v) => (form.noteEn = v)" />
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="seasonId" label="球季" required>
-                      <el-select v-model="form.seasonId" :disabled="seasonLocked" placeholder="選擇球季" style="width: 100%" @change="formErrors.clear('seasonId')">
-                        <el-option v-for="s in seasonOptions" :key="s.id" :label="s.code" :value="s.id" />
-                      </el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="code" label="方案代號（小寫英文、數字與連字號）" required>
-                      <el-input v-model="form.code" maxlength="32" placeholder="例如 single、family" />
-                    </FormField>
-                  </el-col>
-                </el-row>
-                <p class="plan-edit__hint">
-                  方案代號在同一球季內不能重複。已經有會籍或付款紀錄使用的方案，不能更換球季。
-                  <template v-if="seasonLocked">這個方案已有 {{ membershipCount }} 份會籍，球季已鎖定。</template>
-                </p>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField field="name" label="方案名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                  <BilingualTextareaField field="note" label="權益說明" :zh="form.noteZh" :en="form.noteEn" @update:zh="(v) => (form.noteZh = v)" @update:en="(v) => (form.noteEn = v)" />
+                </FormSection>
+
+                <FormSection>
+                  <BilingualTextareaField
+                    field="midSeasonRule"
+                    label="期中加入規則"
+                    :zh="form.midSeasonRule"
+                    :en="form.midSeasonRuleEn"
+                    :rows="2"
+                    :maxlength="255"
+                    placeholder="例如：球季中途加入，費用不打折"
+                    @update:zh="(v: string) => (form.midSeasonRule = v)"
+                    @update:en="(v: string) => (form.midSeasonRuleEn = v)"
+                  />
+                </FormSection>
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
+                <FormSection title="方案資料">
+                  <el-row :gutter="12">
+                    <el-col :span="24">
+                      <FormField field="seasonId" label="球季" required>
+                        <el-select v-model="form.seasonId" :disabled="seasonLocked" placeholder="選擇球季" style="width: 100%" @change="formErrors.clear('seasonId')">
+                          <el-option v-for="s in seasonOptions" :key="s.id" :label="s.code" :value="s.id" />
+                        </el-select>
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <FormField field="code" label="方案代號（小寫英文、數字與連字號）" required>
+                        <el-input v-model="form.code" maxlength="32" placeholder="例如 single、family" />
+                      </FormField>
+                    </el-col>
+                  </el-row>
+                  <p class="plan-edit__hint">
+                    方案代號在同一球季內不能重複。已經有會籍或付款紀錄使用的方案，不能更換球季。
+                    <template v-if="seasonLocked">這個方案已有 {{ membershipCount }} 份會籍，球季已鎖定。</template>
+                  </p>
+                </FormSection>
+
+                <FormSection title="費用與額度">
+                  <el-row :gutter="12">
+                    <el-col :span="24"><FormField field="fee" label="費用（元）" required><el-input-number v-model="form.fee" :min="0" :precision="0" style="width: 100%" @change="formErrors.clear('fee')" /></FormField></el-col>
+                    <el-col :span="24"><FormField field="cardQuota" label="會員卡數上限（1–10）" required><el-input-number v-model="form.cardQuota" :min="1" :max="10" style="width: 100%" @change="formErrors.clear('cardQuota')" /></FormField></el-col>
+                    <el-col :span="24"><FormField field="jerseyQuota" label="球衣件數上限（0–10）" required><el-input-number v-model="form.jerseyQuota" :min="0" :max="10" style="width: 100%" @change="formErrors.clear('jerseyQuota')" /></FormField></el-col>
+                  </el-row>
+                  <el-row :gutter="12">
+                    <el-col :span="24"><el-form-item label="方案開始日"><el-date-picker v-model="form.startsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></el-form-item></el-col>
+                    <el-col :span="24"><FormField field="endsOn" label="方案結束日"><el-date-picker v-model="form.endsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></FormField></el-col>
+                  </el-row>
+                  <p class="plan-edit__hint">開始日、結束日留空時，會籍期間依球季起訖計算。</p>
+                </FormSection>
               </el-card>
 
-              <el-card shadow="never" header="費用與額度">
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="8"><FormField field="fee" label="費用（元）" required><el-input-number v-model="form.fee" :min="0" :precision="0" style="width: 100%" @change="formErrors.clear('fee')" /></FormField></el-col>
-                  <el-col :xs="24" :sm="8"><FormField field="cardQuota" label="會員卡數上限（1–10）" required><el-input-number v-model="form.cardQuota" :min="1" :max="10" style="width: 100%" @change="formErrors.clear('cardQuota')" /></FormField></el-col>
-                  <el-col :xs="24" :sm="8"><FormField field="jerseyQuota" label="球衣件數上限（0–10）" required><el-input-number v-model="form.jerseyQuota" :min="0" :max="10" style="width: 100%" @change="formErrors.clear('jerseyQuota')" /></FormField></el-col>
-                </el-row>
-                <BilingualTextareaField
-                  field="midSeasonRule"
-                  label="期中加入規則"
-                  :zh="form.midSeasonRule"
-                  :en="form.midSeasonRuleEn"
-                  :rows="2"
-                  :maxlength="255"
-                  placeholder="例如：球季中途加入，費用不打折"
-                  @update:zh="(v: string) => (form.midSeasonRule = v)"
-                  @update:en="(v: string) => (form.midSeasonRuleEn = v)"
-                />
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12"><el-form-item label="方案開始日"><el-date-picker v-model="form.startsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></el-form-item></el-col>
-                  <el-col :xs="24" :sm="12"><FormField field="endsOn" label="方案結束日"><el-date-picker v-model="form.endsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></FormField></el-col>
-                </el-row>
-                <p class="plan-edit__hint">開始日、結束日留空時，會籍期間依球季起訖計算。</p>
-              </el-card>
-
-              <el-card shadow="never" header="上架設定">
+              <el-card shadow="never" header="發布設定">
                 <FormField field="status" label="狀態">
                   <el-radio-group v-model="form.status">
                     <el-radio value="published">上架</el-radio>

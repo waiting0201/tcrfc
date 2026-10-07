@@ -16,8 +16,10 @@ import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -440,94 +442,110 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
       />
 
       <LangTabsBar>
-      <el-form label-position="top" :disabled="isReadOnly">
-        <el-card shadow="never" header="表單設定" class="form-edit__section">
-          <FormField field="notifyEmails" label="收件通知 Email（可多人，以逗號分隔）">
-            <el-input v-model="form.notifyEmails" placeholder="例如 academy@tcrfc.tw, office@tcrfc.tw" />
-          </FormField>
-          <FormField field="redirectPath" label="送出後導向頁（選填，留空維持在原頁顯示送出成功）">
-            <el-input v-model="form.redirectPath" placeholder="站內路徑，以 / 開頭，例如 /zh/thank-you/" />
-            <p class="form-edit__hint">只能填站內路徑，以 / 開頭；不能填完整網址。</p>
-          </FormField>
-          <el-form-item label="防機器人驗證">
-            <el-switch v-model="form.captchaEnabled" />
-            <p class="form-edit__hint">
-              開啟後，前台填寫這張表單時會要求先完成防機器人驗證，系統送出時也會再檢查一次。需要系統管理員已設定驗證金鑰才會生效；尚未設定時，前台不會顯示驗證，仍只靠送出頻率限制與隱藏誘捕欄位防護。
-            </p>
-          </el-form-item>
-          <BilingualTextareaField
-            field="autoReplyBody"
-            label="自動回覆信內容"
-            :zh="form.autoReplyBodyZh"
-            :en="form.autoReplyBodyEn"
-            :rows="4"
-            @update:zh="(v) => (form.autoReplyBodyZh = v)"
-            @update:en="(v) => (form.autoReplyBodyEn = v)"
-          />
-          <p class="form-edit__hint form-edit__hint--warning">
-            系統目前還沒有接上寄信服務：收件通知信與這裡設定的自動回覆信內容都只是設定值，訪客送出表單後**不會真的收到信**，後台這裡看到的送出紀錄不受影響。
-          </p>
-        </el-card>
-      </el-form>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never">
+              <el-form label-position="top" :disabled="isReadOnly">
+                <FormSection>
+                  <BilingualTextareaField
+                    field="autoReplyBody"
+                    label="自動回覆信內容"
+                    :zh="form.autoReplyBodyZh"
+                    :en="form.autoReplyBodyEn"
+                    :rows="4"
+                    @update:zh="(v) => (form.autoReplyBodyZh = v)"
+                    @update:en="(v) => (form.autoReplyBodyEn = v)"
+                  />
+                  <p class="form-edit__hint form-edit__hint--warning">
+                    系統目前還沒有接上寄信服務：收件通知信與這裡設定的自動回覆信內容都只是設定值，訪客送出表單後**不會真的收到信**，後台這裡看到的送出紀錄不受影響。
+                  </p>
+                </FormSection>
+              </el-form>
 
-      <el-card shadow="never" header="表單欄位" class="form-edit__section">
-        <el-alert
-          v-if="fieldsLocked"
-          title="這張表單的欄位由網站固定，只能修改題目文字與通知設定"
-          type="info"
-          show-icon
-          :closable="false"
-          class="form-edit__form-error"
-        />
-        <div class="form-edit__fields-toolbar">
-          <p v-if="!fieldsLocked" class="form-edit__hint">
-            「姓名」「聯絡方式」兩個慣用欄位代碼（<code>name</code>／<code>contact</code>）會被收件匣拿來顯示對應欄位，改名或刪除會讓收件匣那兩欄顯示空白。
-          </p>
-          <el-button v-if="canManageForms && !fieldsLocked" type="primary" @click="openCreateFieldDialog">+ 新增欄位</el-button>
-        </div>
+              <div class="form-edit__split">
+                <FormSection title="表單欄位">
+                  <el-alert
+                    v-if="fieldsLocked"
+                    title="這張表單的欄位由網站固定，只能修改題目文字與通知設定"
+                    type="info"
+                    show-icon
+                    :closable="false"
+                    class="form-edit__form-error"
+                  />
+                  <div class="form-edit__fields-toolbar">
+                    <p v-if="!fieldsLocked" class="form-edit__hint">
+                      「姓名」「聯絡方式」兩個慣用欄位代碼（<code>name</code>／<code>contact</code>）會被收件匣拿來顯示對應欄位，改名或刪除會讓收件匣那兩欄顯示空白。
+                    </p>
+                    <el-button v-if="canManageForms && !fieldsLocked" type="primary" @click="openCreateFieldDialog">+ 新增欄位</el-button>
+                  </div>
 
-        <el-table v-if="fields.length > 0" :data="fields" row-key="id">
-          <el-table-column label="題目文字" min-width="160">
-            <template #default="{ row }">
-              {{ row.labelZh }}
-              <el-tag v-if="!row.labelEn" size="small" type="info" class="form-edit__untranslated-tag">尚未翻譯</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="欄位代碼" min-width="140">
-            <template #default="{ row }">{{ row.fieldKey }}</template>
-          </el-table-column>
-          <el-table-column label="型別" width="110">
-            <template #default="{ row }">{{ FIELD_TYPE_LABEL[row.fieldType as FormFieldTypeCode] ?? row.fieldType }}</template>
-          </el-table-column>
-          <el-table-column label="必填" width="70">
-            <template #default="{ row }">
-              <el-tag v-if="row.isRequired" size="small" type="warning">必填</el-tag>
-              <span v-else>—</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="選項" min-width="160">
-            <template #default="{ row }">{{ row.options && row.options.length > 0 ? row.options.join('、') : '—' }}</template>
-          </el-table-column>
-          <el-table-column label="內容摘要來源" width="110">
-            <template #default="{ row }">
-              <el-tag v-if="row.isSummary" size="small" type="success">是</el-tag>
-              <span v-else>—</span>
-            </template>
-          </el-table-column>
-          <el-table-column v-if="showFieldActions" label="操作" :width="fieldsLocked ? 140 : 180" fixed="right">
-            <template #default="{ row }">
-              <el-button size="small" text @click="moveField(row, -1)">上移</el-button>
-              <el-button size="small" text @click="moveField(row, 1)">下移</el-button>
-              <el-button size="small" text type="primary" @click="openEditFieldDialog(row)">編輯</el-button>
-              <el-button v-if="!fieldsLocked" size="small" text type="danger" @click="handleDeleteField(row)">刪除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <el-empty v-else description="這張表單目前沒有任何欄位">
-          <el-button v-if="canManageForms && !fieldsLocked" type="primary" @click="openCreateFieldDialog">+ 新增第一個欄位</el-button>
-        </el-empty>
-      </el-card>
+                  <el-table v-if="fields.length > 0" :data="fields" row-key="id">
+                    <el-table-column label="題目文字" min-width="160">
+                      <template #default="{ row }">
+                        {{ row.labelZh }}
+                        <el-tag v-if="!row.labelEn" size="small" type="info" class="form-edit__untranslated-tag">尚未翻譯</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="欄位代碼" min-width="140">
+                      <template #default="{ row }">{{ row.fieldKey }}</template>
+                    </el-table-column>
+                    <el-table-column label="型別" width="110">
+                      <template #default="{ row }">{{ FIELD_TYPE_LABEL[row.fieldType as FormFieldTypeCode] ?? row.fieldType }}</template>
+                    </el-table-column>
+                    <el-table-column label="必填" width="70">
+                      <template #default="{ row }">
+                        <el-tag v-if="row.isRequired" size="small" type="warning">必填</el-tag>
+                        <span v-else>—</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column label="選項" min-width="160">
+                      <template #default="{ row }">{{ row.options && row.options.length > 0 ? row.options.join('、') : '—' }}</template>
+                    </el-table-column>
+                    <el-table-column label="內容摘要來源" width="110">
+                      <template #default="{ row }">
+                        <el-tag v-if="row.isSummary" size="small" type="success">是</el-tag>
+                        <span v-else>—</span>
+                      </template>
+                    </el-table-column>
+                    <el-table-column v-if="showFieldActions" label="操作" :width="fieldsLocked ? 140 : 180" fixed="right">
+                      <template #default="{ row }">
+                        <el-button size="small" text @click="moveField(row, -1)">上移</el-button>
+                        <el-button size="small" text @click="moveField(row, 1)">下移</el-button>
+                        <el-button size="small" text type="primary" @click="openEditFieldDialog(row)">編輯</el-button>
+                        <el-button v-if="!fieldsLocked" size="small" text type="danger" @click="handleDeleteField(row)">刪除</el-button>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                  <el-empty v-else description="這張表單目前沒有任何欄位">
+                    <el-button v-if="canManageForms && !fieldsLocked" type="primary" @click="openCreateFieldDialog">+ 新增第一個欄位</el-button>
+                  </el-empty>
+                </FormSection>
+              </div>
+            </el-card>
+          </template>
 
+          <template #aside>
+            <el-form label-position="top" :disabled="isReadOnly">
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="notifyEmails" label="收件通知 Email（可多人，以逗號分隔）">
+                    <el-input v-model="form.notifyEmails" placeholder="例如 academy@tcrfc.tw, office@tcrfc.tw" />
+                  </FormField>
+                  <FormField field="redirectPath" label="送出後導向頁（選填，留空維持在原頁顯示送出成功）">
+                    <el-input v-model="form.redirectPath" placeholder="站內路徑，以 / 開頭，例如 /zh/thank-you/" />
+                    <p class="form-edit__hint">只能填站內路徑，以 / 開頭；不能填完整網址。</p>
+                  </FormField>
+                  <el-form-item label="防機器人驗證">
+                    <el-switch v-model="form.captchaEnabled" />
+                    <p class="form-edit__hint">
+                      開啟後，前台填寫這張表單時會要求先完成防機器人驗證，系統送出時也會再檢查一次。需要系統管理員已設定驗證金鑰才會生效；尚未設定時，前台不會顯示驗證，仍只靠送出頻率限制與隱藏誘捕欄位防護。
+                    </p>
+                  </el-form-item>
+                </FormSection>
+              </el-card>
+            </el-form>
+          </template>
+        </EditLayout>
       </LangTabsBar>
 
       <EditActionBar v-if="!isReadOnly">
@@ -552,58 +570,58 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
         class="form-edit__dialog-error"
       />
       <el-form label-position="top">
-       <LangTabsBar variant="bare">
-        <FormField field="fieldKey" label="欄位代碼（英文小寫，例如 experience）" required>
-          <el-input v-model="fieldForm.fieldKey" :disabled="fieldsLocked" placeholder="英文小寫字母開頭，可含數字與底線" />
-        </FormField>
-        <BilingualShortField
-          field="label"
-          label="題目文字"
-          required
-          :zh="fieldForm.labelZh"
-          :en="fieldForm.labelEn"
-          placeholder="訪客在表單上會看到的問題，例如「經歷／簡歷」"
-          @update:zh="(v) => (fieldForm.labelZh = v)"
-          @update:en="(v) => (fieldForm.labelEn = v)"
-        />
-        <FormField field="fieldType" label="欄位型別" required>
-          <el-select v-model="fieldForm.fieldType" :disabled="fieldsLocked" style="width: 100%">
-            <el-option v-for="t in FIELD_TYPE_ORDER" :key="t" :label="FIELD_TYPE_LABEL[t]" :value="t" />
-          </el-select>
-          <p v-if="fieldForm.fieldType === 'file'" class="form-edit__hint form-edit__hint--warning">
-            「檔案上傳」目前只能填文字或網址（例如雲端硬碟連結），系統還沒有真正接收檔案的功能。
-          </p>
-        </FormField>
-        <el-form-item label="是否必填">
-          <el-switch v-model="fieldForm.isRequired" :disabled="fieldsLocked" />
-        </el-form-item>
-        <FormField v-if="fieldNeedsOptions" field="options" label="選項清單（下拉／多選必填，至少一項；英文顯示文字選填，要嘛全部填、要嘛全部留空）">
-         <div>
-          <FormField v-if="fieldForm.options.length > 0" field="optionLabelsEn" style="margin-bottom: 8px">
-           <div class="form-edit__option-rows">
-            <div v-for="(opt, index) in fieldForm.options" :key="opt" class="form-edit__option-row">
-              <span class="form-edit__option-row-zh">{{ opt }}</span>
-              <el-input v-model="fieldForm.optionLabelsEn[index]" placeholder="英文顯示文字（選填）" />
-              <el-button v-if="!fieldsLocked" text type="danger" @click="removeOption(index)">刪除</el-button>
-            </div>
-           </div>
+        <LangTabsBar variant="bare">
+          <FormField field="fieldKey" label="欄位代碼（英文小寫，例如 experience）" required>
+            <el-input v-model="fieldForm.fieldKey" :disabled="fieldsLocked" placeholder="英文小寫字母開頭，可含數字與底線" />
           </FormField>
-          <div v-if="!fieldsLocked" class="form-edit__option-add">
-            <el-input v-model="newOptionText" placeholder="輸入選項內容（中文）後按新增" @keyup.enter="addOption" />
-            <el-button @click="addOption">新增選項</el-button>
-          </div>
-         </div>
-        </FormField>
-        <FormField v-if="!['select', 'multiselect', 'consent', 'file'].includes(fieldForm.fieldType)" field="validationRule" label="驗證規則（選填，正規表示式）">
-          <el-input v-model="fieldForm.validationRule" :disabled="fieldsLocked" placeholder="例如電話格式，留空表示不額外驗證格式" />
-        </FormField>
-        <el-form-item label="標記為內容摘要">
-          <el-switch v-model="fieldForm.isSummary" />
-          <p class="form-edit__hint">
-            收件匣清單的「內容摘要」欄會取這個欄位的值。同一張表單最多一個欄位可以標記，設定新的會自動取代舊的。
-          </p>
-        </el-form-item>
-       </LangTabsBar>
+          <BilingualShortField
+            field="label"
+            label="題目文字"
+            required
+            :zh="fieldForm.labelZh"
+            :en="fieldForm.labelEn"
+            placeholder="訪客在表單上會看到的問題，例如「經歷／簡歷」"
+            @update:zh="(v) => (fieldForm.labelZh = v)"
+            @update:en="(v) => (fieldForm.labelEn = v)"
+          />
+          <FormField field="fieldType" label="欄位型別" required>
+            <el-select v-model="fieldForm.fieldType" :disabled="fieldsLocked" style="width: 100%">
+              <el-option v-for="t in FIELD_TYPE_ORDER" :key="t" :label="FIELD_TYPE_LABEL[t]" :value="t" />
+            </el-select>
+            <p v-if="fieldForm.fieldType === 'file'" class="form-edit__hint form-edit__hint--warning">
+              「檔案上傳」目前只能填文字或網址（例如雲端硬碟連結），系統還沒有真正接收檔案的功能。
+            </p>
+          </FormField>
+          <el-form-item label="是否必填">
+            <el-switch v-model="fieldForm.isRequired" :disabled="fieldsLocked" />
+          </el-form-item>
+          <FormField v-if="fieldNeedsOptions" field="options" label="選項清單（下拉／多選必填，至少一項；英文顯示文字選填，要嘛全部填、要嘛全部留空）">
+            <div>
+              <FormField v-if="fieldForm.options.length > 0" field="optionLabelsEn" style="margin-bottom: 8px">
+                <div class="form-edit__option-rows">
+                  <div v-for="(opt, index) in fieldForm.options" :key="opt" class="form-edit__option-row">
+                    <span class="form-edit__option-row-zh">{{ opt }}</span>
+                    <el-input v-model="fieldForm.optionLabelsEn[index]" placeholder="英文顯示文字（選填）" />
+                    <el-button v-if="!fieldsLocked" text type="danger" @click="removeOption(index)">刪除</el-button>
+                  </div>
+                </div>
+              </FormField>
+              <div v-if="!fieldsLocked" class="form-edit__option-add">
+                <el-input v-model="newOptionText" placeholder="輸入選項內容（中文）後按新增" @keyup.enter="addOption" />
+                <el-button @click="addOption">新增選項</el-button>
+              </div>
+            </div>
+          </FormField>
+          <FormField v-if="!['select', 'multiselect', 'consent', 'file'].includes(fieldForm.fieldType)" field="validationRule" label="驗證規則（選填，正規表示式）">
+            <el-input v-model="fieldForm.validationRule" :disabled="fieldsLocked" placeholder="例如電話格式，留空表示不額外驗證格式" />
+          </FormField>
+          <el-form-item label="標記為內容摘要">
+            <el-switch v-model="fieldForm.isSummary" />
+            <p class="form-edit__hint">
+              收件匣清單的「內容摘要」欄會取這個欄位的值。同一張表單最多一個欄位可以標記，設定新的會自動取代舊的。
+            </p>
+          </el-form-item>
+        </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="fieldDialogVisible = false">取消</el-button>
@@ -615,7 +633,7 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
 
 <style scoped>
 .form-edit {
-  max-width: 860px;
+  max-width: 1200px;
   margin: 0 auto 88px;
 }
 
@@ -623,8 +641,10 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
   margin-bottom: 16px;
 }
 
-.form-edit__section {
-  margin-bottom: 16px;
+.form-edit__split {
+  margin-top: var(--admin-space-6);
+  padding-top: var(--admin-space-6);
+  border-top: 1px solid var(--admin-border);
 }
 
 .form-edit__hint {

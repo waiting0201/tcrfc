@@ -15,6 +15,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import SponsorActivationDialog from './SponsorActivationDialog.vue'
@@ -261,86 +262,85 @@ async function removeActivation(a: ActivationDto) {
       <LangTabsBar>
         <EditLayout>
           <template #main>
-            <el-form label-position="top" :disabled="readOnly" class="sponsor-edit__form">
-              <el-card shadow="never" header="基本資料">
-                <BilingualShortField field="name" label="名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-                <BilingualTextareaField field="content" label="贊助內容" :zh="form.contentZh" :en="form.contentEn" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="tier" label="贊助等級" required>
-                      <el-select v-model="form.tier" placeholder="請選擇" style="width: 100%" @change="formErrors.clear('tier')"><el-option v-for="t in TIERS" :key="t" :label="t" :value="t" /></el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12"><el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item></el-col>
-                </el-row>
-              </el-card>
-
-              <el-card shadow="never">
-                <template #header>
-                  <span>合約與聯絡窗口</span>
-                  <el-tag v-if="!isCreate" size="small" class="sponsor-edit__status">{{ CONTRACT_LABEL[contractStatus] }}</el-tag>
-                </template>
-                <p class="sponsor-edit__hint">這一區只在後台看得到，不會出現在前台。合約結束後，這位贊助商會自動從前台隱藏。</p>
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="8"><el-form-item label="合約開始日"><el-date-picker v-model="form.contractStartOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('contractEndOn')" /></el-form-item></el-col>
-                  <el-col :xs="24" :sm="8"><FormField field="contractEndOn" label="合約結束日"><el-date-picker v-model="form.contractEndOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('contractEndOn'); formErrors.clear('expiryAlertOn')" /></FormField></el-col>
-                  <el-col :xs="24" :sm="8"><FormField field="expiryAlertOn" label="到期提醒日"><el-date-picker v-model="form.expiryAlertOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('expiryAlertOn')" /></FormField></el-col>
-                  <el-col :xs="24" :sm="8"><FormField field="contactName" label="聯絡人"><el-input v-model="form.contactName" maxlength="64" /></FormField></el-col>
-                  <el-col :xs="24" :sm="8"><FormField field="contactPhone" label="聯絡電話"><el-input v-model="form.contactPhone" maxlength="32" /></FormField></el-col>
-                  <el-col :xs="24" :sm="8"><FormField field="contactEmail" label="聯絡 Email"><el-input v-model="form.contactEmail" /></FormField></el-col>
-                </el-row>
-              </el-card>
-
-              <el-card shadow="never" header="贊助方案與贊助故事">
-                <FormField field="packageIds" label="包含的贊助方案">
-                  <el-select v-model="form.packageIds" multiple filterable placeholder="選擇這位贊助商所屬的方案" style="width: 100%">
-                    <el-option v-for="p in packageOptions" :key="p.id" :label="p.nameZh || p.slug" :value="p.id" />
-                  </el-select>
-                </FormField>
-                <FormField field="articleIds" label="贊助故事（關聯文章）">
-                  <NewsPicker v-model="form.articleIds" :seed="articleSeed" :disabled="readOnly" />
-                  <p class="sponsor-edit__hint">可用關鍵字搜尋所有文章；前台只顯示已發布的文章。</p>
-                </FormField>
-              </el-card>
-            </el-form>
-
             <el-card shadow="never">
-              <template #header>
-                <div class="sponsor-edit__head">
-                  <span>贊助活動與圖集</span>
-                  <el-button v-if="!isCreate && canUpdate" size="small" type="primary" @click="openActivation(null)">+ 新增活動</el-button>
-                </div>
-              </template>
-              <p v-if="isCreate" class="sponsor-edit__hint">請先儲存贊助商基本資料，儲存後就能新增贊助活動與圖片。</p>
-              <template v-else>
-                <el-empty v-if="activations.length === 0" description="還沒有贊助活動" :image-size="64" />
-                <div v-else class="sponsor-edit__activations">
-                  <div v-for="a in activations" :key="a.id" class="sponsor-edit__activation">
-                    <div class="sponsor-edit__activation-main">
-                      <strong>{{ a.zh.title }}</strong>
-                      <span class="sponsor-edit__hint">{{ a.happenedOn || '未填日期' }}・{{ a.images.length }} 張圖片</span>
-                    </div>
-                    <div>
-                      <el-button size="small" text type="primary" @click="openActivation(a)">{{ canUpdate ? '編輯' : '檢視' }}</el-button>
-                      <el-button v-if="canUpdate" size="small" text type="danger" @click="removeActivation(a)">刪除</el-button>
+              <FormSection>
+                <el-form label-position="top" :disabled="readOnly" class="sponsor-edit__form">
+                  <BilingualShortField field="name" label="名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                  <BilingualTextareaField field="content" label="贊助內容" :zh="form.contentZh" :en="form.contentEn" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
+                </el-form>
+              </FormSection>
+
+              <FormSection title="贊助方案與贊助故事">
+                <el-form label-position="top" :disabled="readOnly" class="sponsor-edit__form">
+                  <FormField field="packageIds" label="包含的贊助方案">
+                    <el-select v-model="form.packageIds" multiple filterable placeholder="選擇這位贊助商所屬的方案" style="width: 100%">
+                      <el-option v-for="p in packageOptions" :key="p.id" :label="p.nameZh || p.slug" :value="p.id" />
+                    </el-select>
+                  </FormField>
+                  <FormField field="articleIds" label="贊助故事（關聯文章）">
+                    <NewsPicker v-model="form.articleIds" :seed="articleSeed" :disabled="readOnly" />
+                    <p class="sponsor-edit__hint">可用關鍵字搜尋所有文章；前台只顯示已發布的文章。</p>
+                  </FormField>
+                </el-form>
+              </FormSection>
+
+              <FormSection title="贊助活動與圖集">
+                <p v-if="isCreate" class="sponsor-edit__hint">請先儲存贊助商基本資料，儲存後就能新增贊助活動與圖片。</p>
+                <template v-else>
+                  <div v-if="canUpdate" class="sponsor-edit__head">
+                    <el-button size="small" type="primary" @click="openActivation(null)">+ 新增活動</el-button>
+                  </div>
+                  <el-empty v-if="activations.length === 0" description="還沒有贊助活動" :image-size="64" />
+                  <div v-else class="sponsor-edit__activations">
+                    <div v-for="a in activations" :key="a.id" class="sponsor-edit__activation">
+                      <div class="sponsor-edit__activation-main">
+                        <strong>{{ a.zh.title }}</strong>
+                        <span class="sponsor-edit__hint">{{ a.happenedOn || '未填日期' }}・{{ a.images.length }} 張圖片</span>
+                      </div>
+                      <div>
+                        <el-button size="small" text type="primary" @click="openActivation(a)">{{ canUpdate ? '編輯' : '檢視' }}</el-button>
+                        <el-button v-if="canUpdate" size="small" text type="danger" @click="removeActivation(a)">刪除</el-button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </template>
+                </template>
+              </FormSection>
             </el-card>
           </template>
 
           <template #aside>
             <el-form label-position="top" :disabled="readOnly" class="sponsor-edit__form">
-              <el-card shadow="never" header="深色底用標誌">
-                <FormField field="logoDark" label="放在深色背景上的標誌">
-                  <ImageUploader v-model:file="darkFile" v-model:remove-cover="removeDark" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasDark" :existing-preview-url="darkUrl" :disabled="saving || readOnly" />
-                </FormField>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="tier" label="贊助等級" required>
+                    <el-select v-model="form.tier" placeholder="請選擇" style="width: 100%" @change="formErrors.clear('tier')"><el-option v-for="t in TIERS" :key="t" :label="t" :value="t" /></el-select>
+                  </FormField>
+                </FormSection>
+                <FormSection title="合約與聯絡窗口">
+                  <p v-if="!isCreate" class="sponsor-edit__hint">合約狀態：<el-tag size="small">{{ CONTRACT_LABEL[contractStatus] }}</el-tag></p>
+                  <p class="sponsor-edit__hint">這一區只在後台看得到，不會出現在前台。合約結束後，這位贊助商會自動從前台隱藏。</p>
+                  <el-form-item label="合約開始日"><el-date-picker v-model="form.contractStartOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('contractEndOn')" /></el-form-item>
+                  <FormField field="contractEndOn" label="合約結束日"><el-date-picker v-model="form.contractEndOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('contractEndOn'); formErrors.clear('expiryAlertOn')" /></FormField>
+                  <FormField field="expiryAlertOn" label="到期提醒日"><el-date-picker v-model="form.expiryAlertOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('expiryAlertOn')" /></FormField>
+                  <FormField field="contactName" label="聯絡人"><el-input v-model="form.contactName" maxlength="64" /></FormField>
+                  <FormField field="contactPhone" label="聯絡電話"><el-input v-model="form.contactPhone" maxlength="32" /></FormField>
+                  <FormField field="contactEmail" label="聯絡 Email"><el-input v-model="form.contactEmail" /></FormField>
+                </FormSection>
+                <FormSection title="深色底用標誌">
+                  <FormField field="logoDark" label="放在深色背景上的標誌">
+                    <ImageUploader v-model:file="darkFile" v-model:remove-cover="removeDark" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasDark" :existing-preview-url="darkUrl" :disabled="saving || readOnly" />
+                  </FormField>
+                </FormSection>
+                <FormSection title="淺色底用標誌">
+                  <FormField field="logoLight" label="放在淺色背景上的標誌">
+                    <ImageUploader v-model:file="lightFile" v-model:remove-cover="removeLight" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLight" :existing-preview-url="lightUrl" :disabled="saving || readOnly" />
+                  </FormField>
+                </FormSection>
               </el-card>
-              <el-card shadow="never" header="淺色底用標誌">
-                <FormField field="logoLight" label="放在淺色背景上的標誌">
-                  <ImageUploader v-model:file="lightFile" v-model:remove-cover="removeLight" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLight" :existing-preview-url="lightUrl" :disabled="saving || readOnly" />
-                </FormField>
+              <el-card shadow="never" header="發布設定">
+                <FormSection>
+                  <el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
+                </FormSection>
               </el-card>
             </el-form>
           </template>
@@ -372,8 +372,7 @@ async function removeActivation(a: ActivationDto) {
 .sponsor-edit__block { margin-bottom: 16px; }
 .sponsor-edit__form { display: contents; }
 .sponsor-edit__hint { margin: 4px 0 10px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
-.sponsor-edit__status { margin-left: 8px; }
-.sponsor-edit__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sponsor-edit__head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .sponsor-edit__activations { display: flex; flex-direction: column; gap: 8px; }
 .sponsor-edit__activation { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--admin-border); border-radius: 4px; }
 .sponsor-edit__activation-main { display: flex; flex-direction: column; min-width: 0; }

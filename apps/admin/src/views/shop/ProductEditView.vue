@@ -19,6 +19,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
@@ -365,30 +366,115 @@ async function moveVariant(index: number, delta: -1 | 1) {
       <LangTabsBar>
         <EditLayout>
           <template #main>
+            <el-card shadow="never">
+              <el-form label-position="top" :disabled="readOnly">
+                <FormSection>
+                  <BilingualShortField field="name" label="商品名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                  <BilingualTextareaField field="narr" label="商品介紹" :zh="form.narrZh" :en="form.narrEn" :rows="4" @update:zh="(v) => (form.narrZh = v)" @update:en="(v) => (form.narrEn = v)" />
+                  <BilingualShortField field="tags" label="標籤（以逗號分隔）" :zh="form.tagsZh" :en="form.tagsEn" @update:zh="(v) => (form.tagsZh = v)" @update:en="(v) => (form.tagsEn = v)" />
+                </FormSection>
+              </el-form>
+
+              <div class="product-edit__split">
+                <FormSection title="規格與售價">
+                  <div v-if="!isCreate && canViewVariants && variantPerm.canCreate.value" class="product-edit__head">
+                    <el-button size="small" type="primary" @click="openVariant(null)">+ 新增規格</el-button>
+                  </div>
+                  <p v-if="isCreate" class="product-edit__hint">請先按「儲存」建立商品，儲存後就能新增規格。</p>
+                  <p v-else-if="!canViewVariants" class="product-edit__hint">你的帳號沒有檢視規格與售價的權限。</p>
+                  <template v-else>
+                    <p class="product-edit__hint">庫存量不能在這裡修改，請到「庫存」調整；新增規格時填的期初庫存會記成一筆進貨。有訂單的規格不能刪除，請改為停售。</p>
+                    <el-empty v-if="variants.length === 0" description="還沒有規格" :image-size="64" />
+                    <el-table v-else-if="!isMobile" :data="variants" row-key="id">
+                      <el-table-column label="商品規格編號" min-width="120" prop="sku" />
+                      <el-table-column label="尺寸／顏色" min-width="110"><template #default="{ row }">{{ row.label || '—' }}</template></el-table-column>
+                      <el-table-column label="售價" width="110">
+                        <template #default="{ row }">
+                          <div>{{ formatMoney(row.price) }}</div>
+                          <div v-if="row.salePrice !== null && row.salePrice !== undefined" class="product-edit__muted">促銷 {{ formatMoney(row.salePrice) }}</div>
+                        </template>
+                      </el-table-column>
+                      <el-table-column v-if="canViewCost" label="成本" width="100"><template #default="{ row }">{{ formatMoney(row.cost) }}</template></el-table-column>
+                      <el-table-column label="庫存／保留／可售" width="140"><template #default="{ row }">{{ row.stockQty }} ／ {{ row.reservedQty }} ／ <strong :class="{ 'product-edit__low': row.isLowStock }">{{ row.availableQty }}</strong></template></el-table-column>
+                      <el-table-column label="狀態" width="90">
+                        <template #default="{ row }">
+                          <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ row.statusLabel }}</el-tag>
+                          <el-tag v-if="row.isLowStock" type="warning" size="small" class="product-edit__tag">庫存偏低</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column v-if="variantPerm.canUpdate.value" label="順序" width="96">
+                        <template #default="{ $index }">
+                          <el-button size="small" text :disabled="varReordering || $index === 0" aria-label="上移" @click="moveVariant($index, -1)"><el-icon><ArrowUp /></el-icon></el-button>
+                          <el-button size="small" text :disabled="varReordering || $index === variants.length - 1" aria-label="下移" @click="moveVariant($index, 1)"><el-icon><ArrowDown /></el-icon></el-button>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="操作" width="130" fixed="right">
+                        <template #default="{ row }">
+                          <el-button size="small" text type="primary" @click="openVariant(row)">{{ variantPerm.canUpdate.value ? '編輯' : '檢視' }}</el-button>
+                          <el-button v-if="variantPerm.canDelete.value" size="small" text type="danger" @click="removeVariant(row)">刪除</el-button>
+                        </template>
+                      </el-table-column>
+                    </el-table>
+                    <MobileCardList v-else :rows="variants" row-key="id">
+                      <template #title="{ row }">{{ row.label || row.sku }}</template>
+                      <template #meta="{ row }">
+                        <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ row.statusLabel }}</el-tag>
+                        <span>{{ formatMoney(row.effectivePrice) }}</span>
+                        <span>可售 {{ row.availableQty }}</span>
+                        <span v-if="canViewCost">成本 {{ formatMoney(row.cost) }}</span>
+                      </template>
+                      <template #actions="{ row }">
+                        <el-button size="small" text type="primary" @click="openVariant(row)">{{ variantPerm.canUpdate.value ? '編輯' : '檢視' }}</el-button>
+                        <el-button v-if="variantPerm.canDelete.value" size="small" text type="danger" @click="removeVariant(row)">刪除</el-button>
+                      </template>
+                    </MobileCardList>
+                  </template>
+                </FormSection>
+              </div>
+
+              <el-form label-position="top" :disabled="readOnly" class="product-edit__split">
+                <FormSection title="尺寸對照表（選填）">
+                  <FormField field="sizeChart">
+                    <el-input v-model="form.sizeChartText" type="textarea" :rows="6" placeholder="尚無對照表。需要時貼上對照表資料（須為系統可讀的結構化格式）；清空並儲存即清除。" />
+                  </FormField>
+                  <p class="product-edit__hint">前台的呈現格式尚未定義，目前只能原樣存放。格式不正確時無法儲存。</p>
+                </FormSection>
+
+                <FormSection title="搜尋與分享設定">
+                  <BilingualShortField field="seoTitle" label="搜尋標題" :zh="form.seoTitleZh" :en="form.seoTitleEn" @update:zh="(v) => (form.seoTitleZh = v)" @update:en="(v) => (form.seoTitleEn = v)" />
+                  <BilingualTextareaField field="seoDesc" label="搜尋描述" :zh="form.seoDescZh" :en="form.seoDescEn" :rows="2" @update:zh="(v) => (form.seoDescZh = v)" @update:en="(v) => (form.seoDescEn = v)" />
+                </FormSection>
+              </el-form>
+            </el-card>
+          </template>
+
+          <template #aside>
             <el-form label-position="top" :disabled="readOnly" class="product-edit__form">
-              <el-card shadow="never" header="商品資料">
-                <BilingualShortField field="name" label="商品名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-                <BilingualTextareaField field="narr" label="商品介紹" :zh="form.narrZh" :en="form.narrEn" :rows="4" @update:zh="(v) => (form.narrZh = v)" @update:en="(v) => (form.narrEn = v)" />
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="collectionId" label="所屬系列">
-                      <el-select v-model="form.collectionId" clearable placeholder="不歸類" style="width: 100%">
-                        <el-option v-for="c in collections" :key="c.id" :label="c.nameZh || '（未命名）'" :value="c.id" />
-                      </el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12"><FormField field="slug" label="網址名稱（選填）"><el-input v-model="form.slug" maxlength="128" placeholder="留空由系統自動產生" /></FormField></el-col>
-                  <el-col :xs="24" :sm="8"><el-form-item label="標示為新品"><el-switch v-model="form.isNewArrival" /></el-form-item></el-col>
-                  <el-col :xs="24" :sm="8"><FormField field="sortOrder" label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></FormField></el-col>
-                  <el-col :xs="24" :sm="8">
-                    <FormField field="outOfStockBehavior" label="缺貨時的前台顯示">
-                      <el-select v-model="form.outOfStockBehavior" style="width: 100%">
-                        <el-option label="顯示為缺貨" value="show_unavailable" />
-                        <el-option label="從商店隱藏" value="hide" />
-                      </el-select>
-                    </FormField>
-                  </el-col>
-                </el-row>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="collectionId" label="所屬系列">
+                    <el-select v-model="form.collectionId" clearable placeholder="不歸類" style="width: 100%">
+                      <el-option v-for="c in collections" :key="c.id" :label="c.nameZh || '（未命名）'" :value="c.id" />
+                    </el-select>
+                  </FormField>
+                  <FormField field="slug" label="網址名稱（選填）"><el-input v-model="form.slug" maxlength="128" placeholder="留空由系統自動產生" /></FormField>
+                  <el-form-item label="標示為新品"><el-switch v-model="form.isNewArrival" /></el-form-item>
+                  <FormField field="outOfStockBehavior" label="缺貨時的前台顯示">
+                    <el-select v-model="form.outOfStockBehavior" style="width: 100%">
+                      <el-option label="顯示為缺貨" value="show_unavailable" />
+                      <el-option label="從商店隱藏" value="hide" />
+                    </el-select>
+                  </FormField>
+                </FormSection>
+
+                <FormSection title="商品圖片">
+                  <p class="product-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
+                  <p v-if="isCreate" class="product-edit__hint">請先儲存基本資料，才能管理相簿</p>
+                  <GalleryManager :images="images.map((i) => ({ id: i.id, thumbUrl: i.imageThumbUrl, imageUrl: i.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+                </FormSection>
+              </el-card>
+
+              <el-card shadow="never" header="發布設定">
                 <FormField field="status" label="狀態">
                   <el-radio-group v-model="form.status" @change="formErrors.clear('status')">
                     <el-radio-button value="draft">下架（草稿）</el-radio-button>
@@ -396,87 +482,9 @@ async function moveVariant(index: number, delta: -1 | 1) {
                   </el-radio-group>
                 </FormField>
                 <p class="product-edit__hint">新增商品時只能先存成下架；上架前至少要有一個販售中的規格。「缺貨」由庫存自動判定，不需要手動設定。已有訂單的商品不能刪除，請改為下架。</p>
-              </el-card>
-
-              <el-card shadow="never" header="搜尋與分享設定">
-                <BilingualShortField field="seoTitle" label="搜尋標題" :zh="form.seoTitleZh" :en="form.seoTitleEn" @update:zh="(v) => (form.seoTitleZh = v)" @update:en="(v) => (form.seoTitleEn = v)" />
-                <BilingualTextareaField field="seoDesc" label="搜尋描述" :zh="form.seoDescZh" :en="form.seoDescEn" :rows="2" @update:zh="(v) => (form.seoDescZh = v)" @update:en="(v) => (form.seoDescEn = v)" />
-                <BilingualShortField field="tags" label="標籤（以逗號分隔）" :zh="form.tagsZh" :en="form.tagsEn" @update:zh="(v) => (form.tagsZh = v)" @update:en="(v) => (form.tagsEn = v)" />
-              </el-card>
-
-              <el-card shadow="never" header="尺寸對照表（選填）">
-                <FormField field="sizeChart">
-                  <el-input v-model="form.sizeChartText" type="textarea" :rows="6" placeholder="尚無對照表。需要時貼上對照表資料（須為系統可讀的結構化格式）；清空並儲存即清除。" />
-                </FormField>
-                <p class="product-edit__hint">前台的呈現格式尚未定義，目前只能原樣存放。格式不正確時無法儲存。</p>
+                <FormField field="sortOrder" label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></FormField>
               </el-card>
             </el-form>
-
-            <el-card shadow="never">
-              <template #header>
-                <div class="product-edit__head">
-                  <span>規格與售價</span>
-                  <el-button v-if="!isCreate && canViewVariants && variantPerm.canCreate.value" size="small" type="primary" @click="openVariant(null)">+ 新增規格</el-button>
-                </div>
-              </template>
-              <p v-if="isCreate" class="product-edit__hint">請先按「儲存」建立商品，儲存後就能新增規格。</p>
-              <p v-else-if="!canViewVariants" class="product-edit__hint">你的帳號沒有檢視規格與售價的權限。</p>
-              <template v-else>
-                <p class="product-edit__hint">庫存量不能在這裡修改，請到「庫存」調整；新增規格時填的期初庫存會記成一筆進貨。有訂單的規格不能刪除，請改為停售。</p>
-                <el-empty v-if="variants.length === 0" description="還沒有規格" :image-size="64" />
-                <el-table v-else-if="!isMobile" :data="variants" row-key="id">
-                  <el-table-column label="商品規格編號" min-width="120" prop="sku" />
-                  <el-table-column label="尺寸／顏色" min-width="110"><template #default="{ row }">{{ row.label || '—' }}</template></el-table-column>
-                  <el-table-column label="售價" width="110">
-                    <template #default="{ row }">
-                      <div>{{ formatMoney(row.price) }}</div>
-                      <div v-if="row.salePrice !== null && row.salePrice !== undefined" class="product-edit__muted">促銷 {{ formatMoney(row.salePrice) }}</div>
-                    </template>
-                  </el-table-column>
-                  <el-table-column v-if="canViewCost" label="成本" width="100"><template #default="{ row }">{{ formatMoney(row.cost) }}</template></el-table-column>
-                  <el-table-column label="庫存／保留／可售" width="140"><template #default="{ row }">{{ row.stockQty }} ／ {{ row.reservedQty }} ／ <strong :class="{ 'product-edit__low': row.isLowStock }">{{ row.availableQty }}</strong></template></el-table-column>
-                  <el-table-column label="狀態" width="90">
-                    <template #default="{ row }">
-                      <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ row.statusLabel }}</el-tag>
-                      <el-tag v-if="row.isLowStock" type="warning" size="small" class="product-edit__tag">庫存偏低</el-tag>
-                    </template>
-                  </el-table-column>
-                  <el-table-column v-if="variantPerm.canUpdate.value" label="順序" width="96">
-                    <template #default="{ $index }">
-                      <el-button size="small" text :disabled="varReordering || $index === 0" aria-label="上移" @click="moveVariant($index, -1)"><el-icon><ArrowUp /></el-icon></el-button>
-                      <el-button size="small" text :disabled="varReordering || $index === variants.length - 1" aria-label="下移" @click="moveVariant($index, 1)"><el-icon><ArrowDown /></el-icon></el-button>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="操作" width="130" fixed="right">
-                    <template #default="{ row }">
-                      <el-button size="small" text type="primary" @click="openVariant(row)">{{ variantPerm.canUpdate.value ? '編輯' : '檢視' }}</el-button>
-                      <el-button v-if="variantPerm.canDelete.value" size="small" text type="danger" @click="removeVariant(row)">刪除</el-button>
-                    </template>
-                  </el-table-column>
-                </el-table>
-                <MobileCardList v-else :rows="variants" row-key="id">
-                  <template #title="{ row }">{{ row.label || row.sku }}</template>
-                  <template #meta="{ row }">
-                    <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ row.statusLabel }}</el-tag>
-                    <span>{{ formatMoney(row.effectivePrice) }}</span>
-                    <span>可售 {{ row.availableQty }}</span>
-                    <span v-if="canViewCost">成本 {{ formatMoney(row.cost) }}</span>
-                  </template>
-                  <template #actions="{ row }">
-                    <el-button size="small" text type="primary" @click="openVariant(row)">{{ variantPerm.canUpdate.value ? '編輯' : '檢視' }}</el-button>
-                    <el-button v-if="variantPerm.canDelete.value" size="small" text type="danger" @click="removeVariant(row)">刪除</el-button>
-                  </template>
-                </MobileCardList>
-              </template>
-            </el-card>
-          </template>
-
-          <template #aside>
-            <el-card shadow="never" header="商品圖片">
-              <p class="product-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
-              <p v-if="isCreate" class="product-edit__hint">請先儲存基本資料，才能管理相簿</p>
-              <GalleryManager :images="images.map((i) => ({ id: i.id, thumbUrl: i.imageThumbUrl, imageUrl: i.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
-            </el-card>
           </template>
         </EditLayout>
       </LangTabsBar>
@@ -520,7 +528,8 @@ async function moveVariant(index: number, delta: -1 | 1) {
 .product-edit__form { display: flex; flex-direction: column; gap: var(--admin-space-4); }
 .product-edit__block { margin-bottom: 16px; }
 .product-edit__hint { margin: 4px 0 10px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
-.product-edit__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.product-edit__head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.product-edit__split { margin-top: var(--admin-space-6); padding-top: var(--admin-space-6); border-top: 1px solid var(--admin-border); }
 .product-edit__muted { font-size: 12px; color: var(--admin-text-tertiary); }
 .product-edit__tag { margin-left: 4px; }
 .product-edit__low { color: var(--admin-warning-text); }

@@ -14,6 +14,8 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
+import EditLayout from '@/components/EditLayout.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -198,56 +200,73 @@ function handleBack() {
 
       <el-form label-position="top">
         <LangTabsBar>
-          <el-card shadow="never" header="基本資料" class="competition-edit__section">
-            <FormField field="seasonId" label="賽季" required>
-              <el-select
-                v-model="form.seasonId"
-                placeholder="請選擇賽季"
-                filterable
-                style="width: 100%"
-                :no-data-text="seasonsLoadError ?? '目前這個俱樂部還沒有任何球季資料'"
-                @change="formErrors.clear('seasonId')"
-              >
-                <el-option v-for="season in seasons" :key="season.id" :label="seasonLabel(season)" :value="season.id" />
-              </el-select>
-              <span v-if="existingSeasonCode" class="competition-edit__hint">目前的賽季代碼：{{ existingSeasonCode }}</span>
-              <span v-if="seasonsLoadError" class="competition-edit__hint competition-edit__hint--warning">
-                {{ seasonsLoadError }}
-              </span>
-            </FormField>
-            <FormField field="code" label="代碼" required>
-              <el-input v-model="form.code" placeholder="例如 corp-a" />
-            </FormField>
-            <el-form-item label="類型">
-              <el-input v-model="form.compType" placeholder="選填，例如：聯賽、盃賽、友誼賽" />
-            </el-form-item>
-            <BilingualShortField
-              field="name"
-              label="名稱"
-              :zh="form.nameZh"
-              :en="form.nameEn"
-              required
-              @update:zh="(v) => (form.nameZh = v)"
-              @update:en="(v) => (form.nameEn = v)"
-            />
-            <BilingualShortField
-              field="organizer"
-              label="主辦單位"
-              :zh="form.organizerZh"
-              :en="form.organizerEn"
-              @update:zh="(v) => (form.organizerZh = v)"
-              @update:en="(v) => (form.organizerEn = v)"
-            />
-            <el-form-item label="排序">
-              <el-input-number v-model="form.sortOrder" :min="0" />
-            </el-form-item>
-            <FormField field="status" label="狀態">
-              <el-radio-group v-model="form.status">
-                <el-radio value="draft">草稿</el-radio>
-                <el-radio value="published">已發布</el-radio>
-              </el-radio-group>
-            </FormField>
-          </el-card>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field="name"
+                    label="名稱"
+                    :zh="form.nameZh"
+                    :en="form.nameEn"
+                    required
+                    @update:zh="(v) => (form.nameZh = v)"
+                    @update:en="(v) => (form.nameEn = v)"
+                  />
+                  <BilingualShortField
+                    field="organizer"
+                    label="主辦單位"
+                    :zh="form.organizerZh"
+                    :en="form.organizerEn"
+                    @update:zh="(v) => (form.organizerZh = v)"
+                    @update:en="(v) => (form.organizerEn = v)"
+                  />
+                </FormSection>
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="seasonId" label="賽季" required>
+                    <el-select
+                      v-model="form.seasonId"
+                      placeholder="請選擇賽季"
+                      filterable
+                      style="width: 100%"
+                      :no-data-text="seasonsLoadError ?? '目前這個俱樂部還沒有任何球季資料'"
+                      @change="formErrors.clear('seasonId')"
+                    >
+                      <el-option v-for="season in seasons" :key="season.id" :label="seasonLabel(season)" :value="season.id" />
+                    </el-select>
+                    <span v-if="existingSeasonCode" class="competition-edit__hint">目前的賽季代碼：{{ existingSeasonCode }}</span>
+                    <span v-if="seasonsLoadError" class="competition-edit__hint competition-edit__hint--warning">
+                      {{ seasonsLoadError }}
+                    </span>
+                  </FormField>
+                  <FormField field="code" label="代碼" required>
+                    <el-input v-model="form.code" placeholder="例如 corp-a" />
+                  </FormField>
+                  <el-form-item label="類型">
+                    <el-input v-model="form.compType" placeholder="選填，例如：聯賽、盃賽、友誼賽" />
+                  </el-form-item>
+                </FormSection>
+              </el-card>
+              <el-card shadow="never" header="發布設定">
+                <FormSection>
+                  <el-form-item label="排序">
+                    <el-input-number v-model="form.sortOrder" :min="0" />
+                  </el-form-item>
+                  <FormField field="status" label="狀態">
+                    <el-radio-group v-model="form.status">
+                      <el-radio value="draft">草稿</el-radio>
+                      <el-radio value="published">已發布</el-radio>
+                    </el-radio-group>
+                  </FormField>
+                </FormSection>
+              </el-card>
+            </template>
+          </EditLayout>
         </LangTabsBar>
       </el-form>
 
@@ -260,9 +279,6 @@ function handleBack() {
 </template>
 
 <style scoped>
-.competition-edit__section {
-  margin-bottom: 12px;
-}
 
 .competition-edit__form-error {
   margin-bottom: 12px;

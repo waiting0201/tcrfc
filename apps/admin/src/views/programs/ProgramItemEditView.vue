@@ -19,6 +19,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -339,104 +340,103 @@ function retryLoad() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="基本資料">
-                <el-row :gutter="12">
-                  <el-col :span="8">
-                    <FormField field="slug" label="網址代稱" required>
-                      <el-input v-model="form.slug" placeholder="例如 u8-summer-camp" />
-                    </FormField>
-                  </el-col>
-                  <el-col :span="8">
-                    <FormField field="programType" label="類型">
-                      <el-select v-model="form.programType" clearable placeholder="請選擇類型" style="width: 100%">
-                        <el-option v-for="t in PROGRAM_TYPE_ORDER" :key="t" :label="PROGRAM_TYPE_LABEL[t]" :value="t" />
-                      </el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :span="8">
-                    <BilingualShortField
-                      field="audience"
-                      label="適合對象"
-                      :zh="form.audience"
-                      :en="form.audienceEn"
-                      :maxlength="64"
-                      placeholder="例如 國小中低年級"
-                      @update:zh="(v: string) => (form.audience = v)"
-                      @update:en="(v: string) => (form.audienceEn = v)"
-                    />
-                  </el-col>
-                </el-row>
-                <el-row :gutter="12">
-                  <el-col :span="8">
-                    <FormField field="ageMin" label="最小年齡">
-                      <el-input-number v-model="form.ageMin" :min="0" :max="99" style="width: 100%" @change="formErrors.clear('ageMin')" />
-                    </FormField>
-                  </el-col>
-                  <el-col :span="8">
-                    <FormField field="ageMax" label="最大年齡">
-                      <el-input-number v-model="form.ageMax" :min="0" :max="99" style="width: 100%" @change="formErrors.clear('ageMax')" />
-                    </FormField>
-                  </el-col>
-                  <el-col :span="8">
-                    <FormField field="status" label="狀態">
-                      <el-radio-group v-model="form.status">
-                        <el-radio value="draft">草稿</el-radio>
-                        <el-radio value="published">已發布</el-radio>
-                      </el-radio-group>
-                    </FormField>
-                  </el-col>
-                </el-row>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field="name"
+                    label="名稱"
+                    :zh="form.nameZh"
+                    :en="form.nameEn"
+                    required
+                    @update:zh="(v) => (form.nameZh = v)"
+                    @update:en="(v) => (form.nameEn = v)"
+                  />
+                  <BilingualTextareaField
+                    field="intro"
+                    label="簡介"
+                    :zh="form.introZh"
+                    :en="form.introEn"
+                    @update:zh="(v) => (form.introZh = v)"
+                    @update:en="(v) => (form.introEn = v)"
+                  />
+                  <BilingualShortField
+                    field="audience"
+                    label="適合對象"
+                    :zh="form.audience"
+                    :en="form.audienceEn"
+                    :maxlength="64"
+                    placeholder="例如 國小中低年級"
+                    @update:zh="(v: string) => (form.audience = v)"
+                    @update:en="(v: string) => (form.audienceEn = v)"
+                  />
+                </FormSection>
 
-                <BilingualShortField
-                  field="name"
-                  label="名稱"
-                  :zh="form.nameZh"
-                  :en="form.nameEn"
-                  required
-                  @update:zh="(v) => (form.nameZh = v)"
-                  @update:en="(v) => (form.nameEn = v)"
-                />
-                <BilingualTextareaField
-                  field="intro"
-                  label="簡介"
-                  :zh="form.introZh"
-                  :en="form.introEn"
-                  @update:zh="(v) => (form.introZh = v)"
-                  @update:en="(v) => (form.introEn = v)"
-                />
-              </el-card>
+                <FormSection title="課程內容">
+                  <PageBlockListEditor
+                    v-model="blocks"
+                    :allowed-types="CONTENT_BLOCK_TYPES"
+                    empty-hint="目前還沒有任何課程內容，從下方選一種類型開始新增；留空表示這個項目沒有內文。"
+                  />
+                </FormSection>
 
-              <el-card shadow="never" header="課程內容">
-                <PageBlockListEditor
-                  v-model="blocks"
-                  :allowed-types="CONTENT_BLOCK_TYPES"
-                  empty-hint="目前還沒有任何課程內容，從下方選一種類型開始新增；留空表示這個項目沒有內文。"
-                />
-              </el-card>
-
-              <el-card shadow="never" header="教練團與合作夥伴">
-                <FormField field="staffIds" label="教練團">
-                  <el-select v-model="form.staffIds" multiple filterable placeholder="請選擇負責教練（可複選）" style="width: 100%">
-                    <el-option v-for="s in staffOptions" :key="s.id" :label="s.nameZh || '（未命名）'" :value="s.id" />
-                  </el-select>
-                </FormField>
-                <FormField field="partnerIds" label="合作夥伴">
-                  <el-select v-model="form.partnerIds" multiple filterable placeholder="請選擇合作夥伴（可複選）" style="width: 100%">
-                    <el-option v-for="p in partnerOptions" :key="p.id" :label="p.label" :value="p.id" />
-                  </el-select>
-                </FormField>
+                <FormSection title="教練團與合作夥伴">
+                  <FormField field="staffIds" label="教練團">
+                    <el-select v-model="form.staffIds" multiple filterable placeholder="請選擇負責教練（可複選）" style="width: 100%">
+                      <el-option v-for="s in staffOptions" :key="s.id" :label="s.nameZh || '（未命名）'" :value="s.id" />
+                    </el-select>
+                  </FormField>
+                  <FormField field="partnerIds" label="合作夥伴">
+                    <el-select v-model="form.partnerIds" multiple filterable placeholder="請選擇合作夥伴（可複選）" style="width: 100%">
+                      <el-option v-for="p in partnerOptions" :key="p.id" :label="p.label" :value="p.id" />
+                    </el-select>
+                  </FormField>
+                </FormSection>
               </el-card>
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="封面圖">
-                <FormField field="cover" label="封面圖">
-                  <ImageUploader
-                    v-model:file="coverFile"
-                    v-model:remove-cover="removeCover"
-                    :has-existing-image="!!coverKey"
-                    :disabled="saving || isReadOnly"
-                  />
+              <el-card shadow="never" header="基本設定">
+                <FormSection title="項目資料">
+                  <FormField field="slug" label="網址代稱" required>
+                    <el-input v-model="form.slug" placeholder="例如 u8-summer-camp" />
+                  </FormField>
+                  <FormField field="programType" label="類型">
+                    <el-select v-model="form.programType" clearable placeholder="請選擇類型" style="width: 100%">
+                      <el-option v-for="t in PROGRAM_TYPE_ORDER" :key="t" :label="PROGRAM_TYPE_LABEL[t]" :value="t" />
+                    </el-select>
+                  </FormField>
+                  <el-row :gutter="12">
+                    <el-col :span="24">
+                      <FormField field="ageMin" label="最小年齡">
+                        <el-input-number v-model="form.ageMin" :min="0" :max="99" style="width: 100%" @change="formErrors.clear('ageMin')" />
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <FormField field="ageMax" label="最大年齡">
+                        <el-input-number v-model="form.ageMax" :min="0" :max="99" style="width: 100%" @change="formErrors.clear('ageMax')" />
+                      </FormField>
+                    </el-col>
+                  </el-row>
+                </FormSection>
+
+                <FormSection title="封面圖">
+                  <FormField field="cover" label="封面圖">
+                    <ImageUploader
+                      v-model:file="coverFile"
+                      v-model:remove-cover="removeCover"
+                      :has-existing-image="!!coverKey"
+                      :disabled="saving || isReadOnly"
+                    />
+                  </FormField>
+                </FormSection>
+              </el-card>
+
+              <el-card shadow="never" header="發布設定">
+                <FormField field="status" label="狀態">
+                  <el-radio-group v-model="form.status">
+                    <el-radio value="draft">草稿</el-radio>
+                    <el-radio value="published">已發布</el-radio>
+                  </el-radio-group>
                 </FormField>
               </el-card>
             </template>

@@ -6,6 +6,8 @@ import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -98,32 +100,34 @@ async function handleSave() {
     />
 
     <el-form label-position="top" :disabled="!canCreate" @submit.prevent="handleSave">
-      <el-card shadow="never" header="會員資料" class="member-edit__block">
-        <el-row :gutter="12">
-          <el-col :xs="24" :sm="12">
-            <FormField field="name" label="姓名" required><el-input v-model="form.name" maxlength="64" /></FormField>
-          </el-col>
-          <el-col :xs="24" :sm="12">
-            <FormField field="email" label="Email" required><el-input v-model="form.email" maxlength="255" inputmode="email" /></FormField>
-          </el-col>
-          <el-col :xs="24" :sm="12">
-            <FormField field="phone" label="電話"><el-input v-model="form.phone" maxlength="32" inputmode="tel" /></FormField>
-          </el-col>
-          <el-col :xs="24" :sm="12">
+      <EditLayout>
+        <template #main>
+          <el-card shadow="never">
+            <FormSection>
+              <FormField field="name" label="姓名" required><el-input v-model="form.name" maxlength="64" /></FormField>
+              <FormField field="email" label="Email" required><el-input v-model="form.email" maxlength="255" inputmode="email" /></FormField>
+              <FormField field="phone" label="電話"><el-input v-model="form.phone" maxlength="32" inputmode="tel" /></FormField>
+            </FormSection>
+
+            <FormSection title="內部備註">
+              <FormField field="internalNote" label="內部備註（會員看不到）">
+                <el-input v-model="form.internalNote" type="textarea" :rows="3" maxlength="2000" show-word-limit />
+              </FormField>
+            </FormSection>
+          </el-card>
+        </template>
+
+        <template #aside>
+          <el-card shadow="never" header="基本設定">
             <FormField field="birthOn" label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="(d: Date) => pickerDateToDateOnly(d) > taipeiToday()" /></FormField>
-          </el-col>
-          <el-col :xs="24" :sm="12">
             <FormField field="locale" label="語系偏好">
               <el-select v-model="form.locale" style="width: 100%">
                 <el-option v-for="o in MEMBER_LOCALE_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
               </el-select>
             </FormField>
-          </el-col>
-        </el-row>
-        <FormField field="internalNote" label="內部備註（會員看不到）">
-          <el-input v-model="form.internalNote" type="textarea" :rows="3" maxlength="2000" show-word-limit />
-        </FormField>
-      </el-card>
+          </el-card>
+        </template>
+      </EditLayout>
     </el-form>
     <EditActionBar v-if="canCreate">
       <template #status><FormErrorStatus /></template>
@@ -133,6 +137,6 @@ async function handleSave() {
 </template>
 
 <style scoped>
-.member-edit { max-width: 780px; margin: 0 auto 88px; }
+.member-edit { max-width: 1200px; margin: 0 auto; }
 .member-edit__block { margin-bottom: 16px; }
 </style>

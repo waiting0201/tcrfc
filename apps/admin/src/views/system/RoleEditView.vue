@@ -16,7 +16,9 @@ import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import EditLayout from '@/components/EditLayout.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -240,60 +242,77 @@ function handleBack() {
       />
 
       <LangTabsBar>
-        <el-card shadow="never" header="基本資料" class="role-edit__section">
-          <el-form label-position="top" :disabled="isSystem">
-            <FormField field="code" label="角色代碼" required>
-              <el-input v-model="form.code" :disabled="!isCreate" placeholder="建立後不可修改" />
-            </FormField>
-            <BilingualShortField
-              field="name"
-              label="角色名稱"
-              :zh="form.nameZh"
-              :en="form.nameEn"
-              required
-              @update:zh="(v) => (form.nameZh = v)"
-              @update:en="(v) => (form.nameEn = v)"
-            />
-            <FormField field="scopeMode" label="資料範圍">
-              <el-radio-group v-model="form.scopeMode">
-                <el-radio value="all_clubs">全部俱樂部</el-radio>
-                <el-radio value="own_clubs">僅授權的俱樂部</el-radio>
-              </el-radio-group>
-            </FormField>
-          </el-form>
-          <el-alert v-if="isSystem" title="這是系統內建角色，基本資料無法修改，僅能調整權限。" type="info" show-icon :closable="false" />
-        </el-card>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never">
+              <el-form label-position="top" :disabled="isSystem">
+                <FormSection>
+                  <BilingualShortField
+                    field="name"
+                    label="角色名稱"
+                    :zh="form.nameZh"
+                    :en="form.nameEn"
+                    required
+                    @update:zh="(v) => (form.nameZh = v)"
+                    @update:en="(v) => (form.nameEn = v)"
+                  />
+                </FormSection>
+              </el-form>
 
-        <el-card shadow="never" header="權限" class="role-edit__section">
-          <FormField field="permissions">
-            <div class="role-edit__permissions">
-              <div v-for="group in moduleGroups" :key="group.moduleCode" class="role-edit__module-group">
-                <h3 class="role-edit__module-title">{{ moduleName(group.moduleCode) }}</h3>
-                <div v-for="permission in group.items" :key="permission.code" class="role-edit__permission-row">
-                  <el-checkbox
-                    :model-value="isChecked(permission.code)"
-                    :disabled="permission.sysadminOnly"
-                    @change="(val: boolean) => toggle(permission, val)"
-                  >
-                    {{ permission.nameZh }}
-                    <el-tag v-if="permission.sysadminOnly" type="info" size="small" class="role-edit__inline-tag">
-                      僅系統管理員
-                    </el-tag>
-                  </el-checkbox>
-                  <el-select
-                    v-if="isChecked(permission.code)"
-                    :model-value="selection.get(permission.code)"
-                    size="small"
-                    class="role-edit__scope-select"
-                    @update:model-value="(v: RoleScopeType) => setScope(permission.code, v)"
-                  >
-                    <el-option v-for="(label, value) in SCOPE_TYPE_LABEL" :key="value" :label="label" :value="value" />
-                  </el-select>
-                </div>
+              <div class="role-edit__split">
+                <FormSection title="權限">
+                  <FormField field="permissions">
+                    <div class="role-edit__permissions">
+                      <div v-for="group in moduleGroups" :key="group.moduleCode" class="role-edit__module-group">
+                        <h3 class="role-edit__module-title">{{ moduleName(group.moduleCode) }}</h3>
+                        <div v-for="permission in group.items" :key="permission.code" class="role-edit__permission-row">
+                          <el-checkbox
+                            :model-value="isChecked(permission.code)"
+                            :disabled="permission.sysadminOnly"
+                            @change="(val: boolean) => toggle(permission, val)"
+                          >
+                            {{ permission.nameZh }}
+                            <el-tag v-if="permission.sysadminOnly" type="info" size="small" class="role-edit__inline-tag">
+                              僅系統管理員
+                            </el-tag>
+                          </el-checkbox>
+                          <el-select
+                            v-if="isChecked(permission.code)"
+                            :model-value="selection.get(permission.code)"
+                            size="small"
+                            class="role-edit__scope-select"
+                            @update:model-value="(v: RoleScopeType) => setScope(permission.code, v)"
+                          >
+                            <el-option v-for="(label, value) in SCOPE_TYPE_LABEL" :key="value" :label="label" :value="value" />
+                          </el-select>
+                        </div>
+                      </div>
+                    </div>
+                  </FormField>
+                </FormSection>
               </div>
-            </div>
-          </FormField>
-        </el-card>
+            </el-card>
+          </template>
+
+          <template #aside>
+            <el-card shadow="never" header="基本設定">
+              <el-form label-position="top" :disabled="isSystem">
+                <FormSection>
+                  <FormField field="code" label="角色代碼" required>
+                    <el-input v-model="form.code" :disabled="!isCreate" placeholder="建立後不可修改" />
+                  </FormField>
+                  <FormField field="scopeMode" label="資料範圍">
+                    <el-radio-group v-model="form.scopeMode">
+                      <el-radio value="all_clubs">全部俱樂部</el-radio>
+                      <el-radio value="own_clubs">僅授權的俱樂部</el-radio>
+                    </el-radio-group>
+                  </FormField>
+                </FormSection>
+              </el-form>
+              <el-alert v-if="isSystem" title="這是系統內建角色，基本資料無法修改，僅能調整權限。" type="info" show-icon :closable="false" />
+            </el-card>
+          </template>
+        </EditLayout>
       </LangTabsBar>
 
       <EditActionBar>
@@ -305,8 +324,10 @@ function handleBack() {
 </template>
 
 <style scoped>
-.role-edit__section {
-  margin-bottom: 12px;
+.role-edit__split {
+  margin-top: var(--admin-space-6);
+  padding-top: var(--admin-space-6);
+  border-top: 1px solid var(--admin-border);
 }
 
 .role-edit__form-error {

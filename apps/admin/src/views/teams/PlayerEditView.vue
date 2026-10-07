@@ -11,6 +11,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -280,146 +281,123 @@ function retryLoad() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="基本資料" class="player-edit__section">
-                <el-row :gutter="12">
-                  <el-col :span="12">
-                    <FormField field="teamId" label="所屬球隊" required>
-                      <el-select
-                        v-model="form.teamId"
-                        filterable
-                        style="width: 100%"
-                        no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
-                        @change="formErrors.clear('teamId')"
-                      >
-                        <el-option v-for="t in teamOptions" :key="t.id" :label="t.label" :value="t.id" :disabled="t.disabled" />
-                      </el-select>
-                      <p v-if="isTeamOutOfScope" class="player-edit__hint player-edit__hint--warning">
-                        你的帳號沒有這支球隊的異動權限，所屬球隊無法變更。
-                      </p>
-                    </FormField>
-                  </el-col>
-                  <el-col :span="6">
-                    <FormField field="shirtNo" label="背號">
-                      <el-input-number v-model="form.shirtNo" :min="1" :max="99" style="width: 100%" @change="formErrors.clear('shirtNo')" />
-                    </FormField>
-                  </el-col>
-                  <el-col :span="6">
-                    <el-form-item label="位置">
-                      <el-input v-model="form.position" placeholder="例如 門將、中場" />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-
-                <FormField field="slug" label="網址代稱">
-                  <el-input
-                    v-model="form.slug"
-                    maxlength="160"
-                    :placeholder="isCreate ? '留空會依英文姓名自動產生' : '例如 lin-zhi-ming'"
-                    clearable
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field="name"
+                    label="姓名"
+                    :zh="form.nameZh"
+                    :en="form.nameEn"
+                    required
+                    @update:zh="(v) => (form.nameZh = v)"
+                    @update:en="(v) => (form.nameEn = v)"
                   />
-                  <p class="player-edit__hint">
-                    出現在球員頁網址，建議用英文小寫與連字號；同一個俱樂部內不能重複。{{ isCreate ? '留空會自動產生。' : '留空則維持目前的代稱。' }}
-                  </p>
-                  <p v-if="slugChanged" class="player-edit__hint player-edit__hint--warning">
-                    修改網址代稱後，舊的球員頁連結（包含已分享出去的連結與 App 內的連結）會失效，請確認後再儲存。
-                  </p>
-                </FormField>
-
-                <BilingualShortField
-                  field="name"
-                  label="姓名"
-                  :zh="form.nameZh"
-                  :en="form.nameEn"
-                  required
-                  @update:zh="(v) => (form.nameZh = v)"
-                  @update:en="(v) => (form.nameEn = v)"
-                />
-                <BilingualTextareaField
-                  field="bio"
-                  label="簡介"
-                  :zh="form.bioZh"
-                  :en="form.bioEn"
-                  @update:zh="(v) => (form.bioZh = v)"
-                  @update:en="(v) => (form.bioEn = v)"
+                  <BilingualTextareaField
+                    field="bio"
+                    label="簡介"
+                    :zh="form.bioZh"
+                    :en="form.bioEn"
+                    @update:zh="(v) => (form.bioZh = v)"
+                    @update:en="(v) => (form.bioEn = v)"
+                  />
+                </FormSection>
+                <PlayerSeasonStatsPanel
+                  v-if="!isCreate && playerId"
+                  :club="activeClubId"
+                  :player-id="playerId"
+                  :readonly="isReadOnly"
                 />
               </el-card>
-
-              <el-card shadow="never" header="生涯資料" class="player-edit__section">
-                <el-row :gutter="12">
-                  <el-col :span="8">
-                    <el-form-item label="生日">
-                      <el-date-picker v-model="form.birthOn" type="date" style="width: 100%" />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <FormField field="heightCm" label="身高（公分）">
-                      <el-input-number v-model="form.heightCm" :min="100" :max="250" style="width: 100%" @change="formErrors.clear('heightCm')" />
-                    </FormField>
-                  </el-col>
-                  <el-col :span="8">
-                    <FormField field="weightKg" label="體重（公斤）">
-                      <el-input-number v-model="form.weightKg" :min="30" :max="150" style="width: 100%" @change="formErrors.clear('weightKg')" />
-                    </FormField>
-                  </el-col>
-                </el-row>
-                <el-row :gutter="12">
-                  <el-col :span="8">
-                    <el-form-item label="國籍">
-                      <el-input v-model="form.nationality" placeholder="例如 中華台北" />
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="慣用腳">
-                      <el-select v-model="form.preferredFoot" clearable filterable allow-create placeholder="左腳／右腳／雙腳" style="width: 100%">
-                        <el-option label="左腳" value="左腳" />
-                        <el-option label="右腳" value="右腳" />
-                        <el-option label="雙腳" value="雙腳" />
-                      </el-select>
-                    </el-form-item>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="加入日期">
-                      <el-date-picker v-model="form.joinedOn" type="date" style="width: 100%" />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-                <FormField field="status" label="狀態">
-                  <el-radio-group v-model="form.status">
-                    <el-radio v-for="s in PLAYER_STATUS_ORDER" :key="s" :value="s">{{ PLAYER_STATUS_LABEL[s] }}</el-radio>
-                  </el-radio-group>
-                </FormField>
-              </el-card>
-
-              <el-card shadow="never" header="肖像同意" class="player-edit__section">
-                <FormField field="portraitConsentStatus" label="肖像同意">
-                  <el-radio-group v-model="form.portraitConsentStatus">
-                    <el-radio v-for="s in PORTRAIT_CONSENT_STATUS_ORDER" :key="s" :value="s">
-                      {{ PORTRAIT_CONSENT_STATUS_LABEL[s] }}
-                    </el-radio>
-                  </el-radio-group>
-                  <p class="player-edit__hint">未同意時前台不顯示照片（會改用預設圖或純文字卡呈現）；未成年球員須由監護人代簽同意。</p>
-                </FormField>
-              </el-card>
-
-              <PlayerSeasonStatsPanel
-                v-if="!isCreate && playerId"
-                class="player-edit__section"
-                :club="activeClubId"
-                :player-id="playerId"
-                :readonly="isReadOnly"
-              />
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="照片">
-                <FormField field="photo" label="照片">
-                  <ImageUploader
-                    v-model:file="photoFile"
-                    v-model:remove-cover="removePhoto"
-                    :has-existing-image="!!photoKey"
-                    :disabled="saving || isReadOnly"
-                  />
-                </FormField>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="teamId" label="所屬球隊" required>
+                    <el-select
+                      v-model="form.teamId"
+                      filterable
+                      style="width: 100%"
+                      no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+                      @change="formErrors.clear('teamId')"
+                    >
+                      <el-option v-for="t in teamOptions" :key="t.id" :label="t.label" :value="t.id" :disabled="t.disabled" />
+                    </el-select>
+                    <p v-if="isTeamOutOfScope" class="player-edit__hint player-edit__hint--warning">
+                      你的帳號沒有這支球隊的異動權限，所屬球隊無法變更。
+                    </p>
+                  </FormField>
+                  <FormField field="shirtNo" label="背號">
+                    <el-input-number v-model="form.shirtNo" :min="1" :max="99" style="width: 100%" @change="formErrors.clear('shirtNo')" />
+                  </FormField>
+                  <el-form-item label="位置">
+                    <el-input v-model="form.position" placeholder="例如 門將、中場" />
+                  </el-form-item>
+
+                  <FormField field="slug" label="網址代稱">
+                    <el-input
+                      v-model="form.slug"
+                      maxlength="160"
+                      :placeholder="isCreate ? '留空會依英文姓名自動產生' : '例如 lin-zhi-ming'"
+                      clearable
+                    />
+                    <p class="player-edit__hint">
+                      出現在球員頁網址，建議用英文小寫與連字號；同一個俱樂部內不能重複。{{ isCreate ? '留空會自動產生。' : '留空則維持目前的代稱。' }}
+                    </p>
+                    <p v-if="slugChanged" class="player-edit__hint player-edit__hint--warning">
+                      修改網址代稱後，舊的球員頁連結（包含已分享出去的連結與 App 內的連結）會失效，請確認後再儲存。
+                    </p>
+                  </FormField>
+                </FormSection>
+                <FormSection title="生涯資料">
+                  <el-form-item label="生日">
+                    <el-date-picker v-model="form.birthOn" type="date" style="width: 100%" />
+                  </el-form-item>
+                  <FormField field="heightCm" label="身高（公分）">
+                    <el-input-number v-model="form.heightCm" :min="100" :max="250" style="width: 100%" @change="formErrors.clear('heightCm')" />
+                  </FormField>
+                  <FormField field="weightKg" label="體重（公斤）">
+                    <el-input-number v-model="form.weightKg" :min="30" :max="150" style="width: 100%" @change="formErrors.clear('weightKg')" />
+                  </FormField>
+                  <el-form-item label="國籍">
+                    <el-input v-model="form.nationality" placeholder="例如 中華台北" />
+                  </el-form-item>
+                  <el-form-item label="慣用腳">
+                    <el-select v-model="form.preferredFoot" clearable filterable allow-create placeholder="左腳／右腳／雙腳" style="width: 100%">
+                      <el-option label="左腳" value="左腳" />
+                      <el-option label="右腳" value="右腳" />
+                      <el-option label="雙腳" value="雙腳" />
+                    </el-select>
+                  </el-form-item>
+                  <el-form-item label="加入日期">
+                    <el-date-picker v-model="form.joinedOn" type="date" style="width: 100%" />
+                  </el-form-item>
+                  <FormField field="status" label="狀態">
+                    <el-radio-group v-model="form.status">
+                      <el-radio v-for="s in PLAYER_STATUS_ORDER" :key="s" :value="s">{{ PLAYER_STATUS_LABEL[s] }}</el-radio>
+                    </el-radio-group>
+                  </FormField>
+                </FormSection>
+                <FormSection title="肖像同意">
+                  <FormField field="portraitConsentStatus" label="肖像同意">
+                    <el-radio-group v-model="form.portraitConsentStatus">
+                      <el-radio v-for="s in PORTRAIT_CONSENT_STATUS_ORDER" :key="s" :value="s">
+                        {{ PORTRAIT_CONSENT_STATUS_LABEL[s] }}
+                      </el-radio>
+                    </el-radio-group>
+                    <p class="player-edit__hint">未同意時前台不顯示照片（會改用預設圖或純文字卡呈現）；未成年球員須由監護人代簽同意。</p>
+                  </FormField>
+                </FormSection>
+                <FormSection title="照片">
+                  <FormField field="photo" label="照片">
+                    <ImageUploader
+                      v-model:file="photoFile"
+                      v-model:remove-cover="removePhoto"
+                      :has-existing-image="!!photoKey"
+                      :disabled="saving || isReadOnly"
+                    />
+                  </FormField>
+                </FormSection>
               </el-card>
             </template>
           </EditLayout>
@@ -450,10 +428,6 @@ function retryLoad() {
 }
 
 .player-edit__form-error {
-  margin-bottom: 16px;
-}
-
-.player-edit__section {
   margin-bottom: 16px;
 }
 

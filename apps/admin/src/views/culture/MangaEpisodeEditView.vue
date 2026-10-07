@@ -16,6 +16,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -209,56 +210,54 @@ async function pageReorder(ids: string[]) {
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="episode-edit__block" @close="formError = null" />
       <el-alert v-if="readOnly" title="你的帳號只能檢視漫畫，不能修改。" type="info" show-icon :closable="false" class="episode-edit__block" />
       <el-form label-position="top" :disabled="readOnly">
-       <LangTabsBar>
-        <EditLayout>
-         <template #main>
-        <el-card shadow="never" class="episode-edit__block">
-          <template #header>
-            <span>集數資料</span>
-            <el-tag v-if="meta.isLatest" size="small" type="warning" class="episode-edit__tag">最新一集（系統自動判定）</el-tag>
-            <span v-if="!isCreate" class="episode-edit__views">閱讀數 {{ meta.viewCount }}</span>
-          </template>
-          <BilingualShortField field="title" label="標題" :zh="form.titleZh" :en="form.titleEn" required @update:zh="(v) => (form.titleZh = v)" @update:en="(v) => (form.titleEn = v)" />
-          <el-row :gutter="12">
-            <el-col :xs="24" :sm="8">
-              <FormField field="episodeNo" label="集數" required>
-                <el-input-number v-model="form.episodeNo" :min="1" :step="1" style="width: 100%" @change="formErrors.clear('episodeNo')" />
-              </FormField>
-            </el-col>
-            <el-col :xs="24" :sm="8">
-              <el-form-item label="發布日">
-                <el-date-picker v-model="form.publishedOn" type="date" value-format="YYYY-MM-DD" placeholder="發布時沒填就用今天" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-            <el-col :xs="24" :sm="8">
-              <FormField field="status" label="狀態">
-                <el-radio-group v-model="form.status" @change="formErrors.clear('status')">
-                  <el-radio-button value="draft">草稿</el-radio-button>
-                  <el-radio-button value="published">已發布</el-radio-button>
-                </el-radio-group>
-              </FormField>
-            </el-col>
-          </el-row>
-          <p class="episode-edit__hint">同一個俱樂部的集數不能重複。發布必須至少有一張內頁；改回「草稿」就是下架。全部集數免費公開閱讀。</p>
-        </el-card>
-         </template>
-         <template #aside>
-        <el-card shadow="never" header="封面圖片" class="episode-edit__block">
-          <FormField field="cover" label="封面圖片">
-            <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
-          </FormField>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField field="title" label="標題" :zh="form.titleZh" :en="form.titleEn" required @update:zh="(v) => (form.titleZh = v)" @update:en="(v) => (form.titleEn = v)" />
+                </FormSection>
+              </el-card>
+            </template>
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="episodeNo" label="集數" required>
+                    <el-input-number v-model="form.episodeNo" :min="1" :step="1" style="width: 100%" @change="formErrors.clear('episodeNo')" />
+                  </FormField>
+                  <el-form-item label="發布日">
+                    <el-date-picker v-model="form.publishedOn" type="date" value-format="YYYY-MM-DD" placeholder="發布時沒填就用今天" style="width: 100%" />
+                  </el-form-item>
+                </FormSection>
+                <FormSection title="封面圖片">
+                  <FormField field="cover" label="封面圖片">
+                    <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
+                  </FormField>
+                </FormSection>
+                <FormSection title="內頁（依順序閱讀）">
+                  <p class="episode-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
+                  <p v-if="isCreate" class="episode-edit__hint">請先儲存基本資料，才能管理相簿</p>
+                  <p v-else class="episode-edit__hint">目前 {{ pages.length }} 頁。已發布的集數不能把內頁刪光；一次最多上傳 60 張。</p>
+                  <GalleryManager :images="pages.map((p) => ({ id: p.id, thumbUrl: p.imageThumbUrl, imageUrl: p.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="pageUpload" :on-remove="pageRemove" :on-reorder="pageReorder" />
+                </FormSection>
+              </el-card>
 
-        <el-card shadow="never" class="episode-edit__block">
-          <template #header>內頁（依順序閱讀）</template>
-          <p class="episode-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
-          <p v-if="isCreate" class="episode-edit__hint">請先儲存基本資料，才能管理相簿</p>
-          <p v-else class="episode-edit__hint">目前 {{ pages.length }} 頁。已發布的集數不能把內頁刪光；一次最多上傳 60 張。</p>
-          <GalleryManager :images="pages.map((p) => ({ id: p.id, thumbUrl: p.imageThumbUrl, imageUrl: p.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="pageUpload" :on-remove="pageRemove" :on-reorder="pageReorder" />
-        </el-card>
-         </template>
-        </EditLayout>
-       </LangTabsBar>
+              <el-card shadow="never" header="發布設定">
+                <FormSection>
+                  <FormField field="status" label="狀態">
+                    <el-radio-group v-model="form.status" @change="formErrors.clear('status')">
+                      <el-radio-button value="draft">草稿</el-radio-button>
+                      <el-radio-button value="published">已發布</el-radio-button>
+                    </el-radio-group>
+                  </FormField>
+                  <p v-if="meta.isLatest" class="episode-edit__hint"><el-tag size="small" type="warning">最新一集（系統自動判定）</el-tag></p>
+                  <p v-if="!isCreate" class="episode-edit__hint">閱讀數 {{ meta.viewCount }}</p>
+                  <p class="episode-edit__hint">同一個俱樂部的集數不能重複。發布必須至少有一張內頁；改回「草稿」就是下架。全部集數免費公開閱讀。</p>
+                </FormSection>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
       <EditActionBar v-if="!readOnly"><template #status><FormErrorStatus /></template><el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button></EditActionBar>
     </template>
@@ -269,6 +268,4 @@ async function pageReorder(ids: string[]) {
 .episode-edit { max-width: 1200px; margin: 0 auto 88px; }
 .episode-edit__block { margin-bottom: 16px; }
 .episode-edit__hint { margin: 4px 0 10px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
-.episode-edit__tag { margin-left: 8px; }
-.episode-edit__views { margin-left: 12px; font-size: 12px; color: var(--admin-text-tertiary); }
 </style>

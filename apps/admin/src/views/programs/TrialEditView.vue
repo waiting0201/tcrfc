@@ -8,6 +8,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
@@ -206,65 +207,71 @@ async function handleSave() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="場次資料">
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="trialOn" label="試訓日" required>
-                      <el-date-picker v-model="form.trialOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('trialOn')" />
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="deadlineOn" label="報名截止日">
-                      <el-date-picker v-model="form.deadlineOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('deadlineOn')" />
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="teamId" label="球隊">
-                      <el-select v-model="form.teamId" clearable filterable placeholder="不選＝俱樂部整體試訓" style="width: 100%">
-                        <el-option v-for="t in teamOptions" :key="t.id" :label="t.name" :value="t.id" />
-                      </el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="venueId" label="場地">
-                      <el-select v-model="form.venueId" clearable filterable placeholder="選填" style="width: 100%">
-                        <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
-                      </el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="capacity" label="名額">
-                      <el-input-number v-model="form.capacity" :min="1" :step="1" controls-position="right" placeholder="不限" style="width: 100%" @change="formErrors.clear('capacity')" />
-                    </FormField>
-                  </el-col>
-                </el-row>
-                <p class="trial-edit__hint">名額留白代表不限。報名截止日不能晚於試訓日；名額不能低於目前已報名的人數{{ isCreate ? '' : `（目前 ${enrolledCount} 人）` }}。</p>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field="audience"
+                    label="對象說明"
+                    :zh="form.audienceZh"
+                    :en="form.audienceEn"
+                    required
+                    placeholder="例如：U12 以下男女生，歡迎第一次接觸足球"
+                    @update:zh="(v) => (form.audienceZh = v)"
+                    @update:en="(v) => (form.audienceEn = v)"
+                  />
+                  <p v-if="!isCreate" class="trial-edit__hint">
+                    是否同步到行事曆：目前{{ syncToCalendar ? '會' : '不會' }}。這由「行事曆分類設定」裡的總開關決定，不能逐場設定。
+                  </p>
+                  <p v-else class="trial-edit__hint">是否同步到行事曆由「行事曆分類設定」裡的總開關決定，不能逐場設定。</p>
+                </FormSection>
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
+                <FormSection title="場次資料">
+                  <el-row :gutter="12">
+                    <el-col :span="24">
+                      <FormField field="trialOn" label="試訓日" required>
+                        <el-date-picker v-model="form.trialOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('trialOn')" />
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <FormField field="deadlineOn" label="報名截止日">
+                        <el-date-picker v-model="form.deadlineOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('deadlineOn')" />
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <FormField field="teamId" label="球隊">
+                        <el-select v-model="form.teamId" clearable filterable placeholder="不選＝俱樂部整體試訓" style="width: 100%">
+                          <el-option v-for="t in teamOptions" :key="t.id" :label="t.name" :value="t.id" />
+                        </el-select>
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <FormField field="venueId" label="場地">
+                        <el-select v-model="form.venueId" clearable filterable placeholder="選填" style="width: 100%">
+                          <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+                        </el-select>
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <FormField field="capacity" label="名額">
+                        <el-input-number v-model="form.capacity" :min="1" :step="1" controls-position="right" placeholder="不限" style="width: 100%" @change="formErrors.clear('capacity')" />
+                      </FormField>
+                    </el-col>
+                  </el-row>
+                  <p class="trial-edit__hint">名額留白代表不限。報名截止日不能晚於試訓日；名額不能低於目前已報名的人數{{ isCreate ? '' : `（目前 ${enrolledCount} 人）` }}。</p>
+                </FormSection>
               </el-card>
 
-              <el-card shadow="never" header="報名狀態">
+              <el-card shadow="never" header="發布設定">
                 <FormField field="status" label="狀態">
                   <el-select v-model="form.status" style="width: 200px; max-width: 100%">
                     <el-option v-for="s in TRIAL_STATUS_ORDER" :key="s" :label="s" :value="s" />
                   </el-select>
                 </FormField>
                 <p class="trial-edit__hint">報名人數達名額時，系統會自動把「開放」改為「額滿」；之後有人取消不會自動轉回，請人工決定是否重新開放。試訓日與截止日過後，前台會自動停止接受報名。</p>
-              </el-card>
-
-              <el-card shadow="never" header="前台顯示">
-                <BilingualShortField
-                  field="audience"
-                  label="對象說明"
-                  :zh="form.audienceZh"
-                  :en="form.audienceEn"
-                  required
-                  placeholder="例如：U12 以下男女生，歡迎第一次接觸足球"
-                  @update:zh="(v) => (form.audienceZh = v)"
-                  @update:en="(v) => (form.audienceEn = v)"
-                />
-                <p v-if="!isCreate" class="trial-edit__hint">
-                  是否同步到行事曆：目前{{ syncToCalendar ? '會' : '不會' }}。這由「行事曆分類設定」裡的總開關決定，不能逐場設定。
-                </p>
-                <p v-else class="trial-edit__hint">是否同步到行事曆由「行事曆分類設定」裡的總開關決定，不能逐場設定。</p>
               </el-card>
             </template>
           </EditLayout>

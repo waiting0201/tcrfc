@@ -18,6 +18,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import FanEventRegistrations from './parts/FanEventRegistrations.vue'
@@ -246,75 +247,75 @@ async function galleryReorder(ids: string[]) {
       <el-tabs v-model="tab">
         <el-tab-pane label="活動資料" name="info">
           <el-form label-position="top" :disabled="readOnly">
-           <LangTabsBar>
-            <EditLayout>
-             <template #main>
-            <el-card shadow="never" header="基本資料" class="event-edit__block">
-              <BilingualShortField field="name" label="活動名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-              <BilingualTextareaField field="desc" label="活動介紹" :zh="form.descZh" :en="form.descEn" :rows="4" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
-              <BilingualShortField field="loc" label="活動地點" :zh="form.locZh" :en="form.locEn" @update:zh="(v) => (form.locZh = v)" @update:en="(v) => (form.locEn = v)" />
-              <FormField field="venueId" label="場地（選填）">
-                <el-select v-model="form.venueId" clearable filterable placeholder="不指定場地資料" style="width: 100%" @change="formErrors.clear('venueId')">
-                  <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
-                </el-select>
-              </FormField>
-              <FormField field="slug" label="網址名稱（選填）">
-                <el-input v-model="form.slug" maxlength="128" placeholder="留空由系統自動產生" />
-              </FormField>
-            </el-card>
+            <LangTabsBar>
+              <EditLayout>
+                <template #main>
+                  <el-card shadow="never">
+                    <FormSection>
+                      <BilingualShortField field="name" label="活動名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                      <BilingualTextareaField field="desc" label="活動介紹" :zh="form.descZh" :en="form.descEn" :rows="4" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
+                      <BilingualShortField field="loc" label="活動地點" :zh="form.locZh" :en="form.locEn" @update:zh="(v) => (form.locZh = v)" @update:en="(v) => (form.locEn = v)" />
+                    </FormSection>
 
-            <el-card shadow="never" class="event-edit__block">
-              <template #header>
-                <span>時間、名額與狀態</span>
-                <span v-if="!isCreate" class="event-edit__stat">已報名 {{ counts.registered }} 人・候補 {{ counts.waitlist }} 人</span>
-              </template>
-              <el-row :gutter="12">
-                <el-col :xs="24" :sm="8"><FormField field="startsAt" label="開始時間（台灣時間）"><el-date-picker v-model="form.startsAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" @change="formErrors.clear('startsAt')" /></FormField></el-col>
-                <el-col :xs="24" :sm="8"><FormField field="endsAt" label="結束時間"><el-date-picker v-model="form.endsAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" @change="formErrors.clear('endsAt')" /></FormField></el-col>
-                <el-col :xs="24" :sm="8"><FormField field="registrationDeadlineAt" label="報名截止時間"><el-date-picker v-model="form.registrationDeadlineAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" @change="formErrors.clear('registrationDeadlineAt')" /></FormField></el-col>
-              </el-row>
-              <el-row :gutter="12">
-                <el-col :xs="24" :sm="12">
-                  <FormField field="capacity" label="名額">
-                    <div class="event-edit__capacity">
-                      <el-switch v-model="form.unlimited" active-text="不限名額" @change="formErrors.clear('capacity')" />
-                      <el-input-number v-if="!form.unlimited" v-model="form.capacity" :min="1" :step="1" @change="formErrors.clear('capacity')" />
-                    </div>
-                  </FormField>
-                </el-col>
-                <el-col :xs="24" :sm="12"><el-form-item label="報名資格"><el-switch v-model="form.isPaidMembersOnly" active-text="限付費會員報名" /></el-form-item></el-col>
-              </el-row>
-              <FormField field="status" label="狀態">
-                <el-radio-group v-model="form.status">
-                  <el-radio-button value="draft">草稿</el-radio-button>
-                  <el-radio-button value="published">已發布</el-radio-button>
-                </el-radio-group>
-              </FormField>
-              <p class="event-edit__hint">發布必須填寫開始時間。名額不可低於已報名人數；已有報名紀錄的活動不能刪除，請改為草稿。</p>
-            </el-card>
+                    <FormSection title="活動回顧的關聯報導">
+                      <FormField field="articleIds" style="margin-bottom: 0">
+                        <NewsPicker v-model="form.articleIds" :seed="articleSeed" :disabled="readOnly" />
+                      </FormField>
+                      <p class="event-edit__hint">前台只顯示已發布的報導。</p>
+                    </FormSection>
+                  </el-card>
+                </template>
+                <template #aside>
+                  <el-card shadow="never" header="基本設定">
+                    <FormSection>
+                      <FormField field="venueId" label="場地（選填）">
+                        <el-select v-model="form.venueId" clearable filterable placeholder="不指定場地資料" style="width: 100%" @change="formErrors.clear('venueId')">
+                          <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+                        </el-select>
+                      </FormField>
+                      <FormField field="slug" label="網址名稱（選填）">
+                        <el-input v-model="form.slug" maxlength="128" placeholder="留空由系統自動產生" />
+                      </FormField>
+                    </FormSection>
+                    <FormSection title="時間與名額">
+                      <FormField field="startsAt" label="開始時間（台灣時間）"><el-date-picker v-model="form.startsAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" @change="formErrors.clear('startsAt')" /></FormField>
+                      <FormField field="endsAt" label="結束時間"><el-date-picker v-model="form.endsAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" @change="formErrors.clear('endsAt')" /></FormField>
+                      <FormField field="registrationDeadlineAt" label="報名截止時間"><el-date-picker v-model="form.registrationDeadlineAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" @change="formErrors.clear('registrationDeadlineAt')" /></FormField>
+                      <FormField field="capacity" label="名額">
+                        <div class="event-edit__capacity">
+                          <el-switch v-model="form.unlimited" active-text="不限名額" @change="formErrors.clear('capacity')" />
+                          <el-input-number v-if="!form.unlimited" v-model="form.capacity" :min="1" :step="1" @change="formErrors.clear('capacity')" />
+                        </div>
+                      </FormField>
+                      <el-form-item label="報名資格"><el-switch v-model="form.isPaidMembersOnly" active-text="限付費會員報名" /></el-form-item>
+                    </FormSection>
+                    <FormSection title="封面圖片">
+                      <FormField field="cover" label="封面圖片">
+                        <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
+                      </FormField>
+                    </FormSection>
+                    <FormSection title="活動回顧圖集">
+                      <p class="event-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
+                      <p v-if="isCreate" class="event-edit__hint">請先儲存基本資料，才能管理相簿</p>
+                      <GalleryManager :images="images.map((i) => ({ id: i.id, thumbUrl: i.imageThumbUrl, imageUrl: i.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+                    </FormSection>
+                  </el-card>
 
-            <el-card shadow="never" header="活動回顧的關聯報導" class="event-edit__block">
-              <FormField field="articleIds" style="margin-bottom: 0">
-                <NewsPicker v-model="form.articleIds" :seed="articleSeed" :disabled="readOnly" />
-              </FormField>
-              <p class="event-edit__hint">前台只顯示已發布的報導。</p>
-            </el-card>
-             </template>
-             <template #aside>
-            <el-card shadow="never" header="封面圖片" class="event-edit__block">
-              <FormField field="cover" label="封面圖片">
-                <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
-              </FormField>
-            </el-card>
-
-            <el-card shadow="never" header="活動回顧圖集" class="event-edit__block">
-              <p class="event-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
-              <p v-if="isCreate" class="event-edit__hint">請先儲存基本資料，才能管理相簿</p>
-              <GalleryManager :images="images.map((i) => ({ id: i.id, thumbUrl: i.imageThumbUrl, imageUrl: i.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
-            </el-card>
-             </template>
-            </EditLayout>
-           </LangTabsBar>
+                  <el-card shadow="never" header="發布設定">
+                    <FormSection>
+                      <FormField field="status" label="狀態">
+                        <el-radio-group v-model="form.status">
+                          <el-radio-button value="draft">草稿</el-radio-button>
+                          <el-radio-button value="published">已發布</el-radio-button>
+                        </el-radio-group>
+                      </FormField>
+                      <p v-if="!isCreate" class="event-edit__hint">已報名 {{ counts.registered }} 人・候補 {{ counts.waitlist }} 人</p>
+                      <p class="event-edit__hint">發布必須填寫開始時間。名額不可低於已報名人數；已有報名紀錄的活動不能刪除，請改為草稿。</p>
+                    </FormSection>
+                  </el-card>
+                </template>
+              </EditLayout>
+            </LangTabsBar>
           </el-form>
         </el-tab-pane>
 
@@ -334,6 +335,5 @@ async function galleryReorder(ids: string[]) {
 .event-edit { max-width: 1200px; margin: 0 auto 88px; }
 .event-edit__block { margin-bottom: 16px; }
 .event-edit__hint { margin: 4px 0 10px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
-.event-edit__stat { margin-left: 12px; font-size: 12px; color: var(--admin-text-tertiary); }
 .event-edit__capacity { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 </style>

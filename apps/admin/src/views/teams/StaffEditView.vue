@@ -16,6 +16,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -278,103 +279,100 @@ function retryLoad() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="基本資料" class="staff-edit__section">
-                <el-row :gutter="12">
-                  <el-col :span="12">
-                    <FormField field="staffGroup" label="分組">
-                      <el-select v-model="form.staffGroup" clearable placeholder="請選擇分組" style="width: 100%" @change="formErrors.clear('staffGroup')">
-                        <el-option v-for="g in STAFF_GROUP_OPTIONS" :key="g" :label="g" :value="g" />
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field="name"
+                    label="姓名"
+                    :zh="form.nameZh"
+                    :en="form.nameEn"
+                    required
+                    @update:zh="(v) => (form.nameZh = v)"
+                    @update:en="(v) => (form.nameEn = v)"
+                  />
+                  <BilingualShortField
+                    field="title"
+                    label="職稱"
+                    :zh="form.titleZh"
+                    :en="form.titleEn"
+                    @update:zh="(v) => (form.titleZh = v)"
+                    @update:en="(v) => (form.titleEn = v)"
+                  />
+                  <BilingualTextareaField
+                    field="bio"
+                    label="簡介"
+                    :zh="form.bioZh"
+                    :en="form.bioEn"
+                    @update:zh="(v) => (form.bioZh = v)"
+                    @update:en="(v) => (form.bioEn = v)"
+                  />
+                </FormSection>
+                <FormSection title="負責梯隊">
+                  <FormField field="teams">
+                    <div v-if="!isReadOnly" class="staff-edit__team-add">
+                      <el-select
+                        v-model="pendingTeamId"
+                        filterable
+                        placeholder="選擇球隊"
+                        class="staff-edit__team-select"
+                        no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+                      >
+                        <el-option v-for="t in writableTeams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
                       </el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="證照">
-                      <el-input v-model="form.licence" placeholder="例如 AFC A 級" />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-
-                <BilingualShortField
-                  field="name"
-                  label="姓名"
-                  :zh="form.nameZh"
-                  :en="form.nameEn"
-                  required
-                  @update:zh="(v) => (form.nameZh = v)"
-                  @update:en="(v) => (form.nameEn = v)"
-                />
-                <BilingualShortField
-                  field="title"
-                  label="職稱"
-                  :zh="form.titleZh"
-                  :en="form.titleEn"
-                  @update:zh="(v) => (form.titleZh = v)"
-                  @update:en="(v) => (form.titleEn = v)"
-                />
-                <BilingualTextareaField
-                  field="bio"
-                  label="簡介"
-                  :zh="form.bioZh"
-                  :en="form.bioEn"
-                  @update:zh="(v) => (form.bioZh = v)"
-                  @update:en="(v) => (form.bioEn = v)"
-                />
-              </el-card>
-
-              <el-card shadow="never" header="負責梯隊" class="staff-edit__section">
-                <FormField field="teams">
-                  <div v-if="!isReadOnly" class="staff-edit__team-add">
-                    <el-select
-                      v-model="pendingTeamId"
-                      filterable
-                      placeholder="選擇球隊"
-                      class="staff-edit__team-select"
-                      no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
-                    >
-                      <el-option v-for="t in writableTeams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
-                    </el-select>
-                    <el-input v-model="pendingRoleCode" placeholder="角色說明（選填，例如：主教練）" class="staff-edit__role-input" />
-                    <el-button :disabled="!pendingTeamId" @click="addTeamAssignment">加入</el-button>
-                  </div>
-                  <div v-if="form.teams.length > 0" class="staff-edit__team-list">
-                    <el-tag
-                      v-for="(assignment, index) in form.teams"
-                      :key="assignment.teamId"
-                      :closable="!isReadOnly"
-                      :type="outOfScopeTeamIds.includes(assignment.teamId) ? 'info' : 'default'"
-                      class="staff-edit__team-tag"
-                      @close="removeTeamAssignment(index)"
-                    >
-                      {{ teamLabel(assignment.teamId) }}{{ assignment.roleCode ? `（${assignment.roleCode}）` : '' }}
-                      <span v-if="outOfScopeTeamIds.includes(assignment.teamId)" title="你的帳號沒有這支球隊的異動權限">🔒</span>
-                    </el-tag>
-                  </div>
-                  <p v-else class="staff-edit__hint">目前沒有負責任何梯隊。</p>
-                </FormField>
-              </el-card>
-
-              <el-card shadow="never" header="肖像同意" class="staff-edit__section">
-                <FormField field="portraitConsentStatus" label="肖像同意">
-                  <el-radio-group v-model="form.portraitConsentStatus">
-                    <el-radio v-for="s in PORTRAIT_CONSENT_STATUS_ORDER" :key="s" :value="s">
-                      {{ PORTRAIT_CONSENT_STATUS_LABEL[s] }}
-                    </el-radio>
-                  </el-radio-group>
-                  <p class="staff-edit__hint">未同意時前台不顯示照片（會改用預設圖或純文字卡呈現）。</p>
-                </FormField>
+                      <el-input v-model="pendingRoleCode" placeholder="角色說明（選填，例如：主教練）" class="staff-edit__role-input" />
+                      <el-button :disabled="!pendingTeamId" @click="addTeamAssignment">加入</el-button>
+                    </div>
+                    <div v-if="form.teams.length > 0" class="staff-edit__team-list">
+                      <el-tag
+                        v-for="(assignment, index) in form.teams"
+                        :key="assignment.teamId"
+                        :closable="!isReadOnly"
+                        :type="outOfScopeTeamIds.includes(assignment.teamId) ? 'info' : 'default'"
+                        class="staff-edit__team-tag"
+                        @close="removeTeamAssignment(index)"
+                      >
+                        {{ teamLabel(assignment.teamId) }}{{ assignment.roleCode ? `（${assignment.roleCode}）` : '' }}
+                        <span v-if="outOfScopeTeamIds.includes(assignment.teamId)" title="你的帳號沒有這支球隊的異動權限">🔒</span>
+                      </el-tag>
+                    </div>
+                    <p v-else class="staff-edit__hint">目前沒有負責任何梯隊。</p>
+                  </FormField>
+                </FormSection>
               </el-card>
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="照片">
-                <FormField field="photo" label="照片">
-                  <ImageUploader
-                    v-model:file="photoFile"
-                    v-model:remove-cover="removePhoto"
-                    :has-existing-image="!!photoKey"
-                    :disabled="saving || isReadOnly"
-                  />
-                </FormField>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="staffGroup" label="分組">
+                    <el-select v-model="form.staffGroup" clearable placeholder="請選擇分組" style="width: 100%" @change="formErrors.clear('staffGroup')">
+                      <el-option v-for="g in STAFF_GROUP_OPTIONS" :key="g" :label="g" :value="g" />
+                    </el-select>
+                  </FormField>
+                  <el-form-item label="證照">
+                    <el-input v-model="form.licence" placeholder="例如 AFC A 級" />
+                  </el-form-item>
+                </FormSection>
+                <FormSection title="肖像同意">
+                  <FormField field="portraitConsentStatus" label="肖像同意">
+                    <el-radio-group v-model="form.portraitConsentStatus">
+                      <el-radio v-for="s in PORTRAIT_CONSENT_STATUS_ORDER" :key="s" :value="s">
+                        {{ PORTRAIT_CONSENT_STATUS_LABEL[s] }}
+                      </el-radio>
+                    </el-radio-group>
+                    <p class="staff-edit__hint">未同意時前台不顯示照片（會改用預設圖或純文字卡呈現）。</p>
+                  </FormField>
+                </FormSection>
+                <FormSection title="照片">
+                  <FormField field="photo" label="照片">
+                    <ImageUploader
+                      v-model:file="photoFile"
+                      v-model:remove-cover="removePhoto"
+                      :has-existing-image="!!photoKey"
+                      :disabled="saving || isReadOnly"
+                    />
+                  </FormField>
+                </FormSection>
               </el-card>
             </template>
           </EditLayout>
@@ -405,10 +403,6 @@ function retryLoad() {
 }
 
 .staff-edit__form-error {
-  margin-bottom: 16px;
-}
-
-.staff-edit__section {
   margin-bottom: 16px;
 }
 

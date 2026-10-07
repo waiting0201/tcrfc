@@ -17,6 +17,7 @@ import PageBlockListEditor from '@/components/pageBlocks/PageBlockListEditor.vue
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
@@ -598,110 +599,111 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
       />
 
       <el-form label-position="top" class="page-edit__form">
-       <LangTabsBar>
-        <EditLayout>
-         <template #main>
-        <el-card shadow="never" header="基本資訊" class="page-edit__section">
-          <FormField field="slug" label="網址名稱" required>
-            <el-input v-model="form.slug" placeholder="例如：about/history（可用斜線表示分層路徑）" />
-          </FormField>
-        </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never">
+                <FormSection>
+                  <PageBlockListEditor v-model="blocks" empty-hint="這個頁面目前還沒有任何內容區塊，從下方選一種類型開始新增。" />
+                </FormSection>
+                <FormSection v-if="!isCreate" title="預覽連結">
+                  <template v-if="form.previewToken">
+                    <p class="page-edit__hint">未發布也可以分享這個連結，讓其他人看到目前儲存的最新內容。</p>
+                    <div class="page-edit__preview-link">
+                      <el-radio-group v-model="previewLocale" size="small">
+                        <el-radio-button value="zh">中文版</el-radio-button>
+                        <el-radio-button value="en">英文版</el-radio-button>
+                      </el-radio-group>
+                      <el-input :model-value="previewLinkUrl ?? ''" readonly class="page-edit__preview-link-input">
+                        <template #append>
+                          <el-button @click="copyPreviewLink">複製</el-button>
+                        </template>
+                      </el-input>
+                    </div>
+                    <p class="page-edit__hint">
+                      以上是官網的路徑，實際分享時請自行接上官網網域（本機開發環境不保證能直接打開）。
+                    </p>
+                  </template>
+                  <p v-else class="page-edit__hint">儲存後才會產生預覽連結。</p>
+                </FormSection>
+                <FormSection title="搜尋與分享">
+                  <p class="page-edit__hint">
+                    這裡的標題與描述同時用在搜尋引擎結果與社群分享預覽；分享圖片沒有另外設定時，會回退使用全站預設分享圖片。
+                  </p>
+                  <BilingualShortField
+                    field="seoTitle"
+                    label="搜尋與分享標題"
+                    :zh="form.seoTitleZh"
+                    :en="form.seoTitleEn"
+                    placeholder="選填，未填寫時由搜尋引擎自行判斷"
+                    @update:zh="(v) => (form.seoTitleZh = v)"
+                    @update:en="(v) => (form.seoTitleEn = v)"
+                  />
+                  <BilingualTextareaField
+                    field="seoDescription"
+                    label="搜尋與分享描述"
+                    :zh="form.seoDescriptionZh"
+                    :en="form.seoDescriptionEn"
+                    placeholder="選填，建議 80–120 字"
+                    :rows="3"
+                    @update:zh="(v) => (form.seoDescriptionZh = v)"
+                    @update:en="(v) => (form.seoDescriptionEn = v)"
+                  />
+                  <BilingualShortField
+                    field="seoKeywords"
+                    label="關鍵字"
+                    :zh="form.seoKeywordsZh"
+                    :en="form.seoKeywordsEn"
+                    placeholder="選填，多個關鍵字請用逗號分隔"
+                    @update:zh="(v) => (form.seoKeywordsZh = v)"
+                    @update:en="(v) => (form.seoKeywordsEn = v)"
+                  />
 
-        <el-card shadow="never" header="搜尋與分享設定" class="page-edit__section">
-          <p class="page-edit__hint">
-            這裡的標題與描述同時用在搜尋引擎結果與社群分享預覽；分享圖片沒有另外設定時，會回退使用全站預設分享圖片。
-          </p>
-          <BilingualShortField
-            field="seoTitle"
-            label="搜尋與分享標題"
-            :zh="form.seoTitleZh"
-            :en="form.seoTitleEn"
-            placeholder="選填，未填寫時由搜尋引擎自行判斷"
-            @update:zh="(v) => (form.seoTitleZh = v)"
-            @update:en="(v) => (form.seoTitleEn = v)"
-          />
-          <BilingualTextareaField
-            field="seoDescription"
-            label="搜尋與分享描述"
-            :zh="form.seoDescriptionZh"
-            :en="form.seoDescriptionEn"
-            placeholder="選填，建議 80–120 字"
-            :rows="3"
-            @update:zh="(v) => (form.seoDescriptionZh = v)"
-            @update:en="(v) => (form.seoDescriptionEn = v)"
-          />
-          <BilingualShortField
-            field="seoKeywords"
-            label="關鍵字"
-            :zh="form.seoKeywordsZh"
-            :en="form.seoKeywordsEn"
-            placeholder="選填，多個關鍵字請用逗號分隔"
-            @update:zh="(v) => (form.seoKeywordsZh = v)"
-            @update:en="(v) => (form.seoKeywordsEn = v)"
-          />
+                  <FormField field="canonicalPath" label="正式網址">
+                    <el-input v-model="form.canonicalPath" placeholder="選填，站內相對路徑，未填寫時由系統依目前網址自動判斷" />
+                  </FormField>
+                  <p class="page-edit__hint">只有這個頁面的正式網址跟目前網址不同時才需要填寫。</p>
 
-          <FormField field="canonicalPath" label="正式網址">
-            <el-input v-model="form.canonicalPath" placeholder="選填，站內相對路徑，未填寫時由系統依目前網址自動判斷" />
-          </FormField>
-          <p class="page-edit__hint">只有這個頁面的正式網址跟目前網址不同時才需要填寫。</p>
-
-          <el-form-item label="不讓搜尋引擎收錄">
-            <el-switch v-model="form.isNoindex" />
-          </el-form-item>
-          <el-form-item label="不列入網站地圖">
-            <el-switch v-model="form.isExcludedFromSitemap" />
-          </el-form-item>
-        </el-card>
-
-        <el-card shadow="never" header="內容區塊" class="page-edit__section">
-          <PageBlockListEditor v-model="blocks" empty-hint="這個頁面目前還沒有任何內容區塊，從下方選一種類型開始新增。" />
-        </el-card>
-
-        <el-card v-if="!isCreate" shadow="never" header="預覽連結" class="page-edit__section">
-          <template v-if="form.previewToken">
-            <p class="page-edit__hint">未發布也可以分享這個連結，讓其他人看到目前儲存的最新內容。</p>
-            <div class="page-edit__preview-link">
-              <el-radio-group v-model="previewLocale" size="small">
-                <el-radio-button value="zh">中文版</el-radio-button>
-                <el-radio-button value="en">英文版</el-radio-button>
-              </el-radio-group>
-              <el-input :model-value="previewLinkUrl ?? ''" readonly class="page-edit__preview-link-input">
-                <template #append>
-                  <el-button @click="copyPreviewLink">複製</el-button>
-                </template>
-              </el-input>
-            </div>
-            <p class="page-edit__hint">
-              以上是官網的路徑，實際分享時請自行接上官網網域（本機開發環境不保證能直接打開）。
-            </p>
-          </template>
-          <p v-else class="page-edit__hint">儲存後才會產生預覽連結。</p>
-        </el-card>
-         </template>
-         <template #aside>
-        <el-card shadow="never" header="分享圖片" class="page-edit__section">
-          <FormField field="ogImage" label="分享圖片">
-            <ImageUploader
-              v-model:file="ogImageFile"
-              v-model:remove-cover="removeOgImage"
-              :has-existing-image="!!form.ogImageUrl"
-              :existing-preview-url="form.ogImageUrl"
-              :disabled="saving"
-            />
-          </FormField>
-          <BilingualShortField
-          field="ogImageAlt"
-          label="分享圖片替代文字"
-          :zh="form.ogImageAlt.zh"
-          :en="form.ogImageAlt.en"
-          placeholder="選填，描述圖片內容，供視障輔助工具使用"
-          @update:zh="(v) => (form.ogImageAlt.zh = v)"
-          @update:en="(v) => (form.ogImageAlt.en = v)"
-        />
-        </el-card>
-         </template>
-        </EditLayout>
-       </LangTabsBar>
+                  <el-form-item label="不讓搜尋引擎收錄">
+                    <el-switch v-model="form.isNoindex" />
+                  </el-form-item>
+                  <el-form-item label="不列入網站地圖">
+                    <el-switch v-model="form.isExcludedFromSitemap" />
+                  </el-form-item>
+                </FormSection>
+              </el-card>
+            </template>
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="slug" label="網址名稱" required>
+                    <el-input v-model="form.slug" placeholder="例如：about/history（可用斜線表示分層路徑）" />
+                  </FormField>
+                </FormSection>
+                <FormSection title="分享圖片">
+                  <FormField field="ogImage" label="分享圖片">
+                    <ImageUploader
+                      v-model:file="ogImageFile"
+                      v-model:remove-cover="removeOgImage"
+                      :has-existing-image="!!form.ogImageUrl"
+                      :existing-preview-url="form.ogImageUrl"
+                      :disabled="saving"
+                    />
+                  </FormField>
+                  <BilingualShortField
+                    field="ogImageAlt"
+                    label="分享圖片替代文字"
+                    :zh="form.ogImageAlt.zh"
+                    :en="form.ogImageAlt.en"
+                    placeholder="選填，描述圖片內容，供視障輔助工具使用"
+                    @update:zh="(v) => (form.ogImageAlt.zh = v)"
+                    @update:en="(v) => (form.ogImageAlt.en = v)"
+                  />
+                </FormSection>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
 
       <EditActionBar>
@@ -807,10 +809,6 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
 }
 
 .page-edit__form-error {
-  margin-bottom: 16px;
-}
-
-.page-edit__section {
   margin-bottom: 16px;
 }
 

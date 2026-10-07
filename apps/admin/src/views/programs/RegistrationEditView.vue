@@ -16,6 +16,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -260,82 +261,83 @@ function retryLoad() {
       <el-form label-position="top" :disabled="isReadOnly">
         <EditLayout>
           <template #main>
-            <el-card shadow="never" header="梯次與狀態">
-              <el-row :gutter="12">
-                <el-col :span="16">
-                  <FormField field="sessionId" label="梯次" required>
-                    <el-select
-                      v-model="form.sessionId"
-                      filterable
-                      style="width: 100%"
-                      no-data-text="目前這個俱樂部還沒有任何梯次，請先到「梯次」新增一筆"
-                      @change="formErrors.clear('sessionId')"
-                    >
-                      <el-option v-for="s in sessions" :key="s.id" :label="sessionLabelById.get(s.id)" :value="s.id" />
-                    </el-select>
-                    <p v-if="!isCreate" class="registration-edit__hint">更換梯次即為「轉梯次」，會自動調整新舊梯次的已報名數。</p>
-                  </FormField>
-                </el-col>
-                <el-col :span="8">
-                  <FormField field="status" label="狀態" required>
-                    <el-select v-model="form.status" style="width: 100%">
-                      <el-option v-for="s in REGISTRATION_STATUS_ORDER" :key="s" :label="s" :value="s" />
-                    </el-select>
-                  </FormField>
-                </el-col>
-              </el-row>
+            <el-card shadow="never">
+              <FormSection>
+                <el-row :gutter="12">
+                  <el-col :span="12">
+                    <FormField field="applicantName" label="報名人姓名" required>
+                      <el-input v-model="form.applicantName" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="生日">
+                      <el-date-picker v-model="form.birthOn" type="date" style="width: 100%" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="12">
+                  <el-col :span="12">
+                    <FormField field="phone" label="電話">
+                      <el-input v-model="form.phone" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="12">
+                    <FormField field="email" label="Email">
+                      <el-input v-model="form.email" />
+                    </FormField>
+                  </el-col>
+                </el-row>
+                <p class="registration-edit__hint">電話與 Email 至少要填一項。</p>
+                <el-row :gutter="12">
+                  <el-col :span="12">
+                    <el-form-item label="家長姓名">
+                      <el-input v-model="form.guardianName" placeholder="選填，未成年學員建議填寫" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <FormField field="guardianPhone" label="家長電話">
+                      <el-input v-model="form.guardianPhone" placeholder="選填" />
+                    </FormField>
+                  </el-col>
+                </el-row>
+              </FormSection>
+
+              <FormSection title="健康聲明與備註">
+                <el-form-item label="健康聲明">
+                  <el-input v-model="form.healthDeclaration" type="textarea" :rows="3" placeholder="選填，依報名人填寫內容原樣顯示" />
+                </el-form-item>
+                <el-form-item label="備註">
+                  <el-input v-model="form.note" type="textarea" :rows="2" placeholder="選填" />
+                </el-form-item>
+              </FormSection>
+            </el-card>
+          </template>
+
+          <template #aside>
+            <el-card shadow="never" header="基本設定">
+              <FormField field="sessionId" label="梯次" required>
+                <el-select
+                  v-model="form.sessionId"
+                  filterable
+                  style="width: 100%"
+                  no-data-text="目前這個俱樂部還沒有任何梯次，請先到「梯次」新增一筆"
+                  @change="formErrors.clear('sessionId')"
+                >
+                  <el-option v-for="s in sessions" :key="s.id" :label="sessionLabelById.get(s.id)" :value="s.id" />
+                </el-select>
+                <p v-if="!isCreate" class="registration-edit__hint">更換梯次即為「轉梯次」，會自動調整新舊梯次的已報名數。</p>
+              </FormField>
               <p v-if="memberId" class="registration-edit__hint">
                 這筆報名關聯既有會員（會員系統 K1 尚未開發，這裡僅顯示是否關聯，無法在此變更或搜尋會員）。
               </p>
             </el-card>
 
-            <el-card shadow="never" header="學員資料">
-              <el-row :gutter="12">
-                <el-col :span="12">
-                  <FormField field="applicantName" label="報名人姓名" required>
-                    <el-input v-model="form.applicantName" />
-                  </FormField>
-                </el-col>
-                <el-col :span="12">
-                  <el-form-item label="生日">
-                    <el-date-picker v-model="form.birthOn" type="date" style="width: 100%" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-              <el-row :gutter="12">
-                <el-col :span="12">
-                  <FormField field="phone" label="電話">
-                    <el-input v-model="form.phone" />
-                  </FormField>
-                </el-col>
-                <el-col :span="12">
-                  <FormField field="email" label="Email">
-                    <el-input v-model="form.email" />
-                  </FormField>
-                </el-col>
-              </el-row>
-              <p class="registration-edit__hint">電話與 Email 至少要填一項。</p>
-              <el-row :gutter="12">
-                <el-col :span="12">
-                  <el-form-item label="家長姓名">
-                    <el-input v-model="form.guardianName" placeholder="選填，未成年學員建議填寫" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="12">
-                  <FormField field="guardianPhone" label="家長電話">
-                    <el-input v-model="form.guardianPhone" placeholder="選填" />
-                  </FormField>
-                </el-col>
-              </el-row>
-            </el-card>
-
-            <el-card shadow="never" header="健康聲明與備註">
-              <el-form-item label="健康聲明">
-                <el-input v-model="form.healthDeclaration" type="textarea" :rows="3" placeholder="選填，依報名人填寫內容原樣顯示" />
-              </el-form-item>
-              <el-form-item label="備註">
-                <el-input v-model="form.note" type="textarea" :rows="2" placeholder="選填" />
-              </el-form-item>
+            <el-card shadow="never" header="發布設定">
+              <FormField field="status" label="狀態" required>
+                <el-select v-model="form.status" style="width: 100%">
+                  <el-option v-for="s in REGISTRATION_STATUS_ORDER" :key="s" :label="s" :value="s" />
+                </el-select>
+              </FormField>
             </el-card>
           </template>
         </EditLayout>

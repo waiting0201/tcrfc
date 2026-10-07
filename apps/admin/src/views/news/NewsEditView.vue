@@ -9,6 +9,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -610,243 +611,243 @@ function retryLoad() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="基本資訊">
-                <FormField field="category" label="分類" required>
-                  <el-select v-model="form.category" placeholder="請選擇分類" style="width: 240px; max-width: 100%" @change="formErrors.clear('category')">
-                    <el-option
-                      v-for="(label, value) in NEWS_CATEGORY_LABEL"
-                      :key="value"
-                      :label="label"
-                      :value="value as NewsCategory"
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field="title"
+                    label="標題"
+                    :zh="form.title.zh"
+                    :en="form.title.en"
+                    required
+                    placeholder="請輸入標題"
+                    @update:zh="(v) => (form.title.zh = v)"
+                    @update:en="(v) => (form.title.en = v)"
+                  />
+                </FormSection>
+                <FormSection title="內容">
+                  <LangPane lang="zh" field="bodyZh">
+                    <el-input
+                      v-model="form.content.zh"
+                      type="textarea"
+                      :rows="10"
+                      aria-label="中文內容"
+                      placeholder="請輸入中文內容（此畫面以文字框代替正式的富文本編輯器）"
                     />
-                  </el-select>
-                </FormField>
-
-                <BilingualShortField
-                  field="title"
-                  label="標題"
-                  :zh="form.title.zh"
-                  :en="form.title.en"
-                  required
-                  placeholder="請輸入標題"
-                  @update:zh="(v) => (form.title.zh = v)"
-                  @update:en="(v) => (form.title.en = v)"
-                />
-
-                <FormField field="slug" label="網址名稱" required>
-                  <el-input v-model="form.urlName" placeholder="例如：tcrfc-vs-trencin-2026" />
-                </FormField>
-              </el-card>
-
-              <el-card shadow="never" header="內容">
-                <LangPane lang="zh" field="bodyZh">
-                  <el-input
-                    v-model="form.content.zh"
-                    type="textarea"
-                    :rows="10"
-                    aria-label="中文內容"
-                    placeholder="請輸入中文內容（此畫面以文字框代替正式的富文本編輯器）"
-                  />
-                </LangPane>
-                <LangPane lang="en" field="bodyEn" :untranslated="!!form.content.zh.trim() && !form.content.en.trim()">
-                  <el-input
-                    v-model="form.content.en"
-                    type="textarea"
-                    :rows="10"
-                    aria-label="英文內容"
-                    placeholder="Enter English content"
-                  />
-                </LangPane>
-              </el-card>
-
-              <el-card shadow="never" header="搜尋與分享設定">
-                <p class="news-edit__hint news-edit__hint--top">
-                  這裡的標題與描述同時用在搜尋引擎結果與社群分享預覽；分享圖片沒有另外設定時，會依序改用全站預設分享圖片、再改用這篇文章的封面圖片。
-                </p>
-                <BilingualShortField
-                  field="seoTitle"
-                  label="搜尋與分享標題"
-                  :zh="form.seoTitle.zh"
-                  :en="form.seoTitle.en"
-                  placeholder="選填，未填寫時使用文章標題"
-                  @update:zh="(v) => (form.seoTitle.zh = v)"
-                  @update:en="(v) => (form.seoTitle.en = v)"
-                />
-                <BilingualTextareaField
-                  field="seoDescription"
-                  label="搜尋與分享描述"
-                  :zh="form.seoDescription.zh"
-                  :en="form.seoDescription.en"
-                  placeholder="選填，建議 80–120 字，未填寫時使用文章摘要"
-                  :rows="3"
-                  @update:zh="(v) => (form.seoDescription.zh = v)"
-                  @update:en="(v) => (form.seoDescription.en = v)"
-                />
-                <BilingualShortField
-                  field="seoKeywords"
-                  label="關鍵字"
-                  :zh="form.seoKeywords.zh"
-                  :en="form.seoKeywords.en"
-                  placeholder="選填，多個關鍵字請用逗號分隔"
-                  @update:zh="(v) => (form.seoKeywords.zh = v)"
-                  @update:en="(v) => (form.seoKeywords.en = v)"
-                />
-              </el-card>
-
-              <el-card shadow="never" header="收錄設定">
-                <el-form-item label="正式網址">
-                  <el-input v-model="form.canonicalPath" placeholder="選填，站內相對路徑，未填寫時由系統依目前網址自動判斷" />
-                </el-form-item>
-                <p class="news-edit__hint">只有這篇文章的正式網址跟目前網址不同時才需要填寫（例如同一篇內容曾經用別的網址發布過）。</p>
-
-                <el-form-item label="不讓搜尋引擎收錄">
-                  <el-switch v-model="form.isNoindex" />
-                </el-form-item>
-                <el-form-item label="不列入網站地圖">
-                  <el-switch v-model="form.isExcludedFromSitemap" />
-                </el-form-item>
-              </el-card>
-
-              <el-card shadow="never" header="標籤">
-                <FormField field="tags" label="標籤">
-                  <el-select
-                    v-model="tagNames"
-                    multiple
-                    filterable
-                    allow-create
-                    default-first-option
-                    placeholder="輸入名稱後按 Enter 新增，或從既有標籤選擇"
-                    style="width: 100%"
-                  >
-                    <el-option v-for="name in tagSuggestionNames" :key="name" :label="name" :value="name" />
-                  </el-select>
-                </FormField>
-                <p class="news-edit__hint">直接輸入文字按 Enter 就能新增標籤；輸入跟現有標籤相同的名稱會自動沿用同一個標籤，不會重複建立。</p>
-
-                <FormField field="coreValueTags" label="核心價值標籤" class="news-edit__corevalue">
-                  <div class="news-edit__corevalue-list">
-                    <el-checkbox
-                      v-for="tag in CORE_VALUE_TAG_ORDER"
-                      :key="tag"
-                      :model-value="form.coreValueTags.includes(tag)"
-                      @change="(checked: boolean) => toggleCoreValueTag(tag, checked)"
-                    >
-                      {{ CORE_VALUE_TAG_LABEL[tag] }}
-                    </el-checkbox>
-                  </div>
-                </FormField>
-              </el-card>
-
-              <el-card shadow="never" header="關聯">
-                <p class="news-edit__hint">
-                  可以把這篇文章跟球員、球隊、賽事互相關聯。課程、夥伴這兩種類型後台目前還沒有清單可以查詢，暫不開放選擇。
-                </p>
-                <FormField field="relations">
-                  <div class="news-edit__relation-group">
-                    <div class="news-edit__relation-add">
-                      <el-select v-model="pendingRelationType" style="width: 120px" @change="onRelationTypeChange">
-                        <el-option
-                          v-for="t in RELATION_TARGET_TYPE_ORDER"
-                          :key="t"
-                          :label="RELATION_TARGET_TYPE_LABEL[t]"
-                          :value="t"
-                          :disabled="!RELATION_TARGET_TYPES_AVAILABLE.includes(t)"
-                        />
-                      </el-select>
-                      <el-select
-                        v-model="pendingRelationTargetId"
-                        filterable
-                        clearable
-                        placeholder="搜尋並選擇"
-                        class="news-edit__relation-target-select"
-                        :loading="relationOptionsLoading"
-                        :disabled="!RELATION_TARGET_TYPES_AVAILABLE.includes(pendingRelationType)"
-                        no-data-text="沒有可選擇的資料"
-                        no-match-text="找不到符合的資料"
-                      >
-                        <el-option v-for="opt in currentRelationOptions" :key="opt.id" :label="opt.label" :value="opt.id" />
-                      </el-select>
-                      <el-button :disabled="!pendingRelationTargetId" @click="addRelation">加入</el-button>
+                  </LangPane>
+                  <LangPane lang="en" field="bodyEn" :untranslated="!!form.content.zh.trim() && !form.content.en.trim()">
+                    <el-input
+                      v-model="form.content.en"
+                      type="textarea"
+                      :rows="10"
+                      aria-label="英文內容"
+                      placeholder="Enter English content"
+                    />
+                  </LangPane>
+                </FormSection>
+                <FormSection title="關聯">
+                  <p class="news-edit__hint">
+                    可以把這篇文章跟球員、球隊、賽事互相關聯。課程、夥伴這兩種類型後台目前還沒有清單可以查詢，暫不開放選擇。
+                  </p>
+                  <FormField field="relations">
+                    <div class="news-edit__relation-group">
+                      <div class="news-edit__relation-add">
+                        <el-select v-model="pendingRelationType" style="width: 120px" @change="onRelationTypeChange">
+                          <el-option
+                            v-for="t in RELATION_TARGET_TYPE_ORDER"
+                            :key="t"
+                            :label="RELATION_TARGET_TYPE_LABEL[t]"
+                            :value="t"
+                            :disabled="!RELATION_TARGET_TYPES_AVAILABLE.includes(t)"
+                          />
+                        </el-select>
+                        <el-select
+                          v-model="pendingRelationTargetId"
+                          filterable
+                          clearable
+                          placeholder="搜尋並選擇"
+                          class="news-edit__relation-target-select"
+                          :loading="relationOptionsLoading"
+                          :disabled="!RELATION_TARGET_TYPES_AVAILABLE.includes(pendingRelationType)"
+                          no-data-text="沒有可選擇的資料"
+                          no-match-text="找不到符合的資料"
+                        >
+                          <el-option v-for="opt in currentRelationOptions" :key="opt.id" :label="opt.label" :value="opt.id" />
+                        </el-select>
+                        <el-button :disabled="!pendingRelationTargetId" @click="addRelation">加入</el-button>
+                      </div>
+                      <div v-if="form.relations.length > 0" class="news-edit__relation-list">
+                        <el-tag
+                          v-for="(relation, index) in form.relations"
+                          :key="`${relation.targetType}-${relation.targetId}`"
+                          closable
+                          class="news-edit__relation-tag"
+                          @close="removeRelation(index)"
+                        >
+                          {{ RELATION_TARGET_TYPE_LABEL[relation.targetType] }}：{{ resolveRelationLabel(relation) }}
+                        </el-tag>
+                      </div>
+                      <p v-else class="news-edit__hint">目前沒有任何關聯。</p>
                     </div>
-                    <div v-if="form.relations.length > 0" class="news-edit__relation-list">
-                      <el-tag
-                        v-for="(relation, index) in form.relations"
-                        :key="`${relation.targetType}-${relation.targetId}`"
-                        closable
-                        class="news-edit__relation-tag"
-                        @close="removeRelation(index)"
-                      >
-                        {{ RELATION_TARGET_TYPE_LABEL[relation.targetType] }}：{{ resolveRelationLabel(relation) }}
-                      </el-tag>
-                    </div>
-                    <p v-else class="news-edit__hint">目前沒有任何關聯。</p>
-                  </div>
-                </FormField>
-              </el-card>
+                  </FormField>
+                </FormSection>
+                <FormSection title="搜尋與分享">
+                  <p class="news-edit__hint news-edit__hint--top">
+                    這裡的標題與描述同時用在搜尋引擎結果與社群分享預覽；分享圖片沒有另外設定時，會依序改用全站預設分享圖片、再改用這篇文章的封面圖片。
+                  </p>
+                  <BilingualShortField
+                    field="seoTitle"
+                    label="搜尋與分享標題"
+                    :zh="form.seoTitle.zh"
+                    :en="form.seoTitle.en"
+                    placeholder="選填，未填寫時使用文章標題"
+                    @update:zh="(v) => (form.seoTitle.zh = v)"
+                    @update:en="(v) => (form.seoTitle.en = v)"
+                  />
+                  <BilingualTextareaField
+                    field="seoDescription"
+                    label="搜尋與分享描述"
+                    :zh="form.seoDescription.zh"
+                    :en="form.seoDescription.en"
+                    placeholder="選填，建議 80–120 字，未填寫時使用文章摘要"
+                    :rows="3"
+                    @update:zh="(v) => (form.seoDescription.zh = v)"
+                    @update:en="(v) => (form.seoDescription.en = v)"
+                  />
+                  <BilingualShortField
+                    field="seoKeywords"
+                    label="關鍵字"
+                    :zh="form.seoKeywords.zh"
+                    :en="form.seoKeywords.en"
+                    placeholder="選填，多個關鍵字請用逗號分隔"
+                    @update:zh="(v) => (form.seoKeywords.zh = v)"
+                    @update:en="(v) => (form.seoKeywords.en = v)"
+                  />
+                </FormSection>
+                <FormSection title="收錄設定">
+                  <el-form-item label="正式網址">
+                    <el-input v-model="form.canonicalPath" placeholder="選填，站內相對路徑，未填寫時由系統依目前網址自動判斷" />
+                  </el-form-item>
+                  <p class="news-edit__hint">只有這篇文章的正式網址跟目前網址不同時才需要填寫（例如同一篇內容曾經用別的網址發布過）。</p>
 
-              <el-card shadow="never" header="發布設定">
-                <el-form-item label="置頂精選">
-                  <el-switch v-model="form.isFeatured" />
-                </el-form-item>
-                <p class="news-edit__hint">首頁置頂精選同時最多 3 篇（逐俱樂部各自計算），超過會在儲存時提醒。</p>
-
-                <el-form-item v-if="currentId" label="瀏覽數">
-                  <span class="news-edit__view-count">{{ form.viewCount.toLocaleString('zh-Hant') }}</span>
-                </el-form-item>
+                  <el-form-item label="不讓搜尋引擎收錄">
+                    <el-switch v-model="form.isNoindex" />
+                  </el-form-item>
+                  <el-form-item label="不列入網站地圖">
+                    <el-switch v-model="form.isExcludedFromSitemap" />
+                  </el-form-item>
+                </FormSection>
               </el-card>
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="封面圖片">
-                <FormField field="cover" label="封面圖片">
-                  <ImageUploader
-                    v-model:file="coverFile"
-                    v-model:remove-cover="removeCover"
-                    :has-existing-image="!!form.coverKey"
-                    :existing-preview-url="form.coverImageUrl"
-                    :disabled="saving"
-                  />
-                </FormField>
-                <p v-if="form.coverKey && form.coverWidth && form.coverHeight" class="news-edit__hint">
-                  目前封面尺寸：{{ form.coverWidth }} × {{ form.coverHeight }} 像素
-                </p>
-                <BilingualShortField
-                  field="coverAlt"
-                  label="圖片說明"
-                  :zh="form.coverAlt.zh"
-                  :en="form.coverAlt.en"
-                  placeholder="選填，用一句話描述圖片內容，供視障讀者的輔助工具朗讀"
-                  @update:zh="(v) => (form.coverAlt.zh = v)"
-                  @update:en="(v) => (form.coverAlt.en = v)"
-                />
-                <el-alert
-                  v-if="coverAltZhMissing"
-                  type="info"
-                  :closable="false"
-                  show-icon
-                  title="建議補上中文圖片說明：沒有說明時，視障讀者的輔助工具只會念出文章標題，無法得知圖片內容。（不影響儲存）"
-                />
-              </el-card>
+              <el-card shadow="never" header="基本設定">
+                <FormSection>
+                  <FormField field="category" label="分類" required>
+                    <el-select v-model="form.category" placeholder="請選擇分類" style="width: 240px; max-width: 100%" @change="formErrors.clear('category')">
+                      <el-option
+                        v-for="(label, value) in NEWS_CATEGORY_LABEL"
+                        :key="value"
+                        :label="label"
+                        :value="value as NewsCategory"
+                      />
+                    </el-select>
+                  </FormField>
 
-              <el-card shadow="never" header="分享圖片">
-                <FormField field="ogImage" label="分享圖片">
-                  <ImageUploader
-                    v-model:file="ogImageFile"
-                    v-model:remove-cover="removeOgImage"
-                    :has-existing-image="!!form.ogImageUrl"
-                    :existing-preview-url="form.ogImageUrl"
-                    :disabled="saving"
+                  <FormField field="slug" label="網址名稱" required>
+                    <el-input v-model="form.urlName" placeholder="例如：tcrfc-vs-trencin-2026" />
+                  </FormField>
+                </FormSection>
+                <FormSection title="標籤">
+                  <FormField field="tags" label="標籤">
+                    <el-select
+                      v-model="tagNames"
+                      multiple
+                      filterable
+                      allow-create
+                      default-first-option
+                      placeholder="輸入名稱後按 Enter 新增，或從既有標籤選擇"
+                      style="width: 100%"
+                    >
+                      <el-option v-for="name in tagSuggestionNames" :key="name" :label="name" :value="name" />
+                    </el-select>
+                  </FormField>
+                  <p class="news-edit__hint">直接輸入文字按 Enter 就能新增標籤；輸入跟現有標籤相同的名稱會自動沿用同一個標籤，不會重複建立。</p>
+
+                  <FormField field="coreValueTags" label="核心價值標籤" class="news-edit__corevalue">
+                    <div class="news-edit__corevalue-list">
+                      <el-checkbox
+                        v-for="tag in CORE_VALUE_TAG_ORDER"
+                        :key="tag"
+                        :model-value="form.coreValueTags.includes(tag)"
+                        @change="(checked: boolean) => toggleCoreValueTag(tag, checked)"
+                      >
+                        {{ CORE_VALUE_TAG_LABEL[tag] }}
+                      </el-checkbox>
+                    </div>
+                  </FormField>
+                </FormSection>
+                <FormSection title="封面圖片">
+                  <FormField field="cover" label="封面圖片">
+                    <ImageUploader
+                      v-model:file="coverFile"
+                      v-model:remove-cover="removeCover"
+                      :has-existing-image="!!form.coverKey"
+                      :existing-preview-url="form.coverImageUrl"
+                      :disabled="saving"
+                    />
+                  </FormField>
+                  <p v-if="form.coverKey && form.coverWidth && form.coverHeight" class="news-edit__hint">
+                    目前封面尺寸：{{ form.coverWidth }} × {{ form.coverHeight }} 像素
+                  </p>
+                  <BilingualShortField
+                    field="coverAlt"
+                    label="圖片說明"
+                    :zh="form.coverAlt.zh"
+                    :en="form.coverAlt.en"
+                    placeholder="選填，用一句話描述圖片內容，供視障讀者的輔助工具朗讀"
+                    @update:zh="(v) => (form.coverAlt.zh = v)"
+                    @update:en="(v) => (form.coverAlt.en = v)"
                   />
-                </FormField>
-                <BilingualShortField
-                  field="ogImageAlt"
-                  label="分享圖片替代文字"
-                  :zh="form.ogImageAlt.zh"
-                  :en="form.ogImageAlt.en"
-                  placeholder="選填，描述圖片內容，供視障輔助工具使用"
-                  @update:zh="(v) => (form.ogImageAlt.zh = v)"
-                  @update:en="(v) => (form.ogImageAlt.en = v)"
-                />
+                  <el-alert
+                    v-if="coverAltZhMissing"
+                    type="info"
+                    :closable="false"
+                    show-icon
+                    title="建議補上中文圖片說明：沒有說明時，視障讀者的輔助工具只會念出文章標題，無法得知圖片內容。（不影響儲存）"
+                  />
+                </FormSection>
+                <FormSection title="分享圖片">
+                  <FormField field="ogImage" label="分享圖片">
+                    <ImageUploader
+                      v-model:file="ogImageFile"
+                      v-model:remove-cover="removeOgImage"
+                      :has-existing-image="!!form.ogImageUrl"
+                      :existing-preview-url="form.ogImageUrl"
+                      :disabled="saving"
+                    />
+                  </FormField>
+                  <BilingualShortField
+                    field="ogImageAlt"
+                    label="分享圖片替代文字"
+                    :zh="form.ogImageAlt.zh"
+                    :en="form.ogImageAlt.en"
+                    placeholder="選填，描述圖片內容，供視障輔助工具使用"
+                    @update:zh="(v) => (form.ogImageAlt.zh = v)"
+                    @update:en="(v) => (form.ogImageAlt.en = v)"
+                  />
+                </FormSection>
+              </el-card>
+              <el-card shadow="never" header="發布設定">
+                <FormSection>
+                  <el-form-item label="置頂精選">
+                    <el-switch v-model="form.isFeatured" />
+                  </el-form-item>
+                  <p class="news-edit__hint">首頁置頂精選同時最多 3 篇（逐俱樂部各自計算），超過會在儲存時提醒。</p>
+
+                  <el-form-item v-if="currentId" label="瀏覽數">
+                    <span class="news-edit__view-count">{{ form.viewCount.toLocaleString('zh-Hant') }}</span>
+                  </el-form-item>
+                </FormSection>
               </el-card>
             </template>
           </EditLayout>

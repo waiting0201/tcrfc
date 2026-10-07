@@ -327,6 +327,7 @@ reactive 單例，因為目前狀態之間沒有複雜耦合；之後模組多�
 | 元件／函式 | 用途 |
 |---|---|
 | `EditLayout`（`#main`／`#aside`） | 兩欄版面。**容器寬度 ≥ 880px** 才兩欄（`container-type: inline-size`，不是視窗斷點），不足時主欄在上、側欄在下，側欄不 sticky；沒有 `#aside` 是單欄；底部留白 88px 給 `EditActionBar`。對話框、`*Tab`／`*Panel` 不用 |
+| `FormSection`（`title?`、`hint?`） | 卡片內的分段小標，相鄰分段自動畫分隔線；取代「一組欄位一張 `el-card`」。主欄第一段通常不給 `title`；`hint` 是小標下一行說明。用法：`<el-card shadow="never" header="基本設定"><FormSection title="封面圖片">…</FormSection></el-card>` |
 | `LangTabsBar`（`variant`＝`page｜bare`、`langs`＝`['zh','en']`、`label?`） | 整頁（或整個對話框）**一組**語言分頁，把整個編輯區包在裡面並 provide 唯一的語言範圍：主欄與右側欄所有雙語欄位一起換，單語欄位照常顯示。`page` 在 `.admin-layout__main` 內 sticky 於頂端；`bare` 給對話框（不 sticky，對話框自己一組）。預設中文；切分頁不算未儲存變更；唯讀時仍可切換；方向鍵／Home／End 切換。標籤文字為整頁合計：「（N 項尚未翻譯）」「⚠ N 處需修正」；內容用 `v-show` 留在 DOM。**每頁恰好一個**，不得巢狀。卡片一律用一般 `el-card` |
 | `BilingualShortField`／`BilingualTextareaField`（新增 `field`、`fieldZh?`、`fieldEn?`、`maxlength?`） | `field="name"` → 錯誤鍵 `nameZh`／`nameEn`。在 `LangTabsBar` 內只顯示目前語言；**不在其內（沒有頁面層或對話框分頁）仍是舊版並排畫面，並在開發模式 `console.warn`（過渡用，第 4 階段刪）**，`field` 因此暫為選填 |
 | `LangPane`（`lang`、`field?`、`untranslated?`，事件 `show`） | 自訂雙語內容，放在 `LangTabsBar` 內（如新聞內文編輯器）。`show` 在窗格由隱藏變顯示後觸發，編輯器在這裡重排／重算高度 |
@@ -334,6 +335,8 @@ reactive 單例，因為目前狀態之間沒有複雜耦合；之後模組多�
 | `provideFormErrors()`／`useFormErrors()` | `set/get/has/clear/clearAll/replaceAll(record): boolean/count`、`registerAnchor`、`focusFirst()`（文件順序最前 → 切語言 → `reveal` → 捲到畫面中央 → 聚焦；`prefers-reduced-motion` 時不做平滑捲動）、`applyApiError(err): boolean`（有欄位鍵對不到回 `false`，交給頁首提示） |
 | `EditActionBar` 的 `#status`＋`FormErrorStatus` | 底部操作列左側「有 N 處需要修正」＋「前往下一處」，外層 `aria-live="polite"` |
 | `api/http.ts` | `AdminApiError.fieldErrors`（鍵經 `normalizeFieldKey`，`content.zh.name` → `nameZh`；每鍵取第一則）、`code`；400／409／422 都帶 `body`；網址名稱重複沒有 `errors` 時補 `{ slug: detail }` |
+
+**每頁最多三張卡**（2026-10-07，`docs/21` §3.3a）：`#main` 恰好一張 `el-card`（不設標題，放會隨語言切換的文字與太寬的元件，搜尋與分享放最後一段）；`#aside` 最多兩張——「基本設定」（不分語言的短欄位與所有上傳元件，每張圖一個 `FormSection`）與「發布設定」（狀態、上下架、排序等，沒有就不放）。卡片內的分組一律用 `FormSection`，不得再開新卡片；`lint:edit-layout` 會檢查張數。
 
 **陣列鍵的前綴退回**：`applyApiError` 對不到精確鍵的 anchor 時，逐層去掉尾段再找（`tags[2].slug` → `tags[2]` → `tags`），找到就把訊息標在那個群組 anchor 上。
 所以陣列型區塊（標籤、核心價值、關聯）整塊包一個 `FormField field="tags"`／`"coreValueTags"`／`"relations"` 即可，不必為每一列各設 anchor；

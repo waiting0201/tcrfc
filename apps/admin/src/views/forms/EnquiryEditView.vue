@@ -22,6 +22,8 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
@@ -236,84 +238,98 @@ function retryLoad() {
         class="enquiry-edit__form-error"
       />
 
-      <el-card shadow="never" header="訪客送出的內容" class="enquiry-edit__section">
-        <dl class="enquiry-edit__meta">
-          <div class="enquiry-edit__meta-row">
-            <dt>來源表單</dt>
-            <dd>{{ formNameZh }}</dd>
-          </div>
-          <div class="enquiry-edit__meta-row">
-            <dt>來源頁面</dt>
-            <dd>{{ sourcePath || '—' }}</dd>
-          </div>
-          <div class="enquiry-edit__meta-row">
-            <dt>UTM 來源／活動</dt>
-            <dd>{{ utmSource || '—' }}{{ utmCampaign ? `／${utmCampaign}` : '' }}</dd>
-          </div>
-          <div class="enquiry-edit__meta-row">
-            <dt>送出時間</dt>
-            <dd>{{ formatDateTime(createdAt) }}</dd>
-          </div>
-        </dl>
+      <EditLayout>
+        <template #main>
+          <el-card shadow="never">
+            <FormSection title="訪客送出的內容">
+              <dl class="enquiry-edit__meta">
+                <div class="enquiry-edit__meta-row">
+                  <dt>來源表單</dt>
+                  <dd>{{ formNameZh }}</dd>
+                </div>
+                <div class="enquiry-edit__meta-row">
+                  <dt>來源頁面</dt>
+                  <dd>{{ sourcePath || '—' }}</dd>
+                </div>
+                <div class="enquiry-edit__meta-row">
+                  <dt>UTM 來源／活動</dt>
+                  <dd>{{ utmSource || '—' }}{{ utmCampaign ? `／${utmCampaign}` : '' }}</dd>
+                </div>
+                <div class="enquiry-edit__meta-row">
+                  <dt>送出時間</dt>
+                  <dd>{{ formatDateTime(createdAt) }}</dd>
+                </div>
+              </dl>
 
-        <el-table :data="answers" row-key="fieldKey" class="enquiry-edit__answers">
-          <el-table-column label="欄位" width="180">
-            <template #default="{ row }">{{ fieldLabel(row.fieldKey) }}</template>
-          </el-table-column>
-          <el-table-column label="訪客填寫的內容">
-            <template #default="{ row }">
-              <span v-if="row.fieldType === 'consent'">{{ row.value ? '已勾選同意' : '未勾選' }}</span>
-              <span v-else>{{ row.value || '（未填寫）' }}</span>
-            </template>
-          </el-table-column>
-        </el-table>
-        <p class="enquiry-edit__hint">
-          這一區是訪客的原始送出資料，後台無法修改。若某個欄位顯示的是英文代碼而不是題目文字，代表這個欄位已經從目前的表單設定裡被刪除，可以對照「表單設計器」裡目前的設定確認。
-        </p>
-      </el-card>
-
-      <el-form label-position="top" :disabled="isReadOnly">
-        <el-card shadow="never" header="後台處理" class="enquiry-edit__section">
-          <FormField field="status" label="狀態" required>
-            <el-select v-model="form.status" style="width: 220px">
-              <el-option v-for="s in ENQUIRY_STATUS_ORDER" :key="s" :label="s" :value="s">
-                <el-tag :type="enquiryStatusTagType(s)" size="small">{{ s }}</el-tag>
-              </el-option>
-            </el-select>
-          </FormField>
-
-          <FormField field="assigneeAdminUserId" label="指派負責人">
-            <template v-if="canUpdateInbox && !assigneeOptionsError">
-              <el-select v-model="form.assigneeAdminUserId" clearable filterable placeholder="請選擇負責人（可留空）" style="width: 280px">
-                <el-option v-for="a in assigneeOptions" :key="a.id" :label="a.displayName" :value="a.id" />
-              </el-select>
-              <p v-if="form.assigneeAdminUserId && !assigneeDisplayName" class="enquiry-edit__hint">
-                目前指派對象不在候選人清單裡（可能已停用，或角色調整後不再處理這一類詢問），可以重新選擇或取消指派。
+              <el-table :data="answers" row-key="fieldKey" class="enquiry-edit__answers">
+                <el-table-column label="欄位" width="180">
+                  <template #default="{ row }">{{ fieldLabel(row.fieldKey) }}</template>
+                </el-table-column>
+                <el-table-column label="訪客填寫的內容">
+                  <template #default="{ row }">
+                    <span v-if="row.fieldType === 'consent'">{{ row.value ? '已勾選同意' : '未勾選' }}</span>
+                    <span v-else>{{ row.value || '（未填寫）' }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <p class="enquiry-edit__hint">
+                這一區是訪客的原始送出資料，後台無法修改。若某個欄位顯示的是英文代碼而不是題目文字，代表這個欄位已經從目前的表單設定裡被刪除，可以對照「表單設計器」裡目前的設定確認。
               </p>
-            </template>
-            <template v-else>
-              <div class="enquiry-edit__assignee">
-                <span v-if="isAssignedToSelf">已指派給你自己（{{ authUser?.displayName }}）</span>
-                <span v-else-if="isAssignedToOther">已指派給其他人——{{ assigneeDisplayName ?? '目前查不到對方姓名' }}</span>
-                <span v-else>目前未指派</span>
-                <el-button size="small" :disabled="isReadOnly || isAssignedToSelf" @click="assignToSelf">指派給我自己</el-button>
-                <el-button size="small" :disabled="isReadOnly || !form.assigneeAdminUserId" @click="unassign">取消指派</el-button>
-              </div>
-              <p v-if="assigneeOptionsError" class="enquiry-edit__hint">
-                候選人清單載入失敗，暫時只能指派給自己或取消指派，請稍後重新整理頁面再試。
-              </p>
-            </template>
-          </FormField>
+            </FormSection>
 
-          <el-form-item label="標籤（自由文字，可用逗號分隔多個）">
-            <el-input v-model="form.tags" placeholder="例如 需追蹤,VIP" />
-          </el-form-item>
+            <el-form label-position="top" :disabled="isReadOnly" class="enquiry-edit__split">
+              <FormSection title="內部備註">
+                <el-form-item label="內部備註（僅後台看得到，訪客不會收到）">
+                  <el-input v-model="form.internalNote" type="textarea" :rows="4" />
+                </el-form-item>
+              </FormSection>
+            </el-form>
+          </el-card>
+        </template>
 
-          <el-form-item label="內部備註（僅後台看得到，訪客不會收到）">
-            <el-input v-model="form.internalNote" type="textarea" :rows="4" />
-          </el-form-item>
-        </el-card>
-      </el-form>
+        <template #aside>
+          <el-form label-position="top" :disabled="isReadOnly">
+            <el-card shadow="never" header="基本設定">
+              <FormSection title="後台處理">
+                <FormField field="status" label="狀態" required>
+                  <el-select v-model="form.status" style="width: 220px">
+                    <el-option v-for="s in ENQUIRY_STATUS_ORDER" :key="s" :label="s" :value="s">
+                      <el-tag :type="enquiryStatusTagType(s)" size="small">{{ s }}</el-tag>
+                    </el-option>
+                  </el-select>
+                </FormField>
+
+                <FormField field="assigneeAdminUserId" label="指派負責人">
+                  <template v-if="canUpdateInbox && !assigneeOptionsError">
+                    <el-select v-model="form.assigneeAdminUserId" clearable filterable placeholder="請選擇負責人（可留空）" style="width: 280px">
+                      <el-option v-for="a in assigneeOptions" :key="a.id" :label="a.displayName" :value="a.id" />
+                    </el-select>
+                    <p v-if="form.assigneeAdminUserId && !assigneeDisplayName" class="enquiry-edit__hint">
+                      目前指派對象不在候選人清單裡（可能已停用，或角色調整後不再處理這一類詢問），可以重新選擇或取消指派。
+                    </p>
+                  </template>
+                  <template v-else>
+                    <div class="enquiry-edit__assignee">
+                      <span v-if="isAssignedToSelf">已指派給你自己（{{ authUser?.displayName }}）</span>
+                      <span v-else-if="isAssignedToOther">已指派給其他人——{{ assigneeDisplayName ?? '目前查不到對方姓名' }}</span>
+                      <span v-else>目前未指派</span>
+                      <el-button size="small" :disabled="isReadOnly || isAssignedToSelf" @click="assignToSelf">指派給我自己</el-button>
+                      <el-button size="small" :disabled="isReadOnly || !form.assigneeAdminUserId" @click="unassign">取消指派</el-button>
+                    </div>
+                    <p v-if="assigneeOptionsError" class="enquiry-edit__hint">
+                      候選人清單載入失敗，暫時只能指派給自己或取消指派，請稍後重新整理頁面再試。
+                    </p>
+                  </template>
+                </FormField>
+
+                <el-form-item label="標籤（自由文字，可用逗號分隔多個）">
+                  <el-input v-model="form.tags" placeholder="例如 需追蹤,VIP" />
+                </el-form-item>
+              </FormSection>
+            </el-card>
+          </el-form>
+        </template>
+      </EditLayout>
 
       <div v-if="!isReadOnly" class="enquiry-edit__action-bar">
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
@@ -324,16 +340,18 @@ function retryLoad() {
 
 <style scoped>
 .enquiry-edit {
-  max-width: 780px;
-  margin: 0 auto 88px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .enquiry-edit__form-error {
   margin-bottom: 16px;
 }
 
-.enquiry-edit__section {
-  margin-bottom: 16px;
+.enquiry-edit__split {
+  margin-top: var(--admin-space-6);
+  padding-top: var(--admin-space-6);
+  border-top: 1px solid var(--admin-border);
 }
 
 .enquiry-edit__meta {

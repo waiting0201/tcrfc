@@ -15,6 +15,7 @@ import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
@@ -185,39 +186,43 @@ function back() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="活動內容">
-                <BilingualShortField field="name" label="活動名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-                <BilingualTextareaField field="prize" label="獎品說明" :zh="form.prizeZh" :en="form.prizeEn" :rows="3" @update:zh="(v) => (form.prizeZh = v)" @update:en="(v) => (form.prizeEn = v)" />
-                <BilingualTextareaField field="rules" label="活動辦法（鎖定名單前必填）" :zh="form.rulesZh" :en="form.rulesEn" :rows="5" @update:zh="(v) => (form.rulesZh = v)" @update:en="(v) => (form.rulesEn = v)" />
-                <p class="draw-edit__hint">活動辦法必須明示：<strong>同時具備兩隊會籍的人可以分別參加兩隊的抽獎</strong>。</p>
-                <BilingualTextareaField field="notes" label="注意事項" :zh="form.notesZh" :en="form.notesEn" :rows="3" @update:zh="(v) => (form.notesZh = v)" @update:en="(v) => (form.notesEn = v)" />
-              </el-card>
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField field="name" label="活動名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                  <BilingualTextareaField field="prize" label="獎品說明" :zh="form.prizeZh" :en="form.prizeEn" :rows="3" @update:zh="(v) => (form.prizeZh = v)" @update:en="(v) => (form.prizeEn = v)" />
+                  <BilingualTextareaField field="rules" label="活動辦法（鎖定名單前必填）" :zh="form.rulesZh" :en="form.rulesEn" :rows="5" @update:zh="(v) => (form.rulesZh = v)" @update:en="(v) => (form.rulesEn = v)" />
+                  <p class="draw-edit__hint">活動辦法必須明示：<strong>同時具備兩隊會籍的人可以分別參加兩隊的抽獎</strong>。</p>
+                  <BilingualTextareaField field="notes" label="注意事項" :zh="form.notesZh" :en="form.notesEn" :rows="3" @update:zh="(v) => (form.notesZh = v)" @update:en="(v) => (form.notesEn = v)" />
+                </FormSection>
 
-              <el-card shadow="never" header="時間與代碼">
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12"><FormField field="snapshotAt" label="資格基準時間（台灣時間）"><el-date-picker v-model="form.snapshotAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" :disabled="readOnly || locked" style="width: 100%" /></FormField></el-col>
-                  <el-col :xs="24" :sm="12"><el-form-item label="開獎時間（台灣時間）"><el-date-picker v-model="form.drawnAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" /></el-form-item></el-col>
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="drawOccasion" label="舉辦場合">
-                      <el-select v-model="form.drawOccasion" clearable placeholder="未指定" style="width: 100%"><el-option v-for="o in DRAW_OCCASION_OPTIONS" :key="o.value" :label="o.label" :value="o.value" /></el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12"><el-form-item label="領獎期限"><el-date-picker v-model="form.claimDeadlineOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
-                  <el-col :xs="24" :sm="12"><FormField field="drawCode" label="活動代碼（選填）"><el-input v-model="form.drawCode" maxlength="32" :disabled="readOnly || locked" placeholder="留空由系統自動產生" /></FormField></el-col>
-                </el-row>
-                <p class="draw-edit__hint">基準時間沒填、但有開獎時間時，以開獎日（台灣時間）當天 00:00 為準。活動代碼只能用英數字與連字號，會出現在匯出的檔名裡。</p>
-              </el-card>
-
-              <el-card shadow="never" header="內部備註">
-                <FormField field="internalNote" label="內部備註（只有後台看得到）"><el-input v-model="form.internalNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></FormField>
+                <FormSection title="內部備註">
+                  <FormField field="internalNote" label="內部備註（只有後台看得到）"><el-input v-model="form.internalNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></FormField>
+                </FormSection>
               </el-card>
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="封面圖片">
-                <FormField field="cover" label="封面圖片">
-                  <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
-                </FormField>
+              <el-card shadow="never" header="基本設定">
+                <FormSection title="時間與代碼">
+                  <el-row :gutter="12">
+                    <el-col :span="24"><FormField field="snapshotAt" label="資格基準時間（台灣時間）"><el-date-picker v-model="form.snapshotAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" :disabled="readOnly || locked" style="width: 100%" /></FormField></el-col>
+                    <el-col :span="24"><el-form-item label="開獎時間（台灣時間）"><el-date-picker v-model="form.drawnAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" style="width: 100%" /></el-form-item></el-col>
+                    <el-col :span="24">
+                      <FormField field="drawOccasion" label="舉辦場合">
+                        <el-select v-model="form.drawOccasion" clearable placeholder="未指定" style="width: 100%"><el-option v-for="o in DRAW_OCCASION_OPTIONS" :key="o.value" :label="o.label" :value="o.value" /></el-select>
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24"><el-form-item label="領獎期限"><el-date-picker v-model="form.claimDeadlineOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item></el-col>
+                    <el-col :span="24"><FormField field="drawCode" label="活動代碼（選填）"><el-input v-model="form.drawCode" maxlength="32" :disabled="readOnly || locked" placeholder="留空由系統自動產生" /></FormField></el-col>
+                  </el-row>
+                  <p class="draw-edit__hint">基準時間沒填、但有開獎時間時，以開獎日（台灣時間）當天 00:00 為準。活動代碼只能用英數字與連字號，會出現在匯出的檔名裡。</p>
+                </FormSection>
+
+                <FormSection title="封面圖片">
+                  <FormField field="cover" label="封面圖片">
+                    <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
+                  </FormField>
+                </FormSection>
               </el-card>
             </template>
           </EditLayout>

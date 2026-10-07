@@ -11,6 +11,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -173,27 +174,36 @@ function back() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="方案內容">
-                <BilingualShortField field="name" label="方案名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
-                <BilingualTextareaField field="content" label="方案內容" :zh="form.contentZh" :en="form.contentEn" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
-                <BilingualTextareaField field="benefit" label="權益清單" :zh="form.benefitZh" :en="form.benefitEn" :rows="5" placeholder="一行寫一項權益" @update:zh="(v) => (form.benefitZh = v)" @update:en="(v) => (form.benefitEn = v)" />
-                <BilingualShortField field="audience" label="適合對象" :zh="form.audienceZh" :en="form.audienceEn" @update:zh="(v) => (form.audienceZh = v)" @update:en="(v) => (form.audienceEn = v)" />
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField field="name" label="方案名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
+                  <BilingualTextareaField field="content" label="方案內容" :zh="form.contentZh" :en="form.contentEn" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
+                  <BilingualTextareaField field="benefit" label="權益清單" :zh="form.benefitZh" :en="form.benefitEn" :rows="5" placeholder="一行寫一項權益" @update:zh="(v) => (form.benefitZh = v)" @update:en="(v) => (form.benefitEn = v)" />
+                  <BilingualShortField field="audience" label="適合對象" :zh="form.audienceZh" :en="form.audienceEn" @update:zh="(v) => (form.audienceZh = v)" @update:en="(v) => (form.audienceEn = v)" />
+                </FormSection>
               </el-card>
-              <el-card shadow="never" header="價格與發布">
-                <el-row :gutter="12">
-                  <el-col :xs="24" :sm="12"><FormField field="priceMin" label="價格下限（元）"><el-input-number v-model="form.priceMin" :min="0" :controls="false" style="width: 100%" @change="formErrors.clear('priceMax')" /></FormField></el-col>
-                  <el-col :xs="24" :sm="12"><FormField field="priceMax" label="價格上限（元）"><el-input-number v-model="form.priceMax" :min="0" :controls="false" style="width: 100%" @change="formErrors.clear('priceMax')" /></FormField></el-col>
-                </el-row>
-                <el-form-item label="是否公開價格">
-                  <el-switch v-model="form.isPricePublic" active-text="前台顯示價格區間" inactive-text="前台不顯示價格" />
-                </el-form-item>
-                <FormField field="status" label="狀態">
-                  <el-radio-group v-model="form.status">
-                    <el-radio value="draft">草稿（前台不顯示）</el-radio>
-                    <el-radio value="published">已發布</el-radio>
-                  </el-radio-group>
-                </FormField>
-                <el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="基本設定">
+                <FormSection title="價格">
+                  <FormField field="priceMin" label="價格下限（元）"><el-input-number v-model="form.priceMin" :min="0" :controls="false" style="width: 100%" @change="formErrors.clear('priceMax')" /></FormField>
+                  <FormField field="priceMax" label="價格上限（元）"><el-input-number v-model="form.priceMax" :min="0" :controls="false" style="width: 100%" @change="formErrors.clear('priceMax')" /></FormField>
+                  <el-form-item label="是否公開價格">
+                    <el-switch v-model="form.isPricePublic" active-text="前台顯示價格區間" inactive-text="前台不顯示價格" />
+                  </el-form-item>
+                </FormSection>
+              </el-card>
+              <el-card shadow="never" header="發布設定">
+                <FormSection>
+                  <FormField field="status" label="狀態">
+                    <el-radio-group v-model="form.status">
+                      <el-radio value="draft">草稿（前台不顯示）</el-radio>
+                      <el-radio value="published">已發布</el-radio>
+                    </el-radio-group>
+                  </FormField>
+                  <el-form-item label="排序值"><el-input-number v-model="form.sortOrder" :min="0" /></el-form-item>
+                </FormSection>
               </el-card>
             </template>
           </EditLayout>
@@ -208,6 +218,6 @@ function back() {
 </template>
 
 <style scoped>
-.package-edit { max-width: 780px; margin: 0 auto; }
+.package-edit { max-width: 1200px; margin: 0 auto; }
 .package-edit__block { margin-bottom: 16px; }
 </style>

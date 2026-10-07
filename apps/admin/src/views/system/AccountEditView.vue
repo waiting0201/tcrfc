@@ -12,7 +12,9 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import EditLayout from '@/components/EditLayout.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -402,129 +404,142 @@ function handleBack() {
         @close="formError = null"
       />
 
-      <el-card shadow="never" header="基本資料" class="account-edit__section">
-        <el-form label-position="top">
-          <FormField field="username" label="帳號" required>
-            <el-input v-model="form.username" :disabled="!isCreate" placeholder="登入用帳號，可用中文，不含空白，最多 64 字；建立後不可修改" />
-          </FormField>
-          <FormField field="displayName" label="姓名" required>
-            <el-input v-model="form.displayName" />
-          </FormField>
-          <el-form-item label="Email">
-            <el-input v-model="form.email" placeholder="選填" />
-          </el-form-item>
-          <FormField field="primaryClubId" label="預設俱樂部">
-            <el-select v-model="form.primaryClubId" placeholder="登入後站台切換器的初始站台（選填）" clearable style="width: 100%">
-              <el-option v-for="club in clubs" :key="club.id" :label="club.nameZh ?? club.code" :value="club.id" />
-            </el-select>
-          </FormField>
-          <FormField v-if="isCreate" field="initialPassword" label="初始密碼" required>
-            <el-input v-model="form.initialPassword" type="password" show-password placeholder="至少 9 個字元，建立後請透過站外管道轉交" />
-          </FormField>
-          <el-form-item label="系統管理員">
-            <el-switch v-model="form.isSuperAdmin" />
-            <span class="account-edit__hint">系統管理員可存取全部俱樂部與全部模組，跳過角色權限檢查</span>
-          </el-form-item>
-          <FormField field="roleCodes" label="角色">
-            <el-select v-model="form.roleCodes" multiple placeholder="請選擇角色" style="width: 100%" @change="formErrors.clear('roleCodes')">
-              <el-option v-for="role in roles" :key="role.code" :label="role.nameZh" :value="role.code" />
-            </el-select>
-          </FormField>
-        </el-form>
-        <div class="account-edit__actions">
-          <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-          <template v-if="!isCreate">
-            <el-button @click="toggleStatus">{{ accountStatus === 'active' ? '停用帳號' : '啟用帳號' }}</el-button>
-            <el-button @click="handleResetPassword">重設密碼</el-button>
-            <el-button @click="handleResetTotp">重設兩階段驗證</el-button>
-          </template>
-        </div>
-      </el-card>
+      <EditLayout>
+        <template #main>
+          <el-card shadow="never">
+            <el-form label-position="top">
+              <FormSection>
+                <FormField field="username" label="帳號" required>
+                  <el-input v-model="form.username" :disabled="!isCreate" placeholder="登入用帳號，可用中文，不含空白，最多 64 字；建立後不可修改" />
+                </FormField>
+                <FormField field="displayName" label="姓名" required>
+                  <el-input v-model="form.displayName" />
+                </FormField>
+                <el-form-item label="Email">
+                  <el-input v-model="form.email" placeholder="選填" />
+                </el-form-item>
+                <FormField v-if="isCreate" field="initialPassword" label="初始密碼" required>
+                  <el-input v-model="form.initialPassword" type="password" show-password placeholder="至少 9 個字元，建立後請透過站外管道轉交" />
+                </FormField>
+              </FormSection>
 
-      <el-card v-if="!isCreate" shadow="never" header="俱樂部授權" class="account-edit__section">
-        <p class="account-edit__hint">指派這個帳號可以在站台切換器操作哪些俱樂部（J4）。</p>
-        <el-table :data="clubGrants" size="small" class="account-edit__grant-table">
-          <el-table-column label="俱樂部" prop="clubCode" width="120" />
-          <el-table-column label="授權起日" prop="grantedOn" width="120" />
-          <el-table-column label="到期日" width="120">
-            <template #default="{ row }">{{ row.expiresOn ?? '無期限' }}</template>
-          </el-table-column>
-          <el-table-column label="狀態" width="100">
-            <template #default="{ row }">
-              <el-tag :type="row.isCurrentlyEffective ? 'success' : 'info'" size="small">
-                {{ row.isCurrentlyEffective ? '生效中' : (row.isActive ? '已過期' : '已撤銷') }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="100">
-            <template #default="{ row }">
-              <el-button v-if="row.isActive" size="small" text type="danger" @click="revokeClubGrant(row)">撤銷</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <div class="account-edit__grant-form">
-          <FormField field="clubGrantClubId" class="account-edit__grant-field">
-            <el-select v-model="newClubGrant.clubId" placeholder="選擇俱樂部" style="width: 200px" @change="formErrors.clear('clubGrantClubId')">
-              <el-option v-for="club in clubs" :key="club.id" :label="club.nameZh ?? club.code" :value="club.id" />
-            </el-select>
-          </FormField>
-          <FormField field="clubGrantExpiresOn" class="account-edit__grant-field">
-            <el-date-picker v-model="newClubGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填，無期限請留空）" @change="formErrors.clear('clubGrantExpiresOn')" />
-          </FormField>
-          <el-button type="primary" :loading="clubGrantSubmitting" @click="submitClubGrant">新增授權</el-button>
-        </div>
-      </el-card>
+              <FormSection v-if="!isCreate" title="俱樂部授權">
+                <p class="account-edit__hint">指派這個帳號可以在站台切換器操作哪些俱樂部（J4）。</p>
+                <el-table :data="clubGrants" size="small" class="account-edit__grant-table">
+                  <el-table-column label="俱樂部" prop="clubCode" width="120" />
+                  <el-table-column label="授權起日" prop="grantedOn" width="120" />
+                  <el-table-column label="到期日" width="120">
+                    <template #default="{ row }">{{ row.expiresOn ?? '無期限' }}</template>
+                  </el-table-column>
+                  <el-table-column label="狀態" width="100">
+                    <template #default="{ row }">
+                      <el-tag :type="row.isCurrentlyEffective ? 'success' : 'info'" size="small">
+                        {{ row.isCurrentlyEffective ? '生效中' : (row.isActive ? '已過期' : '已撤銷') }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="100">
+                    <template #default="{ row }">
+                      <el-button v-if="row.isActive" size="small" text type="danger" @click="revokeClubGrant(row)">撤銷</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div class="account-edit__grant-form">
+                  <FormField field="clubGrantClubId" class="account-edit__grant-field">
+                    <el-select v-model="newClubGrant.clubId" placeholder="選擇俱樂部" style="width: 200px" @change="formErrors.clear('clubGrantClubId')">
+                      <el-option v-for="club in clubs" :key="club.id" :label="club.nameZh ?? club.code" :value="club.id" />
+                    </el-select>
+                  </FormField>
+                  <FormField field="clubGrantExpiresOn" class="account-edit__grant-field">
+                    <el-date-picker v-model="newClubGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填，無期限請留空）" @change="formErrors.clear('clubGrantExpiresOn')" />
+                  </FormField>
+                  <el-button type="primary" :loading="clubGrantSubmitting" @click="submitClubGrant">新增授權</el-button>
+                </div>
+              </FormSection>
 
-      <el-card v-if="!isCreate" shadow="never" header="球隊授權" class="account-edit__section">
-        <p class="account-edit__hint">供「學院管理者不得改動一線隊賽程」這類列級限制使用（J4）。</p>
-        <el-table :data="teamGrants" size="small" class="account-edit__grant-table">
-          <el-table-column label="球隊" prop="teamCode" width="160" />
-          <el-table-column label="所屬俱樂部" prop="clubCode" width="120" />
-          <el-table-column label="到期日" width="120">
-            <template #default="{ row }">{{ row.expiresOn ?? '無期限' }}</template>
-          </el-table-column>
-          <el-table-column label="狀態" width="100">
-            <template #default="{ row }">
-              <el-tag :type="row.isCurrentlyEffective ? 'success' : 'info'" size="small">
-                {{ row.isCurrentlyEffective ? '生效中' : (row.isActive ? '已過期' : '已撤銷') }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="100">
-            <template #default="{ row }">
-              <el-button v-if="row.isActive" size="small" text type="danger" @click="revokeTeamGrant(row)">撤銷</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-        <template v-if="authorizedClubIds.size === 0">
-          <p class="account-edit__hint">請先在上方新增俱樂部授權，才能選擇該俱樂部底下的球隊。</p>
+              <FormSection v-if="!isCreate" title="球隊授權">
+                <p class="account-edit__hint">供「學院管理者不得改動一線隊賽程」這類列級限制使用（J4）。</p>
+                <el-table :data="teamGrants" size="small" class="account-edit__grant-table">
+                  <el-table-column label="球隊" prop="teamCode" width="160" />
+                  <el-table-column label="所屬俱樂部" prop="clubCode" width="120" />
+                  <el-table-column label="到期日" width="120">
+                    <template #default="{ row }">{{ row.expiresOn ?? '無期限' }}</template>
+                  </el-table-column>
+                  <el-table-column label="狀態" width="100">
+                    <template #default="{ row }">
+                      <el-tag :type="row.isCurrentlyEffective ? 'success' : 'info'" size="small">
+                        {{ row.isCurrentlyEffective ? '生效中' : (row.isActive ? '已過期' : '已撤銷') }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="100">
+                    <template #default="{ row }">
+                      <el-button v-if="row.isActive" size="small" text type="danger" @click="revokeTeamGrant(row)">撤銷</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <template v-if="authorizedClubIds.size === 0">
+                  <p class="account-edit__hint">請先在上方新增俱樂部授權，才能選擇該俱樂部底下的球隊。</p>
+                </template>
+                <template v-else>
+                  <div class="account-edit__grant-form">
+                    <FormField field="teamGrantTeamId" class="account-edit__grant-field">
+                      <el-select v-model="newTeamGrant.teamId" placeholder="選擇球隊" filterable style="width: 260px" :no-data-text="teamsLoadError ?? '目前已授權的俱樂部底下還沒有任何球隊'" @change="formErrors.clear('teamGrantTeamId')">
+                        <el-option-group v-for="group in selectableTeamGroups" :key="group.clubCode" :label="group.clubNameZh ?? group.clubCode">
+                          <el-option v-for="team in group.teams" :key="team.id" :label="teamOptionLabel(team)" :value="team.id" />
+                        </el-option-group>
+                      </el-select>
+                    </FormField>
+                    <FormField field="teamGrantExpiresOn" class="account-edit__grant-field">
+                      <el-date-picker v-model="newTeamGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填）" @change="formErrors.clear('teamGrantExpiresOn')" />
+                    </FormField>
+                    <el-button type="primary" :loading="teamGrantSubmitting" @click="submitTeamGrant">新增授權</el-button>
+                  </div>
+                  <p v-if="teamsLoadError" class="account-edit__note">{{ teamsLoadError }}</p>
+                </template>
+              </FormSection>
+            </el-form>
+          </el-card>
         </template>
-        <template v-else>
-          <div class="account-edit__grant-form">
-            <FormField field="teamGrantTeamId" class="account-edit__grant-field">
-              <el-select v-model="newTeamGrant.teamId" placeholder="選擇球隊" filterable style="width: 260px" :no-data-text="teamsLoadError ?? '目前已授權的俱樂部底下還沒有任何球隊'" @change="formErrors.clear('teamGrantTeamId')">
-                <el-option-group v-for="group in selectableTeamGroups" :key="group.clubCode" :label="group.clubNameZh ?? group.clubCode">
-                  <el-option v-for="team in group.teams" :key="team.id" :label="teamOptionLabel(team)" :value="team.id" />
-                </el-option-group>
-              </el-select>
-            </FormField>
-            <FormField field="teamGrantExpiresOn" class="account-edit__grant-field">
-              <el-date-picker v-model="newTeamGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填）" @change="formErrors.clear('teamGrantExpiresOn')" />
-            </FormField>
-            <el-button type="primary" :loading="teamGrantSubmitting" @click="submitTeamGrant">新增授權</el-button>
-          </div>
-          <p v-if="teamsLoadError" class="account-edit__note">{{ teamsLoadError }}</p>
+
+        <template #aside>
+          <el-card shadow="never" header="基本設定">
+            <el-form label-position="top">
+              <FormSection>
+                <FormField field="primaryClubId" label="預設俱樂部">
+                  <el-select v-model="form.primaryClubId" placeholder="登入後站台切換器的初始站台（選填）" clearable style="width: 100%">
+                    <el-option v-for="club in clubs" :key="club.id" :label="club.nameZh ?? club.code" :value="club.id" />
+                  </el-select>
+                </FormField>
+                <el-form-item label="系統管理員">
+                  <el-switch v-model="form.isSuperAdmin" />
+                  <span class="account-edit__hint">系統管理員可存取全部俱樂部與全部模組，跳過角色權限檢查</span>
+                </el-form-item>
+                <FormField field="roleCodes" label="角色">
+                  <el-select v-model="form.roleCodes" multiple placeholder="請選擇角色" style="width: 100%" @change="formErrors.clear('roleCodes')">
+                    <el-option v-for="role in roles" :key="role.code" :label="role.nameZh" :value="role.code" />
+                  </el-select>
+                </FormField>
+              </FormSection>
+              <FormSection title="帳號操作">
+                <div class="account-edit__actions">
+                  <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+                  <template v-if="!isCreate">
+                    <el-button @click="toggleStatus">{{ accountStatus === 'active' ? '停用帳號' : '啟用帳號' }}</el-button>
+                    <el-button @click="handleResetPassword">重設密碼</el-button>
+                    <el-button @click="handleResetTotp">重設兩階段驗證</el-button>
+                  </template>
+                </div>
+              </FormSection>
+            </el-form>
+          </el-card>
         </template>
-      </el-card>
+      </EditLayout>
     </template>
   </div>
 </template>
 
 <style scoped>
-.account-edit__section {
-  margin-bottom: 12px;
-}
-
 .account-edit__form-error {
   margin-bottom: 12px;
 }

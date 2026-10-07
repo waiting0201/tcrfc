@@ -14,6 +14,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -190,84 +191,88 @@ async function handleSave() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="標題與描述" class="seo-settings__section">
-                <p class="seo-settings__hint">
-                  這裡設定的是全站的預設值：任何一頁自己沒有另外設定搜尋與分享標題／描述時，就會使用這裡的樣板與描述。
-                  網站名稱本身在「俱樂部與授權管理」設定，這裡不重複維護。
-                </p>
-                <BilingualShortField
-                  field="titleTemplate"
-                  label="標題樣板"
-                  :zh="form.titleTemplateZh"
-                  :en="form.titleTemplateEn"
-                  required
-                  placeholder="例如：{標題}｜台中磐石足球俱樂部"
-                  @update:zh="(v) => (form.titleTemplateZh = v)"
-                  @update:en="(v) => (form.titleTemplateEn = v)"
-                />
-                <p class="seo-settings__hint">「{標題}」會被換成每一頁自己的標題，其餘文字（例如網站名稱）原樣顯示。</p>
-                <BilingualTextareaField
-                  field="defaultDescription"
-                  label="預設描述"
-                  :zh="form.defaultDescriptionZh"
-                  :en="form.defaultDescriptionEn"
-                  required
-                  :rows="3"
-                  placeholder="建議 80–120 字，描述整個網站"
-                  @update:zh="(v) => (form.defaultDescriptionZh = v)"
-                  @update:en="(v) => (form.defaultDescriptionEn = v)"
-                />
-              </el-card>
-
-              <el-card shadow="never" header="搜尋引擎收錄規則" class="seo-settings__section">
-                <el-alert type="warning" :closable="false" show-icon class="seo-settings__alert">
-                  目前網站尚未正式上線，這裡的設定要等正式上線後才會生效——上線前系統一律回覆「禁止所有搜尋引擎收錄」，不論這裡填了什麼。
-                </el-alert>
-                <FormField field="robotsCustomRules" label="額外規則（進階，選填）">
-                  <el-input
-                    v-model="form.robotsCustomRules"
-                    type="textarea"
-                    :rows="4"
-                    placeholder="選填，正式上線後會附加在系統自動產生的規則之後，需要熟悉 robots.txt 語法才建議填寫"
+              <el-card shadow="never" class="seo-settings__section">
+                <FormSection title="標題與描述">
+                  <p class="seo-settings__hint">
+                    這裡設定的是全站的預設值：任何一頁自己沒有另外設定搜尋與分享標題／描述時，就會使用這裡的樣板與描述。
+                    網站名稱本身在「俱樂部與授權管理」設定，這裡不重複維護。
+                  </p>
+                  <BilingualShortField
+                    field="titleTemplate"
+                    label="標題樣板"
+                    :zh="form.titleTemplateZh"
+                    :en="form.titleTemplateEn"
+                    required
+                    placeholder="例如：{標題}｜台中磐石足球俱樂部"
+                    @update:zh="(v) => (form.titleTemplateZh = v)"
+                    @update:en="(v) => (form.titleTemplateEn = v)"
                   />
-                </FormField>
-              </el-card>
+                  <p class="seo-settings__hint">「{標題}」會被換成每一頁自己的標題，其餘文字（例如網站名稱）原樣顯示。</p>
+                  <BilingualTextareaField
+                    field="defaultDescription"
+                    label="預設描述"
+                    :zh="form.defaultDescriptionZh"
+                    :en="form.defaultDescriptionEn"
+                    required
+                    :rows="3"
+                    placeholder="建議 80–120 字，描述整個網站"
+                    @update:zh="(v) => (form.defaultDescriptionZh = v)"
+                    @update:en="(v) => (form.defaultDescriptionEn = v)"
+                  />
+                </FormSection>
 
-              <el-card shadow="never" header="追蹤碼" class="seo-settings__section">
-                <p class="seo-settings__hint">填寫後會自動注入到前台所有頁面，留白表示不啟用該項追蹤。</p>
-                <FormField field="ga4MeasurementId" label="GA4 評估 ID">
-                  <el-input v-model="form.ga4MeasurementId" placeholder="例如：G-XXXXXXXXXX" />
-                  <p class="seo-settings__hint">以「G-」開頭，後面接英數字。</p>
-                </FormField>
-                <FormField field="gtmContainerId" label="GTM 容器 ID">
-                  <el-input v-model="form.gtmContainerId" placeholder="例如：GTM-XXXXXXX" />
-                  <p class="seo-settings__hint">以「GTM-」開頭，後面接英數字。</p>
-                </FormField>
-                <FormField field="metaPixelId" label="Meta Pixel ID">
-                  <el-input v-model="form.metaPixelId" placeholder="選填，純數字" />
-                  <p class="seo-settings__hint">只填純數字。</p>
-                </FormField>
-                <FormField field="lineTagId" label="LINE Tag ID">
-                  <el-input v-model="form.lineTagId" placeholder="選填，英數字與連字號" />
-                  <p class="seo-settings__hint">只能用英數字與連字號。</p>
-                </FormField>
+                <FormSection title="搜尋引擎收錄規則">
+                  <el-alert type="warning" :closable="false" show-icon class="seo-settings__alert">
+                    目前網站尚未正式上線，這裡的設定要等正式上線後才會生效——上線前系統一律回覆「禁止所有搜尋引擎收錄」，不論這裡填了什麼。
+                  </el-alert>
+                  <FormField field="robotsCustomRules" label="額外規則（進階，選填）">
+                    <el-input
+                      v-model="form.robotsCustomRules"
+                      type="textarea"
+                      :rows="4"
+                      placeholder="選填，正式上線後會附加在系統自動產生的規則之後，需要熟悉 robots.txt 語法才建議填寫"
+                    />
+                  </FormField>
+                </FormSection>
               </el-card>
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="全站預設分享圖片" class="seo-settings__section">
-                <p class="seo-settings__hint">
-                  任何一頁自己沒有另外設定分享圖片時，社群分享（例如 Facebook、LINE）預覽會使用這張圖片。
-                </p>
-                <FormField field="ogImage" label="分享圖片">
-                  <ImageUploader
-                    v-model:file="ogImageFile"
-                    v-model:remove-cover="removeOgImage"
-                    :has-existing-image="!!form.ogImageUrl"
-                    :existing-preview-url="form.ogImageUrl"
-                    :disabled="saving"
-                  />
-                </FormField>
+              <el-card shadow="never" header="基本設定">
+                <FormSection title="全站預設分享圖片">
+                  <p class="seo-settings__hint">
+                    任何一頁自己沒有另外設定分享圖片時，社群分享（例如 Facebook、LINE）預覽會使用這張圖片。
+                  </p>
+                  <FormField field="ogImage" label="分享圖片">
+                    <ImageUploader
+                      v-model:file="ogImageFile"
+                      v-model:remove-cover="removeOgImage"
+                      :has-existing-image="!!form.ogImageUrl"
+                      :existing-preview-url="form.ogImageUrl"
+                      :disabled="saving"
+                    />
+                  </FormField>
+                </FormSection>
+
+                <FormSection title="追蹤碼">
+                  <p class="seo-settings__hint">填寫後會自動注入到前台所有頁面，留白表示不啟用該項追蹤。</p>
+                  <FormField field="ga4MeasurementId" label="GA4 評估 ID">
+                    <el-input v-model="form.ga4MeasurementId" placeholder="例如：G-XXXXXXXXXX" />
+                    <p class="seo-settings__hint">以「G-」開頭，後面接英數字。</p>
+                  </FormField>
+                  <FormField field="gtmContainerId" label="GTM 容器 ID">
+                    <el-input v-model="form.gtmContainerId" placeholder="例如：GTM-XXXXXXX" />
+                    <p class="seo-settings__hint">以「GTM-」開頭，後面接英數字。</p>
+                  </FormField>
+                  <FormField field="metaPixelId" label="Meta Pixel ID">
+                    <el-input v-model="form.metaPixelId" placeholder="選填，純數字" />
+                    <p class="seo-settings__hint">只填純數字。</p>
+                  </FormField>
+                  <FormField field="lineTagId" label="LINE Tag ID">
+                    <el-input v-model="form.lineTagId" placeholder="選填，英數字與連字號" />
+                    <p class="seo-settings__hint">只能用英數字與連字號。</p>
+                  </FormField>
+                </FormSection>
               </el-card>
             </template>
           </EditLayout>

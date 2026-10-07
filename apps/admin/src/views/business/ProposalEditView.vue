@@ -9,6 +9,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -209,67 +210,77 @@ const back = () => router.push('/business/proposals')
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="proposal-edit__block" @close="formError = null" />
       <el-alert v-if="readOnly" title="你的帳號只能檢視提案，不能修改。" type="info" show-icon :closable="false" class="proposal-edit__block" />
       <LangTabsBar>
-      <EditLayout>
-        <template #main>
-          <el-form label-position="top" :disabled="readOnly">
-            <el-card shadow="never" header="提案資料">
-              <BilingualShortField
-                field-zh="title"
-                field-en="titleEn"
-                label="提案名稱"
-                :zh="form.title"
-                :en="form.titleEn"
-                required
-                :maxlength="128"
-                @update:zh="(v: string) => (form.title = v)"
-                @update:en="(v: string) => (form.titleEn = v)"
-              />
-              <el-row :gutter="12">
-                <el-col :xs="24" :sm="12"><FormField field="versionNo" label="版本號（用來區分不同版本的成效）"><el-input-number v-model="form.versionNo" :min="1" /></FormField></el-col>
-                <el-col :xs="24" :sm="12">
+        <EditLayout>
+          <template #main>
+            <el-form label-position="top" :disabled="readOnly">
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field-zh="title"
+                    field-en="titleEn"
+                    label="提案名稱"
+                    :zh="form.title"
+                    :en="form.titleEn"
+                    required
+                    :maxlength="128"
+                    @update:zh="(v: string) => (form.title = v)"
+                    @update:en="(v: string) => (form.titleEn = v)"
+                  />
+                </FormSection>
+              </el-card>
+            </el-form>
+          </template>
+
+          <template #aside>
+            <el-card shadow="never" header="基本設定">
+              <FormSection>
+                <el-form label-position="top" :disabled="readOnly">
+                  <FormField field="versionNo" label="版本號（用來區分不同版本的成效）"><el-input-number v-model="form.versionNo" :min="1" /></FormField>
+                </el-form>
+              </FormSection>
+              <FormSection title="提案檔案">
+                <p v-if="isCreate" class="proposal-edit__hint">請先儲存提案資料，儲存後就能上傳檔案。</p>
+                <template v-else>
+                  <p class="proposal-edit__hint">這裡的上傳與刪除會立即儲存，不需要按下方的儲存。檔案格式為 PDF 或壓縮檔（ZIP），單檔上限 50 MB，不會有公開網址。已發布的提案至少要保留一個檔案。</p>
+                  <el-empty v-if="files.length === 0" description="還沒有上傳檔案" :image-size="64" />
+                  <div v-else class="proposal-edit__files">
+                    <div v-for="f in files" :key="f.id" class="proposal-edit__file">
+                      <div class="proposal-edit__file-main">
+                        <strong>{{ f.locale === 'zh' ? '中文版' : '英文版' }}・第 {{ f.versionNo }} 版</strong>
+                        <span class="proposal-edit__hint">{{ formatFileSize(f.fileBytes) }}・{{ formatDateTime(f.createdAt) }} 上傳</span>
+                      </div>
+                      <div>
+                        <el-button size="small" text type="primary" @click="preview(f)">下載檢視</el-button>
+                        <el-button v-if="canUpdate" size="small" text type="danger" @click="removeFile(f)">刪除</el-button>
+                      </div>
+                    </div>
+                  </div>
+                  <FormField v-if="canUpdate" field="file" style="margin-bottom: 0">
+                    <div class="proposal-edit__upload">
+                      <el-select v-model="uploadLocale" class="proposal-edit__upload-field"><el-option label="中文版" value="zh" /><el-option label="英文版" value="en" /></el-select>
+                      <el-input-number v-model="uploadVersion" :min="1" :controls="false" placeholder="版本號（不填＝同提案）" class="proposal-edit__upload-field" />
+                      <input ref="fileInput" type="file" accept="application/pdf,application/zip,.pdf,.zip" class="proposal-edit__input" @change="handleFile">
+                      <el-button :loading="uploading" @click="fileInput?.click()">+ 選擇檔案並上傳</el-button>
+                    </div>
+                  </FormField>
+                </template>
+              </FormSection>
+            </el-card>
+            <el-card shadow="never" header="發布設定">
+              <FormSection>
+                <el-form label-position="top" :disabled="readOnly">
                   <FormField field="status" label="狀態">
                     <el-radio-group v-model="form.status" @change="formErrors.clear('status')">
                       <el-radio value="draft">草稿</el-radio>
                       <el-radio value="published">已發布（前台可下載）</el-radio>
                     </el-radio-group>
                   </FormField>
-                </el-col>
-              </el-row>
-              <p v-if="!isCreate" class="proposal-edit__hint">這份提案累計被下載 {{ leadCount }} 次。</p>
+                </el-form>
+                <p v-if="!isCreate" class="proposal-edit__hint">這份提案累計被下載 {{ leadCount }} 次。</p>
+              </FormSection>
             </el-card>
-          </el-form>
-        </template>
-
-        <template #aside>
-          <el-card shadow="never" header="提案檔案">
-            <p v-if="isCreate" class="proposal-edit__hint">請先儲存提案資料，儲存後就能上傳檔案。</p>
-            <template v-else>
-              <p class="proposal-edit__hint">這裡的上傳與刪除會立即儲存，不需要按下方的儲存。檔案格式為 PDF 或壓縮檔（ZIP），單檔上限 50 MB，不會有公開網址。已發布的提案至少要保留一個檔案。</p>
-              <el-empty v-if="files.length === 0" description="還沒有上傳檔案" :image-size="64" />
-              <div v-else class="proposal-edit__files">
-                <div v-for="f in files" :key="f.id" class="proposal-edit__file">
-                  <div class="proposal-edit__file-main">
-                    <strong>{{ f.locale === 'zh' ? '中文版' : '英文版' }}・第 {{ f.versionNo }} 版</strong>
-                    <span class="proposal-edit__hint">{{ formatFileSize(f.fileBytes) }}・{{ formatDateTime(f.createdAt) }} 上傳</span>
-                  </div>
-                  <div>
-                    <el-button size="small" text type="primary" @click="preview(f)">下載檢視</el-button>
-                    <el-button v-if="canUpdate" size="small" text type="danger" @click="removeFile(f)">刪除</el-button>
-                  </div>
-                </div>
-              </div>
-              <FormField v-if="canUpdate" field="file" style="margin-bottom: 0">
-              <div class="proposal-edit__upload">
-                <el-select v-model="uploadLocale" class="proposal-edit__upload-field"><el-option label="中文版" value="zh" /><el-option label="英文版" value="en" /></el-select>
-                <el-input-number v-model="uploadVersion" :min="1" :controls="false" placeholder="版本號（不填＝同提案）" class="proposal-edit__upload-field" />
-                <input ref="fileInput" type="file" accept="application/pdf,application/zip,.pdf,.zip" class="proposal-edit__input" @change="handleFile">
-                <el-button :loading="uploading" @click="fileInput?.click()">+ 選擇檔案並上傳</el-button>
-              </div>
-              </FormField>
-            </template>
-          </el-card>
-        </template>
-      </EditLayout>
+          </template>
+        </EditLayout>
       </LangTabsBar>
       <EditActionBar v-if="!readOnly">
         <template #status><FormErrorStatus /></template>

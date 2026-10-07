@@ -13,6 +13,8 @@
  *   d. *EditView.vue 的 ImageUploader／VideoUploader／GalleryManager／input[type=file]
  *      必須在 EditLayout 的 #aside 之下；el-dialog 內例外。
  *   e. 禁止手寫中英分頁：el-tab-pane 的 label 以「中文」或「英文」開頭。
+ *   g. 使用 EditLayout 的檔案：#main 插槽內 el-card 最多 1 張、#aside 插槽內最多 2 張
+ *      （不計巢狀在 el-dialog 內的卡片；卡片內分段請用 FormSection，docs/21 §3.3a）。
  *   f. 禁止 `formError.value = '字串'`／`= \`樣板字串\``（只能指派 API 錯誤訊息）；禁止出現 slugError。
  *      （`error instanceof AdminApiError ? error.message : '儲存失敗…'` 這種含後備文案的三元式不在此限。）
  *
@@ -89,6 +91,7 @@ function analyze(file) {
   const ast = descriptor.template?.ast
   if (ast) {
     let pageBars = 0
+    const cardCount = {}
     visit(ast, [], (node, anc) => {
       const tag = tagOf(node)
       const line = node.loc.start.line
@@ -117,6 +120,19 @@ function analyze(file) {
         const l = attr(node, 'label')
         const text = l?.type === 6 ? l.value?.content?.trim() : ''
         if (/^(中文|英文)/.test(text ?? '')) err(line, `手寫中英分頁 <el-tab-pane label="${text}">，請改用 LangTabsBar`)
+      }
+
+      if (tag === 'ElCard' && !anc.some((a) => tagOf(a) === 'ElDialog')) {
+        for (const slot of ['main', 'aside']) {
+          const i = anc.findIndex((a, k) => slotNameOf(a) === slot && anc.slice(0, k).some((x) => tagOf(x) === 'EditLayout'))
+          if (i < 0) continue
+          // 只計屬於這個 EditLayout 插槽的卡片（中間沒有別的 EditLayout 或 el-card 包住）
+          cardCount[slot] = (cardCount[slot] ?? 0) + 1
+          const limit = slot === 'main' ? 1 : 2
+          if (cardCount[slot] === limit + 1) {
+            err(line, `<EditLayout> 的 #${slot} 內 el-card 超過 ${limit} 張（主欄一張、側欄「基本設定」與「發布設定」兩張；其餘分組請改用 <FormSection title="…">，見 docs/21-admin-ui.md §3.3a）`)
+          }
+        }
       }
 
       if (isEditView) {

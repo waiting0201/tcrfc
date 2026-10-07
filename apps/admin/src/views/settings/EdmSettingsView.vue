@@ -13,6 +13,7 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { usePermission } from '@/composables/useCrudPermissions'
@@ -148,41 +149,43 @@ async function handleSave() {
       <el-form label-position="top" :disabled="!canUpdate">
         <EditLayout>
           <template #main>
-            <el-card shadow="never" header="平台設定">
-              <el-form-item label="啟用電子報平台串接">
-                <el-switch v-model="form.enabled" />
-                <p class="edm-settings__hint">啟用前必須填寫平台名稱並設定金鑰。</p>
-              </el-form-item>
-              <FormField field="provider" label="平台名稱">
-                <el-input v-model="form.provider" maxlength="64" placeholder="例如使用的電子報服務名稱" />
-              </FormField>
-              <FormField field="listId" label="名單識別">
-                <el-input v-model="form.listId" maxlength="128" placeholder="電子報服務中，訂閱者要加入的名單編號或名稱" />
-              </FormField>
-              <FormField field="senderEmail" label="寄件者信箱">
-                <el-input v-model="form.senderEmail" maxlength="254" placeholder="name@example.com" />
-              </FormField>
-            </el-card>
+            <el-card shadow="never">
+              <FormSection title="平台設定">
+                <el-form-item label="啟用電子報平台串接">
+                  <el-switch v-model="form.enabled" />
+                  <p class="edm-settings__hint">啟用前必須填寫平台名稱並設定金鑰。</p>
+                </el-form-item>
+                <FormField field="provider" label="平台名稱">
+                  <el-input v-model="form.provider" maxlength="64" placeholder="例如使用的電子報服務名稱" />
+                </FormField>
+                <FormField field="listId" label="名單識別">
+                  <el-input v-model="form.listId" maxlength="128" placeholder="電子報服務中，訂閱者要加入的名單編號或名稱" />
+                </FormField>
+                <FormField field="senderEmail" label="寄件者信箱">
+                  <el-input v-model="form.senderEmail" maxlength="254" placeholder="name@example.com" />
+                </FormField>
+              </FormSection>
 
-            <el-card shadow="never" header="金鑰">
-              <p class="edm-settings__status">
-                目前狀態：
-                <el-tag :type="apiKeyConfigured ? 'success' : 'info'" size="small">{{ apiKeyConfigured ? '已設定金鑰' : '尚未設定金鑰' }}</el-tag>
-              </p>
-              <FormField field="apiKey" :label="apiKeyConfigured ? '更換金鑰（不更換請留空）' : '設定金鑰'">
-                <el-input
-                  v-model="newApiKey"
-                  type="password"
-                  show-password
-                  autocomplete="new-password"
-                  maxlength="512"
-                  :placeholder="apiKeyConfigured ? '已設定，留空表示維持原金鑰' : '貼上電子報服務提供的金鑰'"
-                />
-                <p class="edm-settings__hint">基於安全，金鑰儲存後不會再顯示（連部分內容也不會）。設定與清除都會留下系統紀錄。</p>
-              </FormField>
-              <el-form-item v-if="apiKeyConfigured">
-                <el-checkbox v-model="clearApiKey" :disabled="!!newApiKey">清除已設定的金鑰</el-checkbox>
-              </el-form-item>
+              <FormSection title="金鑰">
+                <p class="edm-settings__status">
+                  目前狀態：
+                  <el-tag :type="apiKeyConfigured ? 'success' : 'info'" size="small">{{ apiKeyConfigured ? '已設定金鑰' : '尚未設定金鑰' }}</el-tag>
+                </p>
+                <FormField field="apiKey" :label="apiKeyConfigured ? '更換金鑰（不更換請留空）' : '設定金鑰'">
+                  <el-input
+                    v-model="newApiKey"
+                    type="password"
+                    show-password
+                    autocomplete="new-password"
+                    maxlength="512"
+                    :placeholder="apiKeyConfigured ? '已設定，留空表示維持原金鑰' : '貼上電子報服務提供的金鑰'"
+                  />
+                  <p class="edm-settings__hint">基於安全，金鑰儲存後不會再顯示（連部分內容也不會）。設定與清除都會留下系統紀錄。</p>
+                </FormField>
+                <el-form-item v-if="apiKeyConfigured">
+                  <el-checkbox v-model="clearApiKey" :disabled="!!newApiKey">清除已設定的金鑰</el-checkbox>
+                </el-form-item>
+              </FormSection>
             </el-card>
 
             <div v-if="updatedAt" class="edm-settings__hint">最近更新：{{ formatDateTime(updatedAt) }}</div>

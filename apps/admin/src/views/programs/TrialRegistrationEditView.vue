@@ -13,6 +13,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -236,7 +237,44 @@ async function handleSave() {
       <el-form label-position="top" :disabled="readOnly">
         <EditLayout>
           <template #main>
-            <el-card shadow="never" header="報名狀態">
+            <el-card shadow="never">
+              <FormSection>
+                <p class="trial-reg-edit__hint trial-reg-edit__hint--top">電話與 Email 至少填一項；報名者未滿 18 歲時，家長姓名與電話必填。</p>
+                <el-row :gutter="12">
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="applicantName" label="報名人姓名" required><el-input v-model="form.applicantName" /></FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="birthOn" label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="phone" label="電話" :required="!form.email.trim()"><el-input v-model="form.phone" /></FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="email" label="Email" :required="!form.phone.trim()"><el-input v-model="form.email" /></FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="guardianName" label="家長姓名" :required="minor"><el-input v-model="form.guardianName" placeholder="未滿 18 歲必填" /></FormField>
+                  </el-col>
+                  <el-col :xs="24" :sm="12">
+                    <FormField field="guardianPhone" label="家長電話" :required="minor"><el-input v-model="form.guardianPhone" placeholder="未滿 18 歲必填" /></FormField>
+                  </el-col>
+                </el-row>
+              </FormSection>
+
+              <FormSection title="健康聲明與備註">
+                <el-form-item label="健康聲明">
+                  <el-input v-model="form.healthDeclaration" type="textarea" :rows="3" placeholder="選填，依報名人填寫內容原樣顯示" />
+                </el-form-item>
+                <el-form-item label="備註">
+                  <el-input v-model="form.note" type="textarea" :rows="2" placeholder="選填" />
+                </el-form-item>
+              </FormSection>
+            </el-card>
+          </template>
+
+          <template #aside>
+            <el-card shadow="never" header="發布設定">
               <FormField field="status" label="狀態" required>
                 <el-select v-model="form.status" style="width: 200px; max-width: 100%">
                   <el-option v-for="s in REGISTRATION_STATUS_ORDER" :key="s" :label="s" :value="s" />
@@ -244,39 +282,6 @@ async function handleSave() {
               </FormField>
               <p class="trial-reg-edit__hint">「待確認、已確認、已繳費、完成」會佔用名額，「取消、候補」不佔。候補要遞補時，請回名單按「遞補」。</p>
               <p v-if="memberId" class="trial-reg-edit__hint">這筆報名已關聯會員帳號，這裡不能變更。</p>
-            </el-card>
-
-            <el-card shadow="never" header="報名人資料">
-              <p class="trial-reg-edit__hint trial-reg-edit__hint--top">電話與 Email 至少填一項；報名者未滿 18 歲時，家長姓名與電話必填。</p>
-              <el-row :gutter="12">
-                <el-col :xs="24" :sm="12">
-                  <FormField field="applicantName" label="報名人姓名" required><el-input v-model="form.applicantName" /></FormField>
-                </el-col>
-                <el-col :xs="24" :sm="12">
-                  <FormField field="birthOn" label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></FormField>
-                </el-col>
-                <el-col :xs="24" :sm="12">
-                  <FormField field="phone" label="電話" :required="!form.email.trim()"><el-input v-model="form.phone" /></FormField>
-                </el-col>
-                <el-col :xs="24" :sm="12">
-                  <FormField field="email" label="Email" :required="!form.phone.trim()"><el-input v-model="form.email" /></FormField>
-                </el-col>
-                <el-col :xs="24" :sm="12">
-                  <FormField field="guardianName" label="家長姓名" :required="minor"><el-input v-model="form.guardianName" placeholder="未滿 18 歲必填" /></FormField>
-                </el-col>
-                <el-col :xs="24" :sm="12">
-                  <FormField field="guardianPhone" label="家長電話" :required="minor"><el-input v-model="form.guardianPhone" placeholder="未滿 18 歲必填" /></FormField>
-                </el-col>
-              </el-row>
-            </el-card>
-
-            <el-card shadow="never" header="健康聲明與備註">
-              <el-form-item label="健康聲明">
-                <el-input v-model="form.healthDeclaration" type="textarea" :rows="3" placeholder="選填，依報名人填寫內容原樣顯示" />
-              </el-form-item>
-              <el-form-item label="備註">
-                <el-input v-model="form.note" type="textarea" :rows="2" placeholder="選填" />
-              </el-form-item>
             </el-card>
           </template>
         </EditLayout>

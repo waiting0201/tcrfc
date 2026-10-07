@@ -16,6 +16,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
@@ -293,130 +294,131 @@ function retryLoad() {
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="時間與重複規則">
-                <el-row :gutter="12">
-                  <el-col :span="8">
-                    <FormField field="startsAt" label="開始時間" required>
-                      <el-date-picker v-model="form.startsAt" type="datetime" style="width: 100%" placeholder="選擇開始時間" @change="formErrors.clear('startsAt')" />
-                    </FormField>
-                  </el-col>
-                  <el-col :span="8">
-                    <FormField field="endsAt" label="結束時間">
-                      <el-date-picker v-model="form.endsAt" type="datetime" style="width: 100%" placeholder="選填，支援跨日" @change="formErrors.clear('endsAt')" />
-                    </FormField>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="全天活動">
-                      <el-switch v-model="form.isAllDay" />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-
-                <el-row :gutter="12">
-                  <el-col :span="8">
-                    <FormField field="repeatRule" label="重複規則">
-                      <el-select v-model="form.repeatRule" clearable placeholder="不重複" style="width: 100%">
-                        <el-option v-for="r in REPEAT_RULE_ORDER" :key="r" :label="REPEAT_RULE_LABEL[r]" :value="r" />
-                      </el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :span="8">
-                    <el-form-item label="重複結束日期">
-                      <el-date-picker
-                        v-model="form.repeatUntil"
-                        type="date"
-                        :disabled="!form.repeatRule || isReadOnly"
-                        style="width: 100%"
-                        placeholder="留空表示不設結束日期"
-                      />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-
-                <el-form-item v-if="form.repeatRule" label="例外日期（這幾天不會出現重複發生的活動）">
-                  <div class="calendar-event-edit__exception-row">
-                    <el-date-picker v-model="exceptionDatePicker" type="date" placeholder="選擇日期" :disabled="isReadOnly" />
-                    <el-button :disabled="!exceptionDatePicker || isReadOnly" @click="addExceptionDate">加入</el-button>
-                  </div>
-                  <div v-if="form.exceptionDates.length > 0" class="calendar-event-edit__exception-tags">
-                    <el-tag
-                      v-for="d in form.exceptionDates"
-                      :key="d"
-                      closable
-                      :disable-transitions="true"
-                      @close="removeExceptionDate(d)"
-                    >
-                      {{ d }}
-                    </el-tag>
-                  </div>
-                </el-form-item>
-              </el-card>
-
-              <el-card shadow="never" header="分類、地點與所屬隊別">
-                <el-row :gutter="12">
-                  <el-col :span="12">
-                    <FormField field="eventTypeId" label="分類">
-                      <el-select v-model="form.eventTypeId" clearable placeholder="請選擇分類" style="width: 100%">
-                        <el-option v-for="t in eventTypes" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
-                      </el-select>
-                    </FormField>
-                  </el-col>
-                  <el-col :span="12">
-                    <el-form-item label="是否公開於前台">
-                      <el-switch v-model="form.isPublic" active-text="公開" inactive-text="不公開" />
-                    </el-form-item>
-                  </el-col>
-                </el-row>
-
-                <FormField field="venueId" label="場地">
-                  <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
-                    <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
-                  </el-select>
-                </FormField>
-
-                <FormField field="teamIds" label="所屬隊別（可複選；留空＝俱樂部活動）">
-                  <el-select v-model="form.teamIds" multiple filterable placeholder="留空表示俱樂部活動" style="width: 100%">
-                    <el-option v-for="t in teams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
-                  </el-select>
-                </FormField>
-
-                <FormField field="ctaUrl" label="外部連結或 CTA 網址">
-                  <el-input v-model="form.ctaUrl" placeholder="選填，例如 https://… 或 /zh/programs/" />
-                  <p class="calendar-event-edit__hint">以 https:// 或 http:// 開頭的完整網址，或以 / 開頭的站內路徑。</p>
-                </FormField>
-              </el-card>
-
-              <el-card shadow="never" header="標題與說明">
-                <BilingualShortField
-                  field="title"
-                  label="標題"
-                  :zh="form.titleZh"
-                  :en="form.titleEn"
-                  required
-                  @update:zh="(v) => (form.titleZh = v)"
-                  @update:en="(v) => (form.titleEn = v)"
-                />
-                <BilingualTextareaField
-                  field="description"
-                  label="說明"
-                  :zh="form.descriptionZh"
-                  :en="form.descriptionEn"
-                  @update:zh="(v) => (form.descriptionZh = v)"
-                  @update:en="(v) => (form.descriptionEn = v)"
-                />
+              <el-card shadow="never">
+                <FormSection>
+                  <BilingualShortField
+                    field="title"
+                    label="標題"
+                    :zh="form.titleZh"
+                    :en="form.titleEn"
+                    required
+                    @update:zh="(v) => (form.titleZh = v)"
+                    @update:en="(v) => (form.titleEn = v)"
+                  />
+                  <BilingualTextareaField
+                    field="description"
+                    label="說明"
+                    :zh="form.descriptionZh"
+                    :en="form.descriptionEn"
+                    @update:zh="(v) => (form.descriptionZh = v)"
+                    @update:en="(v) => (form.descriptionEn = v)"
+                  />
+                </FormSection>
               </el-card>
             </template>
 
             <template #aside>
-              <el-card shadow="never" header="封面圖">
-                <FormField field="cover" label="封面圖">
-                  <ImageUploader
-                    v-model:file="coverFile"
-                    v-model:remove-cover="removeCover"
-                    :has-existing-image="!!coverKey"
-                    :disabled="saving || isReadOnly"
-                  />
-                </FormField>
+              <el-card shadow="never" header="基本設定">
+                <FormSection title="時間與重複規則">
+                  <el-row :gutter="12">
+                    <el-col :span="24">
+                      <FormField field="startsAt" label="開始時間" required>
+                        <el-date-picker v-model="form.startsAt" type="datetime" style="width: 100%" placeholder="選擇開始時間" @change="formErrors.clear('startsAt')" />
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <FormField field="endsAt" label="結束時間">
+                        <el-date-picker v-model="form.endsAt" type="datetime" style="width: 100%" placeholder="選填，支援跨日" @change="formErrors.clear('endsAt')" />
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <el-form-item label="全天活動">
+                        <el-switch v-model="form.isAllDay" />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+
+                  <el-row :gutter="12">
+                    <el-col :span="24">
+                      <FormField field="repeatRule" label="重複規則">
+                        <el-select v-model="form.repeatRule" clearable placeholder="不重複" style="width: 100%">
+                          <el-option v-for="r in REPEAT_RULE_ORDER" :key="r" :label="REPEAT_RULE_LABEL[r]" :value="r" />
+                        </el-select>
+                      </FormField>
+                    </el-col>
+                    <el-col :span="24">
+                      <el-form-item label="重複結束日期">
+                        <el-date-picker
+                          v-model="form.repeatUntil"
+                          type="date"
+                          :disabled="!form.repeatRule || isReadOnly"
+                          style="width: 100%"
+                          placeholder="留空表示不設結束日期"
+                        />
+                      </el-form-item>
+                    </el-col>
+                  </el-row>
+
+                  <el-form-item v-if="form.repeatRule" label="例外日期（這幾天不會出現重複發生的活動）">
+                    <div class="calendar-event-edit__exception-row">
+                      <el-date-picker v-model="exceptionDatePicker" type="date" placeholder="選擇日期" :disabled="isReadOnly" />
+                      <el-button :disabled="!exceptionDatePicker || isReadOnly" @click="addExceptionDate">加入</el-button>
+                    </div>
+                    <div v-if="form.exceptionDates.length > 0" class="calendar-event-edit__exception-tags">
+                      <el-tag
+                        v-for="d in form.exceptionDates"
+                        :key="d"
+                        closable
+                        :disable-transitions="true"
+                        @close="removeExceptionDate(d)"
+                      >
+                        {{ d }}
+                      </el-tag>
+                    </div>
+                  </el-form-item>
+                </FormSection>
+
+                <FormSection title="分類、地點與所屬隊別">
+                  <FormField field="eventTypeId" label="分類">
+                    <el-select v-model="form.eventTypeId" clearable placeholder="請選擇分類" style="width: 100%">
+                      <el-option v-for="t in eventTypes" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
+                    </el-select>
+                  </FormField>
+
+                  <FormField field="venueId" label="場地">
+                    <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
+                      <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+                    </el-select>
+                  </FormField>
+
+                  <FormField field="teamIds" label="所屬隊別（可複選；留空＝俱樂部活動）">
+                    <el-select v-model="form.teamIds" multiple filterable placeholder="留空表示俱樂部活動" style="width: 100%">
+                      <el-option v-for="t in teams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
+                    </el-select>
+                  </FormField>
+
+                  <FormField field="ctaUrl" label="外部連結或 CTA 網址">
+                    <el-input v-model="form.ctaUrl" placeholder="選填，例如 https://… 或 /zh/programs/" />
+                    <p class="calendar-event-edit__hint">以 https:// 或 http:// 開頭的完整網址，或以 / 開頭的站內路徑。</p>
+                  </FormField>
+                </FormSection>
+
+                <FormSection title="封面圖">
+                  <FormField field="cover" label="封面圖">
+                    <ImageUploader
+                      v-model:file="coverFile"
+                      v-model:remove-cover="removeCover"
+                      :has-existing-image="!!coverKey"
+                      :disabled="saving || isReadOnly"
+                    />
+                  </FormField>
+                </FormSection>
+              </el-card>
+
+              <el-card shadow="never" header="發布設定">
+                <el-form-item label="是否公開於前台">
+                  <el-switch v-model="form.isPublic" active-text="公開" inactive-text="不公開" />
+                </el-form-item>
               </el-card>
             </template>
           </EditLayout>

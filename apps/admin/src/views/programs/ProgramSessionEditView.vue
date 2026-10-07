@@ -17,6 +17,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import WeeklyScheduleInput from '@/components/WeeklyScheduleInput.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
+import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -248,97 +249,107 @@ function retryLoad() {
       <el-form label-position="top" :disabled="isReadOnly">
         <EditLayout>
           <template #main>
-            <el-card shadow="never" header="基本資料">
-              <FormField field="programId" label="所屬課程／營隊項目" required>
-                <el-select
-                  v-model="form.programId"
-                  filterable
-                  :disabled="!isCreate || isReadOnly"
-                  style="width: 100%"
-                  no-data-text="目前這個俱樂部還沒有任何課程／營隊項目，請先到「項目」新增一筆"
-                  @change="formErrors.clear('programId')"
-                >
-                  <el-option v-for="p in programs" :key="p.id" :label="p.nameZh || p.slug" :value="p.id" />
-                </el-select>
-                <p v-if="!isCreate" class="session-edit__hint">建立後不能更換所屬項目。</p>
-              </FormField>
+            <el-card shadow="never">
+              <FormSection>
+                <FormField field="programId" label="所屬課程／營隊項目" required>
+                  <el-select
+                    v-model="form.programId"
+                    filterable
+                    :disabled="!isCreate || isReadOnly"
+                    style="width: 100%"
+                    no-data-text="目前這個俱樂部還沒有任何課程／營隊項目，請先到「項目」新增一筆"
+                    @change="formErrors.clear('programId')"
+                  >
+                    <el-option v-for="p in programs" :key="p.id" :label="p.nameZh || p.slug" :value="p.id" />
+                  </el-select>
+                  <p v-if="!isCreate" class="session-edit__hint">建立後不能更換所屬項目。</p>
+                </FormField>
+              </FormSection>
 
-              <el-row :gutter="12">
-                <el-col :span="12">
-                  <FormField field="startOn" label="開始日期">
-                    <el-date-picker v-model="form.startOn" type="date" style="width: 100%" />
-                  </FormField>
-                </el-col>
-                <el-col :span="12">
-                  <FormField field="endOn" label="結束日期">
-                    <el-date-picker v-model="form.endOn" type="date" style="width: 100%" />
-                  </FormField>
-                </el-col>
-              </el-row>
+              <FormSection title="每週上課時間">
+                <FormField field="weeklySchedule" label="每週上課時間（選填）">
+                  <WeeklyScheduleInput ref="scheduleInput" v-model="form.weeklySchedule" :disabled="isReadOnly" />
+                </FormField>
+              </FormSection>
+            </el-card>
+          </template>
 
-              <FormField field="venueId" label="場地">
-                <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
-                  <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
-                </el-select>
-                <p class="session-edit__hint">場地清單在「網站設定」的場地管理維護。</p>
-              </FormField>
+          <template #aside>
+            <el-card shadow="never" header="基本設定">
+              <FormSection title="日期與場地">
+                <el-row :gutter="12">
+                  <el-col :span="24">
+                    <FormField field="startOn" label="開始日期">
+                      <el-date-picker v-model="form.startOn" type="date" style="width: 100%" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="24">
+                    <FormField field="endOn" label="結束日期">
+                      <el-date-picker v-model="form.endOn" type="date" style="width: 100%" />
+                    </FormField>
+                  </el-col>
+                </el-row>
+                <FormField field="venueId" label="場地">
+                  <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
+                    <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+                  </el-select>
+                  <p class="session-edit__hint">場地清單在「網站設定」的場地管理維護。</p>
+                </FormField>
+              </FormSection>
 
-              <FormField field="weeklySchedule" label="每週上課時間（選填）">
-                <WeeklyScheduleInput ref="scheduleInput" v-model="form.weeklySchedule" :disabled="isReadOnly" />
-              </FormField>
+              <FormSection title="名額與費用">
+                <el-row :gutter="12">
+                  <el-col :span="24">
+                    <FormField field="capacity" label="名額上限">
+                      <el-input-number v-model="form.capacity" :min="0" style="width: 100%" placeholder="不限" @change="formErrors.clear('capacity')" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="24">
+                    <el-form-item label="目前已報名數">
+                      <el-input :model-value="enrolledCount" disabled />
+                      <p class="session-edit__hint">由報名寫入路徑自動維護，這裡無法直接修改。</p>
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="12">
+                  <el-col :span="24">
+                    <FormField field="price" label="原價">
+                      <el-input-number v-model="form.price" :min="0" style="width: 100%" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="24">
+                    <FormField field="earlyBirdPrice" label="早鳥價">
+                      <el-input-number v-model="form.earlyBirdPrice" :min="0" style="width: 100%" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="24">
+                    <el-form-item label="早鳥截止日">
+                      <el-date-picker v-model="form.earlyBirdUntil" type="date" style="width: 100%" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="12">
+                  <el-col :span="24">
+                    <FormField field="signupOpensAt" label="報名開始時間">
+                      <el-date-picker v-model="form.signupOpensAt" type="datetime" style="width: 100%" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="24">
+                    <FormField field="signupClosesAt" label="報名截止時間">
+                      <el-date-picker v-model="form.signupClosesAt" type="datetime" style="width: 100%" />
+                    </FormField>
+                  </el-col>
+                </el-row>
+              </FormSection>
             </el-card>
 
-            <el-card shadow="never" header="名額與費用">
-              <el-row :gutter="12">
-                <el-col :span="8">
-                  <FormField field="capacity" label="名額上限">
-                    <el-input-number v-model="form.capacity" :min="0" style="width: 100%" placeholder="不限" @change="formErrors.clear('capacity')" />
-                  </FormField>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="目前已報名數">
-                    <el-input :model-value="enrolledCount" disabled />
-                    <p class="session-edit__hint">由報名寫入路徑自動維護，這裡無法直接修改。</p>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <FormField field="status" label="狀態">
-                    <el-select v-model="form.status" clearable placeholder="留空自動判定" style="width: 100%">
-                      <el-option v-for="s in SESSION_STATUS_ORDER" :key="s" :label="s" :value="s" />
-                    </el-select>
-                    <p class="session-edit__hint">留空時依名額自動推定（額滿即關閉），「候補」與「已結束」需要人工設定。</p>
-                  </FormField>
-                </el-col>
-              </el-row>
-              <el-row :gutter="12">
-                <el-col :span="8">
-                  <FormField field="price" label="原價">
-                    <el-input-number v-model="form.price" :min="0" style="width: 100%" />
-                  </FormField>
-                </el-col>
-                <el-col :span="8">
-                  <FormField field="earlyBirdPrice" label="早鳥價">
-                    <el-input-number v-model="form.earlyBirdPrice" :min="0" style="width: 100%" />
-                  </FormField>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="早鳥截止日">
-                    <el-date-picker v-model="form.earlyBirdUntil" type="date" style="width: 100%" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-              <el-row :gutter="12">
-                <el-col :span="12">
-                  <FormField field="signupOpensAt" label="報名開始時間">
-                    <el-date-picker v-model="form.signupOpensAt" type="datetime" style="width: 100%" />
-                  </FormField>
-                </el-col>
-                <el-col :span="12">
-                  <FormField field="signupClosesAt" label="報名截止時間">
-                    <el-date-picker v-model="form.signupClosesAt" type="datetime" style="width: 100%" />
-                  </FormField>
-                </el-col>
-              </el-row>
+            <el-card shadow="never" header="發布設定">
+              <FormField field="status" label="狀態">
+                <el-select v-model="form.status" clearable placeholder="留空自動判定" style="width: 100%">
+                  <el-option v-for="s in SESSION_STATUS_ORDER" :key="s" :label="s" :value="s" />
+                </el-select>
+                <p class="session-edit__hint">留空時依名額自動推定（額滿即關閉），「候補」與「已結束」需要人工設定。</p>
+              </FormField>
             </el-card>
           </template>
         </EditLayout>

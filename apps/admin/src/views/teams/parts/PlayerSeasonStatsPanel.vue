@@ -9,6 +9,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { getAdminPlayerSeasonStats, type AdminPlayerSeasonStatDto } from '@/api/adminPlayers'
 import { AdminApiError } from '@/api/http'
 import { usePermission } from '@/composables/useCrudPermissions'
+import FormSection from '@/components/FormSection.vue'
 import PlayerSeasonStatRow from './PlayerSeasonStatRow.vue'
 
 const props = defineProps<{
@@ -42,7 +43,7 @@ watch(() => [props.club, props.playerId], load)
 </script>
 
 <template>
-  <el-card shadow="never" header="賽季數據" class="stats-panel">
+  <FormSection title="賽季數據" class="stats-panel">
     <p class="stats-panel__note">
       每個賽季可以手動輸入出賽、進球、助攻與牌數；沒有手動輸入時，前台會用已結束的賽事自動彙總（烏龍球不算進球，助攻沒有自動來源）。
       這裡的變更會立即儲存，不需要按下方的儲存。
@@ -63,7 +64,7 @@ watch(() => [props.club, props.playerId], load)
         @changed="load"
       />
     </template>
-  </el-card>
+  </FormSection>
 </template>
 
 <style scoped>
