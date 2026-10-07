@@ -17,9 +17,6 @@ fanclub/fanclub-event-01.jpg
 fanclub/fanclub-event-02.jpg
 fanclub/fanclub-event-03.jpg
 fanclub/fanclub-event-04.jpg
-hero-01.jpg
-hero-02.jpg
-hero-03.jpg
 merch/merch-jersey-01.jpg
 nav-about.jpg
 nav-academy.jpg

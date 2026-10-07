@@ -163,8 +163,9 @@ const secondaryCta = computed(() => bannerCta(leadBanner.value?.cta2Label, leadB
 const heroTitle = computed(() => bannerText(leadBanner.value?.title))
 const heroSubtitle = computed(() => bannerText(leadBanner.value?.subtitle))
 
-// ---- Hero 輪播素材：banners 有值就用真資料，沒有（兩俱樂部 `banners` 資料表目前皆 0 筆
-// 種子資料，db/seed）就退回既有靜態素材，不得因為欄位缺值顯示壞圖 ----
+// ---- Hero 輪播素材：只用後台 B3 輪播（banners）。沒有任何一則可顯示時（全是草稿、不在上架期間，
+// 或缺圖片網址）一律退回純色底 `hero__media--pending`，兩俱樂部相同——不放後台看不到的寫死照片，
+// 否則前後台張數對不上（E-291） ----
 interface HeroSlide {
   kind: 'image' | 'video'
   /** image 模式是輪播圖本身；video 模式是 `<video poster>` 海報格（docs/17 §6）。 */
@@ -174,14 +175,7 @@ interface HeroSlide {
   alt: string
   width: number
   height: number
-  objectPosition?: string
 }
-/** 既有 3 張真實照片（tcrfc 既有素材，S0-9 搬遷保留），banners 沒有可用資料時的回退。 */
-const STATIC_TCRFC_HERO_SLIDES: HeroSlide[] = [
-  { kind: 'image', imageUrl: siteImg('/assets/img/hero-01.jpg'), videoUrl: '', alt: tx('台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣', 'A Taichung Rock FC player celebrates with raised arms in a night match, with a pink TCRFC sign visible on the advertising boards'), width: 2400, height: 1600, objectPosition: '58% 35%' },
-  { kind: 'image', imageUrl: siteImg('/assets/img/hero-02.jpg'), videoUrl: '', alt: tx('台中磐石5號球員於夜間賽事中揮腳觸球，身後可見場邊看台的球員與觀眾', 'Taichung Rock FC number 5 strikes the ball in a night match, with players and spectators in the stand behind'), width: 2400, height: 1600, objectPosition: '56% 30%' },
-  { kind: 'image', imageUrl: siteImg('/assets/img/hero-03.jpg'), videoUrl: '', alt: tx('台中磐石一線隊球員賽前肩併肩圍成一圈，互相激勵士氣', 'Taichung Rock FC first team players stand shoulder to shoulder in a circle before kick-off, lifting each other\'s spirits'), width: 2400, height: 1600, objectPosition: '55% 42%' },
-]
 /** 只收「真的有完整網址可用」的輪播——image 模式要有 imageUrl；video 模式要海報圖與影片
  * 網址皆有，缺一律整則跳過，不得對缺欄位的資料猜網址（比不顯示更糟的是顯示壞圖）。 */
 const heroBanners = computed<HeroSlide[]>(() =>
@@ -196,10 +190,7 @@ const heroBanners = computed<HeroSlide[]>(() =>
       height: b.imageHeight ?? 1600,
     })),
 )
-const heroSlides = computed<HeroSlide[]>(() => {
-  if (heroBanners.value.length > 0) return heroBanners.value
-  return isTcrfc.value ? STATIC_TCRFC_HERO_SLIDES : []
-})
+const heroSlides = computed<HeroSlide[]>(() => heroBanners.value)
 
 // ---- S1-14：賽事資料（最新賽事區／近期賽事，兩個規劃書區塊共用同一支 schedule API）----
 const { data: scheduleData } = await useFetch(`/api/backend/${config.public.club}/schedule`, {
@@ -582,14 +573,12 @@ onBeforeUnmount(() => {
             :height="slide.height"
             :loading="i === 0 ? 'eager' : 'lazy'"
             :fetchpriority="i === 0 ? 'high' : undefined"
-            :style="slide.objectPosition ? `object-position:${slide.objectPosition}` : undefined"
           >
         </li>
       </ul>
       <p :ref="setStatusEl" class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">{{ tx(`目前顯示第 1 張，共 ${heroSlides.length} 張`, `Showing slide 1 of ${heroSlides.length}`) }}</p>
     </div>
-    <!-- 沒有可用的輪播素材時（藍鯨首頁 hero 圖未下載、無授權狀態，content/blue-whale/
-         gap-analysis.md §2；或 banners 資料表暫無資料）改用純色塊，不沿用磐石的照片頂替
+    <!-- 後台沒有任何一則可顯示的輪播時改用純色塊（兩俱樂部相同，E-291）；不放寫死照片頂替
          （docs/13 踩雷點 8：缺素材不放假圖）。 -->
     <div v-else class="hero__media hero__media--pending" aria-hidden="true"></div>
     <div class="hero__scrim" aria-hidden="true"></div>

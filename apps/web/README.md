@@ -439,7 +439,7 @@ lang 參數問題）。
 
 | 區塊 | 規劃書資料來源 | 本輪狀態 |
 |---|---|---|
-| Hero 主視覺 | 後台 Banner 管理 | 🟡 部分真資料：`GET /api/backend/{club}/banners` 已接上，用來覆蓋主要 CTA 文字／連結（`primaryCta`）。輪播**圖片**仍是既有 3 張真實照片（tcrfc）／純色回退（bw）——`banners` 資料表目前 0 筆種子資料，且 `HomeRepository.ListBannersAsync` 沒有把 `imageKey` 解析成完整網址（見 `docs/18-work-errors.md` `E-64`），前端拿到鍵值也無法正確組圖，故暫不消費 |
+| Hero 主視覺 | 後台 Banner 管理 | ✅ 真資料：輪播圖片／影片、標題、CTA 全讀 `GET /api/backend/{club}/banners`（只回已發布且在上架期間內者）。**後台沒有任何一則可顯示時，兩俱樂部一律純色底 `hero__media--pending`，不放寫死照片**（2026-10-07 起，`E-291`；原本磐石會退回 3 張 `hero-0x.jpg`，造成前後台張數不一致） |
 | 五大核心價值 | 後台設定 | ⬜ 靜態（僅 tcrfc 顯示，藍鯨無對等的自訂品牌框架，見既有頁內註解）。目前開關由 `home_sections.core_values` 控制顯示/隱藏，內容本身沒有對應的「網站設定」公開端點可接 |
 | 四大體系導覽卡（四大支柱） | 靜態模組＋可換圖文 | ⬜ 靜態（`shared/utils/club-copy.ts` `HOME_PILLARS`），開關已接 `home_sections.ecosystem_nav` |
 | 最新賽事區（下一場倒數＋最近比賽結果） | 賽事管理模組 | 🟢 真資料：`GET /api/backend/{club}/schedule`，取一線隊（D1）依日期排序的最新一筆 `played`／前一筆 `played`／最早一筆 `matchOn ≥ 今天` 的 `scheduled`。開關 `home_sections.upcoming_match` |
@@ -581,7 +581,7 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
 
 - `/zh/`／`/en/` 首頁在 tcrfc、bw 兩容器共 4 個網址皆 `200`，`X-Robots-Tag: noindex, nofollow`
   四組合皆在。
-- tcrfc 首頁 SSR 輸出仍含 `hero-01.jpg`／`hero-02.jpg`／`hero-03.jpg`（`apps/api` 不可達時正確
+- （2026-10-07 起已不適用，見 `E-291`）tcrfc 首頁 SSR 輸出仍含 `hero-01.jpg`／`hero-02.jpg`／`hero-03.jpg`（`apps/api` 不可達時正確
   落回既有 3 張靜態照片，不是壞圖）；bw 首頁仍輸出 `hero__media--pending`（純色回退，未誤植
   磐石照片）。
 - bw 首頁 SSR 輸出含「賽事行事曆」標題與「一線隊 First Team」chip（區塊本身確認已顯示；
