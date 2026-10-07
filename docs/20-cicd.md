@@ -439,6 +439,8 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 4. 本機演練（SQL Server 2022 轉換版 DDL 與 2025 原生 `json`＋原樣 DDL 各一次）：init→import→verify→clean→verify、重複匯入被拒、被外鍵擋住時回滾，皆通過。
 5. 匯入走資料庫直寫，**不經 API 的 write-invalidate**：Redis 內快取的空列表要等 TTL 或手動清（`docker exec` 進 redis 容器用其環境變數 `redis-cli -a "$REDIS_PASSWORD" FLUSHALL`，密碼不經過命令列）；Cloudflare 若快取了前台 HTML 另清（`cd-purge-cache.sh` 的做法）。
 
+**sqlcmd 13 的陷阱與防呆（2026-10-07，`E-295`）**：`import` 不直接把種子交給 sqlcmd，而是產生 `SET NOCOUNT ON; GO; :r /work/content/<種子>` 的包裝檔。原因：映像檔 `mcr.microsoft.com/mssql-tools`（sqlcmd 13.1，**MCR 沒有獨立的 `mssql-tools18` 映像檔**）處理「INSERT 影響 0 列＋`UPDATE … FROM`」批次的 `(N rows affected)` 訊息時會報 `SqlState 24000 Invalid cursor state`、中斷連線、交易回滾，**結束碼卻是 0**（在 VM x86 與本機皆重現）；NOCOUNT 是連線層級設定，不改寫入內容，`db/prod/*.sql` 與 manifest 不變。防呆有兩層：`run_sql_file`（`prod-db-init.sh`，init／import／clean 共用）除結束碼外還掃輸出，出現 `Msg N, Level 11–25`、`SqlState`、`Sqlcmd:` 一律失敗；`import` 之後**立刻查匯入標記**，不存在就以非 0 結束並說明「匯入已回滾」，不再印「完成」。成功時 sqlcmd 輸出只剩 1 行是正常的（NOCOUNT 關掉了 rows affected）。
+
 **VM 上怎麼跑**（腳本還沒 push 前，用 DDL／migrations 與部署 commit 一致的暫存目錄；push 並部署後改用 runner 的 checkout 目錄 `/opt/tcrfc/actions-runner/_work/tcrfc/tcrfc`，`~/tcrfc-src` 已退役）：以 `tar` 把 `deploy/prod-db-init.sh`、`deploy/prod-seed-import.sh` 與 `db/prod/*-content-*` 疊在 runner checkout 的 `db/`、`apps/api/**/Migrations` 之上。
 
 ```bash

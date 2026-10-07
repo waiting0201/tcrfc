@@ -176,12 +176,19 @@ sql_scalar() { # ${1}=T-SQL
   printf '%s' "${out}" | tr -d '[:space:]'
 }
 
+# 🔴 sqlcmd 13（mssql-tools 映像檔）遇到部分錯誤會「印出錯誤、結束碼卻是 0」（E-295：SqlState 24000 Invalid cursor state，
+# 連線中斷、交易回滾，結束碼仍 0）。所以除了結束碼，還要掃輸出：Level 11 以上的 Msg（SQL 錯誤）、SqlState（ODBC 錯誤）、
+# `Sqlcmd:` 開頭（sqlcmd 自己的錯誤）一律視為失敗。Level 10 以下是資訊訊息，不算。
+sqlcmd_log_has_error() { # ${1}=輸出檔；有錯誤字樣回傳 0（真）
+  grep -Eq '^(Msg [0-9]+, Level (1[1-9]|2[0-5])|SqlState |Sqlcmd: )' "${1}"
+}
+
 # 執行 SQL 檔；成功只印結尾摘要，失敗印 sqlcmd 的訊息（不含密碼）。${1}=容器內路徑 ${2}=標題 ${3}=失敗時的補充說明（選填）
 run_sql_file() {
   local file_in_container="${1}" title="${2}" hint="${3:-}" log
   log="${WORK_DIR}/sqlcmd.$$.log"
   info "${title}"
-  if sqlcmd_container -i "${file_in_container}" >"${log}" 2>&1; then
+  if sqlcmd_container -i "${file_in_container}" >"${log}" 2>&1 && ! sqlcmd_log_has_error "${log}"; then
     ok "完成（sqlcmd 輸出 $(wc -l <"${log}" | tr -d ' ') 行）"
   else
     echo "   sqlcmd 輸出最後 30 行：" >&2

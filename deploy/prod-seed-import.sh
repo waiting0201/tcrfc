@@ -181,18 +181,30 @@ cmd_import() {
   echo "   - 標記：${PROP_NAME} = ${batch}"
   confirm "IMPORT ${DB_NAME}"
 
-  SQLCMD_DOCKER_EXTRA=(-v "$(dirname "${CONTENT_FILE}"):/work/content:ro" -e IMPORT_BATCH)
+  # 🔴 外包一層 SET NOCOUNT ON 再 :r 內容種子（E-295）：sqlcmd 13 讀到「INSERT 影響 0 列＋UPDATE … FROM」這類批次的
+  # 「(N rows affected)」訊息時會報 SqlState 24000 Invalid cursor state、連線中斷、單一交易回滾，結束碼卻是 0。
+  # NOCOUNT 是連線層級設定、不改變任何資料寫入；不動 db/prod/*.sql（其 sha256 在 manifest 內）。
+  printf 'SET NOCOUNT ON;\nGO\n:r /work/content/%s\n' "$(basename "${CONTENT_FILE}")" >"${WORK_DIR}/import-wrapper.sql"
+  SQLCMD_DOCKER_EXTRA=(-v "$(dirname "${CONTENT_FILE}"):/work/content:ro" -v "${WORK_DIR}:/work/wrap:ro" -e IMPORT_BATCH)
+  local import_hint="整份在同一個交易內，已回滾，庫維持匯入前的樣子；修正後可重跑 import ${TARGET}。"
   if [[ "${TARGET}" == "club" ]]; then
     SQLCMD_DOCKER_EXTRA+=(-e CHARITY_DOMAIN)
     CHARITY_DOMAIN="${domain_charity}" IMPORT_BATCH="${batch}" \
-      run_sql_file "/work/content/$(basename "${CONTENT_FILE}")" "匯入內容（${DB_NAME}）" \
-      "整份在同一個交易內，已回滾，庫維持匯入前的樣子；修正後可重跑 import ${TARGET}。"
+      run_sql_file "/work/wrap/import-wrapper.sql" "匯入內容（${DB_NAME}）" "${import_hint}"
   else
     IMPORT_BATCH="${batch}" \
-      run_sql_file "/work/content/$(basename "${CONTENT_FILE}")" "匯入內容（${DB_NAME}）" \
-      "整份在同一個交易內，已回滾，庫維持匯入前的樣子；修正後可重跑 import ${TARGET}。"
+      run_sql_file "/work/wrap/import-wrapper.sql" "匯入內容（${DB_NAME}）" "${import_hint}"
   fi
   SQLCMD_DOCKER_EXTRA=()
+
+  # 🔴 sqlcmd 結束碼不可信（E-295）：立刻確認標記真的寫進庫。標記是交易的最後一步，有它才代表 COMMIT 了。
+  local marker_after
+  marker_after="$(get_prop)"
+  if [[ "${marker_after}" != "${batch}" ]]; then
+    echo "   🔴 sqlcmd 沒有報錯，但匯入標記 ${PROP_NAME} 是「${marker_after:-不存在}」（預期「${batch}」）。" >&2
+    die "匯入已回滾（或根本沒有提交）：庫維持匯入前的樣子，沒有任何資料被寫入。不要重複執行；把上面 sqlcmd 輸出與這段訊息回報。"
+  fi
+  ok "匯入標記已寫入（交易已提交）"
 
   local denied_after
   denied_after="$(table_counts DENIED)"

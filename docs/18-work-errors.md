@@ -2948,12 +2948,12 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **修正**：原檔已移到 `content/blue-whale/_raw/`。Drive 上的那份會隨本機刪除同步移除，**仍需到 Drive 垃圾桶確認並永久刪除**。
 - **防呆**：無（規則寫在 `docs/07` §2.2 與 `content/blue-whale/README.md` §4 第 6 條）。
 
-### E-295 本機演練 `prod-seed-import.sh import` 結束碼 0 卻整批回滾（2026-10-07，部署工具）
+### E-295 `prod-seed-import.sh import` 結束碼 0 卻整批回滾，印「完成」後才在 verify 發現標記不存在（2026-10-07，部署工具；同日在正式 VM 重現）
 
-- **錯在哪**：本機（Apple Silicon）演練正式庫內容種子時，`prod-seed-import.sh import` 用的 `mcr.microsoft.com/mssql-tools`（sqlcmd 13.1，以 amd64 模擬執行）讀到區段 61 的 `UPDATE … FROM` 批次時，印出 `SqlState 24000, Invalid cursor state`，但結束碼是 0（已加 `-b` 也一樣）。單一交易隨連線關閉而回滾，腳本卻印「完成」，直到 `verify` 才報「沒有匯入標記」。HEAD 的舊種子檔也能重現。2026-10-03 在 VM（x86）上的正式匯入是成功的。
-- **根因（可改掉的行為）**：腳本只用 sqlcmd 的結束碼判斷成敗，但舊版 sqlcmd 在模擬環境下，遇到游標錯誤不會回傳非 0。
-- **下次怎麼避免**：本機演練改用 `mssql-tools18`（`sqlcmd -b -f 65001`）匯入，再用腳本的 `record-manifest`／`verify` 收尾（做法見 `db/seed/README.md`）。在 VM 上 `import` 印出「完成」之後，一律以腳本自動接著跑的 `verify` 結果為準，`verify` 沒過就等於沒匯入。
-- **防呆**：✅ 部分有：`import` 之後的 `verify` 會檢查標記與逐表筆數，回滾一定會被抓到；但 `import` 本身仍會誤報「完成」（待補：`import` 結束後立刻查標記是否存在）。
+- **錯在哪**：`prod-seed-import.sh import` 用的 `mcr.microsoft.com/mssql-tools`（sqlcmd 13.1）讀到區段 61 的批次（`INSERT … SELECT` 影響 0 列後接 `UPDATE e SET … FROM … JOIN`，共 258 處）時，印出 `SqlState 24000, Invalid cursor state`、連線中斷、單一交易隨連線關閉回滾，但**結束碼是 0**（已加 `-b` 也一樣）。腳本印「完成」，直到後面的 `verify` 才報「沒有匯入標記」。**本機（Apple Silicon，amd64 模擬）先踩到，隔天在正式 VM（x86、Ubuntu 24.04）同樣發生**，測試站內容全空——**不是模擬問題**，是 sqlcmd 13 與這種批次的組合。2026-10-03 在 VM 的匯入成功，是因為當時種子還沒有區段 61。
+- **根因（可改掉的行為）**：① 腳本只用 sqlcmd 的結束碼判斷成敗，沒有檢查「交易最後一步（寫標記）真的發生」；② 當時的記錄把原因歸給「模擬環境」，沒有在 x86 上驗證，也沒有找出真正的觸發條件。實測觸發條件是 sqlcmd 13 處理每個批次的 `(N rows affected)` 訊息：**`SET NOCOUNT ON` 後 258 處錯誤全消失、整份種子一次提交**（連線層級設定，不改任何寫入）。
+- **下次怎麼避免**：寫入型 SQL 檔交給 sqlcmd 之前一律用 `SET NOCOUNT ON` 包一層；成敗以「結果真的在庫裡」為準，不信結束碼。**不要改用 `mssql-tools18` 映像檔**：MCR 沒有獨立的 `mssql-tools18` 映像檔（`docker manifest inspect mcr.microsoft.com/mssql-tools18` 回 `no such manifest`；本機演練用的 sqlcmd 18 是 SQL Server 服務映像檔內附的），要用就得自建映像檔並長期維護，換版本也會動到 `-N`／`-f`／加密預設等行為，風險比一行 `SET NOCOUNT ON` 大。
+- **防呆**：✅ 三層。① `import` 以 `SET NOCOUNT ON; GO; :r <種子>` 的包裝檔執行（`db/prod/*.sql` 與 manifest 沒動）；② `prod-db-init.sh` 的 `run_sql_file`（init／import／clean 共用）改為「結束碼 0 且輸出沒有 `Msg N, Level 11–25`／`SqlState`／`Sqlcmd:` 字樣」才算成功；③ `import` 執行完**立刻查匯入標記**，不等於預期值就以非 0 結束並說明「匯入已回滾」。兩層防呆各以「拿掉 NOCOUNT 重現舊行為」與「關掉輸出掃描」實測會擋下。⚠️ `deploy/db-migrate.sh`（自己的 `sqlcmd_container`、同一個 sqlcmd 13）尚未加輸出掃描；它的成敗另以歷史表筆數核對，風險較低，但同類，第二次出事就一併收成共用函式。
 
 ### E-296 `apply-seed.sh` 以 stdin 串流餵 sqlcmd，多位元組字元跨塊被切壞、種子在區段 39 以 PK 重複中止（2026-10-07，種子工具）
 
