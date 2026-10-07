@@ -28,11 +28,14 @@ const props = withDefaults(
     /** 這則輪播目前（伺服器端）是否已經有影片——用來決定沒有 `file` 時要顯示拖放區還是
      * 「已上傳影片」提示。 */
     hasExistingVideo: boolean
+    /** 既有影片的可播放網址（後端附帶的 `videoUrl`）。沒有就留 `null`，元件退回「已上傳影片」提示。 */
+    existingPreviewUrl?: string | null
     /** 外層表單儲存中時鎖住整個元件，避免儲存過程中使用者又換片。 */
     disabled?: boolean
   }>(),
   {
     disabled: false,
+    existingPreviewUrl: null,
   },
 )
 
@@ -150,12 +153,21 @@ const fileSizeLabel = computed(() => {
       </div>
     </div>
 
-    <!-- 沒有本機選取的新檔案，但伺服器端已有影片：本機無法直接預覽（跟 ImageUploader 的既有限制同理） -->
+    <!-- 沒有本機選取的新檔案，但伺服器端已有影片，且有可播放網址：直接預覽 -->
+    <div v-else-if="existingPreviewUrl" class="video-uploader__preview">
+      <video :src="existingPreviewUrl" controls preload="metadata" class="video-uploader__video" />
+      <div class="video-uploader__meta">
+        <span>目前使用的影片</span>
+        <el-button size="small" text type="primary" :disabled="disabled" @click="openFileDialog">更換影片</el-button>
+      </div>
+    </div>
+
+    <!-- 沒有本機選取的新檔案，也沒有可播放網址：退路提示 -->
     <div v-else class="video-uploader__existing" @click="openFileDialog">
       <el-icon :size="28" color="var(--admin-text-tertiary)"><Document /></el-icon>
       <p class="video-uploader__hint">已上傳影片</p>
       <p class="video-uploader__note">
-        目前系統還無法在後台預覽已經上傳的影片。<br>
+        目前無法在這裡預覽這支影片。<br>
         如需確認內容，請直接點擊更換新影片。
       </p>
     </div>

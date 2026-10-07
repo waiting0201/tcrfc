@@ -112,6 +112,7 @@ const bannerHasExistingImage = ref(false)
 const bannerPreviewUrl = ref<string | null>(null)
 const bannerVideoFile = ref<File | null>(null)
 const bannerHasExistingVideo = ref(false)
+const bannerVideoPreviewUrl = ref<string | null>(null)
 
 // 素材種類切回「圖片」時，這次瀏覽階段選過的影片檔案要一併清空——後端契約是
 // `mediaType='image'` 時不可以帶 `video` 欄位（見 apps/api/README.md「S1-7b」）。
@@ -135,6 +136,7 @@ function openCreateBannerDialog() {
   bannerPreviewUrl.value = null
   bannerVideoFile.value = null
   bannerHasExistingVideo.value = false
+  bannerVideoPreviewUrl.value = null
   bannerFormError.value = null
   formErrors.clearAll()
   bannerDialogVisible.value = true
@@ -172,6 +174,7 @@ async function openEditBannerDialog(row: AdminBannerListItemDto) {
     bannerHasExistingImage.value = true
     bannerPreviewUrl.value = detail.imageThumbUrl ?? detail.imageUrl ?? null
     bannerHasExistingVideo.value = detail.mediaType === 'video' && Boolean(detail.videoKey)
+    bannerVideoPreviewUrl.value = bannerHasExistingVideo.value ? detail.videoUrl ?? null : null
   } catch (error) {
     bannerFormError.value = error instanceof AdminApiError ? error.message : '資料載入失敗，請稍後再試'
   } finally {
@@ -545,6 +548,7 @@ watch(club, bootstrap)
             <VideoUploader
               v-model:file="bannerVideoFile"
               :has-existing-video="bannerHasExistingVideo"
+              :existing-preview-url="bannerVideoPreviewUrl"
               :disabled="bannerSaving"
             />
           </FormField>

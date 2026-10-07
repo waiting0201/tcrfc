@@ -35,6 +35,8 @@ export interface AdminBannerListItemDto {
   imageWidth?: number | null
   imageHeight?: number | null
   videoKey?: string | null
+  /** 後端依 videoKey 附帶回傳的可播放網址。 */
+  videoUrl?: string | null
   status: AdminBannerStatus
   startAt?: string | null
   endAt?: string | null
@@ -54,6 +56,8 @@ export interface AdminBannerDetailDto {
   imageWidth?: number | null
   imageHeight?: number | null
   videoKey?: string | null
+  /** 後端依 videoKey 附帶回傳的可播放網址。 */
+  videoUrl?: string | null
   status: AdminBannerStatus
   startAt?: string | null
   endAt?: string | null
