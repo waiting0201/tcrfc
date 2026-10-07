@@ -51,7 +51,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'I1', label: '基本資料與聯絡方式', path: '/settings/site', implemented: true },
           { code: 'I2', label: '選單管理', path: '/settings/menus', implemented: true },
           { code: 'I3', label: '全域設定', path: '/settings/global', implemented: true },
-          { code: 'I4', label: '多語系', path: '/settings/locales', implemented: true },
+          // 多語系：側欄隱藏（2026-10-07 使用者指示）。路由、畫面與 API 保留，直接進 /settings/locales
+          { code: 'I4', label: '多語系', path: '/settings/locales', implemented: true, hidden: true },
           { code: 'I5', label: '場地管理', path: '/settings/venues', implemented: true },
           { code: 'I6', label: '電子報平台', path: '/settings/edm', implemented: true },
         ],
