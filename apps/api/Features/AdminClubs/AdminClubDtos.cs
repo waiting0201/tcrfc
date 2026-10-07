@@ -40,6 +40,8 @@ public sealed record AdminClubDetailDto
     public required string Code { get; init; }
     public required string Domain { get; init; }
     public string? OgImageKey { get; init; }
+    public string? OgImageUrl { get; init; }
+    public string? OgImageThumbUrl { get; init; }
     public string? InvoiceTitle { get; init; }
     public string? TaxId { get; init; }
     public required bool IsCollectingSubject { get; init; }

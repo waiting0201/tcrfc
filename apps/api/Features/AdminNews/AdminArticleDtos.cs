@@ -195,6 +195,8 @@ public sealed record AdminArticleListItemDto
     public required string Slug { get; init; }
     public required string CategoryCode { get; init; }
     public string? CoverKey { get; init; }
+    public string? CoverUrl { get; init; }
+    public string? CoverThumbUrl { get; init; }
     public required bool IsFeatured { get; init; }
 
     /// <summary>值域 <c>draft</c>／<c>published</c>／<c>scheduled</c>（<c>articles.status</c> 的 CHECK 約束）。
@@ -223,6 +225,8 @@ public sealed record AdminArticleDetailDto
     public required string Slug { get; init; }
     public required string CategoryCode { get; init; }
     public string? CoverKey { get; init; }
+    public string? CoverUrl { get; init; }
+    public string? CoverThumbUrl { get; init; }
 
     /// <summary>封面主檔（縮小後）寬高，S0-7h。無封面時為 null。</summary>
     public int? CoverWidth { get; init; }

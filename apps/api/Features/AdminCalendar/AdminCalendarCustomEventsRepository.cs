@@ -5,6 +5,7 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
+using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminCalendar;
 
@@ -22,7 +23,7 @@ namespace Tcrfc.Api.Features.AdminCalendar;
 /// 因此不套用 <see cref="TeamRowScope"/>，<see cref="TeamIds"/> 只做「這些球隊是不是屬於本俱樂部」
 /// 的資料正確性檢查，不做授權檢查。
 /// </summary>
-public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext, IQueryCache cache)
+public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext, IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
     public async Task<IReadOnlyList<AdminCalendarCustomEventListItemDto>> ListAsync(
         AdminClubScope scope, string? teamCode, CancellationToken cancellationToken)
@@ -73,6 +74,8 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
             RepeatRule = r.RepeatRule,
             IsPublic = r.IsPublic,
             CoverKey = r.CoverKey,
+            CoverUrl = imageUrls.Resolve(r.CoverKey),
+            CoverThumbUrl = imageUrls.ResolveThumbnail(r.CoverKey),
             TeamCodes = teamCodesById.GetValueOrDefault(r.Id, []),
             EventTypeCode = r.EventTypeCode,
             TitleZh = r.TitleZh,
@@ -402,7 +405,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
         existing.Description = content.Description;
     }
 
-    private static AdminCalendarCustomEventDetailDto ToDetailDto(
+    private AdminCalendarCustomEventDetailDto ToDetailDto(
         CalendarCustomEvent entity, IReadOnlyList<Guid> teamIds, IReadOnlyList<string> teamCodes)
     {
         var zh = entity.CalendarCustomEventsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
@@ -421,6 +424,8 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
             ExceptionDates = entity.CalendarEventExceptions.Select(e => e.ExcludedOn).OrderBy(d => d).ToList(),
             IsPublic = entity.IsPublic,
             CoverKey = entity.CoverKey,
+            CoverUrl = imageUrls.Resolve(entity.CoverKey),
+            CoverThumbUrl = imageUrls.ResolveThumbnail(entity.CoverKey),
             CtaUrl = entity.CtaUrl,
             TeamIds = teamIds,
             TeamCodes = teamCodes,

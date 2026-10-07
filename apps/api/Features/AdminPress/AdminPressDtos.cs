@@ -53,6 +53,7 @@ public sealed record AdminPressDetailDto
     public int? FileBytes { get; init; }
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
+    public string? CoverThumbUrl { get; init; }
     public int? CoverWidth { get; init; }
     public int? CoverHeight { get; init; }
     public required AdminPressLocaleContent Zh { get; init; }

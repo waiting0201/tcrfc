@@ -5,6 +5,7 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
+using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminTeams;
 
@@ -18,7 +19,7 @@ namespace Tcrfc.Api.Features.AdminTeams;
 /// <c>Features/Teams/TeamsEndpoints.cs</c>（entity="teams"），寫入這裡卻不失效會讓公開頁面
 /// 在 TTL 到期前一直顯示舊資料，是 docs/17 §4「五條實作硬規則」之一，逐字比照
 /// <c>AdminArticlesRepository.InvalidatePublicCacheAsync</c> 的既有做法。</summary>
-public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache cache)
+public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
     /// <summary>不分俱樂部列出全部球隊——見 <c>AdminTeamsEndpoints</c> 檔頭「跨俱樂部」的說明。
     /// <paramref name="clubCode"/> 給定時縮小到單一俱樂部（畫面已經選定俱樂部時可以少拉一點資料，
@@ -101,6 +102,8 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
             AgeBand = r.AgeBand,
             TeamColor = r.TeamColor,
             HeroKey = r.HeroKey,
+            HeroUrl = imageUrls.Resolve(r.HeroKey),
+            HeroThumbUrl = imageUrls.ResolveThumbnail(r.HeroKey),
             SortOrder = r.SortOrder,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
@@ -361,7 +364,7 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
         }
     }
 
-    private static AdminTeamDetailDto ToDetailDto(Team team)
+    private AdminTeamDetailDto ToDetailDto(Team team)
     {
         var zh = team.TeamsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = team.TeamsI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -375,6 +378,8 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
             AgeBand = team.AgeBand,
             TeamColor = team.TeamColor,
             HeroKey = team.HeroKey,
+            HeroUrl = imageUrls.Resolve(team.HeroKey),
+            HeroThumbUrl = imageUrls.ResolveThumbnail(team.HeroKey),
             SortOrder = team.SortOrder,
             Zh = new AdminTeamLocaleContent { Name = zh?.Name ?? team.Code, Intro = zh?.Intro },
             En = en is null ? null : new AdminTeamLocaleContent { Name = en.Name ?? "", Intro = en.Intro },

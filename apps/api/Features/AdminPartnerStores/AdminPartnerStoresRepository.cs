@@ -393,7 +393,7 @@ public sealed class AdminPartnerStoresRepository(
             Address = store.Address, Lat = store.Lat, Lng = store.Lng, Phone = store.Phone, BusinessHours = ReadHours(store.BusinessHours),
             MapUrl = store.MapUrl, WebsiteUrl = store.WebsiteUrl, ApplicableTier = store.ApplicableTier, ApplicableTierLabel = TierLabel(store.ApplicableTier),
             StartOn = store.StartOn, EndOn = store.EndOn, IsActive = IsActive(store.StartOn, store.EndOn, today), SortOrder = store.SortOrder,
-            Status = store.Status, StatusLabel = StatusLabel(store.Status), ImageKey = store.ImageKey, ImageUrl = imageUrls.Resolve(store.ImageKey),
+            Status = store.Status, StatusLabel = StatusLabel(store.Status), ImageKey = store.ImageKey, ImageUrl = imageUrls.Resolve(store.ImageKey), ImageThumbUrl = Thumb(store.ImageKey),
             Zh = new AdminStoreLocaleContent { Name = zh?.Name ?? "", Address = store.Address, OfferContent = zh?.OfferContent },
             En = en is null ? null : new AdminStoreLocaleContent { Name = en.Name ?? "", Address = en.Address, OfferContent = en.OfferContent },
             CreatedAt = store.CreatedAt, UpdatedAt = store.UpdatedAt,

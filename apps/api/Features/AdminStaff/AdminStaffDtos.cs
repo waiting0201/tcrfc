@@ -40,6 +40,8 @@ public sealed record AdminStaffListItemDto
     public string? StaffGroup { get; init; }
     public string? Licence { get; init; }
     public string? PhotoKey { get; init; }
+    public string? PhotoUrl { get; init; }
+    public string? PhotoThumbUrl { get; init; }
 
     /// <summary>肖像同意狀態（S1-7a），同 <c>AdminPlayerListItemDto.PortraitConsentStatus</c>。</summary>
     public required string PortraitConsentStatus { get; init; }
@@ -56,6 +58,8 @@ public sealed record AdminStaffDetailDto
     public string? StaffGroup { get; init; }
     public string? Licence { get; init; }
     public string? PhotoKey { get; init; }
+    public string? PhotoUrl { get; init; }
+    public string? PhotoThumbUrl { get; init; }
     public required string PortraitConsentStatus { get; init; }
     public required AdminStaffLocaleContent Zh { get; init; }
     public AdminStaffLocaleContent? En { get; init; }

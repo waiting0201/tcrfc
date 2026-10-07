@@ -28,7 +28,8 @@ namespace Tcrfc.Api.Features.AdminBanners;
 /// 「Hero 輪播影片上傳」。
 /// </summary>
 public sealed class AdminBannersRepository(
-    ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage, IVideoStorageService videoStorage)
+    ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage, IVideoStorageService videoStorage,
+    IImagePublicUrlResolver imageUrls, Tcrfc.Api.Videos.IVideoPublicUrlResolver videoUrls)
 {
     private const string PublicEntity = "banners";
 
@@ -67,9 +68,12 @@ public sealed class AdminBannersRepository(
             Id = r.Id,
             MediaType = r.MediaType,
             ImageKey = r.ImageKey,
+            ImageUrl = imageUrls.Resolve(r.ImageKey),
+            ImageThumbUrl = imageUrls.ResolveThumbnail(r.ImageKey),
             ImageWidth = r.ImageWidth,
             ImageHeight = r.ImageHeight,
             VideoKey = r.VideoKey,
+            VideoUrl = videoUrls.Resolve(r.VideoKey),
             Status = r.Status,
             StartAt = r.StartAt,
             EndAt = r.EndAt,
@@ -341,7 +345,7 @@ public sealed class AdminBannersRepository(
         }
     }
 
-    private static AdminBannerDetailDto ToDetailDto(Banner banner)
+    private AdminBannerDetailDto ToDetailDto(Banner banner)
     {
         var zh = banner.BannersI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = banner.BannersI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -351,9 +355,12 @@ public sealed class AdminBannersRepository(
             Id = banner.Id,
             MediaType = banner.MediaType,
             ImageKey = banner.ImageKey,
+            ImageUrl = imageUrls.Resolve(banner.ImageKey),
+            ImageThumbUrl = imageUrls.ResolveThumbnail(banner.ImageKey),
             ImageWidth = banner.ImageWidth,
             ImageHeight = banner.ImageHeight,
             VideoKey = banner.VideoKey,
+            VideoUrl = videoUrls.Resolve(banner.VideoKey),
             Status = banner.Status,
             StartAt = banner.StartAt,
             EndAt = banner.EndAt,

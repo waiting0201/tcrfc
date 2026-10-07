@@ -4,6 +4,7 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
+using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminStaff;
 
@@ -16,7 +17,7 @@ namespace Tcrfc.Api.Features.AdminStaff;
 /// （entity="staff"）已接快取，寫入這裡不失效會讓公開頁面在 TTL 到期前顯示舊資料。只失效
 /// <paramref name="scope"/> 當下的俱樂部，不需要跨俱樂部失效——寫入路徑本身就不允許碰共同列
 /// （<c>club_id IS NULL</c>），不會有「改了 A 俱樂部的資料卻影響到 B 俱樂部快取」的情況。</summary>
-public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache cache)
+public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
     private static readonly HashSet<string> AllowedStaffGroups =
         new(StringComparer.Ordinal) { "管理層", "行政", "醫療", "後勤" };
@@ -60,6 +61,8 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             StaffGroup = r.StaffGroup,
             Licence = r.Licence,
             PhotoKey = r.PhotoKey,
+            PhotoUrl = imageUrls.Resolve(r.PhotoKey),
+            PhotoThumbUrl = imageUrls.ResolveThumbnail(r.PhotoKey),
             PortraitConsentStatus = r.PortraitConsentStatus,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
@@ -274,7 +277,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         }
     }
 
-    private static AdminStaffDetailDto ToDetailDto(Data.EfEntities.Staff staff)
+    private AdminStaffDetailDto ToDetailDto(Data.EfEntities.Staff staff)
     {
         var zh = staff.StaffI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = staff.StaffI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -286,6 +289,8 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             StaffGroup = staff.StaffGroup,
             Licence = staff.Licence,
             PhotoKey = staff.PhotoKey,
+            PhotoUrl = imageUrls.Resolve(staff.PhotoKey),
+            PhotoThumbUrl = imageUrls.ResolveThumbnail(staff.PhotoKey),
             PortraitConsentStatus = staff.PortraitConsentStatus,
             Zh = new AdminStaffLocaleContent { Name = zh?.Name ?? "", Title = zh?.Title, Bio = zh?.Bio },
             En = en is null ? null : new AdminStaffLocaleContent { Name = en.Name ?? "", Title = en.Title, Bio = en.Bio },

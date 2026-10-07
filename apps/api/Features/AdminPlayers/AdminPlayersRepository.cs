@@ -5,6 +5,7 @@ using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.Standings;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
+using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminPlayers;
 
@@ -12,7 +13,7 @@ namespace Tcrfc.Api.Features.AdminPlayers;
 /// 🔴 <c>IQueryCache</c> 只為了寫入後失效——公開唯讀端點 <c>Features/Players/PlayersEndpoints.cs</c>
 /// （entity="players"）已接快取，寫入這裡不失效會讓公開頁面在 TTL 到期前顯示舊資料，
 /// 逐字比照 <c>AdminArticlesRepository.InvalidatePublicCacheAsync</c> 的既有做法。</summary>
-public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache cache)
+public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
     private static readonly HashSet<string> AllowedStatuses =
         new(StringComparer.Ordinal) { "active", "departed", "loan", "overseas" };
@@ -66,6 +67,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             BirthOn = r.BirthOn,
             Status = r.Status,
             PhotoKey = r.PhotoKey,
+            PhotoUrl = imageUrls.Resolve(r.PhotoKey),
+            PhotoThumbUrl = imageUrls.ResolveThumbnail(r.PhotoKey),
             PortraitConsentStatus = r.PortraitConsentStatus,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
@@ -437,7 +440,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         }
     }
 
-    private static AdminPlayerDetailDto ToDetailDto(Player player)
+    private AdminPlayerDetailDto ToDetailDto(Player player)
     {
         var zh = player.PlayersI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = player.PlayersI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -458,6 +461,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             JoinedOn = player.JoinedOn,
             Status = player.Status,
             PhotoKey = player.PhotoKey,
+            PhotoUrl = imageUrls.Resolve(player.PhotoKey),
+            PhotoThumbUrl = imageUrls.ResolveThumbnail(player.PhotoKey),
             PortraitConsentStatus = player.PortraitConsentStatus,
             Zh = new AdminPlayerLocaleContent { Name = zh?.Name ?? "", Bio = zh?.Bio },
             En = en is null ? null : new AdminPlayerLocaleContent { Name = en.Name ?? "", Bio = en.Bio },

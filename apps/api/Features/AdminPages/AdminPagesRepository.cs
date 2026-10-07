@@ -729,17 +729,17 @@ public sealed class AdminPagesRepository(
         };
     }
 
-    private static AdminPageBlockDto ToBlockDto(PageBlock block, PageTemplateBlock? def) => new()
+    private AdminPageBlockDto ToBlockDto(PageBlock block, PageTemplateBlock? def) => new()
     {
         Id = block.Id,
         Key = def is not null && def.BlockType == block.BlockType ? def.Key : null,
         LabelZh = def is not null && def.BlockType == block.BlockType ? def.LabelZh : null,
         BlockType = block.BlockType,
-        Content = ParseContentElement(block.Content),
+        Content = ParseContentElement(block.BlockType, block.Content),
         SortOrder = block.SortOrder,
     };
 
-    private static AdminPageVersionDetailDto ToVersionDetailDto(PageVersion version, PageTemplate template)
+    private AdminPageVersionDetailDto ToVersionDetailDto(PageVersion version, PageTemplate template)
     {
         var snapshot = JsonNode.Parse(version.Snapshot ?? "{}") as JsonObject ?? new JsonObject();
         var seoNode = snapshot["seo"] as JsonObject;
@@ -764,7 +764,7 @@ public sealed class AdminPagesRepository(
                     // 版本詳情頁只是唯讀預覽，用 Guid.Empty 代表「這不是一筆真正存在的區塊列」。
                     Id = Guid.Empty,
                     BlockType = blockType,
-                    Content = content is null ? default : JsonDocument.Parse(content.ToJsonString()).RootElement.Clone(),
+                    Content = content is null ? default : ParseContentElement(blockType, content.ToJsonString()),
                     SortOrder = blocks.Count,
                 });
             }
@@ -786,8 +786,19 @@ public sealed class AdminPagesRepository(
         };
     }
 
-    private static JsonElement ParseContentElement(string? content)
-        => string.IsNullOrWhiteSpace(content) ? default : JsonDocument.Parse(content).RootElement.Clone();
+    /// <summary>解析區塊內容並補上圖片的可顯示網址（<c>url</c>／<c>thumbUrl</c>，只用於輸出，見
+    /// <see cref="PageBlockContentProcessor.AttachImageUrls"/>）。</summary>
+    private JsonElement ParseContentElement(string blockType, string? content)
+    {
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return default;
+        }
+
+        var node = JsonNode.Parse(content);
+        PageBlockContentProcessor.AttachImageUrls(blockType, node, imageUrlResolver.Resolve, imageUrlResolver.ResolveThumbnail);
+        return JsonDocument.Parse(node!.ToJsonString()).RootElement.Clone();
+    }
 
     private async Task InvalidatePublicCacheAsync(AdminClubScope scope, CancellationToken cancellationToken)
         => await cache.InvalidateAsync(PublicDetailEntity, scope.ClubCode, cancellationToken);

@@ -2,13 +2,14 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
+using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminClubs;
 
 /// <summary>J4「俱樂部品牌與法人資料」——<c>Club</c> 型別的後台維護端點。全域（不分「目前站在哪個
 /// 俱樂部」，管的正是「有哪些俱樂部」這件事本身），比照 <c>ClubsRepository</c>（公開唯讀端點）的
 /// i18n 讀寫方式，但寫入走 EF Core（跟 <c>AdminArticlesRepository</c> 同一個既有慣例）。</summary>
-public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Caching.IQueryCache cache)
+public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Caching.IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
     public async Task<IReadOnlyList<AdminClubListItemDto>> ListAsync(CancellationToken cancellationToken)
     {
@@ -202,7 +203,7 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
         }
     }
 
-    private static AdminClubDetailDto ToDetailDto(Club club)
+    private AdminClubDetailDto ToDetailDto(Club club)
     {
         var zh = club.ClubsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = club.ClubsI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -213,6 +214,8 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
             Code = club.Code,
             Domain = club.Domain,
             OgImageKey = club.OgImageKey,
+            OgImageUrl = imageUrls.Resolve(club.OgImageKey),
+            OgImageThumbUrl = imageUrls.ResolveThumbnail(club.OgImageKey),
             InvoiceTitle = club.InvoiceTitle,
             TaxId = club.TaxId,
             IsCollectingSubject = club.IsCollectingSubject,

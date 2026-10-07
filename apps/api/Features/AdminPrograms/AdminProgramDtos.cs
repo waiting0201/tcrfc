@@ -31,6 +31,8 @@ public sealed record AdminProgramListItemDto
     public int? AgeMax { get; init; }
     public required string Status { get; init; }
     public string? CoverKey { get; init; }
+    public string? CoverUrl { get; init; }
+    public string? CoverThumbUrl { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
     public required int SessionCount { get; init; }
@@ -60,6 +62,8 @@ public sealed record AdminProgramDetailDto
     public int? AgeMax { get; init; }
     public required string Status { get; init; }
     public string? CoverKey { get; init; }
+    public string? CoverUrl { get; init; }
+    public string? CoverThumbUrl { get; init; }
     public required AdminProgramLocaleContent Zh { get; init; }
     public AdminProgramLocaleContent? En { get; init; }
     public required IReadOnlyList<AdminProgramStaffDto> Staff { get; init; }

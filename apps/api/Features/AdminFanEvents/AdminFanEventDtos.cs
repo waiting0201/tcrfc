@@ -49,6 +49,7 @@ public sealed record AdminFanEventListItemDto
     public required string Status { get; init; }
     public required string StatusLabel { get; init; }
     public string? CoverKey { get; init; }
+    public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
     public Guid? VenueId { get; init; }
     public string? NameZh { get; init; }

@@ -79,7 +79,7 @@ public sealed class AdminFanEventsRepository(
         {
             Id = r.Event.Id, Slug = r.Event.Slug, StartsAt = r.Event.StartsAt, EndsAt = r.Event.EndsAt,
             RegistrationDeadlineAt = r.Event.RegistrationDeadlineAt, Capacity = r.Event.Capacity, IsPaidMembersOnly = r.Event.IsPaidMembersOnly,
-            Status = r.Event.Status, StatusLabel = StatusLabels[r.Event.Status], CoverKey = r.Event.CoverKey, CoverThumbUrl = ThumbUrl(r.Event.CoverKey),
+            Status = r.Event.Status, StatusLabel = StatusLabels[r.Event.Status], CoverKey = r.Event.CoverKey, CoverUrl = imageUrls.Resolve(r.Event.CoverKey), CoverThumbUrl = ThumbUrl(r.Event.CoverKey),
             VenueId = r.Event.VenueId, NameZh = r.Zh, NameEn = r.En, RegisteredCount = r.Registered, WaitlistCount = r.Waitlist,
             IsRegistrationOpen = IsOpen(r.Event, r.Registered, now), UpdatedAt = r.Event.UpdatedAt,
         }).ToList();

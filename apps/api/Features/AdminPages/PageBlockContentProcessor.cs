@@ -174,6 +174,44 @@ internal static class PageBlockContentProcessor
         }
     }
 
+    /// <summary>讀取輸出用：在圖文左右的 <c>image</c> 與圖片藝廊的 <c>images[]</c> 每個圖片物件旁補
+    /// <c>url</c>／<c>thumbUrl</c>（完整可顯示網址），讓後台編輯頁能預覽已上傳的圖。
+    /// 🔴 這兩個欄位只存在於輸出，<b>不得寫回資料庫</b>——寫入路徑（<see cref="ResolveSingleImageAsync"/>）
+    /// 會把前端回傳的 <c>url</c>／<c>thumbUrl</c> 移除，避免過期網址污染 <c>page_blocks.content</c>。
+    /// 鍵為空或解析器回傳 <c>null</c> 時兩者為 JSON <c>null</c>。就地修改傳入的 <paramref name="content"/>。</summary>
+    public static void AttachImageUrls(string blockType, JsonNode? content, Func<string?, string?> resolveUrl, Func<string?, string?> resolveThumb)
+    {
+        if (content is not JsonObject obj)
+        {
+            return;
+        }
+
+        static IEnumerable<JsonObject> ImageObjects(string blockType, JsonObject obj)
+        {
+            if (blockType == PageBlockTypes.TextImage && obj["image"] is JsonObject single)
+            {
+                yield return single;
+            }
+            else if (blockType == PageBlockTypes.Gallery && obj["images"] is JsonArray array)
+            {
+                foreach (var item in array)
+                {
+                    if (item is JsonObject itemObj)
+                    {
+                        yield return itemObj;
+                    }
+                }
+            }
+        }
+
+        foreach (var image in ImageObjects(blockType, obj))
+        {
+            var key = GetString(image, "key");
+            image["url"] = resolveUrl(key);
+            image["thumbUrl"] = resolveThumb(key);
+        }
+    }
+
     // ───────────────────────────── 圖片欄位解析 ─────────────────────────────
 
     private static async Task ResolveImageObjectAsync(
@@ -210,6 +248,10 @@ internal static class PageBlockContentProcessor
     private static async Task ResolveSingleImageAsync(
         JsonObject imageObj, int blockIndex, string uploadPath, string fieldPath, ImageUploadResolver resolveUpload, CancellationToken cancellationToken)
     {
+        // 讀取端為了預覽補的 url／thumbUrl 不屬於儲存內容，一律丟掉（見 AttachImageUrls）。
+        imageObj.Remove("url");
+        imageObj.Remove("thumbUrl");
+
         var isPending = imageObj["pendingUpload"] is JsonValue pendingValue
             && pendingValue.TryGetValue<bool>(out var pendingBool) && pendingBool;
 

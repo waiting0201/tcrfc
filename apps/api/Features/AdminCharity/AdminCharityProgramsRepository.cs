@@ -426,7 +426,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
             Progress = ComputeProgress(program.EndOn, today), StartOn = program.StartOn, EndOn = program.EndOn,
             SortOrder = program.SortOrder, IsPinned = program.IsPinned, CharityId = program.CharityId,
             CharityNameZh = program.Charity.CharitiesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Name,
-            CoverKey = program.CoverKey, CoverUrl = imageUrls.Resolve(program.CoverKey),
+            CoverKey = program.CoverKey, CoverUrl = imageUrls.Resolve(program.CoverKey), CoverThumbUrl = imageUrls.ResolveThumbnail(program.CoverKey),
             Zh = new AdminCharityProgramLocaleContent { Name = zh?.Name ?? "", TargetAudience = zh?.TargetAudience, Content = zh?.Content, DonationContent = zh?.DonationContent },
             En = en is null ? null : new AdminCharityProgramLocaleContent { Name = en.Name ?? "", TargetAudience = en.TargetAudience, Content = en.Content, DonationContent = en.DonationContent },
             Partners = program.Partners.OrderBy(p => p.SortOrder).Select(p => new AdminCharityLinkRefDto

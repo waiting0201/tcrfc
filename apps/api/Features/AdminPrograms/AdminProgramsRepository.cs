@@ -6,6 +6,7 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
+using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminPrograms;
 
@@ -26,7 +27,7 @@ namespace Tcrfc.Api.Features.AdminPrograms;
 /// 🔴 <c>IQueryCache</c> 只為了寫入後失效——公開唯讀端點 <c>Features/Programs/ProgramsRepository.cs</c>
 /// （entity="programs"）已接快取，寫入這裡不失效會讓公開頁面在 TTL 到期前顯示舊資料。
 /// </summary>
-public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache cache)
+public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
     /// <summary>對應前台 05 課程與活動的 5.1–5.5 五個課程頁（主站規劃書 §4.4 P1）。</summary>
     internal static readonly HashSet<string> AllowedProgramTypes = new(StringComparer.Ordinal)
@@ -76,6 +77,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             AgeMax = r.AgeMax,
             Status = r.Status ?? "draft",
             CoverKey = r.CoverKey,
+            CoverUrl = imageUrls.Resolve(r.CoverKey),
+            CoverThumbUrl = imageUrls.ResolveThumbnail(r.CoverKey),
             NameZh = r.NameZh,
             NameEn = r.NameEn,
             SessionCount = r.SessionCount,
@@ -367,7 +370,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         }
     }
 
-    private static AdminProgramDetailDto ToDetailDto(TrainingProgram program)
+    private AdminProgramDetailDto ToDetailDto(TrainingProgram program)
     {
         var zh = program.ProgramsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = program.ProgramsI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -383,6 +386,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             AgeMax = program.AgeMax,
             Status = program.Status ?? "draft",
             CoverKey = program.CoverKey,
+            CoverUrl = imageUrls.Resolve(program.CoverKey),
+            CoverThumbUrl = imageUrls.ResolveThumbnail(program.CoverKey),
             Zh = new AdminProgramLocaleContent { Name = zh?.Name ?? "", Intro = zh?.Intro, Content = zh?.Content },
             En = en is null || en.Name is null ? null : new AdminProgramLocaleContent { Name = en.Name, Intro = en.Intro, Content = en.Content },
             Staff = program.Staff

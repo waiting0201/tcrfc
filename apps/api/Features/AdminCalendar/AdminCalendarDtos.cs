@@ -80,6 +80,8 @@ public sealed record AdminCalendarCustomEventListItemDto
     public string? RepeatRule { get; init; }
     public required bool IsPublic { get; init; }
     public string? CoverKey { get; init; }
+    public string? CoverUrl { get; init; }
+    public string? CoverThumbUrl { get; init; }
     public required IReadOnlyList<string> TeamCodes { get; init; }
     public string? EventTypeCode { get; init; }
     public string? TitleZh { get; init; }
@@ -100,6 +102,8 @@ public sealed record AdminCalendarCustomEventDetailDto
     public required IReadOnlyList<DateOnly> ExceptionDates { get; init; }
     public required bool IsPublic { get; init; }
     public string? CoverKey { get; init; }
+    public string? CoverUrl { get; init; }
+    public string? CoverThumbUrl { get; init; }
     public string? CtaUrl { get; init; }
     public required IReadOnlyList<Guid> TeamIds { get; init; }
     public required IReadOnlyList<string> TeamCodes { get; init; }

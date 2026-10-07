@@ -154,6 +154,7 @@ public sealed record AdminCharityProgramDetailDto
     public string? CharityNameZh { get; init; }
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
+    public string? CoverThumbUrl { get; init; }
     public required AdminCharityProgramLocaleContent Zh { get; init; }
     public AdminCharityProgramLocaleContent? En { get; init; }
 
@@ -240,6 +241,7 @@ public sealed record AdminImpactRecordDetailDto
     public required bool IsPinned { get; init; }
     public string? ImageKey { get; init; }
     public string? ImageUrl { get; init; }
+    public string? ImageThumbUrl { get; init; }
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
     public required AdminImpactRecordLocaleContent Zh { get; init; }

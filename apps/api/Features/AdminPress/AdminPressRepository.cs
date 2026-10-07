@@ -388,7 +388,7 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
             Status = resource.Status, PublishedOn = resource.PublishedOn, SortOrder = resource.SortOrder, DownloadCount = resource.DownloadCount,
             FileKey = resource.FileKey,
             FileUrl = IsImageType(resource.ResourceType) ? imageUrls.Resolve(resource.FileKey) : documentUrls.Resolve(resource.FileKey),
-            FileBytes = resource.FileBytes, CoverKey = resource.CoverKey, CoverUrl = imageUrls.Resolve(resource.CoverKey),
+            FileBytes = resource.FileBytes, CoverKey = resource.CoverKey, CoverUrl = imageUrls.Resolve(resource.CoverKey), CoverThumbUrl = imageUrls.ResolveThumbnail(resource.CoverKey),
             CoverWidth = resource.CoverWidth, CoverHeight = resource.CoverHeight,
             Zh = new AdminPressLocaleContent { Title = zh?.Title ?? "", Description = zh?.Description, CoverAlt = zh?.CoverAlt },
             En = en is null ? null : new AdminPressLocaleContent { Title = en.Title ?? "", Description = en.Description, CoverAlt = en.CoverAlt },

@@ -32,6 +32,8 @@ public sealed record AdminPlayerListItemDto
     public DateOnly? BirthOn { get; init; }
     public string? Status { get; init; }
     public string? PhotoKey { get; init; }
+    public string? PhotoUrl { get; init; }
+    public string? PhotoThumbUrl { get; init; }
 
     /// <summary>肖像同意狀態（S1-7a）：<c>not_consented</c>／<c>consented</c>／
     /// <c>consented_by_guardian</c>。後台一律看得到真實值與 <see cref="PhotoKey"/>——
@@ -58,6 +60,8 @@ public sealed record AdminPlayerDetailDto
     public DateOnly? JoinedOn { get; init; }
     public string? Status { get; init; }
     public string? PhotoKey { get; init; }
+    public string? PhotoUrl { get; init; }
+    public string? PhotoThumbUrl { get; init; }
     public required string PortraitConsentStatus { get; init; }
     public required AdminPlayerLocaleContent Zh { get; init; }
     public AdminPlayerLocaleContent? En { get; init; }

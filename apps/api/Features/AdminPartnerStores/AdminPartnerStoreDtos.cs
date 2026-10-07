@@ -105,6 +105,7 @@ public sealed record AdminPartnerStoreDetailDto
     public required string StatusLabel { get; init; }
     public string? ImageKey { get; init; }
     public string? ImageUrl { get; init; }
+    public string? ImageThumbUrl { get; init; }
     public required AdminStoreLocaleContent Zh { get; init; }
     public AdminStoreLocaleContent? En { get; init; }
     public required DateTime CreatedAt { get; init; }

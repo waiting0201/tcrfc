@@ -10532,3 +10532,36 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 | 積分榜 `isFallbackLocale` | `StandingRowDto.IsFallbackLocale`（逐列：請求語系非繁中且該隊無請求語系名稱）。**契約變更**，已重跑 `shared/scripts/gen-all.sh` |
 
 **5. 封面替代文字（§4.0 圖片欄位組）**：`fan_events_i18n.cover_alt`、`press_resources_i18n.cover_alt`（`nvarchar(200)` 可為空）。後台 DTO：`AdminFanEventLocaleContent.CoverAlt`、`AdminPressLocaleContent.CoverAlt`（JSON `content.zh.coverAlt`／`content.en.coverAlt`，過長 400，錯誤欄位 `coverAltZh`／`coverAltEn`）。公開 DTO：`FanEventListItemDto.CoverAlt`（列表與詳情的 `event`）、`PressResourceDto.CoverAlt`（高解析圖以主檔縮圖為封面，同樣輸出）——請求語系優先、空白回退繁中、沒有封面圖為 null。遷移：展開型 EF `ClubCoverAltExpand`、`db/migrations/20261007_cover-alt_1-expand.sql`（可隨新版 api 上）。測試 `CoverAltTests`（需 Azurite）。
+
+## 後台讀取 DTO 補圖片網址（2026-10-07，`backend-engineer`）
+
+> ⚠️ **本機要看得到、傳得了圖片，API 必須用 `dotnet run --launch-profile http-azurite` 啟動。** 預設的 `http` 設定檔沒有 `AZURE_BLOB_CONNECTION_STRING`，會改註冊 `UnavailableImagePublicUrlResolver`（所有 `*Url`／`*ThumbUrl` 一律 null，後台顯示「已上傳但無法預覽」）與 `UnavailableImageStorageService`（存檔夾圖片回 503「檔案儲存尚未設定」）——症狀跟本節修掉的缺陷一模一樣，排查時先確認啟動設定檔。
+>
+> **實機驗收（2026-10-07，主 session，`http-azurite`）**：以 multipart `PUT /api/v1/admin/tcrfc/players/{id}` 上傳 1600×1600 測試圖 → 更新回應、明細、列表三處 `photoUrl`／`photoThumbUrl` 一致，兩個網址實際下載皆 `200 image/webp`。後台畫面端的瀏覽器驗收因 Chrome 擴充斷線未完成。
+
+**問題**：多個後台（`Features/Admin*`）讀取端點只回圖片物件鍵（`coverKey`／`photoKey`／`heroKey`），沒有可顯示的網址，後台編輯頁的圖片上傳元件拿不到 `existingPreviewUrl`，已上傳的圖看起來像是沒存。公開端點與部分後台模組（漫畫、廣告、贊助、夥伴、場地、榮譽、新聞稿、球迷活動、抽獎、商店、慈善）早已成對輸出；本輪補齊其餘。
+
+**契約**：每個 `{X}Key` 旁一律有 `{X}Url`（主檔）與 `{X}ThumbUrl`（`ImageObjectKey.ForThumbnail`，後台 160px 縮圖），無鍵時兩者為 `null`。衍生鍵一律走 `Images/ImagePublicUrlResolverExtensions.ResolveThumbnail`（內部呼叫 `ImageObjectKey`），不自己拼字串。沒設 Blob 時（`UnavailableImagePublicUrlResolver`）回 `null`，不丟例外。純讀取 DTO 補欄位，資料庫綱要不動。
+
+**本輪新增欄位**（列表項與單筆詳情都有，除非另註）：
+
+| 模組 | DTO | 新欄位 |
+|---|---|---|
+| AdminNews | `AdminArticleListItemDto`／`AdminArticleDetailDto` | `coverUrl`、`coverThumbUrl`（詳情既有 `ogImageUrl` 不動） |
+| AdminPlayers | 列表項／詳情 | `photoUrl`、`photoThumbUrl` |
+| AdminStaff | 列表項／詳情 | `photoUrl`、`photoThumbUrl` |
+| AdminTeams | 列表項／詳情 | `heroUrl`、`heroThumbUrl` |
+| AdminPrograms | 列表項／詳情 | `coverUrl`、`coverThumbUrl` |
+| AdminCalendar | 自訂事件列表項／詳情 | `coverUrl`、`coverThumbUrl` |
+| AdminBanners | 列表項／詳情 | `imageUrl`、`imageThumbUrl`；另加 `videoUrl`（經 `IVideoPublicUrlResolver`，影片無縮圖） |
+| AdminClubs | `AdminClubDetailDto` | `ogImageUrl`、`ogImageThumbUrl` |
+| AdminCharity | `AdminCharityProgramDetailDto`／`AdminImpactRecordDetailDto` | `coverThumbUrl`／`imageThumbUrl`（`*Url` 原本就有） |
+| AdminPartnerStores | 詳情 | `imageThumbUrl` |
+| AdminPress | 詳情 | `coverThumbUrl` |
+| AdminFanEvents | 列表項 | `coverUrl`（`coverThumbUrl` 原本就有） |
+
+**頁面區塊（AdminPages）**：區塊內容是 JSON，圖片物件形如 `{ key, width, height, altZh, altEn }`。讀取時（詳情與版本詳情）在圖文左右的 `image` 與圖片藝廊的 `images[]` 每個物件旁補 `url`、`thumbUrl`（`PageBlockContentProcessor.AttachImageUrls`）。🔴 這兩個欄位**只存在於輸出**：寫入路徑（`ResolveSingleImageAsync`）一律把前端回傳的 `url`／`thumbUrl` 移除，不會寫進 `page_blocks.content` 或版本快照。
+
+**核對無需補**：AdminJerseys／AdminMatches／AdminBenefits／AdminHomeSections／AdminSeasons／AdminCompetitions 的 DTO 與資料表都沒有圖片鍵欄位；AdminApp 的 `iconKey` 是圖示代碼（≤48 字文字），不是物件鍵；AdminSeo 的全站預設 OG 圖早已有 `ogImageUrl`。
+
+**測試**：`Tcrfc.Api.Tests/AdminImageUrlInReadDtosTests.cs`（新聞封面、球員照片，用確定性假解析器；頁面區塊補網址／寫入丟棄；縮圖擴充方法的 null 行為）。

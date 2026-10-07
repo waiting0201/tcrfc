@@ -315,7 +315,7 @@ public sealed class AdminImpactRecordsRepository(ClubDbContext dbContext, IQuery
             CharityProgramId = record.CharityProgramId,
             ProgramNameZh = record.CharityProgram?.CharityProgramsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Name,
             HappenedOn = record.HappenedOn, SortOrder = record.SortOrder, IsPinned = record.IsPinned,
-            ImageKey = record.ImageKey, ImageUrl = imageUrls.Resolve(record.ImageKey), ImageWidth = record.ImageWidth, ImageHeight = record.ImageHeight,
+            ImageKey = record.ImageKey, ImageUrl = imageUrls.Resolve(record.ImageKey), ImageThumbUrl = imageUrls.ResolveThumbnail(record.ImageKey), ImageWidth = record.ImageWidth, ImageHeight = record.ImageHeight,
             Zh = new AdminImpactRecordLocaleContent { DonationContent = zh?.DonationContent ?? "", Location = zh?.Location, BriefDescription = zh?.BriefDescription },
             En = en is null ? null : new AdminImpactRecordLocaleContent { DonationContent = en.DonationContent ?? "", Location = en.Location, BriefDescription = en.BriefDescription },
             Images = record.ImpactRecordImages.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new AdminGalleryImageDto

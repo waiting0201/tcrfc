@@ -41,6 +41,8 @@ public sealed record AdminTeamAdminListItemDto
     public string? AgeBand { get; init; }
     public string? TeamColor { get; init; }
     public string? HeroKey { get; init; }
+    public string? HeroUrl { get; init; }
+    public string? HeroThumbUrl { get; init; }
     public required int SortOrder { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
@@ -56,6 +58,8 @@ public sealed record AdminTeamDetailDto
     public string? AgeBand { get; init; }
     public string? TeamColor { get; init; }
     public string? HeroKey { get; init; }
+    public string? HeroUrl { get; init; }
+    public string? HeroThumbUrl { get; init; }
     public required int SortOrder { get; init; }
     public required AdminTeamLocaleContent Zh { get; init; }
     public AdminTeamLocaleContent? En { get; init; }

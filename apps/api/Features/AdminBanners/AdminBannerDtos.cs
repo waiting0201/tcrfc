@@ -68,9 +68,12 @@ public sealed record AdminBannerListItemDto
     public required Guid Id { get; init; }
     public required string MediaType { get; init; }
     public required string ImageKey { get; init; }
+    public string? ImageUrl { get; init; }
+    public string? ImageThumbUrl { get; init; }
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
     public string? VideoKey { get; init; }
+    public string? VideoUrl { get; init; }
 
     /// <summary>草稿／發布（v3.14）。新增時一律是 <c>draft</c>，見
     /// <see cref="AdminBannersRepository.CreateAsync"/>；透過 <c>/publish</c>／<c>/unpublish</c>
@@ -89,9 +92,12 @@ public sealed record AdminBannerDetailDto
     public required Guid Id { get; init; }
     public required string MediaType { get; init; }
     public required string ImageKey { get; init; }
+    public string? ImageUrl { get; init; }
+    public string? ImageThumbUrl { get; init; }
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
     public string? VideoKey { get; init; }
+    public string? VideoUrl { get; init; }
     public required string Status { get; init; }
     public DateTime? StartAt { get; init; }
     public DateTime? EndAt { get; init; }
