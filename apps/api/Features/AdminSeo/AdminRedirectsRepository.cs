@@ -51,15 +51,25 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext, IQueryCach
         RedirectPathPolicy.Validate(request.FromPath, "來源網址", "fromPath");
         RedirectPathPolicy.Validate(request.ToPath, "目的網址", "toPath");
 
-        if (string.Equals(request.FromPath, request.ToPath, StringComparison.Ordinal))
+        if (string.Equals(RedirectPathPolicy.Normalize(request.FromPath), RedirectPathPolicy.Normalize(request.ToPath), StringComparison.Ordinal))
         {
             throw new AdminSeoValidationException("來源網址與目的網址不能相同，那不是一筆有意義的轉址。", "toPath");
         }
 
-        if (await dbContext.Redirects.AsNoTracking()
-            .AnyAsync(r => r.ClubId == scope.ClubId && r.FromPath == request.FromPath, cancellationToken))
+        // 結尾斜線視為同一網址：/zh/about 與 /zh/about/ 不能各存一筆（前台中介層會兩種寫法都命中，存兩筆等於互相遮蔽）。
+        var normalizedFrom = RedirectPathPolicy.Normalize(request.FromPath);
+        var sameKeyCandidates = await dbContext.Redirects.AsNoTracking()
+            .Where(r => r.ClubId == scope.ClubId && r.FromPath.StartsWith(normalizedFrom))
+            .Select(r => r.FromPath)
+            .ToListAsync(cancellationToken);
+        if (sameKeyCandidates.Any(f => RedirectPathPolicy.Normalize(f) == normalizedFrom))
         {
             throw new RedirectFromPathConflictException(request.FromPath);
+        }
+
+        if (request.IsActive)
+        {
+            await EnsureNoLoopAsync(scope, request.FromPath, request.ToPath, excludeId: null, cancellationToken);
         }
 
         var now = DateTime.UtcNow;
@@ -94,9 +104,14 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext, IQueryCach
             return null;
         }
 
-        if (string.Equals(redirect.FromPath, request.ToPath, StringComparison.Ordinal))
+        if (string.Equals(RedirectPathPolicy.Normalize(redirect.FromPath), RedirectPathPolicy.Normalize(request.ToPath), StringComparison.Ordinal))
         {
             throw new AdminSeoValidationException("來源網址與目的網址不能相同，那不是一筆有意義的轉址。", "toPath");
+        }
+
+        if (request.IsActive)
+        {
+            await EnsureNoLoopAsync(scope, redirect.FromPath, request.ToPath, excludeId: redirect.Id, cancellationToken);
         }
 
         redirect.ToPath = request.ToPath;
@@ -108,6 +123,29 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext, IQueryCach
         await cache.InvalidateAsync(SeoRepository.RedirectsEntity, scope.ClubCode, cancellationToken);
 
         return ToDto(redirect);
+    }
+
+    /// <summary>
+    /// 儲存前擋轉址迴圈（A→B、B→A 或更長的環）：把這個俱樂部「生效中」的規則連同這次要存的一條，沿著目的網址一路追，
+    /// 走回來源網址就拒絕。停用中的規則不參與（它不會轉走使用者），但啟用時會再檢查一次。
+    /// </summary>
+    private async Task EnsureNoLoopAsync(AdminClubScope scope, string fromPath, string toPath, Guid? excludeId, CancellationToken cancellationToken)
+    {
+        var active = await dbContext.Redirects.AsNoTracking()
+            .Where(r => r.ClubId == scope.ClubId && r.IsActive && r.Id != excludeId)
+            .Select(r => new { r.FromPath, r.ToPath })
+            .ToListAsync(cancellationToken);
+        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var rule in active)
+        {
+            map[RedirectPathPolicy.Normalize(rule.FromPath)] = rule.ToPath;
+        }
+
+        var loop = RedirectPathPolicy.FindLoop(fromPath, toPath, map);
+        if (loop is not null)
+        {
+            throw new AdminSeoValidationException($"這筆轉址會造成迴圈（{loop}），瀏覽器會一直轉不出去。請改目的網址或先調整相關規則。", "toPath");
+        }
     }
 
     public async Task<bool> DeleteAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
@@ -168,6 +206,7 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext, IQueryCach
 
         var errors = new List<RedirectCsvImportRowErrorDto>();
         var parsedRows = new List<(string FromPath, string ToPath, bool IsActive)>();
+        var parsedRowNumbers = new List<int>();
         var seenFromPaths = new HashSet<string>(StringComparer.Ordinal);
 
         for (var i = 1; i < rows.Count; i++)
@@ -209,12 +248,12 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext, IQueryCach
                 rowErrors.Add(ex.Message);
             }
 
-            if (fromPath.Length > 0 && !seenFromPaths.Add(fromPath))
+            if (fromPath.Length > 0 && !seenFromPaths.Add(RedirectPathPolicy.Normalize(fromPath)))
             {
                 rowErrors.Add($"來源網址「{fromPath}」在檔案中重複出現，同一份檔案裡的來源網址不能重複。");
             }
 
-            if (fromPath.Length > 0 && string.Equals(fromPath, toPath, StringComparison.Ordinal))
+            if (fromPath.Length > 0 && string.Equals(RedirectPathPolicy.Normalize(fromPath), RedirectPathPolicy.Normalize(toPath), StringComparison.Ordinal))
             {
                 rowErrors.Add("來源網址與目的網址不能相同。");
             }
@@ -237,6 +276,56 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext, IQueryCach
             }
 
             parsedRows.Add((fromPath, toPath, isActive!.Value));
+            parsedRowNumbers.Add(rowNumber);
+        }
+
+        // 讀一次全部既有規則：用正規化來源網址對應 upsert 目標，也用來做迴圈偵測（既有生效規則被本批覆寫者以本批為準）。
+        var existingRules = await dbContext.Redirects.Where(r => r.ClubId == scope.ClubId).ToListAsync(cancellationToken);
+        var existingByKey = new Dictionary<string, Redirect>(StringComparer.Ordinal);
+        foreach (var rule in existingRules)
+        {
+            existingByKey.TryAdd(RedirectPathPolicy.Normalize(rule.FromPath), rule);
+        }
+
+        if (errors.Count == 0)
+        {
+            var effective = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var rule in existingRules.Where(r => r.IsActive))
+            {
+                effective[RedirectPathPolicy.Normalize(rule.FromPath)] = rule.ToPath;
+            }
+
+            foreach (var parsed in parsedRows)
+            {
+                var key = RedirectPathPolicy.Normalize(parsed.FromPath);
+                if (parsed.IsActive)
+                {
+                    effective[key] = parsed.ToPath;
+                }
+                else
+                {
+                    effective.Remove(key);
+                }
+            }
+
+            for (var i = 0; i < parsedRows.Count; i++)
+            {
+                var parsed = parsedRows[i];
+                if (!parsed.IsActive)
+                {
+                    continue;
+                }
+
+                var loop = RedirectPathPolicy.FindLoop(parsed.FromPath, parsed.ToPath, effective);
+                if (loop is not null)
+                {
+                    errors.Add(new RedirectCsvImportRowErrorDto
+                    {
+                        RowNumber = parsedRowNumbers[i],
+                        Reason = $"這筆轉址會造成迴圈（{loop}）。",
+                    });
+                }
+            }
         }
 
         if (errors.Count > 0)
@@ -248,8 +337,7 @@ public sealed class AdminRedirectsRepository(ClubDbContext dbContext, IQueryCach
         var now = DateTime.UtcNow;
         foreach (var parsed in parsedRows)
         {
-            var existing = await dbContext.Redirects
-                .FirstOrDefaultAsync(r => r.ClubId == scope.ClubId && r.FromPath == parsed.FromPath, cancellationToken);
+            existingByKey.TryGetValue(RedirectPathPolicy.Normalize(parsed.FromPath), out var existing);
 
             var redirect = existing ?? new Redirect
             {

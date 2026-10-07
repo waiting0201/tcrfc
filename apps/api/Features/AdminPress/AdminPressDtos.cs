@@ -4,6 +4,9 @@ public sealed record AdminPressLocaleContent
 {
     public required string Title { get; init; }
     public string? Description { get; init; }
+
+    /// <summary>封面圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>press_resources_i18n.cover_alt</c>；有封面圖時前台輸出。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 public sealed record AdminPressContentInput

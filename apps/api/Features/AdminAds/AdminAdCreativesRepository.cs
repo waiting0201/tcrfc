@@ -221,11 +221,7 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
         AdminInput.RequireText(r.AltText, "替代文字（給讀屏軟體與圖片載入失敗時顯示）", 200, "altText");
         AdminInput.OptionalText(r.Title, "標題", 160, "title");
         AdminInput.OptionalText(r.CtaText, "按鈕文字", 60, "ctaText");
-        var url = AdminInput.OptionalText(r.ClickUrl, "點擊目的地", 500, "clickUrl");
-        if (url is not null && !url.StartsWith("tcrfc://", StringComparison.Ordinal))
-        {
-            AdminInput.OptionalHttpUrl(url, "點擊目的地", 500, "clickUrl");
-        }
+        AdminInput.OptionalHttpOrAppLink(r.ClickUrl, "點擊目的地", 500, "clickUrl");
 
         AdminInput.OneOf(r.Theme ?? "both", AdLabels.Theme.Keys.ToHashSet(StringComparer.Ordinal), "底色版本", "「淺色底」「深色底」或「深淺底通用」", "theme");
         if (r.VariantTag is not null)

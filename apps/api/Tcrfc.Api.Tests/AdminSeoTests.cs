@@ -304,6 +304,83 @@ public sealed class AdminSeoTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
+    public async Task Redirect_結尾斜線視為同一網址_衝突與公開輸出兩種寫法都命中()
+    {
+        using var client = await CreateSuperAdminClientAsync();
+        var withSlash = UniquePath("slash");
+        var withoutSlash = withSlash.TrimEnd('/');
+
+        var created = await (await client.PostAsJsonAsync("/api/v1/admin/tcrfc/seo/redirects",
+            new CreateRedirectRequest { FromPath = withSlash, ToPath = "/zh/about/", IsActive = true }))
+            .Content.ReadFromJsonAsync<AdminRedirectDto>(TestJson.Options);
+        try
+        {
+            // 同一網址換個結尾斜線寫法：視為重複，回 409。
+            var conflict = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/seo/redirects",
+                new CreateRedirectRequest { FromPath = withoutSlash, ToPath = "/zh/club/", IsActive = true });
+            Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
+
+            // 來源與目的只差結尾斜線＝自己轉自己。
+            var self = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/seo/redirects",
+                new CreateRedirectRequest { FromPath = withoutSlash + "-x", ToPath = withoutSlash + "-x/", IsActive = true });
+            Assert.Equal(HttpStatusCode.BadRequest, self.StatusCode);
+
+            using var publicClient = fixture.CreateClient();
+            var active = await (await publicClient.GetAsync("/api/v1/tcrfc/seo/redirects"))
+                .Content.ReadFromJsonAsync<List<PublicRedirectDto>>(TestJson.Options);
+            Assert.Contains(active!, r => r.FromPath == withSlash && r.ToPath == "/zh/about/");
+            Assert.Contains(active!, r => r.FromPath == withoutSlash && r.ToPath == "/zh/about/");
+        }
+        finally
+        {
+            await client.DeleteAsync($"/api/v1/admin/tcrfc/seo/redirects/{created!.Id}");
+        }
+    }
+
+    [Fact]
+    public async Task Redirect_儲存時擋迴圈_直接與間接都400_停用中的規則不參與()
+    {
+        using var client = await CreateSuperAdminClientAsync();
+        var a = UniquePath("loop-a");
+        var b = UniquePath("loop-b");
+        var c = UniquePath("loop-c");
+        var ids = new List<Guid>();
+
+        async Task<HttpResponseMessage> Post(string from, string to, bool active = true)
+            => await client.PostAsJsonAsync("/api/v1/admin/tcrfc/seo/redirects", new CreateRedirectRequest { FromPath = from, ToPath = to, IsActive = active });
+
+        try
+        {
+            var first = await Post(a, b);
+            Assert.Equal(HttpStatusCode.Created, first.StatusCode);
+            ids.Add((await first.Content.ReadFromJsonAsync<AdminRedirectDto>(TestJson.Options))!.Id);
+            var second = await Post(b, c);
+            Assert.Equal(HttpStatusCode.Created, second.StatusCode);
+            ids.Add((await second.Content.ReadFromJsonAsync<AdminRedirectDto>(TestJson.Options))!.Id);
+
+            // c → a 會形成 a→b→c→a 的環（目的網址寫成沒有結尾斜線也要抓到）。
+            Assert.Equal(HttpStatusCode.BadRequest, (await Post(c, a.TrimEnd('/'))).StatusCode);
+            // 停用中的規則不會轉走使用者，可以存。
+            var disabled = await Post(c, a, active: false);
+            Assert.Equal(HttpStatusCode.Created, disabled.StatusCode);
+            var disabledId = (await disabled.Content.ReadFromJsonAsync<AdminRedirectDto>(TestJson.Options))!.Id;
+            ids.Add(disabledId);
+
+            // 把它啟用就會形成迴圈，更新必須被擋。
+            var enable = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/seo/redirects/{disabledId}",
+                new UpdateRedirectRequest { ToPath = a, IsActive = true });
+            Assert.Equal(HttpStatusCode.BadRequest, enable.StatusCode);
+        }
+        finally
+        {
+            foreach (var id in ids)
+            {
+                await client.DeleteAsync($"/api/v1/admin/tcrfc/seo/redirects/{id}");
+            }
+        }
+    }
+
+    [Fact]
     public async Task Redirect_公開端點_生效中的規則會出現()
     {
         using var client = await CreateSuperAdminClientAsync();

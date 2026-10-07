@@ -111,7 +111,6 @@ public partial class Club
 
     public virtual ICollection<Membership> Memberships { get; set; } = new List<Membership>();
 
-    public virtual ICollection<MenuItem> MenuItems { get; set; } = new List<MenuItem>();
 
     public virtual ICollection<Milestone> Milestones { get; set; } = new List<Milestone>();
 

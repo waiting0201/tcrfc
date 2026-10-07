@@ -269,9 +269,7 @@ public partial class AdminUser
 
     public virtual ICollection<Membership> MembershipUpdatedByNavigations { get; set; } = new List<Membership>();
 
-    public virtual ICollection<MenuItem> MenuItemCreatedByNavigations { get; set; } = new List<MenuItem>();
 
-    public virtual ICollection<MenuItem> MenuItemUpdatedByNavigations { get; set; } = new List<MenuItem>();
 
     public virtual ICollection<Milestone> MilestoneCreatedByNavigations { get; set; } = new List<Milestone>();
 

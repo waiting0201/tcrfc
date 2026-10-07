@@ -590,6 +590,7 @@ data class FanEventListItemDto(
     val phase: String,
     val coverUrl: String? = null,
     val coverThumbUrl: String? = null,
+    val coverAlt: String? = null,
 )
 
 @Serializable
@@ -1378,6 +1379,7 @@ data class PlayerDto(
 data class PlayerSeasonStatDto(
     val playerId: String,
     val name: String? = null,
+    val isFallbackLocale: Boolean,
     val teamCode: String,
     val shirtNo: Int? = null,
     val position: String? = null,
@@ -1408,6 +1410,7 @@ data class PressResourceDto(
     val fileBytes: Int? = null,
     val fileExtension: String? = null,
     val coverUrl: String? = null,
+    val coverAlt: String? = null,
     val downloadPath: String,
 )
 
@@ -1653,22 +1656,6 @@ data class PublicLlmsContentDto(
 data class PublicMaintenanceDto(
     val enabled: Boolean,
     val message: String? = null,
-)
-
-@Serializable
-data class PublicMenuItemDto(
-    val id: String,
-    val label: String,
-    val url: String? = null,
-    val isExternal: Boolean,
-    val children: List<PublicMenuItemDto>,
-)
-
-@Serializable
-data class PublicMenusDto(
-    val main: List<PublicMenuItemDto>,
-    val mega: List<PublicMenuItemDto>,
-    val footer: List<PublicMenuItemDto>,
 )
 
 @Serializable
@@ -2179,6 +2166,7 @@ data class StaffDto(
 data class StandingRowDto(
     val rank: Int? = null,
     val teamName: String,
+    val isFallbackLocale: Boolean,
     val played: Int? = null,
     val points: Int? = null,
 )

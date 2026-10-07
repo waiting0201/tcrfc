@@ -7,6 +7,9 @@ public sealed record AdminFanEventLocaleContent
 
     /// <summary>活動地點的文字說明（例如「台中市西屯區某某球場入口」）；選了場地時可以不填。</summary>
     public string? Location { get; init; }
+
+    /// <summary>封面圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>fan_events_i18n.cover_alt</c>；有封面圖時前台輸出。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 public sealed record AdminFanEventContentInput

@@ -17,6 +17,9 @@ public sealed record PressResourceDto
     public string? FileExtension { get; init; }
     public string? CoverUrl { get; init; }
 
+    /// <summary>封面圖片替代文字（§4.0）：請求語系優先、空白回退繁中；沒有封面圖時為 null。</summary>
+    public string? CoverAlt { get; init; }
+
     /// <summary>下載連結（相對於 API 根目錄的路徑，<c>GET</c> 會累計下載次數後 302 轉址到檔案）。</summary>
     public required string DownloadPath { get; init; }
 }

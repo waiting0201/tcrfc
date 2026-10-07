@@ -3,22 +3,11 @@ using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.SiteSettings;
 
-/// <summary>I 網站設定的前台讀取端點（選單、站台全域設定、政策頁、介面字串、場地）。全部是 GET、不需要登入、不寫入任何資料。</summary>
+/// <summary>I 網站設定的前台讀取端點（站台全域設定、政策頁、介面字串、場地）。全部是 GET、不需要登入、不寫入任何資料。</summary>
 public static class SiteSettingsEndpoints
 {
     public static void MapSiteSettingsEndpoints(this IEndpointRouteBuilder app)
     {
-        // GET /api/v1/{club}/menus?lang=zh
-        app.MapGet("/api/v1/{club}/menus", async (
-            string club, string? lang, IClubResolver clubResolver, SiteSettingsRepository repository, CancellationToken cancellationToken) =>
-        {
-            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            return Results.Ok(await repository.GetMenusAsync(scope, RequestLocale.ToDbLocale(lang), cancellationToken));
-        })
-        .WithName("GetMenus").WithTags("SiteSettings")
-        .WithDescription("主選單、Mega Menu、頁尾選單（多層級，已依語系挑選標籤）。")
-        .Produces<PublicMenusDto>().Produces(StatusCodes.Status404NotFound);
-
         // GET /api/v1/{club}/site-settings?lang=zh
         app.MapGet("/api/v1/{club}/site-settings", async (
             string club, string? lang, IClubResolver clubResolver, SiteSettingsRepository repository, CancellationToken cancellationToken) =>

@@ -67,12 +67,16 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
                 Requested = s.StandingsI18ns.Where(i => i.Locale == dbLocale).Select(i => i.TeamName).FirstOrDefault(),
                 Default = s.StandingsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.TeamName).FirstOrDefault(),
             }).ToListAsync(cancellationToken);
-        var rows = raw.Select(r => new { r.Rank, r.Played, r.Points, r.UpdatedAt, TeamName = RequestLocale.Pick(r.Requested, r.Default) ?? string.Empty })
+        var rows = raw.Select(r => new
+            {
+                r.Rank, r.Played, r.Points, r.UpdatedAt, TeamName = RequestLocale.Pick(r.Requested, r.Default) ?? string.Empty,
+                IsFallbackLocale = RequestLocale.IsFallback(dbLocale, r.Requested),
+            })
             .OrderBy(s => s.Rank == null).ThenBy(s => s.Rank).ThenBy(s => s.TeamName, StringComparer.Ordinal).ToList();
         return new StandingsDto
         {
             Season = Ref(season), Seasons = codes, UpdatedAt = rows.Count == 0 ? null : rows.Max(r => r.UpdatedAt),
-            Items = rows.Select(r => new StandingRowDto { Rank = r.Rank, TeamName = r.TeamName, Played = r.Played, Points = r.Points }).ToList(),
+            Items = rows.Select(r => new StandingRowDto { Rank = r.Rank, TeamName = r.TeamName, IsFallbackLocale = r.IsFallbackLocale, Played = r.Played, Points = r.Points }).ToList(),
         };
     }
 
@@ -167,7 +171,7 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
             var photo = p.PortraitConsentStatus is "consented" or "consented_by_guardian" ? p.PhotoKey : null;
             return new PlayerSeasonStatDto
             {
-                PlayerId = p.Id, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), TeamCode = p.Team.Code, ShirtNo = p.ShirtNo, Position = p.Position,
+                PlayerId = p.Id, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), TeamCode = p.Team.Code, ShirtNo = p.ShirtNo, Position = p.Position,
                 PhotoUrl = photo is null ? null : imageUrls.Resolve(photo), Appearances = t.Appearances, Goals = t.Goals, Assists = t.Assists, YellowCards = t.Yellow, RedCards = t.Red, Source = t.Source,
             };
         }).OrderByDescending(i => i.Goals).ThenByDescending(i => i.Appearances).ThenBy(i => i.ShirtNo ?? int.MaxValue).ToList();

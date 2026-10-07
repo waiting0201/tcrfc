@@ -192,10 +192,6 @@ public partial class ClubDbContext : DbContext
 
     public virtual DbSet<MembershipPlansI18n> MembershipPlansI18ns { get; set; }
 
-    public virtual DbSet<MenuItem> MenuItems { get; set; }
-
-    public virtual DbSet<MenuItemsI18n> MenuItemsI18ns { get; set; }
-
     public virtual DbSet<Milestone> Milestones { get; set; }
 
     public virtual DbSet<MilestonesI18n> MilestonesI18ns { get; set; }
@@ -2743,6 +2739,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Location)
                 .HasMaxLength(200)
                 .HasColumnName("location");
+            entity.Property(e => e.CoverAlt)
+                .HasMaxLength(200)
+                .HasColumnName("cover_alt");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
                 .HasColumnName("name");
@@ -4526,82 +4525,6 @@ public partial class ClubDbContext : DbContext
                 .HasConstraintName("FK_membership_plans_i18n_plan");
         });
 
-        modelBuilder.Entity<MenuItem>(entity =>
-        {
-            entity.HasKey(e => e.Id).IsClustered(false);
-
-            entity.ToTable("menu_items");
-
-            entity.HasIndex(e => e.RowSeq, "UQ_menu_items_row_seq")
-                .IsUnique()
-                .IsClustered();
-
-            entity.Property(e => e.Id)
-                .HasDefaultValueSql("(newid())")
-                .HasColumnName("id");
-            entity.Property(e => e.ClubId).HasColumnName("club_id");
-            entity.Property(e => e.CreatedAt)
-                .HasPrecision(3)
-                .HasDefaultValueSql("(sysutcdatetime())")
-                .HasColumnName("created_at");
-            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
-            entity.Property(e => e.IsExternal).HasColumnName("is_external");
-            entity.Property(e => e.MenuLocation)
-                .HasMaxLength(16)
-                .HasColumnName("menu_location");
-            entity.Property(e => e.ParentId).HasColumnName("parent_id");
-            entity.Property(e => e.RowSeq)
-                .ValueGeneratedOnAdd()
-                .HasColumnName("row_seq");
-            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
-            entity.Property(e => e.UpdatedAt)
-                .HasPrecision(3)
-                .HasDefaultValueSql("(sysutcdatetime())")
-                .HasColumnName("updated_at");
-            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
-            entity.Property(e => e.Url)
-                .HasMaxLength(500)
-                .HasColumnName("url");
-
-            entity.HasOne(d => d.Club).WithMany(p => p.MenuItems)
-                .HasForeignKey(d => d.ClubId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_menu_items_club");
-
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.MenuItemCreatedByNavigations)
-                .HasForeignKey(d => d.CreatedBy)
-                .HasConstraintName("FK_menu_items_created_by");
-
-            entity.HasOne(d => d.Parent).WithMany(p => p.InverseParent)
-                .HasForeignKey(d => d.ParentId)
-                .HasConstraintName("FK_menu_items_parent");
-
-            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.MenuItemUpdatedByNavigations)
-                .HasForeignKey(d => d.UpdatedBy)
-                .HasConstraintName("FK_menu_items_updated_by");
-        });
-
-        modelBuilder.Entity<MenuItemsI18n>(entity =>
-        {
-            entity.HasKey(e => new { e.MenuItemId, e.Locale });
-
-            entity.ToTable("menu_items_i18n");
-
-            entity.HasIndex(e => e.Locale, "IX_menu_items_i18n_locale");
-
-            entity.Property(e => e.MenuItemId).HasColumnName("menu_item_id");
-            entity.Property(e => e.Locale)
-                .HasMaxLength(10)
-                .HasColumnName("locale");
-            entity.Property(e => e.Label)
-                .HasMaxLength(64)
-                .HasColumnName("label");
-
-            entity.HasOne(d => d.MenuItem).WithMany(p => p.MenuItemsI18ns)
-                .HasForeignKey(d => d.MenuItemId)
-                .HasConstraintName("FK_menu_items_i18n_item");
-        });
-
         modelBuilder.Entity<Milestone>(entity =>
         {
             entity.HasKey(e => e.Id).IsClustered(false);
@@ -5695,6 +5618,9 @@ public partial class ClubDbContext : DbContext
                 .HasMaxLength(10)
                 .HasColumnName("locale");
             entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.CoverAlt)
+                .HasMaxLength(200)
+                .HasColumnName("cover_alt");
             entity.Property(e => e.Title)
                 .HasMaxLength(200)
                 .HasColumnName("title");

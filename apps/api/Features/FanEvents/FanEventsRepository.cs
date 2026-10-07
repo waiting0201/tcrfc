@@ -240,6 +240,7 @@ public sealed class FanEventsRepository(ClubDbContext db, IImagePublicUrlResolve
             IsRegistrationOpen = open, IsFull = full, Phase = end is DateTime endAt && endAt < now ? "past" : "upcoming",
             CoverUrl = e.CoverKey is null ? null : imageUrls.Resolve(e.CoverKey),
             CoverThumbUrl = e.CoverKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(e.CoverKey)),
+            CoverAlt = e.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
         };
     }
 

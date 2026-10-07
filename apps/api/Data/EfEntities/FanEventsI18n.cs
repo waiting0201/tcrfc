@@ -15,5 +15,7 @@ public partial class FanEventsI18n
 
     public string? Location { get; set; }
 
+    public string? CoverAlt { get; set; }
+
     public virtual FanEvent FanEvent { get; set; } = null!;
 }

@@ -528,7 +528,6 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Search.SearchRepository>(); // G-0
 // 2026-10-02：I 網站設定其餘子模組（I2 選單／I3 全域設定／I4 多語系與字串翻譯表／I6 EDM 設定）與公開讀取。
 builder.Services.AddScoped<Tcrfc.Api.Common.ClubSettingsEditor>();
 builder.Services.AddScoped<Tcrfc.Api.Features.SiteSettings.SiteSettingsRepository>();
-builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.AdminMenusRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.AdminGlobalSettingsRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.TranslationStatusReader>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.AdminI18nRepository>();
@@ -973,7 +972,6 @@ Tcrfc.Api.Features.Newsletter.NewsletterEndpoints.MapNewsletterEndpoints(app);
 Tcrfc.Api.Features.Trials.TrialsEndpoints.MapTrialsEndpoints(app);
 Tcrfc.Api.Features.Search.SearchEndpoints.MapSearchEndpoints(app);
 Tcrfc.Api.Features.SiteSettings.SiteSettingsEndpoints.MapSiteSettingsEndpoints(app);
-Tcrfc.Api.Features.AdminSiteSettings.AdminMenusEndpoints.MapAdminMenusEndpoints(app);
 Tcrfc.Api.Features.AdminSiteSettings.AdminGlobalSettingsEndpoints.MapAdminGlobalSettingsEndpoints(app);
 Tcrfc.Api.Features.AdminSiteSettings.AdminI18nEndpoints.MapAdminI18nEndpoints(app);
 Tcrfc.Api.Features.AdminSiteSettings.AdminUiStringsEndpoints.MapAdminUiStringsEndpoints(app);

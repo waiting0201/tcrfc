@@ -1454,6 +1454,7 @@ public struct FanEventListItemDto: Codable, Equatable, Sendable {
     public var phase: String
     public var coverUrl: String?
     public var coverThumbUrl: String?
+    public var coverAlt: String?
 
     public init(
         slug: String,
@@ -1469,7 +1470,8 @@ public struct FanEventListItemDto: Codable, Equatable, Sendable {
         isFull: Bool,
         phase: String,
         coverUrl: String? = nil,
-        coverThumbUrl: String? = nil
+        coverThumbUrl: String? = nil,
+        coverAlt: String? = nil
     ) {
         self.slug = slug
         self.name = name
@@ -1485,6 +1487,7 @@ public struct FanEventListItemDto: Codable, Equatable, Sendable {
         self.phase = phase
         self.coverUrl = coverUrl
         self.coverThumbUrl = coverThumbUrl
+        self.coverAlt = coverAlt
     }
 }
 
@@ -3457,6 +3460,7 @@ public struct PlayerDto: Codable, Equatable, Sendable {
 public struct PlayerSeasonStatDto: Codable, Equatable, Sendable {
     public var playerId: String
     public var name: String?
+    public var isFallbackLocale: Bool
     public var teamCode: String
     public var shirtNo: Int?
     public var position: String?
@@ -3471,6 +3475,7 @@ public struct PlayerSeasonStatDto: Codable, Equatable, Sendable {
     public init(
         playerId: String,
         name: String? = nil,
+        isFallbackLocale: Bool,
         teamCode: String,
         shirtNo: Int? = nil,
         position: String? = nil,
@@ -3484,6 +3489,7 @@ public struct PlayerSeasonStatDto: Codable, Equatable, Sendable {
     ) {
         self.playerId = playerId
         self.name = name
+        self.isFallbackLocale = isFallbackLocale
         self.teamCode = teamCode
         self.shirtNo = shirtNo
         self.position = position
@@ -3523,6 +3529,7 @@ public struct PressResourceDto: Codable, Equatable, Sendable {
     public var fileBytes: Int?
     public var fileExtension: String?
     public var coverUrl: String?
+    public var coverAlt: String?
     public var downloadPath: String
 
     public init(
@@ -3535,6 +3542,7 @@ public struct PressResourceDto: Codable, Equatable, Sendable {
         fileBytes: Int? = nil,
         fileExtension: String? = nil,
         coverUrl: String? = nil,
+        coverAlt: String? = nil,
         downloadPath: String
     ) {
         self.id = id
@@ -3546,6 +3554,7 @@ public struct PressResourceDto: Codable, Equatable, Sendable {
         self.fileBytes = fileBytes
         self.fileExtension = fileExtension
         self.coverUrl = coverUrl
+        self.coverAlt = coverAlt
         self.downloadPath = downloadPath
     }
 }
@@ -4174,44 +4183,6 @@ public struct PublicMaintenanceDto: Codable, Equatable, Sendable {
     ) {
         self.enabled = enabled
         self.message = message
-    }
-}
-
-public struct PublicMenuItemDto: Codable, Equatable, Sendable {
-    public var id: String
-    public var label: String
-    public var url: String?
-    public var isExternal: Bool
-    public var children: [PublicMenuItemDto]
-
-    public init(
-        id: String,
-        label: String,
-        url: String? = nil,
-        isExternal: Bool,
-        children: [PublicMenuItemDto]
-    ) {
-        self.id = id
-        self.label = label
-        self.url = url
-        self.isExternal = isExternal
-        self.children = children
-    }
-}
-
-public struct PublicMenusDto: Codable, Equatable, Sendable {
-    public var main: [PublicMenuItemDto]
-    public var mega: [PublicMenuItemDto]
-    public var footer: [PublicMenuItemDto]
-
-    public init(
-        main: [PublicMenuItemDto],
-        mega: [PublicMenuItemDto],
-        footer: [PublicMenuItemDto]
-    ) {
-        self.main = main
-        self.mega = mega
-        self.footer = footer
     }
 }
 
@@ -5510,17 +5481,20 @@ public struct StaffDto: Codable, Equatable, Sendable {
 public struct StandingRowDto: Codable, Equatable, Sendable {
     public var rank: Int?
     public var teamName: String
+    public var isFallbackLocale: Bool
     public var played: Int?
     public var points: Int?
 
     public init(
         rank: Int? = nil,
         teamName: String,
+        isFallbackLocale: Bool,
         played: Int? = nil,
         points: Int? = nil
     ) {
         self.rank = rank
         self.teamName = teamName
+        self.isFallbackLocale = isFallbackLocale
         self.played = played
         self.points = points
     }

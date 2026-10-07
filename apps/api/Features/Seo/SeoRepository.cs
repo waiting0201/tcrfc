@@ -110,9 +110,27 @@ public sealed class SeoRepository(IClubSqlConnectionFactory connectionFactory, I
                 var rows = (await connection.QueryAsync<RedirectRow>(new CommandDefinition(
                     sql, new { scope.ClubId }, cancellationToken: ct))).ToList();
 
-                return (IReadOnlyList<PublicRedirectDto>)rows
-                    .Select(r => new PublicRedirectDto { FromPath = r.FromPath, ToPath = r.ToPath })
-                    .ToList();
+                // 結尾斜線視為同一網址：每條規則同時輸出有／無結尾斜線兩種寫法，前台中介層精確比對即兩種都命中。
+                // 管理者原樣輸入的寫法優先；替代寫法若已被另一條規則占用就不輸出（避免互相遮蔽）。
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                var result = new List<PublicRedirectDto>();
+                foreach (var r in rows.Where(r => seen.Add(r.FromPath)))
+                {
+                    result.Add(new PublicRedirectDto { FromPath = r.FromPath, ToPath = r.ToPath });
+                }
+
+                foreach (var r in rows)
+                {
+                    foreach (var alternate in RedirectPathPolicy.ExpandForMatching(r.FromPath).Skip(1))
+                    {
+                        if (seen.Add(alternate))
+                        {
+                            result.Add(new PublicRedirectDto { FromPath = alternate, ToPath = r.ToPath });
+                        }
+                    }
+                }
+
+                return (IReadOnlyList<PublicRedirectDto>)result;
             },
             cancellationToken);
     }

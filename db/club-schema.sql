@@ -442,6 +442,8 @@ CREATE TABLE press_resources_i18n (
   locale             nvarchar(10)    NOT NULL,
   title              nvarchar(200)   NULL,
   description        nvarchar(max)   NULL,
+  -- cover_alt（2026-10-07，§4.0 圖片欄位組）：封面圖片替代文字，逐語系；高解析圖以主檔縮圖作封面，同樣用這欄。
+  cover_alt          nvarchar(200)   NULL,
   CONSTRAINT PK_press_resources_i18n PRIMARY KEY CLUSTERED (press_resource_id, locale)
 );
 
@@ -1458,6 +1460,8 @@ CREATE TABLE fan_events_i18n (
   name            nvarchar(128)    NULL,
   description      nvarchar(max)   NULL,
   location         nvarchar(200)   NULL,
+  -- cover_alt（2026-10-07，§4.0 圖片欄位組）：封面圖片替代文字，逐語系；原本缺這欄，封面圖沒有 Alt。
+  cover_alt        nvarchar(200)   NULL,
   CONSTRAINT PK_fan_events_i18n PRIMARY KEY CLUSTERED (fan_event_id, locale)
 );
 
@@ -1639,31 +1643,6 @@ CREATE TABLE newsletter_subscribers (
 /* ============================================================================
    4.7 I 網站設定
    ============================================================================ */
-
--- 主選單／Mega Menu／Footer：多層級（parent_id）、排序、外部連結。
-CREATE TABLE menu_items (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
-  row_seq         bigint IDENTITY(1,1) NOT NULL,
-  club_id         uniqueidentifier NOT NULL,
-  parent_id       uniqueidentifier NULL,
-  menu_location   nvarchar(16)     NULL,
-  url             nvarchar(500)    NULL,
-  is_external     bit              NOT NULL DEFAULT 0,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by      uniqueidentifier NULL,
-  updated_by      uniqueidentifier NULL,
-  CONSTRAINT PK_menu_items PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_menu_items_row_seq UNIQUE CLUSTERED (row_seq)
-);
-
-CREATE TABLE menu_items_i18n (
-  menu_item_id    uniqueidentifier NOT NULL,
-  locale          nvarchar(10)     NOT NULL,
-  label           nvarchar(64)     NULL,
-  CONSTRAINT PK_menu_items_i18n PRIMARY KEY CLUSTERED (menu_item_id, locale)
-);
 
 -- 場地：地址、lat／lng、交通說明、照片。刻意不帶 club_id——兩隊共用同一座球場。
 -- I5（2026-10-02）：照片補齊圖片欄位組（規劃書 v3.5 §4.0「物件鍵、寬、高、雙語 Alt」）：photo_width／photo_height
@@ -3585,7 +3564,6 @@ CREATE INDEX IX_comic_characters_i18n_locale         ON comic_characters_i18n (l
 CREATE INDEX IX_comic_episodes_i18n_locale           ON comic_episodes_i18n (locale);
 CREATE INDEX IX_fan_events_i18n_locale               ON fan_events_i18n (locale);
 CREATE INDEX IX_forms_i18n_locale                    ON forms_i18n (locale);
-CREATE INDEX IX_menu_items_i18n_locale               ON menu_items_i18n (locale);
 CREATE INDEX IX_venues_i18n_locale                   ON venues_i18n (locale);
 CREATE INDEX IX_membership_plans_i18n_locale         ON membership_plans_i18n (locale);
 CREATE INDEX IX_membership_benefits_i18n_locale      ON membership_benefits_i18n (locale);
@@ -3729,8 +3707,6 @@ ALTER TABLE membership_plans ADD CONSTRAINT FK_membership_plans_created_by FOREI
 ALTER TABLE membership_plans ADD CONSTRAINT FK_membership_plans_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE memberships ADD CONSTRAINT FK_memberships_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
 ALTER TABLE memberships ADD CONSTRAINT FK_memberships_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
-ALTER TABLE menu_items ADD CONSTRAINT FK_menu_items_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
-ALTER TABLE menu_items ADD CONSTRAINT FK_menu_items_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE milestones ADD CONSTRAINT FK_milestones_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
 ALTER TABLE milestones ADD CONSTRAINT FK_milestones_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE newsletter_subscribers ADD CONSTRAINT FK_newsletter_subscribers_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
@@ -3971,9 +3947,6 @@ ALTER TABLE enquiry_answers     ADD CONSTRAINT FK_enquiry_answers_field       FO
 ALTER TABLE newsletter_subscribers ADD CONSTRAINT FK_newsletter_subscribers_club FOREIGN KEY (club_id) REFERENCES clubs(id);
 
 -- 4.7 I 網站設定
-ALTER TABLE menu_items          ADD CONSTRAINT FK_menu_items_club             FOREIGN KEY (club_id) REFERENCES clubs(id);
-ALTER TABLE menu_items          ADD CONSTRAINT FK_menu_items_parent           FOREIGN KEY (parent_id) REFERENCES menu_items(id);
-ALTER TABLE menu_items_i18n     ADD CONSTRAINT FK_menu_items_i18n_item        FOREIGN KEY (menu_item_id) REFERENCES menu_items(id) ON DELETE CASCADE;
 ALTER TABLE venues_i18n         ADD CONSTRAINT FK_venues_i18n_venue           FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE;
 
 -- 4.8 J 系統管理

@@ -168,11 +168,10 @@ public sealed class SiteBackendOfflineTranslationTests
     }
 
     [Fact]
-    public async Task 前台站台設定_選單_站台設定_政策_介面字串_場地_都能翻譯()
+    public async Task 前台站台設定_站台設定_政策_介面字串_場地_都能翻譯()
     {
         await using var db = OfflineQueryTranslation.CreateContext();
         var repository = new SiteSettingsRepository(db, NoCache, Urls);
-        await OfflineQueryTranslation.AssertTranslatesAsync(() => repository.GetMenusAsync(Public(), "en", CancellationToken.None));
         await OfflineQueryTranslation.AssertTranslatesAsync(() => repository.GetSiteSettingsAsync(Public(), "en", CancellationToken.None));
         await OfflineQueryTranslation.AssertTranslatesAsync(() => repository.GetPolicyAsync(Public(), "privacy", "en", CancellationToken.None));
         await OfflineQueryTranslation.AssertTranslatesAsync(() => repository.GetUiStringsAsync("en", "button", CancellationToken.None));
@@ -188,13 +187,12 @@ public sealed class SiteBackendOfflineTranslationTests
     }
 
     [Fact]
-    public async Task 後台選單_全域設定_多語系_字串翻譯_EDM_場地_都能翻譯()
+    public async Task 後台全域設定_多語系_字串翻譯_EDM_場地_都能翻譯()
     {
         await using var db = OfflineQueryTranslation.CreateContext();
         var editor = new ClubSettingsEditor(db);
         var permissions = new AllowAllPermissions();
 
-        await OfflineQueryTranslation.AssertTranslatesAsync(() => new AdminMenusRepository(db, NoCache).GetAsync(Admin(), CancellationToken.None));
         await OfflineQueryTranslation.AssertTranslatesAsync(() => new AdminGlobalSettingsRepository(
             db, editor, NoCache, new SensitiveActionLogger(NullLogger<SensitiveActionLogger>.Instance)).GetAsync(Admin(), CancellationToken.None));
 

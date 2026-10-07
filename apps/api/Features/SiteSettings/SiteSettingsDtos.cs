@@ -1,33 +1,5 @@
 namespace Tcrfc.Api.Features.SiteSettings;
 
-/// <summary>前台選單項目（I 選單管理，規劃書 §4.9）。<see cref="Url"/> 內部連結是不含語系前綴的路徑（例 <c>/about/</c>），前台自己接 <c>/zh</c>／<c>/en</c>；
-/// 外部連結（<see cref="IsExternal"/>）是完整 http(s) 網址。群組標題（有子項目）可以沒有 <see cref="Url"/>。</summary>
-public sealed record PublicMenuItemDto
-{
-    public required Guid Id { get; init; }
-
-    /// <summary>依語系挑選的標籤，要求語系空白回退繁中。</summary>
-    public required string Label { get; init; }
-
-    public string? Url { get; init; }
-
-    public required bool IsExternal { get; init; }
-
-    public required IReadOnlyList<PublicMenuItemDto> Children { get; init; }
-}
-
-public sealed record PublicMenusDto
-{
-    /// <summary>主選單。</summary>
-    public required IReadOnlyList<PublicMenuItemDto> Main { get; init; }
-
-    /// <summary>Mega Menu。</summary>
-    public required IReadOnlyList<PublicMenuItemDto> Mega { get; init; }
-
-    /// <summary>頁尾選單。</summary>
-    public required IReadOnlyList<PublicMenuItemDto> Footer { get; init; }
-}
-
 public sealed record PublicMaintenanceDto
 {
     public required bool Enabled { get; init; }

@@ -155,7 +155,7 @@ public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IIma
             throw new AdminValidationException("輪播張數上限只能是 1 到 10。", "rotationCap");
         }
 
-        AdminInput.OptionalHttpUrl(request.FallbackLink, "備援連結", 500, "fallbackLink");
+        AdminInput.OptionalHttpOrAppLink(request.FallbackLink, "備援連結", 500, "fallbackLink");
         AdminInput.RequireText(request.Content.Zh.Name, "版位名稱（繁中）", 128, "nameZh");
         AdminInput.OptionalText(request.Content.En?.Name, "版位名稱（英文）", 128, "nameEn");
     }

@@ -3664,47 +3664,6 @@
         }
       }
     },
-    "/api/v1/{club}/menus": {
-      "get": {
-        "tags": [
-          "SiteSettings"
-        ],
-        "description": "主選單、Mega Menu、頁尾選單（多層級，已依語系挑選標籤）。",
-        "operationId": "GetMenus",
-        "parameters": [
-          {
-            "name": "club",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "lang",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PublicMenusDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found"
-          }
-        }
-      }
-    },
     "/api/v1/{club}/milestones": {
       "get": {
         "tags": [
@@ -9176,6 +9135,12 @@
               "null",
               "string"
             ]
+          },
+          "coverAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -12523,6 +12488,7 @@
       "PlayerSeasonStatDto": {
         "required": [
           "playerId",
+          "isFallbackLocale",
           "teamCode",
           "appearances",
           "goals",
@@ -12541,6 +12507,9 @@
               "null",
               "string"
             ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "teamCode": {
             "type": "string"
@@ -12697,6 +12666,12 @@
             ]
           },
           "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverAlt": {
             "type": [
               "null",
               "string"
@@ -13768,67 +13743,6 @@
               "null",
               "string"
             ]
-          }
-        }
-      },
-      "PublicMenuItemDto": {
-        "required": [
-          "id",
-          "label",
-          "isExternal",
-          "children"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "label": {
-            "type": "string"
-          },
-          "url": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "isExternal": {
-            "type": "boolean"
-          },
-          "children": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicMenuItemDto"
-            }
-          }
-        }
-      },
-      "PublicMenusDto": {
-        "required": [
-          "main",
-          "mega",
-          "footer"
-        ],
-        "type": "object",
-        "properties": {
-          "main": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicMenuItemDto"
-            }
-          },
-          "mega": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicMenuItemDto"
-            }
-          },
-          "footer": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/PublicMenuItemDto"
-            }
           }
         }
       },
@@ -16069,7 +15983,8 @@
       },
       "StandingRowDto": {
         "required": [
-          "teamName"
+          "teamName",
+          "isFallbackLocale"
         ],
         "type": "object",
         "properties": {
@@ -16084,6 +15999,9 @@
           },
           "teamName": {
             "type": "string"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "played": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",

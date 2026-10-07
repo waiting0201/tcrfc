@@ -11,6 +11,9 @@ public sealed record StandingRowDto
 {
     public int? Rank { get; init; }
     public required string TeamName { get; init; }
+
+    /// <summary>未翻譯標示：請求語系不是繁中、且該隊在請求語系沒有名稱（<see cref="TeamName"/> 已回退成繁中）時為 true。前台據此標示「尚無英文版」。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }
 }
@@ -30,6 +33,9 @@ public sealed record PlayerSeasonStatDto
 {
     public required Guid PlayerId { get; init; }
     public string? Name { get; init; }
+
+    /// <summary>未翻譯標示：請求語系不是繁中、且該球員在請求語系沒有名稱（<see cref="Name"/> 已回退成繁中）時為 true。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public required string TeamCode { get; init; }
     public int? ShirtNo { get; init; }
     public string? Position { get; init; }

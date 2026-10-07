@@ -88,7 +88,7 @@ public sealed class CalendarRepository(
         var isResults = string.Equals(mode, "results", StringComparison.OrdinalIgnoreCase);
 
         var countSql = $"""
-            SELECT COUNT(*)
+            SELECT COUNT(DISTINCT m.id)
             FROM matches m
             JOIN seasons se ON se.id = m.season_id
             LEFT JOIN match_teams mt ON mt.match_id = m.id

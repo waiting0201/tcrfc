@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Tcrfc.Api.Data;
 
@@ -11,9 +12,11 @@ using Tcrfc.Api.Data;
 namespace Tcrfc.Api.Data.Migrations
 {
     [DbContext(typeof(ClubDbContext))]
-    partial class ClubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261007035140_ClubMenuItemsDropContract")]
+    partial class ClubMenuItemsDropContract
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -4996,11 +4999,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(10)")
                         .HasColumnName("locale");
 
-                    b.Property<string>("CoverAlt")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasColumnName("cover_alt");
-
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("description");
@@ -9365,11 +9363,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)")
                         .HasColumnName("locale");
-
-                    b.Property<string>("CoverAlt")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasColumnName("cover_alt");
 
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)")

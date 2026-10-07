@@ -67,6 +67,37 @@ public static partial class AdminInput
         return text;
     }
 
+    /// <summary>
+    /// 選填連結：完整的 http(s) 網址，或 App 自訂 scheme 深連結 <c>tcrfc://</c>（App 規劃書 §2.3：scheme 維持 <c>tcrfc://</c>；§7「廣告素材導向 App 內畫面」、
+    /// 版位點擊「開啟外部瀏覽器或 App 內指定畫面」）。其餘協定（<c>javascript:</c>、<c>data:</c>、其他自訂 scheme）一律拒絕。
+    /// 深連結至少要有一段畫面路徑（<c>tcrfc://schedule/d1</c>、<c>tcrfc://membercard</c>）。
+    /// </summary>
+    public static string? OptionalHttpOrAppLink(string? value, string label, int maxLength = 500, string? field = null)
+    {
+        var text = OptionalText(value, label, maxLength, field);
+        if (text is null)
+        {
+            return null;
+        }
+
+        if (text.StartsWith("tcrfc://", StringComparison.OrdinalIgnoreCase))
+        {
+            if (text.Length <= "tcrfc://".Length || text.Any(c => char.IsControl(c) || char.IsWhiteSpace(c)))
+            {
+                throw new AdminValidationException($"{Spaced(label)}的 App 連結格式不正確，範例：tcrfc://schedule/d1。", field);
+            }
+
+            return text;
+        }
+
+        if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
+        {
+            throw new AdminValidationException($"{Spaced(label)}必須是以 http://、https:// 或 tcrfc:// 開頭的完整網址。", field);
+        }
+
+        return text;
+    }
+
     /// <summary>選填連結：只收 <c>https://</c>／<c>http://</c> 完整網址，或站內 <c>/</c> 開頭的相對路徑
     /// （<c>//</c>、<c>/\</c> 會被瀏覽器當成外站，一併拒絕）。前台會把它直接放進 <c>href</c>，
     /// <c>javascript:</c>、<c>data:</c> 之類的協定必須在這裡擋掉（稽核 E-2）。</summary>

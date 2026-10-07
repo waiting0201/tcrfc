@@ -13,5 +13,7 @@ public partial class PressResourcesI18n
 
     public string? Description { get; set; }
 
+    public string? CoverAlt { get; set; }
+
     public virtual PressResource PressResource { get; set; } = null!;
 }

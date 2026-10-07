@@ -32,8 +32,8 @@
 -- MANIFEST forms=18
 -- MANIFEST home_sections=18
 -- MANIFEST locales=2
--- MANIFEST permissions=275
--- MANIFEST role_permissions=799
+-- MANIFEST permissions=271
+-- MANIFEST role_permissions=792
 -- ============================================================================
 
 SET ANSI_NULLS ON;
@@ -377,18 +377,6 @@ END
 GO
 
 DECLARE @id uniqueidentifier;
-SELECT @id = id FROM permissions WHERE code = N'content.page.create';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'244ef636-4232-5696-8403-2811508bde74';
-  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
-  VALUES (@id, N'content.page.create', N'B', N'B1', N'content', N'create', 1, 0, 0, N'建立頁面', N'Create Pages');
-  COMMIT TRANSACTION;
-END
-GO
-
-DECLARE @id uniqueidentifier;
 SELECT @id = id FROM permissions WHERE code = N'content.page.update';
 IF @id IS NULL
 BEGIN
@@ -408,18 +396,6 @@ BEGIN
   SET @id = N'eed15f72-0e54-5c67-926e-9c049d8a7305';
   INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
   VALUES (@id, N'content.page.publish', N'B', N'B1', N'content', N'publish', 1, 0, 0, N'發布頁面', N'Publish Pages');
-  COMMIT TRANSACTION;
-END
-GO
-
-DECLARE @id uniqueidentifier;
-SELECT @id = id FROM permissions WHERE code = N'content.page.delete';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'18171863-dcb7-5d14-9baa-fcfdce019194';
-  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
-  VALUES (@id, N'content.page.delete', N'B', N'B1', N'content', N'delete', 1, 0, 0, N'刪除頁面', N'Delete Pages');
   COMMIT TRANSACTION;
 END
 GO
@@ -1464,30 +1440,6 @@ BEGIN
   SET @id = N'c28a5e28-536f-5341-abf9-94f4e406b4fb';
   INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
   VALUES (@id, N'site.fact.update', N'I', N'I1', N'site', N'update', 1, 0, 1, N'編輯網站設定（站台事實）', N'Update Site Facts');
-  COMMIT TRANSACTION;
-END
-GO
-
-DECLARE @id uniqueidentifier;
-SELECT @id = id FROM permissions WHERE code = N'site.menu.view';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'a03e29a5-4ebe-5121-a2cc-d57c587587a7';
-  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
-  VALUES (@id, N'site.menu.view', N'I', N'I2', N'site', N'view', 1, 0, 1, N'檢視選單管理', N'View Menus');
-  COMMIT TRANSACTION;
-END
-GO
-
-DECLARE @id uniqueidentifier;
-SELECT @id = id FROM permissions WHERE code = N'site.menu.update';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'a24f9f0e-5f38-56f1-b93b-cb83ea23d847';
-  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
-  VALUES (@id, N'site.menu.update', N'I', N'I2', N'site', N'update', 1, 0, 1, N'編輯主選單、Mega Menu 與頁尾選單', N'Update Menus');
   COMMIT TRANSACTION;
 END
 GO
@@ -3635,11 +3587,6 @@ IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id F
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'content.page.view'), N'all');
 GO
 
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.create'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'content.page.create'), N'all');
-GO
-
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.update'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'content.page.update'), N'all');
@@ -3648,11 +3595,6 @@ GO
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.publish'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'content.page.publish'), N'all');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.delete'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'content.page.delete'), N'all');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'system.account.view'))
@@ -4088,16 +4030,6 @@ GO
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.fact.update'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.fact.update'), N'all');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.menu.view'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.menu.view'), N'all');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.menu.update'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.menu.update'), N'all');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.global.view'))
@@ -5010,11 +4942,6 @@ IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id F
   VALUES ((SELECT id FROM admin_roles WHERE code = N'content_editor'), (SELECT id FROM permissions WHERE code = N'content.page.view'), N'all');
 GO
 
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'content_editor') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.create'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'content_editor'), (SELECT id FROM permissions WHERE code = N'content.page.create'), N'all');
-GO
-
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'content_editor') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.update'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'content_editor'), (SELECT id FROM permissions WHERE code = N'content.page.update'), N'all');
@@ -5023,11 +4950,6 @@ GO
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'content_editor') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.publish'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'content_editor'), (SELECT id FROM permissions WHERE code = N'content.page.publish'), N'all');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'content_editor') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.delete'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'content_editor'), (SELECT id FROM permissions WHERE code = N'content.page.delete'), N'all');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'content_editor') AND permission_id = (SELECT id FROM permissions WHERE code = N'team.competition.view'))
@@ -5188,11 +5110,6 @@ GO
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'partner_club_manager') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.view'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'partner_club_manager'), (SELECT id FROM permissions WHERE code = N'content.page.view'), N'own_clubs');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'partner_club_manager') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.create'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'partner_club_manager'), (SELECT id FROM permissions WHERE code = N'content.page.create'), N'own_clubs');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'partner_club_manager') AND permission_id = (SELECT id FROM permissions WHERE code = N'content.page.update'))

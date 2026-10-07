@@ -28,6 +28,9 @@ public sealed record FanEventListItemDto
     public required string Phase { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+
+    /// <summary>封面圖片替代文字（§4.0）：請求語系優先、空白回退繁中；沒有封面圖時為 null。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 public sealed record FanEventImagePublicDto

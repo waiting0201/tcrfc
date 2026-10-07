@@ -842,6 +842,8 @@ END
 #     submodule_code=B1、domain=content），角色指派依規劃書 §6 矩陣「內容」欄——那一欄同時涵蓋
 #     B1 頁面與 B2 新聞（矩陣沒有分別列 B1／B2 兩欄），故 content.page.* 的 ROLE_PERMISSIONS
 #     指派與 content.article.* 逐列一致。
+#     2026-10-07（規劃書 v3.21／v3.22）：B1 改為固定頁、不新增／刪除，故不再有 content.page.create／delete；
+#     前台選單固定在版型，故不再有 site.menu.view／update（I2）。既有庫由遷移 20261007_menu-items-drop_2-contract.sql 刪除。
 # ============================================================================
 
 ROLES = [
@@ -881,10 +883,8 @@ PERMISSIONS = [
     ("content.article.delete", "B", "B2", "content", "delete", 1, 0, 0, "刪除新聞與故事", "Delete News & Stories"),
     # S1-4（B1 頁面管理，2026-09-24）：逐字比照 content.article.* 的鋪法。
     ("content.page.view", "B", "B1", "content", "view", 1, 0, 0, "檢視頁面", "View Pages"),
-    ("content.page.create", "B", "B1", "content", "create", 1, 0, 0, "建立頁面", "Create Pages"),
     ("content.page.update", "B", "B1", "content", "update", 1, 0, 0, "編輯頁面", "Edit Pages"),
     ("content.page.publish", "B", "B1", "content", "publish", 1, 0, 0, "發布頁面", "Publish Pages"),
-    ("content.page.delete", "B", "B1", "content", "delete", 1, 0, 0, "刪除頁面", "Delete Pages"),
     ("system.account.view", "J", "J1", "system", "view", 0, 0, 1, "檢視後台帳號", "View Admin Accounts"),
     ("system.account.create", "J", "J1", "system", "create", 0, 0, 1, "新增後台帳號", "Create Admin Accounts"),
     ("system.account.update", "J", "J1", "system", "update", 0, 0, 1, "停用／更新後台帳號", "Update Admin Accounts"),
@@ -1077,8 +1077,6 @@ PERMISSIONS = [
     # （矩陣補充規則 ※ 翻譯人員僅能編輯 en 語系欄位）——端點在伺服器端強制，翻譯人員只被指派 view＋translate。
     # 選單／全域設定／多語系／EDM 設定是各俱樂部各一份（is_club_scoped=1）；字串翻譯表與場地是全站共用主檔（is_club_scoped=0，
     # 端點仍掛 {club} 路由只是為了沿用俱樂部授權管線，同 AdminVenues 先例）。EDM 設定含憑證，視為受限（is_restricted=1）。
-    ("site.menu.view", "I", "I2", "site", "view", 1, 0, 1, "檢視選單管理", "View Menus"),
-    ("site.menu.update", "I", "I2", "site", "update", 1, 0, 1, "編輯主選單、Mega Menu 與頁尾選單", "Update Menus"),
     ("site.global.view", "I", "I3", "site", "view", 1, 0, 1, "檢視全域設定", "View Global Settings"),
     ("site.global.update", "I", "I3", "site", "update", 1, 0, 1, "編輯 Logo、品牌色、Favicon、政策頁與維護模式", "Update Global Settings"),
     ("site.locale.view", "I", "I4", "site", "view", 1, 0, 1, "檢視多語系設定與翻譯狀態總覽", "View Language Settings"),
@@ -1336,7 +1334,7 @@ ROLE_PERMISSIONS = [
         # 欄是「✔ 編輯／發布」，同一格同時管 B1 頁面與 B2 新聞（矩陣沒有分欄），刪除跟新聞一樣採
         # 「編輯自己編輯的內容屬於編輯權限的常態操作」這條既有的工程判斷（見上方 role_permissions
         # 註解），不是另外重新判斷一次。
-        "content.page.view", "content.page.create", "content.page.update", "content.page.publish", "content.page.delete",
+        "content.page.view", "content.page.update", "content.page.publish",
         "team.competition.view",
         "team.team.view", "team.player.view", "team.staff.view",
     ], "all"),
@@ -1356,7 +1354,7 @@ ROLE_PERMISSIONS = [
     ], "all"),
     ("partner_club_manager", [
         "content.article.view", "content.article.create", "content.article.update",
-        "content.page.view", "content.page.create", "content.page.update",
+        "content.page.view", "content.page.update",
     ], "own_clubs"),
     ("partner_club_manager", [
         "team.competition.view", "team.competition.create", "team.competition.update",

@@ -18,7 +18,7 @@ public sealed class PressRepository(
     IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrls, IDocumentPublicUrlResolver documentUrls)
 {
     private sealed record Row(
-        Guid Id, string Slug, string ResourceType, DateTime? PublishedOn, int? FileBytes, string FileKey, string? CoverKey, string? Title, string? Description);
+        Guid Id, string Slug, string ResourceType, DateTime? PublishedOn, int? FileBytes, string FileKey, string? CoverKey, string? Title, string? Description, string? CoverAlt);
 
     public async Task<PagedResult<PressResourceDto>> ListAsync(
         ClubScope scope, string? resourceType, string dbLocale, int page, int pageSize, CancellationToken cancellationToken)
@@ -39,7 +39,8 @@ public sealed class PressRepository(
 
                 SELECT v.id AS Id, v.slug AS Slug, v.resource_type AS ResourceType, v.published_on AS PublishedOn, v.file_bytes AS FileBytes,
                        v.file_key AS FileKey, v.cover_key AS CoverKey,
-                       COALESCE(NULLIF(r.title, N''), d.title) AS Title, COALESCE(NULLIF(r.description, N''), d.description) AS Description
+                       COALESCE(NULLIF(r.title, N''), d.title) AS Title, COALESCE(NULLIF(r.description, N''), d.description) AS Description,
+                       COALESCE(NULLIF(r.cover_alt, N''), d.cover_alt) AS CoverAlt
                 FROM visible v
                 LEFT JOIN press_resources_i18n r ON r.press_resource_id = v.id AND r.locale = @Locale
                 LEFT JOIN press_resources_i18n d ON d.press_resource_id = v.id AND d.locale = @DefaultLocale
@@ -63,6 +64,7 @@ public sealed class PressRepository(
                 CoverUrl = r.ResourceType == "hires_image"
                     ? imageUrls.Resolve(ImageObjectKey.ForLongEdge(r.FileKey, 640))
                     : imageUrls.Resolve(r.CoverKey),
+                CoverAlt = r.ResourceType == "hires_image" || r.CoverKey is not null ? r.CoverAlt : null,
                 DownloadPath = $"/api/v1/{scope.ClubCode}/press/{r.Slug}/download",
             }).ToList();
             return new PagedResult<PressResourceDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = total };

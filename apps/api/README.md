@@ -911,7 +911,7 @@ $ dotnet test    # CLUB_SQL_CONNECTION_STRING 指向本機 tcrfc_club_dev，見�
 | `POST …/pages/{id}/publish`、`…/schedule` | `content.page.publish` | 狀態轉換，照舊 |
 | `GET …/pages/{id}/versions`、`…/versions/{n}` | `content.page.view` | 版本歷程；單版詳情多 `structureMatchesTemplate` |
 | `POST …/pages/{id}/versions/{n}/restore` | `content.page.update` | 還原；快照結構與現行版型不符回 400（鍵 `versionNo`） |
-| ~~`POST …/pages`~~／~~`DELETE …/pages/{id}`~~ | — | **已移除**：路由不存在，回 **405**（`content.page.create`／`delete` 權限碼仍留在種子，不再有端點使用） |
+| ~~`POST …/pages`~~／~~`DELETE …/pages/{id}`~~ | — | **已移除**：路由不存在，回 **405**（`content.page.create`／`delete` 權限碼已於 2026-10-07 隨遷移 `ClubMenuItemsDropContract` 刪除） |
 
 **list 回應（一列）**：
 
@@ -10149,7 +10149,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 | 權限碼 | 子模組 | 誰有 | 說明 |
 |---|---|---|---|
-| `site.menu.view`／`update` | I2 選單管理 | 僅系統管理員（`sysadmin_only`） | 每俱樂部一份 |
+| ~~`site.menu.view`／`update`~~ | ~~I2 選單管理~~ | — | **已移除（2026-10-07，規劃書 v3.22）**：權限碼隨遷移 `ClubMenuItemsDropContract` 刪除 |
 | `site.global.view`／`update` | I3 全域設定 | 僅系統管理員 | Logo／Favicon／品牌色／政策頁／維護模式 |
 | `site.locale.view`／`update` | I4 多語系管理 | 僅系統管理員 | 語系、備援規則、日期數字格式、翻譯狀態總覽 |
 | `site.string.view`／`update`／`translate` | I4 字串翻譯表 | `sysadmin_only=0`；**翻譯人員被指派 `view`＋`translate`**（scope `translate_only`） | `update`＝新增／刪除／改繁中原文與分組；`translate`＝只能改非預設語系（伺服器強制） |
@@ -10214,7 +10214,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 | 端點 | 回應重點 |
 |---|---|
-| `GET /api/v1/{club}/menus?lang=` | `{ main[], mega[], footer[] }`，每項 `{ id, label, url, isExternal, children[] }`（多層級，兩個語系都沒標籤的項目不輸出）。內部連結 `url` 是不含語系前綴的路徑（`/about/`），前台自己接 `/zh`／`/en`。 |
+| ~~`GET /api/v1/{club}/menus?lang=`~~ | **已移除（2026-10-07，v3.22）**：前台選單固定在版型，路由不存在 |
 | `GET /api/v1/{club}/site-settings?lang=` | `brand{ logoLightUrl, logoDarkUrl, faviconUrl, brandColor, brandSecondaryColor }`、`maintenance{ enabled, message }`、`languages[{code,name,isDefault,fallbackCode}]`（啟用中）、`fallbackMode`（`show_default`／`hide`）、`formats{ dateFormat, numberFormat, thousandsSeparator, decimalSeparator }`、`policies[{code,title,hasContent}]` |
 | `GET /api/v1/{club}/policies/{code}?lang=` | `code`＝`cookie`／`privacy`／`member-terms`；`{ code, title, body, updatedAt, isFallbackLocale }`；**`body` 是純文字（空行分段），前台必須用文字節點輸出，不得 `v-html`**；沒有內容或代碼不存在 → `404` |
 | `GET /api/v1/ui-strings?lang=&group=` | 全站共用（不分俱樂部）：`{ locale, strings: { key: 文字 } }`，缺該語系回退繁中 |
@@ -10224,8 +10224,8 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 | 端點 | 權限 | 說明 |
 |---|---|---|
-| `GET /api/v1/admin/{club}/menus` | `site.menu.view` | `{ locations: [{ location: main\|mega\|footer, label, items[tree] }] }`，item `{ id, labelZh, labelEn, url, isExternal, children[] }` |
-| `PUT /api/v1/admin/{club}/menus/{location}` | `site.menu.update` | **整棵樹取代**：body `{ items: [{ id?, labelZh*, labelEn?, url?, isExternal, children? }] }`。有 `id` 沿用、沒有新增、既有不在請求裡就刪除；同層順序＝陣列順序。最多 3 層、每位置 100 項；葉節點必須有連結；內部連結須 `/` 開頭且不含空白／網域，外部連結須完整 http(s) 網址。`400` 不改動任何資料。後儲存者覆蓋先儲存者（無版本檢查） |
+| ~~`GET /api/v1/admin/{club}/menus`~~ | — | **已移除（2026-10-07，v3.22）** |
+| ~~`PUT /api/v1/admin/{club}/menus/{location}`~~ | — | **已移除（2026-10-07，v3.22）**：`menu_items`／`menu_items_i18n` 表刪除 |
 | `GET`／`PUT /api/v1/admin/{club}/global-settings` | `site.global.view`／`update` | `PUT` 是 **multipart**：`payload`（JSON：`brandColor`、`brandSecondaryColor`（`#RRGGBB`）、`removeLogoLight`／`removeLogoDark`／`removeFavicon`、`cookiePolicy`／`privacyPolicy`／`memberTerms`（`{bodyZh,bodyEn}`，純文字，每則 ≤ 50,000 字）、`maintenanceEnabled`、`maintenanceMessageZh`／`En`（≤ 500 字））＋選填檔案 `logoLight`／`logoDark`／`favicon`。**非圖片欄位整份取代**；圖片不帶檔案且未勾移除＝維持原圖。切換維護模式寫敏感操作日誌。🔴 維護模式**只是旗標與訊息**，不會自動攔截其他公開端點，維護頁（G-10）由前台依 `site-settings.maintenance.enabled` 顯示 |
 | `GET /api/v1/admin/{club}/i18n/locales` | `site.locale.view`／`site.string.view`／`site.string.translate` 任一 | 語系清單 `{ code, name, isDefault, fallbackCode, isEnabled, sortOrder }` |
 | `PUT /api/v1/admin/{club}/i18n/locales/{code}` | `site.locale.update` | body `{ name, isEnabled, fallbackCode?, sortOrder }`；預設語系不能停用／不能設備援；備援不能是自己、必須存在且啟用、不能成環；被別的語系當備援時不能停用。**不提供新增語系**（見待決 2） |
@@ -10487,6 +10487,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 | `20261006090843_DBilingualGapsExpand` | 展開（可隨新版 api 一起上） | 建三張側表、補兩個側表欄位、把主表中文值搬進 `zh-Hant` 列（冪等；SQL 與 `db/migrations/20261006_d-bilingual-gaps_1-expand.sql` 同源） |
 | `20261006090900_ClubBrandDropContract` | **收縮（走 `production-db` 核准關卡）** | 刪 `clubs` 五個品牌欄位 |
 | `20261006091446_DBilingualGapsContract` | **收縮（走 `production-db` 核准關卡）** | 刪五個舊主表欄位；刪除前逐表核對舊值與 `zh-Hant` 側表一致，不一致 `THROW` 整批回滾 |
+| `20261007035140_ClubMenuItemsDropContract` | **收縮（走 `production-db` 核准關卡）** | 刪 `menu_items_i18n`／`menu_items`，並刪四個權限碼（`site.menu.view／update`、`content.page.create／delete`）；SQL 同源 `db/migrations/20261007_menu-items-drop_2-contract.sql` |
 
 🔴 **兩支收縮型 migration 必須在新版 api 部署並驗證之後才套用**（舊版 api 仍 SELECT 這些欄位，先套用會 500）。`db-migrate.yml` 會套用**全部待套用**的 migration，所以**建議收縮型兩支另開後續 PR 才合併到 master**，展開型先上。`Designer.cs`／snapshot 以最終模型為準；`MigrationsOnBlankDatabaseTests` 已涵蓋三支的 Up／Down／冪等重跑。
 
@@ -10509,3 +10510,25 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 - `UploadSlotPolicy`：`clubs` 只剩 `ogImage`。`SchemaRequiredFields`：Organization／SportsTeam 必填由 name＋url＋logo 改為 name＋url；後台 Schema 完整度報表同步。
 
 **測試**：全套 1,514 項（含展開／收縮 migration 的空白庫 Up／Down 重跑）；新增或改寫的重點：榮譽／積分榜（含 CSV 六欄）／課程／會籍方案／提案的中英讀寫與回退、公開 DTO 不再含品牌欄位、全域設定 `PUT` 容忍舊版品牌欄位。`shared/` 已重產。
+
+## S2-24／S2-23 移除、稽核 F 類後端修正、封面替代文字（2026-10-07，`backend-engineer`）
+
+**1. 選單管理移除（S2-24，規劃書 v3.22）**：刪 `GET /api/v1/{club}/menus`、`GET`／`PUT /api/v1/admin/{club}/menus[/{location}]`、`MenuItem`／`MenuItemsI18n` 實體與 `DbSet`、`AdminMenusRepository`、`SiteSettingsRepository.GetMenusAsync`、`SiteSettingsRepository.CacheEntities.Menus`、選單相關測試（`SiteMenusAndGlobalSettingsTests` 改名 `GlobalSettingsTests`，只留全域設定）。權限碼 `site.menu.view`／`update` 自 `db/seed/generate-club-seed-sql.py` 移除，`db/prod/club-reference-data.sql` 已重產。
+
+**2. 權限碼清理（S2-23）**：`content.page.create`／`delete` 自種子產生器的權限清單與 `content_editor`／`partner_club_manager` 角色預設權限移除（`system_admin` 為全部權限自動跟隨）。
+
+**3. 遷移（收縮型，新版 api 上線驗證後才經 `production-db` 關卡套用）**：EF `20261007035140_ClubMenuItemsDropContract`＝刪 `menu_items_i18n`／`menu_items` ＋ `DELETE FROM permissions` 四個碼（`role_permissions` 由 FK 連動刪除）；SQL 同源 `db/migrations/20261007_menu-items-drop_2-contract.sql`（冪等）。`db/club-schema.sql` 已移除兩表與相關外鍵／索引。本機 `tcrfc_club` 已套用；`__EFMigrationsHistory` 本機只有基線，未補紀錄（與前幾支一致）。
+
+**4. 稽核 F 類修正**：
+
+| 項目 | 修正 |
+|---|---|
+| 轉址結尾斜線與迴圈 | `RedirectPathPolicy.Normalize`（去結尾斜線，根路徑除外）用於**衝突比對**（`/zh/about` 與 `/zh/about/` 視為同一筆，409）與**自轉自**判斷；儲存保留輸入原樣。公開 `GET /{club}/seo/redirects` 對每條規則同時輸出有／無結尾斜線兩種 `fromPath`（管理者原樣寫法優先、被另一條規則占用的寫法不輸出），前台中介層精確比對即兩種都命中，**前台不用改**。`POST`／`PUT`（啟用中）與 CSV 匯入儲存前做迴圈偵測（沿生效中規則一路追，走回來源即 400；CSV 以「既有生效規則被本批覆寫」後的有效集合檢查，回報列號） |
+| 公開賽程列表重複 | 確認會重複：多隊賽事 `JOIN match_teams` 每隊一列、`TotalCount` 也重算。`MatchesRepository.ListAsync` 改為每場挑一支球隊（有 `team` 篩選＝該隊，否則排序最前的一隊，與 `GetAsync` 一致）。順帶修 `CalendarRepository` 賽程列表 `COUNT(*)`→`COUNT(DISTINCT m.id)`（列表已有 `DISTINCT`、計數沒有） |
+| 版位備援連結 | `AdminInput.OptionalHttpOrAppLink`：http(s) 或 `tcrfc://`（App 規劃書 §2.3），其餘協定（`javascript:`、`data:`、其他 scheme）拒絕；`AdminAdSlotsRepository` 套用 |
+| 廣告素材點擊目的地 | `ad_creatives.click_url` 同用 `OptionalHttpOrAppLink`（http(s) 或 `tcrfc://` 至少一段路徑、無空白；`javascript:`／`data:`／其他 scheme 拒絕，錯誤帶 `clickUrl` 欄位鍵）；`AdminAdCreativesRepository` 套用。舊版對 `tcrfc://` 完全不驗證（`tcrfc://`、含空白皆放行），已收斂 |
+| 球員數據語系回退標示 | `PlayerSeasonStatDto.isFallbackLocale`：請求語系非繁中且該球員無該語系姓名（`name` 已回退繁中）時為 true，比照 `StandingRowDto` |
+| 慈善計畫夥伴／贊助商不濾合作期間 | **未改**：規劃書只寫有「合作期間」「合約期間」欄位，沒有寫過期是否隱藏；現行公開夥伴／贊助商列表已套用「期間涵蓋今天才列出」，詳情頁不一致，待決定 |
+| 積分榜 `isFallbackLocale` | `StandingRowDto.IsFallbackLocale`（逐列：請求語系非繁中且該隊無請求語系名稱）。**契約變更**，已重跑 `shared/scripts/gen-all.sh` |
+
+**5. 封面替代文字（§4.0 圖片欄位組）**：`fan_events_i18n.cover_alt`、`press_resources_i18n.cover_alt`（`nvarchar(200)` 可為空）。後台 DTO：`AdminFanEventLocaleContent.CoverAlt`、`AdminPressLocaleContent.CoverAlt`（JSON `content.zh.coverAlt`／`content.en.coverAlt`，過長 400，錯誤欄位 `coverAltZh`／`coverAltEn`）。公開 DTO：`FanEventListItemDto.CoverAlt`（列表與詳情的 `event`）、`PressResourceDto.CoverAlt`（高解析圖以主檔縮圖為封面，同樣輸出）——請求語系優先、空白回退繁中、沒有封面圖為 null。遷移：展開型 EF `ClubCoverAltExpand`、`db/migrations/20261007_cover-alt_1-expand.sql`（可隨新版 api 上）。測試 `CoverAltTests`（需 Azurite）。

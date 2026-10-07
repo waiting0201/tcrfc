@@ -34,6 +34,9 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
     /// （本檔既有中文內容，不是側表），<c>matches_i18n</c> 只在需要覆寫其他語系時才有列——
     /// 這裡的回退鏈是「請求語系側表值 → 基礎表 opponent（等同中文預設）→ null」，
     /// 與其他實體「請求語系側表 → zh-Hant 側表 → null」的鏈不同，因為 matches 沒有 opponent 側表底值。
+    /// 🔴 <b>一場賽事只出現一列</b>：賽事可複選本方球隊（<c>match_teams</c>），所以不能直接 JOIN <c>match_teams</c>（多隊賽事會重複列、
+    /// <c>TotalCount</c> 也會算多）；改成每場賽事挑一支球隊——有 <paramref name="teamCode"/> 篩選就是該隊，沒有就是排序最前的一隊
+    /// （與 <see cref="GetAsync"/> 的「回第一支」一致）。
     /// **快取**：qualifier 涵蓋 <paramref name="teamCode"/>／<paramref name="seasonCode"/>／
     /// <paramref name="status"/>／<paramref name="page"/>／<paramref name="pageSize"/>——五個都會
     /// 改變回傳結果，缺一個都會讓不同篩選條件的請求彼此互相拿到對方的快取結果。
@@ -57,8 +60,10 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
                     SELECT COUNT(*)
                     FROM matches m
                     JOIN seasons se ON se.id = m.season_id
-                    JOIN match_teams mt ON mt.match_id = m.id
-                    JOIN teams t ON t.id = mt.team_id
+                    JOIN teams t ON t.id = (
+                        SELECT TOP 1 mt.team_id FROM match_teams mt JOIN teams t2 ON t2.id = mt.team_id
+                        WHERE mt.match_id = m.id AND (@TeamCode IS NULL OR t2.code = @TeamCode)
+                        ORDER BY t2.sort_order, t2.code)
                     WHERE m.club_id = @ClubId
                       AND (@TeamCode IS NULL OR t.code = @TeamCode)
                       AND (@SeasonCode IS NULL OR se.code = @SeasonCode)
@@ -76,8 +81,10 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
                            m.match_no AS MatchNo, m.original_match_on AS OriginalMatchOn, m.original_kickoff AS OriginalKickoff
                     FROM matches m
                     JOIN seasons se ON se.id = m.season_id
-                    JOIN match_teams mt ON mt.match_id = m.id
-                    JOIN teams t ON t.id = mt.team_id
+                    JOIN teams t ON t.id = (
+                        SELECT TOP 1 mt.team_id FROM match_teams mt JOIN teams t2 ON t2.id = mt.team_id
+                        WHERE mt.match_id = m.id AND (@TeamCode IS NULL OR t2.code = @TeamCode)
+                        ORDER BY t2.sort_order, t2.code)
                     WHERE m.club_id = @ClubId
                       AND (@TeamCode IS NULL OR t.code = @TeamCode)
                       AND (@SeasonCode IS NULL OR se.code = @SeasonCode)

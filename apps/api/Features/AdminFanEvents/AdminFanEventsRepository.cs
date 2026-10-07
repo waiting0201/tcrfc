@@ -416,10 +416,12 @@ public sealed class AdminFanEventsRepository(
         AdminInput.OneOf(request.Status, StatusLabels.Keys.ToHashSet(), "狀態", "「草稿」或「已發布」", "status");
         AdminInput.RequireText(request.Content.Zh.Name, "中文活動名稱", 128, "nameZh");
         AdminInput.OptionalText(request.Content.Zh.Location, "中文活動地點", 200, "locZh");
+        AdminInput.OptionalText(request.Content.Zh.CoverAlt, "封面圖片替代文字（中文）", 200, "coverAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
             AdminInput.RequireText(request.Content.En.Name, "英文活動名稱", 128, "nameEn");
             AdminInput.OptionalText(request.Content.En.Location, "英文活動地點", 200, "locEn");
+            AdminInput.OptionalText(request.Content.En.CoverAlt, "封面圖片替代文字（英文）", 200, "coverAltEn");
         }
 
         if (request.Capacity is int cap)
@@ -533,6 +535,7 @@ public sealed class AdminFanEventsRepository(
         i18n.Name = content.Name.Trim();
         i18n.Description = string.IsNullOrWhiteSpace(content.Description) ? null : content.Description;
         i18n.Location = string.IsNullOrWhiteSpace(content.Location) ? null : content.Location.Trim();
+        i18n.CoverAlt = string.IsNullOrWhiteSpace(content.CoverAlt) ? null : content.CoverAlt.Trim();
     }
 
     private Task<FanEvent?> LoadAsync(AdminClubScope scope, Guid id, bool tracking, CancellationToken cancellationToken)
@@ -578,8 +581,8 @@ public sealed class AdminFanEventsRepository(
             Id = e.Id, Slug = e.Slug, StartsAt = e.StartsAt, EndsAt = e.EndsAt, RegistrationDeadlineAt = e.RegistrationDeadlineAt, Capacity = e.Capacity,
             IsPaidMembersOnly = e.IsPaidMembersOnly, Status = e.Status, StatusLabel = StatusLabels[e.Status], CoverKey = e.CoverKey,
             CoverUrl = e.CoverKey is null ? null : imageUrls.Resolve(e.CoverKey), CoverThumbUrl = ThumbUrl(e.CoverKey), VenueId = e.VenueId, VenueName = venueName,
-            Zh = new AdminFanEventLocaleContent { Name = zh?.Name ?? "", Description = zh?.Description, Location = zh?.Location },
-            En = en is null ? null : new AdminFanEventLocaleContent { Name = en.Name ?? "", Description = en.Description, Location = en.Location },
+            Zh = new AdminFanEventLocaleContent { Name = zh?.Name ?? "", Description = zh?.Description, Location = zh?.Location, CoverAlt = zh?.CoverAlt },
+            En = en is null ? null : new AdminFanEventLocaleContent { Name = en.Name ?? "", Description = en.Description, Location = en.Location, CoverAlt = en.CoverAlt },
             RegisteredCount = registered, WaitlistCount = waitlist, IsRegistrationOpen = IsOpen(e, registered, DateTime.UtcNow),
             Images = e.FanEventImages.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new AdminFanEventImageDto
             {

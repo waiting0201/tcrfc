@@ -10,7 +10,7 @@ using Tcrfc.Api.Security;
 namespace Tcrfc.Api.Features.SiteSettings;
 
 /// <summary>
-/// I 網站設定的公開讀取（規劃書 §4.9）：選單、站台全域設定（品牌／維護模式／語系與格式）、政策頁、介面字串、場地。
+/// I 網站設定的公開讀取（規劃書 §4.9）：站台全域設定（品牌／維護模式／語系與格式）、政策頁、介面字串、場地。
 /// 寫入端在 <c>Features/AdminSiteSettings</c>、<c>Features/AdminVenues</c>，<b>儲存後都會呼叫 <see cref="IQueryCache.InvalidateAsync"/></b>
 /// 讓維護模式等設定立即生效（不同於 <c>SiteFactsRepository</c> 的「最多延後一個 TTL」取捨——維護頁開關延後五分鐘是不可接受的）。
 /// 快取鍵常數集中在 <see cref="CacheEntities"/>，寫入端引用同一份。
@@ -19,7 +19,6 @@ public sealed partial class SiteSettingsRepository(ClubDbContext db, IQueryCache
 {
     public static class CacheEntities
     {
-        public const string Menus = "site-menus";
         public const string Settings = "site-settings-global";
         public const string Policies = "site-policies";
         public const string UiStrings = "ui-strings";
@@ -34,52 +33,6 @@ public sealed partial class SiteSettingsRepository(ClubDbContext db, IQueryCache
 
     [GeneratedRegex(@"^1(?<th>[,. ]?)234(?<dec>[.,])56$")]
     private static partial Regex NumberSample();
-
-    // ── 選單 ─────────────────────────────────────────────────────────────────────
-    public async Task<PublicMenusDto> GetMenusAsync(ClubScope scope, string dbLocale, CancellationToken cancellationToken)
-        => await cache.GetOrCreateAsync(CacheEntities.Menus, scope.ClubCode, dbLocale, CacheDimensions.NoQualifier, async ct =>
-        {
-            var items = await db.MenuItems.AsNoTracking().Include(i => i.MenuItemsI18ns)
-                .Where(i => i.ClubId == scope.ClubId).ToListAsync(ct);
-            return new PublicMenusDto
-            {
-                Main = BuildTree(items, "main", dbLocale),
-                Mega = BuildTree(items, "mega", dbLocale),
-                Footer = BuildTree(items, "footer", dbLocale),
-            };
-        }, cancellationToken);
-
-    private static IReadOnlyList<PublicMenuItemDto> BuildTree(
-        IReadOnlyList<Data.EfEntities.MenuItem> all, string location, string dbLocale)
-    {
-        var inLocation = all.Where(i => i.MenuLocation == location).ToList();
-        var byParent = inLocation.Where(i => i.ParentId != null).GroupBy(i => i.ParentId!.Value).ToDictionary(g => g.Key, g => g.ToList());
-
-        IReadOnlyList<PublicMenuItemDto> Build(IEnumerable<Data.EfEntities.MenuItem> siblings)
-        {
-            var result = new List<PublicMenuItemDto>();
-            foreach (var item in siblings.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq))
-            {
-                var label = RequestLocale.Pick(
-                    item.MenuItemsI18ns.FirstOrDefault(i => i.Locale == dbLocale)?.Label,
-                    item.MenuItemsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Label);
-                if (label is null)
-                {
-                    continue; // 兩個語系都沒有標籤的項目不輸出（連同底下的子項目）。
-                }
-
-                result.Add(new PublicMenuItemDto
-                {
-                    Id = item.Id, Label = label, Url = item.Url, IsExternal = item.IsExternal,
-                    Children = byParent.TryGetValue(item.Id, out var children) ? Build(children) : [],
-                });
-            }
-
-            return result;
-        }
-
-        return Build(inLocation.Where(i => i.ParentId == null));
-    }
 
     // ── 站台全域設定 ──────────────────────────────────────────────────────────────
     public async Task<PublicSiteSettingsDto> GetSiteSettingsAsync(ClubScope scope, string dbLocale, CancellationToken cancellationToken)

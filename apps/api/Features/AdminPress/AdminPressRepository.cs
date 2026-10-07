@@ -314,9 +314,11 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
         AdminInput.OneOf(request.ResourceType, ResourceTypes, "類別", "「新聞稿」「品牌識別包」或「高解析圖」", "resourceType");
         AdminInput.OneOf(request.Status, Statuses, "狀態", "「草稿（隱藏）」或「顯示」", "status");
         AdminInput.RequireText(request.Content.Zh.Title, "中文標題", 200, "titleZh");
+        AdminInput.OptionalText(request.Content.Zh.CoverAlt, "封面圖片替代文字（中文）", 200, "coverAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Title))
         {
             AdminInput.RequireText(request.Content.En.Title, "英文標題", 200, "titleEn");
+            AdminInput.OptionalText(request.Content.En.CoverAlt, "封面圖片替代文字（英文）", 200, "coverAltEn");
         }
 
         return slug;
@@ -357,6 +359,7 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
 
         row.Title = content.Title.Trim();
         row.Description = string.IsNullOrWhiteSpace(content.Description) ? null : content.Description;
+        row.CoverAlt = string.IsNullOrWhiteSpace(content.CoverAlt) ? null : content.CoverAlt.Trim();
     }
 
     private async Task EnsureSlugFreeAsync(AdminClubScope scope, string slug, Guid? exceptId, CancellationToken cancellationToken)
@@ -387,8 +390,8 @@ public sealed class AdminPressRepository(ClubDbContext dbContext, IQueryCache ca
             FileUrl = IsImageType(resource.ResourceType) ? imageUrls.Resolve(resource.FileKey) : documentUrls.Resolve(resource.FileKey),
             FileBytes = resource.FileBytes, CoverKey = resource.CoverKey, CoverUrl = imageUrls.Resolve(resource.CoverKey),
             CoverWidth = resource.CoverWidth, CoverHeight = resource.CoverHeight,
-            Zh = new AdminPressLocaleContent { Title = zh?.Title ?? "", Description = zh?.Description },
-            En = en is null ? null : new AdminPressLocaleContent { Title = en.Title ?? "", Description = en.Description },
+            Zh = new AdminPressLocaleContent { Title = zh?.Title ?? "", Description = zh?.Description, CoverAlt = zh?.CoverAlt },
+            En = en is null ? null : new AdminPressLocaleContent { Title = en.Title ?? "", Description = en.Description, CoverAlt = en.CoverAlt },
             CreatedAt = resource.CreatedAt, UpdatedAt = resource.UpdatedAt,
         };
     }
