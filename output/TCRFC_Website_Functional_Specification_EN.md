@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.20
-> **Date**: 2026-08-14 (v3.20 revision: 2026-10-06)
+> **Document version**: v3.21
+> **Date**: 2026-08-14 (v3.21 revision: 2026-10-07)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.20*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.21*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.21 revision summary — B1 Pages manages fixed pages with fixed fields**
+> **The public pages are unchanged; how B1 is managed in the admin is tightened.** B1 manages only the existing list of fixed static pages on the public site and offers no way to add or delete pages. The content fields of each page are predefined by the page template: the admin fills in content only and cannot add, delete or reorder fields. Repeatable items (such as the Blue Whale history's yearly entries or the player-story cases) can be added or removed as rows within their field. **What the admin edits is the main-body passage of each public page**: page titles, page-header key visuals, breadcrumbs and action buttons, as well as sections outside the main body (such as the organisation chart, the partner-club list, trial sessions and embedded FAQs), follow the public-site template or come from other modules and are outside B1. Taichung Rock has 12 pages and Blue Whale 10 (Blue Whale has no Women's Football entry and no Our Commitment page). Status (draft / published / scheduled), SEO settings, bilingual content, revision history with rollback and shareable preview links for unpublished pages are retained. Where it lands: 4.2 B1, the 4.0 public/admin mapping table, the 4.0 image-upload rule (inline images), the 3.6 page type, 11.1 and the module tree.
 
 > **v3.20 revision summary — logos, favicons and brand colours of the two sites are defined by front-end static assets and styles**
 > **The admin offers no brand settings.** The logos, favicons and brand colours (primary and secondary) of the Taichung Rock and Taichung Blue Whale websites are defined solely by front-end static assets and styles (design tokens); the admin does not configure them. The fields of 4.9 module I "Global settings" and 4.10 J4 club records, and the 5.1 `Club` type, are narrowed accordingly to name, domain, locale and legal details; the admin's primary colour still follows the club being worked on, as the admin interface's own palette. Landing points: 4.9 Global settings, 4.10 J4, 5.1 `Club`.
@@ -280,8 +283,8 @@ The following assets must be inventoried before launch to determine migration sc
 | Type | Description | Admin handling |
 |---|---|---|
 | **Main page** | Homepage | Modular slot composition (page builder) |
-| **Main category** | Landing page of each top-level section | Fixed template + editable blocks |
-| **Sub-page** | 2.1, 3.1, etc. | Fixed template + editable blocks |
+| **Main category** | Landing page of each top-level section | Fixed template + fixed-field content (B1) |
+| **Sub-page** | 2.1, 3.1, etc. | Fixed template + fixed-field content (B1) |
 | **Content / item page** | Players, coaches, news, matches, products, manga episodes | Data-driven CRUD (list + detail); **products additionally carry SKUs, inventory, and the transaction flow, see 4.13** |
 | **CTA page** | The 10.x forms, sponsorship deck download | Form designer + submission inbox |
 
@@ -428,8 +431,8 @@ Eight module pages: technical & tactical analysis, physical conditioning, game r
 
 | Item | Public-site functionality |
 |---|---|
-| Page type | Single content page, composed with the block editor |
-| Suggested blocks | ① Key visual and headline ② Introduction to the Taichung Blue Whale women's team (history, positioning, significance) ③ Image gallery / video embed ④ A prominent **"Visit the Taichung Blue Whale website"** button (opens in a new tab) ⑤ Bottom CTA |
+| Page type | Single content page; content fields are predefined by the page template |
+| Page content | ① Key visual and headline (set by the template) ② Introduction to the Taichung Blue Whale women's team (history, positioning, significance; **this is the passage the admin edits**) ③ A prominent **"Visit the Taichung Blue Whale website"** button (opens in a new tab, set by the template) ④ Bottom CTA (set by the template) |
 | **Relationship between the sites** | The page's primary action routes visitors to the **Taichung Blue Whale official website**. That site **shares this admin and database** but is a **separate domain and a separate front-end project**; the two sites' content, teams and member data are partitioned by `club_id` |
 | Not included | ✗ Blue Whale roster ✗ Blue Whale coaching staff page ✗ Blue Whale fixtures and results ✗ Blue Whale league table ✗ Online scholarship application (all presented on the Blue Whale site — **this is not the same as not holding the data**) |
 | Admin handling | This entry page is managed under **B1 Page Management**; **Blue Whale's team and fixture data belong to `C` Team Management** (partitioned by `club_id = TCBW`), and the Blue Whale site URL is maintained under `I` Site Settings |
@@ -573,7 +576,7 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 
 | No. | Page | Public-site functionality |
 |---|---|---|
-| 11.1 | Our Commitment | Philosophy and focus areas (youth support, rural football, disadvantaged families, charity matches), composed with the block editor |
+| 11.1 | Our Commitment | Philosophy and focus areas (youth support, rural football, disadvantaged families, charity matches); content fields are predefined by the page template |
 | 11.2 | Charity Programs | **Program list** (cover, name, beneficiaries, period, status: ongoing / completed); detail pages cover the programme's origin, **recipient charity name**, **what was donated**, delivery narrative, **event photo gallery**, and related coverage |
 | 11.3 | Impact Stories | **Timeline / card list**; every record presents three core data points: **① charity organisation name ② what was donated ③ event photography**, plus date, location, and a short description; filterable by year |
 | 11.4 | Our Impact | Cumulative statistics: number of partner charities, total donation instances, areas served; presented as a **logo wall / list of organisations** with representative imagery. Monetary figures are hidden by default; visibility is decided per item in the admin |
@@ -885,7 +888,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ├── [global] Site switcher — choose the club you are working on after sign-in
 ├── A. Dashboard
 ├── B. Content
-│   ├── B1 Pages (static pages / blocks, incl. the Blue Whale site entry page)
+│   ├── B1 Pages (fixed static pages with fixed fields, incl. the Blue Whale site entry page)
 │   ├── B2 News & Stories
 │   ├── B3 Home layout
 │   ├── B4 FAQ
@@ -979,7 +982,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > | Admin module | What it produces on the public site |
 > |---|---|
 > | Dashboard | **Nothing public** (for admin use) |
-> | Pages | 02 About, 03.2–03.5, 04 Academy, 05 Programs, 06 Blue Whale entry, 9.3, 11.1 and other static pages |
+> | Pages | Fixed static pages: 02 About (2.1, 2.2, 2.3, 2.5, 2.7), 03 Club (3.2–3.5), 06 Blue Whale entry, 9.3 Become a Partner, 11.1 Our Commitment (page list and fields are in 4.2 B1) |
 > | News & Stories | 07 News & Stories (7.1–7.7), latest news on the home page |
 > | Home layout | 01 Home (hero carousel and the nine blocks) |
 > | FAQ | 12 FAQ and every FAQ quick block (G-12) |
@@ -1019,7 +1022,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > | **Derivative sizes** | Beyond the master, three further long-edge sizes are always produced — **1280 / 640 / 320** — plus a **160px square thumbnail** for admin list views (centre-cropped). All are WebP, **produced in one pass server-side on write**; their object keys are derived from the master's object key and are not stored as separate columns |
 > | **Width/height stored on the record** | The width and height stored in the image field group are the **master's** dimensions (after scaling down), not the uploaded file's original dimensions |
 > | **Public-site usage** | The public site must **never reference the master directly**; it always picks the matching size for its placement (**`srcset`** multi-size candidates). Every image **must carry width/height attributes** to avoid layout shift, and everything below the fold is **lazy-loaded** |
-> | **Inline images** | For image blocks in the block editor, the object key and alt text live in that block's `content json` and are **also subject to "saving uploads"** |
+> | **Inline images** | For image fields among a page's content fields, the object key and alt text live in that page's `content json` and are **also subject to "saving uploads"** |
 > | **Interface wording** | Per this section's admin design rule, the screen never shows **`WebP` / `blob` / `EXIF` / `srcset`**: next to the upload field it reads "The system automatically resizes your image for the web and removes location data from the photo"; when a file is over the limit it reads "This image file is too large (10 MB limit) — please choose another or compress it first" |
 >
 > **Out of scope for this rule**: a media browser, folders and tags, usage tracking and delete-time warnings, image reuse across records, resumable upload progress, **keeping the uploaded original**, and **manual or focal-point cropping in the admin**.
@@ -1045,9 +1048,25 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ### 4.2 B. Content
 
 #### B1 Pages
-- Covers every static page (2.x, 3.2–3.4, 4.x, 5.x, **06 Blue Whale site entry page**, 9.3, 11.1, etc.)
-- **Block editor**: text, image-with-text, gallery, video embed, pull quote, CTA, FAQ accordion, timeline, step bar, stat cards, tables, file downloads
-- Each page carries: status (draft / published / scheduled), SEO settings, language versions, revision history with rollback, and a preview link (shareable before publishing)
+- **A fixed list of pages; no adding or deleting pages**: B1 manages only the existing static pages of the public site (table below). The page list follows the public-site templates; adding a page is public-site development work. **Taichung Rock has 12 pages and Blue Whale 10** (Blue Whale has no 06 Women's Football entry and no 11.1 Our Commitment)
+- **Fixed fields**: each page's content fields are predefined by its template. The admin fills in content only and **cannot add, delete or reorder fields**. The table states, field by field, either "N fixed items" (content only) or "rows can be added or removed"
+- **What the admin edits is the main-body passage of each public page.** **Not edited in the admin**: page titles, page-header key visuals, breadcrumbs and action buttons are set by the public-site template; sections outside the main body (such as the organisation chart, the partner-club list, trial sessions, embedded FAQs and dynamic data areas) follow the public-site template or are provided by other modules
+- Each page carries: status (draft / published / scheduled), SEO settings, bilingual content (zh / en), revision history with rollback, and a preview link (shareable before publishing); each club maintains its own page content
+
+| Page | Taichung Rock | Taichung Blue Whale |
+|---|---|---|
+| 2.1 Our Story | Story text (one block of text, blank line between paragraphs) | Same as Taichung Rock |
+| 2.2 Vision & Mission | Vision and mission (2 fixed items: vision, mission; title and description each) | Page named "Vision", same URL as Taichung Rock; development vision (5 fixed items; name and description each) |
+| 2.3 Our Philosophy | Core-values introduction (one block of text); five core values (5 fixed items; name and description each) | Page named "Club Slogan and Training Spirit"; three quotes: crest concept, club slogan, training spirit |
+| 2.5 Governance | Public-documents note (one block of text; the downloadable file list is not yet maintainable) | Same as Taichung Rock |
+| 2.7 Club History | History text (one block of text) | Yearly history (**rows can be added or removed**: year, that year's events, several events separated by line breaks); note (one block of text) |
+| 3.2 Player Development | Eight development modules (8 fixed items; name and description each); closing summary (first paragraph a sub-heading, second the description) | Page named "Player Development Focus"; eight development areas (8 fixed items); closing summary |
+| 3.3 Player Opportunities | Join introduction (one block of text; trial sessions, FAQs and the sign-up button are not edited here) | Same as Taichung Rock |
+| 3.4 International Pathways | Pathway overview (4 fixed stages; name and description each) | Same as Taichung Rock |
+| 3.5 Player Stories | Player-story cases (**rows can be added or removed**: one row per player, with name and a short note such as position and shirt number); supplementary note (one block of text) | Note (one block of text, shown while there are no player stories yet) |
+| 06 Women's Football | Introduction to the Blue Whale women's team (one block of text; the facts panel and the visit-website button are not edited here) | Not built |
+| 9.3 Become a Partner | Six partnership values (6 fixed items; name and description each); audience-data note (one block of text) | Same as Taichung Rock |
+| 11.1 Our Commitment | Commitment text (one block of text); focus-areas introduction (one block of text); four focus areas (4 fixed items: youth support, rural football, disadvantaged families, charity matches) | Not built |
 
 #### B2 News & Stories
 - Article CRUD, categories (mapping to 7.1–7.8), tags, core-value tags
@@ -1509,7 +1528,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 |---|---|---|
 | `Club` | **Club (new in v3.0)**: code (`TCRFC` / `TCBW`), name and intro (zh/en), OG image, **front-end domain**, website URL, default locale, sort order, status. **Plus the fields needed to issue documents**: invoice title, tax ID, and **`is_payment_subject`**. **This is where the brand name and the invoice title are separated** — only the club flagged as the collecting entity appears in checkout and invoicing | Team, Article, Sponsor, Partner, Membership, Order, AdminUserClub |
 | `Competition` | **Competition series (new in v3.0)**: code, name (zh/en), type (mapping to `Match.competition`'s four values), season, organiser, sort order, status. 🏛 mandatory. **Coexists with `Match.competition` rather than replacing it** — the latter is a coarse enum, the former is a named actual competition (TFPL, Taiwan Mulan Football League, President's Cup…); when both clubs play a same-named cup, **each gets its own record** | Match, Season, Club |
-| `Page` | Static page (with blocks); **the Blue Whale site entry page is also this type**. 🏛 mandatory (both sites will have `about` / `contact` / `privacy`, so the `slug` unique key becomes `(club_id, slug)`) | SEO, languages |
+| `Page` | Static page (with the content fields defined by its template); **the Blue Whale site entry page is also this type**. 🏛 mandatory (both sites will have `about` / `contact` / `privacy`, so the `slug` unique key becomes `(club_id, slug)`) | SEO, languages |
 | `Article` | News and stories | Category, Tag, Player, Team, Match, Program |
 | `Team` | Team, carrying the **team code**: `D1` (Taichung Rock First Team) / **`BW1` (Taichung Blue Whale First Team, new in v3.0)** / `U15` / `U14` / `U12`. 🏛 mandatory. **`code` stays globally unique and must not become a "club × code" composite** — it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation. **v3.0 adds `gender`** (`men` / `women` / `mixed`) and **retires `type`'s `women` value** (gender is an attribute of a team, not a kind of team); the "exactly one `first_team` site-wide" constraint becomes "**at most one per club**" | Club, Player, Coach, Match, Season, CalendarEvent |
 | `Player` | Player | Team, Article, Stats, Pathway |

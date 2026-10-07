@@ -237,6 +237,8 @@ Blue Whale maintains existing types (`Page` / `Article` / `Team` / `Player` / `S
 
 A new module would create a second place to maintain players and products — two points of maintenance.
 
+**Page management (`B1`) has 10 pages for Blue Whale**: two fewer than Taichung Rock (no 06 Women's Football entry and no 11.1 Our Commitment). For the page names, fields and fixed item counts of the remaining 10, see the page-by-page table (Blue Whale column) in main-site specification §4.2 B1.
+
 ### 4.2 Site switcher
 
 Staff sign in with **one account through one entry point** and pick the club from a site switcher at the top of the admin. See main-site specification 4.0.

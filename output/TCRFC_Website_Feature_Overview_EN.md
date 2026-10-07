@@ -1,7 +1,7 @@
 # Taichung Rock FC — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.4
-> **Date**: 2026-09-14 (v1.4 revision: 2026-09-18)
+> **Document version**: v1.5
+> **Date**: 2026-09-14 (v1.5 revision: 2026-10-07)
 > **Corresponds to**: *TCRFC Website Functional Specification* v3.9
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
@@ -128,7 +128,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | Module | Submodule | What it does |
 |---|---|---|
 | **Dashboard** | — | Tasks, latest submissions, key figures |
-| **Content** | Pages | Static pages and editable blocks (including the Blue Whale entrance page) |
+| **Content** | Pages | Fixed static pages (including the Blue Whale entrance page); the fields to fill in on each page are set in advance, so you only enter content and do not add or delete pages; includes draft, scheduling, Chinese and English versions, revision history with rollback, and preview links that can be shared before publishing |
 | | News & Stories | Writing, scheduled publishing, categories and tags |
 | | Home layout | Order of the home page blocks and the hero |
 | | FAQ | Questions and answers, including reports of failed searches |

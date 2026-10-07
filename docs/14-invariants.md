@@ -115,6 +115,7 @@
   ⚠️ **前台不得直接引用主檔**，一律依版位挑尺寸（`srcset`）、必帶寬高、首屏外延遲載入。
   ⚠️ **`MediaAsset`／`MediaFolder`／`MediaUsage` 不存在**，看到 `media_asset_id` 外鍵一律是錯的（已知 10 處：`Article` 封面、`Banner`、`Partner`／`Sponsor` 雙色標誌、`ProposalFile`、`ProductImage`、`ComicPage`、`Charity` 標誌）。**一張圖只屬於一筆資料列**，同一張要出現兩處就上傳兩次。
   7.8 媒體專區改由 **`PressResource`** 承載，後台模組是 **`B6 媒體資源`**；`B` 模組為 **B1 頁面／B2 新聞／B3 Banner／B4 FAQ／B5 慈善／B6 媒體資源**。
+- 🔴 **B1 是固定頁、固定欄位**（主站規劃書 v3.21，2026-10-07）：不新增／刪除頁面，欄位由版型定、後台只填值、不能新增／刪除／調整欄位順序，只有標示「可增刪列」的欄位能增減條目；`page_blocks` 資料表結構不變。看到「區塊化編輯器」「12 種區塊」「可自由新增頁面」一律是 v3.20 以前的寫法。
 - 🔴 **B1 頁面的區塊內容（`page_blocks.content`）雙語靠 JSON 內的巢狀物件，不是側表**（S1-4，2026-09-24）：
   `db/club-schema.sql` 已明確拒絕 `page_blocks_i18n`（「主表已放的欄位優先」），所以每一個使用者看得到的
   自由文字欄位本身要是 `{"zh": "非空白字串", "en": null|"字串"}` 這種巢狀物件（CLAUDE.md 全域規定 4，

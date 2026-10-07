@@ -38,7 +38,7 @@
 
 ```mermaid
 erDiagram
-  page ||--o{ page_block : "區塊"
+  page ||--o{ page_block : "版型定義的內容欄位"
   page ||--o{ page_version : "版本還原點"
   article }o--|| article_category : "7.1-7.8"
   article ||--o{ article_tag : ""

@@ -373,7 +373,7 @@ flowchart LR
 | 表 | `club_id` | 用途 | 標記 | 後台 |
 |---|---|---|---|---|
 | `Page` | **●** | 靜態頁面主檔。**藍鯨官網入口頁亦屬此型別**。唯一鍵 `(club_id, slug)`。**S1-12 新增單頁 SEO 欄位**：`canonical_path`（手動覆寫網址正規化，可為空＝沿用自動產生的 canonical）、`is_noindex`、`is_excluded_from_sitemap`（皆 `bit`，預設 `0`）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做）＋ `pages_i18n.seo_keywords`／`og_image_alt`（逐語系） | 🌐 | B1 |
-| `PageBlock` | — | 頁面區塊（12 種型別，規劃書第 1012 行），`content json`（**只存不查**）、`sort_order`。**由 `Page` 推導** | 🌐 | B1 |
+| `PageBlock` | — | 頁面內容欄位（**v3.21：結構不變**）。B1 改為固定頁、固定欄位：每頁有哪些欄位由前台版型事先定義，後台只填值、不能新增／刪除／調整欄位順序；一個欄位（或可增刪列欄位的一列）對應一筆 `page_blocks`，`block_type` 為版型欄位的型別、`content json`（**只存不查**）存值、`sort_order` 為版型定的順序。**由 `Page` 推導**。頁面清單固定（不新增、不刪除 `Page`），各頁欄位表見主站規劃書 §4.2 B1 | 🌐 | B1 |
 | `PageVersion` | — | 版本歷程與還原點、預覽分享 token。**這是內容版本不是操作日誌** | | B1 |
 | `Article` | **○** | 新聞與故事。**空＝兩隊共同**；`slug` **維持全站唯一**（共同文章須有單一 canonical）。**S1-12 新增單頁 SEO 欄位**：`canonical_path`／`is_noindex`／`is_excluded_from_sitemap`（皆 `bit`，預設 `0`，最後一欄用於 Sitemap 排除，不影響新聞列表本身的顯示）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做，優先序高於既有 `cover_key`）＋ `articles_i18n.seo_keywords`／`og_image_alt`（逐語系）。**S0-7h（2026-10-02）封面圖片欄位組補齊**：`cover_width`／`cover_height`（`int NULL`，存主檔縮小後的尺寸）＋ `articles_i18n.cover_alt`（`nvarchar(200) NULL`，逐語系），見 §12 第 49 點 | 🌐 | B2 |
 | `ArticleCategory` | — | 7.1–7.8 八分類。**刻意不加**——分類是內容主題，加了八個會變十六個 | 🌐 | B2 |
@@ -1067,7 +1067,7 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 | `Season` | 行 1248–1253 關聯欄提到 Season | `Match`／`Standing`／`Achievement`／`MembershipPlan` 的軸 |
 | `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | 行 1247 關聯欄列 Category／Tag | B2 的分類、標籤與多型關聯 |
 | `ValueTagLink` | `docs/04` §4 `value_tags[]` | 五大核心價值可掛任何型別 |
-| `PageBlock` `PageVersion` | B1（行 838–842） | 12 種區塊、版本還原點、預覽 token |
+| `PageBlock` `PageVersion` | B1（§4.2） | 版型定義的固定欄位內容、版本還原點、預覽 token |
 | `Banner` `HomeSection` | B3 | Hero 輪播與首頁區塊開關 |
 | `FaqCategoryLink` `FaqSearchMiss` | B4 | 一題多分類、零結果關鍵字排行 |
 | `FaqEmbedSlot` `FaqEmbedSlotLink` | B4（行 1029） | G-12 快捷區塊的掛載點字典與逐題額外指定（S1-8） |

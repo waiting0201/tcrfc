@@ -1,7 +1,7 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.7
-> **Date**: 2026-09-14 (v1.7 revision: 2026-10-05)
+> **Document version**: v1.8
+> **Date**: 2026-09-14 (v1.8 revision: 2026-10-07)
 > **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.11
 > **Content principal**: Taichung Blue Whale Women's Football Club
 
@@ -118,7 +118,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | Module | Submodule | What it does | Under Blue Whale |
 |---|---|---|---|
 | **Dashboard** | — | Tasks, latest submissions, key figures | Blue Whale only |
-| **Content** | Pages | Static pages and editable blocks | Blue Whale's pages |
+| **Content** | Pages | Fixed static pages; the fields to fill in on each page are set in advance, so you only enter content and do not add or delete pages | Blue Whale's pages |
 | | News & Stories | Writing, scheduled publishing, categories | Blue Whale's news |
 | | Home layout | Home page block order and hero | Blue Whale's home |
 | | FAQ | Questions and answers | Blue Whale's entries |
