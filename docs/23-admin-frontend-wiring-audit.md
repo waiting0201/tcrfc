@@ -24,12 +24,22 @@
 - 部署順序：`DBilingualGapsExpand` 可隨新版 API；`ClubBrandDropContract`、`DBilingualGapsContract` 為收縮，**新版 API 上線驗證後**經 `production-db` 核准關卡套用（建議另開 PR）。本機 `tcrfc_club` 已套用三支。API 測試 1514／1514。**全部未實機驗收**。
 - 仍待：B-5（多語系設定）、B-17（捐助洽詢入口）、B-19（介面字串）、C-5（fallback 寫死內容，屬過渡設計）、C-6（商店固定文案）、F 類；另 `homeTeamCodes` 未接（首頁近期賽事為寫死結構）、合作學校資料來源、職員分組英文名稱待對照 `docs/06`、積分榜公開 DTO 補 `isFallbackLocale`、榮譽對話框改逐欄錯誤。
 
+**2026-10-07 第四輪修正（殘項收尾）**：
+- **B-19** ✅：規劃書 I4 定義為「按鈕、表單標籤、提示訊息、錯誤訊息」的雙語對照，不要求全站字串代號化；七類表單共用送出訊息改讀 `useUiStrings().t()`（新增 `form.error_generic`／`form.captcha_required`／`form.captcha_failed`，後台未建立時沿用原文）。
+- **C-6** ✅ 檢查後不需修改：配送三方式與發票四類型為規格固定值（主站 §8.3），「主場賽事日」兩俱樂部同一條規格；收款方與發票抬頭已依 `collectingSubjectName` 動態顯示。
+- **B-17**：提案下載經 `Features/Proposals` 寫入 `form_code='proposal_download'`，收件匣分頁有資料，**非重複** ✅；捐助洽詢 ❓ **待使用者決定**（規劃書只在 G2 分頁清單與 `Enquiry` 型別各提一次，無前台入口與欄位）。
+- **B-5**：規劃書 G-01 已固定繁中／英文、回退繁中，後台側欄已隱藏「多語系」→ 建議以「規格已固定、不接」結案。**C-5**：過渡設計，待客戶內容到位、後台建立第一筆後再移除寫死版。
+- 零星項 ✅：首頁近期賽事接 `homeTeamCodes`；職員分組英文名登錄 `docs/06`（初稿待確認）；榮譽對話框逐欄錯誤；積分榜 `StandingRowDto.isFallbackLocale`（後端＋前台）。
+- **F 類**：轉址正規化（有／無結尾斜線視為同一網址）＋儲存時迴圈偵測 ✅；賽程多隊賽事重複列與計數 ✅（`MatchesRepository`、`CalendarRepository` 的 `COUNT(DISTINCT)`）；廣告備援連結放行 `tcrfc://` ✅（App 規劃書 §2.3、§7）；球迷活動與媒體封面雙語 Alt ✅（`cover_alt`，展開遷移 `ClubCoverAltExpand`）；慈善計畫詳情夥伴／贊助商不濾期間 ❓ **待決**（規劃書無明文；公開夥伴列表已濾期間，只有此處不一致）；報名隱私同意留存 ❓ **待決**（規劃書未要求留存）。
+- 同批順帶：`ad_creatives.click_url` 改用同一套連結規則（原本 `tcrfc://` 開頭即不驗）；球員數據 `PlayerSeasonStatDto.isFallbackLocale`；後台球迷活動與媒體專區補「圖片說明」輸入、前台封面 alt 改讀 `coverAlt`。
+- API 測試 1562／1562；後台與前台 lint、build 通過。**全部未實機驗收**。
+
 ## 0. 總結
 
 - 約 700 個後台欄位。**後台 → 後台 API → 資料表這兩段幾乎全通**（multipart 欄位名、`*_i18n` zh／en 寫入、圖片欄位組、`club_id` 歸屬）。
 - 問題集中在兩處：**公開 API 有輸出但前台沒讀**、**前台寫死不讀 API**。
 - 主站／藍鯨的 `club_id` 篩選沒有串錯；唯一例外是 `charity/commitment.vue` 寫死 `tcrfc`（C-1）。
-- 標記：🔴 會產生錯誤資料或擋住使用者 ／ 🟠 後台能改、前台不變 ／ 🟡 雙語或顯示缺口 ／ 🔒 安全 ／ ❓ 需規格決定
+- 標記：🔴 會產生錯誤資料或擋住使用者 ／ 🟠 後台能改、前台不變 ／ 🟡 雙語或顯示缺口 ／ 🔒 安全 ／ ❓ 需規格決定 ／ ⏸ 建議結案或暫緩（見進度段）
 
 ## A. 🔴 會出錯（資料錯、送不出、看不到該看的）
 
@@ -56,7 +66,7 @@
 | ✅ B-2 | 9.3 成為合作夥伴 | 規劃書對照表歸頁面管理，前台整頁寫死 | `pages/zh/partners/become-a-partner/index.vue`；規劃書 L965 |
 | ✅ B-3 | 全站 SEO 預設 | 標題樣板、預設描述、預設 OG 圖前台完全沒讀（`app.vue` 只取追蹤碼） | `app/app.vue:27,88` |
 | ✅ B-4 | 全域設定品牌 | Logo 淺／深、Favicon、主色、輔助色只有維護頁用到 | `server/middleware/maintenance.ts:50-61`；❓ `docs/14` 規定品牌色唯一來源是 `tcrfc.css`，可能應改標「僅維護頁用」 |
-| B-5 | 多語系管理 | 啟用語系、備援規則、日期數字格式前台沒讀 | `shared/utils/site-settings.ts:28-30` 無呼叫者 |
+| ⏸ B-5 | 多語系管理 | 啟用語系、備援規則、日期數字格式前台沒讀 | `shared/utils/site-settings.ts:28-30` 無呼叫者 |
 | ✅ B-6 | 行事曆 L3 | 前台顯示設定（預設檢視／範圍／球隊、`homeTeamCodes`）、隊別名稱顏色排序公開；活動類型名稱顏色圖示——前台全沒讀 | `schedule.vue:175,187,221-229`；`/calendar/settings` 無呼叫者 |
 | ✅ B-7 | 行事曆訂閱 | `feed.ics` 已實作，前台文案寫「尚未上線」且無連結 | `schedule.vue:904-911,1113` |
 | ✅ B-8 | 課程固定頁 5.1–5.5 | 只用梯次與 Schema；內容、教練團、合作夥伴、封面、適合對象都不顯示（夏令營「教練團」區塊只有標題）；同類型多個課程只取第一個的梯次；課程總覽卡片來自 `club-copy.ts`，沒有連到動態詳情頁 | `programs/summer-camp/index.vue:107-130` 等 |
@@ -68,9 +78,9 @@
 | ✅ B-14 | 首頁 | Banner 標題、副標、按鈕二不顯示（Hero 文案寫死）；「精選輪播」與區塊「排序」不生效；藍鯨開「核心價值」區塊無效 | `pages/zh/index.vue:29,101-113,720`；`useHomeSections.ts` 檔頭 |
 | ✅ B-15 | 新聞 | `seoTitle` 沒用（title／ogTitle 都用標題）；核心價值標籤、球員關聯前台不顯示 | `news/[slug]/index.vue:170-185` |
 | ✅ B-16 | 表單 | 「送出後導向頁」公開 DTO 刻意不輸出、前台也不處理 | `Features/Forms/FormDtos.cs:29` |
-| B-17 | 表單 | `proposal_download`、`donation_enquiry` 兩張表前台無入口，收件匣分頁永遠空（提案下載走 `Features/Proposals`，未確認是否重複） | — |
+| 🔄 B-17 | 表單 | `proposal_download`、`donation_enquiry` 兩張表前台無入口，收件匣分頁永遠空（提案下載走 `Features/Proposals`，未確認是否重複） | — |
 | ✅ B-18 | 商品 | 標籤可編、API 支援 `?tag=`，前台不顯示也不篩 | `pages/zh/shop/index.vue` |
-| B-19 | 介面字串 | `ui-strings` 只用在頁尾電子報 5 個鍵 | `useUiStrings.ts:1-10` |
+| ✅ B-19 | 介面字串 | `ui-strings` 只用在頁尾電子報 5 個鍵 | `useUiStrings.ts:1-10` |
 | ✅ B-20 | 漫畫角色 | 關聯球員不顯示（頁面文案卻說可關聯原型球員） | `culture/manga/index.vue:106-116` |
 | ✅ B-21 | 圖集截斷 | 贊助活動只顯示 3 張、慈善事蹟只顯示 2 張；媒體專區只有高解析圖庫類顯示封面 | `our-sponsors/index.vue`、`charity/impact-stories.vue`、`media.vue:210` |
 | ✅ B-22 | 快取 | 改後台要等 TTL（預設 300 秒）才生效：`AdminSeo`／`AdminSiteFacts`／`AdminForms` 不失效；改球隊代碼名稱不失效 players／staff／schedule／honors 快取 | `AdminTeamsRepository.cs:215,285` |
@@ -83,8 +93,8 @@
 | ✅ C-2 | 社群連結（FB／IG／YT）、聯絡 Email、頁尾品牌簡介；Organization Schema 缺電話／`sameAs`／Email | `shared/utils/club-copy.ts:183-210`、`useSchemaOrgClub.ts:96-108` |
 | ✅ C-3 | 聯絡頁電話、營業時間、地址對藍鯨整塊 `v-if="isTcrfc"`，藍鯨後台填了也不顯示 | `join/contact/index.vue:72,85,92` |
 | ✅ C-4 | 首頁 Hero 文案、`ecosystem_nav`、`bottom_cta`、球員橫幅（無開關）、核心價值說明與圖示 | `pages/zh/index.vue`、`shared/utils/core-values.ts` |
-| C-5 | Fallback 寫死內容（後台建第一筆就整批消失）：三個國際夥伴隊徽、9 張贊助方案卡、慈善事蹟 3 筆與影響力數字 | `partners/our-partners`、`partners/opportunities:141-207`、`charity/impact-stories.vue`、`our-impact.vue` |
-| C-6 | 商店：配送方式名稱說明（藍鯨也顯示「主場賽事日」）、發票類型清單、電子發票說明段 | `ShopCatalogRepository.cs:298-310`、`checkout/index.vue:81`、`shop/index.vue:258` |
+| ⏸ C-5 | Fallback 寫死內容（後台建第一筆就整批消失）：三個國際夥伴隊徽、9 張贊助方案卡、慈善事蹟 3 筆與影響力數字 | `partners/our-partners`、`partners/opportunities:141-207`、`charity/impact-stories.vue`、`our-impact.vue` |
+| ✅ C-6 | 商店：配送方式名稱說明（藍鯨也顯示「主場賽事日」）、發票類型清單、電子發票說明段 | `ShopCatalogRepository.cs:298-310`、`checkout/index.vue:81`、`shop/index.vue:258` |
 | ✅ C-7 | school-community 合作學校表（藍鯨常數、磐石空白）、兒童訓練主要場地 | `programs/school-community`、`childrens-training/index.vue:183` |
 
 ## D. 🟡 雙語缺口（`/en/` 顯示中文；違反全域規定 4）

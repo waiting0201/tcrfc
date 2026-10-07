@@ -342,7 +342,6 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 | 權限碼 | 子模組 | `is_club_scoped` | `sysadmin_only` | 持有者 |
 |---|---|---|---|---|
-| `site.menu.view`／`update` | `I2` 選單管理（⚠️ **規劃書 v3.22 起無此子模組，權限碼暫留待移除**） | 1 | 1 | 僅系統管理員 |
 | `site.global.view`／`update` | `I3` 全域設定（Logo、品牌色、Favicon、政策頁、維護模式） | 1 | 1 | 僅系統管理員 |
 | `site.locale.view`／`update` | `I4` 多語系管理（語系、備援規則、日期數字格式、翻譯狀態總覽） | 1 | 1 | 僅系統管理員 |
 | `site.string.view`／`update`／`translate` | `I4` 字串翻譯表 | 0（全站共用主檔） | **0** | 系統管理員全部；**翻譯人員 `view`＋`translate`**（`scope_type='translate_only'`） |
@@ -717,3 +716,9 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 - 沒有任何日誌表：`ad_events`（功能單元、90 天）、`push_message_stats`（彙總數字）都不是「誰在何時做了什麼」的旁路記錄；**沒有 `push_delivery` 之類的逐裝置投遞表**（會變成個人層級的推播行為紀錄）。
 - 沒有通知中心專用表：App 通知中心（§3.13）＝已送出的 `push_messages`（`sent`／`partial`、90 天內）依分眾過濾；會籍到期、開通完成這類「對單一會員」的推播屬 AP-3 之後，那時再定收件匣的資料形狀。
 - 沒有 `Club` 之外的俱樂部維度：`audience_club_id` 只用於分眾條件，不是資料歸屬。
+
+---
+
+### 補充：封面圖片替代文字（2026-10-07）
+
+主站規劃書 §4.0 圖片欄位組要求每個圖片欄位都有雙語替代文字。`fan_events_i18n`（球迷活動封面）與 `press_resources_i18n`（媒體專區封面；高解析圖以主檔縮圖作封面，同用此欄）原本缺這欄，現各補 **`cover_alt nvarchar(200) NULL`**（比照 `articles_i18n.cover_alt`）。後台讀寫 DTO 欄位名 `coverAlt`（`zh`／`en` 各一），公開 DTO 欄位名 `coverAlt`（請求語系優先、空白回退繁中，沒有封面圖時為 null）。遷移：EF `ClubCoverAltExpand`、`db/migrations/20261007_cover-alt_1-expand.sql`（展開型，可隨新版 api 上）。

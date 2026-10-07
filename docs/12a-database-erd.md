@@ -1224,12 +1224,10 @@ erDiagram
   admin_user ||--o{ admin_refresh_token : "登入工作階段"
   admin_refresh_token |o--o| admin_refresh_token : "輪替鏈 replaced_by_id"
   club ||--o{ setting : ""
-  club ||--o{ menu_item : ""
   club ||--o{ email_template : ""
   club ||--o{ email_log : ""
   locale ||--o{ ui_string_translation : ""
   ui_string ||--o{ ui_string_translation : ""
-  menu_item ||--o{ menu_item : "多層級"
   email_template ||--o{ email_log : ""
   club {
     uuid id PK
@@ -1348,15 +1346,6 @@ erDiagram
     string_500 photo_key
     int photo_width
     int photo_height
-    int sort_order
-  }
-  menu_item {
-    uuid id PK
-    uuid club_id FK
-    uuid parent_id FK
-    string_16 menu_location
-    string_500 url
-    bool is_external
     int sort_order
   }
   setting {

@@ -43,7 +43,7 @@
 |---|---|---|---|
 | 1 | 「女足是 `Page`，不建 `Team`／`Player`／`Match`」「`team.type` 預留 `women` 但不啟用」 | **已推翻。** 藍鯨是第二個俱樂部，`Team`（`BW1`）／`Player`／`Staff`／`Match`／`Season` 全部建立。**`type` 的 `women` 值廢除，改用獨立的 `Team.gender`（`men`／`women`／`mixed`）**；`first_team` 由「全站僅一筆」改為「每俱樂部至多一筆」 | 主站 v3.0 §3.6、4.3 C1、5.1 |
 | 2 | 沒有 `Club`／`Competition` 兩張表 | **必須新增。** `Team.club_id` 是必填外鍵，主站表不能指向本檔沒有的型別 | 主站 v3.0 §5.1 |
-| 3 | ✅ **已完成**（2026-09-20） | **50 張必填 `club_id`、9 張可為空（＝兩隊共同）、43 張不加**，與主站 §5.4 逐名一致（⚠️ **v3.22 起主站 §5.4 為 49 張必填**，差的一張是暫留待移除的 `MenuItem`，見 §4.7） | 主站 v3.10 §5.4 |
+| 3 | ✅ **已完成**（2026-09-20） | **50 張必填 `club_id`、9 張可為空（＝兩隊共同）、43 張不加**，與主站 §5.4 逐名一致（**v3.22 起必填為 49 張**：`MenuItem` 型別移除，資料表已於 2026-10-07 刪除，遷移 `ClubMenuItemsDropContract`） | 主站 v3.10 §5.4 |
 | 4 | `Member` 帶 `tier`／`membership_start_on`／`membership_end_on` | **三欄移入新的 `Membership` 表**（`member_id` × `club_id` × `season_id`）。`Member` 維持一人一帳號、**不加 `club_id`** | 主站 v3.0 §5.1 |
 | 5 | `MemberCard` 掛在 `Member` 上 | **`membership_id` 必填——每份會籍一張卡。**「一張卡一組 token」與「驗證頁不得加適用球隊欄位」**兩條未變** | 主站 v3.0 §5.1、§3.14 |
 | 6 | `RolePermission.scope_value json`（只存不查） | **刪除。** 改由新增的 `AdminUserClub`（含授權起訖）與 `AdminUserTeam` 承載；`AdminRole` 加 `scope_mode`、`AdminUser` 加 `primary_club_id`、`Permission` 加 `is_club_scoped` | 主站 v3.0 §5.3、§6 |
@@ -350,7 +350,7 @@ flowchart LR
 > 🔴 **四類絕對不可為空**：有唯一路徑衝突者、承載個資者、有金流稅務歸屬者、**所有值複製快照表**
 > （快照的意義是凍結歸屬，NULL 是「未知」不是「共同」）。
 
-> **本檔的標註與主站 §5.4 逐名一致**：**50 張必填、9 張可為空**（v3.10 補齊三張）。⚠️ **主站 v3.22 起必填為 49 張**（`MenuItem` 型別不再存在，資料表因程式暫留，移除後本檔回到與規劃書逐名一致）。
+> **本檔的標註與主站 §5.4 逐名一致**：**49 張必填、9 張可為空**（v3.10 補齊三張；v3.22 移除 `MenuItem`，必填由 50 降為 49，與規劃書 §5.4 逐名一致）。
 > **`PaymentChannel`（標 ●⁺）的欄位名是 `owner_club_id` 不是 `club_id`**，依 v3.0 落差第 7 項。
 
 ### 4.0 共通機制（7）
@@ -380,7 +380,7 @@ flowchart LR
 | `Tag` | — | 標籤。**刻意不加**，同上 | 🌐 | B2 |
 | `ArticleTag` | — | `(article_id, tag_id)` | | B2 |
 | `ArticleRelation` | — | 文章的多型關聯 `(article_id, target_type, target_id)` | | B2 |
-| `PressResource` | **○** | 媒體資源（新聞稿／品牌識別包／高解析圖）。`status` **收斂為 `draft`／`published`**（S1-8，見 [§12 第 33 點](#12-踩雷點)） | 🌐 | B6 |
+| `PressResource` | **○** | 媒體資源（新聞稿／品牌識別包／高解析圖）。**封面替代文字在 `press_resources_i18n.cover_alt`（2026-10-07 補）**。`status` **收斂為 `draft`／`published`**（S1-8，見 [§12 第 33 點](#12-踩雷點)） | 🌐 | B6 |
 | `Banner` | **●** | 首頁 Hero 輪播（≤5）：**`media_type`（`image`／`video`）**、素材（圖片欄位組 `image_key`／`image_width`／`image_height`／`image_alt`＋影片模式另有 `video_key`）、CTA、上下架期間、排序（S1-8 補影片欄位與圖片欄位組，行 1023）。**`status`（`draft`／`published`，預設 `draft`，v3.14）**：新增或上傳後為草稿，發布後**依既有 `start_at`／`end_at`（上架期間）自動顯示與下架**——這是查詢時的區間過濾，不是排程轉態，**不比照 `Article`／`Page` 接 `ScheduledPublishRunner`、不加 `scheduled` 值** | 🌐 | B3 |
 | `HomeSection` | **●** | 首頁九大區塊的開關、排序，**僅 Hero 有精選指定**（`featured_banner_id`）。✅ **S1-8 已逐區塊核對**：其餘八區塊或為自動查詢（依時間／排序），或已有各自機制（「最新消息」精選靠 `Article.is_featured`），規劃書未要求可指定的區塊不加欄位 | | B3 |
 | `Faq` | **○** | 常見問題；👍／👎 計數。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 | B4 |
@@ -468,7 +468,7 @@ flowchart LR
 | `ComicCharacter` | **●** | 漫畫角色，`player_id` **可為空**（可對應真實球員為原型） | 🌐 |
 | `ComicEpisode` | **●** | 集數、閱讀數。C1：`status` **收斂為 `draft`／`published`、`NOT NULL DEFAULT 'draft'`**（同 `press_resources`），`UNIQUE(club_id, episode_no)`；`is_latest` 由後台在每次異動後**自動重算**（已發布且發布日不晚於今天的最大集數） | 🌐 |
 | `ComicPage` | — | 內頁 `(episode_id, sort_order, image_key, image_width, image_height)` | |
-| `FanEvent` | **●** | 球迷會活動。C1 補：`cover_key`、`ends_at`、`registration_deadline_at`、`venue_id`（可空）、`status`（`draft`／`published`）；地點文字在側表 `fan_events_i18n.location` | 🌐 |
+| `FanEvent` | **●** | 球迷會活動。C1 補：`cover_key`、`ends_at`、`registration_deadline_at`、`venue_id`（可空）、`status`（`draft`／`published`）；地點文字在側表 `fan_events_i18n.location`；**封面替代文字 `fan_events_i18n.cover_alt`（2026-10-07 補）** | 🌐 |
 | `FanEventImage` | — | **活動回顧圖集**（C1 新增）：`(fan_event_id, image_key, image_width, image_height, sort_order)`，由 `FanEvent` 推導 | |
 | `FanEventArticle` | — | **活動回顧的關聯文章**（C1 新增）：`(fan_event_id, article_id, sort_order)`。刻意不用 `article_relations`（該表由 B2 編輯器整批取代，同 `SponsorArticle`） | |
 | `FanEventRegistration` | **●** | 活動報名，`member_id` 可為空。C1：`status` `NOT NULL DEFAULT 'registered'`＋`CK_fan_event_registrations_status`（registered／waitlist／cancelled／attended；已報名與已到場佔名額）、非會員報名用 `applicant_name`／`phone`／`email`、`note`；**同活動同會員唯一（排除已取消，過濾唯一索引）** | 🔒 |
@@ -509,7 +509,6 @@ flowchart LR
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `MenuItem` | **●** | ⚠️ **規劃書 v3.22 起無此型別**（前台選單固定、後台無選單管理）。**程式暫留，待移除**：多層級（`parent_id`）、排序、外部連結。**不要再為它寫新功能** | 🌐 |
 | `Venue` | — | 場地：地址、**`lat`／`lng`**、交通說明、照片（**H 批補圖片欄位組：`photo_width`／`photo_height`、`venues_i18n.photo_alt`**，見 §12 第 50 點）。**刻意不加**——場地是地理實體，兩隊共用同一座球場；重複建會產生兩組人工標的座標 | 🌐 |
 
 > 其餘 I 模組內容（多語系、聯絡資訊、外部服務、全域設定、商店設定）走 `Locale`／`UiString`／`Setting`。
@@ -1083,7 +1082,7 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 | `PaymentChannel` | S6（行 1226–1230）／N7（慈善站 §6.7） | **憑證分離，`subject` 二選一** |
 | `CalendarCustomEvent` `CalendarEventTeam` `CalendarEventException` | L2／L3（行 1167–1183） | 自建事件、隊別分類、重複規則例外 |
 | `DonationAmountOption` | 慈善站 N2 | 金額選項卡 |
-| `Locale` `UiString` `UiStringTranslation` `Setting` `MenuItem`（⚠️ v3.22 起規劃書無此型別，暫留待移除） `EmailTemplate` | I（行 1009–1025） | 多語系、字串翻譯表、全域設定（選單已固定在前台） |
+| `Locale` `UiString` `UiStringTranslation` `Setting` `EmailTemplate` | I（行 1009–1025） | 多語系、字串翻譯表、全域設定（選單已固定在前台版型，無資料表；`menu_items`／`menu_items_i18n` 於 2026-10-07 刪除） |
 | `AdminUser` `AdminRole` `AdminUserRole` `Permission` `RolePermission` | J（行 1029–1032）／§6（行 1304–1334） | **規劃書只有行為描述沒有型別**；「角色建立與功能權限勾選」要求角色是資料 |
 | `AdminRefreshToken` | J（行 1029：「後台登入」本身） | **規劃書只寫「登入」，沒有寫更新權杖輪替與重放偵測這個實作機制**；沒有它，登入工作階段無法安全地維持與撤銷。⚠️ **刻意不存來源 IP 與裝置字串**（2026-09-23 裁決，見 [§7.7](12b-database-tables.md#77-admin_refresh_tokens更新權杖的工作階段狀態s1-3-新增2026-09-23-補文件)） |
 | 約 40 張 `*_i18n` | 行 1297、1303 | 雙語與第三語系擴充 |

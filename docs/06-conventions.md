@@ -233,6 +233,7 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 **翻譯過程新增、尚待客戶確認的寫法（2026-10-05，開發端初稿，非官方名稱）**：
 賽程場地——台北田徑場 Taipei Athletics Stadium、台南市立足球場 Tainan Municipal Football Stadium、楠梓足球場 Nanzih Football Field、汐止綜合運動場 Xizhi Sports Complex、輔仁大學足球場 Fu Jen Catholic University Football Field（地名拼音＋通用場地詞）；
 賽事狀態——Upcoming／Live／Finished／Postponed／Cancelled（`MATCH_STATUS_MAP.labelEn`）；
+職員分組（後台 C3 `staffGroup`，S2-21 B-11）——管理層 Management、行政 Administration、醫療 Medical Staff、後勤 Operations（`our-people.vue` 的 `STAFF_GROUPS` 為前台唯一對照處，改這裡要同步改那裡）；
 職稱——青訓教練 Youth Development Coach、青訓總監 Director of Youth Development、顧問 Advisor／Technical Adviser；部門——競技部 Football Department、學院部 Academy Department、課程部 Programs Department、商務部 Partnerships Department；
 活動／盃賽——台中磐石足球節 Taichung Rock FC Football Festival、台中磐石盃 Taichung Rock FC Cup、總統盃 President's Cup；
 慈善子頁——慈善理念 Our Commitment、慈善計畫 Charity Programs、慈善事蹟 Impact Stories、影響力數據 Our Impact；
