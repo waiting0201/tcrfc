@@ -102,10 +102,13 @@ function onFlagChoice(v: string) {
 }
 async function save() {
   if (!canUpdate.value) return
-  if (!editing.value && !/^[a-z0-9]+(_[a-z0-9]+)+$/.test(form.flagKey.trim())) return void (formError.value = '識別名稱請用小寫英數字與底線、至少兩段（由 App 工程團隊提供），建立後不能修改')
-  saving.value = true
   formError.value = null
   formErrors.clearAll()
+  if (!editing.value && !/^[a-z0-9]+(_[a-z0-9]+)+$/.test(form.flagKey.trim())) {
+    formErrors.set('flagKey', '識別名稱請用小寫英數字與底線、至少兩段（由 App 工程團隊提供），建立後不能修改')
+    return void (await formErrors.focusFirst())
+  }
+  saving.value = true
   const body = {
     flagKey: editing.value ? undefined : form.flagKey.trim(),
     platform: editing.value ? undefined : form.platform,

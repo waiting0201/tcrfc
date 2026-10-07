@@ -5,11 +5,16 @@
  * - `field` 是程式內部的欄位鍵（`slug`、`nameZh`），寫在 data-field 與錯誤對照上，不會顯示在畫面。
  * - 有錯誤時：欄位外框變 2px 危險色（形狀改變，不只靠顏色）、欄位下方出現「⚠ 訊息」
  *   （role="alert"）、第一個可聚焦元件加 aria-invalid 與 aria-describedby。
- * - 使用者在欄位內輸入或選擇（input／change 事件）就清掉該鍵的錯誤；
- *   el-select 這類不冒泡 DOM 事件的元件，請在更新處理函式裡自己呼叫 `formErrors.clear(key)`。
+ * - 使用者修改欄位就清掉該鍵的錯誤，兩層保險都自動生效、不必逐頁處理：
+ *   1. 原生 input／change 事件冒泡（文字輸入、原生元素）；
+ *   2. 「值探針」`ValueProbe`：el-select／el-date-picker／el-switch／el-checkbox／el-radio／
+ *      el-input-number／el-cascader 等不一定發原生事件的元件，改看插槽內元件的 `modelValue`——
+ *      插槽在探針自己的渲染裡執行，值一變探針就重算簽章，與上次不同即清錯誤。
+ *      （只認直接寫在插槽裡、帶 v-model／:model-value 的元件；包在自訂元件內部的值不在其內，
+ *      該情況仍可在更新處理函式裡自己呼叫 `formErrors.clear(key)`。）
  * - 欄位放在語言分頁裡時，傳 `lang`，定位時會先切到該語言；放在頁面層分頁或摺疊區時傳 `reveal`。
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
+import { computed, defineComponent, nextTick, onBeforeUnmount, onMounted, ref, useId, watch, type VNode } from 'vue'
 import { useFormErrors, firstFocusable } from '@/composables/useFormErrors'
 import { useLangScope, type Lang } from '@/composables/useLangScope'
 
@@ -58,6 +63,49 @@ watch(
   { flush: 'post' },
 )
 
+/** 遞迴收集插槽 vnode 樹裡所有 modelValue（Fragment、v-for、元素子節點的陣列都會走訪）。 */
+function collectModelValues(nodes: unknown, out: unknown[]) {
+  if (!Array.isArray(nodes)) return
+  for (const n of nodes as Array<VNode | unknown>) {
+    if (Array.isArray(n)) collectModelValues(n, out)
+    else if (n && typeof n === 'object') {
+      const vn = n as VNode
+      const props = vn.props as Record<string, unknown> | null
+      if (props && ('modelValue' in props || 'model-value' in props)) out.push(props.modelValue ?? props['model-value'])
+      collectModelValues(vn.children, out)
+    }
+  }
+}
+
+function signatureOf(values: unknown[]): string {
+  try {
+    return JSON.stringify(values)
+  } catch {
+    return String(values.length)
+  }
+}
+
+/**
+ * 值探針：不渲染任何額外 DOM，只把插槽原樣交回；每次（因值改變而）重新渲染時比對 modelValue 簽章，
+ * 第一次只記基準，之後與上次不同就通知 `onChanged`。
+ */
+const ValueProbe = defineComponent({
+  name: 'FormFieldValueProbe',
+  props: { onChanged: { type: Function, required: true } },
+  setup(probeProps, { slots }) {
+    let last: string | null = null
+    return () => {
+      const nodes = slots.default?.() ?? []
+      const values: unknown[] = []
+      collectModelValues(nodes, values)
+      const sig = signatureOf(values)
+      if (last !== null && sig !== last) void nextTick(() => (probeProps.onChanged as () => void)())
+      last = sig
+      return nodes
+    }
+  },
+})
+
 function onUserChange() {
   if (message.value) formErrors.clear(props.field)
 }
@@ -74,7 +122,7 @@ function onUserChange() {
     @input="onUserChange"
     @change="onUserChange"
   >
-    <slot />
+    <ValueProbe :on-changed="onUserChange"><slot /></ValueProbe>
     <template #error="{ error }">
       <div :id="errorId" :key="`${field}-error`" class="form-field__error" role="alert">
         <span aria-hidden="true" class="form-field__error-icon">⚠</span>{{ error }}

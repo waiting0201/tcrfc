@@ -73,7 +73,7 @@ export function provideLangScope(langs: Lang[], idPrefix: string): LangScope {
   return scope
 }
 
-/** 不在任何 LangTabsBar 內時回傳 null（雙語欄位的過渡退路依此判斷）。 */
+/** 不在任何 LangTabsBar 內時回傳 null（雙語欄位與 LangPane 依此在開發模式警告）。 */
 export function useLangScope(): LangScope | null {
   return inject(LANG_SCOPE_KEY, null)
 }

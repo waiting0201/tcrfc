@@ -49,7 +49,7 @@ if (scope) {
 </script>
 
 <template>
-  <div v-show="!scope || scope.current.value === lang" class="lang-pane" role="tabpanel" :aria-labelledby="scope?.tabId(lang)">
+  <div v-show="scope?.current.value === lang" class="lang-pane" role="tabpanel" :aria-labelledby="scope?.tabId(lang)">
     <slot />
   </div>
 </template>

@@ -5,7 +5,7 @@
  * 用 @vue/compiler-sfc 解析 <template> AST 與 <script setup> 的 Babel AST 判斷祖先關係與指派，
  * 不用 regex 猜結構。只掃 src/views/**。
  *
- * 規則（對「已遷移」檔案嚴格）：
+ * 規則（對 src/views/** 所有檔案一律嚴格，沒有例外清單、沒有棘輪）：
  *   a. BilingualShortField／BilingualTextareaField／LangPane 的祖先必須有 LangTabsBar（page 或 bare）。
  *      子元件檔（由父頁的 LangTabsBar 包住）可在檔頭加 `<!-- lang-scope: inherited -->` 放行。
  *   b. BilingualShortField／BilingualTextareaField 必須有 field（或 field-zh 與 field-en 兩者）。
@@ -18,12 +18,7 @@
  *   f. 禁止 `formError.value = '字串'`／`= \`樣板字串\``（只能指派 API 錯誤訊息）；禁止出現 slugError。
  *      （`error instanceof AdminApiError ? error.message : '儲存失敗…'` 這種含後備文案的三元式不在此限。）
  *
- * 「已遷移」的判定看檔案內容、不用共享清單（6 批遷移同時進行，清單會互相衝突）：
- *   檔案 import 了 LangTabsBar 或 EditLayout 即視為已遷移。
- *
- * 棘輪：未遷移、未標 inherited、卻仍用雙語元件的檔案數只能減少。
- *   基準值 UNMIGRATED_BASELINE 寫在下面；遷移完成的人**把它調低**（超過基準即失敗，低於基準會提示調低）。
- *   第 4 階段改為全面嚴格：基準歸 0，並把「已遷移」判定拿掉，所有 views 檔案一律套用 a–f。
+ * 判定不看「是否已遷移」：新增或既有的 views 檔案都套用同一組規則（第 4 階段收尾，2026-10-07 起）。
  */
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, sep } from 'node:path'
@@ -32,9 +27,6 @@ import { parse, babelParse, walk } from '@vue/compiler-sfc'
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..')
 const VIEWS_DIR = join(ROOT, 'src', 'views')
-
-/** 棘輪基準：未遷移但用了雙語元件的檔案數（2026-10-06 第 2 階段起算）。只能調低。 */
-const UNMIGRATED_BASELINE = 0
 
 const BILINGUAL = new Set(['BilingualShortField', 'BilingualTextareaField'])
 const LANG_CONTENT = new Set([...BILINGUAL, 'LangPane'])
@@ -82,9 +74,8 @@ function analyze(file) {
   const source = readFileSync(file, 'utf-8')
   const rel = relative(ROOT, file).split(sep).join('/')
   const { descriptor } = parse(source, { filename: file })
-  const imports = /\bimport\b[^\n]*\b(LangTabsBar|EditLayout)\b/.test(source)
   const inherited = /<!--\s*lang-scope:\s*inherited\s*-->/.test(source)
-  const info = { rel, migrated: imports, inherited, usesBilingual: false, errors: [] }
+  const info = { rel, inherited, errors: [] }
   const err = (line, msg) => info.errors.push({ line, msg })
   const isEditView = rel.endsWith('EditView.vue')
 
@@ -95,7 +86,6 @@ function analyze(file) {
     visit(ast, [], (node, anc) => {
       const tag = tagOf(node)
       const line = node.loc.start.line
-      if (LANG_CONTENT.has(tag)) info.usesBilingual = true
 
       if (tag === 'LangTabsBar') {
         const v = attr(node, 'variant')
@@ -186,34 +176,19 @@ function analyze(file) {
 function main() {
   const infos = listVue(VIEWS_DIR).map(analyze)
   let failed = false
-  const migrated = infos.filter((i) => i.migrated)
-  const strict = infos.filter((i) => i.migrated || i.inherited)
 
-  for (const i of strict) {
+  for (const i of infos) {
     if (i.errors.length === 0) continue
     failed = true
     console.error(`\n✗ ${i.rel}`)
     for (const e of i.errors.sort((a, b) => a.line - b.line)) console.error(`  - ${i.rel}:${e.line} ${e.msg}`)
   }
 
-  const pending = infos.filter((i) => !i.migrated && !i.inherited && i.usesBilingual)
-  if (pending.length > UNMIGRATED_BASELINE) {
-    failed = true
-    console.error(`\n✗ 未遷移卻使用雙語元件的檔案增加了：${pending.length} > 基準 ${UNMIGRATED_BASELINE}（新頁面請直接用 LangTabsBar＋EditLayout）`)
-    for (const p of pending) console.error(`  - ${p.rel}`)
-  }
-
   if (failed) {
     console.error('\n編輯頁版面規則見 docs/21-admin-ui.md §3 與 apps/admin/README.md「編輯頁共用元件」。\n')
     process.exit(1)
   }
-  console.log(
-    `✓ 編輯頁版面規則檢查通過（已遷移 ${migrated.length} 個、標 inherited ${infos.filter((i) => i.inherited).length} 個；` +
-      `未遷移仍用雙語元件 ${pending.length} 個，基準 ${UNMIGRATED_BASELINE}）`,
-  )
-  if (pending.length < UNMIGRATED_BASELINE) {
-    console.log(`  提示：未遷移數已低於基準，請把 UNMIGRATED_BASELINE 調低為 ${pending.length}。`)
-  }
+  console.log(`✓ 編輯頁版面規則檢查通過（掃描 ${infos.length} 個 views 檔案，標 inherited ${infos.filter((i) => i.inherited).length} 個）`)
 }
 
 main()

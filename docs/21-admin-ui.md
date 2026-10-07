@@ -264,7 +264,7 @@ v1 文字寫「一律顯示 160px 方形縮圖」，但 160px 其實是**規劃�
 **每頁最多三張卡片**——主欄一張「內容」、右側欄「基本設定」＋「發布設定」（細則見 §3.3a）。上一段的三件事不變。
 
 元件用法、API 與頁面範例見 [`apps/admin/README.md`](../apps/admin/README.md)「編輯頁共用元件」；
-共用元件已**凍結**（遷移期間不得改 `components/`、`composables/`、`api/http.ts`），規則由
+共用元件的版面規則由
 `npm run lint:edit-layout` 把關（§3.8）。
 
 ### 3.1 深色底下真正需要重新設計的：分段卡片的「層次感」怎麼做
@@ -424,9 +424,10 @@ canvas（頁面底，最暗）→ surface（分段卡片、側欄、頁面列）
 page 變體每檔最多一個、不得巢狀；`*EditView.vue` 的上傳元件須在 `#aside`（`el-dialog` 內例外）；禁止手寫
 中英 `el-tab-pane`；禁止 `formError.value = '字串'` 與 `slugError`。
 `EditLayout` 的 `#main` 內 `el-card` 最多 1 張、`#aside` 內最多 2 張（§3.3a）。
-**遷移期間只對「已遷移」檔案（內容 import 了 `LangTabsBar` 或 `EditLayout`）嚴格**，另有棘輪：未遷移卻使用
-雙語元件的檔案數不得超過腳本內 `UNMIGRATED_BASELINE`，遷移的人把它調低。**第 4 階段改為全面嚴格**
-（基準歸 0、拿掉「已遷移」判定、刪除雙語元件的過渡退路）。
+**對 `src/views/**` 所有檔案一律嚴格**——沒有「已遷移」判定、沒有例外清單、沒有棘輪（2026-10-07 第 4 階段收尾）。
+雙語元件不在 `LangTabsBar` 內時**不渲染**並在開發模式 `console.warn`，已沒有舊版並排／手機分頁的退路。
+欄位錯誤的清除也已全站自動：`FormField` 除了原生 `input`／`change` 冒泡，另以「值探針」監看插槽內元件的
+`modelValue`，`el-select`／`el-date-picker`／`el-switch`／`el-checkbox`／`el-radio` 等元件改值即清該鍵錯誤。
 
 ---
 

@@ -74,11 +74,12 @@ function openDialog(row: CredentialDto | null) {
 }
 async function save() {
   if (!canUpdate.value) return
-  if (!form.label.trim()) return void (formError.value = '請輸入名稱')
-  if (!form.expiresOn && !form.rotationPeriodDays) return void (formError.value = '請至少填「到期日」或「輪替週期（天）」其中一項，系統才能提醒屆期')
-  saving.value = true
   formError.value = null
   formErrors.clearAll()
+  if (!form.label.trim()) formErrors.set('label', '請輸入名稱')
+  if (!form.expiresOn && !form.rotationPeriodDays) formErrors.set('expiresOn', '請至少填「到期日」或「輪替週期（天）」其中一項，系統才能提醒屆期')
+  if (formErrors.count.value > 0) return void (await formErrors.focusFirst())
+  saving.value = true
   const body = {
     kind: form.kind, label: form.label.trim(), externalRef: nullIfBlank(form.externalRef), createdOn: form.createdOn || null,
     lastRotatedOn: form.lastRotatedOn || null, expiresOn: form.expiresOn || null, rotationPeriodDays: form.rotationPeriodDays, note: nullIfBlank(form.note),

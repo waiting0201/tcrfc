@@ -322,16 +322,16 @@ reactive 單例，因為目前狀態之間沒有複雜耦合；之後模組多�
 ## 編輯頁共用元件：語言分頁卡片、兩欄版面、欄位錯誤（2026-10-06，試點 `TeamEditView`／`NewsEditView`）
 
 **執行層決定**（規劃書 §4.0 沒有版面規則，詳見 `docs/21` §3）：**整頁一組**「中文／英文」分頁（放在頁面最上方、sticky，不是每張卡片各一組）；上傳欄位放右側欄；
-驗證錯誤（前端與後端）都標到欄位。第 3 階段其餘編輯頁照這份寫法遷移。
+驗證錯誤（前端與後端）都標到欄位。所有編輯頁（`src/views/**`）已照這份寫法完成，`lint:edit-layout` 對全部檔案一律嚴格。
 
 | 元件／函式 | 用途 |
 |---|---|
 | `EditLayout`（`#main`／`#aside`） | 兩欄版面。**容器寬度 ≥ 880px** 才兩欄（`container-type: inline-size`，不是視窗斷點），不足時主欄在上、側欄在下，側欄不 sticky；沒有 `#aside` 是單欄；底部留白 88px 給 `EditActionBar`。對話框、`*Tab`／`*Panel` 不用 |
 | `FormSection`（`title?`、`hint?`） | 卡片內的分段小標，相鄰分段自動畫分隔線；取代「一組欄位一張 `el-card`」。主欄第一段通常不給 `title`；`hint` 是小標下一行說明。用法：`<el-card shadow="never" header="基本設定"><FormSection title="封面圖片">…</FormSection></el-card>` |
 | `LangTabsBar`（`variant`＝`page｜bare`、`langs`＝`['zh','en']`、`label?`） | 整頁（或整個對話框）**一組**語言分頁，把整個編輯區包在裡面並 provide 唯一的語言範圍：主欄與右側欄所有雙語欄位一起換，單語欄位照常顯示。`page` 在 `.admin-layout__main` 內 sticky 於頂端；`bare` 給對話框（不 sticky，對話框自己一組）。預設中文；切分頁不算未儲存變更；唯讀時仍可切換；方向鍵／Home／End 切換。標籤文字為整頁合計：「（N 項尚未翻譯）」「⚠ N 處需修正」；內容用 `v-show` 留在 DOM。**每頁恰好一個**，不得巢狀。卡片一律用一般 `el-card` |
-| `BilingualShortField`／`BilingualTextareaField`（新增 `field`、`fieldZh?`、`fieldEn?`、`maxlength?`） | `field="name"` → 錯誤鍵 `nameZh`／`nameEn`。在 `LangTabsBar` 內只顯示目前語言；**不在其內（沒有頁面層或對話框分頁）仍是舊版並排畫面，並在開發模式 `console.warn`（過渡用，第 4 階段刪）**，`field` 因此暫為選填 |
+| `BilingualShortField`／`BilingualTextareaField`（新增 `field`、`fieldZh?`、`fieldEn?`、`maxlength?`） | `field="name"` → 錯誤鍵 `nameZh`／`nameEn`。在 `LangTabsBar` 內只顯示目前語言；**必須放在 `LangTabsBar` 內，不在其內不渲染並在開發模式 `console.warn`**（舊版並排／手機分頁已於 2026-10-07 刪除）；`field` 為必填，由 `lint:edit-layout` 檢查 |
 | `LangPane`（`lang`、`field?`、`untranslated?`，事件 `show`） | 自訂雙語內容，放在 `LangTabsBar` 內（如新聞內文編輯器）。`show` 在窗格由隱藏變顯示後觸發，編輯器在這裡重排／重算高度 |
-| `FormField`（`field`、`label`、`required`、`lang?`、`reveal?`） | 包 `el-form-item`：`data-field`、2px 危險色外框、`⚠`＋訊息（`role="alert"`）、第一個可聚焦元件加 `aria-invalid`／`aria-describedby`；輸入即清該鍵錯誤（`el-select` 這類不冒泡 DOM 事件的請在更新處理函式呼叫 `formErrors.clear(key)`） |
+| `FormField`（`field`、`label`、`required`、`lang?`、`reveal?`） | 包 `el-form-item`：`data-field`、2px 危險色外框、`⚠`＋訊息（`role="alert"`）、第一個可聚焦元件加 `aria-invalid`／`aria-describedby`；改值即清該鍵錯誤：原生 `input`／`change` 冒泡，加上「值探針」`ValueProbe` 監看插槽內元件的 `modelValue`（`el-select`／`el-date-picker`／`el-switch`／`el-checkbox`／`el-radio`／`el-input-number` 等自動生效，不必逐頁處理；包在自訂元件內部的值不在探針範圍，才需在更新處理函式呼叫 `formErrors.clear(key)`） |
 | `provideFormErrors()`／`useFormErrors()` | `set/get/has/clear/clearAll/replaceAll(record): boolean/count`、`registerAnchor`、`focusFirst()`（文件順序最前 → 切語言 → `reveal` → 捲到畫面中央 → 聚焦；`prefers-reduced-motion` 時不做平滑捲動）、`applyApiError(err): boolean`（有欄位鍵對不到回 `false`，交給頁首提示） |
 | `EditActionBar` 的 `#status`＋`FormErrorStatus` | 底部操作列左側「有 N 處需要修正」＋「前往下一處」，外層 `aria-live="polite"` |
 | `api/http.ts` | `AdminApiError.fieldErrors`（鍵經 `normalizeFieldKey`，`content.zh.name` → `nameZh`；每鍵取第一則）、`code`；400／409／422 都帶 `body`；網址名稱重複沒有 `errors` 時補 `{ slug: detail }` |
