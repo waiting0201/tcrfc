@@ -141,12 +141,6 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
   { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { label: '儀表板', code: 'A' } },
   { path: '/content/pages', name: 'page-list', component: PageListView, meta: { label: '頁面管理', code: 'B1' } },
   {
-    path: '/content/pages/new',
-    name: 'page-new',
-    component: PageEditView,
-    meta: { label: '新增頁面', code: 'B1' },
-  },
-  {
     path: '/content/pages/:id/edit',
     name: 'page-edit',
     component: PageEditView,

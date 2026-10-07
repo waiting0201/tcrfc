@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * 慈善計畫——新增／編輯（前台慈善計畫列表與詳情）。
- * 「緣起與內容」目前以純文字編輯（區塊編輯器的內容格式待前台確定，見 apps/admin/README.md）。
+ * 「緣起與內容」以純文字編輯（空行分段）；前台慈善計畫詳情不渲染頁面區塊格式，所以不用區塊編輯器。
+ * 舊資料若是區塊格式：顯示成純文字，沒改就原樣送回、改了才改存純文字（見 utils/charityContent.ts）。
  * 共用計畫整頁唯讀。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -26,6 +27,7 @@ import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { enOrUndefined, nullIfBlank } from '@/api/adminCommon'
+import { decodeCharityContent, encodeCharityContent, type ContentField } from '@/utils/charityContent'
 import NewsPicker from '@/components/NewsPicker.vue'
 import { listPartners } from '@/api/adminPartners'
 import { listSponsors } from '@/api/adminSponsors'
@@ -80,27 +82,15 @@ watch([coverFile, removeCover], () => formErrors.clear('cover'))
 const readOnly = computed(() => isShared.value || (isCreate.value ? !canCreate.value : !canUpdate.value))
 const pageTitle = computed(() => (isCreate.value ? '新增慈善計畫' : `${readOnly.value ? '檢視' : '編輯'}：${form.nameZh || '（未命名）'}`))
 
-/** 緣起與內容：後端要求整段是合法 JSON。目前以「JSON 字串（純文字）」存取；讀到已是其他 JSON 結構的舊資料時
- * 不轉換、原樣保留（畫面唯讀提示），避免誤把區塊資料壓扁。 */
-function decodeContent(raw: string | null | undefined): { text: string; structured: boolean } {
-  if (!raw) return { text: '', structured: false }
-  try {
-    const parsed = JSON.parse(raw)
-    return typeof parsed === 'string' ? { text: parsed, structured: false } : { text: raw, structured: true }
-  } catch {
-    return { text: raw, structured: false }
-  }
+/** 緣起與內容（中英各一份）：文字框綁 `contentZh/contentEn`，其餘狀態見 utils/charityContent.ts。 */
+const contentZhState = ref<ContentField | null>(null)
+const contentEnState = ref<ContentField | null>(null)
+function contentField(lang: 'zh' | 'en'): ContentField {
+  const base = (lang === 'zh' ? contentZhState : contentEnState).value ?? decodeCharityContent(null, lang)
+  return { ...base, text: lang === 'zh' ? form.contentZh : form.contentEn }
 }
-const rawContentZh = ref<string | null>(null)
-const rawContentEn = ref<string | null>(null)
-const structuredZh = ref(false)
-const structuredEn = ref(false)
-
-function encodeContent(text: string, structured: boolean, raw: string | null): string | null {
-  if (structured) return raw
-  const t = text.trim()
-  return t ? JSON.stringify(t) : null
-}
+const structuredZh = computed(() => !!contentZhState.value?.structured)
+const structuredEn = computed(() => !!contentEnState.value?.structured)
 
 function mergeOptions(target: Option[], refs: LinkRefDto[]) {
   for (const r of refs) if (!target.some((o) => o.id === r.id)) target.push({ id: r.id, label: r.title || r.slug })
@@ -119,14 +109,10 @@ function apply(d: ProgramDetailDto) {
   form.audienceEn = d.en?.targetAudience ?? ''
   form.donationZh = d.zh.donationContent ?? ''
   form.donationEn = d.en?.donationContent ?? ''
-  const cz = decodeContent(d.zh.content)
-  const ce = decodeContent(d.en?.content)
-  form.contentZh = cz.text
-  form.contentEn = ce.text
-  structuredZh.value = cz.structured
-  structuredEn.value = ce.structured
-  rawContentZh.value = d.zh.content ?? null
-  rawContentEn.value = d.en?.content ?? null
+  contentZhState.value = decodeCharityContent(d.zh.content, 'zh')
+  contentEnState.value = decodeCharityContent(d.en?.content, 'en')
+  form.contentZh = contentZhState.value.text
+  form.contentEn = contentEnState.value.text
   form.partnerIds = d.partners.map((x) => x.id)
   form.sponsorIds = d.sponsors.map((x) => x.id)
   form.articleIds = d.articles.map((x) => x.id)
@@ -198,14 +184,14 @@ async function handleSave() {
         zh: {
           name: form.nameZh.trim(),
           targetAudience: nullIfBlank(form.audienceZh),
-          content: encodeContent(form.contentZh, structuredZh.value, rawContentZh.value),
+          content: encodeCharityContent(contentField('zh')),
           donationContent: nullIfBlank(form.donationZh),
         },
         en: enOrUndefined(
           {
             name: form.nameEn.trim(),
             targetAudience: nullIfBlank(form.audienceEn) as string,
-            content: encodeContent(form.contentEn, structuredEn.value, rawContentEn.value) as string,
+            content: encodeCharityContent(contentField('en')) as string,
             donationContent: nullIfBlank(form.donationEn) as string,
           },
           'name', 'targetAudience', 'content', 'donationContent',
@@ -286,7 +272,7 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'progra
                   <BilingualShortField field="name" label="計畫名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
                   <BilingualShortField field="audience" label="對象" :zh="form.audienceZh" :en="form.audienceEn" placeholder="例如 偏鄉國小學童" @update:zh="(v) => (form.audienceZh = v)" @update:en="(v) => (form.audienceEn = v)" />
                   <BilingualTextareaField field="content" label="緣起與內容" :zh="form.contentZh" :en="form.contentEn" :rows="6" @update:zh="(v) => (form.contentZh = v)" @update:en="(v) => (form.contentEn = v)" />
-                  <el-alert v-if="structuredZh || structuredEn" type="warning" show-icon :closable="false" title="這個計畫的「緣起與內容」是進階排版格式，這裡的文字框顯示的是原始內容；儲存時會維持原樣，不會被改寫。" class="program-edit__block" />
+                  <el-alert v-if="structuredZh || structuredEn" type="warning" show-icon :closable="false" title="這個計畫的「緣起與內容」原本含有標題或清單排版，文字框顯示的是其中的純文字（標題與清單項目各成一段）。沒有修改這段文字就維持原排版；只要修改，儲存後就會改成純文字段落，標題與清單的排版會消失。" class="program-edit__block" />
                   <BilingualTextareaField field="donation" label="捐助內容" :zh="form.donationZh" :en="form.donationEn" :rows="2" @update:zh="(v) => (form.donationZh = v)" @update:en="(v) => (form.donationEn = v)" />
                 </FormSection>
 

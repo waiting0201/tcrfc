@@ -39,12 +39,18 @@ import {
   type VideoEmbedBlockContent,
 } from '@/types/pageBlocks'
 
-const props = defineProps<{
-  blockType: PageBlockType
-  content: PageBlockContent
-  /** 這個區塊在頁面中的位置（從 0 起算），只用來組欄位錯誤鍵 `blocks[i].xxx`，不顯示在畫面上。 */
-  blockIndex: number
-}>()
+const props = withDefaults(
+  defineProps<{
+    blockType: PageBlockType
+    content: PageBlockContent
+    /** 這個區塊在頁面中的位置（從 0 起算），只用來組欄位錯誤鍵 `blocks[i].xxx`，不顯示在畫面上。 */
+    blockIndex: number
+    /** 可重複項目（藝廊圖片、問答、時間軸、步驟、數據卡、表格的列與欄）是否允許新增／刪除／排序。
+     * 固定頁（版型 `allowRowEdit=false`）傳 `false`：列數固定，只能改內容。預設 `true`，課程內容維持原行為。 */
+    allowRowEdit?: boolean
+  }>(),
+  { allowRowEdit: true },
+)
 
 const formErrors = useFormErrors()
 
@@ -194,6 +200,7 @@ function removeTableRow(rowIndex: number) {
         <div class="page-block-editor__item-toolbar">
           <span class="page-block-editor__item-index">第 {{ i + 1 }} 張</span>
           <el-button
+            v-if="allowRowEdit"
             size="small"
             text
             type="danger"
@@ -221,7 +228,7 @@ function removeTableRow(rowIndex: number) {
           @update:en="(v) => (slot.altEn = v)"
         />
       </div>
-      <el-button @click="addGalleryImage">+ 新增圖片</el-button>
+      <el-button v-if="allowRowEdit" @click="addGalleryImage">+ 新增圖片</el-button>
     </template>
 
     <!-- 影音嵌入 -->
@@ -299,7 +306,7 @@ function removeTableRow(rowIndex: number) {
       <div v-for="(item, i) in faqC.items" :key="i" class="page-block-editor__item-card">
         <div class="page-block-editor__item-toolbar">
           <span class="page-block-editor__item-index">第 {{ i + 1 }} 筆</span>
-          <div>
+          <div v-if="allowRowEdit">
             <el-button size="small" text :disabled="i === 0" @click="moveItem(faqC.items, i, -1)">上移</el-button>
             <el-button size="small" text :disabled="i === faqC.items.length - 1" @click="moveItem(faqC.items, i, 1)">下移</el-button>
             <el-button size="small" text type="danger" :disabled="faqC.items.length <= 1" @click="removeFaqItem(i)">刪除</el-button>
@@ -325,7 +332,7 @@ function removeTableRow(rowIndex: number) {
           @update:en="(v) => (item.answer.en = v)"
         />
       </div>
-      <el-button @click="addFaqItem">+ 新增一筆</el-button>
+      <el-button v-if="allowRowEdit" @click="addFaqItem">+ 新增一筆</el-button>
     </template>
 
     <!-- 時間軸 -->
@@ -333,7 +340,7 @@ function removeTableRow(rowIndex: number) {
       <div v-for="(item, i) in timelineC.items" :key="i" class="page-block-editor__item-card">
         <div class="page-block-editor__item-toolbar">
           <span class="page-block-editor__item-index">第 {{ i + 1 }} 筆</span>
-          <div>
+          <div v-if="allowRowEdit">
             <el-button size="small" text :disabled="i === 0" @click="moveItem(timelineC.items, i, -1)">上移</el-button>
             <el-button size="small" text :disabled="i === timelineC.items.length - 1" @click="moveItem(timelineC.items, i, 1)">下移</el-button>
             <el-button size="small" text type="danger" :disabled="timelineC.items.length <= 1" @click="removeTimelineItem(i)">刪除</el-button>
@@ -362,7 +369,7 @@ function removeTableRow(rowIndex: number) {
           @update:en="(v) => (item.description.en = v)"
         />
       </div>
-      <el-button @click="addTimelineItem">+ 新增一筆</el-button>
+      <el-button v-if="allowRowEdit" @click="addTimelineItem">+ 新增一筆</el-button>
     </template>
 
     <!-- 步驟條 -->
@@ -370,7 +377,7 @@ function removeTableRow(rowIndex: number) {
       <div v-for="(item, i) in stepsC.items" :key="i" class="page-block-editor__item-card">
         <div class="page-block-editor__item-toolbar">
           <span class="page-block-editor__item-index">步驟 {{ i + 1 }}</span>
-          <div>
+          <div v-if="allowRowEdit">
             <el-button size="small" text :disabled="i === 0" @click="moveItem(stepsC.items, i, -1)">上移</el-button>
             <el-button size="small" text :disabled="i === stepsC.items.length - 1" @click="moveItem(stepsC.items, i, 1)">下移</el-button>
             <el-button size="small" text type="danger" :disabled="stepsC.items.length <= 1" @click="removeStepsItem(i)">刪除</el-button>
@@ -396,7 +403,7 @@ function removeTableRow(rowIndex: number) {
           @update:en="(v) => (item.description.en = v)"
         />
       </div>
-      <el-button @click="addStepsItem">+ 新增步驟</el-button>
+      <el-button v-if="allowRowEdit" @click="addStepsItem">+ 新增步驟</el-button>
     </template>
 
     <!-- 數據卡 -->
@@ -404,7 +411,7 @@ function removeTableRow(rowIndex: number) {
       <div v-for="(item, i) in statCardsC.items" :key="i" class="page-block-editor__item-card">
         <div class="page-block-editor__item-toolbar">
           <span class="page-block-editor__item-index">第 {{ i + 1 }} 張</span>
-          <el-button size="small" text type="danger" :disabled="statCardsC.items.length <= 1" @click="removeStatCard(i)">刪除</el-button>
+          <el-button v-if="allowRowEdit" size="small" text type="danger" :disabled="statCardsC.items.length <= 1" @click="removeStatCard(i)">刪除</el-button>
         </div>
         <FormField :field="k(`items[${i}].value`)" label="數據值" required>
           <el-input v-model="item.value" placeholder="例如：120＋、98%" />
@@ -419,7 +426,7 @@ function removeTableRow(rowIndex: number) {
           @update:en="(v) => (item.label.en = v)"
         />
       </div>
-      <el-button @click="addStatCard">+ 新增數據卡</el-button>
+      <el-button v-if="allowRowEdit" @click="addStatCard">+ 新增數據卡</el-button>
     </template>
 
     <!-- 表格 -->
@@ -437,11 +444,11 @@ function removeTableRow(rowIndex: number) {
             @update:zh="(v) => (header.zh = v)"
             @update:en="(v) => (header.en = v)"
           />
-          <el-button size="small" text type="danger" :disabled="tableC.headers.length <= 1" @click="removeTableColumn(colIndex)">
+          <el-button v-if="allowRowEdit" size="small" text type="danger" :disabled="tableC.headers.length <= 1" @click="removeTableColumn(colIndex)">
             刪除這一欄
           </el-button>
         </div>
-        <el-button @click="addTableColumn">+ 新增欄位</el-button>
+        <el-button v-if="allowRowEdit" @click="addTableColumn">+ 新增欄位</el-button>
       </div>
 
       <FormField :field="k('rows')">
@@ -451,7 +458,7 @@ function removeTableRow(rowIndex: number) {
               <el-input v-model="entry.row[colIndex]" size="small" />
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="80">
+          <el-table-column v-if="allowRowEdit" label="操作" width="80">
             <template #default="{ row: entry }">
               <el-button size="small" text type="danger" :disabled="tableC.rows.length <= 1" @click="removeTableRow(entry.rowIndex)">
                 刪除
@@ -460,7 +467,7 @@ function removeTableRow(rowIndex: number) {
           </el-table-column>
         </el-table>
       </FormField>
-      <el-button @click="addTableRow">+ 新增一列</el-button>
+      <el-button v-if="allowRowEdit" @click="addTableRow">+ 新增一列</el-button>
     </template>
 
     <!-- 檔案下載 -->

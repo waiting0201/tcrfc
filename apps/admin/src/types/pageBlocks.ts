@@ -182,6 +182,8 @@ export type PageBlockContent =
  * 見 apps/api/README.md「我的判斷」）。 */
 export interface PageBlockState {
   localKey: string
+  /** 版型區塊代號（固定頁才有；送出時帶給後端核對位置）。課程內容等自由區塊清單沒有。 */
+  key?: string
   blockType: PageBlockType
   content: PageBlockContent
 }

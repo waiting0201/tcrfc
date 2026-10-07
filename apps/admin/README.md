@@ -332,6 +332,7 @@ reactive 單例，因為目前狀態之間沒有複雜耦合；之後模組多�
 | `BilingualShortField`／`BilingualTextareaField`（新增 `field`、`fieldZh?`、`fieldEn?`、`maxlength?`） | `field="name"` → 錯誤鍵 `nameZh`／`nameEn`。在 `LangTabsBar` 內只顯示目前語言；**必須放在 `LangTabsBar` 內，不在其內不渲染並在開發模式 `console.warn`**（舊版並排／手機分頁已於 2026-10-07 刪除）；`field` 為必填，由 `lint:edit-layout` 檢查 |
 | `LangPane`（`lang`、`field?`、`untranslated?`，事件 `show`） | 自訂雙語內容，放在 `LangTabsBar` 內（如新聞內文編輯器）。`show` 在窗格由隱藏變顯示後觸發，編輯器在這裡重排／重算高度 |
 | `FormField`（`field`、`label`、`required`、`lang?`、`reveal?`） | 包 `el-form-item`：`data-field`、2px 危險色外框、`⚠`＋訊息（`role="alert"`）、第一個可聚焦元件加 `aria-invalid`／`aria-describedby`；改值即清該鍵錯誤：原生 `input`／`change` 冒泡，加上「值探針」`ValueProbe` 監看插槽內元件的 `modelValue`（`el-select`／`el-date-picker`／`el-switch`／`el-checkbox`／`el-radio`／`el-input-number` 等自動生效，不必逐頁處理；包在自訂元件內部的值不在探針範圍，才需在更新處理函式呼叫 `formErrors.clear(key)`） |
+| `SizeChartEditor`（`v-model`＝`SizeChartState`、`unrecognized?`，事件 `reset`） | 商品尺寸對照表：可增刪欄與列的表格（欄名、儲存格皆輸入框）加單位、備註；輸出 `{ columns, rows, unit?, note? }`（前台 `parseSizeChart` 形狀①），全空送 `null`。狀態與互轉在 `utils/sizeChart.ts`（讀入認形狀①②；看不懂的舊資料顯示白話提示＋「清空重新填寫」，未處理則原值送回）。放主欄，外包 `FormField field="sizeChart"` |
 | `provideFormErrors()`／`useFormErrors()` | `set/get/has/clear/clearAll/replaceAll(record): boolean/count`、`registerAnchor`、`focusFirst()`（文件順序最前 → 切語言 → `reveal` → 捲到畫面中央 → 聚焦；`prefers-reduced-motion` 時不做平滑捲動）、`applyApiError(err): boolean`（有欄位鍵對不到回 `false`，交給頁首提示） |
 | `EditActionBar` 的 `#status`＋`FormErrorStatus` | 底部操作列左側「有 N 處需要修正」＋「前往下一處」，外層 `aria-live="polite"` |
 | `api/http.ts` | `AdminApiError.fieldErrors`（鍵經 `normalizeFieldKey`，`content.zh.name` → `nameZh`；每鍵取第一則）、`code`；400／409／422 都帶 `body`；網址名稱重複沒有 `errors` 時補 `{ slug: detail }` |
@@ -619,23 +620,25 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 是網站的多個靜態頁面**（`FrontendUnitBanner` 用 `linkType: 'multi'`，不是單一頁面），對照
 `src/data/frontendUnits.ts` 的 `B1` 項。
 
-- **列表頁**（`views/pages/PageListView.vue`）：篩選（狀態／關鍵字）、分頁、欄位為網址名稱、
-  SEO 標題（中文）、狀態、更新時間；版面沿用 `NewsListView.vue` 的列表頁標準型。
-- **新增／編輯頁**（`views/pages/PageEditView.vue`）：
-  - **基本資訊**：網址名稱（`slug`，允許 `/` 表示分層路徑，對照 `docs/01`「URL 直接對應網站
-    層級」）。
-  - **SEO 設定**：標題（`BilingualShortField`）、描述（新增的 `BilingualTextareaField`，見下方）。
-  - **內容區塊**：12 種區塊型別（文字、圖文左右、圖片藝廊、影音嵌入、引言、CTA、手風琴 FAQ、
-    時間軸、步驟條、數據卡、表格、檔案下載）的區塊化編輯器——下拉選型別＋「新增區塊」按鈕、
-    每個區塊卡片有「上移／下移／刪除區塊」，型別名稱**顯示中文**（`PAGE_BLOCK_TYPE_LABEL`，
-    `CTA`／`FAQ` 是規劃書原文用字不是英文技術詞，未違反 §4.0「代號不進介面」，見
-    `src/types/pageBlocks.ts` 檔頭說明）。
+- 🔴 **2026-10-07 起改為「固定頁＋固定欄位」**（使用者拍板，後端見 apps/api/README.md S1-4 頂端）：
+  不能新增頁面、不能刪除頁面、不能增刪排序區塊；每頁的區塊結構由後端版型（`template.blocks`）決定。
+- **列表頁**（`views/pages/PageListView.vue`）：每個版型一列，欄位為頁面名稱（`titleZh`）、狀態、更新時間，
+  操作只有「檢視、編輯」（沒有新增與刪除；`/content/pages/new` 路由已移除）；篩選（狀態／關鍵字）、分頁沿用列表標準型。
+- **編輯頁**（`views/pages/PageEditView.vue`）：
+  - 頁首副標唯讀顯示公開網址（網址由版型決定，不可改，沒有網址名稱欄位）。
+  - 主欄唯一一張卡：依 `template.blocks` 順序每個區塊一個 `FormSection`（標題＝`labelZh`、說明＝`hintZh`），
+    內放該區塊的欄位表單（重用 `PageBlockEditor`，傳 `allow-row-edit`；`false` 時列數固定，
+    不顯示可重複項目的新增／刪除／上下移，表格連欄也不可增刪）；之後是預覽連結、搜尋與分享（SEO）。側欄一張卡：分享圖片。
+  - 送出：`serializeBlocksForSubmit` 帶 `key` 與 `blockType`，順序照版型；`slug` 帶現值（後端要求不可改）。
+  - **欄位錯誤對應**：區塊內欄位錯誤鍵 `blocks[N].bodyZh`／`blocks[N].items[M].titleZh` 沿用 `useFormErrors`
+    逐層退回規則定位；每個區塊外層有 `FormField field="blocks[N]"` 當退回錨點，所以 `blocks[N]`、`blocks[N].items`
+    （列數不符）都會標在該區塊；`blocks`（數量不符）、`slug`、`versionNo` 沒有欄位錨點，顯示在頁首提示。
   - **發布設定**：草稿／排程發布／已發布三態、`StatusTag`、預覽連結。
-  - **操作列**：版本歷程、預覽、儲存草稿、發布／排程（`el-dropdown split-button`，樣式沿用
-    `NewsEditView.vue`）。
+  - **操作列**：版本歷程、預覽、儲存草稿、發布／排程。
 - **版本歷程與還原**：`el-dialog` 列出版本清單，「檢視內容」顯示該版本的簡短摘要（區塊型別＋
   關鍵欄位截斷字串，**不是**逐版重新渲染完整的區塊編輯器——規劃書只要求「版本歷程與還原」，
-  沒有要求逐版完整重現畫面，這是本輪的取捨），「還原」呼叫 `restoreAdminPageVersion`（後端
+  沒有要求逐版完整重現畫面，這是本輪的取捨），「還原」呼叫 `restoreAdminPageVersion`；版本詳情的 `structureMatchesTemplate=false`（版型調整前的舊版本）
+  只能檢視，「還原」停用並說明原因（後端同樣回 400 鍵 `versionNo`）（後端
   「還原＝以舊版內容產生一個新版本，不覆蓋中間版本、不改變發布狀態」，見 apps/api/README.md
   「我的判斷」）。
 - **預覽連結**：顯示 `/{locale}/preview/{token}`（中文／英文版可切換）並提供複製按鈕

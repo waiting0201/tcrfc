@@ -21,6 +21,7 @@ import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
+import SizeChartEditor from '@/components/SizeChartEditor.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -48,6 +49,7 @@ import {
   type VariantStatus,
 } from '@/api/adminShop'
 import { formatMoney } from '@/utils/formatMoney'
+import { emptySizeChart, parseSizeChartForEdit, sizeChartToPayload, validateSizeChart, type SizeChartState } from '@/utils/sizeChart'
 
 const route = useRoute()
 const router = useRouter()
@@ -67,12 +69,16 @@ const form = reactive({
   sortOrder: 0,
   status: 'draft' as ShopPublishStatus,
   outOfStockBehavior: 'show_unavailable' as OutOfStockBehavior,
-  sizeChartText: '',
+  sizeChart: emptySizeChart() as SizeChartState,
+  /** 後端存的尺寸資料系統看不懂：不顯示、不改寫，儲存時原樣送回，除非使用者按「清空重新填寫」。 */
+  sizeChartUnrecognized: false,
   nameZh: '', nameEn: '', narrZh: '', narrEn: '',
   seoTitleZh: '', seoTitleEn: '', seoDescZh: '', seoDescEn: '',
   tagsZh: '', tagsEn: '',
 })
 const baselineJson = ref('')
+/** 看不懂的舊尺寸資料原值（只在送回時用，不進畫面）。 */
+let sizeChartRaw: unknown = null
 const collections = ref<CollectionListItemDto[]>([])
 const images = ref<ProductDetailDto['images']>([])
 const variants = ref<VariantDto[]>([])
@@ -95,7 +101,10 @@ function apply(d: ProductDetailDto) {
   form.sortOrder = d.sortOrder
   form.status = d.status
   form.outOfStockBehavior = d.outOfStockBehavior
-  form.sizeChartText = d.sizeChart === null || d.sizeChart === undefined ? '' : JSON.stringify(d.sizeChart, null, 2)
+  const chart = parseSizeChartForEdit(d.sizeChart)
+  form.sizeChart = chart.state
+  form.sizeChartUnrecognized = !chart.recognized
+  sizeChartRaw = chart.recognized ? null : d.sizeChart
   form.nameZh = d.zh?.name ?? ''
   form.nameEn = d.en?.name ?? ''
   form.narrZh = d.zh?.narrative ?? ''
@@ -132,14 +141,10 @@ onMounted(load)
 const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== baselineJson.value)
 useUnsavedChanges(isDirty)
 
-function parseSizeChart(): { ok: boolean; value: unknown } {
-  const text = form.sizeChartText.trim()
-  if (!text) return { ok: true, value: null }
-  try {
-    return { ok: true, value: JSON.parse(text) }
-  } catch {
-    return { ok: false, value: null }
-  }
+function resetSizeChart() {
+  form.sizeChart = emptySizeChart()
+  form.sizeChartUnrecognized = false
+  sizeChartRaw = null
 }
 
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
@@ -150,7 +155,10 @@ function validate(): Record<string, string> {
   else if (form.status === 'published' && !isCreate.value && canViewVariants.value && !variants.value.some((v) => v.status === 'active')) {
     errors.status = '上架前至少要有一個販售中的規格'
   }
-  if (!parseSizeChart().ok) errors.sizeChart = '尺寸對照表的格式不正確，請檢查後再儲存，或清空這個欄位'
+  if (!form.sizeChartUnrecognized) {
+    const chartError = validateSizeChart(form.sizeChart)
+    if (chartError) errors.sizeChart = chartError
+  }
   return errors
 }
 
@@ -170,7 +178,7 @@ async function handleSave() {
     status: form.status,
     outOfStockBehavior: form.outOfStockBehavior,
     // 更新時省略＝清除，所以一律明確帶出畫面上的內容
-    sizeChart: parseSizeChart().value,
+    sizeChart: form.sizeChartUnrecognized ? sizeChartRaw : sizeChartToPayload(form.sizeChart),
     content: {
       zh: {
         name: form.nameZh.trim(),
@@ -435,9 +443,8 @@ async function moveVariant(index: number, delta: -1 | 1) {
               <el-form label-position="top" :disabled="readOnly" class="product-edit__split">
                 <FormSection title="尺寸對照表（選填）">
                   <FormField field="sizeChart">
-                    <el-input v-model="form.sizeChartText" type="textarea" :rows="6" placeholder="尚無對照表。需要時貼上對照表資料（須為系統可讀的結構化格式）；清空並儲存即清除。" />
+                    <SizeChartEditor v-model="form.sizeChart" :unrecognized="form.sizeChartUnrecognized" @update:model-value="formErrors.clear('sizeChart')" @reset="resetSizeChart" />
                   </FormField>
-                  <p class="product-edit__hint">前台的呈現格式尚未定義，目前只能原樣存放。格式不正確時無法儲存。</p>
                 </FormSection>
 
                 <FormSection title="搜尋與分享設定">

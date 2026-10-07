@@ -133,7 +133,12 @@ export function parseBlockContent(blockType: PageBlockType, raw: unknown): PageB
 }
 
 export function parseBlockFromDto(dto: AdminPageBlockDto): PageBlockState {
-  return { localKey: randomLocalKey(), blockType: dto.blockType as PageBlockType, content: parseBlockContent(dto.blockType as PageBlockType, dto.content) }
+  return {
+    localKey: randomLocalKey(),
+    ...(dto.key ? { key: dto.key } : {}),
+    blockType: dto.blockType as PageBlockType,
+    content: parseBlockContent(dto.blockType as PageBlockType, dto.content),
+  }
 }
 
 // ───────────────────────────── 序列化（畫面 → 後端） ─────────────────────────────
@@ -304,6 +309,7 @@ function serializeBlockContent(block: PageBlockState, blockIndex: number, files:
 export function serializeBlocksForSubmit(blocks: PageBlockState[]): { blocks: AdminPageBlockInputDto[]; files: Record<string, File> } {
   const files: Record<string, File> = {}
   const serialized = blocks.map((block, index) => ({
+    ...(block.key ? { key: block.key } : {}),
     blockType: block.blockType,
     content: serializeBlockContent(block, index, files),
   }))

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
- * B1 頁面管理編輯頁：網址名稱、SEO 設定、區塊化內容編輯器（新增／排序／刪除 12 種區塊）、
- * 發布／排程、版本歷程與還原、預覽連結。對照規劃書 §4.2 B1（約行 1011–1014）與
- * apps/api/README.md「S1-4：B1 頁面管理」。版面沿用既有 `NewsEditView.vue` 的編輯頁標準型
- * （分段卡片／離開未儲存提醒／固定底部操作列），圖片一律「選檔不上傳、儲存才上傳」。
+ * B1 頁面管理編輯頁（2026-10-07 起為「固定頁＋固定欄位」）：只能編輯，不能新增頁面，也不能增刪排序區塊。
+ * 區塊結構由後端版型（`template.blocks`）決定，主欄唯一一張卡內依版型順序每個區塊一段欄位表單
+ * （重用 `PageBlockEditor`，`allowRowEdit` 控制可重複項目能否增刪列）；另有 SEO 設定、
+ * 發布／排程、版本歷程與還原、預覽連結。對照規劃書 §4.2 B1 與 apps/api/README.md「S1-4：B1 頁面管理」
+ * 頂端「固定頁」段落。版面遵守 docs/21 §3.3a（主欄 1 卡、側欄最多 2 卡），圖片一律「選檔不上傳、儲存才上傳」。
  */
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -13,7 +14,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
-import PageBlockListEditor from '@/components/pageBlocks/PageBlockListEditor.vue'
+import PageBlockEditor from '@/components/pageBlocks/PageBlockEditor.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
@@ -25,7 +26,6 @@ import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import {
-  createAdminPage,
   getAdminPage,
   getAdminPageVersion,
   listAdminPageVersions,
@@ -35,6 +35,7 @@ import {
   updateAdminPage,
   type AdminPageBlockDto,
   type AdminPageDetailDto,
+  type AdminPageTemplateDto,
   type AdminPageVersionDetailDto,
   type AdminPageVersionListItemDto,
 } from '@/api/adminPages'
@@ -46,13 +47,6 @@ import { formatDateTime, nowAsPickerDate, pickerDateToUtc } from '@/utils/dateTi
 const route = useRoute()
 const router = useRouter()
 
-// 🔴 必須是 computed 不能是一次性求值的 const：建立成功後 saveAndMaybeTransition() 呼叫
-// `router.replace('/content/pages/:id/edit')`，Vue Router 對同一個元件實例的路由切換預設不會
-// 重新掛載（component reuse），若 isCreate 只在 setup 當下算一次，畫面上依賴它的 `pageTitle`
-// 與「預覽連結」「版本歷程」兩個 `v-if` 區塊在儲存成功後會繼續停在「建立中」的樣子（儲存流程
-// 本身另外用 `!currentId.value` 擋住不會真的重複建立，但畫面顯示是錯的）。比照
-// `CompetitionEditView.vue`／`MatchEditView.vue` 既有寫法（`docs/18` 回報項）。
-const isCreate = computed(() => route.name === 'page-new')
 const paramId = route.params.id as string | undefined
 const currentId = ref<string | undefined>(paramId)
 
@@ -114,6 +108,8 @@ const loadState = ref<LoadState>('loading')
 const loadErrorMessage = ref('')
 
 const form = reactive<PageFormState>(emptyForm())
+/** 這一頁的版型（固定的區塊清單）；`blocks[i]` 對應 `template.blocks[i]`。 */
+const template = ref<AdminPageTemplateDto | null>(null)
 const blocks = ref<PageBlockState[]>([])
 /** 用來判斷「離開未儲存」與 SEO 英文是否被整批清空的基準快照。 */
 const baselineJson = shallowRef('')
@@ -137,6 +133,7 @@ function snapshotJson(): string {
 
 function applyLoadedPage(dto: AdminPageDetailDto) {
   form.slug = dto.slug
+  template.value = dto.template
   form.status = dto.status
   form.publishedAt = dto.publishedAt ?? null
   form.updatedAt = dto.updatedAt
@@ -163,12 +160,6 @@ function applyLoadedPage(dto: AdminPageDetailDto) {
 
 async function loadPage() {
   loadState.value = 'loading'
-  if (isCreate.value) {
-    blocks.value = []
-    baselineJson.value = snapshotJson()
-    loadState.value = 'ready'
-    return
-  }
   try {
     const detail = await getAdminPage(activeClubId.value, currentId.value!)
     applyLoadedPage(detail)
@@ -200,10 +191,11 @@ const isDirty = computed(() =>
 )
 useUnsavedChanges(isDirty)
 
-const pageTitle = computed(() => (isCreate.value ? '新增頁面' : `編輯頁面：${form.slug || '（尚未命名）'}`))
+const pageTitle = computed(() => `編輯頁面：${template.value?.titleZh ?? '載入中'}`)
+const publicPath = computed(() => (form.slug ? `/zh/${form.slug.replace(/^\/+|\/+$/g, '')}/` : ''))
 const mainActionLabel = computed(() => (form.status === 'published' ? '儲存變更' : '發布'))
 const canPreview = computed(() => form.status === 'published')
-const frontendPreviewUrl = computed(() => (canPreview.value ? `/zh/${form.slug.replace(/^\/+|\/+$/g, '')}/` : undefined))
+const frontendPreviewUrl = computed(() => (canPreview.value ? publicPath.value : undefined))
 
 function isEnSeoEmpty(): boolean {
   return !form.seoTitleEn.trim() && !form.seoDescriptionEn.trim() && !form.seoKeywordsEn.trim() && !form.ogImageAlt.en.trim()
@@ -231,7 +223,6 @@ async function confirmEnglishSeoRemovalIfNeeded(): Promise<boolean> {
  * 每個區塊最多標一則錯誤在區塊上，訊息開頭的「第 N 個區塊」改成該區塊實際的位置。 */
 function validateBeforeSave(): Record<string, string> {
   const errors: Record<string, string> = {}
-  if (!form.slug.trim()) errors.slug = '請輸入網址名稱'
   blocks.value.forEach((block, index) => {
     try {
       serializeBlocksForSubmit([block])
@@ -252,7 +243,6 @@ async function handleSaveError(error: unknown) {
     return
   }
   switch (error.kind) {
-    case 'slug-conflict':
     case 'validation':
       // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
       if (!formErrors.applyApiError(error)) formError.value = error.message
@@ -277,7 +267,7 @@ async function handleSaveError(error: unknown) {
       await ElMessageBox.alert(error.message, '無法這樣操作', { confirmButtonText: '我知道了' })
       break
     case 'not-found':
-      await ElMessageBox.alert('這個頁面已經找不到了，可能已被刪除。', '找不到這個頁面', { confirmButtonText: '返回列表' })
+      await ElMessageBox.alert('這個頁面已經找不到了。', '找不到這個頁面', { confirmButtonText: '返回列表' })
       router.push('/content/pages')
       break
     case 'network':
@@ -328,7 +318,7 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
           },
     }
     const payload = {
-      slug: form.slug.trim(),
+      slug: form.slug,
       seo,
       canonicalPath: form.canonicalPath || null,
       isNoindex: form.isNoindex,
@@ -336,20 +326,13 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
       blocks: blocksPayload,
     }
 
-    let saved: AdminPageDetailDto
-    if (isCreate.value && !currentId.value) {
-      // 建立沒有「清空分享圖片」這個概念（根本還沒有既有圖片可清），選了新檔案就附上，
-      // 沒有就是「這個頁面沒有分享圖片」（比照 NewsEditView.vue 封面圖片的既有慣例）。
-      saved = await createAdminPage(club, payload, files, ogImageFile.value)
-    } else {
-      saved = await updateAdminPage(
-        club,
-        currentId.value!,
-        { ...payload, expectedUpdatedAt: form.updatedAt, removeOgImage: removeOgImage.value },
-        files,
-        ogImageFile.value,
-      )
-    }
+    let saved = await updateAdminPage(
+      club,
+      currentId.value!,
+      { ...payload, expectedUpdatedAt: form.updatedAt, removeOgImage: removeOgImage.value },
+      files,
+      ogImageFile.value,
+    )
 
     if (transition?.kind === 'publish') {
       saved = await publishAdminPage(club, saved.id, saved.updatedAt)
@@ -357,17 +340,12 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
       saved = await scheduleAdminPage(club, saved.id, saved.updatedAt, transition.publishAt)
     }
 
-    const wasCreate = isCreate.value && !currentId.value
     applyLoadedPage(saved)
     hadEnSeoAtLoad.value = !isEnSeoEmpty()
     formError.value = null
     formErrors.clearAll()
 
     ElMessage.success(transition?.kind === 'publish' ? '已發布' : transition?.kind === 'schedule' ? '已排程發布' : '已儲存')
-
-    if (wasCreate) {
-      router.replace(`/content/pages/${saved.id}/edit`)
-    }
   } catch (error) {
     await handleSaveError(error)
   } finally {
@@ -469,6 +447,12 @@ async function viewVersion(versionNo: number) {
 }
 
 async function restoreVersion(versionNo: number) {
+  // 結構是否與現行版型一致要看版本詳情；還沒檢視過就先取一次，不一致直接說明、不送還原
+  if (viewingVersion.value?.versionNo !== versionNo) await viewVersion(versionNo)
+  if (viewingVersion.value && viewingVersion.value.versionNo === versionNo && !viewingVersion.value.structureMatchesTemplate) {
+    ElMessage.warning('這個版本的內容結構與目前頁面版型不同，無法還原')
+    return
+  }
   try {
     await ElMessageBox.confirm(
       `確定要還原到版本 ${versionNo} 嗎？系統會以這個版本的內容建立一筆新版本，不會刪除中間的版本紀錄，也不會改變目前的發布狀態。`,
@@ -564,6 +548,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
         />
         <span v-if="loadState === 'ready'" class="page-edit__status-line">
           <StatusTag :status="form.status" :status-at="form.publishedAt ?? undefined" />
+          <span>網址：<code>{{ publicPath }}</code></span>
         </span>
       </template>
     </PageHeader>
@@ -579,7 +564,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
         </template>
         <template #description>
           <p v-if="loadState === 'not-found'" class="page-edit__state-text">
-            找不到這個頁面，可能已經被刪除，或不屬於目前選擇的俱樂部。
+            找不到這個頁面，可能不屬於目前選擇的俱樂部。
           </p>
           <p v-else class="page-edit__state-text">{{ loadErrorMessage }}</p>
         </template>
@@ -603,10 +588,22 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
           <EditLayout>
             <template #main>
               <el-card shadow="never">
-                <FormSection>
-                  <PageBlockListEditor v-model="blocks" empty-hint="這個頁面目前還沒有任何內容區塊，從下方選一種類型開始新增。" />
+                <FormSection
+                  v-for="(tplBlock, index) in template?.blocks ?? []"
+                  :key="tplBlock.key"
+                  :title="tplBlock.labelZh"
+                  :hint="tplBlock.hintZh ?? undefined"
+                >
+                  <FormField v-if="blocks[index]" :field="`blocks[${index}]`">
+                    <PageBlockEditor
+                      :block-type="blocks[index].blockType"
+                      :content="blocks[index].content"
+                      :block-index="index"
+                      :allow-row-edit="tplBlock.allowRowEdit"
+                    />
+                  </FormField>
                 </FormSection>
-                <FormSection v-if="!isCreate" title="預覽連結">
+                <FormSection title="預覽連結">
                   <template v-if="form.previewToken">
                     <p class="page-edit__hint">未發布也可以分享這個連結，讓其他人看到目前儲存的最新內容。</p>
                     <div class="page-edit__preview-link">
@@ -674,13 +671,8 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
               </el-card>
             </template>
             <template #aside>
-              <el-card shadow="never" header="基本設定">
+              <el-card shadow="never" header="分享圖片">
                 <FormSection>
-                  <FormField field="slug" label="網址名稱" required>
-                    <el-input v-model="form.slug" placeholder="例如：about/history（可用斜線表示分層路徑）" />
-                  </FormField>
-                </FormSection>
-                <FormSection title="分享圖片">
                   <FormField field="ogImage" label="分享圖片">
                     <ImageUploader
                       v-model:file="ogImageFile"
@@ -708,7 +700,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
 
       <EditActionBar>
         <template #status><FormErrorStatus /></template>
-        <el-button v-if="!isCreate" @click="openVersionsDialog">版本歷程</el-button>
+        <el-button @click="openVersionsDialog">版本歷程</el-button>
         <el-tooltip v-if="!canPreview" content="尚未發布，暫不提供正式網址預覽" placement="top">
           <span>
             <el-button disabled>預覽</el-button>
@@ -761,7 +753,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
               text
               type="primary"
               :loading="restoringVersionNo === row.versionNo"
-              :disabled="row.versionNo === form.latestVersionNo"
+              :disabled="row.versionNo === form.latestVersionNo || (viewingVersion?.versionNo === row.versionNo && viewingVersion?.structureMatchesTemplate === false)"
               @click="restoreVersion(row.versionNo)"
             >
               還原
@@ -775,6 +767,14 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
       <el-skeleton v-if="viewingVersionLoading" :rows="3" animated />
       <div v-else-if="viewingVersion" class="page-edit__version-detail">
         <h4>第 {{ viewingVersion.versionNo }} 版內容摘要</h4>
+        <el-alert
+          v-if="!viewingVersion.structureMatchesTemplate"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="這個版本的內容結構與目前頁面版型不同（版型調整前留下的舊版本），只能檢視，無法還原。"
+          class="page-edit__version-warning"
+        />
         <p class="page-edit__hint">SEO 標題（中文）：{{ viewingVersion.zh.seoTitle || '（未設定）' }}</p>
         <ul class="page-edit__version-block-list">
           <li v-for="(block, i) in viewingVersion.blocks" :key="block.id">{{ i + 1 }}. {{ summarizeBlock(block) }}</li>
@@ -828,6 +828,10 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
 .page-edit__preview-link-input {
   flex: 1;
   min-width: 240px;
+}
+
+.page-edit__version-warning {
+  margin-bottom: 8px;
 }
 
 .page-edit__version-detail h4 {

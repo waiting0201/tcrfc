@@ -21,12 +21,18 @@ export interface AdminPageSeoInputDto {
 /** 單一區塊的輸入。`content` 是該區塊型別對應的 JSON 物件，見 `@/types/pageBlocks.ts`
  * 與 `@/utils/pageBlockSerializer.ts`（畫面狀態 ↔ 這個形狀的互轉）。 */
 export interface AdminPageBlockInputDto {
+  /** 區塊代號（版型 `blocks[].key`）。固定頁一律帶上，後端核對與版型同位置的代號一致。 */
+  key?: string
   blockType: string
   content: unknown
 }
 
 export interface AdminPageBlockDto {
   id: string
+  /** 區塊代號（版型 `blocks[].key`），只在程式內對照，不顯示。 */
+  key?: string
+  /** 後台顯示的區塊名稱（日常中文）。 */
+  labelZh?: string
   blockType: string
   content: unknown
   sortOrder: number
@@ -40,10 +46,34 @@ export interface PagedResult<T> {
   totalPages: number
 }
 
-/** 清單一列不含標題（`pages_i18n` 沒有這個欄位），用 SEO 標題作為清單上唯一可辨識的雙語文字。 */
+/** 版型的單一區塊定義（2026-10-07 固定頁：區塊數量、類型、順序由版型決定）。 */
+export interface AdminPageTemplateBlockDto {
+  key: string
+  blockType: string
+  labelZh: string
+  hintZh?: string | null
+  /** 可重複項目（時間軸條目、步驟卡、數據卡、問答、藝廊圖片、表格列）是否允許增刪列。 */
+  allowRowEdit: boolean
+  /** `allowRowEdit=false` 時的固定列數。 */
+  fixedRowCount?: number | null
+  /** 可重複項目在區塊內容 JSON 的屬性名：`items`／`images`／`rows`；沒有則 `null`。 */
+  rowsField?: string | null
+}
+
+export interface AdminPageTemplateDto {
+  key: string
+  titleZh: string
+  titleEn?: string | null
+  blocks: AdminPageTemplateBlockDto[]
+}
+
+/** 清單一列＝一個固定頁（版型）。 */
 export interface AdminPageListItemDto {
   id: string
   slug: string
+  templateKey: string
+  titleZh: string
+  titleEn?: string | null
   status: 'draft' | 'published' | 'scheduled'
   publishedAt?: string | null
   updatedAt: string
@@ -57,6 +87,8 @@ export interface AdminPageDetailDto {
   status: 'draft' | 'published' | 'scheduled'
   publishedAt?: string | null
   updatedAt: string
+  /** 這一頁的版型（固定的區塊清單）。 */
+  template: AdminPageTemplateDto
   /** 手動覆寫正規網址（S1-12 新增）。`null`／空字串＝不覆寫，前台沿用自動產生的正規網址。 */
   canonicalPath?: string | null
   /** 不讓搜尋引擎收錄這一頁（S1-12 新增）。跟全站上線前的無條件 noindex 是兩個獨立機制。 */
@@ -83,6 +115,8 @@ export interface AdminPageVersionListItemDto {
 }
 
 export interface AdminPageVersionDetailDto extends AdminPageVersionListItemDto {
+  /** 這個版本的區塊結構是否與現行版型一致；不一致的版本不能還原。 */
+  structureMatchesTemplate: boolean
   zh: AdminPageSeoLocaleContentDto
   en?: AdminPageSeoLocaleContentDto | null
   blocks: AdminPageBlockDto[]
@@ -120,7 +154,8 @@ export function getAdminPage(club: string, id: string): Promise<AdminPageDetailD
 }
 
 export interface SavePagePayload {
-  slug: string
+  /** 固定頁網址不可改；帶上時必須與現有值相同。 */
+  slug?: string
   seo: AdminPageSeoInputDto
   /** 手動覆寫正規網址（S1-12 新增）。省略或空字串＝不覆寫。 */
   canonicalPath?: string | null
@@ -135,7 +170,7 @@ export interface UpdatePagePayload extends SavePagePayload {
   removeOgImage?: boolean
 }
 
-/** 組出建立／更新頁面共用的 `multipart/form-data`：固定 `payload`（JSON 文字）欄位，
+/** 組出更新頁面用的 `multipart/form-data`：固定 `payload`（JSON 文字）欄位，
  * 加上每一個待上傳圖片各自的 `file:{區塊索引}:{圖片路徑}` 欄位（見
  * `@/utils/pageBlockSerializer.ts` 的 `serializeBlocksForSubmit`），以及選填的 `ogImage`
  * （S1-12 新增，分享圖片，獨立於區塊圖片之外，對照 `apps/api` `AdminPageRequestForm` 的固定
@@ -155,15 +190,6 @@ function buildPageFormData(
   return form
 }
 
-export function createAdminPage(
-  club: string,
-  payload: SavePagePayload,
-  files: Record<string, File>,
-  ogImageFile: File | null = null,
-): Promise<AdminPageDetailDto> {
-  return apiUploadRequest<AdminPageDetailDto>(`/api/v1/admin/${club}/pages`, buildPageFormData(payload, files, ogImageFile), { method: 'POST' })
-}
-
 export function updateAdminPage(
   club: string,
   id: string,
@@ -180,11 +206,6 @@ export function publishAdminPage(club: string, id: string, expectedUpdatedAt: st
 
 export function scheduleAdminPage(club: string, id: string, expectedUpdatedAt: string, publishAt: string): Promise<AdminPageDetailDto> {
   return apiRequest<AdminPageDetailDto>(`/api/v1/admin/${club}/pages/${id}/schedule`, { method: 'POST', body: { expectedUpdatedAt, publishAt } })
-}
-
-export function deleteAdminPage(club: string, id: string, expectedUpdatedAt: string): Promise<void> {
-  const query = buildQuery({ expectedUpdatedAt })
-  return apiRequest<void>(`/api/v1/admin/${club}/pages/${id}${query}`, { method: 'DELETE' })
 }
 
 export function listAdminPageVersions(club: string, id: string, page?: number, pageSize?: number): Promise<PagedResult<AdminPageVersionListItemDto>> {
