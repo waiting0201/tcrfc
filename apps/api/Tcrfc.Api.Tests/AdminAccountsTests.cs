@@ -444,8 +444,8 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
 
     /// <summary>
     /// 🔴 執行層安全措施（task 5，規劃書未明文）：不能把系統操作到「沒有任何啟用中的最高管理權限
-    /// 帳號」。用一個全新建立的測試帳號當「最後一根稻草」，暫時把種子超管（sa@system.local、
-    /// clean.login@tcrfc.test）的 is_super_admin 降為 false（只剩呼叫端本身 super.admin@tcrfc.test
+    /// 帳號」。用一個全新建立的測試帳號當「最後一根稻草」，暫時把其他所有超管（種子的 sa@system.local、
+    /// clean.login@tcrfc.test，以及本機手建的）的 is_super_admin 降為 false（只剩呼叫端本身 super.admin@tcrfc.test
     /// 與這個新帳號兩個啟用中的超管），先停用新帳號（此時仍有 super.admin 在，應該成功），
     /// 再嘗試呼叫端把自己也停用（此時只剩它自己一個，應該被擋下）——全程在 finally 還原種子資料，
     /// 呼叫端本身的帳號從未被改動過，測試中途失敗也不會讓它變成無法登入。
@@ -457,7 +457,10 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
         var callerId = await GetAccountIdByUsernameAsync("super.admin@tcrfc.test");
         var username = $"test.lastsuper.{Guid.NewGuid():N}@tcrfc.test";
 
-        var demoted = new List<string> { "sa@system.local", "clean.login@tcrfc.test" };
+        // 動態查「除呼叫端以外所有 is_super_admin 的帳號」，不寫死名單：本機庫會被人手動建超管帳號
+        // （曾有 test 帳號），名單漏一個，「只剩呼叫端」的前提就不成立，防呆不會觸發，測試反而把呼叫端自己停用，
+        // 之後整個 AdminAccountsTests 的超管呼叫全部 403（S2-25 追查，E-292）。
+        var demoted = await GetOtherSuperAdminUsernamesAsync(callerId);
         try
         {
             var created = await CreateAccountAsync(adminClient, username, "InitialPassword-123", [], isSuperAdmin: true);
@@ -484,6 +487,8 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
         {
             await SetIsSuperAdminAsync(demoted, isSuperAdmin: true);
             await DeleteAccountByUsernameAsync(username);
+            // 呼叫端是所有超管測試共用的帳號，防呆失效時它會被停用；這裡保證一定還原。
+            await RestoreCallerActiveAsync(callerId);
         }
     }
 
@@ -544,6 +549,32 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
         command.CommandText = "SELECT id FROM admin_users WHERE username = @Username";
         command.Parameters.AddWithValue("@Username", username);
         return (Guid)(await command.ExecuteScalarAsync())!;
+    }
+
+    private static async Task<List<string>> GetOtherSuperAdminUsernamesAsync(Guid callerId)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT username FROM admin_users WHERE is_super_admin = 1 AND id <> @CallerId";
+        command.Parameters.AddWithValue("@CallerId", callerId);
+        var names = new List<string>();
+        await using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            names.Add(reader.GetString(0));
+        }
+        return names;
+    }
+
+    private static async Task RestoreCallerActiveAsync(Guid callerId)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE admin_users SET status = N'active', is_super_admin = 1 WHERE id = @CallerId";
+        command.Parameters.AddWithValue("@CallerId", callerId);
+        await command.ExecuteNonQueryAsync();
     }
 
     private static async Task SetIsSuperAdminAsync(IReadOnlyList<string> usernames, bool isSuperAdmin)
