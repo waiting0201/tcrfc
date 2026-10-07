@@ -2930,8 +2930,8 @@ npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
 對應 `apps/api/README.md`「H 批」§1／§5；STATUS `S2-15`、`S2-19`。
 
 - **儀表板**（`views/DashboardView.vue`，`api/adminDashboard.ts`）：三支端點各自載入、各自失敗。待辦（點擊到清單；詢問與梯次可直接開單筆）、內容概況（含各語言未翻譯數）、常見問題概況、未來 14 天行程（異常提醒以日常中文標籤顯示、不顯示隊別代號）、會籍概況、快速入口（依後端清單，代號對應畫面路由）、轉換概況（每週 8 週／每月 6 個月，長條圖＋各序列合計＋各表單送出數）、流量概況（目前顯示「流量統計尚未串接」與後端說明）。**回 `null`、不在清單或 403 的區塊整塊不顯示，不是顯示 0**；主資料 403＝「沒有可顯示在儀表板的項目」。假資料檔 `data/dashboard.ts` 已刪。
-- **網站設定改為選單群組**（`data/nav.ts`、`AppSidebar.vue`）：基本資料與聯絡方式（原 `SiteFactsView`，路徑不變）、選單管理、全域設定、多語系、場地管理、電子報平台。`I` 不再整組僅系統管理員可見，改依 `site.fact／menu／global／locale／string／venue／edm.view` 顯示子項；翻譯人員只看到「多語系」。
-- **選單管理**（`MenuSettingsView.vue`＋`parts/MenuNodeList.vue`＋`parts/menuNode.ts`）：三個位置分頁各自儲存；遞迴樹編輯、最多 3 層／100 項、上移下移、雙語、外部連結勾選；前端驗證與後端一致（葉節點必填連結、站內 `/` 開頭、外部 http(s)）；`PUT` 整棵樹取代，儲存會刪除既有項目時先二次確認，儲存後重讀取得新 id。
+- **網站設定改為選單群組**（`data/nav.ts`、`AppSidebar.vue`）：基本資料與聯絡方式（原 `SiteFactsView`，路徑不變）、全域設定、多語系、場地管理、電子報平台。`I` 不再整組僅系統管理員可見，改依 `site.fact／global／locale／string／venue／edm.view` 顯示子項；翻譯人員只看到「多語系」。
+- **選單管理已移除（S2-24，規劃書 v3.22）**：前台選單固定在版型，後台不提供；`MenuSettingsView`、`MenuNodeList`、`menuNode.ts`、`/settings/menus` 路由、`adminSiteSettings.ts` 的選單 client／型別與 `site.menu.*` 引用全數刪除。
 - **全域設定**（`GlobalSettingsView.vue`）：（標誌圖與品牌色已於 2026-10-06 移除，見文末）三份政策純文字（中英各一，≤50,000 字）、維護模式（開啟必填中文訊息；切換時二次確認）。
 - **多語系**（`LocaleSettingsView.vue`＋`parts/*Panel.vue`）：語言設定（啟用／備援／排序，預設語言不可停用；未翻譯處理方式；日期／數字格式預設選項）、翻譯狀態總覽（9 類摘要卡＋矩陣＋篩選缺英文／關鍵字／分頁）、介面字串翻譯表（分組／關鍵字／缺英文篩選、新增、編輯、刪除）。**翻譯人員**（只有 `site.string.translate`）：看不到語言設定；編輯視窗中字串代號、分組、繁中原文唯讀，送出只含非繁中語系（伺服器強制，改繁中整個請求 403）；無新增、刪除。
 - **場地管理**（`VenueListView.vue`／`VenueEditView.vue`，`api/adminVenues.ts`）：列表（照片縮圖、座標）、新增編輯（雙語名稱／地址／交通說明、經緯度、照片＋替代文字）、**由地址定位**比照特約店家（503 依 `code` 區分：`geocoder_unavailable`＝暫時故障可再試；其他＝尚未啟用並停用按鈕）、刪除被引用／主場 409 訊息顯示。
@@ -3057,3 +3057,15 @@ API 契約以 `apps/api/README.md`「後台欄位串接稽核的後端修正」�
 | 提案 | 提案名稱英文（128） | 頁面原本沒有語言分頁，整個 `EditLayout` 包進 `LangTabsBar` | `views/business/ProposalEditView.vue`、`api/adminProposals.ts` |
 
 列表一律維持顯示中文。各頁原本就有 `provideFormErrors` 與 catch 的 `applyApiError`（E-276 檢查通過）；前端驗證上限比照後端。驗證：`npm run build`、`npm run lint`（`check-edit-layout` 基準 0）、eslint 0 errors 通過；未實機驗證。
+
+## 稽核剩餘項：選單管理移除、榮譽對話框逐欄錯誤（2026-10-07，`frontend-architect`，docs/23 S2-24）
+
+- **S2-24**：刪除 `MenuSettingsView.vue`、`parts/MenuNodeList.vue`、`parts/menuNode.ts`、`/settings/menus` 路由、側欄 I2 項目與 `site.menu.view` 引用、`adminSiteSettings.ts` 的選單型別與 `getAdminMenus`／`replaceAdminMenu`。`content.page.create`／`content.page.delete` 在 apps/admin 沒有任何引用（頁面管理本就不能新增或刪除），無需清理。
+- **榮譽對話框**：`HonoursView.vue` 的前端驗證改為一次檢查全部、標到欄位（`formErrors.replaceAll`＋`focusFirst`，雙語欄位自動切語言），不再只顯示單一 `dialogError`；球隊／球季下拉選取後清除該欄錯誤。後端錯誤原本就走 `applyApiError`。
+
+## 球迷活動與媒體專區：封面圖片說明（2026-10-07，`frontend-architect`）
+
+後端新增兩處封面的雙語替代文字（`content.zh.coverAlt`／`content.en.coverAlt`，選填，上限 200 字，錯誤鍵 `coverAltZh`／`coverAltEn`）。
+- `FanEventEditView.vue`「封面圖片」段、`MediaEditView.vue`「封面圖片（選填）」段（高解析圖類別無封面，該段不顯示）各加「圖片說明」`BilingualShortField field="coverAlt"`（`maxlength=200`），位置比照新聞封面：說明跟著圖片放在右側欄「基本設定」同一個分段，不增加卡片。
+- `api/adminFanEvents.ts`、`api/adminPress.ts` 的 `*LocaleContent` 補 `coverAlt?`；英文欄「全空才省略 `en`」的判斷納入 `coverAlt`。
+- 檢查：`npm run lint`（含 `lint:edit-layout`）與 `npm run build` 通過。

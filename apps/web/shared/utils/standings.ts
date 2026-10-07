@@ -8,6 +8,8 @@ export interface StandingRow {
   teamName: string
   played: number | null
   points: number | null
+  /** 後端補上後：該列英文名稱缺漏、回退繁中（可選欄位，舊版 API 不回）。 */
+  isFallbackLocale?: boolean
 }
 
 export interface SeasonRef {
@@ -21,6 +23,8 @@ export interface StandingsResponse {
   seasons: string[]
   items: StandingRow[]
   updatedAt: string | null
+  /** 後端補上後：整份回應是否含繁中備援（可選欄位）。 */
+  isFallbackLocale?: boolean
 }
 
 export interface PlayerSeasonStat {

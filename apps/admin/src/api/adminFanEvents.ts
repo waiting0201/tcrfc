@@ -41,6 +41,8 @@ export interface FanEventLocale {
   name: string
   description?: string | null
   location?: string | null
+  /** 封面圖片替代文字（選填，上限 200 字；錯誤鍵 coverAltZh／coverAltEn） */
+  coverAlt?: string | null
 }
 
 export interface FanEventImageDto {

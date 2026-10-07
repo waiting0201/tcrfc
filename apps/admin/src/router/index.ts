@@ -55,7 +55,6 @@ const LlmsContentView = () => import('@/views/seo/LlmsContentView.vue')
 const AiCrawlerView = () => import('@/views/seo/AiCrawlerView.vue')
 const SchemaCompletenessView = () => import('@/views/seo/SchemaCompletenessView.vue')
 const SiteFactsView = () => import('@/views/settings/SiteFactsView.vue')
-const MenuSettingsView = () => import('@/views/settings/MenuSettingsView.vue')
 const GlobalSettingsView = () => import('@/views/settings/GlobalSettingsView.vue')
 const LocaleSettingsView = () => import('@/views/settings/LocaleSettingsView.vue')
 const VenueListView = () => import('@/views/settings/VenueListView.vue')
@@ -360,7 +359,6 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
   },
   // H 批：其餘網站設定子畫面。不加 sysadminOnly——多語系的字串翻譯表開放給翻譯人員；
   // 各畫面進入後由後端權限碼把關（403 會顯示在畫面上），選單可見度見 AppSidebar 的 CHILD_VISIBILITY。
-  { path: '/settings/menus', name: 'settings-menus', component: MenuSettingsView, meta: { label: '選單管理', code: 'I2' } },
   { path: '/settings/global', name: 'settings-global', component: GlobalSettingsView, meta: { label: '全域設定', code: 'I3' } },
   { path: '/settings/locales', name: 'settings-locales', component: LocaleSettingsView, meta: { label: '多語系', code: 'I4' } },
   { path: '/settings/venues', name: 'settings-venues', component: VenueListView, meta: { label: '場地管理', code: 'I5' } },

@@ -1,48 +1,11 @@
 /**
- * I 網站設定其餘子模組（H 批，apps/api/README.md「H 批」§5）：選單、全域設定、多語系、介面字串、
- * 電子報平台設定。場地見 `adminVenues.ts`。權限碼（`site.menu.*`／`site.global.*`／`site.locale.*`／
+ * I 網站設定其餘子模組（H 批，apps/api/README.md「H 批」§5）：全域設定、多語系、介面字串、
+ * 電子報平台設定（選單管理自規劃書 v3.22 取消，前台選單固定）。場地見 `adminVenues.ts`。權限碼（`site.global.*`／`site.locale.*`／
  * `site.string.*`／`site.edm.*`）只決定畫面顯示，真正把關在後端。
  */
 import { apiRequest, apiUploadRequest, buildMultipart, buildQuery, type PagedResult } from './adminCommon'
 
 const club$ = (club: string) => `/api/v1/admin/${club}`
-
-// ───────────── 選單 ─────────────
-
-export type MenuLocation = 'main' | 'mega' | 'footer'
-
-export interface AdminMenuItem {
-  id: string
-  labelZh: string
-  labelEn?: string | null
-  url?: string | null
-  isExternal: boolean
-  children: AdminMenuItem[]
-}
-
-export interface AdminMenuLocationDto {
-  location: MenuLocation
-  label: string
-  items: AdminMenuItem[]
-}
-
-export interface UpsertMenuItem {
-  id?: string | null
-  labelZh: string
-  labelEn?: string | null
-  url?: string | null
-  isExternal: boolean
-  children?: UpsertMenuItem[]
-}
-
-export function getAdminMenus(club: string): Promise<{ locations: AdminMenuLocationDto[] }> {
-  return apiRequest(`${club$(club)}/menus`)
-}
-
-/** 整棵樹取代：有 id 沿用、沒有新增、既有不在請求裡就刪除。 */
-export function replaceAdminMenu(club: string, location: MenuLocation, items: UpsertMenuItem[]): Promise<void> {
-  return apiRequest<void>(`${club$(club)}/menus/${location}`, { method: 'PUT', body: { items } })
-}
 
 // ───────────── 全域設定 ─────────────
 

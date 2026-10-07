@@ -94,14 +94,21 @@ function openDialog(a: AchievementDto | null) {
 }
 
 async function saveAchievement() {
-  if (!form.seasonId) return void (dialogError.value = '請選擇球季')
-  if (!form.teamId) return void (dialogError.value = '請選擇球隊')
-  if (!form.competitionName.trim()) return void (dialogError.value = '請輸入賽事名稱（中文）')
-  if (!form.placing.trim()) return void (dialogError.value = '請輸入名次（中文），例如「冠軍」')
-  if (form.competitionName.trim().length > 128) return void (dialogError.value = '賽事名稱（中文）最多 128 字')
-  if (form.competitionNameEn.trim().length > 128) return void (dialogError.value = '賽事名稱（英文）最多 128 字')
-  if (form.placing.trim().length > 64) return void (dialogError.value = '名次（中文）最多 64 字')
-  if (form.placingEn.trim().length > 64) return void (dialogError.value = '名次（英文）最多 64 字')
+  // 逐欄錯誤（S2-20 的 FormField／useFormErrors）：一次檢查全部、標到欄位、捲到第一處並自動切語言。
+  const errors: Record<string, string> = {}
+  if (!form.seasonId) errors.seasonId = '請選擇球季'
+  if (!form.teamId) errors.teamId = '請選擇球隊'
+  if (!form.competitionName.trim()) errors.competitionName = '請輸入賽事名稱（中文）'
+  else if (form.competitionName.trim().length > 128) errors.competitionName = '賽事名稱（中文）最多 128 字'
+  if (form.competitionNameEn.trim().length > 128) errors.competitionNameEn = '賽事名稱（英文）最多 128 字'
+  if (!form.placing.trim()) errors.placing = '請輸入名次（中文），例如「冠軍」'
+  else if (form.placing.trim().length > 64) errors.placing = '名次（中文）最多 64 字'
+  if (form.placingEn.trim().length > 64) errors.placingEn = '名次（英文）最多 64 字'
+  if (formErrors.replaceAll(errors)) {
+    dialogError.value = null
+    await formErrors.focusFirst()
+    return
+  }
   saving.value = true
   dialogError.value = null
   formErrors.clearAll()
@@ -291,12 +298,12 @@ watch(club, () => {
       <el-form label-position="top" :disabled="dialogReadOnly">
        <LangTabsBar variant="bare">
         <FormField field="teamId" label="球隊" required>
-          <el-select v-model="form.teamId" filterable placeholder="請選擇球隊" style="width: 100%">
+          <el-select v-model="form.teamId" filterable placeholder="請選擇球隊" style="width: 100%" @change="formErrors.clear('teamId')">
             <el-option v-for="t in (form.id ? teams : writableTeams)" :key="t.id" :label="t.nameZh || '（未命名球隊）'" :value="t.id" :disabled="!isWritable(t.id)" />
           </el-select>
         </FormField>
         <FormField field="seasonId" label="球季" required>
-          <el-select v-model="form.seasonId" placeholder="請選擇球季" style="width: 100%"><el-option v-for="s in seasons" :key="s.id" :label="s.code" :value="s.id" /></el-select>
+          <el-select v-model="form.seasonId" placeholder="請選擇球季" style="width: 100%" @change="formErrors.clear('seasonId')"><el-option v-for="s in seasons" :key="s.id" :label="s.code" :value="s.id" /></el-select>
         </FormField>
         <FormField field="year" label="年份"><el-input-number v-model="form.year" :min="1900" :max="2200" :controls="false" placeholder="不填＝球季開始年份" style="width: 100%" /></FormField>
         <BilingualShortField

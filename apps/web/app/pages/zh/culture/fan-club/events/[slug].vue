@@ -67,7 +67,7 @@ useSeoMeta({
     <h2 id="fe-detail-title" class="visually-hidden">{{ tx('活動資訊', 'Event information') }}</h2>
     <div class="fe-detail">
       <div>
-        <img v-if="safeImg(ev.coverUrl)" class="fe-detail__cover" :src="safeImg(ev.coverUrl)!" :alt="ev.name" width="1280" height="853">
+        <img v-if="safeImg(ev.coverUrl)" class="fe-detail__cover" :src="safeImg(ev.coverUrl)!" :alt="ev.coverAlt || ev.name" width="1280" height="853">
         <div class="prose">
           <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
         </div>

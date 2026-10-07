@@ -54,7 +54,7 @@ const form = reactive({
   isPaidMembersOnly: false,
   venueId: '',
   status: 'draft' as FanEventStatus,
-  nameZh: '', nameEn: '', descZh: '', descEn: '', locZh: '', locEn: '',
+  nameZh: '', nameEn: '', descZh: '', descEn: '', locZh: '', locEn: '', coverAltZh: '', coverAltEn: '',
   articleIds: [] as string[],
 })
 const baselineJson = ref('')
@@ -95,6 +95,8 @@ function apply(d: FanEventDetailDto) {
   form.descEn = d.en?.description ?? ''
   form.locZh = d.zh?.location ?? ''
   form.locEn = d.en?.location ?? ''
+  form.coverAltZh = d.zh?.coverAlt ?? ''
+  form.coverAltEn = d.en?.coverAlt ?? ''
   form.articleIds = d.articles.map((a) => a.id)
   articleSeed.value = d.articles.map((a) => ({ id: a.id, label: a.titleZh || a.slug, status: a.status }))
   coverUrl.value = d.coverUrl ?? d.coverThumbUrl ?? null
@@ -168,8 +170,8 @@ async function handleSave() {
     // 關聯報導：一律明確帶出畫面上的完整清單（空陣列＝清空）
     articleIds: form.articleIds,
     content: {
-      zh: { name: form.nameZh.trim(), description: nullIfBlank(form.descZh), location: nullIfBlank(form.locZh) },
-      en: enOrUndefined({ name: form.nameEn.trim(), description: nullIfBlank(form.descEn) as string, location: nullIfBlank(form.locEn) as string }, 'name', 'description', 'location'),
+      zh: { name: form.nameZh.trim(), description: nullIfBlank(form.descZh), location: nullIfBlank(form.locZh), coverAlt: nullIfBlank(form.coverAltZh) },
+      en: enOrUndefined({ name: form.nameEn.trim(), description: nullIfBlank(form.descEn) as string, location: nullIfBlank(form.locEn) as string, coverAlt: nullIfBlank(form.coverAltEn) as string }, 'name', 'description', 'location', 'coverAlt'),
     },
   }
   try {
@@ -293,6 +295,16 @@ async function galleryReorder(ids: string[]) {
                       <FormField field="cover" label="封面圖片">
                         <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
                       </FormField>
+                      <BilingualShortField
+                        field="coverAlt"
+                        label="圖片說明"
+                        :zh="form.coverAltZh"
+                        :en="form.coverAltEn"
+                        :maxlength="200"
+                        placeholder="選填，用一句話描述圖片內容，供視障讀者的輔助工具朗讀"
+                        @update:zh="(v) => (form.coverAltZh = v)"
+                        @update:en="(v) => (form.coverAltEn = v)"
+                      />
                     </FormSection>
                     <FormSection title="活動回顧圖集">
                       <p class="event-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>

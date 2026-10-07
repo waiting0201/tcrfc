@@ -39,7 +39,7 @@ const form = reactive({
   status: 'draft' as 'draft' | 'published',
   publishedOn: '',
   sortOrder: 0,
-  titleZh: '', titleEn: '', descZh: '', descEn: '',
+  titleZh: '', titleEn: '', descZh: '', descEn: '', coverAltZh: '', coverAltEn: '',
 })
 const baselineJson = ref('')
 const originalType = ref<PressResourceType | null>(null)
@@ -81,6 +81,8 @@ function apply(d: PressDetailDto) {
   form.titleEn = d.en?.title ?? ''
   form.descZh = d.zh.description ?? ''
   form.descEn = d.en?.description ?? ''
+  form.coverAltZh = d.zh.coverAlt ?? ''
+  form.coverAltEn = d.en?.coverAlt ?? ''
   originalType.value = d.resourceType
   coverUrl.value = d.coverUrl ?? null
   hasCover.value = !!d.coverKey
@@ -143,8 +145,8 @@ function buildPayload(): SavePressPayload {
     publishedOn: form.publishedOn || null,
     sortOrder: form.sortOrder,
     content: {
-      zh: { title: form.titleZh.trim(), description: nullIfBlank(form.descZh) },
-      en: enOrUndefined({ title: form.titleEn.trim(), description: nullIfBlank(form.descEn) as string }, 'title', 'description'),
+      zh: { title: form.titleZh.trim(), description: nullIfBlank(form.descZh), coverAlt: nullIfBlank(form.coverAltZh) },
+      en: enOrUndefined({ title: form.titleEn.trim(), description: nullIfBlank(form.descEn) as string, coverAlt: nullIfBlank(form.coverAltEn) as string }, 'title', 'description', 'coverAlt'),
     },
     removeCover: imageIntent(isImageType.value ? null : coverFile.value, removeCover.value).remove,
   }
@@ -250,6 +252,16 @@ const back = () => router.push('/content/media')
                   <FormField field="cover" label="封面圖片">
                     <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <BilingualShortField
+                    field="coverAlt"
+                    label="圖片說明"
+                    :zh="form.coverAltZh"
+                    :en="form.coverAltEn"
+                    :maxlength="200"
+                    placeholder="選填，用一句話描述圖片內容，供視障讀者的輔助工具朗讀"
+                    @update:zh="(v) => (form.coverAltZh = v)"
+                    @update:en="(v) => (form.coverAltEn = v)"
+                  />
                 </FormSection>
               </el-card>
 

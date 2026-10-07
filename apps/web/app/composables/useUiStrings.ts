@@ -6,7 +6,9 @@
 // 逐一換成 `t('代號', '原文')` 工程過大且風險高（每一處都要先在後台建立字串代號）。本 composable 提供：
 //   - `t(key, fallback)`：查得到翻譯就用，查不到（API 沒資料、代號不存在、API 失敗）回 `fallback`（＝原本寫死的文字）。
 //     所以**把某處寫死字串改成 t('代號', '原文') 永遠是安全的**，行為與改動前相同，直到後台建立該代號才會生效。
-//   - 目前示範位置：頁尾電子報訂閱區（標題、說明、按鈕與回饋訊息，代號 `newsletter.*`）。其餘位置待後續逐步替換。
+//   - 目前接入位置（對齊規劃書 I4 字串翻譯表「按鈕、表單標籤、提示訊息、錯誤訊息」的少量共用文案）：
+//     頁尾電子報訂閱區（`newsletter.*`）、七類表單共用的送出錯誤訊息（`form.error_generic`／`form.captcha_required`／`form.captcha_failed`，useFormSubmit）。
+//     規格並未要求把全站寫死文字都改成字串代號，其餘位置視需要再接。
 // 與頁面其他資料一樣在 SSR 取好、payload 帶到瀏覽器，不閃爍。
 export function useUiStrings(group?: string) {
   const { locale } = useLocale()

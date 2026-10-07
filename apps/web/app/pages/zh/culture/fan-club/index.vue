@@ -140,7 +140,7 @@ useSeoMeta({
 
     <ul v-if="(upcoming ?? []).length > 0" class="fe-list">
       <li v-for="e in upcoming" :key="e.slug" class="fe-card">
-        <div v-if="safeImg(e.coverThumbUrl || e.coverUrl)" class="fe-card__media"><img :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="e.name" loading="lazy" width="640" height="427"></div>
+        <div v-if="safeImg(e.coverThumbUrl || e.coverUrl)" class="fe-card__media"><img :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="e.coverAlt || e.name" loading="lazy" width="640" height="427"></div>
         <div class="fe-card__body">
           <h3 class="fe-card__title">{{ e.name }}</h3>
           <p class="fe-card__meta">
@@ -159,7 +159,7 @@ useSeoMeta({
     <h3 style="margin-top:2.5rem;font-size:1.15rem;font-weight:800;color:var(--heading)">{{ tx('活動回顧', 'Event reviews') }}</h3>
     <ul v-if="(past ?? []).length > 0" class="fe-list">
       <li v-for="e in past" :key="e.slug" class="fe-card">
-        <div v-if="safeImg(e.coverThumbUrl || e.coverUrl)" class="fe-card__media"><img :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="e.name" loading="lazy" width="640" height="427"></div>
+        <div v-if="safeImg(e.coverThumbUrl || e.coverUrl)" class="fe-card__media"><img :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="e.coverAlt || e.name" loading="lazy" width="640" height="427"></div>
         <div class="fe-card__body">
           <h4 class="fe-card__title">{{ e.name }}</h4>
           <p class="fe-card__meta"><template v-if="e.startsAt">{{ formatTaipeiDateTime(e.startsAt, locale) }}<br></template><template v-if="e.location">{{ e.location }}</template></p>

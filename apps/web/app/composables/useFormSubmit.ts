@@ -27,6 +27,8 @@ export function useFormSubmit(formCode: string) {
   const club = config.public.club
   const route = useRoute()
   const { tx, isEn, lp } = useLocale()
+  // B-19：七類表單共用的錯誤訊息接入介面字串（`form.*`，規劃書 I4 字串翻譯表「提示訊息、錯誤訊息」）；後台沒建立代號就用原文。
+  const { t } = useUiStrings()
 
   const siteKey = (config.public.turnstileSiteKey as string | undefined)?.trim() ?? ''
 
@@ -63,17 +65,17 @@ export function useFormSubmit(formCode: string) {
    * 才使用下面的通用文案。 */
   const errorMessage = ref('')
 
-  const genericError = () => tx(
+  const genericError = () => t('form.error_generic', tx(
     '送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用電話或 Email 聯繫我們。',
     'We could not submit your form. Please check that all fields are filled in correctly and try again. If the problem continues, please contact us by phone or email.',
-  )
+  ))
 
   async function submit(answers: Record<string, string>, options: FormSubmitOptions = {}) {
     errorMessage.value = ''
     const captchaRequired = !!siteKey && captchaEnabled.value
     if (captchaRequired && !captchaToken.value) {
       status.value = 'error'
-      errorMessage.value = tx('請先完成人機驗證。', 'Please complete the verification first.')
+      errorMessage.value = t('form.captcha_required', tx('請先完成人機驗證。', 'Please complete the verification first.'))
       return
     }
     status.value = 'submitting'
@@ -100,7 +102,7 @@ export function useFormSubmit(formCode: string) {
     catch (err: unknown) {
       status.value = 'error'
       errorMessage.value = isCaptchaFailed(err)
-        ? tx('人機驗證未通過，請重新整理頁面後再試一次。', 'Verification failed. Please refresh the page and try again.')
+        ? t('form.captcha_failed', tx('人機驗證未通過，請重新整理頁面後再試一次。', 'Verification failed. Please refresh the page and try again.'))
         : extractErrorMessage(err, isEn.value) ?? genericError()
     }
     finally {

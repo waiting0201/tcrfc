@@ -90,8 +90,10 @@ const [{ data: standings }, { data: playerStats }] = await Promise.all([
   }),
 ])
 const standingRows = computed(() => standings.value?.items ?? [])
-// 積分榜 DTO 沒有 isFallbackLocale：英文頁隊名仍含中日文字＝後端回退繁中，出示部分內容提示。
-const standingsFallback = computed(() => standingRows.value.some(r => /[\u3400-\u9fff]/.test(r.teamName ?? '')))
+// 優先用後端的 `isFallbackLocale`（整份或逐列，可選欄位）；舊版 API 沒回時退回舊判斷：
+// 英文頁隊名仍含中日文字＝後端回退繁中。
+const standingsFallback = computed(() => hasFallbackLocale(standings.value)
+  || standingRows.value.some(r => /[\u3400-\u9fff]/.test(r.teamName ?? '')))
 const statRows = computed(() => playerStats.value?.items ?? [])
 const seasonOptions = computed(() => [...new Set([...(standings.value?.seasons ?? []), ...(playerStats.value?.seasons ?? [])])])
 const shownSeason = computed(() => standings.value?.season?.code ?? playerStats.value?.season?.code ?? seasonParam.value)

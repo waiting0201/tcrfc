@@ -251,6 +251,8 @@ export interface FanEvent {
   phase: 'upcoming' | 'past'
   coverUrl: string | null
   coverThumbUrl: string | null
+  /** 封面圖片替代文字（API 依請求語系回傳，無封面為 null） */
+  coverAlt?: string | null
 }
 
 export interface FanEventDetail {

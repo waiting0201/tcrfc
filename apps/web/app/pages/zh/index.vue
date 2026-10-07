@@ -218,6 +218,17 @@ interface HomeMatch {
   scoreAway: number | null
 }
 
+// B-6：行事曆設定的「首頁顯示隊別」（`homeTeamCodes`，規劃書 L3「首頁顯示哪些隊別」）。
+// 失敗或空清單＝不限制（沿用原行為），不讓增強設定拖垮首頁。
+const { data: homeCalSettings } = await useFetch<{ homeTeamCodes?: string[] } | null>(`/api/backend/${config.public.club}/calendar/settings`, {
+  query: { lang: locale.value },
+  default: () => null,
+})
+const homeTeamCodeSet = computed<Set<string> | null>(() => {
+  const codes = homeCalSettings.value?.homeTeamCodes
+  return Array.isArray(codes) && codes.length > 0 ? new Set(codes) : null
+})
+
 const allMatches = computed<HomeMatch[]>(() => scheduleData.value?.items ?? [])
 // SSR 渲染當下的日期字串（純顯示用的分界，不是安全判斷，兩端各自算一次即可）。
 const todayStr = new Date().toISOString().slice(0, 10)
@@ -283,7 +294,7 @@ const cutoffStr = computed(() => new Date(Date.now() + THIRTY_DAYS_MS).toISOStri
  * 這裡先接上真實邏輯，真的有梯隊賽程時會自然出現，不用再改程式碼。 */
 const otherTeamUpcoming = computed(() =>
   allMatches.value
-    .filter((m) => m.teamCode !== firstTeamCode.value && m.status === 'scheduled' && m.matchOn >= todayStr && m.matchOn <= cutoffStr.value)
+    .filter((m) => m.teamCode !== firstTeamCode.value && (!homeTeamCodeSet.value || homeTeamCodeSet.value.has(m.teamCode)) && m.status === 'scheduled' && m.matchOn >= todayStr && m.matchOn <= cutoffStr.value)
     .sort((a, b) => a.matchOn.localeCompare(b.matchOn)),
 )
 

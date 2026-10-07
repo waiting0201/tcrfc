@@ -27,7 +27,7 @@ const router = useRouter()
  * 權限矩陣「系統」欄只有系統管理員打勾；`H`：`seo.setting.*`／`seo.redirect.*`／`seo.report.view`／
  * `seo.llms.*`／`seo.crawler.*`／`seo.schema.view` 六段權限碼全部 `sysadmin_only=1`，見
  * apps/api/README.md「S1-12」「S1-12a」「S1-12b」「S1-12c」各節「權限碼」；`I`
- * **不在此列（H 批起）**：`site.fact.*`／`site.menu.*`／`site.global.*`／`site.locale.*`／`site.venue.*`／
+ * **不在此列（H 批起）**：`site.fact.*`／`site.global.*`／`site.locale.*`／`site.venue.*`／
  * `site.edm.*` 雖皆為 `sysadmin_only=1`，但字串翻譯表 `site.string.*` 開放翻譯人員，所以 `I` 改成
  * 依子項目權限碼顯示（`CHILD_VISIBILITY` 的 I1–I6），翻譯人員只會看到「多語系」）。
  * 這裡只是選單可見度，不是安全邊界——真正的把關在後端每一個 `sysadmin_only` 權限碼與
@@ -92,7 +92,6 @@ const appCredentialView = usePermission('app.credential.view')
 const appDiagnosticView = usePermission('app.diagnostic.view')
 // I 網站設定（H 批）：子項目各看各的權限碼
 const siteFactView = usePermission('site.fact.view')
-const siteMenuView = usePermission('site.menu.view')
 const siteGlobalView = usePermission('site.global.view')
 const siteLocaleView = usePermission('site.locale.view')
 const siteStringView = usePermission('site.string.view')
@@ -130,7 +129,6 @@ const CHILD_VISIBILITY: Record<string, () => boolean> = {
   C3: () => staffView.value,
   C4: () => matchView.value,
   I1: () => siteFactView.value,
-  I2: () => siteMenuView.value,
   I3: () => siteGlobalView.value,
   I4: () => siteLocaleView.value || siteStringView.value || siteStringTranslate.value,
   I5: () => siteVenueView.value,

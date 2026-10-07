@@ -147,7 +147,7 @@ useSeoMeta({
     <p v-if="!brandKits.length" style="margin-top:1.5rem;color:var(--muted-dark)">{{ tx('品牌識別包（隊徽向量檔、社群分享圖）尚未提供，稍後將於本頁公布。', 'The brand kit (crest vector files and social share image) is not available yet. It will be published on this page soon.') }}</p>
     <ul v-else class="press-list press-list--dark">
       <li v-for="r in brandKits" :key="r.id" class="press-item">
-        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.title ?? ''" loading="lazy" width="120" height="80">
+        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.coverAlt || r.title || ''" loading="lazy" width="120" height="80">
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
@@ -165,7 +165,7 @@ useSeoMeta({
     <h2 class="section-title" id="brandkit-more-title" style="color:#fff">{{ tx('更多識別素材', 'More brand assets') }}</h2>
     <ul class="press-list press-list--dark">
       <li v-for="r in brandKits" :key="r.id" class="press-item">
-        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.title ?? ''" loading="lazy" width="120" height="80">
+        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.coverAlt || r.title || ''" loading="lazy" width="120" height="80">
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
@@ -187,7 +187,7 @@ useSeoMeta({
     </div>
     <ul v-if="pressReleases.length" class="press-list">
       <li v-for="r in pressReleases" :key="r.id" class="press-item">
-        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.title ?? ''" loading="lazy" width="120" height="80">
+        <img v-if="coverSrc(r.coverUrl)" class="press-item__cover" :src="coverSrc(r.coverUrl)!" :alt="r.coverAlt || r.title || ''" loading="lazy" width="120" height="80">
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
@@ -211,7 +211,7 @@ useSeoMeta({
     <ul v-if="hiresImages.length" class="press-gallery">
       <li v-for="r in hiresImages" :key="r.id">
         <a v-if="pressDownloadHref(club, r.slug)" class="press-gallery__item" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="isEn ? `Download high-resolution image: ${r.title}` : `下載高解析圖：${r.title}`">
-          <img v-if="r.coverUrl" :src="r.coverUrl" :alt="r.description ?? r.title ?? ''" loading="lazy" width="640" height="427">
+          <img v-if="r.coverUrl" :src="r.coverUrl" :alt="r.coverAlt || r.description || r.title || ''" loading="lazy" width="640" height="427">
           <span class="press-gallery__cap">{{ r.title }}<small v-if="formatFileSize(r.fileBytes)"> · {{ formatFileSize(r.fileBytes) }}</small></span>
         </a>
       </li>

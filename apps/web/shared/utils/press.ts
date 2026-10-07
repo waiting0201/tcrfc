@@ -18,6 +18,8 @@ export interface PressResource {
   /** `.pdf`／`.zip`／`.webp` 等（含點）。 */
   fileExtension: string | null
   coverUrl: string | null
+  /** 封面圖片替代文字（API 依請求語系回傳，無封面為 null） */
+  coverAlt?: string | null
   /** API 回傳的相對路徑（`/api/v1/{club}/press/{slug}/download`）；前台改用 pressDownloadHref()，不直接使用。 */
   downloadPath: string
 }
