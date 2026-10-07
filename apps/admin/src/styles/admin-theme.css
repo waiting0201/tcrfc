@@ -233,6 +233,18 @@ body {
   --el-table-row-hover-bg-color: var(--admin-bg-surface-2);
 }
 
+/* 表格「操作」欄的文字連結（檢視／編輯／刪除…）：Element Plus 預設每顆左右內距 11px＋相鄰間距 12px，
+   三顆以上就超出常見的 130–180px 欄寬而折成兩行（2026-10-07 使用者回報）。收緊為內距 4px、間距 4px；
+   點擊區仍有按鈕本身的高度，不影響觸控。 */
+.el-table .cell .el-button.is-text,
+.el-table .cell .el-button.is-link {
+  padding-inline: 4px;
+}
+
+.el-table .cell .el-button + .el-button {
+  margin-left: 4px;
+}
+
 /* ── 欄位驗證錯誤（docs/22 §1.8 先例：不只靠顏色）──────────────────────────────
    錯誤欄位的外框由 1px 中性色改成 2px 危險色（形狀改變）；錯誤文字與「⚠」由 FormField 自畫。
    危險文字色 --admin-danger-text 對五層背景都 ≥ 3:1（check-contrast.mjs【4】已驗） */
