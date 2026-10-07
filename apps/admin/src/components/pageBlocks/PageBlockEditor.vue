@@ -163,7 +163,7 @@ function removeTableRow(rowIndex: number) {
   <div class="page-block-editor">
     <!-- 文字 -->
     <template v-if="blockType === 'text'">
-      <BilingualTextareaField :field="k('body')" label="內文" required :rows="6" placeholder="請輸入內文" :zh="textC.body.zh" :en="textC.body.en" @update:zh="(v) => (textC.body.zh = v)" @update:en="(v) => (textC.body.en = v)" />
+      <BilingualTextareaField :field="k('body')" label="內文" required :rows="10" placeholder="請輸入內文" :zh="textC.body.zh" :en="textC.body.en" @update:zh="(v) => (textC.body.zh = v)" @update:en="(v) => (textC.body.en = v)" />
     </template>
 
     <!-- 圖文左右 -->
@@ -174,7 +174,7 @@ function removeTableRow(rowIndex: number) {
           <el-radio value="right">圖片在右</el-radio>
         </el-radio-group>
       </el-form-item>
-      <BilingualTextareaField :field="k('body')" label="內文" required :rows="5" placeholder="請輸入內文" :zh="textImageC.body.zh" :en="textImageC.body.en" @update:zh="(v) => (textImageC.body.zh = v)" @update:en="(v) => (textImageC.body.en = v)" />
+      <BilingualTextareaField :field="k('body')" label="內文" required :rows="10" placeholder="請輸入內文" :zh="textImageC.body.zh" :en="textImageC.body.en" @update:zh="(v) => (textImageC.body.zh = v)" @update:en="(v) => (textImageC.body.en = v)" />
       <FormField :field="k('image')" label="圖片" required>
         <ImageUploader
           v-model:file="textImageC.image.file"
