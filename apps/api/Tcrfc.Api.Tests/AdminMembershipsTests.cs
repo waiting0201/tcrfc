@@ -119,6 +119,10 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
     {
         using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
         var single = await B1Test.PlanIdAsync("tcrfc", "2026-27", "single");
+        // 這個測試對「真的種子方案」呼叫 DELETE 並期望 409。若庫裡沒有任何會籍在用它（例如種子會員被清掉），DELETE 會直接成功，
+        // 測試雖然紅燈，種子方案卻已被刪掉、之後整批會籍／球衣／抽獎測試連鎖失敗（docs/18 E-293）。所以先確認前提成立才送 DELETE。
+        var inUse = await ShopTest.CountAsync("SELECT COUNT(*) FROM memberships WHERE membership_plan_id = @P", ("@P", single));
+        Assert.True(inUse > 0, "前提不成立：種子方案「tcrfc 2026-27 single」沒有任何會籍在用（種子會員被清掉了？請先重灌種子 ./db/seed/apply-seed.sh），為免誤刪種子方案，不送 DELETE。");
         Assert.Equal(HttpStatusCode.Conflict, (await admin.DeleteAsync($"/api/v1/admin/tcrfc/membership-plans/{single}")).StatusCode);
 
         // 同一份方案的內容可以改，但換球季不行（tcrfc 只有一個球季，所以用一個臨時球季）

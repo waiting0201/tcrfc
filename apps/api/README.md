@@ -10565,3 +10565,9 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 **核對無需補**：AdminJerseys／AdminMatches／AdminBenefits／AdminHomeSections／AdminSeasons／AdminCompetitions 的 DTO 與資料表都沒有圖片鍵欄位；AdminApp 的 `iconKey` 是圖示代碼（≤48 字文字），不是物件鍵；AdminSeo 的全站預設 OG 圖早已有 `ogImageUrl`。
 
 **測試**：`Tcrfc.Api.Tests/AdminImageUrlInReadDtosTests.cs`（新聞封面、球員照片，用確定性假解析器；頁面區塊補網址／寫入丟棄；縮圖擴充方法的 null 行為）。
+
+## 全套測試紅燈排查與測試殘骸防呆（2026-10-07，`E-293`）
+
+- 整批紅燈先看是不是「本機庫種子缺」：`AdminC1MiscTests.種子基線…`、`DevAcceptanceSeedTests` 失敗即是，重灌種子 `./db/seed/apply-seed.sh`（冪等）而不是逐項追。
+- 頁面版型遷移 `db/migrations/20261007_page-templates.sql`（產生器 `db/seed/generate-page-template-migration.py`）新增兩個修復：目標 slug 已存在時刪除藍鯨舊 `about/vision` 孤兒頁；區塊內容不是合法 JSON 的頁面視為與版型不符、整頁以版型內容重建。`AdminPageTemplatesTests` 會自己對本機庫套用此遷移（冪等）。
+- 測試守則：對種子列做會真的成功的破壞性呼叫前先斷言前提；建立資料的 helper 在回傳前失敗要自行收拾（`AdminDrawsTests.LockedDrawAsync`）。

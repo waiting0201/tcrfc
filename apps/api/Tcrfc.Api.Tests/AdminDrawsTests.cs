@@ -275,9 +275,20 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
         var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
         var restore = await C1Test.SnapshotSettingsAsync("tcrfc", "member.draw_notice%");
         await C1Test.PutJsonAsync(service, $"{Draws}/notice", new { confirmed = true });
-        var draw = await NewDrawAsync(service, code, payload: DrawPayload(code, claimDeadline: claimDeadline));
-        var locked = await BizTest.ReadAsync<AdminDrawDetailDto>(await C1Test.PostJsonAsync(service, $"{Draws}/{draw.Id}/roster", new { }));
-        return (locked, service, admin, restore);
+        // 呼叫端在拿到回傳值之後才進 try／finally：這裡建活動或鎖名單中途失敗（例如庫裡沒有合格會員 → 409）時，
+        // 呼叫端的 finally 根本不會執行，草稿活動與被改成「已確認」的蒐集告知設定就留在共用本機庫（docs/18 E-293）。所以失敗要在這裡自己收拾。
+        try
+        {
+            var draw = await NewDrawAsync(service, code, payload: DrawPayload(code, claimDeadline: claimDeadline));
+            var locked = await BizTest.ReadAsync<AdminDrawDetailDto>(await C1Test.PostJsonAsync(service, $"{Draws}/{draw.Id}/roster", new { }));
+            return (locked, service, admin, restore);
+        }
+        catch
+        {
+            await CleanupAsync(code);
+            await restore();
+            throw;
+        }
     }
 
     [Fact]

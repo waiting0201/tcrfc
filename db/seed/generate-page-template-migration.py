@@ -4,7 +4,7 @@
 # B1 頁面管理改為「固定頁＋固定欄位」後，既有資料庫裡已存在的頁面要對齊版型
 # （apps/api/Features/AdminPages/PageTemplates.cs；內容取自 page_seed_content.json，與種子同一份）：
 #   ① 刪除測試草稿頁 test-draft-page（版型外的舊頁，後台已無法編輯）
-#   ② 藍鯨 about/vision 改名為 about/vision-mission（兩俱樂部 slug 統一；目標不存在才改）
+#   ② 藍鯨 about/vision 改名為 about/vision-mission（兩俱樂部 slug 統一；目標不存在才改；目標已存在則刪除舊的孤兒頁）
 #   ③ 版型內的頁面若區塊類型順序與版型不同（例：舊種子的 steps＋quote＋cta），整份換成版型的內容並新增一個版本、
 #      狀態改為已發布（內容就是前台備用文案）；結構已相符者一律不動（保留後台編輯過的內容）
 #   ④ 版型內但資料庫還沒有的頁面：以種子內容建立（已發布；內容與前台備用文案相同，所以對外看起來不變，只是從此可在後台編輯）。
@@ -50,6 +50,11 @@ UPDATE p SET slug = N'about/vision-mission', updated_at = SYSUTCDATETIME()
 FROM pages p JOIN clubs c ON c.id = p.club_id
 WHERE c.code = N'bw' AND p.slug = N'about/vision'
   AND NOT EXISTS (SELECT 1 FROM pages x WHERE x.club_id = p.club_id AND x.slug = N'about/vision-mission');
+
+-- ②b 目標已存在（例如改名後又重灌種子、或缺頁補齊先建了）時，舊 slug 是版型外的孤兒頁（後台詳情會 500），刪除（FK CASCADE）
+DELETE p FROM pages p JOIN clubs c ON c.id = p.club_id
+WHERE c.code = N'bw' AND p.slug = N'about/vision'
+  AND EXISTS (SELECT 1 FROM pages x WHERE x.club_id = p.club_id AND x.slug = N'about/vision-mission');
 """]
     for club, pages in DATA.items():
         for page in pages:
@@ -84,6 +89,7 @@ BEGIN
       VALUES (NEWID(), @id, 1, {esc(jdump(snapshot))}, LOWER(CONVERT(varchar(64), CRYPT_GEN_RANDOM(32), 2)));
   END
   ELSE IF ISNULL((SELECT STRING_AGG(CAST(block_type AS nvarchar(max)), N',') WITHIN GROUP (ORDER BY sort_order) FROM page_blocks WHERE page_id = @id), N'') <> N'{types}'
+     OR EXISTS (SELECT 1 FROM page_blocks WHERE page_id = @id AND ISJSON(CAST(content AS nvarchar(max))) = 0) -- 內容不是合法 JSON（後台詳情會 500）也視為不符
   BEGIN
     DELETE FROM page_blocks WHERE page_id = @id;
 {blocks_sql}
