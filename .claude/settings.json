@@ -1,0 +1,15 @@
+{
+    "permissions": {
+        "deny": [
+            "Bash(git stash:*)",
+            "Bash(git reset:*)",
+            "Bash(git restore:*)",
+            "Bash(git clean:*)",
+            "Bash(git checkout --:*)",
+            "Bash(git rm:*)",
+            "Bash(git switch:*)",
+            "Bash(git pull:*)",
+            "Bash(git rebase:*)"
+        ]
+    }
+}

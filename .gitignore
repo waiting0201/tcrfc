@@ -11,6 +11,9 @@ TCRFC_資料收件夾.zip
 *.zip
 
 # ── 系統與工具 ───────────────────────────────────
+# Claude Code：settings.json 納管（並行 agent 的 git 封鎖規則，docs/18 E-281），agent 的暫存 worktree 不納管
+.claude/worktrees/
+.claude/settings.local.json
 .DS_Store
 ._*
 .Spotlight-V100
