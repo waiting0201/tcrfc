@@ -6,6 +6,8 @@
  *     也不會把還沒翻譯的英文欄位誤清空。
  *   · 把欄位改成空白要明確送出清空：文字欄位送空字串，說明內文送空物件。
  * 這個端點不碰分潤、金額選項與撥付對象，所以沒有分潤授權的角色（例如商務）也能編輯內文。
+ * 版面：整頁一組語言分頁、一張卡、卡內分段，沒有右側欄（沒有任何不分語言的欄位，docs/21 §3.3a）。
+ * 欄位鍵沿用內文請求的屬性名（oneLinerZh、descriptionEn、fundUsageZh…）。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
@@ -13,8 +15,17 @@ import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import BlockEditor from '@/components/BlockEditor.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
+import LangPane from '@/components/LangPane.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { getProject, updateProjectContent, type ProjectContentInput, type ProjectDetail } from '@/api/projects'
 import { AdminApiError } from '@/api/http'
 import { hasPermission } from '@/auth/session'
@@ -24,6 +35,10 @@ const props = defineProps<{ projectKey: string }>()
 const router = useRouter()
 
 const canManage = computed(() => hasPermission('n2.donation_project.manage'))
+
+const formErrors = provideFormErrors()
+/** 只放沒有欄位歸屬的錯誤（API 回來的訊息）。這一頁沒有前端必填驗證，欄位錯誤全來自後端。 */
+const formError = ref<string | null>(null)
 
 const loading = ref(false)
 const loadError = ref('')
@@ -104,12 +119,16 @@ async function save() {
     ElMessage.info('沒有任何變更')
     return
   }
+  formError.value = null
+  formErrors.clearAll()
   saving.value = true
   try {
     fill(await updateProjectContent(props.projectKey, changes))
     ElMessage.success(`已儲存：${keys.map((k) => CHANGE_LABELS[k]).join('、')}`)
   } catch (error) {
-    ElMessage.error(error instanceof AdminApiError ? error.detail : '儲存失敗，請稍後再試')
+    // 後端有標欄位就標到欄位；對不到（或沒有欄位資訊）才退回頁首提示
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
+    formError.value = error instanceof AdminApiError ? error.detail : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
   }
@@ -140,11 +159,12 @@ onBeforeRouteLeave(async () => {
     </PageHeader>
 
     <ErrorState v-if="loadError" :text="loadError" @retry="load" />
-    <el-form v-else v-loading="loading" label-position="top" class="project-content__form" :disabled="!canManage" @submit.prevent>
+    <el-form v-else v-loading="loading" label-position="top" :disabled="!canManage" @submit.prevent>
       <p v-if="project" class="project-content__name">
         {{ project.nameZh }}
         <span v-if="project.nameEn" class="project-content__name-en">{{ project.nameEn }}</span>
       </p>
+      <el-alert v-if="formError" :title="formError" type="warning" show-icon class="project-content__alert" @close="formError = null" />
       <el-alert
         v-if="!canManage"
         type="info"
@@ -161,50 +181,53 @@ onBeforeRouteLeave(async () => {
         class="project-content__alert"
       />
 
-      <div class="project-content__fieldset">
-        <BilingualShortField
-          label="一句話介紹"
-          :zh="form.oneLinerZh"
-          :en="form.oneLinerEn"
-          placeholder="顯示在項目卡片與詳情頁標題下方"
-          @update:zh="form.oneLinerZh = $event"
-          @update:en="form.oneLinerEn = $event"
-        />
+      <LangTabsBar>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never">
+              <FormSection>
+                <BilingualShortField
+                  field="oneLiner"
+                  label="一句話介紹"
+                  :zh="form.oneLinerZh"
+                  :en="form.oneLinerEn"
+                  placeholder="顯示在項目卡片與詳情頁標題下方"
+                  @update:zh="form.oneLinerZh = $event"
+                  @update:en="form.oneLinerEn = $event"
+                />
+              </FormSection>
 
-        <h2 class="project-content__section-title">說明</h2>
-        <el-tabs>
-          <el-tab-pane label="中文">
-            <BlockEditor v-model="descriptionZh" label="說明（中文）" />
-          </el-tab-pane>
-          <el-tab-pane label="英文">
-            <BlockEditor v-model="descriptionEn" label="說明（英文）" />
-          </el-tab-pane>
-        </el-tabs>
+              <FormSection title="說明">
+                <LangPane lang="zh" field="descriptionZh">
+                  <FormField field="descriptionZh" lang="zh">
+                    <BlockEditor v-model="descriptionZh" label="說明（中文）" />
+                  </FormField>
+                </LangPane>
+                <LangPane lang="en" field="descriptionEn">
+                  <FormField field="descriptionEn" lang="en">
+                    <BlockEditor v-model="descriptionEn" label="說明（英文）" />
+                  </FormField>
+                </LangPane>
+              </FormSection>
 
-        <h2 class="project-content__section-title">善款用途</h2>
-        <el-tabs>
-          <el-tab-pane label="中文">
-            <el-input v-model="form.fundUsageZh" type="textarea" :rows="5" aria-label="善款用途（中文）" />
-          </el-tab-pane>
-          <el-tab-pane label="英文">
-            <el-input v-model="form.fundUsageEn" type="textarea" :rows="5" aria-label="善款用途（英文）" />
-          </el-tab-pane>
-        </el-tabs>
-      </div>
+              <FormSection title="善款用途">
+                <BilingualTextareaField field="fundUsage" label="善款用途" :rows="5" :zh="form.fundUsageZh" :en="form.fundUsageEn" @update:zh="form.fundUsageZh = $event" @update:en="form.fundUsageEn = $event" />
+              </FormSection>
+            </el-card>
+          </template>
+        </EditLayout>
+      </LangTabsBar>
 
-      <div class="project-content__actions">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button @click="router.push('/projects')">返回列表</el-button>
         <el-button v-if="canManage" type="primary" :loading="saving" :disabled="!dirty" @click="save">儲存</el-button>
-      </div>
+      </EditActionBar>
     </el-form>
   </div>
 </template>
 
 <style scoped>
-.project-content__form {
-  max-width: 760px;
-}
-
 .project-content__name {
   margin: 0 0 var(--charity-admin-space-3);
   font-size: 16px;
@@ -220,28 +243,5 @@ onBeforeRouteLeave(async () => {
 
 .project-content__alert {
   margin-bottom: var(--charity-admin-space-3);
-}
-
-.project-content__fieldset {
-  border: none;
-  padding: 0;
-  margin: 0;
-  min-width: 0;
-}
-
-.project-content__section-title {
-  font-size: 15px;
-  margin: var(--charity-admin-space-6) 0 var(--charity-admin-space-3);
-  padding-top: var(--charity-admin-space-3);
-  border-top: 1px solid var(--charity-admin-border);
-}
-
-.project-content__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--charity-admin-space-2);
-  margin-top: var(--charity-admin-space-6);
-  padding-top: var(--charity-admin-space-4);
-  border-top: 1px solid var(--charity-admin-border);
 }
 </style>

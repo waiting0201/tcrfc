@@ -1,12 +1,23 @@
 <script setup lang="ts">
-/** N1 店家管理與 QR Code — 編輯頁（docs/22-charity-ui.md §3.7.1）：接真 API。 */
+/**
+ * N1 店家管理與 QR Code — 編輯頁（docs/22-charity-ui.md §3.7.1）：接真 API。
+ * 版面依 docs/21 §3／§3.3a 與 docs/22 §3.10：整頁一組語言分頁、主欄一張卡、右側欄「基本設定」＋「發布設定」，
+ * 驗證一次檢查全部並標到欄位。欄位鍵沿用 StoreInput 的屬性名。
+ */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import {
   createStore,
   getStore,
@@ -26,6 +37,10 @@ const router = useRouter()
 
 const isEdit = computed(() => Boolean(props.storeKey))
 const canSetShare = computed(() => hasPermission('n1.donation_store.share_pct'))
+
+const formErrors = provideFormErrors()
+/** 只放沒有欄位歸屬的錯誤（API 回來的訊息）；前端驗證一律進 formErrors。 */
+const formError = ref<string | null>(null)
 
 const loading = ref(false)
 const loadError = ref('')
@@ -87,6 +102,7 @@ onMounted(load)
 const shareExample = computed(() => Math.floor((100 * form.sharePct) / 100))
 
 function handleLogoUpdate(file: File | null) {
+  formErrors.clear('logo')
   if (file) {
     pendingLogo.value = file
     logoRemoved.value = false
@@ -102,10 +118,19 @@ function blank(value: string): string | null {
   return v === '' ? null : v
 }
 
+/** 一次檢查全部（欄位鍵 → 訊息），不要遇到第一個就停。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請填寫店名（中文）'
+  if (form.startOn && form.endOn && form.endOn < form.startOn) errors.endOn = '合作迄日不能早於合作起日'
+  return errors
+}
+
 async function handleSave() {
   if (saving.value) return
-  if (!form.nameZh.trim()) {
-    ElMessage.warning('請填寫店名（中文）')
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
     return
   }
   const input: StoreInput = {
@@ -140,7 +165,9 @@ async function handleSave() {
     ElMessage.success(isEdit.value ? '已儲存店家資料' : '已新增店家')
     await router.push('/stores')
   } catch (error) {
-    ElMessage.error(error instanceof AdminApiError ? error.detail : '儲存失敗，請稍後再試')
+    // 後端有標欄位就標到欄位；對不到（或沒有欄位資訊）才退回頁首提示
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
+    formError.value = error instanceof AdminApiError ? error.detail : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
   }
@@ -156,100 +183,90 @@ async function handleSave() {
     </PageHeader>
 
     <ErrorState v-if="loadError" :text="loadError" @retry="load" />
-    <el-form v-else v-loading="loading" label-position="top" class="store-edit__form">
-      <h2 class="store-edit__section-title">基本資訊</h2>
-      <BilingualShortField label="店名" :zh="form.nameZh" :en="form.nameEn" required @update:zh="form.nameZh = $event" @update:en="form.nameEn = $event" />
-      <el-row :gutter="16">
-        <el-col :sm="8" :xs="24">
-          <el-form-item label="類別" required>
-            <el-input v-model="form.category" placeholder="例如：餐飲、飲料、零售" />
-          </el-form-item>
-        </el-col>
-        <el-col :sm="8" :xs="24">
-          <el-form-item label="聯絡人">
-            <el-input v-model="form.contactName" />
-          </el-form-item>
-        </el-col>
-        <el-col :sm="8" :xs="24">
-          <el-form-item label="聯絡電話">
-            <el-input v-model="form.contactPhone" />
-          </el-form-item>
-        </el-col>
-      </el-row>
-      <el-form-item label="地址">
-        <el-input v-model="form.address" />
-      </el-form-item>
-      <el-row :gutter="16">
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="合作起日">
-            <el-date-picker v-model="form.startOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="合作迄日（未填表示持續合作中）">
-            <el-date-picker v-model="form.endOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" clearable />
-          </el-form-item>
-        </el-col>
-      </el-row>
+    <el-form v-else v-loading="loading" label-position="top" @submit.prevent>
+      <el-alert v-if="formError" :title="formError" type="warning" show-icon class="store-edit__alert" @close="formError = null" />
 
-      <h2 class="store-edit__section-title">店家 Logo（選填）</h2>
-      <ImageUploader :existing-url="logoUrl" :min-width="200" :min-height="200" variant="logo" :saving="saving" @update:file="handleLogoUpdate" />
-      <BilingualShortField label="Logo 替代文字" :zh="form.logoAltZh" :en="form.logoAltEn" @update:zh="form.logoAltZh = $event" @update:en="form.logoAltEn = $event" />
+      <LangTabsBar>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never">
+              <FormSection>
+                <BilingualShortField field="name" label="店名" required :zh="form.nameZh" :en="form.nameEn" @update:zh="form.nameZh = $event" @update:en="form.nameEn = $event" />
+                <FormField field="address" label="地址">
+                  <el-input v-model="form.address" />
+                </FormField>
+              </FormSection>
+            </el-card>
+          </template>
 
-      <h2 class="store-edit__section-title">分潤設定</h2>
-      <el-form-item label="店家分潤比例（%）">
-        <el-input-number v-if="canSetShare" v-model="form.sharePct" :min="0" :max="100" :step="0.5" :precision="2" />
-        <span v-else>{{ form.sharePct }}%（設定分潤需要額外授權，請洽系統管理員）</span>
-      </el-form-item>
-      <p class="store-edit__example">捐款 NT$100 時，此店家可獲得 {{ formatMoney(shareExample) }}。店家分潤與項目分潤相加不得超過 100%，儲存時會檢查。</p>
+          <template #aside>
+            <el-card shadow="never" header="基本設定">
+              <FormSection>
+                <FormField field="category" label="類別" required>
+                  <el-input v-model="form.category" placeholder="例如：餐飲、飲料、零售" />
+                </FormField>
+                <FormField field="contactName" label="聯絡人">
+                  <el-input v-model="form.contactName" />
+                </FormField>
+                <FormField field="contactPhone" label="聯絡電話">
+                  <el-input v-model="form.contactPhone" />
+                </FormField>
+                <FormField field="startOn" label="合作起日">
+                  <el-date-picker v-model="form.startOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" />
+                </FormField>
+                <FormField field="endOn" label="合作迄日（未填表示持續合作中）">
+                  <el-date-picker v-model="form.endOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" clearable />
+                </FormField>
+              </FormSection>
 
-      <h2 class="store-edit__section-title">狀態</h2>
-      <el-form-item label="合作狀態">
-        <el-radio-group v-model="form.status">
-          <el-radio value="active">合作中</el-radio>
-          <el-radio value="inactive">已停止</el-radio>
-        </el-radio-group>
-      </el-form-item>
+              <FormSection title="店家 Logo（選填）">
+                <FormField field="logo">
+                  <ImageUploader :existing-url="logoUrl" :min-width="200" :min-height="200" variant="logo" :saving="saving" @update:file="handleLogoUpdate" />
+                </FormField>
+                <BilingualShortField field="logoAlt" label="Logo 替代文字" :zh="form.logoAltZh" :en="form.logoAltEn" @update:zh="form.logoAltZh = $event" @update:en="form.logoAltEn = $event" />
+              </FormSection>
 
-      <div class="store-edit__actions">
+              <FormSection title="分潤設定">
+                <FormField field="storeSharePct" label="店家分潤比例（%）">
+                  <el-input-number v-if="canSetShare" v-model="form.sharePct" :min="0" :max="100" :step="0.5" :precision="2" />
+                  <span v-else>{{ form.sharePct }}%（設定分潤需要額外授權，請洽系統管理員）</span>
+                </FormField>
+                <p class="store-edit__example">捐款 NT$100 時，此店家可獲得 {{ formatMoney(shareExample) }}。店家分潤與項目分潤相加不得超過 100%，儲存時會檢查。</p>
+              </FormSection>
+            </el-card>
+
+            <el-card shadow="never" header="發布設定">
+              <FormSection>
+                <FormField field="status" label="合作狀態">
+                  <el-radio-group v-model="form.status">
+                    <el-radio value="active">合作中</el-radio>
+                    <el-radio value="inactive">已停止</el-radio>
+                  </el-radio-group>
+                </FormField>
+              </FormSection>
+            </el-card>
+          </template>
+        </EditLayout>
+      </LangTabsBar>
+
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button @click="router.push('/stores')">取消</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </el-form>
   </div>
 </template>
 
 <style scoped>
-.store-edit__form {
-  max-width: 720px;
-}
-
-.store-edit__section-title {
-  font-size: 15px;
-  color: var(--charity-admin-text-primary);
-  margin: var(--charity-admin-space-6) 0 var(--charity-admin-space-3);
-  padding-top: var(--charity-admin-space-3);
-  border-top: 1px solid var(--charity-admin-border);
-}
-
-.store-edit__section-title:first-child {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
+.store-edit__alert {
+  margin-bottom: var(--charity-admin-space-3);
 }
 
 .store-edit__example {
-  margin: -8px 0 16px;
+  margin: 0;
   font-size: 13px;
+  line-height: 1.6;
   color: var(--charity-admin-text-secondary);
-}
-
-.store-edit__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--charity-admin-space-2);
-  margin-top: var(--charity-admin-space-6);
-  padding-top: var(--charity-admin-space-4);
-  border-top: 1px solid var(--charity-admin-border);
 }
 </style>

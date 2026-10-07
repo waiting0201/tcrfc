@@ -198,6 +198,18 @@ body {
   line-height: 1.6;
 }
 
+/* ── 欄位驗證錯誤（docs/22 §1.8 先例：不只靠顏色；編輯頁規則見 docs/22 §3.10）────────────
+   錯誤欄位的外框由 1px 中性色改成 2px 危險色（形狀改變）；錯誤文字與「⚠」由 FormField 自畫。
+   --charity-danger-text 對三層後台背景都 ≥ 3:1（check-contrast.mjs 已驗，docs/22 §1.7.8）。 */
+.el-form-item.is-error .el-input__wrapper,
+.el-form-item.is-error .el-textarea__inner,
+.el-form-item.is-error .el-select__wrapper,
+.el-form-item.is-error .el-range-editor.el-input__wrapper,
+.el-form-item.is-error .el-input__wrapper.is-focus,
+.el-form-item.is-error .el-textarea__inner:focus {
+  box-shadow: 0 0 0 2px var(--charity-danger-text) inset;
+}
+
 @media (max-width: 767px) {
   .admin-hide-on-mobile {
     display: none !important;

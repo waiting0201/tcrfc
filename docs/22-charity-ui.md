@@ -29,7 +29,7 @@
 | 品牌 | **不放 logo**。協會品牌資產未到位（`STATUS.md` `B-7`），本輪**不做品牌識別**，全站中性色。logo 位置保留但**不放假圖、不自行造標**——比照規劃書已經替 `DonationStore` 訂好的降級規則（§2.2）與 [`13-blue-whale-site.md`](13-blue-whale-site.md) §4 踩雷點 8 的標誌處理原則 |
 | 配色 | **中性操作色，前台淺色暖灰、後台淺色冷灰**——理由見 §1，這不是照抄俱樂部後台的深色桃紅 |
 | 金流 | 本輪停在「即將前往付款」的模擬段，不接 LINE Pay（見 §3.6） |
-| SEO／GEO | **前台明文不做**（規劃書 v1.1），但**無障礙與效能不因此放寬**——兩者是不同的軸線，見 §3.10 |
+| SEO／GEO | **前台明文不做**（規劃書 v1.1），但**無障礙與效能不因此放寬**——兩者是不同的軸線，見 §2.10 |
 
 ---
 
@@ -568,7 +568,7 @@
 | 密度與間距尺度（`4/8/12/16/20/24/32/48px`） | `docs/21` §2.1 | 純粹的度量系統，換到淺色系統一樣適用 |
 | 字級尺度對照表 | `docs/21` §2.2 | 同上，Element Plus 的內建尺度不因深淺色而變 |
 | 編輯頁標準型（分組順序：基本資訊→內容（雙語）→圖片→專屬欄位→發布設定；必填標示放 label 前方） | `docs/21` §3 | 已驗證合理的互動細節，本平台的模組（`N1`／`N2`）欄位結構相似（雙語名稱、封面圖、專屬欄位） |
-| 雙語呈現規則（短欄位並排、長欄位用 `el-tabs`） | `docs/21` §3 | 慈善站也是 `zh`/`en` 雙語（規劃書 §9.4），規則直接適用 |
+| 雙語呈現規則（**2026-10-07 起改為整頁一組語言分頁，見 §3.10**；舊的「短欄位並排、長欄位用 `el-tabs`」已廢止） | `docs/21` §3.2 | 慈善站也是 `zh`/`en` 雙語（規劃書 §9.4），規則直接適用 |
 | 四態不只靠色相、文字標籤是主要傳達管道 | `docs/21` §4.1 | 與本檔 §1.8 的原則完全一致，是同一條 WCAG 要求的兩次落地 |
 | 空狀態／載入中／錯誤狀態三種情境的共用骨架 | `docs/21` §10 | 純粹的元件家族設計，換色即可套用（見 §3.5） |
 | 圖片上傳：選檔即時預覽、儲存中狀態、換圖／移除、多圖排序規則 | `docs/21` §9（前段） | 功能行為層面的規則，與整體配色無關；本平台的 `N1`（店家 Logo）／`N2`（項目封面）同樣走「上傳即縮圖」通則（`docs/14`） |
@@ -783,6 +783,46 @@
 > 🟡 **這個放置位置是本檔的判斷，不是規劃書明文指定的**——規劃書只規定「退款、分潤設定、個資匯出三類
 > 操作須寫入稽核軌跡」，沒有規定**在哪個模組查看**這些紀錄。列入 §6 待決回報，供使用者確認這個放法是否
 > 合理，或是否要另外升格成獨立的一級模組。
+
+### 3.10 編輯頁共用元件與規則（2026-10-07，S2-20／S2-22 套用到慈善後台）
+
+**採用 [`docs/21`](21-admin-ui.md) §3（尤其 §3.2 語言分頁、§3.3 兩欄版面、§3.3a 每頁最多三張卡、§3.4 上傳放右側欄、
+§3.5 欄位驗證與錯誤定位）的全部規則，不重新發明。** 執行層決定，規劃書沒有版面規則故不改規劃書。
+慈善後台是獨立專案、不共用 `apps/admin` 的程式碼，所以元件是**複製改寫**進 `apps/admin-charity/src/`（不是 import），
+並且一開始就做成「沒有過渡退路」的版本：
+
+| 與 `apps/admin` 的差異 | 做法 |
+|---|---|
+| **淺色 token** | 一律用 `--charity-admin-*`（頁面底 `bg-page`、卡片 `bg-surface`、次要底 `bg-surface-2`、邊框 `border`／`border-input`、主色 `primary`）；錯誤色用共用的語意色 `--charity-danger-text`（對三層後台背景都過 3:1／4.5:1，`check-contrast.mjs` 已驗，§1.7.8）。**沒有「四層色階／海拔」**：卡片是白底＋1px 邊框＋淺陰影（§1.5）。語言分頁列用 `bg-page` 底、目前分頁用 `bg-surface-2` 底＋`primary` 底線與外框（不只靠顏色）；錯誤欄位外框 2px `--charity-danger-text`（`charity-admin-theme.css` 的 `.el-form-item.is-error`） |
+| **沒有過渡期並排畫面** | `BilingualShortField`／`BilingualTextareaField`／`LangPane` **必須在 `LangTabsBar` 內**，否則直接丟錯；缺 `field` 也丟錯。舊版的並排／手機 `el-tabs` 畫面已整個刪除 |
+| **`useFormErrors()` 必須先 `provideFormErrors()`** | 沒有 provide 就丟錯，不退回獨立空實例（主後台為了過渡期才有那個退路） |
+| **`FormField` 自動清除各種元件的錯誤** | 主後台只靠 `input`／`change` DOM 事件，`el-select`、`el-date-picker`、`el-switch` 這類選項在 teleport、不冒泡事件的元件，錯誤不會即時清掉。慈善版用內部元件 `FormFieldChangeTap`，把預設插槽內每個帶 `onUpdate:*` 的元件（含 `ImageUploader` 的 `update:file`）旁聽一份，使用者一改就清該鍵，**各頁不必自己呼叫 `clear`** |
+| **`EditActionBar` 不用 `fixed`** | 慈善後台側欄有展開／收合／抽屜三種寬度且不是 CSS 變數，寫死 `left: 側欄寬度` 會蓋住或漏出側欄。改成 `position: sticky; bottom: 0`，放在 `AdminLayout` 的捲動容器內、左右抵銷內距撐滿內容區。`variant="inline"` 給頁籤內的面板用（`.el-tabs__content` 是 `overflow: hidden`，sticky 與抵銷內距都會失效） |
+| **頁籤內的面板（`*Panel`、`EmailTemplateForm`）** | 單欄、**一張卡＋多個 `FormSection`**，不用 `EditLayout`；語言分頁用 `variant="bare"`（不 sticky，原因同上）；每個面板／每封信各自 `provideFormErrors()`，欄位鍵不會互相覆蓋 |
+| **語言分頁列 sticky 貼齊捲動容器頂端** | `top: 0`，左右抵銷 `el-main` 的內距；`el-main` 是捲動容器，`PageHeader` 不 sticky，往下捲後分頁列會貼在最上面 |
+
+**各頁的卡片配置**（主欄 1 張＋右側欄最多 2 張，由 `npm run lint:edit-layout` 檢查）：
+
+| 頁面 | 主欄（一張，不設標題） | 右側欄「基本設定」 | 右側欄第二張 |
+|---|---|---|---|
+| 項目編輯 `ProjectEditView` | 項目名稱（雙語）；新增時加一句話說明、款項用途（雙語）；編輯時「內文」段落放「編輯內文」入口 | 封面圖片（上傳＋雙語替代文字）、金額設定、分潤與撥付對象、憑證模式 | 「發布設定」：上下架（僅編輯且有權限）、排序 |
+| 項目內文 `ProjectContentView` | 一句話介紹、說明（區塊編輯器，中英各一個 `LangPane`）、善款用途（雙語） | 無（沒有不分語言的欄位，單欄一張卡） | 無 |
+| 店家編輯 `StoreEditView` | 店名（雙語）、地址 | 類別、聯絡人、電話、合作起迄日、店家 Logo（上傳＋雙語替代文字）、分潤設定 | 「發布設定」：合作狀態 |
+| 帳號編輯 `AccountEditView` | 帳號、姓名、電子郵件、初始密碼（無雙語欄位，無語言分頁） | 系統管理員開關、角色 | **「帳號狀態」**（刻意例外的名稱）：啟用／停用、重設密碼、重設兩階段驗證——帳號沒有「發布」，名稱以實際用途為準 |
+| 角色編輯 `RoleEditView` | 角色名稱（雙語）、權限勾選（太寬放不進側欄） | 角色代碼 | 無 |
+| 站台設定「站台文案與金額」`SettingsCopyPanel` | 單欄一張卡：前台文案（雙語四組）、連結與金額、捐款徵信名單，三個分段 | — | — |
+| 站台設定「系統信樣板」`EmailTemplateForm`（每封一個頁籤） | 單欄一張卡：寄送設定、信件內容（插入欄位按鈕、主旨與本文雙語） | — | — |
+
+**欄位鍵**：沿用各 API 請求的屬性名（`nameZh`、`oneLinerEn`、`charityRefCode`、`projectSharePct`、`storeSharePct`…），
+雙語欄位 `field="name"` → `nameZh`／`nameEn`；**鍵只在程式內對照，絕不顯示在畫面上**（同 `docs/21` §3.6）。
+
+**後端欄位錯誤（`errors`）的現況（2026-10-07 已補）**：`apps/admin-charity` 的 `http.ts` 已解析 ProblemDetails `errors`（400／409／422，
+鍵經 `normalizeFieldKey`、每鍵取第一則）到 `AdminApiError.fieldErrors`，各編輯頁 `applyApiError()` 對得到的標到欄位、
+對不到才退回頁首提示。**後端已補鍵**：`CharityProjectsAdminService`／`CharityStoresAdminService`／`CharitySettingsAdminService`
+（含系統信樣板）／`CharityAdminAccountsService`／`CharityAdminRolesService` 的驗證都帶 `field`，`CharityApiException`
+家族也實作 `IFieldApiException`（`CharityConflictException` 可帶 `field`，帳號重複標 `username`、角色代碼重複標 `code`）。
+鍵與本節各頁的 `field=`（雙語 `xxxZh`／`xxxEn`）逐一對齊，逐項清單見 [`apps/api/README.md`](../apps/api/README.md)「已補鍵清單」慈善段落。
+**只有 400／409 會輸出 `errors`**（處理器規則，與主站相同）；沒有欄位歸屬的錯誤（狀態轉換、並行衝突、匯入檔列層錯誤）仍退回頁首提示。
 
 ---
 

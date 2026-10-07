@@ -1,12 +1,24 @@
 <script setup lang="ts">
-/** N2 捐款項目管理 — 編輯頁（docs/22-charity-ui.md §3.7.2）：接真 API。 */
+/**
+ * N2 捐款項目管理 — 編輯頁（docs/22-charity-ui.md §3.7.2）：接真 API。
+ * 版面依 docs/21 §3／§3.3a 與 docs/22 §3.10：整頁一組語言分頁、主欄一張卡、右側欄「基本設定」＋「發布設定」，
+ * 驗證一次檢查全部並標到欄位。欄位鍵沿用 ProjectInput 的屬性名（後端之後補鍵時直接對得上）。
+ */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import {
   createProject,
   getCharityRefs,
@@ -30,6 +42,10 @@ const router = useRouter()
 const isEdit = computed(() => Boolean(props.projectKey))
 const canSetShare = computed(() => hasPermission('n2.donation_project.share_pct'))
 const canPublish = computed(() => hasPermission('n2.donation_project.publish'))
+
+const formErrors = provideFormErrors()
+/** 只放沒有欄位歸屬的錯誤（API 回來的訊息）；前端驗證一律進 formErrors。 */
+const formError = ref<string | null>(null)
 
 const loading = ref(false)
 const loadError = ref('')
@@ -105,6 +121,7 @@ function onCharityChange() {
 }
 
 function handleCoverUpdate(file: File | null) {
+  formErrors.clear('cover')
   if (file) {
     pendingCover.value = file
     coverRemoved.value = false
@@ -127,17 +144,26 @@ function parseAmountOptions(): number[] | null {
   return nums
 }
 
+/** 一次檢查全部（欄位鍵 → 訊息），不要遇到第一個就停。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.nameZh.trim()) errors.nameZh = '請填寫項目名稱（中文）'
+  const options = parseAmountOptions()
+  if (options === null) errors.amountOptions = '金額選項請填正整數，以頓號分隔'
+  if (form.minAmount !== null && form.maxAmount !== null && form.minAmount > form.maxAmount) {
+    errors.maxAmount = '最高金額不能小於最低金額'
+  }
+  return errors
+}
+
 async function handleSave() {
   if (saving.value) return
-  if (!form.nameZh.trim()) {
-    ElMessage.warning('請填寫項目名稱（中文）')
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
     return
   }
-  const options = parseAmountOptions()
-  if (options === null) {
-    ElMessage.warning('金額選項請填正整數，以頓號分隔')
-    return
-  }
+  const options = parseAmountOptions() ?? []
   const input: ProjectInput = {
     nameZh: form.nameZh.trim(),
     nameEn: blank(form.nameEn),
@@ -175,7 +201,9 @@ async function handleSave() {
     ElMessage.success(isEdit.value ? '已儲存捐款項目' : '已新增捐款項目（尚未上架，儲存後可在列表或這個畫面上架）')
     await router.push('/projects')
   } catch (error) {
-    ElMessage.error(error instanceof AdminApiError ? error.detail : '儲存失敗，請稍後再試')
+    // 後端有標欄位就標到欄位；對不到（或沒有欄位資訊）才退回頁首提示
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
+    formError.value = error instanceof AdminApiError ? error.detail : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
   }
@@ -202,142 +230,127 @@ async function togglePublish() {
     </PageHeader>
 
     <ErrorState v-if="loadError" :text="loadError" @retry="load" />
-    <el-form v-else v-loading="loading" label-position="top" class="project-edit__form">
-      <h2 class="project-edit__section-title">基本資訊</h2>
-      <BilingualShortField label="項目名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="form.nameZh = $event" @update:en="form.nameEn = $event" />
-      <BilingualShortField v-if="!isEdit" label="一句話說明" :zh="form.oneLinerZh" :en="form.oneLinerEn" @update:zh="form.oneLinerZh = $event" @update:en="form.oneLinerEn = $event" />
+    <el-form v-else v-loading="loading" label-position="top" @submit.prevent>
+      <el-alert v-if="formError" :title="formError" type="warning" show-icon class="project-edit__alert" @close="formError = null" />
 
-      <h2 class="project-edit__section-title">內容</h2>
-      <template v-if="!isEdit">
-        <el-tabs>
-          <el-tab-pane label="款項用途（中文）">
-            <el-input v-model="form.fundUsageZh" type="textarea" :rows="4" />
-          </el-tab-pane>
-          <el-tab-pane label="款項用途（英文）">
-            <el-input v-model="form.fundUsageEn" type="textarea" :rows="4" />
-          </el-tab-pane>
-        </el-tabs>
-        <p class="project-edit__hint">項目說明的圖文排版，儲存後可到「編輯內文」補上。</p>
-      </template>
-      <template v-else>
-        <p class="project-edit__hint project-edit__hint--inline">一句話介紹、項目說明與善款用途（中英文）在獨立的畫面編輯，這裡儲存時不會更動它們。</p>
-        <el-button v-if="existing" @click="router.push(`/projects/${existing.id}/content`)">編輯內文</el-button>
-      </template>
+      <LangTabsBar>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never">
+              <FormSection>
+                <BilingualShortField field="name" label="項目名稱" required :zh="form.nameZh" :en="form.nameEn" @update:zh="form.nameZh = $event" @update:en="form.nameEn = $event" />
+                <template v-if="!isEdit">
+                  <BilingualShortField field="oneLiner" label="一句話說明" :zh="form.oneLinerZh" :en="form.oneLinerEn" @update:zh="form.oneLinerZh = $event" @update:en="form.oneLinerEn = $event" />
+                  <BilingualTextareaField
+                    field="fundUsage"
+                    label="款項用途"
+                    :rows="4"
+                    hint="項目說明的圖文排版，儲存後可到「編輯內文」補上。"
+                    :zh="form.fundUsageZh"
+                    :en="form.fundUsageEn"
+                    @update:zh="form.fundUsageZh = $event"
+                    @update:en="form.fundUsageEn = $event"
+                  />
+                </template>
+              </FormSection>
+              <FormSection v-if="isEdit && existing" title="內文">
+                <p class="project-edit__hint">一句話介紹、項目說明與善款用途（中英文）在獨立的畫面編輯，這裡儲存時不會更動它們。</p>
+                <el-button @click="router.push(`/projects/${existing.id}/content`)">編輯內文</el-button>
+              </FormSection>
+            </el-card>
+          </template>
 
-      <h2 class="project-edit__section-title">封面圖</h2>
-      <ImageUploader :existing-url="coverUrl" variant="photo" :saving="saving" @update:file="handleCoverUpdate" />
-      <BilingualShortField label="封面圖替代文字" :zh="form.coverAltZh" :en="form.coverAltEn" @update:zh="form.coverAltZh = $event" @update:en="form.coverAltEn = $event" />
+          <template #aside>
+            <el-card shadow="never" header="基本設定">
+              <FormSection title="封面圖片">
+                <FormField field="cover">
+                  <ImageUploader :existing-url="coverUrl" variant="photo" :saving="saving" @update:file="handleCoverUpdate" />
+                </FormField>
+                <BilingualShortField field="coverAlt" label="封面圖替代文字" :zh="form.coverAltZh" :en="form.coverAltEn" @update:zh="form.coverAltZh = $event" @update:en="form.coverAltEn = $event" />
+              </FormSection>
 
-      <h2 class="project-edit__section-title">金額設定</h2>
-      <el-row :gutter="16">
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="最低金額">
-            <el-input-number v-model="form.minAmount" :min="1" :value-on-clear="null" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-        <el-col :sm="12" :xs="24">
-          <el-form-item label="最高金額">
-            <el-input-number v-model="form.maxAmount" :min="form.minAmount ?? 1" :value-on-clear="null" style="width: 100%" />
-          </el-form-item>
-        </el-col>
-      </el-row>
-      <el-form-item label="金額選項卡（以頓號分隔）">
-        <el-input v-model="form.amountOptionsText" placeholder="例如：300、500、1000、3000" />
-      </el-form-item>
+              <FormSection title="金額設定">
+                <FormField field="minAmount" label="最低金額">
+                  <el-input-number v-model="form.minAmount" :min="1" :value-on-clear="null" style="width: 100%" />
+                </FormField>
+                <FormField field="maxAmount" label="最高金額">
+                  <el-input-number v-model="form.maxAmount" :min="form.minAmount ?? 1" :value-on-clear="null" style="width: 100%" />
+                </FormField>
+                <FormField field="amountOptions" label="金額選項卡（以頓號分隔）">
+                  <el-input v-model="form.amountOptionsText" placeholder="例如：300、500、1000、3000" />
+                </FormField>
+              </FormSection>
 
-      <h2 class="project-edit__section-title">分潤與撥付對象</h2>
-      <el-form-item label="項目分潤比例（%）">
-        <el-input-number v-if="canSetShare" v-model="form.sharePct" :min="0" :max="100" :step="0.5" :precision="2" />
-        <span v-else>{{ form.sharePct }}%（設定分潤需要額外授權，請洽系統管理員）</span>
-      </el-form-item>
-      <p class="project-edit__validation">店家分潤與項目分潤相加不得超過 100%，儲存時會依合作中店家中分潤最高的一家檢查。</p>
-      <el-form-item label="撥付對象（公益機構）">
-        <el-select v-model="form.charityRefCode" style="width: 100%" clearable @change="onCharityChange">
-          <el-option v-for="c in refs.charities" :key="c.refCode" :value="c.refCode" :label="c.name" />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="撥付對象（公益計畫，選填）">
-        <el-select v-model="form.programRefCode" style="width: 100%" clearable>
-          <el-option v-for="p in programOptions" :key="p.refCode" :value="p.refCode" :label="p.name" />
-        </el-select>
-      </el-form-item>
-      <p class="project-edit__hint">此清單來自官方網站的公益團體資料（唯讀複本），如需新增或更新請聯絡官網管理端</p>
+              <FormSection title="分潤與撥付對象">
+                <FormField field="projectSharePct" label="項目分潤比例（%）">
+                  <el-input-number v-if="canSetShare" v-model="form.sharePct" :min="0" :max="100" :step="0.5" :precision="2" />
+                  <span v-else>{{ form.sharePct }}%（設定分潤需要額外授權，請洽系統管理員）</span>
+                </FormField>
+                <p class="project-edit__hint">店家分潤與項目分潤相加不得超過 100%，儲存時會依合作中店家中分潤最高的一家檢查。</p>
+                <FormField field="charityRefCode" label="撥付對象（公益機構）">
+                  <el-select v-model="form.charityRefCode" style="width: 100%" clearable @change="onCharityChange">
+                    <el-option v-for="c in refs.charities" :key="c.refCode" :value="c.refCode" :label="c.name" />
+                  </el-select>
+                </FormField>
+                <FormField field="charityProgramRefCode" label="撥付對象（公益計畫，選填）">
+                  <el-select v-model="form.programRefCode" style="width: 100%" clearable>
+                    <el-option v-for="p in programOptions" :key="p.refCode" :value="p.refCode" :label="p.name" />
+                  </el-select>
+                </FormField>
+                <p class="project-edit__hint">此清單來自官方網站的公益團體資料（唯讀複本），如需新增或更新請聯絡官網管理端</p>
+              </FormSection>
 
-      <h2 class="project-edit__section-title">憑證模式</h2>
-      <el-form-item>
-        <el-radio-group v-model="form.invoiceMode">
-          <el-radio value="b2c_invoice">電子發票</el-radio>
-          <el-radio value="donation_receipt">捐贈收據</el-radio>
-        </el-radio-group>
-      </el-form-item>
+              <FormSection title="憑證模式">
+                <FormField field="invoiceMode">
+                  <el-radio-group v-model="form.invoiceMode">
+                    <el-radio value="b2c_invoice">電子發票</el-radio>
+                    <el-radio value="donation_receipt">捐贈收據</el-radio>
+                  </el-radio-group>
+                </FormField>
+              </FormSection>
+            </el-card>
 
-      <h2 v-if="isEdit && canPublish" class="project-edit__section-title">上下架</h2>
-      <el-form-item v-if="isEdit && canPublish">
-        <el-tag :type="existing?.status === 'published' ? 'success' : 'info'" style="margin-right: 12px">
-          {{ existing?.status === 'published' ? '目前已上架，前台看得到' : '目前未上架，前台看不到' }}
-        </el-tag>
-        <el-button @click="togglePublish">{{ existing?.status === 'published' ? '下架' : '上架' }}</el-button>
-      </el-form-item>
+            <el-card shadow="never" header="發布設定">
+              <FormSection v-if="isEdit && canPublish" title="上下架">
+                <el-tag :type="existing?.status === 'published' ? 'success' : 'info'" class="project-edit__status-tag">
+                  {{ existing?.status === 'published' ? '目前已上架，前台看得到' : '目前未上架，前台看不到' }}
+                </el-tag>
+                <el-button @click="togglePublish">{{ existing?.status === 'published' ? '下架' : '上架' }}</el-button>
+              </FormSection>
+              <FormSection title="排序">
+                <FormField field="sortOrder" label="排序（數字越小越前面）">
+                  <el-input-number v-model="form.sortOrder" :min="0" />
+                </FormField>
+              </FormSection>
+            </el-card>
+          </template>
+        </EditLayout>
+      </LangTabsBar>
 
-      <h2 class="project-edit__section-title">排序</h2>
-      <el-form-item label="排序（數字越小越前面）">
-        <el-input-number v-model="form.sortOrder" :min="0" />
-      </el-form-item>
-
-      <div class="project-edit__actions">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button @click="router.push('/projects')">取消</el-button>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </el-form>
   </div>
 </template>
 
 <style scoped>
-.project-edit__form {
-  max-width: 760px;
-}
-
-.project-edit__section-title {
-  font-size: 15px;
-  color: var(--charity-admin-text-primary);
-  margin: var(--charity-admin-space-6) 0 var(--charity-admin-space-3);
-  padding-top: var(--charity-admin-space-3);
-  border-top: 1px solid var(--charity-admin-border);
-}
-
-.project-edit__section-title:first-child {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
-}
-
-.project-edit__validation {
-  margin: -8px 0 16px;
-  font-size: 12px;
-  color: var(--charity-admin-text-tertiary);
-}
-
-.project-edit__validation--error {
-  color: var(--charity-danger-text);
-  font-weight: 600;
+.project-edit__alert {
+  margin-bottom: var(--charity-admin-space-3);
 }
 
 .project-edit__hint {
-  margin: -8px 0 16px;
+  margin: 0 0 var(--charity-admin-space-3);
   font-size: 12px;
+  line-height: 1.6;
   color: var(--charity-admin-text-tertiary);
 }
 
-.project-edit__hint--inline {
-  margin: 0 0 var(--charity-admin-space-2);
-}
-
-.project-edit__actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--charity-admin-space-2);
-  margin-top: var(--charity-admin-space-6);
-  padding-top: var(--charity-admin-space-4);
-  border-top: 1px solid var(--charity-admin-border);
+.project-edit__status-tag {
+  margin: 0 var(--charity-admin-space-3) var(--charity-admin-space-2) 0;
+  white-space: normal;
+  height: auto;
 }
 </style>

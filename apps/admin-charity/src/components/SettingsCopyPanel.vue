@@ -3,11 +3,20 @@
  * 站台設定：前台文案（中英）、俱樂部官網網址、單筆金額預設範圍、徵信名單整站開關。
  * 儲存是「局部更新」：只送出有改動的欄位，沒動的欄位完全不送（後端視為不變）；
  * 文案改成空白代表清空，前台會回到預設文字。
+ * 版面依 docs/21 §3.3a 與 docs/22 §3.10：面板放在頁籤內，所以單欄一張卡、卡內分段，語言分頁用 bare 版
+ * （頁籤內容區是 overflow:hidden，sticky 會失效），操作列用 inline 版。欄位鍵與請求屬性名一致。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
+import FormSection from '@/components/FormSection.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { getSettings, updateSettings, type SiteSettings, type SiteSettingsInput } from '@/api/settings'
 import { AdminApiError } from '@/api/http'
 import { hasPermission } from '@/auth/session'
@@ -24,6 +33,10 @@ const COPY_FIELDS = [
 type CopyKey =
   | 'homeIntroZh' | 'homeIntroEn' | 'thankYouTemplateZh' | 'thankYouTemplateEn'
   | 'noticeZh' | 'noticeEn' | 'privacyPolicyZh' | 'privacyPolicyEn'
+
+const formErrors = provideFormErrors()
+/** 只放沒有欄位歸屬的錯誤（API 回來的訊息）；前端驗證一律進 formErrors。 */
+const formError = ref<string | null>(null)
 
 const loading = ref(false)
 const loadError = ref('')
@@ -98,10 +111,21 @@ const dirtyLabels = computed(() => {
   return [...new Set(labels)].join('、')
 })
 
+/** 一次檢查全部（欄位鍵 → 訊息），不要遇到第一個就停。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  const url = other.clubSiteUrl.trim()
+  if (url && !/^https?:\/\//i.test(url)) errors.clubSiteUrl = '請填完整網址（以 https:// 開頭）'
+  if (!(other.defaultMinAmount >= 1)) errors.defaultMinAmount = '單筆金額下限至少是 1 元'
+  if (!(other.defaultMaxAmount >= other.defaultMinAmount)) errors.defaultMaxAmount = '單筆金額的上限不能小於下限'
+  return errors
+}
+
 async function save() {
   if (saving.value) return
-  if (other.defaultMinAmount < 1 || other.defaultMaxAmount < other.defaultMinAmount) {
-    ElMessage.warning('單筆金額的上限不能小於下限，下限至少是 1 元')
+  formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
     return
   }
   const changes = buildChanges()
@@ -114,7 +138,9 @@ async function save() {
     fill(await updateSettings(changes))
     ElMessage.success('已儲存站台設定')
   } catch (error) {
-    ElMessage.error(error instanceof AdminApiError ? error.detail : '儲存失敗，請稍後再試')
+    // 後端有標欄位就標到欄位；對不到（或沒有欄位資訊）才退回頁首提示
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
+    formError.value = error instanceof AdminApiError ? error.detail : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
   }
@@ -139,99 +165,77 @@ onBeforeRouteLeave(async () => {
   <ErrorState v-if="loadError" :text="loadError" @retry="load" />
   <el-form v-else v-loading="loading" label-position="top" class="settings-copy" :disabled="!canManage" @submit.prevent>
     <el-alert v-if="!canManage" type="info" :closable="false" show-icon title="你的角色只能檢視站台設定，不能修改。" class="settings-copy__alert" />
+    <el-alert v-if="formError" :title="formError" type="warning" show-icon class="settings-copy__alert" @close="formError = null" />
 
-    <h3 class="settings-copy__title">前台文案</h3>
-    <p class="settings-copy__hint">這些文字會顯示在慈善捐款網站上。英文版沒填時，前台會改顯示中文並提醒訪客「本頁尚無此語系版本」。</p>
-    <el-tabs>
-      <el-tab-pane label="中文">
-        <el-form-item v-for="f in COPY_FIELDS" :key="f.base" :label="f.label">
-          <el-input v-model="copy[`${f.base}Zh` as CopyKey]" type="textarea" :rows="f.base === 'privacyPolicy' || f.base === 'notice' ? 8 : 3" />
-          <div class="settings-copy__field-hint">{{ f.hint }}</div>
-        </el-form-item>
-      </el-tab-pane>
-      <el-tab-pane>
-        <template #label>英文 <el-tag v-if="!COPY_FIELDS.every((f) => copy[`${f.base}En` as CopyKey].trim())" size="small" type="info">尚有未翻譯</el-tag></template>
-        <el-form-item v-for="f in COPY_FIELDS" :key="f.base" :label="`${f.label}（英文）`">
-          <el-input v-model="copy[`${f.base}En` as CopyKey]" type="textarea" :rows="f.base === 'privacyPolicy' || f.base === 'notice' ? 8 : 3" />
-          <el-tag v-if="!copy[`${f.base}En` as CopyKey].trim()" size="small" type="info" class="settings-copy__untranslated">尚未翻譯</el-tag>
-        </el-form-item>
-      </el-tab-pane>
-    </el-tabs>
+    <LangTabsBar variant="bare">
+      <el-card shadow="never">
+        <FormSection title="前台文案" hint="這些文字會顯示在慈善捐款網站上。英文版沒填時，前台會改顯示中文並提醒訪客「本頁尚無此語系版本」。">
+          <BilingualTextareaField
+            v-for="f in COPY_FIELDS"
+            :key="f.base"
+            :field="f.base"
+            :label="f.label"
+            :hint="f.hint"
+            :rows="f.base === 'privacyPolicy' || f.base === 'notice' ? 8 : 3"
+            :zh="copy[`${f.base}Zh` as CopyKey]"
+            :en="copy[`${f.base}En` as CopyKey]"
+            @update:zh="copy[`${f.base}Zh` as CopyKey] = $event"
+            @update:en="copy[`${f.base}En` as CopyKey] = $event"
+          />
+        </FormSection>
 
-    <h3 class="settings-copy__title">連結與金額</h3>
-    <el-form-item label="俱樂部官網網址">
-      <el-input v-model="other.clubSiteUrl" placeholder="https://" inputmode="url" />
-      <div class="settings-copy__field-hint">成果回顧頁會用這個網址導回俱樂部官網；留空代表不顯示導回連結。請填完整網址（以 https:// 開頭）。</div>
-    </el-form-item>
-    <div class="settings-copy__pair">
-      <el-form-item label="單筆金額下限（元）">
-        <el-input-number v-model="other.defaultMinAmount" :min="1" :max="10000000" :step="100" style="width: 100%" />
-      </el-form-item>
-      <el-form-item label="單筆金額上限（元）">
-        <el-input-number v-model="other.defaultMaxAmount" :min="1" :max="10000000" :step="1000" style="width: 100%" />
-      </el-form-item>
-    </div>
-    <div class="settings-copy__field-hint settings-copy__field-hint--block">這是全站預設的單筆金額範圍；個別項目可以在項目設定裡另外指定自己的範圍。</div>
+        <FormSection title="連結與金額">
+          <FormField field="clubSiteUrl" label="俱樂部官網網址">
+            <el-input v-model="other.clubSiteUrl" placeholder="https://" inputmode="url" />
+            <div class="settings-copy__field-hint">成果回顧頁會用這個網址導回俱樂部官網；留空代表不顯示導回連結。請填完整網址（以 https:// 開頭）。</div>
+          </FormField>
+          <div class="settings-copy__pair">
+            <FormField field="defaultMinAmount" label="單筆金額下限（元）">
+              <el-input-number v-model="other.defaultMinAmount" :min="1" :max="10000000" :step="100" style="width: 100%" />
+            </FormField>
+            <FormField field="defaultMaxAmount" label="單筆金額上限（元）">
+              <el-input-number v-model="other.defaultMaxAmount" :min="1" :max="10000000" :step="1000" style="width: 100%" />
+            </FormField>
+          </div>
+          <div class="settings-copy__field-hint settings-copy__field-hint--block">這是全站預設的單筆金額範圍；個別項目可以在項目設定裡另外指定自己的範圍。</div>
+        </FormSection>
 
-    <h3 class="settings-copy__title">捐款徵信名單</h3>
-    <el-form-item>
-      <el-switch v-model="other.creditListEnabled" inline-prompt active-text="開放" inactive-text="關閉" aria-label="捐款徵信名單整站開關" />
-      <span class="settings-copy__switch-note">
-        {{ other.creditListEnabled ? '已開放：前台公開選擇具名捐款者的姓名（不顯示金額）。' : '已關閉：前台徵信名單頁顯示「目前未開放」，網站頁尾也不再放入口。' }}
-      </span>
-    </el-form-item>
-    <p class="settings-copy__hint">個別捐款可以到「捐款紀錄」的詳情裡設為不列入名單。</p>
+        <FormSection title="捐款徵信名單" hint="個別捐款可以到「捐款紀錄」的詳情裡設為不列入名單。">
+          <FormField field="creditListEnabled">
+            <el-switch v-model="other.creditListEnabled" inline-prompt active-text="開放" inactive-text="關閉" aria-label="捐款徵信名單整站開關" />
+            <span class="settings-copy__switch-note">
+              {{ other.creditListEnabled ? '已開放：前台公開選擇具名捐款者的姓名（不顯示金額）。' : '已關閉：前台徵信名單頁顯示「目前未開放」，網站頁尾也不再放入口。' }}
+            </span>
+          </FormField>
+        </FormSection>
+      </el-card>
+    </LangTabsBar>
 
-    <div v-if="canManage" class="settings-copy__actions">
+    <EditActionBar v-if="canManage" variant="inline">
+      <template #status>
+        <FormErrorStatus />
+        <span v-if="dirty && formErrors.count.value === 0" class="settings-copy__dirty">有尚未儲存的修改：{{ dirtyLabels }}</span>
+      </template>
       <el-button type="primary" :loading="saving" :disabled="!dirty" @click="save">儲存</el-button>
-      <span v-if="dirty" class="settings-copy__hint settings-copy__hint--inline">有尚未儲存的修改：{{ dirtyLabels }}</span>
-    </div>
+    </EditActionBar>
   </el-form>
 </template>
 
 <style scoped>
-.settings-copy {
-  max-width: 820px;
-}
-
 .settings-copy__alert {
   margin-bottom: var(--charity-admin-space-3);
 }
 
-.settings-copy__title {
-  font-size: 15px;
-  margin: var(--charity-admin-space-6) 0 var(--charity-admin-space-2);
-  padding-top: var(--charity-admin-space-3);
-  border-top: 1px solid var(--charity-admin-border);
-}
-
-.settings-copy__title:first-of-type {
-  margin-top: 0;
-  padding-top: 0;
-  border-top: none;
-}
-
 .settings-copy__pair {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0 var(--charity-admin-space-4);
 }
 
 @media (max-width: 767px) {
   .settings-copy__pair {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
-}
-
-.settings-copy__hint {
-  margin: 0 0 var(--charity-admin-space-3);
-  font-size: 13px;
-  color: var(--charity-admin-text-secondary);
-  line-height: 1.7;
-}
-
-.settings-copy__hint--inline {
-  margin: 0 0 0 var(--charity-admin-space-3);
 }
 
 .settings-copy__field-hint {
@@ -243,11 +247,7 @@ onBeforeRouteLeave(async () => {
 }
 
 .settings-copy__field-hint--block {
-  margin: calc(var(--charity-admin-space-2) * -1) 0 var(--charity-admin-space-3);
-}
-
-.settings-copy__untranslated {
-  margin-top: var(--charity-admin-space-1);
+  margin: 0;
 }
 
 .settings-copy__switch-note {
@@ -256,12 +256,8 @@ onBeforeRouteLeave(async () => {
   color: var(--charity-admin-text-secondary);
 }
 
-.settings-copy__actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  margin-top: var(--charity-admin-space-6);
-  padding-top: var(--charity-admin-space-4);
-  border-top: 1px solid var(--charity-admin-border);
+.settings-copy__dirty {
+  font-size: 13px;
+  color: var(--charity-admin-text-secondary);
 }
 </style>

@@ -20,15 +20,49 @@ export class AdminApiError extends Error {
   detail: string
   /** 回應本文（已解析的 JSON）。多數錯誤只有 detail；店家 CSV 匯入的 400 會帶逐列的錯誤清單，要從這裡取。 */
   body: unknown
-  constructor(status: number, message: string, body: unknown = null) {
+  /**
+   * 後端標到欄位的驗證錯誤：欄位鍵 → 第一則訊息（ProblemDetails 的 `errors`，鍵已正規化成前端欄位鍵，
+   * 如 `nameZh`、`charityRefCode`）。只在程式內對照用，**不得顯示在畫面上**。沒有欄位資訊時為 `undefined`。
+   * 僅 400／409／422 會帶；慈善端點目前多數驗證沒有帶鍵（見 docs/22 §3.10），此時一律退回頁首提示。
+   */
+  fieldErrors?: Record<string, string>
+  constructor(status: number, message: string, body: unknown = null, fieldErrors?: Record<string, string>) {
     super(message)
     this.status = status
     this.detail = message
     this.body = body
+    this.fieldErrors = fieldErrors
   }
 }
 
-interface ErrorBody { status?: number; title?: string; detail?: string; message?: string }
+interface ErrorBody {
+  status?: number
+  title?: string
+  detail?: string
+  message?: string
+  /** ProblemDetails 擴充（與 ValidationProblemDetails 相容）：欄位鍵 → 訊息陣列（或單一字串）。 */
+  errors?: Record<string, string[] | string>
+}
+
+const lowerFirst = (s: string) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s)
+
+/** 後端欄位鍵 → 前端欄位鍵：去掉 `$.` 前綴、每段首字小寫（相容 ASP.NET 模型繫結的 `NameZh`）。 */
+export function normalizeFieldKey(raw: string): string {
+  return raw.replace(/^\$\./, '').split('.').map(lowerFirst).join('.')
+}
+
+function parseFieldErrors(body: ErrorBody | null): Record<string, string> | undefined {
+  const raw = body?.errors
+  if (!raw || typeof raw !== 'object') return undefined
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    const msg = Array.isArray(v) ? v.find((m) => typeof m === 'string' && m.trim()) : typeof v === 'string' ? v : undefined
+    if (!msg || !msg.trim()) continue
+    const key = normalizeFieldKey(k)
+    if (!(key in out)) out[key] = msg
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
 
 async function readErrorBody(response: Response): Promise<ErrorBody | null> {
   const text = await response.text().catch(() => '')
@@ -42,7 +76,8 @@ async function readErrorBody(response: Response): Promise<ErrorBody | null> {
 
 function toError(status: number, body: ErrorBody | null): AdminApiError {
   const detail = body?.detail ?? body?.message
-  if (detail) return new AdminApiError(status, detail, body)
+  const fieldErrors = status === 400 || status === 409 || status === 422 ? parseFieldErrors(body) : undefined
+  if (detail) return new AdminApiError(status, detail, body, fieldErrors)
   const fallback: Record<number, string> = {
     400: '輸入的內容有誤，請檢查後再試一次。',
     401: '請先登入。',
@@ -54,7 +89,7 @@ function toError(status: number, body: ErrorBody | null): AdminApiError {
     501: '這個功能尚未提供。',
     503: '服務暫時無法使用，請稍後再試。',
   }
-  return new AdminApiError(status, fallback[status] ?? '伺服器發生未預期的錯誤，請稍後再試。', body)
+  return new AdminApiError(status, fallback[status] ?? '伺服器發生未預期的錯誤，請稍後再試。', body, fieldErrors)
 }
 
 let redirecting = false

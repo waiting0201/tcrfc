@@ -40,8 +40,8 @@ apps/admin-charity` 各一份）。
 
 ```
 src/
-  components/     共用元件（PageHeader、SemanticTag、MobileCardList、DangerConfirmDialog……）
-  composables/    useBreakpoint（三斷點：mobile <768／tablet 768–1023／desktop ≥1024）
+  components/     共用元件（PageHeader、SemanticTag、MobileCardList、DangerConfirmDialog、編輯頁共用元件組……）
+  composables/    useBreakpoint（三斷點：mobile <768／tablet 768–1023／desktop ≥1024）、useFormErrors／useLangScope／useBilingualField（編輯頁欄位錯誤與語言分頁）
   api/            對 apps/api 的呼叫（http.ts 底層、每個模組一支）
   auth/           登入工作階段與權限判斷
   data/           nav.ts（選單與各模組檢視權限）、fixtures.ts（已無人引用，見上）
@@ -62,8 +62,8 @@ src/
 ## 響應式
 
 三斷點完整支援（2026-09-22 使用者拍板，推翻 docs/22 §6 第 1 項「桌面優先」的暫定假設，
-**待補進 docs/22**）：手機側欄變 `el-drawer`、列表變卡片式（`MobileCardList.vue`）、雙語欄位變
-`el-tabs`（`BilingualShortField.vue`）。
+**待補進 docs/22**）：手機側欄變 `el-drawer`、列表變卡片式（`MobileCardList.vue`）、編輯頁兩欄在容器寬度不足 880px 時堆疊成單欄
+（2026-10-07 起雙語欄位改整頁一組語言分頁，不再是各欄位自己的 `el-tabs`，見下方「編輯頁共用元件」）。
 
 ⚠️ **平板寬度（768–1023px）的表格次要欄位一律用 `v-if="isDesktop"` 整欄不渲染，不要用 CSS
 `display:none` 隱藏儲存格**——`el-table` 的欄位總寬是照 `el-table-column` 的數量與
@@ -77,7 +77,7 @@ src/
 
 ```bash
 npm run build                       # vue-tsc -b && vite build
-npm run lint                        # fixtures 同步 + eslint + 禁用詞 + 對比度
+npm run lint                        # fixtures 同步 + eslint + 禁用詞 + 對比度 + CSS 變數 + 編輯頁版面規則
 docker build -t admin-charity-mockup -f Dockerfile .
 docker run -d --name t -p 18080:8080 admin-charity-mockup
 curl -I http://localhost:18080/                    # 確認 X-Robots-Tag: noindex, nofollow
@@ -92,6 +92,32 @@ docker rm -f t
 - [`docs/16-charity-schema.md`](../../docs/16-charity-schema.md) — 資料表定義
 - [`docs/17-deployment.md`](../../docs/17-deployment.md) §5 — 慈善平台獨立性的邊界與補償措施
 - [`docs/18-work-errors.md`](../../docs/18-work-errors.md) — E-29／E-30／E-31／E-32／E-33／E-34
+
+## 編輯頁共用元件（2026-10-07，S2-20／S2-22）
+
+規則全文見 [`docs/21`](../../docs/21-admin-ui.md) §3、慈善後台與主後台的差異見 [`docs/22`](../../docs/22-charity-ui.md) §3.10。
+元件是從 `apps/admin` **複製改寫**進本專案（兩個後台不共用程式碼），淺色 token、**沒有過渡退路**，改它們不影響也不依賴主後台。
+
+| 元件／函式 | 用途 |
+|---|---|
+| `EditLayout`（`#main`／`#aside`） | 兩欄版面，**容器寬度 ≥ 880px** 才兩欄，不足時主欄在上、側欄在下；沒有 `#aside` 是單欄。對話框、`*Panel` 不用 |
+| `FormSection`（`title?`、`hint?`） | 卡片內的分段小標，相鄰分段自動畫分隔線。**不得再開新的 `el-card` 分組** |
+| `LangTabsBar`（`variant`＝`page｜bare`） | **整頁一組**「中文／英文」語言分頁，包住整個編輯區並 provide 語言範圍。`page` 在 `el-main` 內 sticky 貼頂；`bare` 給對話框與頁籤內的面板（不 sticky）。每頁／每個對話框／每個面板恰好一個，不得巢狀 |
+| `BilingualShortField`／`BilingualTextareaField`（`field`、`maxlength?`、`disabled?`、`hint?`） | `field="name"` → 錯誤鍵 `nameZh`／`nameEn`。**必須在 `LangTabsBar` 內**，否則丟錯；舊版並排畫面已刪除 |
+| `LangPane`（`lang`、`field?`、`untranslated?`） | 自訂雙語內容（如項目說明的區塊編輯器），放在 `LangTabsBar` 內 |
+| `FormField`（`field`、`label`、`required`、`lang?`、`reveal?`） | 包 `el-form-item`：2px 危險色外框、`⚠`＋訊息（`role="alert"`）、`aria-invalid`／`aria-describedby`。**輸入或變更（含 `el-select`、`el-date-picker`、`el-switch`、`ImageUploader`）即清該鍵錯誤**，各頁不必自己呼叫 `clear`（內部元件 `FormFieldChangeTap` 旁聽插槽內元件的 `update:*` 事件） |
+| `provideFormErrors()`／`useFormErrors()` | `replaceAll(record): boolean`、`clear`、`focusFirst()`（最前一處 → 切語言 → 捲到畫面中央 → 聚焦）、`applyApiError(err): boolean`（有鍵對不到回 `false`，退回頁首提示）。**沒有 provide 就丟錯** |
+| `EditActionBar`（`variant`＝`sticky｜inline`）＋`FormErrorStatus` | 底部操作列，`#status` 放「有 N 處需要修正」＋「前往下一處」。`sticky` 貼齊捲動容器底部（不是 `fixed`，因為側欄寬度會變）；`inline` 給頁籤內的面板 |
+| `api/http.ts` | `AdminApiError.fieldErrors`：解析 ProblemDetails `errors`（400／409／422，每鍵取第一則）。後端慈善端點目前多數沒帶鍵，詳見 docs/22 §3.10 |
+
+**每頁最多三張卡**：`#main` 恰好一張 `el-card`（不設標題）、`#aside` 最多兩張（「基本設定」＋「發布設定」，沒有就不放）；上傳元件一律放右側欄。
+`npm run lint:edit-layout` 檢查：雙語元件祖先須有 `LangTabsBar`、須有 `field`、每檔最多一個 page 變體且不得巢狀、`*EditView` 的上傳須在 `#aside`、
+`EditLayout` 卡片張數、禁止手寫「中文／英文」`el-tab-pane`、禁止 `formError.value = '字串'` 與 `slugError`。掃描 `src/views` 與 `src/components`，沒有例外清單。
+
+頁面寫法範例見 `src/views/stores/StoreEditView.vue`（兩欄）、`src/views/projects/ProjectContentView.vue`（單欄＋`LangPane`）、
+`src/components/EmailTemplateForm.vue`（面板內、`bare`＋`inline`）。驗證寫成 `validate(): Record<string, string>`（一次檢查全部），
+`formErrors.replaceAll(validate())` 有錯就 `focusFirst()` 並中止送出；送出失敗 `formErrors.applyApiError(error)` 對不到才設 `formError`（頁首提示）。
+**欄位鍵只在程式內對照，絕不顯示在畫面上。**
 
 ## CH-3 串接（2026-10-01）
 
