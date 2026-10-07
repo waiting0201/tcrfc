@@ -74,10 +74,15 @@ echo
 echo "==> 套用到 ${TARGET_DATABASE}"
 
 # -f 65001：以 UTF-8 讀取輸入檔，種子資料含中文姓名／文案，不指定會被系統預設 codepage 誤譯。
-docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
-  -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
+# 🔴 不用 stdin 串流（`docker exec -i … < 檔案`）：sqlcmd 對管線分塊讀取，多位元組字元跨塊會被切成 U+FFFD
+# （E-296，主站種子已實際發生）。改 docker cp 進容器再 -i 讀檔；密碼走容器環境變數，不帶在指令列。
+CONTAINER_SQL="/tmp/tcrfc-charity-seed-$$.sql"
+trap 'docker exec -u 0 "${CONTAINER_ID}" rm -f "${CONTAINER_SQL}" >/dev/null 2>&1 || true' EXIT
+docker cp "${OUT_FILE}" "${CONTAINER_ID}:${CONTAINER_SQL}"
+docker exec -e SQLCMDPASSWORD="${MSSQL_DEV_SA_PASSWORD}" "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -C \
   -d "${TARGET_DATABASE}" -f 65001 -b \
-  < "${OUT_FILE}"
+  -i "${CONTAINER_SQL}"
 
 echo
 echo "完成。"

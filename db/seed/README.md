@@ -105,6 +105,13 @@ B-5 已於 2026-10-05 拍板：藍鯨英文簡稱 `Taichung Blue Whale`、全名
   - ⚠️ **本機（Apple Silicon）演練踩雷**：`deploy/prod-seed-import.sh import` 內用的 `mssql-tools`（sqlcmd 13.1，linux/amd64 在 arm64 上以模擬跑）讀到區段 61 的 `UPDATE … FROM` 批次時會吐 `SqlState 24000, Invalid cursor state`，但**結束碼仍是 0**、整個交易隨連線關閉**靜默回滾**（腳本印「完成」，表卻是空的；改動前的 HEAD 種子檔同樣重現）。演練時改用 `mssql-tools18` 的 sqlcmd（`docker exec -i sqlserver /opt/mssql-tools18/bin/sqlcmd … -b -f 65001 < club-content-seed.sql`，`IMPORT_BATCH`／`CHARITY_DOMAIN` 以環境變數傳入）匯入，再以腳本的 `record-manifest`／`verify` 完成。VM（x86）是否同樣踩到未驗證。
 - **API 測試**：`AppContractBatch4Tests`（俱樂部簡稱）、`AppContractBatch5Tests`（後台簡稱讀寫）、`LocalizationFallbackTests`（俱樂部名稱）原本把「藍鯨沒有英文」當前提，已改為新定案值斷言；回退行為改經後台 `PUT /admin/clubs/{id}`（`en = null` 即刪列）自建並於 `finally` 還原。⚠️ 後台 PUT 的 `en = null` 會**刪掉英文列**，測試改動藍鯨時必須把原英文內容帶回。
 
+## 🔴 灌種子一律「docker cp ＋ sqlcmd -i」，不用 stdin 串流（2026-10-07，E-296）
+
+`apply-seed.sh`（與 `apply-charity-seed.sh`）原本用 `docker exec -i … sqlcmd < 檔案` 餵 SQL。sqlcmd 對管線分塊讀取，**3 位元組的中文字剛好跨塊就會被切成兩個 U+FFFD**（實例：`achievements_i18n` 的「示範友誼賽」→「示範��誼賽」）。斷點隨時序而變，多數次正常、偶爾壞一處；而種子的冪等判斷是字串比對，壞掉的列比對不到，下一次就重複 INSERT，在區段 39 以 `PK_achievements` 重複中止，其後區段（會籍方案、`M900001` 起會員、權益、藍鯨英文回填、區段 60）全不會灌。產生器輸出的 SQL 是正確的。
+
+現在的做法：先 `docker cp` 進容器、`sqlcmd -i` 讀檔（密碼走容器環境變數 `SQLCMDPASSWORD`，不在指令列），套完後**掃全庫 nvarchar 欄位，含 U+FFFD 即 exit 1**。若看到這個錯誤：先 `SELECT` 列出髒列、確認是亂碼，刪掉髒列（主列連同子列；只有字串被切壞的非主鍵欄位直接 `UPDATE` 成產生器的原字串）後重跑，冪等補回。
+
+
 ## 這個目錄有什麼
 
 | 檔案 | 用途 |

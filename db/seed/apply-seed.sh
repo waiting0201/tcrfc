@@ -74,10 +74,34 @@ echo
 echo "==> 套用到 ${TARGET_DATABASE}"
 
 # -f 65001：以 UTF-8 讀取輸入檔，種子資料含中文姓名／標題，不指定會被系統預設 codepage 誤譯。
-docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
-  -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
+#
+# 🔴 不可用 `docker exec -i ... < 檔案`（stdin 串流）餵檔：stdin 是管線，sqlcmd 以固定大小分塊讀取，
+# **多位元組 UTF-8 字元剛好跨塊時會被拆成兩半、各自變成 U+FFFD**（實例：「示範友誼賽」的「友」
+# 變成兩個 �，冪等判斷比不到字串而重複 INSERT，種子在區段 39 以 PK 重複中止；E-296）。
+# 斷點隨管線時序而變，同一檔不同次跑可能壞在不同列。改成先 docker cp 進容器、再用 -i 讀檔案。
+# 密碼改走容器環境變數 SQLCMDPASSWORD，不帶在指令列。
+CONTAINER_SQL="/tmp/tcrfc-seed-$$.sql"
+trap 'docker exec -u 0 "${CONTAINER_ID}" rm -f "${CONTAINER_SQL}" >/dev/null 2>&1 || true' EXIT
+docker cp "${OUT_FILE}" "${CONTAINER_ID}:${CONTAINER_SQL}"
+docker exec -e SQLCMDPASSWORD="${MSSQL_DEV_SA_PASSWORD}" "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -C \
   -d "${TARGET_DATABASE}" -f 65001 -b \
-  < "${OUT_FILE}"
+  -i "${CONTAINER_SQL}"
+
+# 套完後掃一遍：任何 nvarchar 欄位含 U+FFFD 代表亂碼寫入，直接失敗不放行。
+BAD="$(docker exec -e SQLCMDPASSWORD="${MSSQL_DEV_SA_PASSWORD}" "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
+  -S localhost -U sa -C -d "${TARGET_DATABASE}" -f 65001 -b -h -1 -W -Q "SET NOCOUNT ON;
+DECLARE @s nvarchar(max)=N'';
+SELECT @s += N'SELECT N''' + t.name + N'.' + c.name + N''' FROM [' + t.name + N'] WHERE CHARINDEX(NCHAR(65533) COLLATE Latin1_General_BIN2, [' + c.name + N'] COLLATE Latin1_General_BIN2) > 0 UNION ALL '
+FROM sys.columns c JOIN sys.tables t ON t.object_id = c.object_id JOIN sys.types ty ON ty.user_type_id = c.user_type_id
+WHERE ty.name IN ('nvarchar','nchar') AND c.max_length <> 0;
+SET @s += N'SELECT N''x'' WHERE 1 = 0';
+EXEC sp_executesql @s;")"
+if [[ -n "${BAD//[[:space:]]/}" ]]; then
+  echo "錯誤：下列欄位含 U+FFFD（亂碼）：" >&2
+  echo "${BAD}" >&2
+  exit 1
+fi
 
 echo
 echo "完成。"
