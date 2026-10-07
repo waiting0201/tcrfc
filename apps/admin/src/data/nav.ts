@@ -34,7 +34,8 @@ export const NAV_GROUPS: NavGroup[] = [
         // 「S1-12」「S1-12a」「S1-12b」「S1-12c」各節「權限碼」），比照 J 系統管理整組的既有做法。
         children: [
           { code: 'H1', label: '全站設定', path: '/seo/settings', implemented: true },
-          { code: 'H2', label: '301 轉址', path: '/seo/redirects', implemented: true },
+          // 301 轉址：側欄隱藏（2026-10-07 使用者指示）。路由、畫面與 API 保留，上線切換舊網址時直接進 /seo/redirects
+          { code: 'H2', label: '301 轉址', path: '/seo/redirects', implemented: true, hidden: true },
           { code: 'H3', label: '孤立頁面偵測', path: '/seo/orphan-pages', implemented: true },
           { code: 'H4', label: 'AI 摘要資料', path: '/seo/llms-content', implemented: true },
           { code: 'H5', label: 'AI 爬蟲授權', path: '/seo/crawler-settings', implemented: true },

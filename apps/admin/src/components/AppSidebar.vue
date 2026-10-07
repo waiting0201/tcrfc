@@ -187,6 +187,7 @@ const visibleGroups = computed<NavGroup[]>(() => {
       .map((mod) => {
         if (!mod.children) return mod
         const children = mod.children.filter((child) => {
+          if (child.hidden) return false
           const check = PATH_VISIBILITY[child.path] ?? CHILD_VISIBILITY[child.code]
           return isSuperAdmin || !check || check()
         })

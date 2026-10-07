@@ -12,6 +12,8 @@ export interface NavChild {
   path: string
   /** 本階段是否已經真的做出功能（false＝顯示「尚未建置」佔位頁，不是死連結） */
   implemented: boolean
+  /** true＝不出現在側欄（路由與畫面保留，直接輸入網址仍可進入）；系統管理員也看不到 */
+  hidden?: boolean
 }
 
 export interface NavModule {
