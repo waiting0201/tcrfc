@@ -66,11 +66,11 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
         var username = request.Username?.Trim() ?? string.Empty;
         ValidateUsername(username);
         ValidateDisplayName(request.DisplayName);
-        AdminAuthService.ValidatePasswordPolicy(request.InitialPassword ?? string.Empty, username);
+        AdminAuthService.ValidatePasswordPolicy(request.InitialPassword ?? string.Empty, username, "initialPassword");
 
         if (await db.AdminUsers.AsNoTracking().AnyAsync(u => u.Username == username, ct))
         {
-            throw new CharityConflictException("帳號重複", $"帳號「{username}」已經被使用，請換一個。");
+            throw new CharityConflictException("帳號重複", $"帳號「{username}」已經被使用，請換一個。", "username");
         }
 
         var roles = await ResolveRolesAsync(request.RoleCodes, ct);
@@ -115,7 +115,7 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
         // 🔴 把最後一位啟用中的系統管理員降級，會讓系統歸零到沒有人能做系統管理（包含復原這個誤操作）。
         if (user.IsSuperAdmin && !request.IsSuperAdmin && user.Status == "active")
         {
-            await EnsureNotLastActiveSuperAdminAsync(user.Id, ct);
+            await EnsureNotLastActiveSuperAdminAsync(user.Id, ct, "isSuperAdmin");
         }
 
         var roles = await ResolveRolesAsync(request.RoleCodes, ct);
@@ -143,7 +143,7 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
     {
         if (status is not ("active" or "disabled"))
         {
-            throw new AdminValidationException("帳號狀態只能是「active」或「disabled」。");
+            throw new AdminValidationException("帳號狀態只能是「active」或「disabled」。", "status");
         }
 
         var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == id, ct);
@@ -181,7 +181,7 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
             return null;
         }
 
-        AdminAuthService.ValidatePasswordPolicy(newPassword ?? string.Empty, user.Username);
+        AdminAuthService.ValidatePasswordPolicy(newPassword ?? string.Empty, user.Username, "newPassword");
 
         user.PasswordHash = PasswordHasher.Hash(newPassword!);
         user.MustChangePassword = true;
@@ -232,13 +232,13 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
         }
     }
 
-    private async Task EnsureNotLastActiveSuperAdminAsync(Guid excludeAdminUserId, CancellationToken ct)
+    private async Task EnsureNotLastActiveSuperAdminAsync(Guid excludeAdminUserId, CancellationToken ct, string? field = null)
     {
         var others = await db.AdminUsers.AsNoTracking()
             .CountAsync(u => u.Id != excludeAdminUserId && u.IsSuperAdmin && u.Status == "active", ct);
         if (others == 0)
         {
-            throw new CharityConflictException("操作被擋下", "系統至少要保留一個啟用中的最高管理權限帳號，這個操作會讓系統歸零，已被擋下。");
+            throw new CharityConflictException("操作被擋下", "系統至少要保留一個啟用中的最高管理權限帳號，這個操作會讓系統歸零，已被擋下。", field);
         }
     }
 
@@ -254,7 +254,7 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
         if (roles.Count != codes.Count)
         {
             var missing = codes.Except(roles.Select(r => r.Code));
-            throw new AdminValidationException($"找不到角色代碼：{string.Join("、", missing)}。");
+            throw new AdminValidationException($"找不到角色代碼：{string.Join("、", missing)}。", "roleCodes");
         }
 
         return roles;
@@ -264,15 +264,15 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
     {
         if (string.IsNullOrWhiteSpace(username))
         {
-            throw new AdminValidationException("帳號為必填欄位。");
+            throw new AdminValidationException("帳號為必填欄位。", "username");
         }
         if (username.Length > 64)
         {
-            throw new AdminValidationException("帳號長度不能超過 64 個字元。");
+            throw new AdminValidationException("帳號長度不能超過 64 個字元。", "username");
         }
         if (username.Any(char.IsWhiteSpace))
         {
-            throw new AdminValidationException("帳號不能包含空白字元。");
+            throw new AdminValidationException("帳號不能包含空白字元。", "username");
         }
     }
 
@@ -280,11 +280,11 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
     {
         if (string.IsNullOrWhiteSpace(displayName))
         {
-            throw new AdminValidationException("顯示名稱為必填欄位。");
+            throw new AdminValidationException("顯示名稱為必填欄位。", "displayName");
         }
         if (displayName.Trim().Length > 100)
         {
-            throw new AdminValidationException("顯示名稱長度不能超過 100 個字元。");
+            throw new AdminValidationException("顯示名稱長度不能超過 100 個字元。", "displayName");
         }
     }
 

@@ -1,3 +1,5 @@
+using Tcrfc.Api.Common;
+
 namespace Tcrfc.Api.CharityPlatform.Common;
 
 /// <summary>
@@ -6,9 +8,13 @@ namespace Tcrfc.Api.CharityPlatform.Common;
 /// ⛔ 訊息一律是給使用者看的日常中文，不得含資料表名、欄位名、SQL、堆疊或內部識別碼
 /// （規劃書 §4.0、安全清單「API 回應不洩露內部實作細節」）。
 /// 輸入驗證失敗沿用既有的 <c>AdminValidationException</c>（400），不另外發明。
+/// 實作 <see cref="IFieldApiException"/>：建構時帶 <paramref name="field"/>（只有 400／409 會被輸出到 <c>errors</c>，
+/// 見 <c>ApiExceptionHandler</c>），讓後台表單把衝突訊息（帳號重複、角色代碼重複…）標到欄位；不帶就沒有 <c>errors</c>。
 /// </summary>
-public class CharityApiException(int statusCode, string title, string message) : Exception(message)
+public class CharityApiException(int statusCode, string title, string message, string? field = null) : Exception(message), IFieldApiException
 {
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = FieldKey.Single(field, message);
+
     public int StatusCode { get; } = statusCode;
 
     public string Title { get; } = title;
@@ -19,8 +25,8 @@ public sealed class CharityNotFoundException(string message)
     : CharityApiException(StatusCodes.Status404NotFound, "找不到資料", message);
 
 /// <summary>與目前狀態衝突：重複的代碼、狀態不允許這個操作、冪等鍵被拿去送不同內容等。409。</summary>
-public sealed class CharityConflictException(string title, string message)
-    : CharityApiException(StatusCodes.Status409Conflict, title, message);
+public sealed class CharityConflictException(string title, string message, string? field = null)
+    : CharityApiException(StatusCodes.Status409Conflict, title, message, field);
 
 /// <summary>語意上合法但目前不能做（例如項目已下架、金額超出範圍）。422。</summary>
 public sealed class CharityUnprocessableException(string message)

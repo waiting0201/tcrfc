@@ -62,7 +62,7 @@ public sealed class CharityAdminRolesService(CharityDbContext db, CharityAuditLo
 
         if (await db.AdminRoles.AsNoTracking().AnyAsync(r => r.Code == request.Code, ct))
         {
-            throw new CharityConflictException("角色代碼重複", $"角色代碼「{request.Code}」已經被使用，請換一個。");
+            throw new CharityConflictException("角色代碼重複", $"角色代碼「{request.Code}」已經被使用，請換一個。", "code");
         }
 
         var now = DateTime.UtcNow;
@@ -161,7 +161,7 @@ public sealed class CharityAdminRolesService(CharityDbContext db, CharityAuditLo
         {
             if (!ValidScopeTypes.Contains(input.ScopeType))
             {
-                throw new AdminValidationException($"權限範圍「{input.ScopeType}」不合法，只能是：{string.Join("、", ValidScopeTypes)}。");
+                throw new AdminValidationException($"權限範圍「{input.ScopeType}」不合法，只能是：{string.Join("、", ValidScopeTypes)}。", "permissions");
             }
         }
 
@@ -195,15 +195,15 @@ public sealed class CharityAdminRolesService(CharityDbContext db, CharityAuditLo
     {
         if (string.IsNullOrWhiteSpace(code))
         {
-            throw new AdminValidationException("角色代碼為必填欄位。");
+            throw new AdminValidationException("角色代碼為必填欄位。", "code");
         }
         if (code.Length > 64)
         {
-            throw new AdminValidationException("角色代碼長度不能超過 64 個字元。");
+            throw new AdminValidationException("角色代碼長度不能超過 64 個字元。", "code");
         }
         if (!code.All(c => char.IsAsciiLetterLower(c) || char.IsAsciiDigit(c) || c == '_'))
         {
-            throw new AdminValidationException("角色代碼只能使用小寫英文字母、數字與底線（_）組成。");
+            throw new AdminValidationException("角色代碼只能使用小寫英文字母、數字與底線（_）組成。", "code");
         }
     }
 
@@ -211,11 +211,11 @@ public sealed class CharityAdminRolesService(CharityDbContext db, CharityAuditLo
     {
         if (string.IsNullOrWhiteSpace(nameZh))
         {
-            throw new AdminValidationException("角色名稱為必填欄位。");
+            throw new AdminValidationException("角色名稱為必填欄位。", "nameZh");
         }
         if (nameZh.Trim().Length > 50)
         {
-            throw new AdminValidationException("角色名稱長度不能超過 50 個字元。");
+            throw new AdminValidationException("角色名稱長度不能超過 50 個字元。", "nameZh");
         }
     }
 
@@ -234,8 +234,8 @@ public sealed class CharityAdminRolesService(CharityDbContext db, CharityAuditLo
 
 /// <summary>送出的權限碼有查無資料者。400。🔴 只回報筆數，不內插原始權限碼（規劃書 §4.0、E-52）。</summary>
 public sealed class CharityRolePermissionUnknownException(IReadOnlyList<string> codes)
-    : CharityApiException(StatusCodes.Status400BadRequest, "輸入內容有誤", $"有 {codes.Count} 項權限查無資料，請重新整理權限清單後再試一次。");
+    : CharityApiException(StatusCodes.Status400BadRequest, "輸入內容有誤", $"有 {codes.Count} 項權限查無資料，請重新整理權限清單後再試一次。", "permissions");
 
 /// <summary>送出的權限碼含 <c>sysadmin_only</c> 者（不透過角色指派）。400。只回報筆數。</summary>
 public sealed class CharityRolePermissionSysadminOnlyException(IReadOnlyList<string> codes)
-    : CharityApiException(StatusCodes.Status400BadRequest, "輸入內容有誤", $"有 {codes.Count} 項權限僅供系統管理員使用，不透過角色指派，請重新選擇。");
+    : CharityApiException(StatusCodes.Status400BadRequest, "輸入內容有誤", $"有 {codes.Count} 項權限僅供系統管理員使用，不透過角色指派，請重新選擇。", "permissions");

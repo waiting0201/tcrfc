@@ -91,7 +91,7 @@ public sealed class CharityProjectsAdminService(
         var slug = v.Slug ?? AdminInput.GenerateSlug("project", v.NameEn);
         if (await db.DonationProjects.AnyAsync(p => p.ProjectSlug == slug, cancellationToken))
         {
-            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經有其他項目使用，請換一個。");
+            throw new AdminConflictException("網址名稱重複", $"網址名稱「{slug}」已經有其他項目使用，請換一個。", "slug");
         }
 
         var now = DateTime.UtcNow;
@@ -152,7 +152,7 @@ public sealed class CharityProjectsAdminService(
         {
             if (await db.DonationProjects.AnyAsync(p => p.ProjectSlug == v.Slug && p.Id != id, cancellationToken))
             {
-                throw new AdminConflictException("網址名稱重複", $"網址名稱「{v.Slug}」已經有其他項目使用，請換一個。");
+                throw new AdminConflictException("網址名稱重複", $"網址名稱「{v.Slug}」已經有其他項目使用，請換一個。", "slug");
             }
 
             project.ProjectSlug = v.Slug;
@@ -206,7 +206,7 @@ public sealed class CharityProjectsAdminService(
         }
 
         var changed = new List<string>();
-        string? ApplyText(string? input, string label, int max, string? current, string field, string locale, out bool touched)
+        string? ApplyText(string? input, string label, int max, string? current, string field, string locale, string key, out bool touched)
         {
             touched = input is not null;
             if (input is null)
@@ -217,14 +217,14 @@ public sealed class CharityProjectsAdminService(
             var value = input.Trim();
             if (value.Length > max)
             {
-                throw new AdminValidationException($"{label}不可超過 {max:N0} 個字。");
+                throw new AdminValidationException($"{label}不可超過 {max:N0} 個字。", key);
             }
 
             changed.Add($"{field}（{locale}）");
             return value.Length == 0 ? null : value;
         }
 
-        string? ApplyJson(JsonElement? input, string label, string? current, string field, string locale, out bool touched)
+        string? ApplyJson(JsonElement? input, string label, string? current, string field, string locale, string key, out bool touched)
         {
             touched = input is not null && input.Value.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined);
             if (!touched)
@@ -235,17 +235,17 @@ public sealed class CharityProjectsAdminService(
             var isEmpty = (input!.Value.ValueKind == JsonValueKind.Object && !input.Value.EnumerateObject().Any())
                           || (input.Value.ValueKind == JsonValueKind.Array && input.Value.GetArrayLength() == 0);
             changed.Add($"{field}（{locale}）");
-            return isEmpty ? null : JsonText(input, label);
+            return isEmpty ? null : JsonText(input, label, key);
         }
 
-        zh.OneLiner = ApplyText(request.OneLinerZh, "一句話說明（繁中）", 255, zh.OneLiner, "一句話說明", "繁中", out _);
-        zh.Description = ApplyJson(request.DescriptionZh, "說明內文（繁中）", zh.Description, "說明內文", "繁中", out _);
-        zh.FundUsage = ApplyText(request.FundUsageZh, "款項用途（繁中）", 5_000, zh.FundUsage, "款項用途", "繁中", out _);
+        zh.OneLiner = ApplyText(request.OneLinerZh, "一句話說明（繁中）", 255, zh.OneLiner, "一句話說明", "繁中", "oneLinerZh", out _);
+        zh.Description = ApplyJson(request.DescriptionZh, "說明內文（繁中）", zh.Description, "說明內文", "繁中", "descriptionZh", out _);
+        zh.FundUsage = ApplyText(request.FundUsageZh, "款項用途（繁中）", 5_000, zh.FundUsage, "款項用途", "繁中", "fundUsageZh", out _);
 
         var en = project.DonationProjectsI18ns.FirstOrDefault(i => i.Locale == "en");
-        var enOneLiner = ApplyText(request.OneLinerEn, "一句話說明（英文）", 255, en?.OneLiner, "一句話說明", "英文", out var t1);
-        var enDescription = ApplyJson(request.DescriptionEn, "說明內文（英文）", en?.Description, "說明內文", "英文", out var t2);
-        var enFundUsage = ApplyText(request.FundUsageEn, "款項用途（英文）", 5_000, en?.FundUsage, "款項用途", "英文", out var t3);
+        var enOneLiner = ApplyText(request.OneLinerEn, "一句話說明（英文）", 255, en?.OneLiner, "一句話說明", "英文", "oneLinerEn", out var t1);
+        var enDescription = ApplyJson(request.DescriptionEn, "說明內文（英文）", en?.Description, "說明內文", "英文", "descriptionEn", out var t2);
+        var enFundUsage = ApplyText(request.FundUsageEn, "款項用途（英文）", 5_000, en?.FundUsage, "款項用途", "英文", "fundUsageEn", out var t3);
         if (t1 || t2 || t3)
         {
             if (en is null)
@@ -377,7 +377,7 @@ public sealed class CharityProjectsAdminService(
         if (projectPct + maxStorePct > 100m)
         {
             throw new AdminValidationException(
-                $"項目分潤 {projectPct}% 加上店家分潤（合作中店家目前最高 {maxStorePct}%）超過 100%，請調低其中一個。");
+                $"項目分潤 {projectPct}% 加上店家分潤（合作中店家目前最高 {maxStorePct}%）超過 100%，請調低其中一個。", "projectSharePct");
         }
     }
 
@@ -391,22 +391,22 @@ public sealed class CharityProjectsAdminService(
         var invoiceMode = r.InvoiceMode;
         if (invoiceMode is null || !InvoiceModes.All.Contains(invoiceMode))
         {
-            throw new AdminValidationException("請選擇憑證模式（電子發票或捐贈收據）。");
+            throw new AdminValidationException("請選擇憑證模式（電子發票或捐贈收據）。", "invoiceMode");
         }
 
         if (r.MinAmount is <= 0 || r.MaxAmount is <= 0)
         {
-            throw new AdminValidationException("單筆金額的下限與上限都必須大於 0。");
+            throw new AdminValidationException("單筆金額的下限與上限都必須大於 0。", r.MinAmount is <= 0 ? "minAmount" : "maxAmount");
         }
 
         if (r.MinAmount is { } min && r.MaxAmount is { } max && min > max)
         {
-            throw new AdminValidationException("單筆金額下限不可大於上限。");
+            throw new AdminValidationException("單筆金額下限不可大於上限。", "minAmount");
         }
 
         if (r.ProjectSharePct is { } pct)
         {
-            CharityStoresAdminService.ValidatePct(pct, "項目分潤");
+            CharityStoresAdminService.ValidatePct(pct, "項目分潤", "projectSharePct");
         }
 
         IReadOnlyList<int>? options = null;
@@ -414,20 +414,20 @@ public sealed class CharityProjectsAdminService(
         {
             if (r.AmountOptions.Count > MaxAmountOptions)
             {
-                throw new AdminValidationException($"金額選項最多 {MaxAmountOptions} 組。");
+                throw new AdminValidationException($"金額選項最多 {MaxAmountOptions} 組。", "amountOptions");
             }
 
             var distinct = r.AmountOptions.Distinct().OrderBy(a => a).ToList();
             if (distinct.Count != r.AmountOptions.Count)
             {
-                throw new AdminValidationException("金額選項不可重複。");
+                throw new AdminValidationException("金額選項不可重複。", "amountOptions");
             }
 
             foreach (var amount in distinct)
             {
                 if (amount <= 0 || (r.MinAmount is { } mn && amount < mn) || (r.MaxAmount is { } mx && amount > mx))
                 {
-                    throw new AdminValidationException("每組金額選項都必須大於 0，且落在單筆金額的下限與上限之內。");
+                    throw new AdminValidationException("每組金額選項都必須大於 0，且落在單筆金額的下限與上限之內。", "amountOptions");
                 }
             }
 
@@ -442,21 +442,21 @@ public sealed class CharityProjectsAdminService(
 
         return new Validated(
             slug,
-            AdminInput.RequireText(r.NameZh, "項目名稱（繁中）", 128),
-            AdminInput.OptionalText(r.NameEn, "項目名稱（英文）", 128),
-            AdminInput.OptionalText(r.OneLinerZh, "一句話說明（繁中）", 255),
-            AdminInput.OptionalText(r.OneLinerEn, "一句話說明（英文）", 255),
-            JsonText(r.DescriptionZh, "說明內文（繁中）"),
-            JsonText(r.DescriptionEn, "說明內文（英文）"),
+            AdminInput.RequireText(r.NameZh, "項目名稱（繁中）", 128, "nameZh"),
+            AdminInput.OptionalText(r.NameEn, "項目名稱（英文）", 128, "nameEn"),
+            AdminInput.OptionalText(r.OneLinerZh, "一句話說明（繁中）", 255, "oneLinerZh"),
+            AdminInput.OptionalText(r.OneLinerEn, "一句話說明（英文）", 255, "oneLinerEn"),
+            JsonText(r.DescriptionZh, "說明內文（繁中）", "descriptionZh"),
+            JsonText(r.DescriptionEn, "說明內文（英文）", "descriptionEn"),
             BlankToNull(r.FundUsageZh), BlankToNull(r.FundUsageEn),
-            AdminInput.OptionalText(r.CoverAltZh, "封面替代文字（繁中）", 255),
-            AdminInput.OptionalText(r.CoverAltEn, "封面替代文字（英文）", 255),
+            AdminInput.OptionalText(r.CoverAltZh, "封面替代文字（繁中）", 255, "coverAltZh"),
+            AdminInput.OptionalText(r.CoverAltEn, "封面替代文字（英文）", 255, "coverAltEn"),
             r.MinAmount, r.MaxAmount, options, r.ProjectSharePct, invoiceMode);
     }
 
     private static string? BlankToNull(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 
-    private static string? JsonText(JsonElement? element, string label)
+    private static string? JsonText(JsonElement? element, string label, string key)
     {
         if (element is null || element.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
         {
@@ -466,13 +466,13 @@ public sealed class CharityProjectsAdminService(
         if (element.Value.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
         {
             // 原生 json 欄位只收物件或陣列（docs/18 E-111）
-            throw new AdminValidationException($"{label}不是合法的區塊內容格式，請確認編輯器的輸出。");
+            throw new AdminValidationException($"{label}不是合法的區塊內容格式，請確認編輯器的輸出。", key);
         }
 
         var text = element.Value.GetRawText();
         if (System.Text.Encoding.UTF8.GetByteCount(text) > MaxDescriptionBytes)
         {
-            throw new AdminValidationException($"{label}太長，請精簡內容。");
+            throw new AdminValidationException($"{label}太長，請精簡內容。", key);
         }
 
         return text;
@@ -562,11 +562,11 @@ public sealed class CharityProjectsAdminService(
                 .Where(p => p.RefCode == programCode)
                 .Select(p => new { p.Name, CharityCode = p.CharityRef.RefCode, CharityName = p.CharityRef.Name })
                 .SingleOrDefaultAsync(cancellationToken)
-                ?? throw new AdminValidationException("找不到所選的慈善計畫，請重新選擇。");
+                ?? throw new AdminValidationException("找不到所選的慈善計畫，請重新選擇。", "charityProgramRefCode");
 
             if (charityCode is not null && charityCode != program.CharityCode)
             {
-                throw new AdminValidationException("所選的慈善計畫不屬於所選的受贈公益團體。");
+                throw new AdminValidationException("所選的慈善計畫不屬於所選的受贈公益團體。", "charityProgramRefCode");
             }
 
             charityCode = program.CharityCode;
@@ -576,7 +576,7 @@ public sealed class CharityProjectsAdminService(
         else if (charityCode is not null)
         {
             charityName = await db.CharityRefs.AsNoTracking().Where(c => c.RefCode == charityCode).Select(c => c.Name).SingleOrDefaultAsync(cancellationToken)
-                ?? throw new AdminValidationException("找不到所選的受贈公益團體，請重新選擇。");
+                ?? throw new AdminValidationException("找不到所選的受贈公益團體，請重新選擇。", "charityRefCode");
         }
 
         return new Refs(charityCode, charityName, programCode, programName);
@@ -598,7 +598,7 @@ public sealed class CharityProjectsAdminService(
         }
         catch (DbUpdateException ex) when (ex.InnerException is SqlException { Number: 2601 or 2627 })
         {
-            throw new AdminConflictException("網址名稱重複", "這個網址名稱剛剛被其他項目使用了，請換一個再儲存。");
+            throw new AdminConflictException("網址名稱重複", "這個網址名稱剛剛被其他項目使用了，請換一個再儲存。", "slug");
         }
     }
 

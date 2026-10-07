@@ -598,7 +598,7 @@ public sealed class CharityStoresAdminService(
         if (storePct + maxProjectPct > 100m)
         {
             throw new AdminValidationException(
-                $"店家分潤 {storePct}% 加上項目分潤（目前最高 {maxProjectPct}%）超過 100%，請調低其中一個。");
+                $"店家分潤 {storePct}% 加上項目分潤（目前最高 {maxProjectPct}%）超過 100%，請調低其中一個。", "storeSharePct");
         }
     }
 
@@ -611,33 +611,33 @@ public sealed class CharityStoresAdminService(
         var status = r.Status ?? "active";
         if (status is not ("active" or "inactive"))
         {
-            throw new AdminValidationException("狀態只能是「合作中」或「已停止」。");
+            throw new AdminValidationException("狀態只能是「合作中」或「已停止」。", "status");
         }
 
-        AdminInput.DateRange(r.StartOn, r.EndOn, "合作期間");
+        AdminInput.DateRange(r.StartOn, r.EndOn, "合作期間", "endOn");
 
         if (r.StoreSharePct is { } pct)
         {
-            ValidatePct(pct, "店家分潤");
+            ValidatePct(pct, "店家分潤", "storeSharePct");
         }
 
         return new Validated(
-            AdminInput.RequireText(r.NameZh, "店家名稱（繁中）", 128),
-            AdminInput.OptionalText(r.NameEn, "店家名稱（英文）", 128),
-            AdminInput.OptionalText(r.LogoAltZh, "Logo 替代文字（繁中）", 255),
-            AdminInput.OptionalText(r.LogoAltEn, "Logo 替代文字（英文）", 255),
-            AdminInput.OptionalText(r.Category, "類別", 64),
-            AdminInput.OptionalText(r.Address, "地址", 500),
-            AdminInput.OptionalText(r.ContactName, "聯絡人", 64),
-            AdminInput.OptionalText(r.ContactPhone, "電話", 32),
+            AdminInput.RequireText(r.NameZh, "店家名稱（繁中）", 128, "nameZh"),
+            AdminInput.OptionalText(r.NameEn, "店家名稱（英文）", 128, "nameEn"),
+            AdminInput.OptionalText(r.LogoAltZh, "Logo 替代文字（繁中）", 255, "logoAltZh"),
+            AdminInput.OptionalText(r.LogoAltEn, "Logo 替代文字（英文）", 255, "logoAltEn"),
+            AdminInput.OptionalText(r.Category, "類別", 64, "category"),
+            AdminInput.OptionalText(r.Address, "地址", 500, "address"),
+            AdminInput.OptionalText(r.ContactName, "聯絡人", 64, "contactName"),
+            AdminInput.OptionalText(r.ContactPhone, "電話", 32, "contactPhone"),
             r.StartOn, r.EndOn, status, r.StoreSharePct);
     }
 
-    internal static void ValidatePct(decimal pct, string label)
+    internal static void ValidatePct(decimal pct, string label, string field)
     {
         if (pct < 0m || pct > 100m || decimal.Round(pct, 2) != pct)
         {
-            throw new AdminValidationException($"{label}須介於 0 到 100 之間，最多兩位小數。");
+            throw new AdminValidationException($"{label}須介於 0 到 100 之間，最多兩位小數。", field);
         }
     }
 

@@ -253,8 +253,22 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             DELETE FROM donation_payments WHERE donation_id IN (SELECT id FROM donations WHERE donor_email LIKE N'%@charity-test.invalid');
             DELETE FROM donation_invoices WHERE donation_id IN (SELECT id FROM donations WHERE donor_email LIKE N'%@charity-test.invalid');
             DELETE FROM donations WHERE donor_email LIKE N'%@charity-test.invalid';
+            DECLARE @orphanProjects TABLE (id uniqueidentifier);
+            INSERT INTO @orphanProjects SELECT id FROM donation_projects
+                WHERE project_slug NOT LIKE N'ct-%'
+                  AND (created_by IN (SELECT id FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid')
+                       OR updated_by IN (SELECT id FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid'));
+            DELETE FROM donation_amount_options WHERE donation_project_id IN (SELECT id FROM @orphanProjects);
+            DELETE FROM donation_projects_i18n WHERE donation_project_id IN (SELECT id FROM @orphanProjects);
+            DELETE FROM donation_projects WHERE id IN (SELECT id FROM @orphanProjects);
             DELETE FROM donation_amount_options WHERE donation_project_id IN (SELECT id FROM donation_projects WHERE project_slug LIKE N'ct-%');
             DELETE FROM donation_projects WHERE project_slug LIKE N'ct-%';
+            DECLARE @orphanStores TABLE (id uniqueidentifier);
+            INSERT INTO @orphanStores SELECT id FROM donation_stores
+                WHERE created_by IN (SELECT id FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid')
+                   OR updated_by IN (SELECT id FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid');
+            DELETE FROM donation_stores_i18n WHERE donation_store_id IN (SELECT id FROM @orphanStores);
+            DELETE FROM donation_stores WHERE id IN (SELECT id FROM @orphanStores);
             DELETE FROM donation_stores WHERE id IN (SELECT donation_store_id FROM donation_stores_i18n WHERE name LIKE N'CT店家%');
             DELETE FROM admin_user_roles WHERE admin_role_id IN (SELECT id FROM admin_roles WHERE code LIKE N'ctrole[_]%');
             DELETE FROM role_permissions WHERE admin_role_id IN (SELECT id FROM admin_roles WHERE code LIKE N'ctrole[_]%');

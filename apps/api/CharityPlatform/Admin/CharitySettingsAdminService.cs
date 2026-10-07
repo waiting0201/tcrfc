@@ -165,16 +165,16 @@ public sealed class CharitySettingsAdminService(
         CharityAdminScope scope, UpdateSiteSettingsRequest request, string sourceIp, CancellationToken cancellationToken)
     {
         var changed = new List<string>();
-        var copyInputs = new (string Key, string Locale, string? Value, string Label, int Max)[]
+        var copyInputs = new (string Key, string Locale, string? Value, string Label, int Max, string Field)[]
         {
-            (CopyKeys[0].Key, RequestLocale.DefaultDbLocale, request.HomeIntroZh, CopyKeys[0].Label + "（繁中）", CopyKeys[0].Max),
-            (CopyKeys[0].Key, "en", request.HomeIntroEn, CopyKeys[0].Label + "（英文）", CopyKeys[0].Max),
-            (CopyKeys[1].Key, RequestLocale.DefaultDbLocale, request.ThankYouTemplateZh, CopyKeys[1].Label + "（繁中）", CopyKeys[1].Max),
-            (CopyKeys[1].Key, "en", request.ThankYouTemplateEn, CopyKeys[1].Label + "（英文）", CopyKeys[1].Max),
-            (CopyKeys[2].Key, RequestLocale.DefaultDbLocale, request.NoticeZh, CopyKeys[2].Label + "（繁中）", CopyKeys[2].Max),
-            (CopyKeys[2].Key, "en", request.NoticeEn, CopyKeys[2].Label + "（英文）", CopyKeys[2].Max),
-            (CopyKeys[3].Key, RequestLocale.DefaultDbLocale, request.PrivacyPolicyZh, CopyKeys[3].Label + "（繁中）", CopyKeys[3].Max),
-            (CopyKeys[3].Key, "en", request.PrivacyPolicyEn, CopyKeys[3].Label + "（英文）", CopyKeys[3].Max),
+            (CopyKeys[0].Key, RequestLocale.DefaultDbLocale, request.HomeIntroZh, CopyKeys[0].Label + "（繁中）", CopyKeys[0].Max, "homeIntroZh"),
+            (CopyKeys[0].Key, "en", request.HomeIntroEn, CopyKeys[0].Label + "（英文）", CopyKeys[0].Max, "homeIntroEn"),
+            (CopyKeys[1].Key, RequestLocale.DefaultDbLocale, request.ThankYouTemplateZh, CopyKeys[1].Label + "（繁中）", CopyKeys[1].Max, "thankYouTemplateZh"),
+            (CopyKeys[1].Key, "en", request.ThankYouTemplateEn, CopyKeys[1].Label + "（英文）", CopyKeys[1].Max, "thankYouTemplateEn"),
+            (CopyKeys[2].Key, RequestLocale.DefaultDbLocale, request.NoticeZh, CopyKeys[2].Label + "（繁中）", CopyKeys[2].Max, "noticeZh"),
+            (CopyKeys[2].Key, "en", request.NoticeEn, CopyKeys[2].Label + "（英文）", CopyKeys[2].Max, "noticeEn"),
+            (CopyKeys[3].Key, RequestLocale.DefaultDbLocale, request.PrivacyPolicyZh, CopyKeys[3].Label + "（繁中）", CopyKeys[3].Max, "privacyPolicyZh"),
+            (CopyKeys[3].Key, "en", request.PrivacyPolicyEn, CopyKeys[3].Label + "（英文）", CopyKeys[3].Max, "privacyPolicyEn"),
         };
 
         // 先全部驗證完再動資料庫。
@@ -182,7 +182,7 @@ public sealed class CharitySettingsAdminService(
         {
             if (input.Value!.Length > input.Max)
             {
-                throw new AdminValidationException($"{input.Label}不可超過 {input.Max:N0} 個字。");
+                throw new AdminValidationException($"{input.Label}不可超過 {input.Max:N0} 個字。", input.Field);
             }
         }
 
@@ -190,7 +190,7 @@ public sealed class CharitySettingsAdminService(
         var clubUrlProvided = request.ClubSiteUrl is not null;
         if (clubUrlProvided)
         {
-            clubUrl = AdminInput.OptionalHttpUrl(request.ClubSiteUrl, "俱樂部官網網址");
+            clubUrl = AdminInput.OptionalHttpUrl(request.ClubSiteUrl, "俱樂部官網網址", field: "clubSiteUrl");
         }
 
         var (currentMin, currentMax) = await catalog.GetDefaultAmountRangeAsync(cancellationToken);
@@ -200,12 +200,12 @@ public sealed class CharitySettingsAdminService(
         {
             if (newMin < 1 || newMax > MaxAmountCeiling)
             {
-                throw new AdminValidationException($"單筆金額的預設範圍要介於 1 到 {MaxAmountCeiling:N0} 元之間。");
+                throw new AdminValidationException($"單筆金額的預設範圍要介於 1 到 {MaxAmountCeiling:N0} 元之間。", newMin < 1 ? "defaultMinAmount" : "defaultMaxAmount");
             }
 
             if (newMax < newMin)
             {
-                throw new AdminValidationException("單筆金額的預設上限不可小於下限。");
+                throw new AdminValidationException("單筆金額的預設上限不可小於下限。", "defaultMaxAmount");
             }
         }
 
@@ -297,8 +297,8 @@ public sealed class CharitySettingsAdminService(
         var template = await db.EmailTemplates.Include(t => t.EmailTemplatesI18ns).SingleOrDefaultAsync(t => t.Code == code, cancellationToken)
             ?? throw new CharityNotFoundException("找不到這封系統信。");
 
-        var subjectZh = request.SubjectZh is null ? null : AdminInput.RequireText(request.SubjectZh, "主旨（繁中）", 255);
-        var bodyZh = request.BodyZh is null ? null : RequireBody(request.BodyZh, "本文（繁中）");
+        var subjectZh = request.SubjectZh is null ? null : AdminInput.RequireText(request.SubjectZh, "主旨（繁中）", 255, "subjectZh");
+        var bodyZh = request.BodyZh is null ? null : RequireBody(request.BodyZh, "本文（繁中）", "bodyZh");
         var enProvided = request.SubjectEn is not null || request.BodyEn is not null;
         string? subjectEn = null, bodyEn = null;
         var clearEn = false;
@@ -312,12 +312,12 @@ public sealed class CharitySettingsAdminService(
             }
             else if (s.Length == 0 || b.Length == 0)
             {
-                throw new AdminValidationException("英文版的主旨與本文要同時填寫，或同時留空。");
+                throw new AdminValidationException("英文版的主旨與本文要同時填寫，或同時留空。", s.Length == 0 ? "subjectEn" : "bodyEn");
             }
             else
             {
-                subjectEn = AdminInput.RequireText(s, "主旨（英文）", 255);
-                bodyEn = RequireBody(b, "本文（英文）");
+                subjectEn = AdminInput.RequireText(s, "主旨（英文）", 255, "subjectEn");
+                bodyEn = RequireBody(b, "本文（英文）", "bodyEn");
             }
         }
 
@@ -328,7 +328,7 @@ public sealed class CharitySettingsAdminService(
             {
                 if (subjectZh is null || bodyZh is null)
                 {
-                    throw new AdminValidationException("這封信還沒有繁中內容，主旨與本文都要填寫。");
+                    throw new AdminValidationException("這封信還沒有繁中內容，主旨與本文都要填寫。", subjectZh is null ? "subjectZh" : "bodyZh");
                 }
 
                 db.EmailTemplatesI18ns.Add(new EmailTemplatesI18n { EmailTemplateId = template.Id, Locale = RequestLocale.DefaultDbLocale, Subject = subjectZh, Body = bodyZh });
@@ -344,7 +344,7 @@ public sealed class CharitySettingsAdminService(
         {
             if (active && zh is null && (subjectZh is null || bodyZh is null))
             {
-                throw new AdminValidationException("啟用這封信之前，請先填好繁中的主旨與本文。");
+                throw new AdminValidationException("啟用這封信之前，請先填好繁中的主旨與本文。", "isActive");
             }
 
             template.IsActive = active;
@@ -378,17 +378,17 @@ public sealed class CharitySettingsAdminService(
         return ToDto(fresh);
     }
 
-    private static string RequireBody(string value, string label)
+    private static string RequireBody(string value, string label, string field)
     {
         var trimmed = value.Trim();
         if (trimmed.Length == 0)
         {
-            throw new AdminValidationException($"{label}為必填欄位。");
+            throw new AdminValidationException($"{label}為必填欄位。", field);
         }
 
         if (trimmed.Length > 20_000)
         {
-            throw new AdminValidationException($"{label}不可超過 20,000 個字。");
+            throw new AdminValidationException($"{label}不可超過 20,000 個字。", field);
         }
 
         return trimmed;
@@ -446,15 +446,15 @@ public sealed class CharitySettingsAdminService(
         var credential = request.Credential?.Trim();
         if (string.IsNullOrEmpty(credential))
         {
-            throw new AdminValidationException("請填寫憑證內容。");
+            throw new AdminValidationException("請填寫憑證內容。", "credential");
         }
 
         if (credential.Length > 240)
         {
-            throw new AdminValidationException("憑證內容不可超過 240 個字。");
+            throw new AdminValidationException("憑證內容不可超過 240 個字。", "credential");
         }
 
-        var prefix = channelType == PaymentChannelTypes.EInvoice ? AdminInput.OptionalText(request.InvoicePrefix, "發票字軌", 16) : null;
+        var prefix = channelType == PaymentChannelTypes.EInvoice ? AdminInput.OptionalText(request.InvoicePrefix, "發票字軌", 16, "invoicePrefix") : null;
         var now = DateTime.UtcNow;
         var row = await db.PaymentChannels.SingleOrDefaultAsync(c => c.ChannelType == channelType && c.Environment == env, cancellationToken);
         if (row is null)
@@ -492,7 +492,7 @@ public sealed class CharitySettingsAdminService(
         var env = RequireEnvironment(request.Environment);
         if (!request.Confirm)
         {
-            throw new AdminValidationException("切換環境後，之後的收款與開票會改用另一組憑證，請先確認後再送出。");
+            throw new AdminValidationException("切換環境後，之後的收款與開票會改用另一組憑證，請先確認後再送出。", "environment");
         }
 
         if (env == PaymentEnvironments.Production)
@@ -500,12 +500,12 @@ public sealed class CharitySettingsAdminService(
             var row = await db.PaymentChannels.AsNoTracking().SingleOrDefaultAsync(c => c.ChannelType == channelType && c.Environment == env, cancellationToken);
             if (row is null || string.IsNullOrWhiteSpace(row.CredentialEncrypted))
             {
-                throw new CharityConflictException("尚未設定正式憑證", "正式環境的憑證還沒有設定，不能切換過去。");
+                throw new CharityConflictException("尚未設定正式憑證", "正式環境的憑證還沒有設定，不能切換過去。", "environment");
             }
 
             if (channelType == PaymentChannelTypes.EInvoice && string.IsNullOrWhiteSpace(row.InvoicePrefix))
             {
-                throw new CharityConflictException("尚未設定發票字軌", "正式環境的發票字軌還沒有設定，不能切換過去。");
+                throw new CharityConflictException("尚未設定發票字軌", "正式環境的發票字軌還沒有設定，不能切換過去。", "environment");
             }
         }
 
@@ -532,7 +532,7 @@ public sealed class CharitySettingsAdminService(
     {
         if (env is null || !PaymentEnvironments.All.Contains(env))
         {
-            throw new AdminValidationException("環境只能是「測試」或「正式」。");
+            throw new AdminValidationException("環境只能是「測試」或「正式」。", "environment");
         }
 
         return env;
