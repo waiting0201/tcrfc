@@ -36,8 +36,7 @@ public sealed class ApiBoundaryBehaviorTests(AdminWriteApiFixture fixture)
     }
 
     [Theory]
-    [InlineData("news")]
-    [InlineData("pages")]
+    [InlineData("news")] // 頁面（pages）已改為固定頁、沒有 DELETE 端點（2026-10-07），見 AdminPagesWriteTests
     public async Task 刪除_缺expectedUpdatedAt回400中文訊息_格式錯也是400(string resource)
     {
         using var client = await EditorAsync();

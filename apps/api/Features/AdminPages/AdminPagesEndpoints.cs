@@ -16,7 +16,10 @@ namespace Tcrfc.Api.Features.AdminPages;
 /// 權限碼對應 docs/12b-database-tables.md §7.3 命名慣例（<c>&lt;domain&gt;.&lt;object&gt;.&lt;action&gt;</c>），
 /// module_code=B、submodule_code=B1（頁面管理）。
 ///
-/// 🔴 建立／更新是 <c>multipart/form-data</c>（規劃書 §4.0「選檔不上傳、儲存才上傳」），但檔案欄位
+/// 🔴 頁面管理是「固定頁＋固定欄位」（見 <see cref="PageTemplates"/>）：沒有新增與刪除端點，
+/// 更新時區塊結構必須與版型一致。
+///
+/// 🔴 更新是 <c>multipart/form-data</c>（規劃書 §4.0「選檔不上傳、儲存才上傳」），但檔案欄位
 /// 命名慣例跟新聞不同——見 <see cref="AdminPageRequestForm"/> 與 <see cref="PageBlockContentProcessor"/>
 /// 檔頭：頁面區塊可能同時有多張待上傳圖片，用 <c>file:{區塊索引}:{圖片路徑}</c> 命名，不是固定的
 /// 單一 <c>file</c> 欄位。
@@ -24,10 +27,8 @@ namespace Tcrfc.Api.Features.AdminPages;
 public static class AdminPagesEndpoints
 {
     private const string PermissionView = "content.page.view";
-    private const string PermissionCreate = "content.page.create";
     private const string PermissionUpdate = "content.page.update";
     private const string PermissionPublish = "content.page.publish";
-    private const string PermissionDelete = "content.page.delete";
 
     public static void MapAdminPagesEndpoints(this IEndpointRouteBuilder app)
     {
@@ -66,49 +67,11 @@ public static class AdminPagesEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
-        // POST /api/v1/admin/{club}/pages  → 一律建立成草稿，狀態轉換是獨立端點。
-        group.MapPost("", async (
-            string club, HttpRequest httpRequest, HttpContext httpContext,
-            IAdminClubAuthorizer authorizer, AdminPagesRepository repository, IImageStorageService imageStorage,
-            IOptions<JsonOptions> jsonOptions, CancellationToken cancellationToken) =>
-        {
-            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionCreate, cancellationToken);
-            var operatorId = adminScope.Identity.AdminUserId;
+        // 🔴 沒有 POST（新增頁面）與 DELETE（刪除頁面）：頁面清單由版型（PageTemplates）固定，
+        // 後台只能編輯既有頁面。這兩個路由刻意不註冊——對 /pages 發 POST、對 /pages/{id} 發 DELETE
+        // 由路由層直接回 405（同路徑只註冊了 GET／PUT），測試見 AdminPageTemplatesTests。
 
-            var (request, files) = await AdminPageRequestForm.ReadAsync<CreatePageRequest>(
-                httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
-
-            // 🔴 id 必須在上傳之前就決定：區塊圖片的物件鍵路徑要指到「這張圖屬於哪一筆將要建立的
-            // 頁面」，見 AdminPagesRepository.CreateAsync 上的說明（同 AdminArticlesEndpoints 的既有慣例）。
-            var pageId = Guid.NewGuid();
-
-            // S1-12 新增：OG 圖片覆寫，獨立於區塊圖片之外，走同一個 multipart 請求的 ogImage 欄位
-            // （見 AdminPageRequestForm 檔頭：files 是整個 IFormFileCollection，這裡直接用固定
-            // 欄位名查找，不走 file:{區塊索引}:{路徑} 那套命名慣例）。
-            var ogImageFile = files["ogImage"];
-            var ogImageUpdate = ImageFieldUpdate.Keep;
-            if (ogImageFile is not null)
-            {
-                UploadSlotPolicy.Validate("pages", "og");
-                var uploadedOg = await UploadOgImageAsync(adminScope, pageId, ogImageFile, imageStorage, cancellationToken);
-                ogImageUpdate = ImageFieldUpdate.Set(uploadedOg.Key, uploadedOg.Width, uploadedOg.Height);
-            }
-
-            // 補償刪除已經在 AdminPagesRepository.CreateAsync 內部處理（跟區塊圖片共用同一段
-            // catch 區塊，見該方法上的說明），這裡不需要再包一層 try/catch。
-            var created = await repository.CreateAsync(adminScope, pageId, request, files, ogImageUpdate, operatorId, cancellationToken);
-            return Results.Created($"/api/v1/admin/{club}/pages/{created.Id}", created);
-        })
-        .WithName("AdminCreatePage")
-        .Produces<AdminPageDetailDto>(StatusCodes.Status201Created)
-        .Produces(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status401Unauthorized)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status409Conflict)
-        .DisableAntiforgery();
-
-        // PUT /api/v1/admin/{club}/pages/{id}  → 整份取代（SEO ＋ 全部區塊），不改狀態。
+        // PUT /api/v1/admin/{club}/pages/{id}  → 整份取代（SEO ＋ 全部區塊），不改狀態；區塊結構須與版型一致。
         group.MapPut("/{id:guid}", async (
             string club, Guid id, HttpRequest httpRequest, HttpContext httpContext,
             IAdminClubAuthorizer authorizer, AdminPagesRepository repository, IImageStorageService imageStorage,
@@ -196,22 +159,6 @@ public static class AdminPagesEndpoints
         .WithName("AdminSchedulePage")
         .Produces<AdminPageDetailDto>()
         .Produces(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status401Unauthorized)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status409Conflict);
-
-        // DELETE /api/v1/admin/{club}/pages/{id}?expectedUpdatedAt=2026-09-24T03:00:00Z
-        group.MapDelete("/{id:guid}", async (
-            string club, Guid id, DateTime? expectedUpdatedAt, HttpContext httpContext,
-            IAdminClubAuthorizer authorizer, AdminPagesRepository repository, CancellationToken cancellationToken) =>
-        {
-            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionDelete, cancellationToken);
-            var deleted = await repository.DeleteAsync(adminScope, id, ConcurrencyInput.RequireExpectedUpdatedAt(expectedUpdatedAt), cancellationToken);
-            return deleted is null ? Results.NotFound() : Results.NoContent();
-        })
-        .WithName("AdminDeletePage")
-        .Produces(StatusCodes.Status204NoContent)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)

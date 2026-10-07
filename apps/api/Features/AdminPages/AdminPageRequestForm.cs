@@ -8,7 +8,7 @@ namespace Tcrfc.Api.Features.AdminPages;
 /// 改成**依區塊與圖片路徑命名的多檔**——頁面區塊可能同時有多張待上傳的新圖片（圖文左右各 1 張、
 /// 圖片藝廊 N 張，見 <see cref="PageBlockContentProcessor"/>），不像新聞封面只有一張固定圖。
 ///
-/// 固定欄位：<c>payload</c>（JSON 文字，型別是 <see cref="CreatePageRequest"/> 或
+/// 固定欄位：<c>payload</c>（JSON 文字，型別是
 /// <see cref="UpdatePageRequest"/>，camelCase）；其餘檔案欄位命名為
 /// <c>file:{區塊索引}:{圖片路徑}</c>（例：<c>file:0:image</c>、<c>file:2:images:1</c>）。
 /// </summary>

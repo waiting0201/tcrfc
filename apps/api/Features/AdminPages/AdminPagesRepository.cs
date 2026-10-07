@@ -13,7 +13,8 @@ using Tcrfc.Api.Security;
 namespace Tcrfc.Api.Features.AdminPages;
 
 /// <summary>
-/// 後台頁面管理（B1）寫入與後台專用讀取。形狀比照
+/// 後台頁面管理（B1）寫入與後台專用讀取（「固定頁＋固定欄位」：頁面清單與區塊結構由
+/// <see cref="PageTemplates"/> 決定，沒有新增／刪除頁面）。形狀比照
 /// <c>Features/AdminNews/AdminArticlesRepository.cs</c>（樂觀並行、雙語側表 upsert、俱樂部範圍、
 /// 狀態轉換），差異集中在三處，理由見 apps/api/README.md「B1 頁面管理」：
 /// ① <c>pages.club_id</c> 必填（不像 <c>articles.club_id</c> 可為空）——**沒有「共同內容唯讀」這件事**，
@@ -26,7 +27,8 @@ namespace Tcrfc.Api.Features.AdminPages;
 /// （理由見 <c>AdminArticlesRepository</c> 檔頭與 apps/api/README.md「新增後台端點的必要形狀」）。
 /// </summary>
 public sealed class AdminPagesRepository(
-    ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage, IImagePublicUrlResolver imageUrlResolver)
+    ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage, IImagePublicUrlResolver imageUrlResolver,
+    IPageTemplateCatalog catalog)
 {
     /// <summary>公開讀取 API 用的 entity 名稱，跟 <see cref="Features.Pages.PagesRepository"/>、
     /// <see cref="Features.News.ScheduledPublishRunner"/> 三處字面值必須完全一致（docs/17 §4
@@ -35,27 +37,24 @@ public sealed class AdminPagesRepository(
 
     // ───────────────────────────── 讀取（後台專用，含全部狀態） ─────────────────────────────
 
+    /// <summary>
+    /// 清單＝這個俱樂部的版型清單（順序依版型）合併實際頁面的狀態，<b>保證每個版型都有一列</b>。
+    /// 穩健做法的選擇：版型缺頁時（例：新增版型後、舊資料庫尚未灌種子）由
+    /// <see cref="EnsureTemplatePagesAsync"/> 當場補建一份<b>草稿骨架頁</b>（冪等、以 <c>(club_id, slug)</c> 唯一鍵擋並行重複），
+    /// 而不是回傳沒有 id 的虛擬列——這樣畫面永遠拿得到可編輯的 <c>id</c>、狀態與預覽權杖，也不需要「首次編輯才建立」的第二條流程。
+    /// 不在版型內的舊頁面（例：已退場的測試頁）不顯示、也無法編輯（404）。
+    /// 分頁／關鍵字／狀態篩選保留（沿用既有信封），在記憶體內完成（清單最多十餘列）。
+    /// </summary>
     public async Task<PagedResult<AdminPageListItemDto>> ListAsync(
         AdminClubScope scope, string? status, string? keyword, int page, int pageSize, CancellationToken cancellationToken)
     {
-        var query = dbContext.Pages.AsNoTracking().Where(p => p.ClubId == scope.ClubId);
+        await EnsureTemplatePagesAsync(scope, cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            query = query.Where(p => p.Status == status);
-        }
+        var templates = catalog.ForClub(scope.ClubCode);
+        var slugs = templates.Select(t => t.Slug).ToList();
 
-        if (!string.IsNullOrWhiteSpace(keyword))
-        {
-            query = query.Where(p => p.Slug.Contains(keyword)
-                || p.PagesI18ns.Any(i => i.SeoTitle != null && i.SeoTitle.Contains(keyword)));
-        }
-
-        var totalCount = await query.CountAsync(cancellationToken);
-
-        var rows = await query
-            .OrderByDescending(p => p.UpdatedAt).ThenByDescending(p => p.RowSeq)
-            .Skip((page - 1) * pageSize).Take(pageSize)
+        var rows = await dbContext.Pages.AsNoTracking()
+            .Where(p => p.ClubId == scope.ClubId && slugs.Contains(p.Slug))
             .Select(p => new
             {
                 p.Id,
@@ -68,23 +67,94 @@ public sealed class AdminPagesRepository(
             })
             .ToListAsync(cancellationToken);
 
-        var items = rows.Select(r => new AdminPageListItemDto
+        var bySlug = rows.ToDictionary(r => r.Slug, StringComparer.Ordinal);
+        var items = new List<AdminPageListItemDto>();
+        foreach (var template in templates)
         {
-            Id = r.Id,
-            Slug = r.Slug,
-            Status = r.Status,
-            PublishedAt = r.PublishedAt,
-            UpdatedAt = r.UpdatedAt,
-            SeoTitleZh = r.SeoTitleZh,
-            SeoTitleEn = r.SeoTitleEn,
-        }).ToList();
+            if (!bySlug.TryGetValue(template.Slug, out var r))
+            {
+                continue; // 並行補建失敗的極端情況；下一次清單會再補
+            }
 
-        return new PagedResult<AdminPageListItemDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+            if (!string.IsNullOrWhiteSpace(status) && r.Status != status)
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(keyword)
+                && !(template.Slug.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                    || template.TitleZh.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                    || (template.TitleEn?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (r.SeoTitleZh?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)
+                    || (r.SeoTitleEn?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false)))
+            {
+                continue;
+            }
+
+            items.Add(new AdminPageListItemDto
+            {
+                Id = r.Id,
+                Slug = r.Slug,
+                TemplateKey = template.Slug,
+                TitleZh = template.TitleZh,
+                TitleEn = template.TitleEn,
+                Status = r.Status,
+                PublishedAt = r.PublishedAt,
+                UpdatedAt = r.UpdatedAt,
+                SeoTitleZh = r.SeoTitleZh,
+                SeoTitleEn = r.SeoTitleEn,
+            });
+        }
+
+        var totalCount = items.Count;
+        var paged = items.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return new PagedResult<AdminPageListItemDto> { Items = paged, Page = page, PageSize = pageSize, TotalCount = totalCount };
     }
 
-    /// <summary>跨俱樂部（真的存在但屬於別的俱樂部）與真的不存在一律回傳 <c>null</c>（404），
-    /// 不透露這個 id 存在於別的俱樂部——與 <c>AdminArticlesRepository</c> 對共用內容以外的行為一致，
-    /// 差別是頁面沒有「共同內容」這個第三種情況（<c>pages.club_id</c> 必填）。</summary>
+    /// <summary>為這個俱樂部缺頁的版型補建草稿骨架頁（冪等）。骨架內容不通過內容驗證（中文必填），
+    /// 編輯者必須填完才能存檔；它是草稿，公開端點看不到。<c>created_by</c> 為 <c>null</c>（系統補建，不是某位管理員的操作）。</summary>
+    public async Task EnsureTemplatePagesAsync(AdminClubScope scope, CancellationToken cancellationToken)
+    {
+        var templates = catalog.ForClub(scope.ClubCode);
+        var slugs = templates.Select(t => t.Slug).ToList();
+        var existing = (await dbContext.Pages.AsNoTracking()
+            .Where(p => p.ClubId == scope.ClubId && slugs.Contains(p.Slug))
+            .Select(p => p.Slug)
+            .ToListAsync(cancellationToken)).ToHashSet(StringComparer.Ordinal);
+
+        foreach (var template in templates.Where(t => t.ProvisionWhenMissing && !existing.Contains(t.Slug)))
+        {
+            var now = DateTime.UtcNow;
+            var seo = new AdminPageSeoInput { Zh = new AdminPageSeoLocaleContent() };
+            var blocks = template.Blocks.Select(b => (b.BlockType, Content: PageTemplates.BuildSkeleton(b))).ToList();
+
+            var page = new Page
+            {
+                Id = Guid.NewGuid(),
+                ClubId = scope.ClubId,
+                Slug = template.Slug,
+                Status = "draft",
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+
+            try
+            {
+                dbContext.Pages.Add(page);
+                ApplySeo(page, seo);
+                ReplaceBlocks(page, blocks, null, now);
+                await AddVersionSnapshotAsync(page, seo, blocks, null, now, cancellationToken);
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                // 並行請求已補建同一頁（UQ_pages_club_slug）：放掉這次的追蹤項目，結果以資料庫現況為準。
+                dbContext.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    /// <summary>跨俱樂部（真的存在但屬於別的俱樂部）、真的不存在、以及不在版型內的舊頁面，一律回傳 <c>null</c>（404）。</summary>
     public async Task<AdminPageDetailDto?> GetByIdAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
         var page = await dbContext.Pages.AsNoTracking()
@@ -92,7 +162,7 @@ public sealed class AdminPagesRepository(
             .Include(p => p.PageBlocks)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
-        if (page is null || page.ClubId != scope.ClubId)
+        if (page is null || page.ClubId != scope.ClubId || catalog.Find(scope.ClubCode, page.Slug) is not { } template)
         {
             return null;
         }
@@ -102,105 +172,25 @@ public sealed class AdminPagesRepository(
             .OrderByDescending(v => v.VersionNo)
             .FirstOrDefaultAsync(cancellationToken);
 
-        return ToDetailDto(page, latestVersion);
+        return ToDetailDto(page, template, latestVersion);
     }
 
     // ───────────────────────────── 寫入 ─────────────────────────────
 
-    /// <summary>
-    /// <paramref name="pageId"/> 由呼叫端（<see cref="AdminPagesEndpoints"/>）先產生——理由與
-    /// <c>AdminArticlesRepository.CreateAsync</c> 完全相同：區塊裡的圖片物件鍵路徑
-    /// （<c>{club}/pages/{pageId}/blocks/{blockIndex}/{path}</c>）需要知道「這張圖屬於哪一筆
-    /// 將要建立的資料列」，但這裡的上傳其實發生在本方法內部（<see cref="ResolveBlocksAsync"/>），
-    /// 不是像新聞封面那樣先在端點層上傳完才呼叫進來——因為頁面的圖片藏在區塊 JSON 的任意位置，
-    /// 只有驗證流程本身知道「這個區塊的這個路徑是不是待上傳」。因此本方法自己負責失敗時的補償刪除
-    /// （E-47：一律用 <see cref="CancellationToken.None"/>，不沿用觸發失敗的請求 token）。
-    /// </summary>
-    public async Task<AdminPageDetailDto> CreateAsync(
-        AdminClubScope scope, Guid pageId, CreatePageRequest request, IFormFileCollection files,
-        ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
-    {
-        PageSlugPolicy.Validate(request.Slug);
-
-        if (await dbContext.Pages.AsNoTracking().AnyAsync(p => p.ClubId == scope.ClubId && p.Slug == request.Slug, cancellationToken))
-        {
-            throw new PageSlugConflictException(request.Slug);
-        }
-
-        var uploadedKeys = new List<string>();
-        try
-        {
-            var blocksContent = await ResolveBlocksAsync(scope, pageId, request.Blocks, files, uploadedKeys, cancellationToken);
-
-            var now = DateTime.UtcNow;
-            var page = new Page
-            {
-                Id = pageId,
-                ClubId = scope.ClubId,
-                Slug = request.Slug,
-                Status = "draft", // 🔴 一律從草稿開始，狀態轉換是獨立端點（Publish／Schedule），比照 Article
-                PublishedAt = null,
-                CanonicalPath = string.IsNullOrWhiteSpace(request.CanonicalPath) ? null : request.CanonicalPath,
-                IsNoindex = request.IsNoindex,
-                IsExcludedFromSitemap = request.IsExcludedFromSitemap,
-                OgImageKey = ogImageUpdate.Change ? ogImageUpdate.Key : null,
-                OgImageWidth = ogImageUpdate.Change ? ogImageUpdate.Width : null,
-                OgImageHeight = ogImageUpdate.Change ? ogImageUpdate.Height : null,
-                CreatedAt = now,
-                UpdatedAt = now,
-                CreatedBy = operatorId,
-                UpdatedBy = operatorId,
-            };
-
-            dbContext.Pages.Add(page);
-            ApplySeo(page, request.Seo);
-            ReplaceBlocks(page, blocksContent, operatorId, now);
-            await AddVersionSnapshotAsync(page, request.Seo, blocksContent, operatorId, now, cancellationToken);
-
-            await dbContext.SaveChangesAsync(cancellationToken);
-            await InvalidatePublicCacheAsync(scope, cancellationToken);
-
-            return (await GetByIdAsync(scope, page.Id, cancellationToken))!;
-        }
-        catch
-        {
-            // 補償交易：區塊裡已經真的上傳成功的圖片，若資料列最終沒有寫入成功（slug 重複、
-            // 區塊內容驗證失敗、SaveChanges 失敗……），不留下孤兒物件。E-47：一律
-            // CancellationToken.None，不沿用可能已經被取消的請求 token。
-            foreach (var key in uploadedKeys)
-            {
-                await imageStorage.DeleteAsync(key, CancellationToken.None);
-            }
-
-            if (ogImageUpdate.Key is not null)
-            {
-                await imageStorage.DeleteAsync(ogImageUpdate.Key, CancellationToken.None);
-            }
-
-            throw;
-        }
-    }
-
     /// <summary>整份取代語意：<paramref name="request"/> 的 <c>Blocks</c> 是這個頁面之後應有的
     /// 完整清單，省略的既有區塊視為刪除；換掉／移除的圖片在成功寫入後才刪除舊物件
-    /// （規劃書 §4.0「換圖與刪除」），失敗時新上傳的物件走跟 <see cref="CreateAsync"/> 相同的補償刪除。</summary>
+    /// （規劃書 §4.0「換圖與刪除」），失敗時新上傳的物件一律補償刪除（E-47：用 <see cref="CancellationToken.None"/>）。</summary>
     public async Task<AdminPageDetailDto?> UpdateAsync(
         AdminClubScope scope, Guid id, UpdatePageRequest request, IFormFileCollection files,
         ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
-        PageSlugPolicy.Validate(request.Slug);
-
         var page = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
         if (page is null)
         {
             return null;
         }
 
-        if (!string.Equals(page.Slug, request.Slug, StringComparison.Ordinal)
-            && await dbContext.Pages.AsNoTracking().AnyAsync(p => p.ClubId == scope.ClubId && p.Slug == request.Slug && p.Id != id, cancellationToken))
-        {
-            throw new PageSlugConflictException(request.Slug);
-        }
+        var template = catalog.Find(scope.ClubCode, page.Slug)!;
 
         ApplyConcurrencyToken(page, request.ExpectedUpdatedAt);
 
@@ -212,10 +202,15 @@ public sealed class AdminPagesRepository(
         var uploadedKeys = new List<string>();
         try
         {
-            var blocksContent = await ResolveBlocksAsync(scope, id, request.Blocks, files, uploadedKeys, cancellationToken);
+            // 網址名稱不可變更（固定頁）：有帶就必須相同。放在 try 內，失敗時一併補償刪除已上傳的 OG 圖片。
+            if (request.Slug is not null && !string.Equals(request.Slug, page.Slug, StringComparison.Ordinal))
+            {
+                throw new AdminPageValidationException("固定頁面的網址名稱不能變更。", "slug");
+            }
+
+            var blocksContent = await ResolveBlocksAsync(scope, id, template, request.Blocks, files, uploadedKeys, cancellationToken);
 
             var now = DateTime.UtcNow;
-            page.Slug = request.Slug;
             page.CanonicalPath = string.IsNullOrWhiteSpace(request.CanonicalPath) ? null : request.CanonicalPath;
             page.IsNoindex = request.IsNoindex;
             page.IsExcludedFromSitemap = request.IsExcludedFromSitemap;
@@ -338,44 +333,12 @@ public sealed class AdminPagesRepository(
         return await GetByIdAsync(scope, id, cancellationToken);
     }
 
-    /// <summary>回傳 <c>null</c>＝找不到（含跨俱樂部），<c>true</c>＝刪除成功。DB 的
-    /// <c>ON DELETE CASCADE</c>（<c>pages_i18n</c>／<c>page_blocks</c>／<c>page_versions</c>）
-    /// 負責關聯列，這裡只需要另外處理圖片物件（規劃書 §4.0「刪除資料列一併刪除其圖片物件」，
-    /// 資料庫沒有能力連帶刪除物件儲存裡的檔案）。</summary>
-    public async Task<bool?> DeleteAsync(AdminClubScope scope, Guid id, DateTime expectedUpdatedAt, CancellationToken cancellationToken)
-    {
-        var page = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
-        if (page is null)
-        {
-            return null;
-        }
-
-        ApplyConcurrencyToken(page, expectedUpdatedAt);
-        var imageKeys = ExtractPageImageKeys(page);
-        var ogImageKey = page.OgImageKey;
-
-        dbContext.Pages.Remove(page);
-
-        await SaveWithConcurrencyHandlingAsync(cancellationToken);
-        await InvalidatePublicCacheAsync(scope, cancellationToken);
-
-        foreach (var key in imageKeys)
-        {
-            await imageStorage.DeleteAsync(key, cancellationToken);
-        }
-
-        await imageStorage.DeleteAsync(ogImageKey, cancellationToken);
-
-        return true;
-    }
-
     // ───────────────────────────── 版本歷程與還原 ─────────────────────────────
 
     public async Task<PagedResult<AdminPageVersionListItemDto>?> ListVersionsAsync(
         AdminClubScope scope, Guid pageId, int page, int pageSize, CancellationToken cancellationToken)
     {
-        var owns = await dbContext.Pages.AsNoTracking().AnyAsync(p => p.Id == pageId && p.ClubId == scope.ClubId, cancellationToken);
-        if (!owns)
+        if (!await OwnsTemplatePageAsync(scope, pageId, cancellationToken))
         {
             return null;
         }
@@ -400,8 +363,8 @@ public sealed class AdminPagesRepository(
     public async Task<AdminPageVersionDetailDto?> GetVersionAsync(
         AdminClubScope scope, Guid pageId, int versionNo, CancellationToken cancellationToken)
     {
-        var owns = await dbContext.Pages.AsNoTracking().AnyAsync(p => p.Id == pageId && p.ClubId == scope.ClubId, cancellationToken);
-        if (!owns)
+        var template = await FindTemplateOfPageAsync(scope, pageId, cancellationToken);
+        if (template is null)
         {
             return null;
         }
@@ -409,7 +372,7 @@ public sealed class AdminPagesRepository(
         var version = await dbContext.PageVersions.AsNoTracking()
             .FirstOrDefaultAsync(v => v.PageId == pageId && v.VersionNo == versionNo, cancellationToken);
 
-        return version is null ? null : ToVersionDetailDto(version);
+        return version is null ? null : ToVersionDetailDto(version, template);
     }
 
     /// <summary>
@@ -465,6 +428,15 @@ public sealed class AdminPagesRepository(
             }
         }
 
+        // 🔴 固定頁：快照的區塊結構（數量、類型、固定列數）若與現行版型不同（例：版型改版前留下的舊版本），
+        // 還原會讓頁面長出版型之外的區塊，一律擋下（400，欄位鍵 versionNo），舊版本仍可閱覽。
+        var template = catalog.Find(scope.ClubCode, page.Slug)!;
+        if (!PageTemplates.Matches(template, restoredBlocks.Select(b => (b.BlockType, (JsonNode?)b.Content)).ToList()))
+        {
+            throw new AdminPageValidationException(
+                $"版本 {versionNo} 的內容結構與目前的頁面版型不同（版型已調整），無法還原。請改以手動編輯，或還原到較新的版本。", "versionNo");
+        }
+
         var previousImageKeys = ExtractPageImageKeys(page);
 
         var now = DateTime.UtcNow;
@@ -498,8 +470,9 @@ public sealed class AdminPagesRepository(
             .Include(p => p.PageBlocks)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
 
-        if (page is null || page.ClubId != scope.ClubId)
+        if (page is null || page.ClubId != scope.ClubId || catalog.Find(scope.ClubCode, page.Slug) is null)
         {
+            // 不在版型內的舊頁面一律視為不存在（固定頁：只有版型內的頁面可編輯）。
             // ⛔ 沒有「共同內容唯讀」這個分支——pages.club_id 必填，不像 articles 可為 NULL
             // （docs/14-invariants.md：50 張必填／9 張可為空，pages 在必填的 50 張之列）。
             return null;
@@ -509,9 +482,12 @@ public sealed class AdminPagesRepository(
     }
 
     private async Task<List<(string BlockType, JsonNode Content)>> ResolveBlocksAsync(
-        AdminClubScope scope, Guid pageId, IReadOnlyList<AdminPageBlockInput> blocks, IFormFileCollection files,
+        AdminClubScope scope, Guid pageId, PageTemplate template, IReadOnlyList<AdminPageBlockInput> blocks, IFormFileCollection files,
         List<string> uploadedKeys, CancellationToken cancellationToken)
     {
+        // 結構（數量／類型／順序）先於內容驗證與圖片上傳檢查：結構錯的請求不應該先花時間處理圖片。
+        PageTemplates.ValidateStructure(template, blocks.Select(b => (b.BlockType, b.Key)).ToList());
+
         var result = new List<(string, JsonNode)>();
 
         for (var i = 0; i < blocks.Count; i++)
@@ -556,6 +532,7 @@ public sealed class AdminPagesRepository(
             }
 
             await PageBlockContentProcessor.ValidateAndResolveAsync(blockIndex, block.BlockType, content, ResolveUploadAsync, cancellationToken);
+            PageTemplates.ValidateRows(template.Blocks[blockIndex], blockIndex, content);
             result.Add((block.BlockType, content));
         }
 
@@ -713,7 +690,19 @@ public sealed class AdminPagesRepository(
         _ => status,
     };
 
-    private AdminPageDetailDto ToDetailDto(Page page, PageVersion? latestVersion)
+    private async Task<bool> OwnsTemplatePageAsync(AdminClubScope scope, Guid pageId, CancellationToken cancellationToken)
+        => await FindTemplateOfPageAsync(scope, pageId, cancellationToken) is not null;
+
+    private async Task<PageTemplate?> FindTemplateOfPageAsync(AdminClubScope scope, Guid pageId, CancellationToken cancellationToken)
+    {
+        var slug = await dbContext.Pages.AsNoTracking()
+            .Where(p => p.Id == pageId && p.ClubId == scope.ClubId)
+            .Select(p => p.Slug)
+            .FirstOrDefaultAsync(cancellationToken);
+        return slug is null ? null : catalog.Find(scope.ClubCode, slug);
+    }
+
+    private AdminPageDetailDto ToDetailDto(Page page, PageTemplate template, PageVersion? latestVersion)
     {
         var zh = page.PagesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = page.PagesI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -722,6 +711,7 @@ public sealed class AdminPagesRepository(
         {
             Id = page.Id,
             Slug = page.Slug,
+            Template = AdminPageTemplateDto.From(template),
             Status = page.Status,
             PublishedAt = page.PublishedAt,
             UpdatedAt = page.UpdatedAt,
@@ -733,21 +723,23 @@ public sealed class AdminPagesRepository(
             OgImageHeight = page.OgImageHeight,
             Zh = new AdminPageSeoLocaleContent { SeoTitle = zh?.SeoTitle, SeoDescription = zh?.SeoDescription, SeoKeywords = zh?.SeoKeywords, OgImageAlt = zh?.OgImageAlt },
             En = en is null ? null : new AdminPageSeoLocaleContent { SeoTitle = en.SeoTitle, SeoDescription = en.SeoDescription, SeoKeywords = en.SeoKeywords, OgImageAlt = en.OgImageAlt },
-            Blocks = page.PageBlocks.OrderBy(b => b.SortOrder).Select(ToBlockDto).ToList(),
+            Blocks = page.PageBlocks.OrderBy(b => b.SortOrder).Select((b, i) => ToBlockDto(b, i < template.Blocks.Count ? template.Blocks[i] : null)).ToList(),
             LatestVersionNo = latestVersion?.VersionNo ?? 0,
             PreviewToken = latestVersion?.PreviewToken,
         };
     }
 
-    private static AdminPageBlockDto ToBlockDto(PageBlock block) => new()
+    private static AdminPageBlockDto ToBlockDto(PageBlock block, PageTemplateBlock? def) => new()
     {
         Id = block.Id,
+        Key = def is not null && def.BlockType == block.BlockType ? def.Key : null,
+        LabelZh = def is not null && def.BlockType == block.BlockType ? def.LabelZh : null,
         BlockType = block.BlockType,
         Content = ParseContentElement(block.Content),
         SortOrder = block.SortOrder,
     };
 
-    private static AdminPageVersionDetailDto ToVersionDetailDto(PageVersion version)
+    private static AdminPageVersionDetailDto ToVersionDetailDto(PageVersion version, PageTemplate template)
     {
         var snapshot = JsonNode.Parse(version.Snapshot ?? "{}") as JsonObject ?? new JsonObject();
         var seoNode = snapshot["seo"] as JsonObject;
@@ -778,8 +770,12 @@ public sealed class AdminPagesRepository(
             }
         }
 
+        var matches = PageTemplates.Matches(
+            template, blocks.Select(b => (b.BlockType, b.Content.ValueKind == JsonValueKind.Undefined ? null : JsonNode.Parse(b.Content.GetRawText()))).ToList());
+
         return new AdminPageVersionDetailDto
         {
+            StructureMatchesTemplate = matches,
             VersionNo = version.VersionNo,
             CreatedAt = version.CreatedAt,
             CreatedBy = version.CreatedBy,

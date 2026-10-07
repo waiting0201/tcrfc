@@ -22,7 +22,8 @@ namespace Tcrfc.Api.Tests;
 [Collection(AdminWriteCollection.Name)]
 public sealed class PagesPublicEndpointTests(AdminWriteApiFixture fixture)
 {
-    private static string UniqueSlug() => $"public-page-{Guid.NewGuid():N}";
+    // 固定頁之後不能新增頁面：公開讀取測試打測試專用版型頁 test/basic（見 TestPageTemplates）。
+    private const string Slug = TestPageTemplates.Basic;
 
     private async Task<HttpClient> ContentEditorClientAsync()
     {
@@ -32,13 +33,26 @@ public sealed class PagesPublicEndpointTests(AdminWriteApiFixture fixture)
         return client;
     }
 
-    private static async Task DeleteBestEffortAsync(HttpClient client, string club, Guid id, DateTime expectedUpdatedAt)
-        => await client.DeleteAsync($"/api/v1/admin/{club}/pages/{id}?expectedUpdatedAt={Uri.EscapeDataString(expectedUpdatedAt.ToString("o"))}");
-
-    private static async Task<AdminPageDetailDto> CreateAsync(HttpClient adminClient, CreatePageRequest request)
+    private static Task<AdminPageDetailDto> CreateAsync(HttpClient adminClient, string seoTitle, string? seoDescription = null, string text = "測試內文")
     {
-        var response = await adminClient.PostAsync("/api/v1/admin/tcrfc/pages", AdminPageMultipart.Build(request));
-        Assert.True(response.StatusCode == HttpStatusCode.Created, $"建立頁面失敗：{response.StatusCode} {await response.Content.ReadAsStringAsync()}");
+        // 草稿初始內容由 SQL 建立；SEO 說明以第二步 PUT 帶入（與後台編輯流程一致）
+        return CreateWithSeoAsync(adminClient, seoTitle, seoDescription, text);
+    }
+
+    private static async Task<AdminPageDetailDto> CreateWithSeoAsync(HttpClient adminClient, string seoTitle, string? seoDescription, string text)
+    {
+        var page = await TestPages.CreateAsync(adminClient, "tcrfc", Slug, TestPages.BasicBlocks(text), seoTitle);
+        if (seoDescription is null)
+        {
+            return page;
+        }
+
+        var request = TestPages.UpdateRequest(page, TestPages.BasicBlocks(text), seoTitle) with
+        {
+            Seo = new AdminPageSeoInput { Zh = new AdminPageSeoLocaleContent { SeoTitle = seoTitle, SeoDescription = seoDescription } },
+        };
+        var response = await TestPages.PutAsync(adminClient, "tcrfc", page, request);
+        Assert.True(response.StatusCode == HttpStatusCode.OK, $"更新頁面失敗：{response.StatusCode} {await response.Content.ReadAsStringAsync()}");
         return (await response.Content.ReadFromJsonAsync<AdminPageDetailDto>(TestJson.Options))!;
     }
 
@@ -66,23 +80,17 @@ public sealed class PagesPublicEndpointTests(AdminWriteApiFixture fixture)
     public async Task 草稿頁面_公開端點看不到()
     {
         using var adminClient = await ContentEditorClientAsync();
-        var slug = UniqueSlug();
-        var created = await CreateAsync(adminClient, new CreatePageRequest
-        {
-            Slug = slug,
-            Seo = new AdminPageSeoInput { Zh = new AdminPageSeoLocaleContent { SeoTitle = "草稿頁面" } },
-            Blocks = [PageBlockSamples.Text()],
-        });
+        var created = await CreateAsync(adminClient, "草稿頁面");
 
         try
         {
             using var publicClient = fixture.CreateClient();
-            var response = await publicClient.GetAsync($"/api/v1/tcrfc/pages/{slug}");
+            var response = await publicClient.GetAsync($"/api/v1/tcrfc/pages/{Slug}");
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally
         {
-            await DeleteBestEffortAsync(adminClient, "tcrfc", created.Id, created.UpdatedAt);
+            await TestPages.DeleteAsync(created.Id);
         }
     }
 
@@ -90,32 +98,21 @@ public sealed class PagesPublicEndpointTests(AdminWriteApiFixture fixture)
     public async Task 排程中的頁面_公開端點看不到()
     {
         using var adminClient = await ContentEditorClientAsync();
-        var slug = UniqueSlug();
-        var created = await CreateAsync(adminClient, new CreatePageRequest
-        {
-            Slug = slug,
-            Seo = new AdminPageSeoInput { Zh = new AdminPageSeoLocaleContent { SeoTitle = "排程頁面" } },
-            Blocks = [PageBlockSamples.Text()],
-        });
+        var created = await CreateAsync(adminClient, "排程頁面");
 
         try
         {
             var scheduled = await ScheduleAsync(adminClient, created, DateTime.UtcNow.AddHours(1));
 
             using var publicClient = fixture.CreateClient();
-            var response = await publicClient.GetAsync($"/api/v1/tcrfc/pages/{slug}");
+            var response = await publicClient.GetAsync($"/api/v1/tcrfc/pages/{Slug}");
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
-            await DeleteBestEffortAsync(adminClient, "tcrfc", created.Id, scheduled.UpdatedAt);
+            await TestPages.DeleteAsync(created.Id);
         }
         catch
         {
-            var probe = await adminClient.GetFromJsonAsync<AdminPageDetailDto>($"/api/v1/admin/tcrfc/pages/{created.Id}", TestJson.Options);
-            if (probe is not null)
-            {
-                await DeleteBestEffortAsync(adminClient, "tcrfc", created.Id, probe.UpdatedAt);
-            }
-
+            await TestPages.DeleteAsync(created.Id);
             throw;
         }
     }
@@ -124,27 +121,21 @@ public sealed class PagesPublicEndpointTests(AdminWriteApiFixture fixture)
     public async Task 已發布頁面_公開端點看得到_只回已發布內容()
     {
         using var adminClient = await ContentEditorClientAsync();
-        var slug = UniqueSlug();
-        var created = await CreateAsync(adminClient, new CreatePageRequest
-        {
-            Slug = slug,
-            Seo = new AdminPageSeoInput { Zh = new AdminPageSeoLocaleContent { SeoTitle = "公開頁面", SeoDescription = "說明" } },
-            Blocks = [PageBlockSamples.Text("公開內文")],
-        });
+        var created = await CreateAsync(adminClient, "公開頁面", "說明", text: "公開內文");
 
         try
         {
             var published = await PublishAsync(adminClient, created);
 
             using var publicClient = fixture.CreateClient();
-            var response = await publicClient.GetAsync($"/api/v1/tcrfc/pages/{slug}?lang=zh");
+            var response = await publicClient.GetAsync($"/api/v1/tcrfc/pages/{Slug}?lang=zh");
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
             var page = await response.Content.ReadFromJsonAsync<PageDetailDto>(TestJson.Options);
             Assert.NotNull(page);
             Assert.Equal("公開頁面", page!.SeoTitle);
             Assert.Equal("說明", page.SeoDescription);
-            Assert.Single(page.Blocks);
+            Assert.Equal(4, page.Blocks.Count);
             Assert.Equal("text", page.Blocks[0].BlockType);
 
             // 雙語物件已化簡成單一字串——不是 {"zh":"...","en":...} 巢狀物件。
@@ -152,16 +143,11 @@ public sealed class PagesPublicEndpointTests(AdminWriteApiFixture fixture)
             Assert.Equal(System.Text.Json.JsonValueKind.String, bodyElement.ValueKind);
             Assert.Equal("公開內文", bodyElement.GetString());
 
-            await DeleteBestEffortAsync(adminClient, "tcrfc", created.Id, published.UpdatedAt);
+            await TestPages.DeleteAsync(created.Id);
         }
         catch
         {
-            var probe = await adminClient.GetFromJsonAsync<AdminPageDetailDto>($"/api/v1/admin/tcrfc/pages/{created.Id}", TestJson.Options);
-            if (probe is not null)
-            {
-                await DeleteBestEffortAsync(adminClient, "tcrfc", created.Id, probe.UpdatedAt);
-            }
-
+            await TestPages.DeleteAsync(created.Id);
             throw;
         }
     }
@@ -170,32 +156,21 @@ public sealed class PagesPublicEndpointTests(AdminWriteApiFixture fixture)
     public async Task 已發布頁面_另一個俱樂部路由查不到()
     {
         using var adminClient = await ContentEditorClientAsync();
-        var slug = UniqueSlug();
-        var created = await CreateAsync(adminClient, new CreatePageRequest
-        {
-            Slug = slug,
-            Seo = new AdminPageSeoInput { Zh = new AdminPageSeoLocaleContent { SeoTitle = "磐石限定頁面" } },
-            Blocks = [PageBlockSamples.Text()],
-        });
+        var created = await CreateAsync(adminClient, "磐石限定頁面");
 
         try
         {
             var published = await PublishAsync(adminClient, created);
 
             using var publicClient = fixture.CreateClient();
-            var response = await publicClient.GetAsync($"/api/v1/bw/pages/{slug}");
+            var response = await publicClient.GetAsync($"/api/v1/bw/pages/{Slug}");
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
-            await DeleteBestEffortAsync(adminClient, "tcrfc", created.Id, published.UpdatedAt);
+            await TestPages.DeleteAsync(created.Id);
         }
         catch
         {
-            var probe = await adminClient.GetFromJsonAsync<AdminPageDetailDto>($"/api/v1/admin/tcrfc/pages/{created.Id}", TestJson.Options);
-            if (probe is not null)
-            {
-                await DeleteBestEffortAsync(adminClient, "tcrfc", created.Id, probe.UpdatedAt);
-            }
-
+            await TestPages.DeleteAsync(created.Id);
             throw;
         }
     }

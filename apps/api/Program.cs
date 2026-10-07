@@ -424,6 +424,7 @@ builder.Services.AddScoped<AdminArticlesRepository>();
 // ── S1-4：後台頁面管理（B1）寫入 ──────────────────────────────────────────
 // 見 Features/AdminPages/AdminPagesRepository.cs 檔頭說明——寫入走 EF Core、公開讀取走 Dapper
 // 的 PagesRepository（上面已註冊），跟新聞模組同一種切分方式。
+builder.Services.AddSingleton<IPageTemplateCatalog>(PageTemplateCatalog.Default); // B1 固定頁版型目錄（測試主機可取代，見 PageTemplates.cs）
 builder.Services.AddScoped<AdminPagesRepository>();
 
 // ── S1-6：B3 首頁編排／B4 常見問題 ────────────────────────────────────────

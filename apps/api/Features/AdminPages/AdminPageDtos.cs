@@ -37,54 +37,26 @@ public sealed record AdminPageSeoInput
 /// </summary>
 public sealed record AdminPageBlockInput
 {
-    /// <summary>值域見 <see cref="PageBlockTypes"/>。</summary>
+    /// <summary>值域見 <see cref="PageBlockTypes"/>。必須與頁面版型在同一位置的區塊類型一致。</summary>
     public required string BlockType { get; init; }
+
+    /// <summary>區塊代號（<see cref="PageTemplateBlock.Key"/>）。可省略；有帶就必須與版型在同一位置的區塊代號一致
+    /// （防止畫面讀到舊版型後送出錯位的內容）。</summary>
+    public string? Key { get; init; }
 
     public required JsonNode Content { get; init; }
 }
 
-/// <summary>
-/// 建立頁面的請求（<c>payload</c> 這個 multipart 欄位的 JSON 內容）。⚠️ 沒有 <c>ClubId</c>——
-/// 俱樂部由路由 <c>{club}</c> 決定（<see cref="Security.AdminClubScope"/>），不接受呼叫端指定。
-/// </summary>
-public sealed record CreatePageRequest
-{
-    /// <summary>畫面上叫「網址名稱」，對應 <c>pages.slug</c>，可含 <c>/</c> 表示分層路徑
-    /// （見 <see cref="PageSlugPolicy"/>）。唯一鍵 <c>(club_id, slug)</c>。</summary>
-    public required string Slug { get; init; }
-
-    public required AdminPageSeoInput Seo { get; init; }
-
-    /// <summary>手動覆寫 canonical（S1-12 新增）。省略或空字串＝不覆寫，前台沿用自動依目前網址
-    /// 產生的 canonical（見 apps/api/README.md「S1-12」段）。對應 <c>pages.canonical_path</c>。</summary>
-    public string? CanonicalPath { get; init; }
-
-    /// <summary>單頁 noindex 開關（S1-12 新增）。對應 <c>pages.is_noindex</c>，預設 <c>false</c>。
-    /// ⚠️ 這是內容層級的個別頁面設定，跟全站上線前 <c>NUXT_PUBLIC_SITE_ENV=prelaunch</c> 的全站
-    /// noindex 是兩個機制，互不取代（CLAUDE.md 全域規定第 5 條全站 noindex 不受本欄位影響）。</summary>
-    public bool IsNoindex { get; init; }
-
-    /// <summary>從 Sitemap 排除（S1-12 新增）。對應 <c>pages.is_excluded_from_sitemap</c>，
-    /// 預設 <c>false</c>。跟 <see cref="IsNoindex"/> 是兩個獨立開關——noindex 的頁面理應同時排除
-    /// 於 Sitemap（見 <c>Features/Seo/SeoRepository</c> 的篩選條件），但排除於 Sitemap 不代表
-    /// 這頁不能被索引，兩者不互相蘊含。</summary>
-    public bool IsExcludedFromSitemap { get; init; }
-
-    /// <summary>區塊化編輯器的完整區塊清單，依陣列順序即排序（<c>page_blocks.sort_order</c>）——
-    /// 「新增／排序／刪除」全部靠呼叫端送出這份完整清單來表達，不開獨立的單一區塊 CRUD 端點
-    /// （見 apps/api/README.md「B1 頁面管理」一節「我的判斷」）。允許空陣列（頁面剛建立、還沒放
-    /// 任何區塊，先存草稿的常見情境）。</summary>
-    public required IReadOnlyList<AdminPageBlockInput> Blocks { get; init; }
-}
-
-/// <summary>更新頁面的請求。整份取代語意（跟 <c>UpdateArticleRequest</c> 一致）：
-/// <see cref="Blocks"/> 是這個頁面之後應該有的**完整**區塊清單，省略的既有區塊視為被刪除。</summary>
+/// <summary>更新頁面的請求。整份取代語意：<see cref="Blocks"/> 是這個頁面之後的**完整**區塊清單，
+/// 數量、類型、順序必須與頁面版型（<see cref="PageTemplates"/>）一致；不允許增刪列的區塊列數也須與版型一致，
+/// 不符回 400（欄位鍵 <c>blocks</c>／<c>blocks[N]</c>／<c>blocks[N].items</c>）。</summary>
 public sealed record UpdatePageRequest
 {
-    public required string Slug { get; init; }
+    /// <summary>網址名稱不可變更。可省略；有帶就必須與現有值相同，否則 400（欄位鍵 <c>slug</c>）。</summary>
+    public string? Slug { get; init; }
     public required AdminPageSeoInput Seo { get; init; }
 
-    /// <summary>語意同 <see cref="CreatePageRequest.CanonicalPath"/>，整份取代（省略＝清空覆寫值，
+    /// <summary>整份取代語意（省略＝清空覆寫值，
     /// 回到自動 canonical——這三個欄位跟頁面本體一樣採「整份取代」語意，不是跟標籤那組「省略＝
     /// 維持不變」，因為 B1 編輯頁本來就會把這些欄位一起讀出、一起存回，不存在「畫面上沒有這個
     /// 輸入框」的情境）。</summary>
@@ -127,6 +99,13 @@ public sealed record RestorePageVersionRequest
 public sealed record AdminPageBlockDto
 {
     public required Guid Id { get; init; }
+
+    /// <summary>版型區塊代號；結構與版型不符的舊資料或版本快照為 <c>null</c>。</summary>
+    public string? Key { get; init; }
+
+    /// <summary>後台顯示的區塊名稱（版型 <see cref="PageTemplateBlock.LabelZh"/>）；同上，不符時為 <c>null</c>。</summary>
+    public string? LabelZh { get; init; }
+
     public required string BlockType { get; init; }
     public required JsonElement Content { get; init; }
     public required int SortOrder { get; init; }
@@ -138,6 +117,14 @@ public sealed record AdminPageListItemDto
 {
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
+
+    /// <summary>版型鍵（同 <see cref="Slug"/>；每個俱樂部內版型以 slug 唯一）。</summary>
+    public required string TemplateKey { get; init; }
+
+    /// <summary>頁名（版型定義，日常中文／英文）。</summary>
+    public required string TitleZh { get; init; }
+
+    public string? TitleEn { get; init; }
 
     /// <summary>值域 <c>draft</c>／<c>published</c>／<c>scheduled</c>（<c>pages.status</c> 的 CHECK 約束）。</summary>
     public required string Status { get; init; }
@@ -153,6 +140,10 @@ public sealed record AdminPageDetailDto
 {
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
+
+    /// <summary>頁面版型：頁名、每個區塊的名稱／類型／可否增刪列。後台畫面依此渲染固定欄位。</summary>
+    public required AdminPageTemplateDto Template { get; init; }
+
     public required string Status { get; init; }
     public DateTime? PublishedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
@@ -191,6 +182,9 @@ public sealed record AdminPageVersionListItemDto
 /// <summary>單一版本的完整快照內容（還原前先看內容用）。</summary>
 public sealed record AdminPageVersionDetailDto
 {
+    /// <summary>這個版本的區塊結構（數量、類型、固定列數）是否與目前版型一致；<c>false</c> 時還原會被拒絕（400，鍵 <c>versionNo</c>）。</summary>
+    public required bool StructureMatchesTemplate { get; init; }
+
     public required int VersionNo { get; init; }
     public required DateTime CreatedAt { get; init; }
     public Guid? CreatedBy { get; init; }
@@ -198,4 +192,42 @@ public sealed record AdminPageVersionDetailDto
     public required AdminPageSeoLocaleContent Zh { get; init; }
     public AdminPageSeoLocaleContent? En { get; init; }
     public required IReadOnlyList<AdminPageBlockDto> Blocks { get; init; }
+}
+
+/// <summary>版型中的單一區塊（給後台畫面依此渲染固定欄位）。</summary>
+public sealed record AdminPageTemplateBlockDto
+{
+    public required string Key { get; init; }
+    public required string BlockType { get; init; }
+    public required string LabelZh { get; init; }
+    public string? HintZh { get; init; }
+
+    /// <summary>可重複項目是否允許增刪列。</summary>
+    public required bool AllowRowEdit { get; init; }
+
+    /// <summary>不允許增刪列時的固定列數，否則 <c>null</c>。</summary>
+    public int? FixedRowCount { get; init; }
+
+    /// <summary>可重複項目在區塊內容裡的屬性名（<c>items</c>／<c>images</c>／<c>rows</c>），沒有則 <c>null</c>。</summary>
+    public string? RowsField { get; init; }
+}
+
+public sealed record AdminPageTemplateDto
+{
+    public required string Key { get; init; }
+    public required string TitleZh { get; init; }
+    public string? TitleEn { get; init; }
+    public required IReadOnlyList<AdminPageTemplateBlockDto> Blocks { get; init; }
+
+    public static AdminPageTemplateDto From(PageTemplate template) => new()
+    {
+        Key = template.Slug,
+        TitleZh = template.TitleZh,
+        TitleEn = template.TitleEn,
+        Blocks = template.Blocks.Select(b => new AdminPageTemplateBlockDto
+        {
+            Key = b.Key, BlockType = b.BlockType, LabelZh = b.LabelZh, HintZh = b.HintZh,
+            AllowRowEdit = b.AllowRowEdit, FixedRowCount = b.FixedRowCount, RowsField = b.RowsField,
+        }).ToList(),
+    };
 }

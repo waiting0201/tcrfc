@@ -880,6 +880,87 @@ $ dotnet test    # CLUB_SQL_CONNECTION_STRING 指向本機 tcrfc_club_dev，見�
 
 ## S1-4：B1 頁面管理（2026-09-24，`backend-engineer`）
 
+> 🔴 **2026-10-07 起改為「固定頁＋固定欄位」**（使用者拍板）：只管理固定頁清單，**不能新增、不能刪除頁面**；
+> 每一頁的區塊結構（數量、類型、順序）由**版型**固定，不能增刪排序區塊；可重複項目（時間軸條目、步驟／價值卡片、
+> 數據卡、問答題目、藝廊圖片、表格列）是否可在區塊內增刪列，由版型逐區塊標示。狀態、SEO、雙語、版本、預覽照舊。
+> 下面各小節凡與本段衝突者（建立／刪除端點、建立請求、網址名稱規則、測試清單），**以本段為準**。
+
+### 版型（唯一來源：`Features/AdminPages/PageTemplates.cs`）
+
+- 版型以「俱樂部＋slug」為鍵（磐石 12 頁、藍鯨 10 頁；藍鯨不設 06 女子足球與 11 慈善，單元對藍鯨關閉見 `apps/web/shared/utils/units.ts`；
+  **藍鯨沒有 slug 特例**：願景頁與磐石同為 `about/vision-mission`，舊種子的 `about/vision` 已由遷移改名）。
+  每份版型含：`slug`、`titleZh`／`titleEn`、有序區塊清單（`key`、`blockType`（沿用 12 種）、`labelZh`、`hintZh`、
+  `allowRowEdit`、`fixedRowCount`、`rowsField`）。區塊結構依 `apps/web/app/pages/zh/**` 各頁「CMS 已發布就取代主內文」那一段的備用內容設計
+  （hero／麵包屑／CTA 卡不在版型內；有動態資料的區塊——試訓場次、FAQ 嵌入、夥伴 Logo——也不在內）。
+- **版型目錄是注入接縫**（`IPageTemplateCatalog`，正式環境一律是 `PageTemplates.All`）：測試主機註冊「正式版型＋測試專用版型」
+  （`test/…`，見 `Tcrfc.Api.Tests/TestPageTemplates.cs`），會改資料的測試只打測試頁，不動真正的固定頁。
+- **清單保證每個版型都有一列**：選的做法是「清單載入時為缺頁的版型補建一份草稿骨架頁」
+  （`AdminPagesRepository.EnsureTemplatePagesAsync`，冪等、以 `UQ_pages_club_slug` 擋並行重複、`created_by` 為 `null`），
+  而不是回傳沒有 `id` 的虛擬列——畫面永遠拿得到可編輯的 `id`／狀態／預覽權杖，沒有「首次編輯才建立」的第二條流程。
+  骨架內容（文字為空、固定列數的列已備好）**通不過內容驗證**（中文必填），編輯者必須填完才能存檔；它是草稿，公開端點看不到。
+  正常情況下不會觸發：種子與遷移（`db/migrations/20261007_page-templates.sql`）都會建齊。
+- 不在版型內的舊頁面（例：已退場的 `test-draft-page`）：後台清單不顯示、`GET`／`PUT`／版本端點一律 404。
+
+### API 形狀（後台，`/api/v1/admin/{club}/pages`）
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET …/pages?status=&keyword=&page=&pageSize=` | `content.page.view` | 版型清單合併實際頁的狀態（順序依版型，信封沿用 `PagedResult`） |
+| `GET …/pages/{id}` | `content.page.view` | 頁面＋版型（`template`）＋區塊（帶 `key`／`labelZh`） |
+| `PUT …/pages/{id}` | `content.page.update` | 整份取代 SEO＋全部區塊；**區塊結構必須與版型一致**；`multipart/form-data` |
+| `POST …/pages/{id}/publish`、`…/schedule` | `content.page.publish` | 狀態轉換，照舊 |
+| `GET …/pages/{id}/versions`、`…/versions/{n}` | `content.page.view` | 版本歷程；單版詳情多 `structureMatchesTemplate` |
+| `POST …/pages/{id}/versions/{n}/restore` | `content.page.update` | 還原；快照結構與現行版型不符回 400（鍵 `versionNo`） |
+| ~~`POST …/pages`~~／~~`DELETE …/pages/{id}`~~ | — | **已移除**：路由不存在，回 **405**（`content.page.create`／`delete` 權限碼仍留在種子，不再有端點使用） |
+
+**list 回應（一列）**：
+
+```json
+{ "items": [ { "id": "…", "slug": "about/vision-mission", "templateKey": "about/vision-mission",
+    "titleZh": "願景與使命", "titleEn": "Vision & Mission", "status": "published",
+    "publishedAt": "2026-09-30T00:00:00Z", "updatedAt": "…", "seoTitleZh": "…", "seoTitleEn": "…" } ],
+  "page": 1, "pageSize": 20, "totalCount": 12 }
+```
+
+**get 回應（節錄）**：
+
+```json
+{ "id": "…", "slug": "about/vision-mission",
+  "template": { "key": "about/vision-mission", "titleZh": "願景與使命", "titleEn": "Vision & Mission",
+    "blocks": [ { "key": "visionMission", "blockType": "steps", "labelZh": "願景與使命", "hintZh": "固定兩項：願景、使命。",
+                  "allowRowEdit": false, "fixedRowCount": 2, "rowsField": "items" } ] },
+  "status": "published", "publishedAt": "…", "updatedAt": "…", "canonicalPath": null, "isNoindex": false,
+  "isExcludedFromSitemap": false, "ogImageUrl": null, "zh": { "seoTitle": "…", "seoDescription": "…" }, "en": { … },
+  "blocks": [ { "id": "…", "key": "visionMission", "labelZh": "願景與使命", "blockType": "steps", "sortOrder": 0,
+                "content": { "items": [ { "title": { "zh": "願景", "en": "Vision" }, "description": { "zh": "…", "en": "…" } } ] } } ],
+  "latestVersionNo": 1, "previewToken": "…" }
+```
+
+**PUT 請求**（`multipart/form-data`；`payload` 欄位的 JSON ＋ 圖片檔案欄位 `file:{區塊索引}:{圖片路徑}`、`ogImage`，契約不變）：
+
+```json
+{ "slug": "about/vision-mission",             // 可省略；有帶必須與現有值相同（不可改）
+  "seo": { "zh": { "seoTitle": "…", "seoDescription": "…", "seoKeywords": null, "ogImageAlt": null }, "en": { … } },
+  "canonicalPath": null, "isNoindex": false, "isExcludedFromSitemap": false, "removeOgImage": false,
+  "blocks": [ { "key": "visionMission",         // 可省略；有帶必須與版型該位置的區塊代號相同
+                "blockType": "steps", "content": { … } } ],
+  "expectedUpdatedAt": "…" }
+```
+
+**結構錯誤一律 400**（ProblemDetails，`errors` 欄位鍵 → 訊息；既有內容驗證沿用 `PageBlockContentProcessor`）：
+
+| 情況 | `errors` 鍵 |
+|---|---|
+| `slug` 與現有值不同 | `slug` |
+| 區塊數量與版型不同（含空陣列） | `blocks` |
+| 第 N 個區塊類型（或帶的 `key`）與版型該位置不同／順序被調換 | `blocks[N]` |
+| 不允許增刪列的區塊，列數與 `fixedRowCount` 不同 | `blocks[N].items`（或 `.images`／`.rows`，即該區塊的 `rowsField`） |
+| 允許增刪列的區塊減到零列（既有內容驗證：至少 1 列） | `blocks[N].items` |
+| 區塊內容欄位缺漏（既有） | `blocks[N].bodyZh`、`blocks[N].items[M].titleZh`、`blocks[N].image` … |
+| 還原的快照結構與現行版型不符 | `versionNo` |
+
+結構驗證**先於**內容驗證與圖片上傳（結構錯的請求不會碰圖片儲存）；失敗的請求不寫入、不產生版本。
+
 ### 讀到的規劃書條文
 
 主站規劃書 §4.2 B1（約行 1010–1016）：
@@ -907,11 +988,11 @@ token 選用）。
 |---|---|---|
 | `GET /api/v1/admin/{club}/pages` | `content.page.view` | 清單（含全部狀態），`status`／`keyword`／`page`／`pageSize` |
 | `GET /api/v1/admin/{club}/pages/{id}` | `content.page.view` | 單頁詳情（含區塊、SEO、最新版本編號與預覽權杖） |
-| `POST /api/v1/admin/{club}/pages` | `content.page.create` | 建立（一律草稿），`multipart/form-data` |
+| ~~`POST /api/v1/admin/{club}/pages`~~ | — | 已移除（2026-10-07，固定頁） |
 | `PUT /api/v1/admin/{club}/pages/{id}` | `content.page.update` | 整份取代（SEO ＋ 全部區塊），不改狀態，`multipart/form-data` |
 | `POST /api/v1/admin/{club}/pages/{id}/publish` | `content.page.publish` | draft／scheduled → published |
 | `POST /api/v1/admin/{club}/pages/{id}/schedule` | `content.page.publish` | draft／scheduled → scheduled（未來時間） |
-| `DELETE /api/v1/admin/{club}/pages/{id}` | `content.page.delete` | 刪除（`?expectedUpdatedAt=`），連帶刪除全部區塊圖片物件 |
+| ~~`DELETE /api/v1/admin/{club}/pages/{id}`~~ | — | 已移除（2026-10-07，固定頁） |
 | `GET /api/v1/admin/{club}/pages/{id}/versions` | `content.page.view` | 版本歷程清單 |
 | `GET /api/v1/admin/{club}/pages/{id}/versions/{versionNo}` | `content.page.view` | 單一版本快照詳情 |
 | `POST /api/v1/admin/{club}/pages/{id}/versions/{versionNo}/restore` | `content.page.update` | 還原（見下方「我的判斷」） |
@@ -964,16 +1045,16 @@ B2 新聞本來就是零筆 `role_permissions`），保持兩個內容模組的�
 跟 B2 新聞固定單一 `file` 欄位不同——頁面區塊可能同時有多張待上傳圖片（圖文左右 1 張、圖片藝廊
 N 張，且同一次請求可能有多個這類區塊）。契約（`Features/AdminPages/AdminPageRequestForm.cs`）：
 
-- 固定欄位 `payload`：JSON 文字，`CreatePageRequest`／`UpdatePageRequest`（camelCase）。
+- 固定欄位 `payload`：JSON 文字，`UpdatePageRequest`（camelCase）。
 - 檔案欄位命名 `file:{區塊索引}:{圖片路徑}`——圖文左右固定是 `file:{i}:image`；圖片藝廊依陣列位置
   是 `file:{i}:images:0`、`file:{i}:images:1`……。`{區塊索引}` 是 `Blocks` 陣列裡的位置（從 0 起算）。
 - 對應圖片欄位物件要標示 `"pendingUpload": true` 才會去找對應檔案；沒標示就必須已經帶著既有 `key`。
 - 物件鍵路徑：`{club}/pages/{pageId}/blocks/{blockIndex}/{path}`（`path` 的 `:` 換成 `-`）。
 
-失敗時的補償：`AdminPagesRepository.CreateAsync`／`UpdateAsync` 內部把「驗證＋圖片上傳＋寫入資料庫」
+失敗時的補償：`AdminPagesRepository.UpdateAsync` 內部把「驗證＋圖片上傳＋寫入資料庫」
 包在同一個 `try/catch`，任何一步失敗（含後面某個區塊驗證失敗）都會把這次呼叫已經真的上傳成功的物件
 逐一刪除（`CancellationToken.None`，E-47 教訓——不沿用可能已取消的請求 token）。換圖（`UpdateAsync`）
-與刪除頁面時，「新圖／新版本寫入成功後才刪舊物件」用的是請求本身的 `cancellationToken`（fail-open，
+時，「新圖／新版本寫入成功後才刪舊物件」用的是請求本身的 `cancellationToken`（fail-open，
 跟 B2 新聞現有行為一致），這是兩種不同性質的刪除，故意用不同 token，見 repository 上的註解。
 
 ### 版本歷程與還原：我的判斷（規劃書沒定義還原後的行為）
@@ -1024,7 +1105,9 @@ N 張，且同一次請求可能有多個這類區塊）。契約（`Features/Ad
 `DetailEntity`／`ScheduledPublishRunner` 的 `PageDetailEntity` 三處字面值必須一致，已 grep 核對）。
 排程發布的 TTL 延遲說明與 B2 新聞完全同一份取捨，不重複貼一次。
 
-### 網址名稱（slug）：允許多層路徑，不做跨模組保留字偵測
+### 網址名稱（slug）：（2026-10-07 起不可變更，以下為歷史說明）
+
+> 固定頁之後 slug 由版型決定、`PUT` 不可改，`PageSlugPolicy` 已刪除；下文僅保留當時的設計背景。
 
 B1 頁面本身**就是**網站的靜態頁面路由（docs/01「URL 直接對應網站層級」，例 `/zh/academy/join/`），
 `PageSlugPolicy` 允許 slug 含 `/`（多層路徑），唯一鍵 `(club_id, slug)`（`UQ_pages_club_slug`，
@@ -1033,15 +1116,18 @@ B1 頁面本身**就是**網站的靜態頁面路由（docs/01「URL 直接對�
 `apps/web` 的完整路由清單，`apps/web` 本輪由另一個 agent 同時在改、依派工指示不得觸碰，性質與
 `Features/AdminNews/SlugPolicy.cs` 檔頭記錄的「無法做到跨專案自動比對」同一種缺口。
 
-### 測試（`Tcrfc.Api.Tests`，新增 6 個檔案）
+### 測試（`Tcrfc.Api.Tests`；2026-10-07 為固定頁改寫）
+
+會改資料的測試一律打測試專用版型的測試頁（`TestPageTemplates.cs`：`test/basic`、`test/all-types`、`test/images`、`test/seed/…`，SQL 建立、測完刪除），**不動真正的固定頁**。
 
 | 檔案 | 涵蓋 |
 |---|---|
-| `AdminPagesWriteTests.cs` | 401／403（無登入、檢視者、跨俱樂部無授權）、完整生命週期、slug 重複／格式錯誤、多層路徑 slug、跨俱樂部 404、樂觀並行 409、狀態轉換 409、排程時間非未來 400 |
-| `AdminPagesBlockValidationTests.cs` | 12 種區塊各一組合法／不合法內容（`[Theory]`），未知區塊型別 400，空區塊陣列允許建立空白草稿 |
-| `AdminPagesVersionsAndPreviewTests.cs` | 每次寫入產生新版本、版本列表與單版詳情、還原產生新版本且不覆蓋舊版、還原不存在版本 404、未發布頁面預覽可見＋`noindex` 標頭、猜測權杖 404 |
-| `PagesPublicEndpointTests.cs` | 草稿／排程中不可見、已發布可見且雙語物件已化簡、跨俱樂部路由查不到 |
-| `AdminPagesImageTests.cs`（Azurite） | 圖文左右／圖片藝廊真實上傳、補償交易（HTTP 層）、換圖刪舊物件、刪除頁面連帶刪圖、**E-47 樣式的補償刪除 token 測試**（見下） |
+| `AdminPageTemplatesTests.cs`（新） | 版型自洽、各俱樂部版型清單（磐石 12／藍鯨 10、藍鯨無 06／11、無 slug 特例）、種子內容檔與版型逐頁結構一致、後台清單每版型一列且順序依版型、資料庫實際頁面結構與版型一致、種子內容逐頁走完整 PUT 管線、遷移套用兩次冪等、缺頁補建 |
+| `AdminPagesWriteTests.cs` | 401／403、**POST／DELETE 回 405**、完整生命週期、slug 不可變更（400 鍵 `slug`）、區塊數量／類型／順序／key 不符（400 鍵 `blocks`／`blocks[N]`）、固定列數不符（400 鍵 `blocks[N].items`）、可增刪列的區塊、版型外舊頁 404、跨俱樂部 404、樂觀並行 409、狀態轉換、排程時間 |
+| `AdminPagesBlockValidationTests.cs` | 打 `test/all-types`：12 種區塊各一組合法／不合法內容，錯誤鍵指向該區塊，未知型別、圖片欄位結構性缺漏 |
+| `AdminPagesVersionsAndPreviewTests.cs` | 版本歷程、還原產生新版本、**還原結構不符的舊版本回 400（鍵 `versionNo`）且頁面不變**、預覽連結 |
+| `PagesPublicEndpointTests.cs` | 草稿／排程中不可見、已發布可見、跨俱樂部查不到 |
+| `AdminPagesImageTests.cs`（Azurite） | 在既有測試頁上以 PUT 上傳圖文左右／藝廊、補償交易、結構錯誤不碰儲存體、換圖刪舊物件、E-47 補償刪除 token（「刪除頁面連帶刪圖」隨 DELETE 移除） |
 | `AdminPageMultipart.cs`／`PageBlockSamples.cs`／`Fixtures/TestAdminHttpContext.cs`／`Fixtures/FakeFormFileCollection.cs` | 測試工具，不是測試本身 |
 
 **E-47 樣式測試的做法**：`AdminPagesImageTests.補償刪除沿用CancellationTokenNone_即使外層token已取消仍能清乾淨`

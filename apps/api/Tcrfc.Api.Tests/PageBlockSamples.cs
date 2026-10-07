@@ -191,6 +191,46 @@ internal static class PageBlockSamples
         Content = new JsonObject { ["label"] = Bilingual("招生簡章") }, // 缺 fileUrl
     };
 
+    /// <summary>步驟 <paramref name="count"/> 列（每列只有標題，其餘選填欄位省略）。</summary>
+    public static AdminPageBlockInput StepsOf(int count) => new()
+    {
+        BlockType = PageBlockTypes.Steps,
+        Content = new JsonObject
+        {
+            ["items"] = new JsonArray(Enumerable.Range(1, count).Select(i => (JsonNode)new JsonObject { ["title"] = Bilingual($"第 {i} 步") }).ToArray()),
+        },
+    };
+
+    public static AdminPageBlockInput TimelineOf(int count) => new()
+    {
+        BlockType = PageBlockTypes.Timeline,
+        Content = new JsonObject
+        {
+            ["items"] = new JsonArray(Enumerable.Range(1, count).Select(i => (JsonNode)new JsonObject { ["date"] = $"20{i:00}", ["title"] = Bilingual($"事件 {i}") }).ToArray()),
+        },
+    };
+
+    /// <summary>圖文左右，圖片欄位已有物件鍵（沿用既有圖片，不需要上傳）。</summary>
+    public static AdminPageBlockInput TextImageExisting() => new()
+    {
+        BlockType = PageBlockTypes.TextImage,
+        Content = new JsonObject
+        {
+            ["body"] = Bilingual("圖文左右內文"),
+            ["imagePosition"] = "right",
+            ["image"] = new JsonObject { ["key"] = "tcrfc/pages/existing/image.webp", ["width"] = 10, ["height"] = 10, ["altZh"] = "既有圖片", ["altEn"] = null },
+        },
+    };
+
+    public static AdminPageBlockInput GalleryExisting() => new()
+    {
+        BlockType = PageBlockTypes.Gallery,
+        Content = new JsonObject
+        {
+            ["images"] = new JsonArray(new JsonObject { ["key"] = "tcrfc/pages/existing/g0.webp", ["width"] = 10, ["height"] = 10, ["altZh"] = "既有圖片", ["altEn"] = null }),
+        },
+    };
+
     public static AdminPageBlockInput UnknownType() => new()
     {
         BlockType = "not-a-real-block-type",

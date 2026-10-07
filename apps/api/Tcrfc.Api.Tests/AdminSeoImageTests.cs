@@ -254,36 +254,40 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
     public async Task 頁面OgImage_後台上傳後解析出網址()
     {
         using var editorClient = await CreateContentEditorClientAsync();
-        var slug = $"s1-12-page-og-{Guid.NewGuid():N}";
 
-        var createRequest = new CreatePageRequest
-        {
-            Slug = slug,
-            Seo = new AdminPageSeoInput { Zh = new AdminPageSeoLocaleContent { SeoTitle = "OG 圖片測試頁", OgImageAlt = "頁面替代文字" } },
-            Blocks = [],
-        };
-
-        var form = new MultipartFormDataContent();
-        var json = JsonSerializer.Serialize(createRequest, TestJson.WriteOptions);
-        var payloadContent = new StringContent(json, Encoding.UTF8);
-        payloadContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        form.Add(payloadContent, "payload");
-        var ogImageContent = new ByteArrayContent(TestImages.SmallPng());
-        ogImageContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
-        form.Add(ogImageContent, "ogImage", "og.png");
-
-        var createResponse = await editorClient.PostAsync("/api/v1/admin/tcrfc/pages", form);
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-        var created = await createResponse.Content.ReadFromJsonAsync<AdminPageDetailDto>(TestJson.Options);
+        // 固定頁之後沒有「新增頁面」：OG 圖片在既有頁面上以 PUT 上傳（打測試專用的 test/images 頁，不動真正的固定頁）。
+        var page = await TestPages.CreateAsync(
+            editorClient, "tcrfc", TestPageTemplates.Images,
+            [PageBlockSamples.TextImageExisting(), PageBlockSamples.Cta(), PageBlockSamples.GalleryExisting()], "OG 圖片測試頁");
 
         try
         {
-            Assert.NotNull(created!.OgImageUrl);
-            Assert.Equal("頁面替代文字", created.Zh.OgImageAlt);
+            var updateRequest = new UpdatePageRequest
+            {
+                Seo = new AdminPageSeoInput { Zh = new AdminPageSeoLocaleContent { SeoTitle = "OG 圖片測試頁", OgImageAlt = "頁面替代文字" } },
+                Blocks = [PageBlockSamples.TextImageExisting(), PageBlockSamples.Cta(), PageBlockSamples.GalleryExisting()],
+                ExpectedUpdatedAt = page.UpdatedAt,
+            };
+
+            var form = new MultipartFormDataContent();
+            var json = JsonSerializer.Serialize(updateRequest, TestJson.WriteOptions);
+            var payloadContent = new StringContent(json, Encoding.UTF8);
+            payloadContent.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+            form.Add(payloadContent, "payload");
+            var ogImageContent = new ByteArrayContent(TestImages.SmallPng());
+            ogImageContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+            form.Add(ogImageContent, "ogImage", "og.png");
+
+            var response = await editorClient.PutAsync($"/api/v1/admin/tcrfc/pages/{page.Id}", form);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var updated = await response.Content.ReadFromJsonAsync<AdminPageDetailDto>(TestJson.Options);
+
+            Assert.NotNull(updated!.OgImageUrl);
+            Assert.Equal("頁面替代文字", updated.Zh.OgImageAlt);
         }
         finally
         {
-            await editorClient.DeleteAsync($"/api/v1/admin/tcrfc/pages/{created!.Id}?expectedUpdatedAt={Uri.EscapeDataString(created.UpdatedAt.ToString("o"))}");
+            await TestPages.DeleteAsync(page.Id);
         }
     }
 

@@ -35,104 +35,33 @@ def bi(zh, en=None):
 
 
 # ============================================================================
-# B1 頁面（pages）——真實文案取自 apps/web/shared/utils/club-copy.ts（已核實）
+# B1 頁面（pages）——「固定頁＋固定欄位」（使用者 2026-10-07 拍板）
+#
+# 每個俱樂部建齊它適用的全部版型頁（apps/api/Features/AdminPages/PageTemplates.cs：磐石 12 頁、藍鯨 10 頁），
+# 狀態一律 published，區塊內容是前台目前寫死的備用內容（中英文字原樣）。不再有「test-draft-page」測試草稿頁。
+# 內容在 page_seed_content.json（由 page_seed_content.extract.ts 自 apps/web 的前台文案取出，來源逐段可追）；
+# 區塊結構（數量、類型、固定列數）必須與版型一致，由 apps/api 的 AdminPageTemplatesTests 對資料庫逐頁核對。
 # ============================================================================
-PAGES = {
-    "tcrfc": [
-        {
-            "slug": "about/vision-mission",
-            "status": "draft",
-            "seo_title": "願景與使命 Vision & Mission｜關於台中磐石｜台中磐石足球俱樂部",
-            "seo_description": "台中磐石足球俱樂部的願景與使命：透過專業化培育體系，讓台中在地選手邁向職業舞台，並以足球讓世界看見台灣。",
-            "blocks": [
-                # 區塊 text 只支援純文字段落（前台以空行分段、不渲染 HTML／標題），故「願景／使命」用步驟條表達標題與內文
-                ("steps", {"items": [
-                    {"title": bi("願景"), "description": bi("從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。")},
-                    {"title": bi("使命"), "description": bi("以扎實的訓練體系與國際連結，讓世界看見台灣足球。")},
-                ]}),
-                ("quote", {"text": bi("在地扎根．放眼世界", "LOCAL ROOTS. GLOBAL PATHWAYS."),
-                          "attribution": bi("台中磐石足球俱樂部")}),
-                ("cta", {"text": bi("想進一步認識台中磐石？"), "buttonLabel": bi("關於台中磐石"),
-                        "buttonUrl": "/zh/about/"}),
-            ],
-        },
-        {
-            "slug": "about/philosophy",
-            "status": "draft",
-            "seo_title": "足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部",
-            "seo_description": "台中磐石足球俱樂部的足球理念與五大核心價值：以球員為本、追求卓越、國際發展、社區共好、誠信專業。",
-            "blocks": [
-                ("text", {"body": bi("透過專業模式，培育選手追求卓越，讓世界看見台灣足球。")}),
-                ("steps", {"items": [
-                    {"title": bi("以球員為本")}, {"title": bi("追求卓越")}, {"title": bi("國際發展")},
-                    {"title": bi("社區共好")}, {"title": bi("誠信專業")},
-                ]}),
-            ],
-        },
-        {
-            "slug": "test-draft-page",
-            "status": "draft",
-            "seo_title": TEST + "草稿頁面",
-            "seo_description": TEST_BODY,
-            "blocks": [("text", {"body": bi(TEST_BODY)})],
-        },
-    ],
-    "bw": [
-        {
-            "slug": "about/our-story",
-            "status": "draft",
-            "seo_title": "我們的故事｜關於台中藍鯨｜台中藍鯨女子足球隊",
-            "seo_description": "台中藍鯨女子足球隊 2014 年成立於台中，隸屬臺中市女子足球協會。認識這支球隊的定位與成立宗旨。",
-            "blocks": [
-                # 逐字取自 club-copy.ts OUR_STORY_BODY_BW（節錄自 content/blue-whale/club-profile.md §1）
-                ("text", {"body": bi("隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，簡稱為台中藍鯨，是台灣木蘭足球聯賽的球隊之一。"
-                                     "以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，重視團隊合作，鯨翅為台灣意象代表"
-                                     "引領台灣足球向前邁進。台中藍鯨希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。")}),
-            ],
-        },
-        {
-            "slug": "about/vision",
-            "status": "draft",
-            "seo_title": "發展願景｜關於台中藍鯨｜台中藍鯨女子足球隊",
-            "seo_description": "台中藍鯨女子足球隊的發展願景：無止盡的探索、不怕難的堅韌、更細膩的態度、最真實的影響、更深遠之目的。",
-            "blocks": [
-                ("quote", {"text": bi("追尋卓越 止於至善（Pursuit of Brilliance）")}),
-                # 逐字取自 club-copy.ts VISION_ITEMS.bw（club-profile.md §5 五節「行動目標」句）
-                ("steps", {"items": [
-                    {"title": bi("無止盡的探索"), "description": bi("提昇及普及大台中足球水準，吸收更專業精進足球技術，追上亞洲足球技術水平迎接世界潮流。")},
-                    {"title": bi("不怕難的堅韌"), "description": bi("創造足球運動文化與風氣，以球迷為本讓足球比賽呈現更有水準，場內技術提升，場外足球比賽氛圍更加提升。")},
-                    {"title": bi("更細膩的態度"), "description": bi("增加足球選手發展管道，讓選手有更好的發展空間，家長支持，學校支持，政府支持，產業支持，民眾支持。")},
-                    {"title": bi("最真實的影響"), "description": bi("建立台中為台灣足球之都的美名與榮耀，健康正向的足球風氣，連結喜愛足球運動的球迷及選手所追求的足球夢想。")},
-                    {"title": bi("更深遠之目的"), "description": bi("持續回饋社會，致力為人們創造更美好的生活，深信我們能帶來改變，幫助人們以全新的方式彼此分享與連結，讓世界更加和諧。")},
-                ]}),
-            ],
-        },
-        {
-            "slug": "about/philosophy",
-            "status": "draft",
-            "seo_title": "俱樂部口號與培訓精神｜關於台中藍鯨｜台中藍鯨女子足球隊",
-            "seo_description": "台中藍鯨女子足球隊的俱樂部口號與培訓精神，以及隊徽「藍鯨」象徵的設計理念。",
-            "blocks": [
-                # 逐字取自 club-copy.ts PHILOSOPHY_QUOTES_BW（club-profile.md §3）
-                ("quote", {"text": bi("以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態、重視團隊合作，鯨翅為台灣意象代表引領台灣足球向前邁進。"),
-                          "attribution": bi("隊徽設計理念")}),
-                ("quote", {"text": bi("藍色的天空是我們心中夢想的方向，閃爍的陽光是走向夢想的力量，草地上揮灑汗水是成長過往 堅定信仰，"
-                                      "有你在身旁 就不再徬徨，此時此刻，我們與我們的球迷站在一起。一起迎向世界。"),
-                          "attribution": bi("俱樂部口號")}),
-                ("quote", {"text": bi("別害怕 勇敢去闖，邁開步伐乘風破浪，就算遍體鱗傷 也要逆風飛翔，抬起頭 夢在前方，"
-                                      "越過那重重的高牆 沒有誰能阻擋，眼神越是發光，世界都是我的舞台。"),
-                          "attribution": bi("培訓精神")}),
-            ],
-        },
-        {
-            "slug": "test-draft-page",
-            "status": "draft",
-            "seo_title": TEST + "草稿頁面",
-            "seo_description": TEST_BODY,
-            "blocks": [("text", {"body": bi(TEST_BODY)})],
-        },
-    ],
-}
+def _load_pages():
+    import pathlib
+    data = json.loads((pathlib.Path(__file__).with_name("page_seed_content.json")).read_text(encoding="utf-8"))
+    pages = {}
+    for club_code, items in data.items():
+        pages[club_code] = [
+            {
+                "slug": it["slug"],
+                "status": "published",
+                "seo_title": it["seo"]["zh"]["title"],
+                "seo_description": it["seo"]["zh"]["description"],
+                "seo_en": (it["seo"]["en"]["title"], it["seo"]["en"]["description"]) if it["seo"].get("en") else None,
+                "blocks": [(b["type"], b["content"]) for b in it["blocks"]],
+            }
+            for it in items
+        ]
+    return pages
+
+
+PAGES = _load_pages()
 
 # ============================================================================
 # B3 首頁輪播（banners）——文字取自 club-copy.ts getHomeHero（已核實）；圖片沒有，見檔頭
@@ -631,7 +560,7 @@ END
 """)
 
     # ── 25. B1 頁面 ─────────────────────────────────────────────────────────
-    emit("-- ── 25. pages／page_blocks／page_versions：B1 頁面（真實文案＋每俱樂部一頁測試草稿） ──")
+    emit("-- ── 25. pages／page_blocks／page_versions：B1 固定頁（每俱樂部建齊其版型頁，內容為前台備用文案，狀態已發布） ──")
     for club_code, pages in PAGES.items():
         club_sq = clubs[club_code]
         for page in pages:

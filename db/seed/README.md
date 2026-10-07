@@ -100,7 +100,7 @@ B-5 已於 2026-10-05 拍板：藍鯨英文簡稱 `Taichung Blue Whale`、全名
 - **刻意保留中文（en 欄位留 NULL 或句內原樣保留，前台逐欄位回退）**：沒有英文來源的選手與教練人名（有資料庫英文列者用其羅馬拼音）、學校（五權國中、惠文高中）、公益機構（台中惠明盲校）、公司名夥伴（17 家）、活動名「夏洛特的下午茶」、場地地址與交通說明（含公車業者、管理單位）、`site.contact_hours`（測試值）、`clubs_i18n.description`。
 - **待客戶確認的寫法**：`Sport i Taiwan 2.0 sports hotspot`（運動 i 台灣 2.0 運動熱區）、Pick-up Adult Football Matches（野團）、`Taichung Blue Whale Football School`、賽程場地的地名拼音（Kaohsiung Nanzih、Qingpu、Meilun Junior High School、Ming Chuan University）、教育部體育署／國立臺灣體育運動大學的英文名、教練經歷中的賽事名（Chinese Taipei women's national team、East Asian Cup 等）、2022 里程碑「疫情有成舉辦首場頂級足球開門賽」原文語意不明（採字面譯）。
 - **品牌外洩**：藍鯨英文內容不含 Taichung Rock／TCRFC／Academy（詞表見 `apps/web/scripts/check-club-brand-leak.mjs`），產生的 SQL 已 grep 驗證。
-- **正式庫內容種子與 manifest**：重產 `club-content-seed.sql` 後，`club-content-manifest.tsv` 的 sha256 與各 `*_i18n` 筆數以腳本精準更新（斷言舊值）：articles_i18n +3、banners_i18n +1、calendar_custom_events_i18n +3、competitions_i18n +2、faqs_i18n +10、matches_i18n +21、milestones_i18n +12、pages_i18n +4、partner_stores_i18n +1、partners_i18n +8、programs_i18n +12、settings_i18n +6、venues_i18n +2。
+- **正式庫內容種子與 manifest**：重產 `club-content-seed.sql` 後，`club-content-manifest.tsv` 的 sha256 與各 `*_i18n` 筆數以腳本精準更新（斷言舊值）：articles_i18n +3、banners_i18n +1、calendar_custom_events_i18n +3、competitions_i18n +2、faqs_i18n +10、matches_i18n +21、milestones_i18n +12、pages_i18n +4（2026-10-07 固定頁改版後：pages 22／page_blocks 33／page_versions 22／pages_i18n 44；manifest 以計算值更新，尚未經本機演練 record-manifest 核對）、partner_stores_i18n +1、partners_i18n +8、programs_i18n +12、settings_i18n +6、venues_i18n +2。
 - **API 測試**：`AppContractBatch4Tests`（俱樂部簡稱）、`AppContractBatch5Tests`（後台簡稱讀寫）、`LocalizationFallbackTests`（俱樂部名稱）原本把「藍鯨沒有英文」當前提，已改為新定案值斷言；回退行為改經後台 `PUT /admin/clubs/{id}`（`en = null` 即刪列）自建並於 `finally` 還原。⚠️ 後台 PUT 的 `en = null` 會**刪掉英文列**，測試改動藍鯨時必須把原英文內容帶回。
 
 ## 這個目錄有什麼
@@ -345,7 +345,7 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 
 | 模組（後台名稱） | 表 | tcrfc | bw | 資料來源 |
 |---|---|---|---|---|
-| 頁面 | `pages`／`pages_i18n`／`page_blocks`／`page_versions`（v1 快照＋預覽權杖） | 3 頁（2 發布＋1 草稿）／7 區塊 | 4 頁（3 發布＋1 草稿）／7 區塊 | **真實**：`club-copy.ts` 已核實文案（願景使命、足球理念、藍鯨我們的故事／發展願景／口號）；草稿頁為**測試** |
+| 頁面（B1 **固定頁**，2026-10-07） | `pages`／`pages_i18n`／`page_blocks`／`page_versions`（v1 快照＋預覽權杖） | 12 頁（版型 `PageTemplates.cs` 全部建齊，已發布）／18 區塊 | 10 頁（藍鯨不設 06／11，已發布）／15 區塊 | **真實**：前台目前寫死的備用文案（`page_seed_content.json`，由 `page_seed_content.extract.ts` 自 `apps/web` 取出）；不再有測試草稿頁。既有資料庫用 `db/migrations/20261007_page-templates.sql`（`generate-page-template-migration.py` 產生）對齊 |
 | 首頁輪播 | `banners`／`banners_i18n` | 2（draft） | 2（draft） | 第一張文字取自 `getHomeHero` 已核實文案（**真實**），第二張**測試**；圖片沒有，見下方「圖片」 |
 | 常見問題 | `faqs`／`faqs_i18n`／`faq_category_links`／`faq_embed_slot_links` | 10 題（十個分類各一）／4 個嵌入點皆有 | 10 題／2 個嵌入點有（`trials`、`program_detail`；藍鯨不設學院招生，無贊助題） | tcrfc **全測試**；bw **真實**（`content/blue-whale/programs.md` §3 的 8 題＋`squad/youth-teams.md` U15 的 2 題，舊站原文） |
 | 課程與梯次 | `programs`／`programs_i18n`／`sessions` | 6 課程（五種型別各一＋1 草稿）／7 梯次（開放／額滿／候補／已結束皆有） | 12 課程／12 梯次 | tcrfc **全測試**；bw **真實**（`programs.md` §1 社區足球學校、§2 運動 i 台灣十種課程、§4 教練講習） |
@@ -377,7 +377,6 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 | `settings` `site.contact_phone` | 值 | `04-0000-0000` | tcrfc、bw |
 | `settings_i18n` `site.contact_hours` | zh | 【測試】平日 09:00–18:00 | tcrfc、bw |
 | `settings_i18n` `geo.llms_contact` | zh／en 內的 Email | `contact@example.com`（附【測試】說明） | 只有 tcrfc（bw 用舊站公開的官方信箱，已核實） |
-| `pages`（slug `test-draft-page`）＋`page_blocks`＋`page_versions` | 標題、SEO、內文 | 【測試】草稿頁面 | tcrfc、bw |
 | `banners_i18n` | 第二張輪播的標題、副標、圖片說明；第一張的圖片說明；兩張的 `image_key` | 【測試】…；`image_key` = `seed-placeholder/no-image`（**不是真實物件**） | tcrfc、bw |
 | `faqs`／`faqs_i18n`（slug `test-faq-01`～`10`） | 問題、答案 | 【測試】…常見問題範例？／測試用內容 | 只有 tcrfc |
 | `programs`／`programs_i18n`／`sessions`（slug `test-*`） | 名稱、簡介、梯次的日期／名額／價格／時段 | 名稱含【測試】；**價格與名額是整數無法加前綴，一律視為測試** | 只有 tcrfc |

@@ -42,6 +42,9 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
     {
         base.ConfigureWebHost(builder);
         TestRateLimitOverrides.ApplyLooseAdminAuthOverrides(builder);
+
+        // B1 固定頁：同 AdminWriteApiFixture，圖片上傳測試打 test/images 測試頁。
+        builder.ConfigureServices(TestPageTemplates.Register);
     }
 
     public async Task InitializeAsync()

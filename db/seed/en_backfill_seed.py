@@ -20,6 +20,8 @@
 # 🔴 與 apps/api 測試的相依（見交付回報）：LocalizationFallbackTests／AppContractGapsTests／BusinessPublicEndpointsTests
 #    曾以「種子沒有這些英文」為前提；補上之後那幾條斷言要同步改。
 
+import backoffice_seed  # noqa: E402（頁面種子 PAGES：SEO 英文取自同一份資料）
+
 TEST_BODY_EN = "[Test] This is test content. Please replace it in the back office before launch."
 
 
@@ -213,16 +215,10 @@ WHERE e.locale = N'en' AND {key};
         "cta_1_label": "Join as a Player", "cta_1_url": "/en/join/player/"})
 
     # ── 頁面 SEO（pages_i18n）。頁面內文區塊（page_blocks.content，json）不在側表範圍 ──
-    fill("pages", "pages_i18n", "page_id", club("b.slug = N'about/vision-mission'"), {
-        "seo_title": "Vision & Mission | About TCRFC | Taichung Rock FC",
-        "seo_description": "The vision and mission of Taichung Rock FC: developing local Taichung players through a "
-                           "professional pathway towards the professional stage, and showing the world Taiwan through football."})
-    fill("pages", "pages_i18n", "page_id", club("b.slug = N'about/philosophy'"), {
-        "seo_title": "Our Philosophy | About TCRFC | Taichung Rock FC",
-        "seo_description": "The football philosophy and five core values of Taichung Rock FC: Players First, Excellence, "
-                           "Global Pathways, Community and Integrity."})
-    fill("pages", "pages_i18n", "page_id", club("b.slug = N'test-draft-page'"), {
-        "seo_title": "[Test] Draft page", "seo_description": TEST_BODY_EN})
+    for page in backoffice_seed.PAGES["tcrfc"]:
+        if page["seo_en"]:
+            fill("pages", "pages_i18n", "page_id", club(f"b.slug = {esc(page['slug'])}"),
+                 {"seo_title": page["seo_en"][0], "seo_description": page["seo_en"][1]})
 
     # ── FAQ（全為【測試】題）──
     for zh_topic, en_topic in [
@@ -518,19 +514,10 @@ WHERE e.locale = N'en' AND {key};
         "cta_1_label": "Join as a Player", "cta_1_url": "/en/join/player/"})
 
     # ── 頁面 SEO ──
-    fill("pages", "pages_i18n", "page_id", bwc("b.slug = N'about/our-story'"), {
-        "seo_title": f"Our Story | About {BW} | {BW_FULL}",
-        "seo_description": f"{BW_FULL} was founded in Taichung in 2014 and belongs to the {ASSOC}. Learn about the team's "
-                           "position and the purpose it was founded for."})
-    fill("pages", "pages_i18n", "page_id", bwc("b.slug = N'about/vision'"), {
-        "seo_title": f"Vision | About {BW} | {BW_FULL}",
-        "seo_description": f"The vision of {BW_FULL}: endless exploration, resilience in the face of difficulty, a more "
-                           "refined attitude, the most genuine impact, and a more far-reaching purpose."})
-    fill("pages", "pages_i18n", "page_id", bwc("b.slug = N'about/philosophy'"), {
-        "seo_title": f"Club Slogan and Training Spirit | About {BW} | {BW_FULL}",
-        "seo_description": f"The club slogan and training spirit of {BW_FULL}, and the design idea behind the blue whale on the club crest."})
-    fill("pages", "pages_i18n", "page_id", bwc("b.slug = N'test-draft-page'"), {
-        "seo_title": "[Test] Draft page", "seo_description": TEST_BODY_EN})
+    for page in backoffice_seed.PAGES["bw"]:
+        if page["seo_en"]:
+            fill("pages", "pages_i18n", "page_id", bwc(f"b.slug = {esc(page['slug'])}"),
+                 {"seo_title": page["seo_en"][0], "seo_description": page["seo_en"][1]})
 
     # ── FAQ（十題皆舊站原文：現場上課與收費）──
     for zh_q, en_q, en_a in [

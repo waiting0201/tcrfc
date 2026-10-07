@@ -31,6 +31,9 @@ public sealed class AdminWriteApiFixture : WebApplicationFactory<Program>, IAsyn
             services.AddSingleton<Tcrfc.Api.Features.Email.IEmailSender>(MemberTestDoubles.Email);
             services.RemoveAll<Tcrfc.Api.Features.MemberAuth.ILineLoginClient>();
             services.AddSingleton<Tcrfc.Api.Features.MemberAuth.ILineLoginClient>(MemberTestDoubles.Line);
+
+            // B1 固定頁：版型目錄換成「正式版型＋測試專用版型」，會改資料的頁面測試只打 test/… 頁，不動真正的固定頁。
+            TestPageTemplates.Register(services);
         });
     }
 
