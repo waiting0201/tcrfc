@@ -12,7 +12,7 @@
 #                                僅在 admin_users 為空時可執行。
 #   reset-password <club|charity> 重設既有管理員的密碼（登不進去時用）：列出帳號 → 輸入要重設的登入帳號 → 輸入庫名確認 →
 #                                新密碼輸入兩次（不顯示、不進命令列與 log）→ 更新密碼、清除鎖定與失敗次數、撤銷該帳號所有登入狀態；
-#                                可順便改登入帳號、啟用被停用的帳號。需要含 9 字元政策的 API 映像檔（先 push 並部署新版 api）。
+#                                可順便改登入帳號、啟用被停用的帳號。需要含 6 字元政策的 API 映像檔（先 push 並部署新版 api）。
 #   verify     <club|charity>   唯讀：核對表／外鍵／視圖數、migration 歷史、參照資料筆數、沒有測試帳號。
 #   wipe-partial <club|charity> 🔴 init 中途失敗（沒有 __EFMigrationsHistory 且 admin_users 為空）時，把半成品清乾淨以便重跑。
 #                                危險指令：要輸入庫名與 WIPE 確認。
@@ -432,7 +432,7 @@ cmd_verify() {
 # ── 登入帳號處理（一般字串；規則同 API AdminAccountsRepository.ValidateUsername）────────────
 # 帳號以 UTF-16LE 十六進位傳入 SQL：長度以 UTF-16 單位計（與 .NET string.Length、nvarchar 一致，不受 shell locale 影響），
 # 且文字本身不進 SQL 字串（無注入面）。
-MIN_PASSWORD_LENGTH=9
+MIN_PASSWORD_LENGTH=6
 
 trim_ws() { # ${1}=字串；去前後空白
   local v="${1}"

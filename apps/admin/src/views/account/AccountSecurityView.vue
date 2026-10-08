@@ -24,8 +24,8 @@ const pwError = ref('')
 
 async function submitChangePassword() {
   pwError.value = ''
-  if (pwForm.value.newPassword.length < 9) {
-    pwError.value = '新密碼長度至少需要 9 個字元。'
+  if (pwForm.value.newPassword.length < 6) {
+    pwError.value = '新密碼長度至少需要 6 個字元。'
     return
   }
   if (pwForm.value.newPassword !== pwForm.value.confirmPassword) {
@@ -62,7 +62,7 @@ function goBack() {
             <el-input v-model="pwForm.currentPassword" type="password" show-password />
           </el-form-item>
           <el-form-item label="新密碼">
-            <el-input v-model="pwForm.newPassword" type="password" show-password placeholder="至少 9 個字元" />
+            <el-input v-model="pwForm.newPassword" type="password" show-password placeholder="至少 6 個字元" />
           </el-form-item>
           <el-form-item label="確認新密碼">
             <el-input v-model="pwForm.confirmPassword" type="password" show-password />

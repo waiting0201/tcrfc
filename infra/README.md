@@ -468,7 +468,7 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 # 3. 第一個管理員（互動輸入帳號、顯示名稱、Email、密碼兩次；密碼不顯示、不進命令列與 log）
 ./deploy/prod-db-init.sh create-admin club
 ./deploy/prod-db-init.sh create-admin charity    # 慈善後台是獨立帳號體系，由協會指定的人建立
-# 登入帳號是一般字串（可用中文；不得含空白、最長 64 字元）；密碼至少 9 字元
+# 登入帳號是一般字串（可用中文；不得含空白、最長 64 字元）；密碼至少 6 字元
 
 # 4. 事後可隨時唯讀複查
 ./deploy/prod-db-init.sh verify club
@@ -491,7 +491,7 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
   sudo -iu runner
   cd /opt/tcrfc/actions-runner/_work/tcrfc/tcrfc        # 部署目錄，已是最新部署的 commit，不要 pull
   git log -1 --format='%h %s'
-  docker pull ghcr.io/waiting0201/tcrfc-api:master      # 🔴 必須是含 9 字元政策的新版映像檔
+  docker pull ghcr.io/waiting0201/tcrfc-api:master      # 🔴 必須是含 6 字元政策的新版映像檔
   ./deploy/prod-db-init.sh reset-password club          # 慈善後台改 charity
   ```
 

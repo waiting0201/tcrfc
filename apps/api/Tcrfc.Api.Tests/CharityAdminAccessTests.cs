@@ -147,16 +147,16 @@ public sealed class CharityAdminAccessTests(CharityApiFixture fx) : IAsyncLifeti
     }
 
     [Fact]
-    public async Task 建立帳號_密碼下限九字元_重複帳號409_空白與過長帳號400_未知角色400()
+    public async Task 建立帳號_密碼下限六字元_重複帳號409_空白與過長帳號400_未知角色400()
     {
         using var sys = await SysAsync();
 
-        var tooShort = await PostAsync(sys, Accounts, new { username = NewUsername(), displayName = "x", initialPassword = "12345678" });
+        var tooShort = await PostAsync(sys, Accounts, new { username = NewUsername(), displayName = "x", initialPassword = "12345" });
         Assert.Equal(HttpStatusCode.BadRequest, tooShort.StatusCode);
-        Assert.Contains("9", await ProblemDetailAsync(tooShort));
+        Assert.Contains("6", await ProblemDetailAsync(tooShort));
 
-        var nine = await PostAsync(sys, Accounts, new { username = NewUsername(), displayName = "x", initialPassword = "123456789" });
-        Assert.Equal(HttpStatusCode.Created, nine.StatusCode);
+        var six = await PostAsync(sys, Accounts, new { username = NewUsername(), displayName = "x", initialPassword = "123456" });
+        Assert.Equal(HttpStatusCode.Created, six.StatusCode);
 
         var username = NewUsername();
         await CreateAccountAsync(sys, username);
@@ -165,7 +165,7 @@ public sealed class CharityAdminAccessTests(CharityApiFixture fx) : IAsyncLifeti
         Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(sys, Accounts, new { username = "含 空白", displayName = "x", initialPassword = "InitialPass-123" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(sys, Accounts, new { username = new string('a', 65), displayName = "x", initialPassword = "InitialPass-123" })).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(sys, Accounts, new { username = NewUsername(), displayName = "x", initialPassword = "InitialPass-123", roleCodes = new[] { "no_such_role" } })).StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(sys, Accounts, new { username = "ct-same", displayName = "x", initialPassword = "ct-same" })).StatusCode); // 密碼不得與帳號相同（且長度不足亦同樣 400）
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(sys, Accounts, new { username = "ct-same", displayName = "x", initialPassword = "ct-same" })).StatusCode); // 密碼不得與帳號相同
     }
 
     [Fact]
@@ -245,7 +245,7 @@ public sealed class CharityAdminAccessTests(CharityApiFixture fx) : IAsyncLifeti
         await LoginAsync(username, "InitialPass-123");
         await fx.ExecuteAsync("UPDATE admin_users SET failed_attempt_count = 4, locked_until = DATEADD(HOUR, 1, SYSUTCDATETIME()) WHERE id = @i", ("@i", account.Id));
 
-        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(sys, $"{Accounts}/{account.Id}/reset-password", new { newPassword = "12345678" })).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await PostAsync(sys, $"{Accounts}/{account.Id}/reset-password", new { newPassword = "12345" })).StatusCode);
         Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(sys, $"{Accounts}/{account.Id}/reset-password", new { newPassword = NewPassword })).StatusCode);
 
         Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(username, "InitialPass-123")).StatusCode);

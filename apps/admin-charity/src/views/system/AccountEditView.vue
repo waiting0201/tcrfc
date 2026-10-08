@@ -86,7 +86,7 @@ function validate(): Record<string, string> {
   if (isCreate.value && !form.username.trim()) errors.username = '請輸入帳號'
   else if (isCreate.value && /\s/.test(form.username)) errors.username = '帳號不能包含空白'
   if (!form.displayName.trim()) errors.displayName = '請輸入姓名'
-  if (isCreate.value && form.initialPassword.length < 9) errors.initialPassword = '初始密碼長度至少需要 9 個字元'
+  if (isCreate.value && form.initialPassword.length < 6) errors.initialPassword = '初始密碼長度至少需要 6 個字元'
   return errors
 }
 
@@ -157,11 +157,11 @@ async function toggleStatus() {
 async function resetPassword() {
   let newPassword = ''
   try {
-    const result = await ElMessageBox.prompt('請輸入新密碼（至少 9 個字元），設定後請透過站外管道轉交給使用者。', '重設密碼', {
+    const result = await ElMessageBox.prompt('請輸入新密碼（至少 6 個字元），設定後請透過站外管道轉交給使用者。', '重設密碼', {
       confirmButtonText: '重設',
       cancelButtonText: '取消',
       inputType: 'password',
-      inputValidator: (value: string) => (value && value.length >= 9) || '密碼長度至少需要 9 個字元',
+      inputValidator: (value: string) => (value && value.length >= 6) || '密碼長度至少需要 6 個字元',
     })
     newPassword = result.value
   } catch {
@@ -227,7 +227,7 @@ async function resetTotp() {
                 <el-input v-model="form.email" placeholder="選填" />
               </FormField>
               <FormField v-if="isCreate" field="initialPassword" label="初始密碼" required>
-                <el-input v-model="form.initialPassword" type="password" show-password placeholder="至少 9 個字元，建立後請透過站外管道轉交" />
+                <el-input v-model="form.initialPassword" type="password" show-password placeholder="至少 6 個字元，建立後請透過站外管道轉交" />
               </FormField>
             </FormSection>
           </el-card>

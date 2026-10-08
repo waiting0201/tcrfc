@@ -131,9 +131,9 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
     }
 
     [Theory]
-    [InlineData("12345678", HttpStatusCode.BadRequest)]   // 8 字元：拒絕
-    [InlineData("123456789", HttpStatusCode.Created)]     // 9 字元：邊界，通過
-    public async Task 建立帳號_密碼長度邊界_9字元通過8字元拒絕(string password, HttpStatusCode expected)
+    [InlineData("12345", HttpStatusCode.BadRequest)]      // 5 字元：拒絕
+    [InlineData("123456", HttpStatusCode.Created)]        // 6 字元：邊界，通過
+    public async Task 建立帳號_密碼長度邊界_6字元通過5字元拒絕(string password, HttpStatusCode expected)
     {
         using var client = await CreateSuperAdminClientAsync();
         var username = $"test.pwlen.{Guid.NewGuid():N}";

@@ -32,7 +32,7 @@ public sealed class PasswordHashCliTests
     [Theory]
     [InlineData("")]
     [InlineData("short")]
-    [InlineData("12345678")] // 8 字元：低於下限 9
+    [InlineData("12345")] // 5 字元：低於下限 6
     public void 空白或過短的密碼_拒絕並退出碼1_stdout沒有任何輸出(string password)
     {
         using var input = new StringReader(password + "\n");
@@ -47,14 +47,14 @@ public sealed class PasswordHashCliTests
     }
 
     [Fact]
-    public void 剛好9字元的密碼_通過政策_產出雜湊()
+    public void 剛好6字元的密碼_通過政策_產出雜湊()
     {
-        using var input = new StringReader("123456789\n");
+        using var input = new StringReader("123456\n");
         using var output = new StringWriter();
         using var error = new StringWriter();
 
         Assert.Equal(0, PasswordHashCli.Run(input, output, error));
-        Assert.True(PasswordHasher.Verify("123456789", output.ToString().TrimEnd('\r', '\n')));
+        Assert.True(PasswordHasher.Verify("123456", output.ToString().TrimEnd('\r', '\n')));
     }
 
     [Fact]

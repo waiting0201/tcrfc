@@ -103,11 +103,11 @@ async function toggleStatus(row: AdminAccountListItem) {
 async function resetPassword(row: AdminAccountListItem) {
   let newPassword = ''
   try {
-    const result = await ElMessageBox.prompt('請輸入新密碼（至少 9 個字元），設定後請透過站外管道轉交給使用者。', '重設密碼', {
+    const result = await ElMessageBox.prompt('請輸入新密碼（至少 6 個字元），設定後請透過站外管道轉交給使用者。', '重設密碼', {
       confirmButtonText: '重設',
       cancelButtonText: '取消',
       inputType: 'password',
-      inputValidator: (value: string) => (value && value.length >= 9) || '密碼長度至少需要 9 個字元',
+      inputValidator: (value: string) => (value && value.length >= 6) || '密碼長度至少需要 6 個字元',
     })
     newPassword = result.value
   } catch {

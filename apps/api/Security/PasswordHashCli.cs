@@ -14,7 +14,7 @@ namespace Tcrfc.Api.Security;
 /// <item>密碼<b>只走標準輸入</b>，不接受命令列參數（會出現在 <c>ps</c>／shell history）與環境變數。</item>
 /// <item>不啟動 Web 主機、不讀任何設定、不連資料庫；stdout 只印雜湊一行，錯誤訊息走 stderr 且不含密碼。</item>
 /// <item>套用與後台一致的密碼政策（<see cref="Features.AdminAuth.AdminAuthService.ValidatePasswordPolicy"/>）：
-/// 至少 9 字元（<see cref="Features.AdminAuth.AdminAuthService.MinPasswordLength"/>）。帳號名稱不在此處理（呼叫端另行比對「密碼不得等於帳號」）。</item>
+/// 至少 6 字元（<see cref="Features.AdminAuth.AdminAuthService.MinPasswordLength"/>）。帳號名稱不在此處理（呼叫端另行比對「密碼不得等於帳號」）。</item>
 /// </list>
 /// 退出碼：0 成功、1 密碼不合政策或未提供、2 內部錯誤。
 /// </summary>

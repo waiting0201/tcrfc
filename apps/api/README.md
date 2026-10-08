@@ -567,7 +567,7 @@ set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
 7. ✅ **已裁決（2026-09-23）**：稽核記錄（`admin_audit_logs`／`admin_login_logs`）與 docs/12
    §13.1「本版無稽核與登入日誌表」的政策衝突，使用者裁決**撤回**，已撤回完畢，見上方
    「稽核記錄（J3）：已撤回」整節。
-8. **密碼政策是最小實作**：長度 ≥9（2026-10-03 使用者裁決由 10 改 9；常數 `AdminAuthService.MinPasswordLength`，
+8. **密碼政策是最小實作**：長度 ≥6（2026-10-03 使用者裁決由 10 改 9，2026-10-08 再由 9 改 6；常數 `AdminAuthService.MinPasswordLength`，
    主站與慈善後台共用同一支 `ValidatePasswordPolicy`）、不得等於帳號本身。**帳號是一般字串**（同日裁決，不限 Email 或英數字）：
    去前後空白後非空、≤64、不含任何空白字元，中文等 Unicode 皆可，不設最短長度（`AdminAccountsRepository.ValidateUsername`）；
    建立時先 Trim，登入端（主站與慈善）也先 Trim 再比對。規劃書沒有寫死具體規則（字元類別要求、
@@ -9778,7 +9778,7 @@ LINE Pay 返回 {前台網址}/{lang}/result/{orderNo}?transactionId=…
 | `POST /login` | `{ username, password, totpCode? }`。成功回存取權杖（15 分鐘 JWT）並設更新權杖 Cookie；`401` 不區分帳號不存在或密碼錯（時序也補齊）；連續 5 次失敗鎖 15 分鐘（`423`）；已啟用 2FA 的帳號沒帶驗證碼回 `{ status: "totp_required" }` |
 | `POST /refresh` | 讀 Cookie，輪替更新權杖；舊權杖被重放時撤銷該帳號全部有效權杖 |
 | `POST /logout` | 撤銷更新權杖並清 Cookie |
-| `POST /change-password` | `{ currentPassword, newPassword }`（≥ 9 字元、不得等於帳號） |
+| `POST /change-password` | `{ currentPassword, newPassword }`（≥ 6 字元、不得等於帳號） |
 | `POST /2fa/setup`／`/2fa/confirm`／`/2fa/disable` | 選用（2026-09-30 裁決，不強制）；密鑰用慈善專屬用途加密 |
 | `GET /me` | 個人檔案：角色與**持有的權限碼**（只給前端決定顯示或隱藏按鈕，介面不得顯示權限碼）。沒有俱樂部授權清單與站台切換器（單一法人） |
 
@@ -10065,8 +10065,8 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 ## 維運指令：`--hash-password`（正式庫第一個管理員，2026-10-01）
 
-`dotnet Tcrfc.Api.dll --hash-password`（容器內：`docker run --rm -i <api 映像檔> --hash-password`）：從**標準輸入**讀一行密碼，把與後台登入驗證同一份 `PasswordHasher`（Argon2id）算出的雜湊印到標準輸出，**不啟動 Web 主機、不讀設定、不連資料庫**。退出碼 0 成功、1 密碼不合政策（至少 9 字元）或未提供、2 內部錯誤；錯誤訊息不含密碼。實作在 `Security/PasswordHashCli.cs`，`Program.cs` 最前面分流；測試 `Tcrfc.Api.Tests/PasswordHashCliTests.cs`。
-呼叫端是 `deploy/prod-db-init.sh create-admin` 與 `reset-password`（`infra/README.md` §4.8）。🔴 要先 push 並部署新版 api 映像檔，這兩個子命令才接受 9 字元密碼（舊映像檔仍要求 10 字元）。**不要**改成接受命令列參數或環境變數的密碼——那會進 `ps`／shell 歷史。
+`dotnet Tcrfc.Api.dll --hash-password`（容器內：`docker run --rm -i <api 映像檔> --hash-password`）：從**標準輸入**讀一行密碼，把與後台登入驗證同一份 `PasswordHasher`（Argon2id）算出的雜湊印到標準輸出，**不啟動 Web 主機、不讀設定、不連資料庫**。退出碼 0 成功、1 密碼不合政策（至少 6 字元）或未提供、2 內部錯誤；錯誤訊息不含密碼。實作在 `Security/PasswordHashCli.cs`，`Program.cs` 最前面分流；測試 `Tcrfc.Api.Tests/PasswordHashCliTests.cs`。
+呼叫端是 `deploy/prod-db-init.sh create-admin` 與 `reset-password`（`infra/README.md` §4.8）。🔴 要先 push 並部署新版 api 映像檔，這兩個子命令才接受 6 字元密碼（舊映像檔仍要求 9 或 10 字元）。**不要**改成接受命令列參數或環境變數的密碼——那會進 `ps`／shell 歷史。
 
 ---
 
@@ -10285,7 +10285,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 | `DELETE /roles/{id}` | 同上 | 204；系統角色 403、仍有帳號 409 |
 | `PUT /roles/{id}/permissions` | 同上 | 整份取代**非 `sysadmin_only`** 的指派；`sysadmin_only` 與未知碼 400（訊息只報筆數，不列權限碼） |
 
-**四個權限碼全為 `sysadmin_only`**（種子 `EXTRA_PERMISSIONS`、`db/prod/charity-reference-data.sql`、migration `AddAdminAccessPermissions` 三處同一組 UUID）。守則：帳號名稱是一般字串（可中文，前後去空白、≤64、不得含空白、全域唯一）；密碼下限 `AdminAuthService.MinPasswordLength`（9）、不得與帳號相同、雜湊走 `PasswordHasher`（Argon2id，與登入同一個）；**不得停用或降級最後一位啟用中的系統管理員（含自己，409）**；沒有刪除帳號端點。稽核動作 `admin_account.create／update／status／reset_password／reset_totp`、`admin_role.create／update／delete／permissions`，與變更同一次 `SaveChanges`，摘要只含筆數與布林，不含密碼與權限碼。
+**四個權限碼全為 `sysadmin_only`**（種子 `EXTRA_PERMISSIONS`、`db/prod/charity-reference-data.sql`、migration `AddAdminAccessPermissions` 三處同一組 UUID）。守則：帳號名稱是一般字串（可中文，前後去空白、≤64、不得含空白、全域唯一）；密碼下限 `AdminAuthService.MinPasswordLength`（6）、不得與帳號相同、雜湊走 `PasswordHasher`（Argon2id，與登入同一個）；**不得停用或降級最後一位啟用中的系統管理員（含自己，409）**；沒有刪除帳號端點。稽核動作 `admin_account.create／update／status／reset_password／reset_totp`、`admin_role.create／update／delete／permissions`，與變更同一次 `SaveChanges`，摘要只含筆數與布林，不含密碼與權限碼。
 
 **與主站形狀的差異**（慈善沒有的維度）：(1) 沒有 `/club-grants`、`/team-grants` 六支端點；(2) 帳號回應的 `primaryClubId`／`locale` 恆為 `null`、`clubGrants`／`teamGrants` 恆為 `[]`，請求裡的這兩欄接受但忽略；(3) 角色回應 `scopeMode` 恆為 `all_clubs`、`sortOrder` 取 `seq`、權限字典 `isClubScoped` 恆為 `false`，建立／更新角色的 `scopeMode` 可省略（忽略）；(4) `role_permissions.scope_type` 在慈善庫可為 `NULL`（種子即如此），回應補成 `all`，輸入沿用主站值域。測試：`CharityAdminAccessTests`（17 項）；測試角色代碼 `ctrole_*`，`CharityApiFixture.CleanupAsync` 清除並把被測試帳號寫入的 `admin_roles.created_by／updated_by` 設回 `NULL`。不在 App 契約內，`shared/scripts/gen-all.sh` 不必跑。
 

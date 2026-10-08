@@ -390,7 +390,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `AdminUser.email` | 🔒 **僅供系統通知與密碼重設。不設唯一索引、不得作為登入查詢鍵、可為空** |
 | 種子超級管理員 | `username` = **`sa@system.local`**（**它長得像 Email，但存在 `username` 欄，不是 Email**）；`display_name` = `Super Admin`；`is_super_admin = true` |
 | 種子密碼 | **`Admin@123`**，以**雜湊儲存**（演算法待選型，優先 Argon2id，次選 bcrypt）。**`must_change_password` 預設 `0`（`DEFAULT 0`，2026-09-30 使用者裁決「都放寬」）**：新建帳號與本機種子帳號一律為 `0`，帳號列表不因預設值出現「待改密碼」標籤；欄位保留，僅在**管理員代為重設他人密碼**時設為 `1`（提示該帳號持有人換掉管理員設定的密碼，**只是提示、不強制**），持有人自行變更密碼後回到 `0`（唯一例外：測試帳號 `fresh.setup@tcrfc.test` 刻意種為 `1`，用來驗證「改密碼後旗標清除」）；**主站規劃書 v3.15 起登入流程不強制首次變更密碼**（客戶 2026-09-30 裁決，正式環境亦同），變更密碼由帳號持有人自行於帳號安全頁操作 |
-| 密碼政策 | J 模組要求，以 `password_changed_at` 支援到期強制更換。執行層（2026-10-03）：密碼至少 9 字元、不得等於帳號；`username` 為一般字串（非空、≤64、不含空白，可用中文） |
+| 密碼政策 | J 模組要求，以 `password_changed_at` 支援到期強制更換。執行層（2026-10-03，下限於 2026-10-08 改 6）：密碼至少 6 字元、不得等於帳號；`username` 為一般字串（非空、≤64、不含空白，可用中文） |
 | 2FA | `two_factor_enabled`／`two_factor_secret_encrypted`／`two_factor_confirmed_at`。**主站規劃書 v3.17 起後台介面暫不提供 2FA 設定入口**（§4.10 J1、§8〈安全〉列；使用者 2026-09-30 裁決）：登入不強制啟用，帳號安全頁不出現啟用選項；**`two_factor_enabled = true` 的帳號登入時仍須輸入驗證碼**（驗證流程保留）。三欄保留，日後開放入口時不須改綱要 |
 | 登入失敗鎖定 | `failed_attempt_count` ＋ `locked_until`。**這是狀態欄位不是日誌表** |
 | 最後登入 | `last_login_at` **單一欄位**，取代規劃書 J 的「登入紀錄」表 |
