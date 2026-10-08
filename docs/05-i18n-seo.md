@@ -85,7 +85,7 @@
 
 | 面向 | 需求 |
 |---|---|
-| 效能 | 首頁 LCP < 2.5s（4G）、Lighthouse Performance ≥ 85 |
+| 效能 | 首頁 LCP < 2.5s（4G）、Lighthouse Performance ≥ 85。**執行層落實（2026-10-08，`E-297`）**：① 首屏 LCP 圖（hero 第一張新聞卡）`eager` ＋ `fetchpriority="high"`，其餘 lazy；② 後台上傳的新聞封面以 `srcset`（`<主檔鍵>-1280／-640／-320.webp`，鍵規則取自 `apps/api/Images/ImageObjectKey`）＋ `sizes` 取衍生檔；**站台靜態照片（`site/…webp`，`infra/upload-site-images.sh`）目前只有單一尺寸、沒有衍生檔，仍是缺口**；③ 靜態 CSS 走內容雜湊路徑 `/assets/css-<雜湊>/` 一年 immutable，藍鯨專用 `club-bw.css` 只在藍鯨站載入、首頁不阻塞載入 `member.css`；④ 深底小字改用 `--brand-bright`（`shop.css` 文末，色相不變）。細節見 [`17`](17-deployment.md) §「靜態資源快取與 CSS 版本化」 |
 | 相容性 | Chrome / Safari / Edge / Firefox 最新兩版；iOS 15+、Android 10+ |
 | 無障礙 | **WCAG 2.1 AA** |
 | 安全 | HTTPS 強制、後台 2FA（能力保留，介面暫不提供設定入口，v3.17）、CSRF／XSS／SQL Injection 防護、上傳類型與大小限制、後台 IP 白名單（選配）；會員系統另需密碼雜湊、Session 逾時、登入失敗鎖定、防暴力破解；**商店（v2.6）**：付款於 **LINE Pay** 端完成、**不存卡號**、回呼**驗簽且冪等**、訂單查詢 token 不可推導且具時效、退款與匯出雙重授權 |

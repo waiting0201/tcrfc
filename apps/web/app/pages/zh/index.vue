@@ -309,6 +309,9 @@ const homeNews = computed(() => {
 const heroNews = computed(() => homeNews.value.slice(0, 2))
 /** 首頁 mosaic 版位固定 5 格（feature／sml×2／wide×2），資料不足 5 篇時依序省略後面的格子。 */
 const NEWS_VARIANTS = ['feature', 'sml', 'sml', 'wide', 'wide'] as const
+/** srcset 的 sizes：hero 迷你卡的圖占卡片 38%（約 140–200px）；mosaic 卡手機滿版、桌機最大約 640px（有 srcset 才會用到，見 coverSrcset）。 */
+const HERO_CARD_SIZES = '(max-width: 720px) 40vw, 200px'
+const NEWS_CARD_SIZES = '(max-width: 720px) 100vw, 640px'
 
 // ---- Team chips（賽事行事曆的隊伍切換）----
 const teamPanel = ref<'D1' | 'other'>('D1')
@@ -623,10 +626,12 @@ onBeforeUnmount(() => {
           <!-- 藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），不沿用磐石新聞頂替，本區塊不顯示。 -->
           <div v-if="heroNews.length || isTcrfc" class="hero__news">
             <template v-if="heroNews.length">
-              <a v-for="a in heroNews" :key="a.slug" class="hero-card clip-card clip-card--on-dark" :href="lp(`/zh/news/${a.slug}/`)">
+              <a v-for="(a, hi) in heroNews" :key="a.slug" class="hero-card clip-card clip-card--on-dark" :href="lp(`/zh/news/${a.slug}/`)">
                 <div class="hero-card__media">
-                  <img v-if="newsCoverImg(a, clubKey)" :src="newsCoverImg(a, clubKey)!.src" alt="" loading="lazy" :width="newsCoverImg(a, clubKey)!.width ?? undefined" :height="newsCoverImg(a, clubKey)!.height ?? undefined">
-                  <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
+                  <!-- LCP 元素：首屏第一張卡不得 lazy（Lighthouse 實測 Load Delay 7.9s、占 LCP 64%），
+                       改 eager ＋ fetchpriority=high；其餘卡維持 lazy。 -->
+                  <img v-if="newsCoverImg(a, clubKey)" :src="newsCoverImg(a, clubKey)!.src" :srcset="newsCoverImg(a, clubKey)!.srcset" :sizes="newsCoverImg(a, clubKey)!.srcset ? HERO_CARD_SIZES : undefined" alt="" :loading="hi === 0 ? 'eager' : 'lazy'" :fetchpriority="hi === 0 ? 'high' : undefined" :width="newsCoverImg(a, clubKey)!.width ?? undefined" :height="newsCoverImg(a, clubKey)!.height ?? undefined">
+                  <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" :loading="hi === 0 ? 'eager' : 'lazy'" width="64" height="67">
                 </div>
                 <div class="hero-card__body">
                   <span class="hero-card__tag">{{ a.categoryName }}</span>
@@ -637,7 +642,7 @@ onBeforeUnmount(() => {
             <template v-else>
             <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
-                <img :src="siteImg('/assets/img/news-trencin.jpg')" :alt="tx('台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流', 'Taichung Rock FC youth players pose for a group photo with players from AS Trenčín of Slovakia')" loading="lazy" width="1280" height="853">
+                <img :src="siteImg('/assets/img/news-trencin.jpg')" :alt="tx('台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流', 'Taichung Rock FC youth players pose for a group photo with players from AS Trenčín of Slovakia')" loading="eager" fetchpriority="high" width="1280" height="853">
               </div>
               <div class="hero-card__body">
                 <span class="hero-card__tag">{{ tx('消息 News', 'News') }}</span>
@@ -858,7 +863,7 @@ onBeforeUnmount(() => {
           <div v-if="NEWS_VARIANTS[i] === 'wide'" class="news-card__inner" style="display:flex;width:100%;">
             <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(article, clubKey) }]">
               <span class="news-card__tag">{{ article.categoryName }}</span>
-              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
+              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :srcset="newsCoverImg(article, clubKey)!.srcset" :sizes="newsCoverImg(article, clubKey)!.srcset ? NEWS_CARD_SIZES : undefined" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
               <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">
@@ -869,7 +874,7 @@ onBeforeUnmount(() => {
           <template v-else>
             <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(article, clubKey) }]">
               <span class="news-card__tag">{{ article.categoryName }}</span>
-              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
+              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :srcset="newsCoverImg(article, clubKey)!.srcset" :sizes="newsCoverImg(article, clubKey)!.srcset ? NEWS_CARD_SIZES : undefined" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
               <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">

@@ -1,4 +1,4 @@
-/* shop.css — 站內商店 8.3（S3-5）、積分榜與球員數據（S3-9）的補充樣式。
+/* shop.css — 站內商店 8.3（S3-5）、積分榜與球員數據（S3-9）的補充樣式，以及文末「色彩對比修正」。
    tcrfc.css 一個位元都不改（docs/13 §6 紀律 10）；只用 tcrfc.css 已定義的 design tokens，不寫任何字面色值
    （紀律 1），兩個俱樂部自動換色。商品卡、購物車表格、摘要、規格選擇、步驟條等主體樣式沿用 tcrfc.css 既有定義。 */
 
@@ -78,3 +78,17 @@
 .pb-list{ padding-left:1.25rem; line-height:1.9; }
 .pb-list li + li{ margin-top:.6rem; }
 .pb-stats{ grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }
+
+/* ── 色彩對比修正（Lighthouse 12 color-contrast，2026-10-08）──────────────────────
+   tcrfc.css 一個位元都不改，也不新增任何色值：只把「小字」換成 tcrfc.css 已定義、已標明對比度的既有 token。
+   原本 var(--brand)（品牌正色）依 tcrfc.css 自己的註解只適用於「色塊、深底大型標題」，
+   小字（9.9–13px）落在深底只有 3.41–3.89:1。深底小字改用 --brand-bright（ink 5.32:1、ink-2 4.67:1，
+   藍鯨 8.63／7.19:1）；淺灰底（paper-2 #F5F5F5）小字 --brand-aa 只有 4.40:1（藍鯨 4.47:1），改 --brand-deep（6.13:1）。
+   色相不變、只是同一品牌色的提亮／加深版，兩個俱樂部各自跟著 token 換色。 */
+.hero-card__tag,
+.kicker--on-dark,
+.match-card__label,
+.roster-strip__head a,
+.cta-card__num{ color:var(--brand-bright); }
+.sponsor-band .kicker,
+.sponsor-more a{ color:var(--brand-deep); }

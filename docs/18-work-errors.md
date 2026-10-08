@@ -2962,3 +2962,11 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：餵 sqlcmd 大檔一律 `docker cp` 進容器後用 `-i`，不用 stdin；寫完後掃全庫 nvarchar 欄位找 U+FFFD。`db/prod` 匯入、慈善庫、其他腳本若有 `docker exec -i … < 檔案` 同樣寫法，同類處理。本次已一併改 `apply-charity-seed.sh`（未實跑，範圍限定 `tcrfc_club`）；**仍是 stdin 串流寫法、尚未改**：`db/seed/reset-admin-accounts.sh`（檔小）、`deploy/local-ddl.sh`、`apps/api/scripts/native-json-test.sh`（DDL 多為 ASCII，風險低，但同一類）。
 - **防呆**：✅ `apply-seed.sh` 改為 `docker cp` ＋ `-i`，並在套完後掃全庫 nvarchar 欄位，含 U+FFFD 即 exit 1。其他三支腳本無（待補；第二次再犯就把「大檔餵 sqlcmd」收成共用函式）。
 - **連帶**：`E-293` 記的「種子為何缺失的最初成因未能確定」，此條即為成因：先前某次套用在區段 39 因本條中止，其後區段從未套用；之後本機庫又被測試清理，疊加成 59 項失敗。
+
+### E-297 首頁 LCP 元素（hero 第一張新聞卡）設了 `loading="lazy"`，行動版 LCP 12.4s（2026-10-08，前台效能）
+
+- **錯在哪**：Lighthouse 12 對 `https://tcrfc.4webdemo.com/zh/` 行動版 Performance 59（LCP 12.4s、其中 Load Delay 7.9s 占 64%）。LCP 元素是 `hero__news` 第一張卡的圖片，卻帶 `loading="lazy"`；規格「首屏外 lazy load」被當成「所有圖片 lazy」套用。同時站台照片與新聞封面直接引用 Blob 主檔（544KB／444KB 顯示在約 370px 的卡片上），`/assets/` 靜態檔因來源不送 `Cache-Control` 被 Cloudflare 套預設 4 小時。
+- **根因（可改掉的行為）**：搬遷時對所有 `<img>` 一律加 `loading="lazy"`，沒有區分首屏與首屏外，也沒有用 Lighthouse／DevTools 量過首頁 LCP 元素；`docs/05` §4 的效能目標（LCP < 2.5s、Performance ≥ 85）從沒有人在正式環境量測過。
+- **下次怎麼避免**：新增或搬遷頁面時，首屏第一張可見圖（LCP 候選）一律 `loading="eager"` ＋ `fetchpriority="high"`，其餘才 lazy；頁面上線到測試站後跑一次 Lighthouse 行動版並記下 LCP 元素。
+- **防呆**：無（待補：以 Lighthouse CI 或腳本檢查首頁 HTML 的首張 `<img>` 不得為 lazy）。
+

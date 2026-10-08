@@ -109,6 +109,31 @@ export interface NewsCoverImg {
   height: number | null
   /** 後台「圖片說明」（已依語系回退）；空值回退文章標題。 */
   alt: string
+  /** 後台上傳封面的 1280／640／320 衍生檔 srcset（規劃書 §4.0）；本地過渡圖或寬高未知時為 undefined。 */
+  srcset?: string
+}
+
+/** 規劃書 §4.0 固定產出的長邊衍生檔（與 apps/api/Images/ImageUploadOptions.DerivativeLongEdges 一致）。 */
+const COVER_DERIVATIVE_EDGES = [1280, 640, 320] as const
+
+/**
+ * 後台上傳的封面 → srcset（w 描述子為衍生檔實際寬度）。
+ * 衍生檔網址規則由後端定義、前台照抄，不自創：`<主檔鍵去掉 .webp>-<長邊>.webp`
+ * （apps/api/Images/ImageObjectKey.ForLongEdge，規劃書 §4.0「鍵由主鍵推導，不另存欄位」）。
+ * 任何一項不確定（網址不是 .webp、寬高缺）就回 undefined，退回只用 src，不猜。
+ * 主檔長邊小於目標尺寸時後端「沿用主檔、仍產出該物件」（ImageProcessor），寬度取主檔寬度。
+ */
+export function coverSrcset(url: string, width: number | null | undefined, height: number | null | undefined): string | undefined {
+  if (!width || !height || width <= 0 || height <= 0) return undefined
+  const m = /^([^?#]+)\.webp((?:[?#].*)?)$/i.exec(url)
+  if (!m) return undefined
+  const [, stem, tail] = m
+  const longEdge = Math.max(width, height)
+  const parts = COVER_DERIVATIVE_EDGES.map((edge) => {
+    const w = longEdge <= edge ? width : Math.round(width * edge / longEdge)
+    return `${stem}-${edge}.webp${tail} ${w}w`
+  })
+  return parts.join(', ')
 }
 
 /**
@@ -122,7 +147,13 @@ export interface NewsCoverImg {
 export function newsCoverImg(a: NewsCoverFields, club: 'tcrfc' | 'bw' = 'tcrfc'): NewsCoverImg | null {
   const alt = a.coverAlt?.trim() || a.title?.trim() || ''
   if (a.coverUrl) {
-    return { src: a.coverUrl, width: a.coverWidth ?? null, height: a.coverHeight ?? null, alt }
+    return {
+      src: a.coverUrl,
+      width: a.coverWidth ?? null,
+      height: a.coverHeight ?? null,
+      alt,
+      srcset: coverSrcset(a.coverUrl, a.coverWidth, a.coverHeight),
+    }
   }
   if (hasNewsCover(a.slug, club)) {
     return { src: newsCoverSrc(a.slug), width: 1600, height: 1067, alt }

@@ -50,6 +50,8 @@ const { lp, isEn } = useLocale()
       <img
         v-if="cover"
         :src="cover.src"
+        :srcset="cover.srcset"
+        :sizes="cover.srcset ? '(max-width: 720px) 100vw, 400px' : undefined"
         :alt="cover.alt"
         loading="lazy"
         :width="cover.width ?? undefined"

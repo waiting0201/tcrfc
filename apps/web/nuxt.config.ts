@@ -5,6 +5,31 @@
 //     docker build 階段絕對不要帶這個環境變數（見 apps/web/Dockerfile 檔頭註解）。
 //   - 顏色只能是 CSS custom properties（tcrfc.css 本體），不得引入 Tailwind JIT 或任何
 //     把顏色編譯成字面值的工具（紀律 1）。本專案刻意不裝 Tailwind。
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+
+// 靜態 CSS（public/assets/css/*.css）的內容雜湊：建置時對四支檔案的內容算一個 sha256，取前 10 碼。
+// 檔名本身不含雜湊（tcrfc.css 必須原封不動放在 public/），所以改用「路徑版本化」：
+// nitro.publicAssets 把同一個資料夾再掛一份到 `/assets/css-<雜湊>/`（長快取 immutable，由 Nitro 產生標頭），
+// app.vue 的 <link> 改指向這個路徑。任何一支 CSS 內容一變 → 雜湊變 → URL 變 → 瀏覽器與 Cloudflare 都重抓，
+// 不會拿到舊 CSS；內容沒變 → 一年內不再請求。原本的 `/assets/css/*.css` 仍在（外部引用相容），
+// 但改為每次向來源驗證（見下方 routeRules）。
+// 讀不到檔案時回空字串：app.vue 退回 `/assets/css/*.css`、不掛版本化路徑，行為等同改動前。
+const CSS_DIR = fileURLToPath(new URL('./public/assets/css', import.meta.url))
+function cssVersion(): string {
+  try {
+    const h = createHash('sha256')
+    for (const name of ['tcrfc', 'club-bw', 'member', 'shop']) {
+      h.update(name).update(readFileSync(`${CSS_DIR}/${name}.css`))
+    }
+    return h.digest('hex').slice(0, 10)
+  } catch {
+    return ''
+  }
+}
+const CSS_VERSION = cssVersion()
+
 export default defineNuxtConfig({
   compatibilityDate: '2026-09-21',
 
@@ -51,6 +76,8 @@ export default defineNuxtConfig({
       // `docker run`／compose 帶入，不必重新 build。選填（不像 mediaBaseUrl 必須進 compose）：空值就是正確的預設行為。
       appStoreUrl: '',
       playStoreUrl: '',
+      // 靜態 CSS 內容雜湊（建置時算好，見檔頭 cssVersion）。不是環境變數，不需要進 compose。
+      cssVersion: CSS_VERSION,
     },
   },
 
@@ -153,6 +180,18 @@ export default defineNuxtConfig({
     // 🔴 S2-11 會員中心：會員相關的頁面與 API 回應一律不得被 SSR／CDN／瀏覽器快取（docs/14 不變量）。
     // `/m/**` 是電子會員卡公開驗證頁（`/m/{token}`，Cache-Control: no-store 是主站 §3.14 與 API 契約的要求）。
     // routeRules 會與上面的 `/**` 合併，X-Robots-Tag noindex 仍然保留。
+    // /assets/ 靜態資源的快取（Lighthouse：原本來源不送 Cache-Control，被 Cloudflare 套預設 4 小時）。
+    // Nitro 的靜態檔處理排在所有 middleware 之前，只有 routeRules 的標頭會生效。
+    // - /assets/css/**：未版本化的原路徑，每次向來源驗證（ETag），確保外部引用永遠不卡舊版；
+    //   頁面實際載入的是版本化路徑 /assets/css-<雜湊>/（見 nitro.publicAssets）。
+    // - 標誌與圖示：沒有版本化手段、很少變動，7 天＋stale-while-revalidate 1 天
+    //   （與 Blob 站台照片 max-age=604800 同量級，docs/17 §站台照片）。
+    // - /assets/img、/assets/ics（賽程行事曆檔會隨賽程更新）刻意不動。
+    '/assets/css/**': { headers: { 'Cache-Control': 'public, max-age=0, must-revalidate' } },
+    '/assets/brand/**': { headers: { 'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400' } },
+    '/assets/favicon.ico': { headers: { 'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400' } },
+    '/assets/favicon.svg': { headers: { 'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400' } },
+    '/assets/apple-touch-icon.png': { headers: { 'Cache-Control': 'public, max-age=604800, stale-while-revalidate=86400' } },
     '/zh/member/**': { headers: { 'Cache-Control': 'no-store' } },
     '/en/member/**': { headers: { 'Cache-Control': 'no-store' } },
     '/m/**': { headers: { 'Cache-Control': 'no-store' } },
@@ -188,6 +227,11 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    // 版本化的靜態 CSS 路徑 `/assets/css-<雜湊>/*.css`（來源與 /assets/css/ 同一個資料夾），Nitro 對有 maxAge 的
+    // publicAssets 自動加 `cache-control: public, max-age=…, immutable`。雜湊算不出來時不掛，見檔頭 cssVersion。
+    publicAssets: CSS_VERSION
+      ? [{ dir: CSS_DIR, baseURL: `/assets/css-${CSS_VERSION}`, maxAge: 60 * 60 * 24 * 365 }]
+      : [],
     // Dockerfile 用 `node .output/server/index.mjs` 直接執行，標準 Node 部署，
     // 不特化其他 Nitro preset（見 Dockerfile 檔頭註解）。
     preset: 'node-server',

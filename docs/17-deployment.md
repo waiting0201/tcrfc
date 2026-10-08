@@ -739,6 +739,19 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 
 操作手冊與疑難排解：[`infra/README.md`](../infra/README.md) §4.9。
 
+### 靜態資源快取與 CSS 版本化（2026-10-08，`frontend-architect`；`E-297`）
+
+Lighthouse 12 指出 `/assets/` 靜態檔快取只有 4 小時（`max-age=14400`）。**成因**：Nitro 對 `public/` 檔案只送 `ETag`／`Last-Modified`、不送 `Cache-Control`（只有 `/_nuxt/**` 由 Nuxt 加 immutable），Cloudflare 於是套預設 Browser Cache TTL 4 小時。檔名沒有雜湊（`tcrfc.css` 必須原封放在 `public/`，不得進 Vite pipeline），不能直接設一年 immutable，故：
+
+| 資源 | 做法 |
+|---|---|
+| 四支 CSS（`tcrfc`／`club-bw`／`member`／`shop`） | `nuxt.config.ts` 建置時對四檔內容算 sha256 前 10 碼（`runtimeConfig.public.cssVersion`），`nitro.publicAssets` 把同一資料夾再掛到 `/assets/css-<雜湊>/`（`maxAge` 一年 → Nitro 產生 `public, max-age=31536000, immutable`）。`app.vue` 的 `<link>` 指向該路徑；**任一支 CSS 內容變 → 雜湊變 → URL 變，不會拿到舊 CSS**。每次部署若 CSS 沒變則雜湊不變、不浪費快取 |
+| 原路徑 `/assets/css/*.css` | 保留（外部引用相容），`routeRules` 設 `max-age=0, must-revalidate`（每次以 ETag 驗證） |
+| `/assets/brand/**`、favicon、apple-touch-icon | `routeRules`：`max-age=604800, stale-while-revalidate=86400`（與 Blob 站台照片同量級；沒有版本化手段，換標誌後最久一週生效） |
+| `/assets/img`、`/assets/ics` | 不動（`ics` 賽程檔會隨賽程更新） |
+
+⚠️ **Nitro 的靜態檔處理排在所有 server middleware 之前**，在 `server/middleware/` 設 `Cache-Control` 對 `public/` 檔案完全無效（已實測），只有 `routeRules` 與 `publicAssets.maxAge` 會生效。若日後 Cloudflare 有 Cache Rule／Browser TTL 覆寫，以來源標頭為準的前提需複驗。**未處理（部署層）**：TTFB 700–1000 ms、Blob 圖片走 HTTP/1.1（可考慮 Cloudflare 圖片網域／CDN 基底 `AZURE_BLOB_PUBLIC_BASE_URL`）。
+
 ### 備份與還原（J3「資料備份」，2026-09-30，`backend-engineer` 補記）
 
 規劃書 J3 寫「每日自動備份，可手動還原點」，`docs/12` §13.4 已判定它是基礎設施設定、**不是資料表也沒有後台 API**。本節記下實際做法與缺口，**這是執行層決定，不是規格**：

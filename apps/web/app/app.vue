@@ -117,6 +117,16 @@ useSeoMeta({
   ogImageHeight: () => seoOgImage.value.height,
 }, { tagPriority: 'low' })
 
+const route = useRoute()
+// 首頁（含英文版）：/zh、/zh/、/en、/en/
+const isHome = computed(() => /^\/(zh|en)\/?$/.test(route.path))
+/** 靜態 CSS 網址：走版本化路徑 /assets/css-<內容雜湊>/（nuxt.config.ts nitro.publicAssets，一年 immutable）；
+ *  雜湊算不出來時退回原路徑 /assets/css/（等同舊行為）。 */
+function cssHref(name: 'tcrfc' | 'club-bw' | 'member' | 'shop'): string {
+  const v = config.public.cssVersion as string | undefined
+  return v ? `/assets/css-${v}/${name}.css` : `/assets/css/${name}.css`
+}
+
 useHead(() => ({
   htmlAttrs: {
     'data-club': club.value,
@@ -124,16 +134,23 @@ useHead(() => ({
   link: [
     // tcrfc.css 是視覺的唯一真實來源，整份原封放在 public/、以純靜態資源載入
     // （不透過 Vite css pipeline，避免任何一位元被改動，見 nuxt.config.ts 的 css: [] 註解）。
-    { rel: 'stylesheet', href: '/assets/css/tcrfc.css' },
-    // 藍鯨色票覆寫檔，載入順序必須在 tcrfc.css 之後。tcrfc 站台下這份檔案沒有任何
-    // 選擇器會命中（見 club-bw.css 的 :root[data-club='bw'] 前綴），故兩站共用同一份
-    // <link> 清單也安全。
-    { rel: 'stylesheet', href: '/assets/css/club-bw.css' },
+    // 網址走版本化路徑 /assets/css-<內容雜湊>/（nuxt.config.ts cssVersion／nitro.publicAssets）：檔名沒有雜湊，
+    // 靠路徑版本化才能放心一年長快取，改版後 URL 變動、使用者不會拿到舊 CSS。
+    { rel: 'stylesheet', href: cssHref('tcrfc') },
+    // 藍鯨色票覆寫檔，載入順序必須在 tcrfc.css 之後。檔內所有選擇器都以 :root[data-club='bw'] 開頭，
+    // 磐石站不會命中任何一條，因此只在藍鯨站輸出這條 <link>（少一個阻塞渲染的請求）。
+    ...(club.value === 'bw' ? [{ rel: 'stylesheet', href: cssHref('club-bw') }] : []),
     // S2-11／S3-2：會員中心與 08 文化互動的補充樣式（tcrfc.css 一個位元都不改，新元件樣式獨立成檔；
     // 只用 tcrfc.css 的 design tokens，兩個俱樂部自動換色）。
-    { rel: 'stylesheet', href: '/assets/css/member.css' },
+    // 首頁（/zh/、/en/）用不到：首頁沒有任何元件使用 mc-*／member-card／reader／fe-card 等類別，
+    // 也沒有 form-field 表單，故首頁不阻塞載入、改成 prefetch（從首頁點進會員／文化頁時多半已在快取）。
+    // 其他頁面的共用選擇器（.form-field、.table-scroll 等）太多，不逐路由判斷，維持原樣載入。
+    isHome.value
+      ? { rel: 'prefetch', as: 'style', href: cssHref('member') }
+      : { rel: 'stylesheet', href: cssHref('member') },
     // S3-5／S3-9：站內商店與積分榜、球員數據的補充樣式（同樣只用 design tokens）。
-    { rel: 'stylesheet', href: '/assets/css/shop.css' },
+    // 🔴 首頁要保留：首頁的商店入口區塊用到 .sh-entry-*，且 .field-error／.form-field 等共用規則散在各表單頁。
+    { rel: 'stylesheet', href: cssHref('shop') },
     ...assets.value.favicon.map((icon) => ({
       rel: 'icon',
       href: icon.href,
