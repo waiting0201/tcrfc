@@ -2971,3 +2971,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **防呆**：無（待補：以 Lighthouse CI 或腳本檢查首頁 HTML 的首張 `<img>` 不得為 lazy）。
 - **補充（2026-10-08）**：站台照片「圖片尺寸過大」的處理也是同一根因的延伸——`docs/17` 原寫「不做 1280／640／320」，把靜態版面素材當成不需衍生檔，與規劃書「前台不得直接引用主檔」衝突。已推翻：`infra/upload-site-images.sh` 產衍生檔、前台 `siteImgSrcset()` 輸出 srcset（部署順序：先上傳、後部署前台）。另：`.sponsor-more a` 對比度第一次改在 `shop.css`，被 `index.vue` scoped style 優先權蓋掉而未生效——**改對比度前先 grep 同一 selector 在 scoped style 的定義**；防呆：無。
 
+
+### E-298 回報「正式機要另行 docker pull 部署才生效」，實際上 push 到 master 就自動部署（2026-10-08，回報內容）
+
+- **錯在哪**：後台密碼下限 9 → 6 推上 `master` 後，回報使用者「要等 CI 建好映像檔、並在 VM 上 `docker pull` 部署後才生效」。實際上 `.github/workflows/deploy.yml` 在 push 到 `master` 時就會依變動範圍重建映像檔並部署到正式 VM（本次 run `37743048289` 已重建 api／admin-web／admin-charity 並部署成功），不需要人工 pull。
+- **根因（可改掉的行為）**：照抄 `docs/20`／`apps/api/README.md` 裡「要先 push 並部署新版 api 映像檔」的字句，當成「部署要人工做」，沒有先看 `deploy.yml` 的觸發條件或 `gh run list` 就對使用者描述部署狀態。
+- **下次怎麼避免**：push 之後要講「何時生效」，先 `gh run list` 看 Deploy 是否已觸發，並回報該次 run 的結果；不要用文件字句推論部署流程。
+- **防呆**：無。
