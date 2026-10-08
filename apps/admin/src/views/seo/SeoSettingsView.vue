@@ -195,7 +195,7 @@ async function handleSave() {
                 <FormSection title="標題與描述">
                   <p class="seo-settings__hint">
                     這裡設定的是全站的預設值：任何一頁自己沒有另外設定搜尋與分享標題／描述時，就會使用這裡的樣板與描述。
-                    網站名稱本身在「俱樂部與授權管理」設定，這裡不重複維護。
+                    網站名稱屬於俱樂部資料（俱樂部與授權管理頁，側欄未列出），這裡不重複維護。
                   </p>
                   <BilingualShortField
                     field="titleTemplate"

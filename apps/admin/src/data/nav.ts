@@ -186,8 +186,10 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { code: 'J1', label: '帳號', path: '/system/accounts', implemented: true },
           { code: 'J2', label: '角色與權限', path: '/system/roles', implemented: true },
-          { code: 'J3', label: '稽核與備份', path: '/system/audit', implemented: true },
-          { code: 'J4', label: '俱樂部與授權管理', path: '/system/clubs', implemented: true },
+          // J3、J4：側欄隱藏（2026-10-08 使用者指示）。路由、畫面與 API 保留，直接進網址仍可操作；
+          // 帳號的俱樂部授權仍在帳號編輯頁維護
+          { code: 'J3', label: '稽核與備份', path: '/system/audit', implemented: true, hidden: true },
+          { code: 'J4', label: '俱樂部與授權管理', path: '/system/clubs', implemented: true, hidden: true },
         ],
       },
     ],
