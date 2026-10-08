@@ -50,6 +50,7 @@ import {
   type RelationTargetType,
 } from '@/types/news'
 import { nowAsPickerDate, pickerDateToUtc } from '@/utils/dateTime'
+import { toFrontendUrl } from '@/composables/useFrontendUrl'
 
 const route = useRoute()
 const router = useRouter()
@@ -542,8 +543,9 @@ function handleBack() {
 }
 
 function handlePreview() {
-  if (!previewUrl.value) return
-  window.open(previewUrl.value, '_blank', 'noopener')
+  const url = toFrontendUrl(previewUrl.value)
+  if (!url) return
+  window.open(url, '_blank', 'noopener')
 }
 
 function retryLoad() {

@@ -13,6 +13,10 @@
  */
 interface TcrfcRuntimeConfig {
   apiBaseUrl?: string
+  /** 主站前台網址（ADMIN_WEB_BASE_URL），見 resolveFrontendBaseUrl */
+  webBaseUrl?: string
+  /** 藍鯨官網前台網址（ADMIN_BW_WEB_BASE_URL），見 resolveFrontendBaseUrl */
+  bwWebBaseUrl?: string
 }
 
 declare global {
@@ -33,4 +37,24 @@ export const API_BASE_URL = resolveApiBaseUrl()
 
 if (!API_BASE_URL) {
   console.error('[TCRFC] 未設定 API 位址：容器請設定環境變數 ADMIN_API_BASE_URL（見 README「環境變數」），建置期可設 VITE_ADMIN_API_BASE_URL。')
+}
+
+/**
+ * 前台網址（「這裡管理的是：… ↗」與「預覽前台」用）。後台與前台是不同網域（docs/17 §10），
+ * 前台路徑若直接寫 `/zh/news/` 會落在後台自己的網域——必須接上前台的基底網址。
+ *
+ * 主站與藍鯨是兩個前台網域，依後台目前選的俱樂部決定。解析順序同 API 位址：
+ * `/config.js`（ADMIN_WEB_BASE_URL／ADMIN_BW_WEB_BASE_URL）＞ VITE_ 建置期變數 ＞ 僅開發模式退回
+ * `http://localhost:3000`（apps/web 的 `npm run dev`）。找不到時回傳空字串，呼叫端不放連結。
+ */
+export function resolveFrontendBaseUrl(isBlueWhale: boolean): string {
+  const cfg = typeof window !== 'undefined' ? window.__TCRFC_CONFIG__ : undefined
+  const runtime = (isBlueWhale ? cfg?.bwWebBaseUrl : cfg?.webBaseUrl)?.trim()
+  const build = (
+    (isBlueWhale ? import.meta.env.VITE_ADMIN_BW_WEB_BASE_URL : import.meta.env.VITE_ADMIN_WEB_BASE_URL) as
+      | string
+      | undefined
+  )?.trim()
+  const value = runtime || build || (import.meta.env.DEV ? 'http://localhost:3000' : '')
+  return value.replace(/\/$/, '')
 }

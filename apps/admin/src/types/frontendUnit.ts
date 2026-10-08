@@ -14,6 +14,6 @@ export interface FrontendUnitInfo {
   linkType: FrontendUnitLinkType
   /** 前台單元中文名稱，畫面直接顯示 */
   label: string
-  /** linkType 為 link／multi 時的前台網址（mock 環境不保證能實際開啟，見 apps/admin/README.md） */
+  /** linkType 為 link／multi 時的前台路徑；畫面上一律經 toFrontendUrl() 接上前台網域（E-300） */
   url?: string
 }

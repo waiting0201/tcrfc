@@ -123,6 +123,7 @@
 > 這條由 `ci.yml` 的 `compose-env` job（`scripts/check-compose-env.mjs`）把關：compose 漏帶 `ADMIN_API_BASE_URL`、
 > Dockerfile 沒複製 entrypoint、nginx 缺 `/config.js` 設定、`index.html` 沒載入 `/config.js` 都會擋下（`E-112` 升級段第三次）。
 > 部署後驗證：`curl https://tcrfc-admin.4webdemo.com/config.js` 應回 `apiBaseUrl: "https://tcrfc-api.4webdemo.com"`。
+> `admin-web` 另帶前台網址 `ADMIN_WEB_BASE_URL`／`ADMIN_BW_WEB_BASE_URL`（`webBaseUrl`／`bwWebBaseUrl`，「這裡管理的是：… ↗」與預覽前台用，`E-300`），同一個 job 檢查兩者指向 `${TCRFC_DOMAIN}`／`${BW_DOMAIN}`。
 
 ### Job 切法
 

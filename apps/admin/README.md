@@ -147,6 +147,8 @@ Element Plus 預設藍版本已整批換掉，**不做主題切換開關，不�
 |---|---|---|
 | `ADMIN_API_BASE_URL` | **容器執行期**（`docker run -e`／compose `environment`） | 啟動時由 `docker-entrypoint.d/40-runtime-config.sh` 產生 `/config.js`（`window.__TCRFC_CONFIG__.apiBaseUrl`），nginx 以 `Cache-Control: no-store` 提供，`index.html` 先於應用程式載入。換網域（`docs/17` §10）改 `.env` 的 `API_DOMAIN` 重建容器即可，**不必重建映像檔** |
 | `VITE_ADMIN_API_BASE_URL` | 建置期（本機開發 `.env.development`） | 見 `.env.example`；容器內不使用 |
+| `ADMIN_WEB_BASE_URL`／`ADMIN_BW_WEB_BASE_URL` | **容器執行期**（同上，寫進 `/config.js` 的 `webBaseUrl`／`bwWebBaseUrl`） | 主站／藍鯨前台網址。標題下「這裡管理的是：… ↗」與「預覽前台」依後台目前選的俱樂部接上其中一個（`src/composables/useFrontendUrl.ts`）。compose 帶 `https://${TCRFC_DOMAIN}`／`https://${BW_DOMAIN}`。**未設定時不顯示連結，不退回後台網域**（`E-300`：舊版寫相對路徑，點下去連回後台自己） |
+| `VITE_ADMIN_WEB_BASE_URL`／`VITE_ADMIN_BW_WEB_BASE_URL` | 建置期 | 本機開發用；都沒設時 `npm run dev` 退回 `http://localhost:3000`（`apps/web` 的 `npm run dev`） |
 
 解析順序（`src/api/runtimeConfig.ts`）：`/config.js` ＞ `VITE_ADMIN_API_BASE_URL` ＞ **僅 `npm run dev`** 退回 `http://127.0.0.1:5299`。
 🔴 正式建置找不到設定時**不退回 127.0.0.1**：畫面顯示「未設定 API 位址」並在 console 報錯。

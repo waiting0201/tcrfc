@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { getFrontendUnit } from '@/data/frontendUnits'
+import { toFrontendUrl } from '@/composables/useFrontendUrl'
 
 /**
  * 「這裡管理的是：{前台單元中文名稱} ↗」——規劃書 §4.0 前後台對照表的硬性規定，
@@ -29,10 +30,11 @@ const isRecordLevel = computed(() => props.recordPublished !== undefined)
 const showLink = computed(() => unit.value.linkType === 'link' || unit.value.linkType === 'multi')
 
 const effectiveUrl = computed(() => {
+  // 前台路徑一律接上前台網域；寫相對路徑會連到後台自己（見 useFrontendUrl）
   if (isRecordLevel.value) {
-    return props.recordPublished ? props.recordUrl : undefined
+    return props.recordPublished ? toFrontendUrl(props.recordUrl) : undefined
   }
-  return unit.value.url
+  return toFrontendUrl(unit.value.url)
 })
 </script>
 

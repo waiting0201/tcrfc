@@ -21,6 +21,7 @@ import {
 import { AdminApiError } from '@/api/http'
 import { NEWS_CATEGORY_LABEL, type NewsArticle, type NewsCategory } from '@/types/news'
 import { formatDateTime } from '@/utils/dateTime'
+import { toFrontendUrl } from '@/composables/useFrontendUrl'
 
 const router = useRouter()
 const { breakpoint } = useBreakpoint()
@@ -153,7 +154,8 @@ function handleEdit(row: NewsArticle) {
 
 function handleView(row: NewsArticle) {
   if (row.status !== 'published') return
-  window.open(`/zh/news/${row.urlName}/`, '_blank', 'noopener')
+  const url = toFrontendUrl(`/zh/news/${row.urlName}/`)
+  if (url) window.open(url, '_blank', 'noopener')
 }
 
 async function handleDuplicate(row: NewsArticle) {

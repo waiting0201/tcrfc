@@ -112,18 +112,28 @@ function parsePublicKeys(text) {
 
 // ── SPA 後台：執行期注入的 API 位址
 const SPA_APPS = [
-  { service: 'admin-web', dir: 'apps/admin' },
+  // frontend：後台連到前台的網址（「這裡管理的是：… ↗」、預覽前台）。後台與前台不同網域，
+  // 漏帶時連結不顯示；早期版本寫相對路徑，點下去連回後台自己（E-300）。
+  {
+    service: 'admin-web',
+    dir: 'apps/admin',
+    frontend: { ADMIN_WEB_BASE_URL: 'TCRFC_DOMAIN', ADMIN_BW_WEB_BASE_URL: 'BW_DOMAIN' },
+  },
   { service: 'admin-charity', dir: 'apps/admin-charity' },
 ]
 const composeText = read('docker-compose.yml')
 const compose0 = parseComposeEnv(composeText)
-for (const { service, dir } of SPA_APPS) {
+for (const { service, dir, frontend = {} } of SPA_APPS) {
   const env = compose0[service]
   if (!env) { fail(`docker-compose.yml 找不到服務 ${service}`); continue }
   if (!('ADMIN_API_BASE_URL' in env)) {
     fail(`${service} 缺 ADMIN_API_BASE_URL：SPA 的 API 位址是執行期注入，漏帶畫面會顯示「未設定 API 位址」（E-112 升級段）`)
   } else if (!/\$\{API_DOMAIN\b/.test(env.ADMIN_API_BASE_URL)) {
     fail(`${service} 的 ADMIN_API_BASE_URL 必須指向 \${API_DOMAIN}，目前是「${env.ADMIN_API_BASE_URL}」`)
+  }
+  for (const [k, domain] of Object.entries(frontend)) {
+    if (!(k in env)) fail(`${service} 缺 ${k}：後台連到前台的網址，漏帶時「這裡管理的是：… ↗」不會出現連結`)
+    else if (!new RegExp(`\\$\\{${domain}\\b`).test(env[k])) fail(`${service} 的 ${k} 必須指向 \${${domain}}，目前是「${env[k]}」`)
   }
   for (const k of Object.keys(env)) {
     if (k.startsWith('VITE_')) fail(`${service} 的 ${k}：VITE_* 是建置期變數，容器執行期設了不會生效，請改用 ADMIN_API_BASE_URL`)

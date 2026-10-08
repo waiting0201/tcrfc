@@ -881,6 +881,7 @@ Lighthouse 12 指出 `/assets/` 靜態檔快取只有 4 小時（`max-age=14400`
 | 會員卡 `/m/<token>` | 同 `NUXT_PUBLIC_SITE_URL`（是主站路由的一部分，不是獨立設定） | 連結本身零成本可改，**但一旦印出或寄出就不可逆**，見 §10.3 |
 | App `apple-app-site-association`／`assetlinks.json` | 內容由 `shared/deeplinks.json`（[`docs/19`](19-app-tech-stack.md) §2）產生；**部署到哪個網域是一次性選擇** | 見 §10.3 不可逆類第一項 |
 | 後台 SPA（`admin-web`／`admin-charity`）的 API 位址 | `docker-compose.yml` 的 `ADMIN_API_BASE_URL: https://${API_DOMAIN}`（**執行期注入**：容器啟動時由 `docker-entrypoint.d/40-runtime-config.sh` 產生 `/config.js`，nginx 以 `Cache-Control: no-store` 提供，`index.html` 先載入它） | 🔴 **2026-10-03 補上**：先前只在註解寫「執行期注入」、從未實作，正式映像檔退回寫死的 `http://127.0.0.1:5299`，兩個後台都無法登入（`E-112` 升級段第三次）。換網域只改 `.env` 的 `API_DOMAIN` 並重建容器、**不必重建映像檔**。漏帶時畫面顯示「未設定 API 位址」，`scripts/check-compose-env.mjs` 在 CI 擋下 |
+| 共用後台（`admin-web`）連到前台的網址 | `ADMIN_WEB_BASE_URL: https://${TCRFC_DOMAIN}`、`ADMIN_BW_WEB_BASE_URL: https://${BW_DOMAIN}`（同一份 `/config.js` 注入） | **2026-10-08 補上**（`E-300`）：標題下「這裡管理的是：… ↗」與「預覽前台」原本寫相對路徑，連到後台自己的網域。依後台目前選的俱樂部二選一；漏帶時不顯示連結，`check-compose-env.mjs` 檢查兩者存在且指向對的網域變數。換網域只改 `.env` |
 | CORS 允許來源 | **缺口，本次補上**：`api` 容器新增 `CORS_ALLOWED_ORIGINS`，組成同一組網域環境變數（見 §10.8） | 之前完全沒有這個變數，是本次盤點抓到的洞 |
 | CSP | 尚未定案（`apps/*` 專案尚未建立）；**建議**沿用同一組網域環境變數 ＋ 固定的第三方清單（LINE、Cloudflare、字型服務等）組出 `Content-Security-Policy` | 留給 `frontend-architect`／`backend-engineer` 建專案時定案，本節只定原則：不寫死、來源與 CORS 同一組變數 |
 | cookie 作用域 | **不設定 `Domain` 屬性，或用 `__Host-` 前綴** | 這條的「單一來源」反而是「不要設來源」——host-only 就不會有作用域問題，見 §10.5 |

@@ -6,32 +6,45 @@
 # 就得重建映像檔；而過去「執行期注入」只寫在註解裡、從未實作，正式映像檔因此退回寫死的
 # 127.0.0.1:5299（docs/18 E-112 升級段第三次）。
 #
+# 三個網址：
+#   ADMIN_API_BASE_URL     API（必填，未設定時畫面顯示「未設定 API 位址」）
+#   ADMIN_WEB_BASE_URL     主站前台（「這裡管理的是：… ↗」與預覽前台；未設定時不放連結）
+#   ADMIN_BW_WEB_BASE_URL  藍鯨官網前台（同上，後台切到藍鯨時使用）
+#
 # 輸出到 /tmp（非 root 的 nginx 使用者一定可寫），nginx 以 `location = /config.js` 的 alias 提供。
 set -eu
 
 OUT=/tmp/config.js
-BASE="${ADMIN_API_BASE_URL:-}"
-BASE="${BASE%/}"
 
-case "$BASE" in
-  "")
-    echo "[runtime-config] 警告：ADMIN_API_BASE_URL 未設定，後台畫面會顯示「未設定 API 位址」。" >&2
-    ;;
-  http://*|https://*)
-    ;;
-  *)
-    echo "[runtime-config] 錯誤：ADMIN_API_BASE_URL 必須以 http:// 或 https:// 開頭，目前是「$BASE」。" >&2
-    exit 1
-    ;;
-esac
+# 驗證並回傳去掉結尾斜線的網址；$1＝變數名稱
+check_url() {
+  name="$1"
+  eval "val=\"\${$name:-}\""
+  val="${val%/}"
+  case "$val" in
+    "")
+      echo "[runtime-config] 警告：$name 未設定。" >&2
+      ;;
+    http://*|https://*)
+      ;;
+    *)
+      echo "[runtime-config] 錯誤：$name 必須以 http:// 或 https:// 開頭，目前是「${val}」。" >&2
+      exit 1
+      ;;
+  esac
+  # 只允許網址常見字元：值會被放進 JS 字串，不接受引號、反斜線、空白、角括號等（避免注入）。
+  case "$val" in
+    *[!A-Za-z0-9:/._~%@-]*)
+      echo "[runtime-config] 錯誤：$name 含有不允許的字元。" >&2
+      exit 1
+      ;;
+  esac
+  printf '%s' "$val"
+}
 
-# 只允許網址常見字元：值會被放進 JS 字串，不接受引號、反斜線、空白、角括號等（避免注入）。
-case "$BASE" in
-  *[!A-Za-z0-9:/._~%@-]*)
-    echo "[runtime-config] 錯誤：ADMIN_API_BASE_URL 含有不允許的字元。" >&2
-    exit 1
-    ;;
-esac
+API="$(check_url ADMIN_API_BASE_URL)"
+WEB="$(check_url ADMIN_WEB_BASE_URL)"
+BW="$(check_url ADMIN_BW_WEB_BASE_URL)"
 
-printf 'window.__TCRFC_CONFIG__ = { apiBaseUrl: "%s" };\n' "$BASE" > "$OUT"
-echo "[runtime-config] 已產生 $OUT（apiBaseUrl=${BASE:-<未設定>}）"
+printf 'window.__TCRFC_CONFIG__ = { apiBaseUrl: "%s", webBaseUrl: "%s", bwWebBaseUrl: "%s" };\n' "$API" "$WEB" "$BW" > "$OUT"
+echo "[runtime-config] 已產生 ${OUT}（apiBaseUrl=${API:-<未設定>}，webBaseUrl=${WEB:-<未設定>}，bwWebBaseUrl=${BW:-<未設定>}）"

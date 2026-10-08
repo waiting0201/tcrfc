@@ -217,6 +217,10 @@ services:
       # 40-runtime-config.sh），換網域只改 .env 的 API_DOMAIN、不必重建映像檔。
       # 漏帶時畫面會顯示「未設定 API 位址」；scripts/check-compose-env.mjs 會在 CI 擋下。
       ADMIN_API_BASE_URL: https://${API_DOMAIN}
+      # 「這裡管理的是：… ↗」與預覽前台要連到前台網域（後台網域不同，寫相對路徑會連回後台自己）。
+      # 依後台目前選的俱樂部二選一；scripts/check-compose-env.mjs 會檢查。
+      ADMIN_WEB_BASE_URL: https://${TCRFC_DOMAIN}
+      ADMIN_BW_WEB_BASE_URL: https://${BW_DOMAIN}
     networks: [internal]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]

@@ -43,6 +43,7 @@ import { AdminApiError } from '@/api/http'
 import { parseBlockFromDto, serializeBlocksForSubmit, PageBlockValidationError } from '@/utils/pageBlockSerializer'
 import { PAGE_BLOCK_TYPE_LABEL, type PageBlockState, type PageBlockType } from '@/types/pageBlocks'
 import { formatDateTime, nowAsPickerDate, pickerDateToUtc } from '@/utils/dateTime'
+import { toFrontendUrl } from '@/composables/useFrontendUrl'
 
 const route = useRoute()
 const router = useRouter()
@@ -389,8 +390,9 @@ function handleBack() {
 }
 
 function handlePreview() {
-  if (!frontendPreviewUrl.value) return
-  window.open(frontendPreviewUrl.value, '_blank', 'noopener')
+  const url = toFrontendUrl(frontendPreviewUrl.value)
+  if (!url) return
+  window.open(url, '_blank', 'noopener')
 }
 
 function retryLoad() {

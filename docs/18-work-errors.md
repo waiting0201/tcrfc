@@ -2985,3 +2985,11 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：背景執行工具本身已經是非同步，又在指令裡疊 `&`，等於失去「上一輪是否結束」的掌握；整合測試共用一個開發庫，本來就不能並行（`S1-3` 當時「與 agent 同時對同一個庫跑測試」的偶發失敗是同一類）。
 - **下次怎麼避免**：全套 `dotnet test` 一次只跑一輪；背景執行時不要在指令裡加 `&`，啟動前先確認沒有殘留的 `dotnet test`／`testhost` 程序。大量失敗先看是不是死鎖或連線錯誤，再判斷是否為程式問題。
 - **防呆**：無。
+
+### E-300 後台「這裡管理的是：… ↗」與預覽前台連到後台自己（2026-10-08，後台）
+
+- **錯在哪**：共用後台標題下的前台連結（`FrontendUnitBanner`）、新聞與頁面的「預覽前台」都用相對路徑（`/zh/news/` 等）。後台與前台是不同網域（`tcrfc-admin.4webdemo.com` vs `tcrfc.4webdemo.com`，`docs/17` §10），點下去開的是後台網域的 `/zh/...`，看起來像「連到後台」。使用者回報才發現。
+- **根因（可改掉的行為）**：寫前台連結時沿用 mockup 時期「同一網域」的假設，沒有對照部署拓撲確認前後台網域是否相同；`frontendUnits.ts` 的型別註解甚至寫了「mock 環境不保證能實際開啟」，等於把問題記下卻沒解。
+- **下次怎麼避免**：後台要產生任何前台網址時一律經 `toFrontendUrl()`（`apps/admin/src/composables/useFrontendUrl.ts`），不得直接 `window.open('/zh/...')` 或把相對路徑塞進 `href`。跨網域的位址一律走執行期 `/config.js`，比照 `ADMIN_API_BASE_URL`。
+- **防呆**：`scripts/check-compose-env.mjs` 檢查 `admin-web` 帶 `ADMIN_WEB_BASE_URL`／`ADMIN_BW_WEB_BASE_URL` 且分別指向 `${TCRFC_DOMAIN}`／`${BW_DOMAIN}`；程式端未設定時不顯示連結、不退回後台網域。相對路徑寫法本身沒有自動掃描（待補）。
+

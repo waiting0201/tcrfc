@@ -16,6 +16,7 @@ import { activeClubId } from '@/auth/clubAccess'
 import { listAdminPages, type AdminPageListItemDto } from '@/api/adminPages'
 import { AdminApiError } from '@/api/http'
 import { formatDateTime } from '@/utils/dateTime'
+import { toFrontendUrl } from '@/composables/useFrontendUrl'
 
 const router = useRouter()
 const { breakpoint } = useBreakpoint()
@@ -103,7 +104,8 @@ function handleEdit(row: AdminPageListItemDto) {
 
 function handleView(row: AdminPageListItemDto) {
   if (row.status !== 'published') return
-  window.open(`/zh/${row.slug.replace(/^\/+|\/+$/g, '')}/`, '_blank', 'noopener')
+  const url = toFrontendUrl(`/zh/${row.slug.replace(/^\/+|\/+$/g, '')}/`)
+  if (url) window.open(url, '_blank', 'noopener')
 }
 </script>
 
