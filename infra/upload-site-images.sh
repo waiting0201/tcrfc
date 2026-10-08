@@ -12,11 +12,18 @@
 #   2. 在容器（ImageMagick）裡依規劃書 §4.0 圖片上傳通則處理：依 EXIF 方向轉正 → 長邊超過 2560px
 #      才等比縮小 → 去除全部中繼資料（EXIF 含 GPS、XMP、ICC）→ 存 WebP。處理結果只寫進暫存目錄，
 #      結束時清掉。每張處理後立刻驗證：格式為 WebP、長邊 <= 2560、沒有任何 profile／EXIF。
-#   3. 上傳到 俱樂部儲存體帳戶 的容器 images，物件鍵 site/<相對路徑，副檔名改 .webp>，
+#   3. 每張主檔另產 -1280／-640／-320 三個衍生檔（命名與後台上傳同一套，見 apps/api/Images/
+#      ImageObjectKey.cs：site/a/b.webp -> site/a/b-1280.webp、b-640.webp、b-320.webp；前台
+#      `siteImgSrcset()` 靠它輸出 srcset）。規則與後端 ImageProcessor 一致：主檔長邊 <= 目標長邊時
+#      衍生檔沿用主檔內容（仍產出該物件），否則等比縮到長邊 = 目標；同樣去除全部中繼資料。
+#      不產 160px 方形縮圖（站台照片是版面素材，前台不用）。
+#   4. 上傳到 俱樂部儲存體帳戶 的容器 images，物件鍵 site/<相對路徑，副檔名改 .webp> 與其三個衍生檔，
 #      Content-Type: image/webp、Cache-Control: public, max-age=604800。
 #
 # 可重跑：每個物件的 metadata 記著「處理配方＋來源檔 SHA-256」；來源與配方都沒變就略過。
-#         改了來源檔、品質或長邊上限就會重傳。本腳本永遠不刪雲端物件（雲端多出來的檔不管）。
+#         改了來源檔、品質或長邊上限就會重傳。主檔已是最新、只缺衍生檔時，只補傳衍生檔（不重傳主檔）。
+#         本腳本永遠不刪雲端物件（雲端多出來的檔不管）。
+#         --out-dir 只做本機處理驗證時，會把處理結果（主檔＋衍生檔）留在指定資料夾、不上傳、不呼叫 az。
 #
 # 認證（不印出任何金鑰）
 #   AUTH_MODE=login（預設）：用 az login 的身分，需要儲存體帳戶上的「Storage Blob Data Contributor」角色。
@@ -38,6 +45,8 @@
 #   --all             忽略 site-images.txt，處理整個資料夾
 #   --list <檔案>     指定清單檔（每行一個相對路徑；# 開頭與空行忽略）
 #   --force           忽略雲端現況，全部重傳
+#   --local-only <目錄> 只在本機處理並驗證，輸出留在 <目錄>，不連 Azure、不上傳（用於產出檢查；
+#                     仍需要 docker）。目錄必須不存在或為空。
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
@@ -57,9 +66,12 @@ MAX_EDGE=2560
 CACHE_CONTROL="public, max-age=604800"
 # 處理配方：任何會改變輸出像素的參數都要進來，這樣改參數後舊物件會被判定為「要重傳」
 RECIPE="v1-q${QUALITY}-m6-l${MAX_EDGE}"
+# 衍生檔配方：主檔配方＋衍生長邊清單（與 ImageUploadOptions.DerivativeLongEdges 一致，改了要同步）
+DERIV_EDGES="1280 640 320"
+DERIV_RECIPE="d1-q${QUALITY}-m6-e$(printf '%s' "${DERIV_EDGES}" | tr ' ' '.')"
 TAB=$(printf '\t')
 
-DRY_RUN=0 ALL=0 FORCE=0
+DRY_RUN=0 ALL=0 FORCE=0 LOCAL_ONLY=0 LOCAL_OUT=""
 
 step() { printf '\n== %s ==\n' "$1"; }
 info() { printf '   %s\n' "$1"; }
@@ -71,6 +83,12 @@ while [ $# -gt 0 ]; do
     --dry-run) DRY_RUN=1 ;;
     --all) ALL=1 ;;
     --force) FORCE=1 ;;
+    --local-only)
+      [ $# -ge 2 ] || die "--local-only 需要一個輸出目錄"
+      LOCAL_ONLY=1
+      LOCAL_OUT=$2
+      shift
+      ;;
     --list)
       [ $# -ge 2 ] || die "--list 需要一個檔案路徑"
       LIST_FILE=$2
@@ -93,8 +111,10 @@ case "${JOBS}" in '' | *[!0-9]*) die "JOBS 必須是整數" ;; esac
 
 # ── 前置檢查 ─────────────────────────────────────────────────────────────
 step "前置檢查"
-command -v az >/dev/null || die "找不到 az（安裝 Azure CLI 並 az login）"
-az account show >/dev/null 2>&1 || die "az 尚未登入（先執行 az login）"
+if [ "${LOCAL_ONLY}" = 0 ]; then
+  command -v az >/dev/null || die "找不到 az（安裝 Azure CLI 並 az login）"
+  az account show >/dev/null 2>&1 || die "az 尚未登入（先執行 az login）"
+fi
 if [ "${DRY_RUN}" = 0 ]; then
   command -v docker >/dev/null || die "找不到 docker（處理照片用容器化的 ImageMagick，不需另外安裝工具）"
   docker info >/dev/null 2>&1 || die "docker 沒有在執行（請先開啟 Docker Desktop）"
@@ -199,6 +219,12 @@ info "來源 ${TOTAL} 張（略過 .svg ${SKIPPED_SVG} 個、不支援格式 ${S
 
 # ── 查 Azure（唯讀）──────────────────────────────────────────────────────
 step "查詢儲存體帳戶（唯讀）"
+REMOTE="${TMP}/remote.tsv" # 物件鍵<TAB>srchash
+: >"${REMOTE}"
+role_hint() { :; }
+if [ "${LOCAL_ONLY}" = 1 ]; then
+  info "--local-only：不連 Azure，全部視為待處理"
+else
 if [ -z "${STORAGE_ACCOUNT}" ]; then
   names=$(az storage account list -g "${RG}" --query "[?starts_with(name, 'sttcrfcclub')].name" -o tsv) \
     || die "az 查詢儲存體帳戶失敗（資源群組 ${RG}）"
@@ -216,8 +242,6 @@ BLOB_ENDPOINT=${BLOB_ENDPOINT%/}
 MEDIA_BASE_URL="${BLOB_ENDPOINT}/${CONTAINER}"
 info "帳戶：${STORAGE_ACCOUNT}，容器：${CONTAINER}，認證：${AUTH_MODE}"
 
-REMOTE="${TMP}/remote.tsv" # 物件鍵<TAB>srchash
-: >"${REMOTE}"
 role_hint() {
   local acct_id
   acct_id=$(az storage account show -g "${RG}" -n "${STORAGE_ACCOUNT}" --query id -o tsv 2>/dev/null || true)
@@ -241,39 +265,52 @@ else
     die "無法讀取容器 ${CONTAINER}，上傳前中止（沒有任何變更）"
   fi
 fi
+fi # LOCAL_ONLY
 
 remote_hash() { awk -F'\t' -v k="$1" '$1 == k { print $2; exit }' "${REMOTE}"; }
 
 # ── 決定哪些要傳 ──────────────────────────────────────────────────────────
 step "比對"
-PLAN="${TMP}/plan.tsv" # REL KEY HASH 狀態
+PLAN="${TMP}/plan.tsv" # REL KEY HASH 狀態（upload＝主檔＋衍生檔、derive＝只補衍生檔、skip）
 : >"${PLAN}"
 N_UP=0
+N_DER=0
 N_SKIP=0
+# 衍生檔物件鍵：與 apps/api/Images/ImageObjectKey.ForSuffix 同一規則（主鍵去 .webp 後接 -<長邊>.webp）
+deriv_key() { printf '%s-%s.webp' "${1%.webp}" "$2"; }
 while IFS="${TAB}" read -r rel key; do
   sha=$(sha256 "${SRC_DIR}/${rel}")
   want="${RECIPE}:${sha}"
+  dwant="${DERIV_RECIPE}:${sha}"
   have=$(remote_hash "${key}")
-  if [ "${FORCE}" = 0 ] && [ "${have}" = "${want}" ]; then
+  deriv_ok=1
+  for edge in ${DERIV_EDGES}; do
+    [ "$(remote_hash "$(deriv_key "${key}" "${edge}")")" = "${dwant}" ] || deriv_ok=0
+  done
+  if [ "${FORCE}" = 0 ] && [ "${have}" = "${want}" ] && [ "${deriv_ok}" = 1 ]; then
     printf '%s\t%s\t%s\tskip\n' "${rel}" "${key}" "${want}" >>"${PLAN}"
     N_SKIP=$((N_SKIP + 1))
+  elif [ "${FORCE}" = 0 ] && [ "${have}" = "${want}" ]; then
+    printf '%s\t%s\t%s\tderive\n' "${rel}" "${key}" "${want}" >>"${PLAN}"
+    N_DER=$((N_DER + 1))
   else
     printf '%s\t%s\t%s\tupload\n' "${rel}" "${key}" "${want}" >>"${PLAN}"
     N_UP=$((N_UP + 1))
   fi
 done <"${SRC_LIST}"
-info "待上傳 ${N_UP}、已是最新而略過 ${N_SKIP}"
+N_PROC=$((N_UP + N_DER))
+info "主檔＋衍生檔待上傳 ${N_UP}、只補衍生檔 ${N_DER}、已是最新而略過 ${N_SKIP}"
 
 if [ "${DRY_RUN}" = 1 ]; then
   step "dry-run：以下是會上傳的檔案（沒有處理、沒有上傳）"
-  awk -F'\t' '$4 == "upload" { printf "   %s  ->  %s\n", $1, $2 }' "${PLAN}"
+  awk -F'\t' '$4 == "upload" { printf "   %s  ->  %s（＋ -1280／-640／-320）\n", $1, $2 } $4 == "derive" { printf "   %s  ->  只補 %s 的 -1280／-640／-320\n", $1, $2 }' "${PLAN}"
   echo
   info "前台設定 NUXT_PUBLIC_MEDIA_BASE_URL（VM 的 MEDIA_BASE_URL）＝ ${MEDIA_BASE_URL}"
   if [ "${MISSING}" != 0 ]; then warn "有 ${MISSING} 個清單項目找不到來源檔（見上面警告）"; fi
   exit 0
 fi
 
-if [ "${N_UP}" = 0 ]; then
+if [ "${N_PROC}" = 0 ]; then
   step "完成"
   info "雲端已是最新，沒有要上傳的檔案。"
   info "前台設定 NUXT_PUBLIC_MEDIA_BASE_URL（VM 的 MEDIA_BASE_URL）＝ ${MEDIA_BASE_URL}"
@@ -285,7 +322,7 @@ fi
 step "處理照片（容器 ${IM_IMAGE}；來源唯讀掛載）"
 WORK="${TMP}/work"
 mkdir -p "${WORK}/out"
-awk -F'\t' '$4 == "upload" { print $1 }' "${PLAN}" >"${WORK}/todo.txt"
+awk -F'\t' '$4 != "skip" { print $1 }' "${PLAN}" >"${WORK}/todo.txt"
 
 # 每張照片的處理腳本（在容器內以 sh 執行）。auto-orient 必須在 strip 之前，否則方向資訊先被丟掉。
 cat >"${WORK}/one.sh" <<'ONE'
@@ -310,13 +347,35 @@ edge=${meta##* }
 if magick identify -verbose "${out}" | grep -Eiq '^ *(Profile-|exif:|xmp|iptc)'; then
   echo "FAIL ${rel}：輸出仍含中繼資料"; exit 1
 fi
+# 衍生檔（與 apps/api/Images/ImageProcessor 同規則）：主檔長邊 <= 目標長邊就沿用主檔內容，
+# 否則從來源再轉一次、等比縮到長邊 = 目標（不從已壓縮的主檔二次壓縮）。命名＝主檔名去 .webp 後接 -<長邊>.webp。
+main_edge=${edge}
+stem="${out%.webp}"
+for e in ${DERIV_EDGES}; do
+  d="${stem}-${e}.webp"
+  if [ "${main_edge}" -le "${e}" ]; then
+    cp "${out}" "${d}" || { echo "FAIL ${rel}：複製衍生檔 ${e} 失敗"; exit 1; }
+  else
+    magick "/src/${rel}[0]" -auto-orient -resize "${e}x${e}>" -strip \
+      -define webp:method=6 -define webp:alpha-quality=100 -quality "${QUALITY}" "${d}" \
+      || { echo "FAIL ${rel}：衍生檔 ${e} 轉檔失敗"; exit 1; }
+  fi
+  dmeta=$(magick identify -format '%m %[fx:max(w,h)]' "${d}")
+  dfmt=${dmeta%% *}
+  dedge=${dmeta##* }
+  [ "${dfmt}" = "WEBP" ] || { echo "FAIL ${rel}：衍生檔 ${e} 格式 ${dfmt}"; exit 1; }
+  [ "${dedge}" -le "${e}" ] || [ "${dedge}" = "${main_edge}" ] || { echo "FAIL ${rel}：衍生檔 ${e} 長邊 ${dedge} 超過目標"; exit 1; }
+  if magick identify -verbose "${d}" | grep -Eiq '^ *(Profile-|exif:|xmp|iptc)'; then
+    echo "FAIL ${rel}：衍生檔 ${e} 仍含中繼資料"; exit 1
+  fi
+done
 exit 0
 ONE
 
 UIDGID="$(id -u):$(id -g)"
 if ! docker run --rm --user "${UIDGID}" \
   -v "${SRC_DIR}:/src:ro" -v "${WORK}:/work" \
-  -e "MAX_EDGE=${MAX_EDGE}" -e "QUALITY=${QUALITY}" \
+  -e "MAX_EDGE=${MAX_EDGE}" -e "QUALITY=${QUALITY}" -e "DERIV_EDGES=${DERIV_EDGES}" \
   --entrypoint sh "${IM_IMAGE}" \
   -c "xargs -d '\\n' -P '${JOBS}' -n 1 sh /work/one.sh < /work/todo.txt" >"${TMP}/process.log" 2>&1; then
   sed 's/^/   /' "${TMP}/process.log" >&2
@@ -324,37 +383,64 @@ if ! docker run --rm --user "${UIDGID}" \
 fi
 { grep '^WARN' "${TMP}/process.log" || true; } | sed 's/^WARN /   警告：/' >&2
 DONE_N=$(find "${WORK}/out" -type f -name '*.webp' | awk 'END { print NR + 0 }')
-[ "${DONE_N}" = "${N_UP}" ] || die "處理後的檔數（${DONE_N}）與預期（${N_UP}）不符，尚未上傳"
+N_DERIV_EDGES=$(printf '%s\n' ${DERIV_EDGES} | awk 'END { print NR + 0 }')
+EXPECT_N=$((N_PROC * (1 + N_DERIV_EDGES)))
+[ "${DONE_N}" = "${EXPECT_N}" ] || die "處理後的檔數（${DONE_N}）與預期（${EXPECT_N}＝${N_PROC} 張 × 主檔加 ${N_DERIV_EDGES} 衍生檔）不符，尚未上傳"
 BYTES_IN=0
 BYTES_OUT=0
+BYTES_UP=0
 while IFS="${TAB}" read -r rel key hash state; do
-  [ "${state}" = "upload" ] || continue
+  [ "${state}" != "skip" ] || continue
   out="${WORK}/out/${rel%.*}.webp"
   [ -s "${out}" ] || die "輸出檔不存在或為空：${out}"
   BYTES_IN=$((BYTES_IN + $(wc -c <"${SRC_DIR}/${rel}")))
   BYTES_OUT=$((BYTES_OUT + $(wc -c <"${out}")))
+  [ "${state}" != "upload" ] || BYTES_UP=$((BYTES_UP + $(wc -c <"${out}")))
+  for edge in ${DERIV_EDGES}; do
+    d="${out%.webp}-${edge}.webp"
+    [ -s "${d}" ] || die "衍生檔不存在或為空：${d}"
+    BYTES_UP=$((BYTES_UP + $(wc -c <"${d}")))
+  done
 done <"${PLAN}"
-info "處理 ${DONE_N} 張，全數通過驗證（WebP、長邊 <= ${MAX_EDGE}、無中繼資料）。$((BYTES_IN / 1024 / 1024)) MB -> $((BYTES_OUT / 1024 / 1024)) MB"
+info "處理 ${N_PROC} 張（各含主檔＋${N_DERIV_EDGES} 個衍生檔），全數通過驗證（WebP、長邊上限、無中繼資料）。主檔 $((BYTES_IN / 1024 / 1024)) MB -> $((BYTES_OUT / 1024 / 1024)) MB；預計上傳 $((BYTES_UP / 1024 / 1024)) MB"
+
+if [ "${LOCAL_ONLY}" = 1 ]; then
+  step "--local-only：輸出到 ${LOCAL_OUT}"
+  mkdir -p "${LOCAL_OUT}"
+  [ -z "$(ls -A "${LOCAL_OUT}")" ] || die "輸出目錄 ${LOCAL_OUT} 不是空的"
+  cp -R "${WORK}/out/." "${LOCAL_OUT}/"
+  info "已寫入 ${DONE_N} 個檔（沒有上傳）。"
+  exit 0
+fi
 
 # ── 上傳 ─────────────────────────────────────────────────────────────────
 step "上傳到 ${STORAGE_ACCOUNT}/${CONTAINER}"
 FAILED=0
 IDX=0
-while IFS="${TAB}" read -r rel key hash state; do
-  [ "${state}" = "upload" ] || continue
+N_OBJ=$((N_UP + (N_UP + N_DER) * N_DERIV_EDGES))
+upload_one() { # $1=本機檔 $2=物件鍵 $3=metadata 值
   IDX=$((IDX + 1))
-  out="${WORK}/out/${rel%.*}.webp"
   if az storage blob upload --account-name "${STORAGE_ACCOUNT}" --container-name "${CONTAINER}" \
-    --name "${key}" --file "${out}" --overwrite true \
+    --name "$2" --file "$1" --overwrite true \
     --content-type image/webp --content-cache-control "${CACHE_CONTROL}" \
-    --metadata "srchash=${hash}" \
+    --metadata "srchash=$3" \
     --auth-mode "${AUTH_MODE}" --only-show-errors -o none 2>"${TMP}/up.err"; then
-    info "[${IDX}/${N_UP}] ${key}"
+    info "[${IDX}/${N_OBJ}] $2"
   else
     FAILED=$((FAILED + 1))
-    warn "[${IDX}/${N_UP}] 上傳失敗：${key}"
+    warn "[${IDX}/${N_OBJ}] 上傳失敗：$2"
     sed 's/^/      /' "${TMP}/up.err" >&2
   fi
+}
+while IFS="${TAB}" read -r rel key hash state; do
+  [ "${state}" != "skip" ] || continue
+  out="${WORK}/out/${rel%.*}.webp"
+  sha=${hash#"${RECIPE}:"}
+  # 衍生檔先傳、主檔最後傳：主檔的 srchash 是「這張已完整處理」的標記，中途失敗重跑時才不會誤判為最新
+  for edge in ${DERIV_EDGES}; do
+    upload_one "${out%.webp}-${edge}.webp" "$(deriv_key "${key}" "${edge}")" "${DERIV_RECIPE}:${sha}"
+  done
+  if [ "${state}" = "upload" ]; then upload_one "${out}" "${key}" "${hash}"; fi
 done <"${PLAN}"
 
 if [ "${FAILED}" != 0 ]; then
@@ -364,7 +450,7 @@ fi
 
 # ── 驗證公開讀取 ──────────────────────────────────────────────────────────
 step "驗證公開讀取（匿名 GET 第一個上傳的物件）"
-FIRST_KEY=$(awk -F'\t' '$4 == "upload" { print $2; exit }' "${PLAN}")
+FIRST_KEY=$(awk -F'\t' '$4 != "skip" { print $2; exit }' "${PLAN}")
 TEST_URL="${BLOB_ENDPOINT}/${CONTAINER}/${FIRST_KEY}"
 if command -v curl >/dev/null 2>&1; then
   res=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' --max-time 20 "${TEST_URL}") || res="curl 失敗（連不上或 DNS 解析不到）"
@@ -378,7 +464,7 @@ else
 fi
 
 step "完成"
-info "上傳 ${N_UP} 張、略過 ${N_SKIP} 張。暫存目錄會在結束時清除。"
+info "主檔＋衍生檔上傳 ${N_UP} 張、只補衍生檔 ${N_DER} 張、略過 ${N_SKIP} 張（共 ${N_OBJ} 個物件）。暫存目錄會在結束時清除。"
 info "前台設定 NUXT_PUBLIC_MEDIA_BASE_URL（VM 的 /opt/tcrfc/.env 的 MEDIA_BASE_URL）＝ ${MEDIA_BASE_URL}"
 info "下一步：infra/README.md §4.9——重跑 provision-secrets.sh 或手動寫入 MEDIA_BASE_URL，再部署前台。"
 [ "${MISSING}" = 0 ] || die "有 ${MISSING} 個清單項目找不到來源檔（見上面警告），該些照片沒有上傳"

@@ -244,7 +244,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/about/milestones/')">2.8 {{ tx('重要里程碑', 'Key Milestones') }}</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-about.jpg')" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-about.jpg')" :srcset="siteImgSrcset('/assets/img/nav-about.jpg', 440, 280)" sizes="360px" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/about/our-story/')">{{ tx(`認識${assets.shortNameZh}`, `Get to know ${tagEn}`) }}</a>
                 </div>
               </div>
@@ -264,7 +264,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/club/player-stories/')">3.5 {{ tx('球員故事', 'Player Stories') }}</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-club.jpg')" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-club.jpg')" :srcset="siteImgSrcset('/assets/img/nav-club.jpg', 440, 280)" sizes="360px" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/join/player/')">{{ tx('加入球隊', 'Join as a Player') }}</a>
                 </div>
               </div>
@@ -287,7 +287,7 @@ onBeforeUnmount(() => {
                   <li v-if="isUnitEnabledForClub('4.7', club)"><a :href="lp('/zh/academy/join/')">4.7 {{ tx(`加入${identity.academyShortLabelZh}`, `Join the ${isTcrfc ? 'Academy' : 'Youth Teams'}`) }}</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-academy.jpg')" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-academy.jpg')" :srcset="siteImgSrcset('/assets/img/nav-academy.jpg', 440, 280)" sizes="360px" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/join/academy/')">{{ tx(`加入${identity.academyShortLabelZh}`, `Join the ${isTcrfc ? 'Academy' : 'Youth Teams'}`) }}</a>
                 </div>
               </div>
@@ -308,7 +308,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/programs/school-community/')">5.5 {{ tx('校園與社區計畫', 'School & Community') }}</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-programs.jpg')" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-programs.jpg')" :srcset="siteImgSrcset('/assets/img/nav-programs.jpg', 440, 280)" sizes="360px" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/join/academy/')">{{ tx('報名課程', 'Register for Programs') }}</a>
                 </div>
               </div>
@@ -331,7 +331,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/news/media/')">7.8 {{ tx('媒體專區', 'Press & Media') }}</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-news.jpg')" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-news.jpg')" :srcset="siteImgSrcset('/assets/img/nav-news.jpg', 440, 280)" sizes="360px" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/news/')">{{ tx('所有消息', 'All News') }}</a>
                 </div>
               </div>
@@ -349,7 +349,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/perks/')">8.4 {{ tx('特約店家', 'Partner Perks') }}</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-culture.jpg')" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-culture.jpg')" :srcset="siteImgSrcset('/assets/img/nav-culture.jpg', 440, 280)" sizes="360px" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/culture/fan-club/')">{{ tx('加入球迷會', 'Join the Fan Club') }}</a>
                 </div>
               </div>
@@ -366,7 +366,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/partners/opportunities/')">9.4 {{ tx('贊助方案', 'Sponsorship Opportunities') }}</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-partners.jpg')" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-partners.jpg')" :srcset="siteImgSrcset('/assets/img/nav-partners.jpg', 440, 280)" sizes="360px" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽談贊助', 'Sponsorship Enquiries') }}</a>
                 </div>
               </div>

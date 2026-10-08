@@ -731,7 +731,9 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 項目 | 決定 |
 |---|---|
 | 物件鍵 | `site/<相對路徑，副檔名改 .webp>`；`.svg` 不上傳 |
-| 處理 | 依規劃書 §4.0：EXIF 轉正 → 長邊 ≤ 2560 → 去除全部中繼資料（含 GPS）→ WebP 品質 82。**不做**後台上傳才有的 1280／640／320 與 160px 衍生檔（靜態版面素材一張一物件） |
+| 處理 | 依規劃書 §4.0：EXIF 轉正 → 長邊 ≤ 2560 → 去除全部中繼資料（含 GPS）→ WebP 品質 82。**另產 1280／640／320 三個衍生檔**（2026-10-08 推翻原先「不做」：Lighthouse 行動版「圖片尺寸過大」約 1.4MB，單一主檔 544KB 卻顯示在 370px 卡片；規劃書也規定前台不得直接引用主檔）。命名與後台上傳同一套：`site/a/b.webp` → `site/a/b-1280.webp`／`b-640.webp`／`b-320.webp`（`apps/api/Images/ImageObjectKey`）；主檔長邊 ≤ 目標長邊時沿用主檔內容（與後端 `ImageProcessor` 一致）。**不產 160px 方形縮圖**（前台不用） |
+| 前台 srcset | `siteImgSrcset(path, w, h)`（`app/utils/siteImage.ts`，與後台封面的 `coverSrcset` 共用 `derivativeSrcset`）。w／h 只取比例，描述子照名目長邊算。**未設 `NUXT_PUBLIC_MEDIA_BASE_URL`（本機讀 `public/`）與 `.svg` 回 undefined、不輸出 srcset**。已套用：首頁 hero 卡／四大支柱／新聞封面（本地過渡圖）、header Mega Menu；其餘頁面仍只用主檔，之後逐頁補 |
+| 部署順序 | 🔴 **先跑上傳腳本（衍生檔進 Blob），再部署前台**；反過來 srcset 會指到 404。腳本可重跑：主檔已最新、只缺衍生檔時只補衍生檔 |
 | 屬性 | `Content-Type: image/webp`、`Cache-Control: public, max-age=604800`（物件鍵不含雜湊，不用 `immutable`） |
 | 上傳 | 使用者 Mac 執行 [`infra/upload-site-images.sh`](../infra/upload-site-images.sh)（容器化 ImageMagick、可重跑、`--dry-run`、不刪雲端物件）；認證預設 `az login` 加 **Storage Blob Data Contributor**（需使用者自行授權），或 `AUTH_MODE=key` |
 | 取捨（使用者已接受） | 容器匿名公開唯讀：**知道網址即可讀、不需任何帳密（測試站本身也無帳密，2026-10-02）**，其中含未成年學員照片；與 §7 風險 11 同一類（公開圖片容器），正式上線前可改走 Cloudflare 圖片網域收緊 |

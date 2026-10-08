@@ -8,7 +8,7 @@
  *
  * 預設模式（掛在 `npm run lint`，不需要照片檔，乾淨 checkout 可跑）：
  *   ① app／shared／server／nuxt.config.ts 裡每一個 `/assets/img/…` 字串必須直接是
- *      `siteImg(` 的引數；否則失敗（涵蓋 `import … from '/assets/img/…'`、
+ *      `siteImg(` 或 `siteImgSrcset(` 的引數；否則失敗（涵蓋 `import … from '/assets/img/…'`、
  *      靜態 `src="/assets/img/…"`、`new URL('/assets/img/…', import.meta.url)`、
  *      CSS／內嵌 style 的 `url(/assets/img/…)`）。
  *   ② `scripts/site-images.txt` 必須與程式實際引用一致：
@@ -57,7 +57,7 @@ for (const file of SCAN.flatMap((p) => walk(p))) {
   for (const m of text.matchAll(STR)) {
     const before = text.slice(Math.max(0, m.index - 40), m.index)
     const line = text.slice(0, m.index).split('\n').length
-    if (!/siteImg\(\s*$/.test(before)) {
+    if (!/siteImg(?:Srcset)?\(\s*$/.test(before)) {
       errors.push(`${file}:${line} 直接出現 ${m[1]}${m[2]}${m[1]}——客戶照片必須寫成 siteImg('/assets/img/…')（docs/14）`)
       continue
     }

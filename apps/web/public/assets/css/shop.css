@@ -90,5 +90,5 @@
 .match-card__label,
 .roster-strip__head a,
 .cta-card__num{ color:var(--brand-bright); }
-.sponsor-band .kicker,
-.sponsor-more a{ color:var(--brand-deep); }
+.sponsor-band .kicker{ color:var(--brand-deep); }
+/* .sponsor-more a 由 pages/zh/index.vue 的 scoped style 決定（優先權較高，此處無效，已移除重複規則） */

@@ -312,6 +312,15 @@ const NEWS_VARIANTS = ['feature', 'sml', 'sml', 'wide', 'wide'] as const
 /** srcset 的 sizes：hero 迷你卡的圖占卡片 38%（約 140–200px）；mosaic 卡手機滿版、桌機最大約 640px（有 srcset 才會用到，見 coverSrcset）。 */
 const HERO_CARD_SIZES = '(max-width: 720px) 40vw, 200px'
 const NEWS_CARD_SIZES = '(max-width: 720px) 100vw, 640px'
+/** 四大支柱圖卡：桌機 4 欄、≤980px 2 欄、≤560px 1 欄（tcrfc.css .pillars-grid）。 */
+const PILLAR_CARD_SIZES = '(max-width: 560px) 100vw, (max-width: 980px) 50vw, 25vw'
+/** 四大支柱的照片（與 pillars 同順序；字面路徑需出現在 siteImg(...) 內，lint:site-images 靠它抽清單）。 */
+const PILLAR_PHOTOS: readonly { src: string, srcset: string | undefined }[] = [
+  { src: siteImg('/assets/img/news-mcu.jpg'), srcset: siteImgSrcset('/assets/img/news-mcu.jpg', 1280, 855) },
+  { src: siteImg('/assets/img/trencin-04.jpg'), srcset: siteImgSrcset('/assets/img/trencin-04.jpg', 1920, 1279) },
+  { src: siteImg('/assets/img/trencin-05.jpg'), srcset: siteImgSrcset('/assets/img/trencin-05.jpg', 1920, 1279) },
+  { src: siteImg('/assets/img/news-w20.jpg'), srcset: siteImgSrcset('/assets/img/news-w20.jpg', 1280, 853) },
+]
 
 // ---- Team chips（賽事行事曆的隊伍切換）----
 const teamPanel = ref<'D1' | 'other'>('D1')
@@ -642,7 +651,7 @@ onBeforeUnmount(() => {
             <template v-else>
             <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
-                <img :src="siteImg('/assets/img/news-trencin.jpg')" :alt="tx('台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流', 'Taichung Rock FC youth players pose for a group photo with players from AS Trenčín of Slovakia')" loading="eager" fetchpriority="high" width="1280" height="853">
+                <img :src="siteImg('/assets/img/news-trencin.jpg')" :srcset="siteImgSrcset('/assets/img/news-trencin.jpg', 1280, 853)" :sizes="HERO_CARD_SIZES" :alt="tx('台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流', 'Taichung Rock FC youth players pose for a group photo with players from AS Trenčín of Slovakia')" loading="eager" fetchpriority="high" width="1280" height="853">
               </div>
               <div class="hero-card__body">
                 <span class="hero-card__tag">{{ tx('消息 News', 'News') }}</span>
@@ -651,7 +660,7 @@ onBeforeUnmount(() => {
             </a>
             <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
-                <img :src="siteImg('/assets/img/news-mcu.jpg')" :alt="tx('台中磐石 7 號球員於夜間比賽中盤球突破銘傳大學白色球衣防線', 'Taichung Rock FC number 7 dribbles past the white-shirted Ming Chuan University defence in a night match')" loading="lazy" width="1280" height="855">
+                <img :src="siteImg('/assets/img/news-mcu.jpg')" :srcset="siteImgSrcset('/assets/img/news-mcu.jpg', 1280, 855)" :sizes="HERO_CARD_SIZES" :alt="tx('台中磐石 7 號球員於夜間比賽中盤球突破銘傳大學白色球衣防線', 'Taichung Rock FC number 7 dribbles past the white-shirted Ming Chuan University defence in a night match')" loading="lazy" width="1280" height="855">
               </div>
               <div class="hero-card__body">
                 <span class="hero-card__tag">{{ tx('比賽 Matches', 'Matches') }}</span>
@@ -824,7 +833,7 @@ onBeforeUnmount(() => {
            圖卡退為深色底＋scrim（.pillar-card 本身的底色），待藍鯨素材到位再換。 -->
       <div class="pillars-grid">
         <a v-for="(pillar, i) in pillars" :id="pillar.id" :key="pillar.enLabel" class="pillar-card clip-card clip-card--on-dark" :href="lp(pillar.href)">
-          <img v-if="isTcrfc" :src="[siteImg('/assets/img/news-mcu.jpg'), siteImg('/assets/img/trencin-04.jpg'), siteImg('/assets/img/trencin-05.jpg'), siteImg('/assets/img/news-w20.jpg')][i]" :alt="pillar.imgAlt" loading="lazy" :width="pillar.imgWidth" :height="pillar.imgHeight">
+          <img v-if="isTcrfc" :src="PILLAR_PHOTOS[i]?.src" :srcset="PILLAR_PHOTOS[i]?.srcset" :sizes="PILLAR_CARD_SIZES" :alt="pillar.imgAlt" loading="lazy" :width="pillar.imgWidth" :height="pillar.imgHeight">
           <div class="pillar-card__scrim" aria-hidden="true"></div>
           <div class="pillar-card__body">
             <p class="pillar-card__en">{{ pillar.enLabel }}</p>
@@ -968,7 +977,7 @@ onBeforeUnmount(() => {
 
 <style>
 .sponsor-more{ margin-top:1.25rem; font-size:.88rem; font-weight:700; }
-.sponsor-more a{ color:var(--brand-aa); text-decoration:underline; }
+.sponsor-more a{ color:var(--brand-deep); text-decoration:underline; }
 /* 藍鯨首頁 hero 無授權照片可用時的純色回退（見 script setup 開頭說明）——
    只用既有 --brand 系列 token，不引入新色碼，遵守「顏色只能是 CSS custom
    properties」（docs/13-blue-whale-site.md §6 紀律 1）。 */

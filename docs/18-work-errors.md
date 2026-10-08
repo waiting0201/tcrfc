@@ -2969,4 +2969,5 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：搬遷時對所有 `<img>` 一律加 `loading="lazy"`，沒有區分首屏與首屏外，也沒有用 Lighthouse／DevTools 量過首頁 LCP 元素；`docs/05` §4 的效能目標（LCP < 2.5s、Performance ≥ 85）從沒有人在正式環境量測過。
 - **下次怎麼避免**：新增或搬遷頁面時，首屏第一張可見圖（LCP 候選）一律 `loading="eager"` ＋ `fetchpriority="high"`，其餘才 lazy；頁面上線到測試站後跑一次 Lighthouse 行動版並記下 LCP 元素。
 - **防呆**：無（待補：以 Lighthouse CI 或腳本檢查首頁 HTML 的首張 `<img>` 不得為 lazy）。
+- **補充（2026-10-08）**：站台照片「圖片尺寸過大」的處理也是同一根因的延伸——`docs/17` 原寫「不做 1280／640／320」，把靜態版面素材當成不需衍生檔，與規劃書「前台不得直接引用主檔」衝突。已推翻：`infra/upload-site-images.sh` 產衍生檔、前台 `siteImgSrcset()` 輸出 srcset（部署順序：先上傳、後部署前台）。另：`.sponsor-more a` 對比度第一次改在 `shop.css`，被 `index.vue` scoped style 優先權蓋掉而未生效——**改對比度前先 grep 同一 selector 在 scoped style 的定義**；防呆：無。
 
