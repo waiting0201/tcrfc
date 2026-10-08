@@ -2993,3 +2993,45 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：後台要產生任何前台網址時一律經 `toFrontendUrl()`（`apps/admin/src/composables/useFrontendUrl.ts`），不得直接 `window.open('/zh/...')` 或把相對路徑塞進 `href`。跨網域的位址一律走執行期 `/config.js`，比照 `ADMIN_API_BASE_URL`。
 - **防呆**：`scripts/check-compose-env.mjs` 檢查 `admin-web` 帶 `ADMIN_WEB_BASE_URL`／`ADMIN_BW_WEB_BASE_URL` 且分別指向 `${TCRFC_DOMAIN}`／`${BW_DOMAIN}`；程式端未設定時不顯示連結、不退回後台網域。相對路徑寫法本身沒有自動掃描（待補）。
 
+
+### E-301 圖片網址檢查複製成 8 份、漏掉 `//host`，且本機 http 圖片永遠被擋（2026-10-08，前台）
+
+- **錯在哪**：`apps/web` 有 8 個頁面各自貼了一份 `/^(https:\/\/|\/)/.test(u)`（`safeImg`／`safeImgUrl`／`coverSrc`／行內 filter）。① `/^\//` 放行 `//evil.com` 協定相對網址，圖片可被導向外部主機；② 只收 https，本機 API 接 Azurite 的 `http://127.0.0.1:10000/images/…` 一律被擋，漫畫封面、特約店家照片本機永遠看不到，實機驗收做不了。同庫的 `news-body.ts` `safeUrl()` 早已正確擋 `//`，但沒人去共用。
+- **根因（可改掉的行為）**：新頁面需要「圖片網址消毒」時，複製隔壁頁面的一行正規式，沒有先 grep 專案內是否已有同功能的函式（`safeUrl`）；一行的檢查沒被當成「安全邏輯」而放進共用處與測試，所以漏洞隨複製擴散到 8 處。本機開發環境的網址形態（http＋埠號）也沒有在寫檢查時對照 `docs/17` 的本機環境。
+- **下次怎麼避免**：頁面內出現「網址白名單」之類的安全檢查前，先 grep 既有共用函式；圖片網址一律走 `safeImageUrl()`（`app/utils/safe-image-url.ts`，Nuxt 自動匯入），正式環境只收 https 與站內路徑，`http://` 僅 `import.meta.dev` 放行。需要新規則改那一個檔案，不在頁面內改。
+- **防呆**：✅ `scripts/check-safe-image-url.mjs`（`npm run lint:safe-image-url`，掛進 `npm run lint`）：釘住 `//host`／`javascript:`／`data:` 拒絕、正式環境 http 拒絕，並掃描 `app/` 不得再出現複製的 `/^(https:\/\/|\/)/`。⚠️ `app/utils/news-body.ts` `safeUrl()` 仍在正式環境放行 `http://`（新聞內文區塊用，與本函式不同規則），尚未統一，待決定是否收斂。
+
+### E-302 會員中心球衣「領取方式」單選鈕被撐成文字框、選項文字一字一行（2026-10-08，前台）
+
+- **錯在哪**：`MemberJerseys.vue` 把單選群組放在 `.form-field` 裡，`tcrfc.css` 的 `.form-field input`（滿版寬、`min-height:48px`、內距、框線）一併套到 `type="radio"`，`member.css` 的 `.mc-radio` 只管 label 不管 input，結果單選鈕佔滿整列、「到場領取」「寄送」被擠成直排。假後端驗收沒看畫面，實機驗收才發現。
+- **根因（可改掉的行為）**：在共用的 `.form-field` 容器裡放非文字輸入元件時，沒有查 `.form-field input` 會不會連帶套上；驗收時只確認「送得出去」，沒有截圖看版面。另外，第一次查 `.mc-radio` 樣式時只 grep 了 `app/` 和 `site/`，漏了 `apps/web/public/assets/css/`，誤判成「沒有樣式」而先改了標記，繞了一圈才改回。
+- **下次怎麼避免**：在 `.form-field` 內放 radio／checkbox 時，同一處補 `input` 的寬高覆寫（比照 `.checkbox-field input{ width:auto }`）；查前台樣式一律 grep `apps/web/public/assets/css/` 在內。`tcrfc.css` 不得改（`docs/14`），覆寫放各自的 `member.css`／`shop.css`。
+- **防呆**：無（尚無版面截圖比對）。修正在 `member.css`：`.form-field .mc-radio input{ width:auto; min-height:0; padding:0; border:0; flex:none; }`。課程報名與試訓報名的單選鈕同樣在 `.form-field` 內（實測 21×48px），因放在 grid 欄位中文字未被擠壓，本次未改。
+
+### E-303 球迷會活動報名成功後「剩餘名額」不更新（2026-10-08，前台）
+
+- **錯在哪**：8.2 活動詳情頁送出報名後，元件只更新自己的「您的報名狀態」，頁面上的「名額 30 人（剩餘 28）」維持報名前的數字，重新整理才變 27。取消報名同理。
+- **根因（可改掉的行為）**：把「會變動的伺服器狀態」拆在父頁（剩餘名額）與子元件（我的報名）兩處，寫入動作只更新了子元件持有的那一半，沒有列出「這個寫入會讓畫面上哪些數字過期」。
+- **下次怎麼避免**：寫入成功後，凡畫面上由同一筆資料衍生的數字（名額、件數、庫存、額滿旗標）都要重抓或同步；子元件做寫入時以事件（`changed`）通知持有資料的頁面 `refresh()`，不在子元件複製一份。
+- **防呆**：無。修正：`FanEventRegistration.vue` 報名／取消成功後 `emit('changed')`，`fan-club/events/[slug].vue` 以 `@changed="refresh()"` 重抓詳情（實機確認送出後有 POST → GET 兩支請求）。
+
+### E-304 慈善後台兩支 CSV 匯出把狀態代碼原樣輸出成英文（2026-10-08，後端）
+
+- **錯在哪**：捐款明細匯出（`donations/export`）與報表逐筆明細（`reports/details?format=csv`）的「狀態」「憑證模式」「憑證狀態」「憑證作廢狀態」「作廢／折讓」欄直接輸出 `paid`、`b2c_invoice`、`issued`、`allowance` 等代碼；同平台 `invoices/export` 與 `reports/invoice-status` 早就是中文。實機驗收才發現，給協會會計／行政看的檔案出現英文技術值。
+- **根因（可改掉的行為）**：新增匯出欄位時直接序列化資料庫的狀態代碼，沒有先看同平台既有匯出怎麼處理；中文對照又散在各處（前端 Tag 元件、`invoices/export` 內嵌 switch），沒有共用的一份，下一支匯出就沒東西可重用。測試只斷言表頭與筆數，沒斷言狀態欄內容。
+- **下次怎麼避免**：新增或修改任何給人看的匯出、報表欄位前，先打開同模組既有匯出比對欄位呈現；狀態、類型欄一律走共用對照 `CharityPlatform/Common/CharityLabels.cs`，詞彙以 `apps/admin-charity` 畫面為準。匯出測試要斷言「含中文標籤、不含英文代碼」（以整格 `,code,` 比對，避免 Email 等欄位誤中）。
+- **防呆**：部分。修正：新增 `CharityLabels`，三支匯出共用；`CharityAdminDonationsTests`／`CharityAdminReportsTests` 加「不含英文代碼」斷言。仍無自動掃描所有匯出欄位的機制。
+
+### E-305 種子把台灣當地時間字面值直接寫進存 UTC 的 `*_at` 欄位，自建事件全部晚 8 小時（2026-10-08，種子）
+
+- **錯在哪**：`db/seed/backoffice_seed.py` 區段 30（L2 自建事件 `calendar_custom_events.starts_at／ends_at`）與課程梯次的 `signup_opens_at／signup_closes_at`，把 `"2026-10-14T17:00:00"` 這類台灣當地時間直接寫入存 UTC 的欄位。後台與前台把欄位當 UTC 轉台灣時間顯示，結果每筆都晚 8 小時：公開訓練 17:00 顯示成隔天 01:00、記者會 14:00 顯示 22:00。🔴 bw 的真實資料「2024 台中女子足球節」（16:00–18:00）顯示成 2024-07-14 00:00，連日期都錯；區段 30 在 `CLUB_SECTIONS` 是 IMPORT，會進正式庫內容種子。報名截止 `23:59` 也被當成 UTC，實際提早 8 小時截止。實機驗收才發現。
+- **根因（可改掉的行為）**：寫種子時只看「資料長得像時間字串」就填，沒有先查欄位的時區語意（`docs/14` ④：資料庫一律 UTC），也沒有比對同庫賽程（`matches` 牆上時間＋`kickoffAt` 由 API 換算）的做法。種子產生器沒有任何共用的「當地時間 → UTC」入口，每個區段各寫各的，所以沒有東西可以被重用或被檢查。
+- **下次怎麼避免**：種子裡要寫 `*_at`（時間戳）欄位的字面值，一律以台灣當地時間書寫並經 `backoffice_seed.tw_to_utc()` 換算；全天事件只取日期、`*_on`／`repeat_until` 是日期欄位不換算。新增含 `T\d\d:\d\d` 字面值的區段前先 grep 這個函式。規則寫在 `db/seed/README.md`「種子的時間字面值」與 `docs/14` ④-2。
+- **防呆**：無自動掃描（建議之後加：產生器輸出若在 `*_at` 欄位出現未經換算的字面值就失敗）。修正：新增 `tw_to_utc()`，區段 30 與課程梯次報名時間改用；區段 30 附冪等修復 `UPDATE`；`db/prod/club-content-seed.sql` 已重產。**已匯入過舊版內容種子的正式庫，自建事件時間是錯的，是否重新匯入由使用者決定。** 掃描其他區段（試訓 `*_on` 日期、文章／頁面 `published_at` 日期 00:00、球迷活動與廣告用 `SYSUTCDATETIME()`、抽獎快照屬假個資不進正式庫）無同類錯誤。
+
+### E-306 行事曆衝突提示訊息帶出隊別代號「同一梯隊（D1）」（2026-10-08，後端）
+
+- **錯在哪**：`AdminCalendarTracksRepository` 組衝突說明時把共同隊別的**代號**直接塞進文字（「同一場地（西屯足球場）、同一梯隊（D1）」），後台改期對話框原樣顯示。docs/06 §1 明定後台介面不顯示隊別代號；前端其實已另外依 `SharedTeamCodes` 顯示「（球隊：一線隊）」，等於同一句話代號與名稱各出現一次。實機驗收拖曳改期才看到。
+- **根因（可改掉的行為）**：後端產生「給人看的句子」時，手邊只有代號就直接拼進去，沒有回頭對照 docs/06 的介面用語規則，也沒確認前端是否已負責顯示名稱。
+- **下次怎麼避免**：後端回傳的 `Description`／`detail` 等中文句子不得含代號（隊別、權限碼、模組代號）；需要指名時回傳結構化欄位讓前端轉名稱，或在後端查名稱後再拼。
+- **防呆**：無（尚無掃描後端中文字串含代號的檢查）。修正：說明改為「同一支球隊」，名稱由前端顯示；行事曆相關測試 34 項通過。

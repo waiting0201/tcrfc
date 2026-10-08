@@ -49,6 +49,7 @@
   ③ **`ILinePayGateway`／`IEInvoiceService` 目前是「未串接」實作**（介面已定、呼叫端不變），正式串接只換實作、不改訂單狀態機；訂單狀態轉換一律條件式單句更新（冪等，不會重複扣庫存或重複退款）；
   ④ **時間欄位：資料庫與 JSON 一律 UTC、不帶 `Z`，`Unspecified` 視為 UTC**；日期欄位是台灣當地日期（`TaiwanClock`）；
   ④-1 🔴 **賽事時間語意（App 規劃書 v3.14 §3.2，2026-10-05 拍板）：`matches.match_on`＋`kickoff`（含 `original_*`）是台北牆上時間，不是 UTC 時間戳，不得當 UTC 存取，也不得換算兩次**；`kickoff` 可為空＝開賽時間未定（顯示只有日期、不排開賽提醒、`.ics` 為全天事件，**不得猜 00:00**）。換算後的時刻只有衍生欄位 `MatchDto.kickoffAt`（UTC 帶 `Z`），客戶端優先用它、不自行推算；其餘時間戳一律 UTC。見 [`19`](19-app-tech-stack.md) §11f；
+  ④-2 🔴 **種子（`db/seed/*.py`）裡的時間字面值一律是台灣當地時間，寫進 `*_at`（UTC）欄位前必須經 `backoffice_seed.tw_to_utc()` 換算（固定 -8 小時）**；`is_all_day=1` 只取日期不換算，`*_on`／`repeat_until` 是日期欄位不換算。新增種子區段只要有 `T\d\d:\d\d` 字面值就先看這條（`docs/18` `E-305`，規則寫在 [`db/seed/README.md`](../db/seed/README.md)「種子的時間字面值」）；
   ⑤ **整合測試動到共用設定必須快照還原**（`C1Test.SnapshotSettingsAsync`，`E-81`／`E-89`），`種子基線_C1示範資料…` 測試守著種子不被吃掉。漫畫功能藍鯨一律 403（`FeatureNotAvailableException`）。
 
 - 🔵 **H 批（A 儀表板／P4 試訓公開報名／G-09 電子報訂閱／G-02 全站搜尋／I 網站設定）的七條不能改壞的規則**（2026-10-02，細節見 `apps/api/README.md`「H 批」節）：
