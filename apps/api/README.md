@@ -7466,7 +7466,7 @@ HTTP 404   # 仍然未到排定時間，狀態正確維持 scheduled
 
 ---
 
-## S1-12：`H` 搜尋與 AI 能見度（2026-09-25，`backend-engineer`）
+## S1-12：`H` 搜尋與分享設定（2026-09-25，`backend-engineer`）
 
 主站規劃書 §4.8 H：全站 SEO 預設、單頁 Meta／OG／Canonical／noindex、Sitemap（含 hreflang）、
 robots.txt、301 轉址批次匯入、追蹤碼、孤立頁面偵測。**GEO-01 `llms.txt` 維護與 GEO-02 AI 爬蟲

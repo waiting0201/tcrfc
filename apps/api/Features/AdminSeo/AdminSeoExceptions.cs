@@ -1,7 +1,7 @@
 namespace Tcrfc.Api.Features.AdminSeo;
 
 /// <summary>
-/// H 搜尋與 AI 能見度（S1-12）後台寫入例外，集中由
+/// H 搜尋與分享設定（S1-12）後台寫入例外，集中由
 /// <see cref="Tcrfc.Api.Common.ApiExceptionHandler"/> 轉成 HTTP 狀態碼（跟既有
 /// <c>Features/AdminNews</c>／<c>Features/AdminPages</c>／<c>Features/AdminFaqs</c> 同一套機制）。
 /// </summary>

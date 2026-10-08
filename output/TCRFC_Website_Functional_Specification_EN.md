@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.23
-> **Date**: 2026-08-14 (v3.23 revision: 2026-10-08)
+> **Document version**: v3.24
+> **Date**: 2026-08-14 (v3.24 revision: 2026-10-08)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.23*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.24*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.24 revision summary — admin module H is named "Search & Sharing Settings"**
+> **No functional change.** Admin module H is named "Search & Sharing Settings", matching what it manages (page titles, descriptions and share images, search-engine indexing rules, sitemap, structured data, `llms.txt`, redirects). Its code and functional scope are unchanged. Landing points: 1 system scope, 4.0 public-to-admin mapping, 4.8 H, the module tree.
 
 > **v3.23 revision summary — admin data scope is granted at club level; the academy-squad limit is carried by the role**
 > **The public site is unchanged; how admin permissions are assigned is tightened.** Authorisation in J4 consists of club authorisation only (with grant and expiry dates, expiring automatically); admin accounts are not assigned teams one by one. The rule that an academy manager may adjust only academy squads' fixtures and match events, and may not change the first team's, still holds and is carried by the role's data scope: the role's "Teams / matches" and "Squad matches" permissions are scoped to academy squads (`team.type = academy`), enforced at the data-access layer — hiding it in the UI does not count. Section 5.3 (admin account and authorisation types) now consists of the single type `AdminUserClub`. Where it lands: 4.3 C1, 4.10 J4, 5.3, the section 6 permission matrix and calendar-permission principle, the module tree, and the section 9 phase plan and scope notes.
@@ -88,7 +91,7 @@
 > 2. **The same name front and back**: one thing has one name across the public site and the admin. **§4.0 adds a front-to-back mapping table.**
 > 3. **Plain language in the interface**: no table or column names, no module codes, no permission codes, no English technical terms. Necessary technical concepts are rendered in everyday words (`slug` → "URL name", and so on). CSV exports follow the same rule.
 > 4. **Codes never reach the interface**: `B1` / `K4` / `S3`, `shop.order.export`, `D1` / `BW1` exist only in **the specification, the code and the audit log**.
-> 5. **Nine submodules renamed to echo the public site**: Home layout, FAQ, Charity & Impact, Press & Media, Fixtures & Results, Search & AI visibility, Push devices, App settings & connection check, Products & options. **Codes and functional scope are unchanged.**
+> 5. **Nine submodules renamed to echo the public site**: Home layout, FAQ, Charity & Impact, Press & Media, Fixtures & Results, Search & Sharing Settings, Push devices, App settings & connection check, Products & options. **Codes and functional scope are unchanged.**
 
 > **v3.6 revision summary — GEO becomes a specification, not a recommendation**
 > 1. **§7's GEO section becomes the itemised requirements `GEO-01`–`GEO-09`**, on a par with the nine SEO foundations and verifiable item by item.
@@ -926,7 +929,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 │   ├── G1 Form Designer
 │   ├── G2 Inbox (7 form types + deck downloads + donation enquiries)
 │   └── G3 Newsletter Subscribers
-├── H. Search & AI Visibility
+├── H. Search & Sharing Settings
 ├── I. Site Settings (languages / contact info / venues / external services)
 ├── J. System
 │   ├── J1 Accounts
@@ -1005,7 +1008,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > | Comic, Fan club events | 08 Culture |
 > | Form designer, Enquiry inbox | The seven enquiry forms under 10 Join / Contact (**data arrives in the admin**) |
 > | Newsletter | The footer subscription block |
-> | Search & AI visibility | **The whole site** (no single page): meta and OG tags, sitemap, `robots.txt`, `llms.txt`, structured data, redirects |
+> | Search & Sharing Settings | **The whole site** (no single page): meta and OG tags, sitemap, `robots.txt`, `llms.txt`, structured data, redirects |
 > | Site settings | Footer contact details, venues, the shop entry, external links |
 > | System administration | **Nothing public** (for admin use) |
 > | Members, Memberships & plans, Jersey issue, Draw rosters | MEMBER Member Centre, the digital card and its public verification page |
@@ -1232,7 +1235,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 ---
 
-### 4.8 H. Search & AI Visibility
+### 4.8 H. Search & Sharing Settings
 
 | Feature | Description |
 |---|---|

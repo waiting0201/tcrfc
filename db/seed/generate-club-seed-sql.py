@@ -1027,7 +1027,7 @@ PERMISSIONS = [
     ("calendar.custom_event.create", "L", "L2", "calendar", "create", 1, 0, 0, "建立自建事件", "Create Custom Events"),
     ("calendar.custom_event.update", "L", "L2", "calendar", "update", 1, 0, 0, "編輯自建事件", "Update Custom Events"),
     ("calendar.custom_event.delete", "L", "L2", "calendar", "delete", 1, 0, 0, "刪除自建事件", "Delete Custom Events"),
-    # S1-12 新增：H 搜尋與 AI 能見度——全站 SEO 預設／追蹤碼／robots.txt 自訂規則（H1）、
+    # S1-12 新增：H 搜尋與分享設定——全站 SEO 預設／追蹤碼／robots.txt 自訂規則（H1）、
     # 301 轉址管理（H2）、孤立頁面偵測（H3）。domain 統一取 "seo"（docs/12b §7.3 值域表本來就
     # 列了這個值）。規劃書 §6 矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」外，十個角色裡只有
     # 系統管理員打勾，性質上跟 J 模組「系統」欄一樣是單一角色排他欄位，故三組全部

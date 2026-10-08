@@ -139,7 +139,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | **Enquiries** | Form designer | Viewing form fields; setting notifications, auto-replies and CAPTCHA | Blue Whale's forms |
 | | Inbox | Form submissions | Blue Whale's submissions |
 | | Newsletter list | Subscriptions and unsubscribes | Blue Whale's list |
-| **Search & AI visibility** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** | Blue Whale's pages (**its own settings**) |
+| **Search & sharing settings** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** | Blue Whale's pages (**its own settings**) |
 | **Site settings** | — | Languages, contact details, venues (the site menus and footer links are fixed by the site templates and are not adjusted in the admin) | This site's settings |
 | **System** | Accounts | Admin accounts | **Shared; administrators only** |
 | | Roles and permissions | Who can do what | **Shared; administrators only** |

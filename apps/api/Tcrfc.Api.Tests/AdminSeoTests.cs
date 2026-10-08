@@ -12,7 +12,7 @@ using Xunit;
 namespace Tcrfc.Api.Tests;
 
 /// <summary>
-/// S1-12：H 搜尋與 AI 能見度——全站 SEO 預設／追蹤碼、301 轉址管理、孤立頁面偵測，
+/// S1-12：H 搜尋與分享設定——全站 SEO 預設／追蹤碼、301 轉址管理、孤立頁面偵測，
 /// 以及對應的公開讀取端點。打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，不 mock，
 /// 跟這個測試專案既有的紀律一致。
 /// </summary>

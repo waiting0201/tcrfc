@@ -213,7 +213,7 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             CalendarQueryValidationException calendarQueryValidation =>
                 (StatusCodes.Status400BadRequest, "查詢參數有誤", calendarQueryValidation.Message),
 
-            // ── S1-12 新增：H 搜尋與 AI 能見度（Features/AdminSeo）─────────────────────────
+            // ── S1-12 新增：H 搜尋與分享設定（Features/AdminSeo）─────────────────────────
             AdminSeoValidationException seoValidation =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", seoValidation.Message),
             RedirectFromPathConflictException redirectConflict =>

@@ -438,7 +438,7 @@ builder.Services.AddScoped<AdminFaqEmbedSlotsRepository>();
 builder.Services.AddScoped<HomeRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Faqs.FaqsRepository>();
 
-// ── S1-12：H 搜尋與 AI 能見度 ─────────────────────────────────────────────
+// ── S1-12：H 搜尋與分享設定 ─────────────────────────────────────────────
 // 全站 SEO 預設／追蹤碼／redirects 走 EF Core（比照既有 AdminXxxRepository 慣例），
 // 公開端點（sitemap-entries／robots-directives／redirects／tracking）與孤立頁面偵測
 // 走 Dapper（IClubSqlConnectionFactory，比照既有唯讀查詢慣例）。
@@ -1042,7 +1042,7 @@ app.MapAdminEnquiriesEndpoints();
 app.MapAdminCalendarEndpoints();
 app.MapAdminCalendarAdvancedEndpoints();
 
-// ── S1-12：H 搜尋與 AI 能見度 ─────────────────────────────────────────────
+// ── S1-12：H 搜尋與分享設定 ─────────────────────────────────────────────
 app.MapAdminSeoSettingsEndpoints();
 app.MapAdminRedirectsEndpoints();
 app.MapAdminSeoReportEndpoints();

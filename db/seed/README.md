@@ -361,7 +361,7 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 | 賽程賽果／積分榜 | `standings` | 6（2026-27） | 6（2023） | **全測試**（沒有真實積分來源）。賽程賽果早已有種子（tcrfc 21 場、bw 21 場），本輪未動 |
 | 行事曆自建事件 | `calendar_custom_events`（＋i18n、`calendar_event_teams`、`calendar_event_exceptions`） | 5（含每週重複＋例外日、全天、不公開各一） | 3（1 筆**真實**過往活動＋2 測試；含每兩週重複） | bw 真實：2024 台中女子足球節（`programs.md` §5，日期 2024-07-13 經 `news-index.md` #4 互證）；其餘**測試** |
 | 新聞 | `tags`／`tags_i18n`（全域）、`article_tags`、`value_tag_links`、`articles.is_featured`；bw 另新增 3 篇 `articles` | tag 5 個（全域）；既有 83 篇新聞掛 72 個標籤、16 個核心價值標籤；最新 2 篇設為精選 | 3 篇測試新聞（`bw-test-news-*`，只有標題與摘要） | 標籤名稱是功能性分類詞；**歸類是種子的編輯性判斷**（見下）；bw 新聞**全測試**（舊站 17 則都是外部媒體連結，不得轉載，見 `news-index.md`） |
-| 搜尋與 AI 能見度 | `redirects` | 31（19 組來源路徑） | 40（20 組來源路徑，未編碼＋百分比編碼各一筆，藍鯨規劃書 §7 第 3 點） | tcrfc 取自 `舊官網URL盤點.csv`；bw 取自 `site-map.md`。**新站對應頁是種子依名稱推得的建議，客戶「決定」欄仍為空** |
+| 搜尋與分享設定 | `redirects` | 31（19 組來源路徑） | 40（20 組來源路徑，未編碼＋百分比編碼各一筆，藍鯨規劃書 §7 第 3 點） | tcrfc 取自 `舊官網URL盤點.csv`；bw 取自 `site-map.md`。**新站對應頁是種子依名稱推得的建議，客戶「決定」欄仍為空** |
 | 〃 | `settings`：`seo.title_template`／`seo.default_description` | zh＋en | zh（bw 英文全名待確認，不種 en） | **真實**（`CLUB_IDENTITY` 已核實文案） |
 | 〃 | `settings`：`geo.llms_positioning`／`key_pages`／`facts_summary`／`license`／`contact` | 五區塊 zh＋en | 五區塊 zh；en 只有 `key_pages`／`license`／`contact` | **真實**（已核實事實與公開社群連結）；tcrfc 聯絡 Email 為**測試** |
 | 〃 | `settings`：`geo.crawler_agents`（五個預設代理皆允許）、`geo.crawler_extra_exclude_paths` | 有（`[]`） | 有（`[]`） | 規劃書 §7 `GEO-02` 條文範例 |

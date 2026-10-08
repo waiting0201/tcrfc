@@ -10,7 +10,7 @@ using Tcrfc.Api.Security;
 namespace Tcrfc.Api.Features.Seo;
 
 /// <summary>
-/// 公開讀取（S1-12，H 搜尋與 AI 能見度的前台落點）：全站 SEO 預設與追蹤碼、生效中的 301 轉址、
+/// 公開讀取（S1-12，H 搜尋與分享設定的前台落點）：全站 SEO 預設與追蹤碼、生效中的 301 轉址、
 /// Sitemap 項目。三者皆與語系無關（設定值同時回傳 zh／en 兩份；轉址與 Sitemap 網址本身不分語系，
 /// 目前站上也只有 zh 頁面存在，見 <c>apps/web/server/routes/sitemap.xml.ts</c> 既有註解），
 /// 快取 key 的 locale 維度一律用 <see cref="CacheDimensions.AnyLocale"/>。

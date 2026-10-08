@@ -23,7 +23,7 @@ const route = useRoute()
 const router = useRouter()
 
 /**
- * `J 系統管理`、`H 搜尋與 AI 能見度` 整組只有系統管理員看得到（`I 網站設定` 自 H 批起改依子項目權限碼顯示，見下方 `CHILD_VISIBILITY` 的 I1–I6）（`J`：規劃書 §6
+ * `J 系統管理`、`H 搜尋與分享設定` 整組只有系統管理員看得到（`I 網站設定` 自 H 批起改依子項目權限碼顯示，見下方 `CHILD_VISIBILITY` 的 I1–I6）（`J`：規劃書 §6
  * 權限矩陣「系統」欄只有系統管理員打勾；`H`：`seo.setting.*`／`seo.redirect.*`／`seo.report.view`／
  * `seo.llms.*`／`seo.crawler.*`／`seo.schema.view` 六段權限碼全部 `sysadmin_only=1`，見
  * apps/api/README.md「S1-12」「S1-12a」「S1-12b」「S1-12c」各節「權限碼」；`I`

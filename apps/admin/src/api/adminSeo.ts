@@ -1,6 +1,6 @@
 /**
- * `apps/api` 後台「搜尋與 AI 能見度」端點（`Features/AdminSeo`），對照
- * apps/api/README.md「S1-12：`H` 搜尋與 AI 能見度」。涵蓋六段：
+ * `apps/api` 後台「搜尋與分享設定」端點（`Features/AdminSeo`），對照
+ * apps/api/README.md「S1-12：`H` 搜尋與分享設定」。涵蓋六段：
  * 全站 SEO 預設＋追蹤碼（`seo.setting.*`）、301 轉址（`seo.redirect.*`）、孤立頁面偵測
  * （`seo.report.view`）、`llms.txt`（AI 摘要資料，`seo.llms.*`，apps/api/README.md「S1-12a」）、
  * AI 爬蟲授權（`seo.crawler.*`，apps/api/README.md「S1-12b」）、結構化資料完整性檢查

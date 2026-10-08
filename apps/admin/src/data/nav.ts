@@ -27,7 +27,7 @@ export const NAV_GROUPS: NavGroup[] = [
       },
       {
         code: 'H',
-        label: '搜尋與 AI 能見度',
+        label: '搜尋與分享設定',
         // ⚠️ 這整組只有系統管理員看得到（AppSidebar.vue 的 SYSADMIN_ONLY_MODULE_CODES）——
         // 六個子模組的權限碼（`seo.setting.*`／`seo.redirect.*`／`seo.report.view`／`seo.llms.*`／
         // `seo.crawler.*`／`seo.schema.view`）皆為 `sysadmin_only`（apps/api/README.md

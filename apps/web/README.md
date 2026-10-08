@@ -192,7 +192,7 @@ node scripts/check-club-image-leak.mjs --base-url=http://127.0.0.1:3012 [--inven
 
 ## 已知缺口與尚未完成的事
 
-- ✅ **S1-12（H 搜尋與 AI 能見度）前台串接已完成（2026-09-25，含驗收退回後補做）**，詳見
+- ✅ **S1-12（H 搜尋與分享設定）前台串接已完成（2026-09-25，含驗收退回後補做）**，詳見
   `apps/api/README.md`「S1-12」整節（含完整驗收紀錄與真實 HTML 輸出核對）：
   - `server/utils/sitemap-urls.ts` 改呼叫 `GET /api/v1/{club}/seo/sitemap-entries`（取代直接打
     `/news` 的舊寫法），會依後端的 `is_noindex`／`is_excluded_from_sitemap` 排除文章，

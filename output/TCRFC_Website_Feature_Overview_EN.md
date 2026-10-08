@@ -154,7 +154,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | **Enquiries** | Form designer | Viewing form fields; setting notifications, auto-replies and CAPTCHA |
 | | Inbox | Seven form types plus proposal downloads and donation enquiries |
 | | Newsletter list | Subscriptions and unsubscribes |
-| **Search & AI visibility** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** |
+| **Search & sharing settings** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** |
 | **Site settings** | — | Languages, contact details, venues, external services (the site menus and footer links are fixed by the site templates and are not adjusted in the admin) |
 | **System** | Accounts | Admin accounts |
 | | Roles and permissions | Who can do what |

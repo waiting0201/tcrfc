@@ -49,7 +49,7 @@ const MODULE_NAME_LABEL: Record<string, string> = {
   E: '商業模組',
   F: '文化模組',
   G: '表單與詢問',
-  H: '搜尋與 AI 能見度',
+  H: '搜尋與分享設定',
   I: '網站設定',
   J: '系統管理',
   K: '會員管理',

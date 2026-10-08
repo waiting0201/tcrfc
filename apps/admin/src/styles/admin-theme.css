@@ -99,7 +99,7 @@ html.dark {
   --admin-lightbox-checker-a: #4a4d52;
   --admin-lightbox-checker-b: #5c5f65;
 
-  /* 側欄寬度（實測值，最長模組名稱「搜尋與 AI 能見度」不會被截斷） */
+  /* 側欄寬度（實測值，最長模組名稱「搜尋與分享設定」不會被截斷） */
   --admin-sidebar-width-expanded: 240px;
   --admin-sidebar-width-collapsed: 64px;
 
