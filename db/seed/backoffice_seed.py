@@ -269,6 +269,21 @@ STANDINGS = {
 }
 
 # ============================================================================
+# 時間字面值規則（E-305）：種子裡寫的 "YYYY-MM-DDTHH:MM:SS" 一律是「台灣當地時間」（Asia/Taipei，UTC+8、無夏令時間）。
+# 資料庫的 *_at（starts_at／ends_at／signup_*_at…）存 UTC，前後台一律把欄位當 UTC 再轉台灣時間顯示，
+# 所以寫進去之前必須由 tw_to_utc() 換算（與 API 端 CalendarIcsRepository 的 TaipeiOffset 做法相同，固定 -8 小時）。
+# 例外：is_all_day=1 的事件只取日期、不換算（API 的 .ics 全天事件用 StartsAt 的日期部分）；
+# repeat_until／excluded_on／*_on 是 date 欄位，本來就是日期，不換算。
+# ============================================================================
+def tw_to_utc(local_iso):
+    """台灣當地時間字串 → UTC 字串（同格式）。None 原樣回傳。"""
+    if local_iso is None:
+        return None
+    import datetime as _d
+    return (_d.datetime.fromisoformat(local_iso) - _d.timedelta(hours=8)).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+# ============================================================================
 # L2 自建事件（calendar_custom_events）
 #   tcrfc：全測試。bw：一筆真實（2024 台中女子足球節，programs.md §5 ＋ news-index #4 兩處互證 2024-07-13）＋ 兩筆測試。
 # ============================================================================
@@ -677,7 +692,7 @@ END
                     f"({esc(new_id('session', club_code, p['slug'], str(k)))}, {club_sq}, @id, {venue_sql}, "
                     f"{esc(s.get('start'))}, {esc(s.get('end'))}, {esc(weekly)}, {esc(s.get('capacity'))}, {esc(s.get('enrolled', 0))}, "
                     f"{esc(s.get('price'))}, {esc(s.get('early_price'))}, {esc(s.get('early_until'))}, "
-                    f"{esc(s.get('opens'))}, {esc(s.get('closes'))}, {esc(s['status'])});")
+                    f"{esc(tw_to_utc(s.get('opens')))}, {esc(tw_to_utc(s.get('closes')))}, {esc(s['status'])});")
             block(f"""
 DECLARE @id uniqueidentifier;
 SELECT @id = id FROM programs WHERE club_id = {club_sq} AND slug = {esc(p["slug"])};
@@ -715,9 +730,12 @@ END
             desc_zh, desc_en = ev["desc"]
             event_id = new_id("calendar_event", club_code, title_zh)
             venue_sql = venue_by_keyword_sq(ev["venue"]) if ev["venue"] else "NULL"
+            # 全天事件只取日期，不換算；其餘為台灣當地時間 → UTC（見 tw_to_utc）
+            starts_utc = ev["starts"] if ev["all_day"] else tw_to_utc(ev["starts"])
+            ends_utc = ev["ends"] if ev["all_day"] else tw_to_utc(ev["ends"])
             lines = [
                 "  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) "
-                f"VALUES (@id, {club_sq}, (SELECT id FROM event_types WHERE code = {esc(ev['type'])}), {venue_sql}, {esc(ev['starts'])}, {esc(ev['ends'])}, "
+                f"VALUES (@id, {club_sq}, (SELECT id FROM event_types WHERE code = {esc(ev['type'])}), {venue_sql}, {esc(starts_utc)}, {esc(ends_utc)}, "
                 f"{ev['all_day']}, {esc(ev.get('repeat'))}, {esc(ev.get('repeat_until'))}, {ev['public']});",
                 f"  INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description) VALUES (@id, N'zh-Hant', {esc(title_zh)}, {esc(desc_zh)});",
             ]
@@ -736,6 +754,20 @@ BEGIN
   SET @id = {esc(event_id)};
 {chr(10).join(lines)}
 END
+""")
+
+    # 修復已灌過舊種子（台灣當地時間被當成 UTC 直接寫入，E-305）的資料庫：只動「標題相符且時間仍是舊字面值」的列，
+    # 換算後再跑不會再命中，所以可重複執行。
+    for club_code, events in CALENDAR_EVENTS.items():
+        for ev in events:
+            if ev["all_day"]:
+                continue
+            ends_fix = f", ends_at = {esc(tw_to_utc(ev['ends']))}" if ev["ends"] else ""
+            ends_cond = f" AND e.ends_at = {esc(ev['ends'])}" if ev["ends"] else ""
+            block(f"""
+UPDATE e SET starts_at = {esc(tw_to_utc(ev['starts']))}{ends_fix}
+FROM calendar_custom_events e JOIN calendar_custom_events_i18n i ON i.calendar_custom_event_id = e.id AND i.locale = N'zh-Hant'
+WHERE e.club_id = {clubs[club_code]} AND i.title = {esc(ev['title'][0])} AND e.starts_at = {esc(ev['starts'])}{ends_cond};
 """)
 
     # ── 31. B2 標籤／核心價值標籤／精選／藍鯨測試新聞 ─────────────────────────

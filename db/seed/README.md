@@ -105,6 +105,16 @@ B-5 已於 2026-10-05 拍板：藍鯨英文簡稱 `Taichung Blue Whale`、全名
   - ✅ **`import` 的 sqlcmd 13 `Invalid cursor state` 已修（2026-10-07，E-295）**：`deploy/prod-seed-import.sh import` 讀到區段 61 的批次時 sqlcmd 13 會吐 `SqlState 24000`、交易靜默回滾、結束碼 0；**在正式 VM（x86）同樣發生，不是模擬問題**。現在 `import` 以 `SET NOCOUNT ON` 包一層再 `:r` 種子（種子檔與 manifest 不變），並在執行後立刻查匯入標記。**本機演練不必再手動改用 `mssql-tools18`**，整個流程完全走腳本即可。
 - **API 測試**：`AppContractBatch4Tests`（俱樂部簡稱）、`AppContractBatch5Tests`（後台簡稱讀寫）、`LocalizationFallbackTests`（俱樂部名稱）原本把「藍鯨沒有英文」當前提，已改為新定案值斷言；回退行為改經後台 `PUT /admin/clubs/{id}`（`en = null` 即刪列）自建並於 `finally` 還原。⚠️ 後台 PUT 的 `en = null` 會**刪掉英文列**，測試改動藍鯨時必須把原英文內容帶回。
 
+## 🔴 種子的時間字面值一律是台灣時間，由產生器換算 UTC（2026-10-08，E-305）
+
+資料庫的 `*_at` 欄位（`calendar_custom_events.starts_at／ends_at`、`sessions.signup_opens_at／signup_closes_at` …）存 **UTC**，前後台一律把它當 UTC 再轉台灣時間顯示。因此：
+
+- 種子資料裡寫的 `"2026-10-14T17:00:00"` 這類字串**一律是台灣當地時間**（Asia/Taipei，UTC+8、無夏令時間），**寫進 SQL 前必須經 `backoffice_seed.tw_to_utc()`**（固定減 8 小時，與 API 端 `CalendarIcsRepository` 的 `TaipeiOffset` 同做法；賽程 `matches` 則是存牆上時間＋`kickoff` 由 API 算 `kickoffAt`，不走這條）。
+- **例外**：`is_all_day=1` 的事件只取日期、不換算（API 的 .ics 全天事件取 `StartsAt` 的日期部分）；`repeat_until`、`calendar_event_exceptions.excluded_on`、`*_on` 是 `date` 欄位，本來就是日期，不換算。
+- 相對「現在」的時間用 `SYSUTCDATETIME()`／`DATEADD`，本來就是 UTC，不必換算。
+- 已灌過舊種子的資料庫：區段 30 附冪等修復 `UPDATE`（只動標題相符且時間仍是舊字面值的列，可重複執行）；區段「課程梯次報名時間」未附修復（只影響 `【測試】兒童足球訓練` 一個梯次）。
+- 改了種子後記得 `python3 db/seed/generate-prod-content-sql.py` 重產 `db/prod/club-content-seed.sql`（CI 會 `--check`）。
+
 ## 🔴 灌種子一律「docker cp ＋ sqlcmd -i」，不用 stdin 串流（2026-10-07，E-296）
 
 `apply-seed.sh`（與 `apply-charity-seed.sh`）原本用 `docker exec -i … sqlcmd < 檔案` 餵 SQL。sqlcmd 對管線分塊讀取，**3 位元組的中文字剛好跨塊就會被切成兩個 U+FFFD**（實例：`achievements_i18n` 的「示範友誼賽」→「示範��誼賽」）。斷點隨時序而變，多數次正常、偶爾壞一處；而種子的冪等判斷是字串比對，壞掉的列比對不到，下一次就重複 INSERT，在區段 39 以 `PK_achievements` 重複中止，其後區段（會籍方案、`M900001` 起會員、權益、藍鯨英文回填、區段 60）全不會灌。產生器輸出的 SQL 是正確的。

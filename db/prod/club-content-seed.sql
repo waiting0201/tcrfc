@@ -5797,7 +5797,7 @@ BEGIN
   SET @id = N'abb45be3-1603-5c6a-bb08-8e5a537585d8';
   INSERT INTO programs (id, club_id, slug, program_type, age_min, age_max, status) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-childrens-training-mixed-age', N'children_training', 5, 12, N'published');
   INSERT INTO programs_i18n (program_id, locale, name, intro) VALUES (@id, N'zh-Hant', N'【測試】兒童足球訓練（混齡體驗班）', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
-  INSERT INTO sessions (id, club_id, program_id, venue_id, start_on, end_on, weekly_schedule, capacity, enrolled_count, price, early_bird_price, early_bird_until, signup_opens_at, signup_closes_at, status) VALUES (N'668a5d64-2928-5e9a-b7cb-1b2f4ffd226c', (SELECT id FROM clubs WHERE code = N'tcrfc'), @id, (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-10-12', N'2027-01-18', N'{"mon":"18:00-19:30","wed":"18:00-19:30"}', 20, 8, 4800, 4200, N'2026-10-05', N'2026-09-20T00:00:00', N'2026-10-10T23:59:00', N'開放');
+  INSERT INTO sessions (id, club_id, program_id, venue_id, start_on, end_on, weekly_schedule, capacity, enrolled_count, price, early_bird_price, early_bird_until, signup_opens_at, signup_closes_at, status) VALUES (N'668a5d64-2928-5e9a-b7cb-1b2f4ffd226c', (SELECT id FROM clubs WHERE code = N'tcrfc'), @id, (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-10-12', N'2027-01-18', N'{"mon":"18:00-19:30","wed":"18:00-19:30"}', 20, 8, 4800, 4200, N'2026-10-05', N'2026-09-19T16:00:00', N'2026-10-10T15:59:00', N'開放');
   INSERT INTO sessions (id, club_id, program_id, venue_id, start_on, end_on, weekly_schedule, capacity, enrolled_count, price, early_bird_price, early_bird_until, signup_opens_at, signup_closes_at, status) VALUES (N'24f438bd-c075-5843-b3b2-edd3eeaebbad', (SELECT id FROM clubs WHERE code = N'tcrfc'), @id, (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-04-06', N'2026-06-29', N'{"mon":"18:00-19:30"}', 20, 20, 4800, NULL, NULL, NULL, NULL, N'已結束');
   COMMIT TRANSACTION;
 END
@@ -6177,7 +6177,7 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'b069fd5a-8d7a-51a6-a287-f5a45f48540a';
-  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM event_types WHERE code = N'press_conference'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-10-08T14:00:00', N'2026-10-08T15:30:00', 0, NULL, NULL, 1);
+  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM event_types WHERE code = N'press_conference'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-10-08T06:00:00', N'2026-10-08T07:30:00', 0, NULL, NULL, 1);
   INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description) VALUES (@id, N'zh-Hant', N'【測試】新賽季記者會', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
   INSERT INTO calendar_event_teams (source_type, source_id, team_id) VALUES (N'custom', @id, (SELECT id FROM teams WHERE code = N'D1'));
   COMMIT TRANSACTION;
@@ -6191,7 +6191,7 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'75e97c08-516c-5673-af3e-48f8e7522a78';
-  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM event_types WHERE code = N'fan_meet'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-10-31T15:00:00', N'2026-10-31T17:00:00', 0, NULL, NULL, 1);
+  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM event_types WHERE code = N'fan_meet'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-10-31T07:00:00', N'2026-10-31T09:00:00', 0, NULL, NULL, 1);
   INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description) VALUES (@id, N'zh-Hant', N'【測試】球迷見面會', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
   INSERT INTO calendar_event_teams (source_type, source_id, team_id) VALUES (N'custom', @id, (SELECT id FROM teams WHERE code = N'D1'));
   COMMIT TRANSACTION;
@@ -6205,7 +6205,7 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'3d16825f-105a-5150-8621-0813c69ba9b9';
-  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM event_types WHERE code = N'open_training'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-10-14T17:00:00', N'2026-10-14T18:30:00', 0, N'weekly', N'2026-12-30', 1);
+  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM event_types WHERE code = N'open_training'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%西屯%'), N'2026-10-14T09:00:00', N'2026-10-14T10:30:00', 0, N'weekly', N'2026-12-30', 1);
   INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description) VALUES (@id, N'zh-Hant', N'【測試】每週公開訓練', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
   INSERT INTO calendar_event_teams (source_type, source_id, team_id) VALUES (N'custom', @id, (SELECT id FROM teams WHERE code = N'D1'));
   INSERT INTO calendar_event_exceptions (calendar_custom_event_id, excluded_on) VALUES (@id, N'2026-11-25');
@@ -6233,7 +6233,7 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'96eea0cc-befe-5514-a710-bb1745598730';
-  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM event_types WHERE code = N'other'), NULL, N'2026-10-20T10:00:00', N'2026-10-20T11:00:00', 0, NULL, NULL, 0);
+  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM event_types WHERE code = N'other'), NULL, N'2026-10-20T02:00:00', N'2026-10-20T03:00:00', 0, NULL, NULL, 0);
   INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description) VALUES (@id, N'zh-Hant', N'【測試】內部工作會議（不公開）', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
   COMMIT TRANSACTION;
 END
@@ -6246,7 +6246,7 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'a02ae866-daa1-5d26-9316-49aeaa201483';
-  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM event_types WHERE code = N'other'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2024-07-13T16:00:00', N'2024-07-13T18:00:00', 0, NULL, NULL, 1);
+  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM event_types WHERE code = N'other'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2024-07-13T08:00:00', N'2024-07-13T10:00:00', 0, NULL, NULL, 1);
   INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description) VALUES (@id, N'zh-Hant', N'2024 台中女子足球節「夏洛特的下午茶」', N'運動 i 台灣 & 台中女子足球節。臺中北屯太原足球場，15:30 報到、16:00 開始、18:00 結束；對象為國小 1–5 年級女生，推廣組與競賽組，公益推廣活動、全程免費參加。');
   INSERT INTO calendar_event_teams (source_type, source_id, team_id) VALUES (N'custom', @id, (SELECT id FROM teams WHERE code = N'BW1'));
   COMMIT TRANSACTION;
@@ -6260,7 +6260,7 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'035153e4-904d-5a76-b66b-e324e99d8eea';
-  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM event_types WHERE code = N'fan_meet'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2026-11-14T15:00:00', N'2026-11-14T17:00:00', 0, NULL, NULL, 1);
+  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM event_types WHERE code = N'fan_meet'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2026-11-14T07:00:00', N'2026-11-14T09:00:00', 0, NULL, NULL, 1);
   INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description) VALUES (@id, N'zh-Hant', N'【測試】球迷見面會', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
   INSERT INTO calendar_event_teams (source_type, source_id, team_id) VALUES (N'custom', @id, (SELECT id FROM teams WHERE code = N'BW1'));
   COMMIT TRANSACTION;
@@ -6274,11 +6274,46 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'1d420be1-c18e-58bb-be13-5c7d44a68fad';
-  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM event_types WHERE code = N'open_training'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2026-10-16T19:30:00', N'2026-10-16T21:00:00', 0, N'biweekly', N'2026-12-25', 1);
+  INSERT INTO calendar_custom_events (id, club_id, event_type_id, venue_id, starts_at, ends_at, is_all_day, repeat_rule, repeat_until, is_public) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM event_types WHERE code = N'open_training'), (SELECT TOP 1 v.id FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id WHERE vi.locale = N'zh-Hant' AND vi.name LIKE N'%太原%'), N'2026-10-16T11:30:00', N'2026-10-16T13:00:00', 0, N'biweekly', N'2026-12-25', 1);
   INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description) VALUES (@id, N'zh-Hant', N'【測試】公開訓練', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
   INSERT INTO calendar_event_teams (source_type, source_id, team_id) VALUES (N'custom', @id, (SELECT id FROM teams WHERE code = N'BW1'));
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE e SET starts_at = N'2026-10-08T06:00:00', ends_at = N'2026-10-08T07:30:00'
+FROM calendar_custom_events e JOIN calendar_custom_events_i18n i ON i.calendar_custom_event_id = e.id AND i.locale = N'zh-Hant'
+WHERE e.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.title = N'【測試】新賽季記者會' AND e.starts_at = N'2026-10-08T14:00:00' AND e.ends_at = N'2026-10-08T15:30:00';
+GO
+
+UPDATE e SET starts_at = N'2026-10-31T07:00:00', ends_at = N'2026-10-31T09:00:00'
+FROM calendar_custom_events e JOIN calendar_custom_events_i18n i ON i.calendar_custom_event_id = e.id AND i.locale = N'zh-Hant'
+WHERE e.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.title = N'【測試】球迷見面會' AND e.starts_at = N'2026-10-31T15:00:00' AND e.ends_at = N'2026-10-31T17:00:00';
+GO
+
+UPDATE e SET starts_at = N'2026-10-14T09:00:00', ends_at = N'2026-10-14T10:30:00'
+FROM calendar_custom_events e JOIN calendar_custom_events_i18n i ON i.calendar_custom_event_id = e.id AND i.locale = N'zh-Hant'
+WHERE e.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.title = N'【測試】每週公開訓練' AND e.starts_at = N'2026-10-14T17:00:00' AND e.ends_at = N'2026-10-14T18:30:00';
+GO
+
+UPDATE e SET starts_at = N'2026-10-20T02:00:00', ends_at = N'2026-10-20T03:00:00'
+FROM calendar_custom_events e JOIN calendar_custom_events_i18n i ON i.calendar_custom_event_id = e.id AND i.locale = N'zh-Hant'
+WHERE e.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.title = N'【測試】內部工作會議（不公開）' AND e.starts_at = N'2026-10-20T10:00:00' AND e.ends_at = N'2026-10-20T11:00:00';
+GO
+
+UPDATE e SET starts_at = N'2024-07-13T08:00:00', ends_at = N'2024-07-13T10:00:00'
+FROM calendar_custom_events e JOIN calendar_custom_events_i18n i ON i.calendar_custom_event_id = e.id AND i.locale = N'zh-Hant'
+WHERE e.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND i.title = N'2024 台中女子足球節「夏洛特的下午茶」' AND e.starts_at = N'2024-07-13T16:00:00' AND e.ends_at = N'2024-07-13T18:00:00';
+GO
+
+UPDATE e SET starts_at = N'2026-11-14T07:00:00', ends_at = N'2026-11-14T09:00:00'
+FROM calendar_custom_events e JOIN calendar_custom_events_i18n i ON i.calendar_custom_event_id = e.id AND i.locale = N'zh-Hant'
+WHERE e.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND i.title = N'【測試】球迷見面會' AND e.starts_at = N'2026-11-14T15:00:00' AND e.ends_at = N'2026-11-14T17:00:00';
+GO
+
+UPDATE e SET starts_at = N'2026-10-16T11:30:00', ends_at = N'2026-10-16T13:00:00'
+FROM calendar_custom_events e JOIN calendar_custom_events_i18n i ON i.calendar_custom_event_id = e.id AND i.locale = N'zh-Hant'
+WHERE e.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND i.title = N'【測試】公開訓練' AND e.starts_at = N'2026-10-16T19:30:00' AND e.ends_at = N'2026-10-16T21:00:00';
 GO
 
 -- ── 31. tags／article_tags／value_tag_links：新聞標籤（全域主檔）與 tcrfc 既有新聞的歸類 ──
@@ -9790,34 +9825,34 @@ BEGIN
   INSERT INTO ad_creatives (id, campaign_id, locale, alt_text, title, cta_text, click_url, theme, review_status)
   VALUES (N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'zh-Hant', N'【測試】素材替代文字', N'【測試】廣告標題', N'了解更多', N'https://example.com/ad', N'both', N'approved');
   INSERT INTO ad_daily_stats (stat_date, campaign_id, creative_id, slot_id, platform, locale, impressions, clicks, unique_devices) VALUES
-    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 160, 6, 128),
-    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 140, 5, 112),
-    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 167, 6, 133),
-    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 147, 5, 117),
-    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 174, 6, 139),
-    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 154, 6, 123),
-    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 181, 7, 144),
-    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 161, 6, 128),
-    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 188, 7, 150),
-    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 168, 6, 134),
-    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 195, 7, 156),
-    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 175, 7, 140),
-    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 162, 6, 129),
-    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 142, 5, 113),
-    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 169, 6, 135),
-    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 149, 5, 119),
-    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 176, 7, 140),
-    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 156, 6, 124),
-    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 183, 7, 146),
-    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 163, 6, 130),
-    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 190, 7, 152),
-    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 170, 6, 136),
-    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 197, 7, 157),
-    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 177, 7, 141),
-    ('2026-10-04', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 164, 6, 131),
-    ('2026-10-04', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 144, 5, 115),
-    ('2026-10-05', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 171, 6, 136),
-    ('2026-10-05', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 151, 6, 120);
+    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 160, 6, 128),
+    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 140, 5, 112),
+    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 167, 6, 133),
+    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 147, 5, 117),
+    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 174, 6, 139),
+    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 154, 6, 123),
+    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 181, 7, 144),
+    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 161, 6, 128),
+    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 188, 7, 150),
+    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 168, 6, 134),
+    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 195, 7, 156),
+    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 175, 7, 140),
+    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 162, 6, 129),
+    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 142, 5, 113),
+    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 169, 6, 135),
+    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 149, 5, 119),
+    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 176, 7, 140),
+    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 156, 6, 124),
+    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 183, 7, 146),
+    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 163, 6, 130),
+    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 190, 7, 152),
+    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 170, 6, 136),
+    ('2026-10-04', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 197, 7, 157),
+    ('2026-10-04', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 177, 7, 141),
+    ('2026-10-05', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 164, 6, 131),
+    ('2026-10-05', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 144, 5, 115),
+    ('2026-10-06', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 171, 6, 136),
+    ('2026-10-06', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 151, 6, 120);
   COMMIT TRANSACTION;
 END
 GO
