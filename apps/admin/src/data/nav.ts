@@ -36,10 +36,12 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'H1', label: '全站設定', path: '/seo/settings', implemented: true },
           // 301 轉址：側欄隱藏（2026-10-07 使用者指示）。路由、畫面與 API 保留，上線切換舊網址時直接進 /seo/redirects
           { code: 'H2', label: '301 轉址', path: '/seo/redirects', implemented: true, hidden: true },
-          { code: 'H3', label: '孤立頁面偵測', path: '/seo/orphan-pages', implemented: true },
-          { code: 'H4', label: 'AI 摘要資料', path: '/seo/llms-content', implemented: true },
-          { code: 'H5', label: 'AI 爬蟲授權', path: '/seo/crawler-settings', implemented: true },
-          { code: 'H6', label: '結構化資料完整性檢查', path: '/seo/schema-completeness', implemented: true },
+          // H3–H6：側欄隱藏（2026-10-08 使用者指示）。不維護也照常輸出：llms.txt 留白有內建預設、爬蟲授權預設全站允許
+          // 且個資排除寫死在程式；H3／H6 是唯讀報表，隱藏後缺漏只是沒人看到，不影響前台輸出。路由、畫面與 API 保留
+          { code: 'H3', label: '孤立頁面偵測', path: '/seo/orphan-pages', implemented: true, hidden: true },
+          { code: 'H4', label: 'AI 摘要資料', path: '/seo/llms-content', implemented: true, hidden: true },
+          { code: 'H5', label: 'AI 爬蟲授權', path: '/seo/crawler-settings', implemented: true, hidden: true },
+          { code: 'H6', label: '結構化資料完整性檢查', path: '/seo/schema-completeness', implemented: true, hidden: true },
         ],
       },
       {
