@@ -17,7 +17,8 @@
       "applicationUrl": "http://127.0.0.1:5299",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development",
-        "AZURE_BLOB_CONNECTION_STRING": "UseDevelopmentStorage=true"
+        "AZURE_BLOB_CONNECTION_STRING": "UseDevelopmentStorage=true",
+        "AZURE_BLOB_CONNECTION_STRING_CHARITY": "UseDevelopmentStorage=true"
       }
     },
     "https": {

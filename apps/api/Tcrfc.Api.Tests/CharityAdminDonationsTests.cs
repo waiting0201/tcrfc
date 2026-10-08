@@ -365,6 +365,13 @@ public sealed class CharityAdminDonationsTests(CharityApiFixture fx) : IAsyncLif
         Assert.DoesNotContain(",=HYPERLINK", csv);
         Assert.Equal(3, csv.TrimEnd().Split("\r\n").Length); // 表頭 ＋ 2 筆（只含這個項目）
 
+        // 給會計／行政看的檔：狀態一律中文，不得露出英文代碼（E-304）
+        Assert.Contains("已完成", csv);
+        foreach (var code in new[] { "paid", "b2c_invoice", "donation_receipt", "issued", "allowance", "voided", "pending" })
+        {
+            Assert.DoesNotContain($",{code},", csv); // 整格比對（Email 等欄位可能含 paid- 字樣）
+        }
+
         var summary = await fx.ScalarAsync<string>("SELECT change_summary FROM audit_logs WHERE action = N'donation.export_pii' AND admin_user_id = @a", ("@a", cs.Id));
         var purpose = await fx.ScalarAsync<string>("SELECT purpose_note FROM audit_logs WHERE action = N'donation.export_pii' AND admin_user_id = @a", ("@a", cs.Id));
         Assert.Contains("2 筆", summary!);

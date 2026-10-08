@@ -123,7 +123,8 @@ public sealed class AdminCalendarTracksRepository(
 
         if (sharedTeams.Count > 0)
         {
-            parts.Add($"同一梯隊（{string.Join("、", sharedTeams)}）");
+            // 不帶隊別代號（D1、BW1…）：後台介面不顯示代號（docs/06 §1）；球隊名稱由前端依 SharedTeamCodes 另外顯示
+            parts.Add("同一支球隊");
         }
 
         return new AdminCalendarConflictDto

@@ -2,7 +2,7 @@
 """db/seed/seed-dev-blobs.py — 把本機開發需要的 Blob 容器與占位圖準備進 Azurite（只給本機）。
 
 做兩件事：
-  1. 建立 images／videos／documents（公開讀取）與 proposals（私有）。
+  1. 建立 images／videos／documents／charity-images（公開讀取）與 proposals（私有）。
      🔴 為什麼要預先建：API 自己建立容器時一律 PublicAccessType.None（正式環境的公開讀取由 Bicep 設定，
      見 docs/17 §13）。本機若讓 API 自建，瀏覽器直接讀圖片網址會 404／403，後台縮圖與前台漫畫閱讀器都看不到圖。
      容器已存在時 API 不會改它的存取層級，所以這支腳本要在第一次上傳之前跑（已建成私有的可用 --fix-access 改）。
@@ -28,7 +28,7 @@ CONN = os.environ.get("AZURE_BLOB_CONNECTION_STRING", "UseDevelopmentStorage=tru
 if "UseDevelopmentStorage=true" not in CONN and "127.0.0.1" not in CONN and "localhost" not in CONN and "azurite" not in CONN:
     sys.exit("拒絕執行：連線字串看起來不是本機 Azurite。這支腳本只給本機開發用。")
 
-PUBLIC = ["images", "videos", "documents"]
+PUBLIC = ["images", "videos", "documents", "charity-images"]  # charity-images：慈善平台 Logo／封面（AZURE_BLOB_CONTAINER_CHARITY 預設值）
 PRIVATE = ["proposals"]
 LONG_EDGES = [1280, 640, 320]
 

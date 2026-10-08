@@ -378,8 +378,8 @@ public sealed class CharityReportsAdminService(CharityDbContext db)
         };
         rows.AddRange(data.Select(r => (IEnumerable<string?>)new string?[]
         {
-            CsvUtils.SafeCell(r.OrderNo), Taiwan(r.CreatedAt), r.PaidAt is { } p ? Taiwan(p) : null, r.Status, r.Amount.ToString(CultureInfo.InvariantCulture),
-            CsvUtils.SafeCell(r.ProjectName), CsvUtils.SafeCell(r.StoreName), r.InvoiceStatus, r.InvoiceVoidStatus, r.IsAnonymous ? "匿名" : "具名",
+            CsvUtils.SafeCell(r.OrderNo), Taiwan(r.CreatedAt), r.PaidAt is { } p ? Taiwan(p) : null, CharityLabels.DonationStatus(r.Status), r.Amount.ToString(CultureInfo.InvariantCulture),
+            CsvUtils.SafeCell(r.ProjectName), CsvUtils.SafeCell(r.StoreName), CharityLabels.InvoiceIssueStatus(r.InvoiceStatus), CharityLabels.InvoiceVoidStatus(r.InvoiceVoidStatus), r.IsAnonymous ? "匿名" : "具名",
             r.StoreAmount.ToString(CultureInfo.InvariantCulture), r.ProjectAmount.ToString(CultureInfo.InvariantCulture), r.AssociationAmount.ToString(CultureInfo.InvariantCulture),
         }));
         return CsvUtils.ToUtf8BytesWithBom(CsvUtils.BuildCsv(rows));

@@ -101,6 +101,7 @@ public sealed class CharityAdminInvoicesTests(CharityApiFixture fx) : IAsyncLife
         Assert.Equal("issued", done.IssueStatus);
         Assert.Equal(no, done.InvoiceNo);      // 小寫輸入被正規化成大寫
         Assert.NotNull(done.IssuedAt);
+        Assert.Equal(12, done.IssuedAt!.Value.AddHours(8).Hour); // 預設開立日的台灣時間中午，不是清晨 4 點
 
         Assert.Contains(fx.Mail.Sent, m => m.TemplateCode == "invoice_issued");
         Assert.Equal(1, await fx.ScalarAsync<int>("SELECT COUNT(*) FROM audit_logs WHERE admin_user_id = @a AND action = N'invoice.manual_number' AND target_id = @t", ("@a", admin.Id), ("@t", failed.InvoiceId)));

@@ -5376,6 +5376,8 @@ python3 db/seed/seed-dev-blobs.py                  # 2. 預建 images／videos�
 cd apps/api && dotnet run --launch-profile http-azurite   # 3. 啟動 API（launchSettings 的 http-azurite 設定檔多帶 UseDevelopmentStorage=true）
 ```
 
+- **慈善平台的圖片另有自己的連線**（`AZURE_BLOB_CONNECTION_STRING_CHARITY`，容器 `charity-images`）：2026-10-08 起 `http-azurite` 設定檔一併帶上、`seed-dev-blobs.py` 也會建 `charity-images`（公開讀取）。之前只帶主站那一條，慈善店家 Logo／項目封面在本機一律「圖片上傳功能尚未設定儲存空間」。
+
 - **為什麼用 launch profile 而不是寫進 `appsettings.Development.json`**：上面「直接用 dotnet 跑」一節已說明，測試主機也會讀那個檔，
   加了 Blob 連線會改變測試預期；launch profile 的環境變數只影響 `dotnet run`，不影響 `dotnet test`。
 - **第 2 步不能省**：API 自建容器時一律是私有（正式環境的公開讀取由 Bicep 設定，docs/17 §13）。本機若讓 API 自建，
@@ -10539,3 +10541,16 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 **403 訊息**：列級授權擋下時一律「你的角色資料範圍不允許…」（不再提球隊授權，也不帶權限碼）。
 **遷移**：EF `20261008073653_AdminUserTeamsDropContract`（收縮型，新版 api 上線驗證後才經 `production-db` 關卡套用；舊版 api 仍會查 `admin_user_teams`）。`Up`：刪 `scope_type='own_teams'` 殘留列（fail-closed，預期 0 列）→ 依「掛在該欄位上的 CHECK」動態查名稱拆舊 CHECK、重建 `CK_role_permissions_scope_type`（不含 `own_teams`；DDL 建的庫上舊 CHECK 是匿名自動命名）→ 刪表 → 刪兩個權限碼（`role_permissions` 由 FK 連動）。`Down` 只還原表結構與含 `own_teams` 的 CHECK。全部冪等；同源 SQL `db/migrations/20261008_admin-user-teams-drop_2-contract.sql`（本機 `tcrfc_club` 已套用兩次驗證冪等）。`db/club-schema.sql`、`db/seed/generate-club-seed-sql.py`、`db/prod/club-reference-data.sql`（已重產）同步。
 **測試**：刪除球隊授權相關案例（`AdminAccountsTests` 4 項、`AdminTeamsEndpointTests` 整檔 4 項、`AdminTeamsWritableEndpointTests` 與 `AdminMatchesAndStandingsTests` 各 1 項 `own_teams`）；`academy_only` 列級強制的測試全部保留。
+
+## 慈善後台 CSV 匯出狀態欄改輸出中文（2026-10-08，`backend-engineer`，E-304）
+
+捐款明細匯出（`GET /api/v1/donation-platform/admin/donations/export`）與報表逐筆明細（`GET …/reports/details?format=csv`）原本把狀態代碼原樣輸出（`paid`、`b2c_invoice`、`issued`、`allowance`），給協會會計／行政看的檔不該有英文技術值。現在兩支與 `invoices/export` 一律走同一份對照 `CharityPlatform/Common/CharityLabels.cs`（詞彙以 `apps/admin-charity` 畫面為準，不自創）：
+
+- 捐款狀態：`created`已建立／`pending`處理中／`paid`已完成／`failed`付款失敗／`expired`已逾時／`refunded`已退款。
+- 憑證模式：`b2c_invoice`電子發票／`donation_receipt`捐贈收據。
+- 憑證狀態：`pending`待開立／`issued`已開立／`failed`開立失敗。
+- 作廢／折讓：`none`正常／`voided`已作廢／`allowance`已折讓。
+- 沒有憑證的捐款單，憑證相關欄留空；未知代碼原樣輸出（資料異常看得見，不被預設值掩蓋）。欄名不變。
+- `invoices/export` 內嵌的 switch 改用同一份對照（行為不變）。**新增匯出欄位時不得直接輸出狀態代碼，一律走 `CharityLabels`。**
+
+測試：`CharityAdminDonationsTests` 匯出案例與 `CharityAdminReportsTests` CSV 案例新增「含 `已完成`、不含英文代碼」斷言；`CharityAdminInvoicesTests` 手動補登案例新增 `issuedAt` 換算台灣時間為 12:00 的斷言（對應 `ManualNumberAsync` 的 `.AddHours(12)`）。

@@ -262,6 +262,11 @@ public sealed class CharityAdminReportsTests(CharityApiFixture fx) : IAsyncLifet
 
         var detailsCsv = Encoding.UTF8.GetString(await (await sys.GetAsync($"{Reports}/details?{Range}&projectId={projectId}&format=csv")).Content.ReadAsByteArrayAsync());
         Assert.Contains("單號", detailsCsv);
+        Assert.Contains("已完成", detailsCsv);  // 狀態輸出中文，不得露出英文代碼（E-304）
+        foreach (var code in new[] { "paid", "issued", "failed", "pending", "voided", "allowance" })
+        {
+            Assert.DoesNotContain(code, detailsCsv);
+        }
         Assert.DoesNotContain("charity-test.invalid", detailsCsv);
         Assert.Equal(4, detailsCsv.Split("\r\n", StringSplitOptions.RemoveEmptyEntries).Length); // 表頭＋3 筆
     }

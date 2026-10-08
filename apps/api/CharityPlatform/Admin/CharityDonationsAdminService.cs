@@ -534,10 +534,10 @@ public sealed class CharityDonationsAdminService(
         {
             csv.Add(new string?[]
             {
-                CsvUtils.SafeCell(r.OrderNo), Taiwan(r.CreatedAt), r.PaidAt is { } p ? Taiwan(p) : null, r.Status,
+                CsvUtils.SafeCell(r.OrderNo), Taiwan(r.CreatedAt), r.PaidAt is { } p ? Taiwan(p) : null, CharityLabels.DonationStatus(r.Status),
                 r.Amount.ToString(CultureInfo.InvariantCulture), CsvUtils.SafeCell(r.Project), CsvUtils.SafeCell(r.Store),
                 CsvUtils.SafeCell(r.DonorName), CsvUtils.SafeCell(r.DonorEmail), r.IsAnonymous ? "匿名" : "具名",
-                r.InvoiceMode, r.Invoice?.IssueStatus, r.Invoice?.VoidStatus, CsvUtils.SafeCell(r.Invoice?.InvoiceNo),
+                CharityLabels.InvoiceMode(r.InvoiceMode), CharityLabels.InvoiceIssueStatus(r.Invoice?.IssueStatus), CharityLabels.InvoiceVoidStatus(r.Invoice?.VoidStatus), CsvUtils.SafeCell(r.Invoice?.InvoiceNo),
                 r.StoreAmount.ToString(CultureInfo.InvariantCulture), r.ProjectAmount.ToString(CultureInfo.InvariantCulture),
                 r.AssociationAmount.ToString(CultureInfo.InvariantCulture),
             });

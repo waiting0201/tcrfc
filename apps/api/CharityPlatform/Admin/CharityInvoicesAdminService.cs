@@ -100,7 +100,7 @@ public sealed partial class CharityInvoicesAdminService(CharityDbContext db, Cha
         }
 
         // 開立當天的台灣時間中午（避免換算 UTC 後跨日；當期判斷只看年月，日內時間不影響）。
-        var issuedAtUtc = TaiwanClock.StartOfDayUtc(issuedOn).AddHours(4);
+        var issuedAtUtc = TaiwanClock.StartOfDayUtc(issuedOn).AddHours(12);
         // 🔴 稽核先 Stage、由服務層自己的 SaveChanges 一起提交——稽核與被稽核的變更同一次提交（驗證失敗丟例外時整個請求中止，暫存的稽核不會落地）。
         audit.Stage(scope, CharityAuditActions.InvoiceManualNumber, CharityAuditTargets.Invoice, invoiceId, $"手動填入憑證號碼 {no}，原因：{reason}", null, sourceIp);
         var invoice = await invoices.ManualIssueAsync(invoiceId, no, issuedAtUtc, scope.Identity.AdminUserId, cancellationToken);
@@ -171,11 +171,11 @@ public sealed partial class CharityInvoicesAdminService(CharityDbContext db, Cha
             rows.Add(new string?[]
             {
                 CsvUtils.SafeCell(i.OrderNo),
-                i.InvoiceType == InvoiceModes.DonationReceipt ? "捐贈收據" : "電子發票",
+                CharityLabels.InvoiceMode(i.InvoiceType),
                 CsvUtils.SafeCell(i.InvoiceNo),
                 i.IssuedAt is { } issued ? issued.AddHours(8).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) : null,
-                i.IssueStatus switch { "issued" => "已開立", "failed" => "開立失敗", _ => "待開立" },
-                i.VoidStatus switch { "voided" => "已作廢", "allowance" => "已折讓", _ => "正常" },
+                CharityLabels.InvoiceIssueStatus(i.IssueStatus),
+                CharityLabels.InvoiceVoidStatus(i.VoidStatus),
                 CsvUtils.SafeCell(i.VoidReason),
                 i.Amount.ToString(CultureInfo.InvariantCulture),
                 i.PaidAt is { } paid ? paid.AddHours(8).ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) : null,
