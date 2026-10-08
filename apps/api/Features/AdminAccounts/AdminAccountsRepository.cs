@@ -8,8 +8,8 @@ using Tcrfc.Api.Security;
 namespace Tcrfc.Api.Features.AdminAccounts;
 
 /// <summary>
-/// J1 帳號管理 ＋ J4 的「後台帳號的俱樂部授權」（<c>admin_user_clubs</c>）與「球隊授權」
-/// （<c>admin_user_teams</c>），兩者都掛在帳號底下維護，理由見
+/// J1 帳號管理 ＋ J4 的「後台帳號的俱樂部授權」（<c>admin_user_clubs</c>），
+/// 掛在帳號底下維護，理由見
 /// docs/12b-database-tables.md §5.3「為什麼授權掛在人不是角色」。
 ///
 /// ⛔ 全程不回傳 <c>password_hash</c>／<c>two_factor_secret_encrypted</c>——DTO 本身就沒有這兩個
@@ -81,7 +81,6 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         var user = await dbContext.AdminUsers.AsNoTracking()
             .Include(u => u.AdminRoles)
             .Include(u => u.AdminUserClubAdminUsers).ThenInclude(g => g.Club)
-            .Include(u => u.AdminUserTeams).ThenInclude(g => g.Team).ThenInclude(t => t.Club)
             .FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
 
         return user is null ? null : ToDetailDto(user);
@@ -355,102 +354,6 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         return true;
     }
 
-    // ───────────────────────────── 寫入：球隊授權（J4，主站規劃書第 1223–1231 行） ─────────────────────────────
-
-    public async Task<IReadOnlyList<AdminAccountTeamGrantDto>?> ListTeamGrantsAsync(Guid adminUserId, CancellationToken cancellationToken)
-    {
-        if (!await dbContext.AdminUsers.AsNoTracking().AnyAsync(u => u.Id == adminUserId, cancellationToken))
-        {
-            return null;
-        }
-
-        var grants = await dbContext.AdminUserTeams.AsNoTracking()
-            .Include(g => g.Team).ThenInclude(t => t.Club)
-            .Where(g => g.AdminUserId == adminUserId)
-            .OrderBy(g => g.Team.Club.Code).ThenBy(g => g.Team.Code)
-            .ToListAsync(cancellationToken);
-
-        return grants.Select(ToTeamGrantDto).ToList();
-    }
-
-    /// <summary>
-    /// 新增或重新啟用一筆球隊授權（PK 是 <c>(admin_user_id, team_id)</c>，比照
-    /// <see cref="UpsertClubGrantAsync"/> 的 upsert 語意）。
-    ///
-    /// 🔴 **只能授權這個帳號目前有效俱樂部授權範圍內的球隊**（coordinator 指示）：球隊授權是
-    /// 俱樂部授權底下更細的列級限制，不該讓一個帳號拿到「連俱樂部本身都沒被授權」的球隊——
-    /// 那種狀態沒有任何實際意義（<see cref="Security.AdminClubAuthorizer"/> 一開始就會在俱樂部
-    /// 範圍那一關擋下這個帳號，球隊授權完全用不到）。「目前有效」＝
-    /// <c>admin_user_clubs.is_active</c> 且未到期，跟 docs/12b §7.1b「有效範圍」的定義一致。
-    /// ⚠️ **本方法只維護授權資料本身，不做任何列級強制**（例如 C4 賽程寫入檢查
-    /// <c>own_teams</c>）——C4 的寫入端點本輪尚未存在，強制點留給那一輪一併實作，見
-    /// apps/api/README.md 的說明。
-    ///
-    /// 立即生效：跟俱樂部授權一樣，任何讀取本表的檢查點都應該即時查表，不經過快取或 JWT claims。
-    /// </summary>
-    public async Task<AdminAccountTeamGrantDto?> UpsertTeamGrantAsync(
-        Guid adminUserId, CreateAdminAccountTeamGrantRequest request, CancellationToken cancellationToken)
-    {
-        if (!await dbContext.AdminUsers.AsNoTracking().AnyAsync(u => u.Id == adminUserId, cancellationToken))
-        {
-            return null;
-        }
-
-        var team = await dbContext.Teams.AsNoTracking()
-            .FirstOrDefaultAsync(t => t.Id == request.TeamId, cancellationToken);
-        if (team is null)
-        {
-            throw new AdminAccountValidationException("找不到這支球隊，請重新整理後再試一次。", "teamGrantTeamId");
-        }
-
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        var hasEffectiveClubGrant = await dbContext.AdminUserClubs.AsNoTracking()
-            .AnyAsync(g => g.AdminUserId == adminUserId && g.ClubId == team.ClubId && g.IsActive
-                        && (g.ExpiresOn == null || g.ExpiresOn >= today), cancellationToken);
-        if (!hasEffectiveClubGrant)
-        {
-            throw new AdminAccountValidationException(
-                "只能授權這個帳號目前有效俱樂部授權範圍內的球隊，請先確認該帳號已被授權這支球隊所屬的俱樂部。", "teamGrantTeamId");
-        }
-
-        var grant = await dbContext.AdminUserTeams
-            .Include(g => g.Team).ThenInclude(t => t.Club)
-            .FirstOrDefaultAsync(g => g.AdminUserId == adminUserId && g.TeamId == request.TeamId, cancellationToken);
-
-        if (grant is null)
-        {
-            grant = new AdminUserTeam { AdminUserId = adminUserId, TeamId = request.TeamId };
-            dbContext.AdminUserTeams.Add(grant);
-        }
-
-        grant.ExpiresOn = request.ExpiresOn;
-        grant.IsActive = true;
-
-        await dbContext.SaveChangesAsync(cancellationToken);
-
-        // 同 UpsertClubGrantAsync：新增列時導覽尚未載入，重新查一次確保 ToTeamGrantDto 拿得到
-        // Team.Code／Team.Club.Code。
-        await dbContext.Entry(grant).Reference(g => g.Team).LoadAsync(cancellationToken);
-        await dbContext.Entry(grant.Team).Reference(t => t.Club).LoadAsync(cancellationToken);
-        return ToTeamGrantDto(grant);
-    }
-
-    /// <summary>撤銷：<c>is_active = false</c>（軟撤銷），立即生效，理由同 <see cref="RevokeClubGrantAsync"/>。</summary>
-    public async Task<bool?> RevokeTeamGrantAsync(Guid adminUserId, Guid teamId, CancellationToken cancellationToken)
-    {
-        var grant = await dbContext.AdminUserTeams
-            .FirstOrDefaultAsync(g => g.AdminUserId == adminUserId && g.TeamId == teamId, cancellationToken);
-
-        if (grant is null)
-        {
-            return null;
-        }
-
-        grant.IsActive = false;
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return true;
-    }
-
     // ───────────────────────────── 內部工具 ─────────────────────────────
 
     private async Task RevokeAllRefreshTokensAsync(Guid adminUserId, CancellationToken cancellationToken)
@@ -536,20 +439,6 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         };
     }
 
-    private static AdminAccountTeamGrantDto ToTeamGrantDto(AdminUserTeam grant)
-    {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        return new AdminAccountTeamGrantDto
-        {
-            TeamId = grant.TeamId,
-            TeamCode = grant.Team.Code,
-            ClubCode = grant.Team.Club.Code,
-            ExpiresOn = grant.ExpiresOn,
-            IsActive = grant.IsActive,
-            IsCurrentlyEffective = grant.IsActive && (grant.ExpiresOn is null || grant.ExpiresOn >= today),
-        };
-    }
-
     private static AdminAccountDetailDto ToDetailDto(AdminUser user)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -576,15 +465,6 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
                 IsActive = g.IsActive,
                 IsCurrentlyEffective = g.IsActive && (g.ExpiresOn is null || g.ExpiresOn >= today),
             }).OrderBy(g => g.ClubCode).ToList(),
-            TeamGrants = user.AdminUserTeams.Select(g => new AdminAccountTeamGrantDto
-            {
-                TeamId = g.TeamId,
-                TeamCode = g.Team.Code,
-                ClubCode = g.Team.Club.Code,
-                ExpiresOn = g.ExpiresOn,
-                IsActive = g.IsActive,
-                IsCurrentlyEffective = g.IsActive && (g.ExpiresOn is null || g.ExpiresOn >= today),
-            }).OrderBy(g => g.ClubCode).ThenBy(g => g.TeamCode).ToList(),
             CreatedAt = user.CreatedAt,
             UpdatedAt = user.UpdatedAt,
         };

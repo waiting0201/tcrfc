@@ -85,8 +85,7 @@ export const RELATION_TARGET_TYPE_LABEL: Record<RelationTargetType, string> = {
  * `Features/Partners`），見 apps/admin/README.md「已知的 API 缺口」與 apps/api/README.md
  * 「S1-5」。**球隊**已於 S1-7 續作解除：`GET /api/v1/admin/{club}/teams`（權限碼
  * `team.team.view`，C1 俱樂部範圍端點）授予了寫新聞的唯讀角色（見
- * `src/api/adminRelationTargets.ts` 檔頭的完整說明），不再是先前回報的
- * `system.team_grant.view` 系統管理員限定端點。**不要因為想讓功能看起來完整就自己拼一份
+ * `src/api/adminRelationTargets.ts` 檔頭的完整說明），不再是先前的系統管理員限定端點。**不要因為想讓功能看起來完整就自己拼一份
  * 清單或改用假資料**——未列在這裡的類型，畫面上顯示為停用選項並附說明文字，不假裝有得選。
  */
 export const RELATION_TARGET_TYPES_AVAILABLE: RelationTargetType[] = ['player', 'team', 'match']

@@ -1,5 +1,5 @@
 /**
- * J1 帳號管理 ＋ J4「掛在帳號底下」的俱樂部／球隊授權，對照
+ * J1 帳號管理 ＋ J4「掛在帳號底下」的俱樂部授權，對照
  * `apps/api/README.md`「S1-3 續作：J1／J2／J4 端點」與 `Features/AdminAccounts/AdminAccountDtos.cs`。
  * 全域端點（不含 `{club}` 路由段），一律需要系統管理員。
  */
@@ -29,15 +29,6 @@ export interface AdminAccountClubGrantDto {
   isCurrentlyEffective: boolean
 }
 
-export interface AdminAccountTeamGrantDto {
-  teamId: string
-  teamCode: string
-  clubCode: string
-  expiresOn?: string | null
-  isActive: boolean
-  isCurrentlyEffective: boolean
-}
-
 export interface AdminAccountDetailDto {
   id: string
   username: string
@@ -52,7 +43,6 @@ export interface AdminAccountDetailDto {
   lastLoginAt?: string | null
   roleCodes: string[]
   clubGrants: AdminAccountClubGrantDto[]
-  teamGrants: AdminAccountTeamGrantDto[]
   createdAt: string
   updatedAt: string
 }
@@ -152,21 +142,4 @@ export function upsertAccountClubGrant(id: string, payload: CreateClubGrantPaylo
 
 export function revokeAccountClubGrant(id: string, clubId: string): Promise<void> {
   return apiRequest<void>(`/api/v1/admin/accounts/${id}/club-grants/${clubId}`, { method: 'DELETE' })
-}
-
-export function listAccountTeamGrants(id: string): Promise<AdminAccountTeamGrantDto[]> {
-  return apiRequest<AdminAccountTeamGrantDto[]>(`/api/v1/admin/accounts/${id}/team-grants`)
-}
-
-export interface CreateTeamGrantPayload {
-  teamId: string
-  expiresOn?: string | null
-}
-
-export function upsertAccountTeamGrant(id: string, payload: CreateTeamGrantPayload): Promise<AdminAccountTeamGrantDto> {
-  return apiRequest<AdminAccountTeamGrantDto>(`/api/v1/admin/accounts/${id}/team-grants`, { method: 'POST', body: payload })
-}
-
-export function revokeAccountTeamGrant(id: string, teamId: string): Promise<void> {
-  return apiRequest<void>(`/api/v1/admin/accounts/${id}/team-grants/${teamId}`, { method: 'DELETE' })
 }

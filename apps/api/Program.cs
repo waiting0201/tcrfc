@@ -205,7 +205,7 @@ builder.Services.AddScoped<TwoFactorSecretProtector>();
 // 跟既有的 IAdminClubAuthorizer 是同一設計哲學的另一半，見 Security/AdminSystemScope.cs。
 builder.Services.AddScoped<IAdminSystemAuthorizer, AdminSystemAuthorizer>();
 
-// ── 🔴🔴🔴 S1-8 新增：列級授權強制（role_permissions.scope_type，own_teams／academy_only）──────
+// ── 🔴🔴🔴 S1-8 新增：列級授權強制（role_permissions.scope_type，academy_only）──────
 // 見 Security/TeamRowScope.cs／IAdminTeamRowScopeResolver.cs 檔頭的完整說明。跟 IAdminClubAuthorizer
 // 是先後兩道關卡：先確認「對這個俱樂部有沒有授權、有沒有這個權限碼」，再問「這個權限碼對這個人
 // 是不是被縮限到特定球隊」。C1–C4 的寫入端點共用同一個解析器。

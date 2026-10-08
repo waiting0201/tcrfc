@@ -35,8 +35,6 @@ public partial class Team
 
     public virtual ICollection<Achievement> Achievements { get; set; } = new List<Achievement>();
 
-    public virtual ICollection<AdminUserTeam> AdminUserTeams { get; set; } = new List<AdminUserTeam>();
-
     public virtual ICollection<CalendarEventTeam> CalendarEventTeams { get; set; } = new List<CalendarEventTeam>();
 
     public virtual Club Club { get; set; } = null!;

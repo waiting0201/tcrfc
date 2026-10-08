@@ -46,7 +46,7 @@
 | 3 | ✅ **已完成**（2026-09-20） | **50 張必填 `club_id`、9 張可為空（＝兩隊共同）、43 張不加**，與主站 §5.4 逐名一致（**v3.22 起必填為 49 張**：`MenuItem` 型別移除，資料表已於 2026-10-07 刪除，遷移 `ClubMenuItemsDropContract`） | 主站 v3.10 §5.4 |
 | 4 | `Member` 帶 `tier`／`membership_start_on`／`membership_end_on` | **三欄移入新的 `Membership` 表**（`member_id` × `club_id` × `season_id`）。`Member` 維持一人一帳號、**不加 `club_id`** | 主站 v3.0 §5.1 |
 | 5 | `MemberCard` 掛在 `Member` 上 | **`membership_id` 必填——每份會籍一張卡。**「一張卡一組 token」與「驗證頁不得加適用球隊欄位」**兩條未變** | 主站 v3.0 §5.1、§3.14 |
-| 6 | `RolePermission.scope_value json`（只存不查） | **刪除。** 改由新增的 `AdminUserClub`（含授權起訖）與 `AdminUserTeam` 承載；`AdminRole` 加 `scope_mode`、`AdminUser` 加 `primary_club_id`、`Permission` 加 `is_club_scoped` | 主站 v3.0 §5.3、§6 |
+| 6 | `RolePermission.scope_value json`（只存不查） | **刪除。** 改由新增的 `AdminUserClub`（含授權起訖）承載；`AdminRole` 加 `scope_mode`、`AdminUser` 加 `primary_club_id`、`Permission` 加 `is_club_scoped` | 主站 v3.0 §5.3、§6 |
 | 7 | `PaymentChannel.subject enum(club, association)` | **改為 `owner_club_id`**，唯一鍵改 `(owner_club_id, channel_type, environment)`。主站只會有俱樂部一列 | 主站 v3.0 §5.1 |
 | 8 | 含慈善 `N` 模組 8 張表 | **移出本檔。** 慈善平台已改為獨立後台與獨立資料庫（另約 22 張表：8 張 `N` ＋ 約 14 張機制表），`Donation` 完全不屬於本系統 | 慈善 v2.0 §2 |
 | 9 | `EmailLog.type` 有 13 個值 | **降為 9 個**（會員 5 ＋ 商店 4）。慈善的 4 封隨獨立後台移出 | 主站 v3.0 §5.1 |
@@ -60,10 +60,10 @@
 | | 工作 |
 |---|---|
 | ✅ | §0 一分鐘理解、§1.4 五件事、§7 權限模型與資料範圍 |
-| ✅ | **§4 資料表總覽**（2026-09-20）：逐張標 `club_id`、加入 `Club`／`Competition`／`Membership`／`AdminUserClub`／`AdminUserTeam`、移出 `N` 模組 8 張、`EmailLog` 降為 9 個值、`PaymentChannel` 改 `owner_club_id` |
+| ✅ | **§4 資料表總覽**（2026-09-20）：逐張標 `club_id`、加入 `Club`／`Competition`／`Membership`／`AdminUserClub`、移出 `N` 模組 8 張、`EmailLog` 降為 9 個值、`PaymentChannel` 改 `owner_club_id` |
 | ✅ | **§11 唯一鍵、索引與外鍵行為**重寫（2026-09-20，[`12b`](12b-database-tables.md)） |
 | ✅ | **§6 關鍵資料表明細**重寫（2026-09-20）：`Team`／`Member`／`MemberCard`／`Order`／`PaymentChannel` 五節更新，新增 `Club`／`Membership` 兩節，移除 `Donation`／`Settlement`（[`12b`](12b-database-tables.md)） |
-| ✅ | **§5 ERD 重繪**（2026-09-20，[`12a`](12a-database-erd.md)）：加 `Club`／`Competition`／`Membership`／`AdminUserClub`／`AdminUserTeam`，56 處補上 `club_id`；移除 `N` 群（5.10 改為指向 `docs/16`）。**14 張圖** |
+| ✅ | **§5 ERD 重繪**（2026-09-20，[`12a`](12a-database-erd.md)）：加 `Club`／`Competition`／`Membership`／`AdminUserClub`，56 處補上 `club_id`；移除 `N` 群（5.10 改為指向 `docs/16`）。**14 張圖** |
 | ✅ | **§14 型別對照檢核表**重算（2026-09-20）：主站 §5.1 現列 50 個型別，49 建表、`Donation` 依規劃書明文不在本系統 |
 | ✅ | 慈善獨立庫已另出 [`16-charity-schema.md`](16-charity-schema.md)（2026-09-20，**23 張表**） |
 | ✅ | **兩項規劃書內部矛盾已修**（2026-09-20，S0-4c）：主站 **v3.11** 把 §4.12 L3 補上「圖示」、§5.1 `MemberDraw` 補上「封面圖」 |
@@ -85,8 +85,8 @@
 |---|---|
 | 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
 | 排除範圍 | **行動 App 的十一個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
-| 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam`，移出慈善 6 個 |
-| 資料表 | **116 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**；**E1a（2026-09-30）新增 `SponsorActivation`／`SponsorActivationImage`／`SponsorArticle`／`CharityProgramPartner`／`CharityProgramSponsor`／`CharityProgramArticle` 六張，107 → 113**（第 43 點）；**C1（2026-09-30）新增 `FanEventImage`／`FanEventArticle`／`DrawRosterVersion` 三張，113 → 116**（第 45 點）。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
+| 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`，移出慈善 6 個 |
+| 資料表 | **115 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**；**E1a（2026-09-30）新增 `SponsorActivation`／`SponsorActivationImage`／`SponsorArticle`／`CharityProgramPartner`／`CharityProgramSponsor`／`CharityProgramArticle` 六張，107 → 113**（第 43 點）；**C1（2026-09-30）新增 `FanEventImage`／`FanEventArticle`／`DrawRosterVersion` 三張，113 → 116**（第 45 點）；**2026-10-08 移除 `AdminUserTeam`，116 → 115**。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
 | ER 圖 | 12 張 `erDiagram` ＋ 2 張 `flowchart`，每張 ≤ 12 實體 |
 
@@ -165,7 +165,7 @@
 | # | 議題 | 本檔的技術中立寫法 | **Azure SQL 定案** |
 |---|---|---|---|
 | 1 | **陣列欄位** | 一律以關聯表表達：`team_codes[]` → `CalendarEventTeam`；`value_tags[]` → `ValueTagLink`；FAQ 複選分類 → `FaqCategoryLink` | **維持關聯表。** SQL Server 無陣列型別，且 `ValueTagLink` 是多型關聯、要能反查「哪些內容掛了這個標籤」，關聯表本來就是對的形狀 |
-| 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub`／`AdminUserTeam` 承載 | **用原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**「只存不查」維持為設計紀律**，原生型別只是保留逃生口。<br>🔴 **本機用 SQL Server 2022 容器驗證 DDL 時要先把 `json` 換成 `nvarchar(max)`**——原生 `json` 型別只在 Azure SQL Database 與 SQL Server 2025 有，2022 會報 `Msg 2715 Cannot find data type json`。**這是驗證環境的限制，不是 DDL 寫錯** |
+| 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub` 承載 | **用原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**「只存不查」維持為設計紀律**，原生型別只是保留逃生口。<br>🔴 **本機用 SQL Server 2022 容器驗證 DDL 時要先把 `json` 換成 `nvarchar(max)`**——原生 `json` 型別只在 Azure SQL Database 與 SQL Server 2025 有，2022 會報 `Msg 2715 Cannot find data type json`。**這是驗證環境的限制，不是 DDL 寫錯** |
 | 3 | **`CalendarEvent` 的實作形式** | 定義為**視圖**（`source_type` + `source_id` UNION）。若效能不足，改為**索引表**並以來源模組的寫入觸發同步 | **第一期用一般 VIEW。** 🔴 **SQL Server 的 indexed view 明文禁止 `UNION`／`UNION ALL`**，所以**沒有 materialized view 這條升級路**——不要去試。效能不足時直接走索引表 ＋ 寫入時同步，或先由 Redis 吸收 |
 | 4 | **全文檢索**（G-02 站內搜尋） | 綱要不含任何搜尋索引表，搜尋屬應用層 | **第一期用跨表 `LIKE` 比對**，不建搜尋索引表、不預先加索引（資料量在數百至數千列，掃描可接受）。升級路徑是 **Azure SQL 內建全文檢索**（有中文斷詞），**不需要外掛 Meilisearch／Typesense**。✅ H 批（2026-10-02）已做到 G-02 的分類篩選（`type`＋`facets`）與高亮所需資料（`tokens`＋`snippet`，高亮由前端做），見 `apps/api/README.md`「H 批」§4；不做的是繁中斷詞與相關度排序 |
 | **5** | **可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意** | 技術中立寫法：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」 | **採弱讀法，`UNIQUE (club_id, slug)` 就夠**——SQL Server 的唯一索引**把 NULL 當成相等**，複合唯一鍵本身已擋掉兩筆 `(NULL, 'about')`。**不加篩選唯一索引、不加觸發器**；「哪一筆對應這個網址」由路由的優先順序解決，見下 |
@@ -339,7 +339,7 @@ flowchart LR
 
 ## 4. 資料表總覽
 
-**116 張**（`CalendarEvent` 是視圖；D 批另加 4.13 的 25 張，本機庫共 187 張表），另有約 40 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
+**115 張**（`CalendarEvent` 是視圖；D 批另加 4.13 的 25 張，本機庫共 187 張表），另有約 40 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 **`club_id` 欄**：**●** 必填｜**○** 可為空（＝兩隊共同）｜**—** 不加。
 判定準則與逐表清單見主站規劃書 **§5.4**（行 1533–1579）。
@@ -545,12 +545,11 @@ flowchart LR
 | `AdminRole` | — | 角色。**`scope_mode`（`all_clubs`／`own_clubs`）**。規劃書角色是 `is_system = true` 的種子資料 | |
 | `AdminUserRole` | — | `(admin_user_id, role_id)`，多角色取聯集 | |
 | `AdminUserClub` | — | **資料範圍（v3.0 新增）**：`(admin_user_id, club_id)` ＋ `granted_on`／`expires_on`（可空）／`granted_by`／`is_active`。**到期自動失效不需人工回收** | |
-| `AdminUserTeam` | — | **資料範圍（v3.0 新增）**：`(admin_user_id, team_id)` ＋ `expires_on`／`is_active` | |
 | `Permission` | — | 權限碼字典 ＋ **`is_club_scoped`** | |
-| `RolePermission` | — | `(role_id, permission_id)`。⚠️ **`scope_value json` 已刪除**——資料範圍需要能被查詢，改由 `AdminUserClub`／`AdminUserTeam` 承載 | |
+| `RolePermission` | — | `(role_id, permission_id)`。⚠️ **`scope_value json` 已刪除**——資料範圍需要能被查詢，改由 `AdminUserClub` 承載 | |
 | `AdminRefreshToken` | — | **更新權杖的工作階段狀態**（`S1-3` 新增，2026-09-23 補文件）：`token_hash`（只存雜湊）、`issued_at`／`expires_at`、`revoked_at`、`replaced_by_id`（輪替鏈）。**登入輪替與重放偵測的必要狀態，不是權限模型的一部分**。⚠️ **刻意不存來源 IP 與裝置字串**（2026-09-23 使用者裁決拿掉，理由見 [§7.7](12b-database-tables.md#77-admin_refresh_tokens更新權杖的工作階段狀態s1-3-新增2026-09-23-補文件)） | |
 
-> 🔴 **「能做什麼」與「對誰做」拆開**：能做什麼＝角色與權限碼；**對誰做＝ `AdminUserClub`／`AdminUserTeam`，掛在「人」不掛在「角色」**——掛角色的話每多一個俱樂部就要複製九個角色，第三個俱樂部就是 27 個。
+> 🔴 **「能做什麼」與「對誰做」拆開**：能做什麼＝角色與權限碼；**對誰做＝ `AdminUserClub`，掛在「人」不掛在「角色」**——掛角色的話每多一個俱樂部就要複製九個角色，第三個俱樂部就是 27 個。
 > 🔴 **資料範圍必須在資料存取層強制**，介面隱藏不算數——擋不住直接呼叫端點與匯出。
 > 明細見 [§7](12b-database-tables.md#7-權限模型j-模組)。**本模組不含 `AuditLog`、`LoginLog`、`ExportLog`**，見 [§13.1](#131-沒有稽核與登入日誌表)。`AdminRefreshToken` 是例外——**它不是被排除的日誌表**（判準見 §7.7）：拿掉它，輪替與重放偵測直接做不到。
 
@@ -688,7 +687,7 @@ flowchart LR
 24. **`Standing` 的對手是自由文字**：`Team` 只放本會四隊，積分榜其餘球隊是 `team_name` 字串。硬要建對手球隊表會憑空長出規劃書沒有的維護負擔。
 25. **`Registration` 同時服務 `session` 與 `trial`**，兩個外鍵**恰有一個非空**。不要為試訓另建報名表。
 26. **`Enquiry` 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢**，**Lead 名單不另建表**。**沒有志工報名表**（v2.1 移出範圍）。
-27. **行事曆權限跟隨來源模組**：`RolePermission.scope_type = 'own_teams'`。學院管理者可調整所屬梯隊賽程，**但不能改一線隊賽程**——這條在資料模型上沒有欄位可擋，只能靠權限 scope。
+27. **行事曆權限跟隨來源模組**：`RolePermission.scope_type = 'academy_only'`（依 `team.type = 'academy'` 判斷）。學院管理者可調整學院梯隊賽程，**但不能改一線隊賽程**；範圍由角色的資料範圍承載，不逐帳號指派球隊（主站 v3.23）。
 28. **本檔不含行動 App 的十一個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
 29. ⛔ **有五類資料不得讀快取**：庫存與商品可購買狀態、金流回呼的冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單付款狀態、購物車。會員卡那條是**安全問題**——讀到陳舊值等於 token 撤銷機制失效。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4。
 30. 🔴 **`CalendarEvent` 不要試 indexed view**——SQL Server 明文禁止 indexed view 含 `UNION`／`UNION ALL`，而本表的定義就是 UNION。見 [§1.4](#14-dbms-相依的五件事已定案) 第 3 件。

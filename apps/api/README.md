@@ -5,6 +5,18 @@
 > 是當時的名稱，現在都是 `tcrfc_club`，不逐條改寫以保留當時的證據；**操作步驟以「怎麼跑」與
 > 「直接用 dotnet 跑」為準**。
 
+> 🔴 **2026-10-08（使用者裁決）：後台帳號的「球隊授權」整個移除。** 刪除 `AdminUserTeam` 實體與表
+> `admin_user_teams`、`/api/v1/admin/accounts/{id}/team-grants`（GET／POST／DELETE）三個端點、帳號詳情
+> `AdminAccountDetailDto.TeamGrants` 欄位、全域 `GET /api/v1/admin/teams?clubCode=`（只服務球隊授權下拉）、
+> 權限碼 `system.team_grant.view／update`、`role_permissions.scope_type` 值 `own_teams`（CHECK 值域現為
+> `all／academy_only／masked／translate_only／own_clubs`）。**保留**：`AdminUserClub`（俱樂部授權）、
+> `scope_mode`、`academy_only` 與其列級強制（`TeamRowScope`／`AdminTeamRowScopeResolver` 只剩 `all／own_clubs`
+> 不限、`academy_only` 只能碰 `teams.type='academy'`、查無即 fail-closed）、`GET /api/v1/admin/{club}/teams/writable?module=`。
+> 列級 403 訊息改為「你的角色資料範圍不允許…」。遷移 `AdminUserTeamsDropContract`（收縮型：新版 api 上線並驗證後才套用；
+> 同源 SQL 在 `db/migrations/20261008_admin-user-teams-drop_2-contract.sql`）。
+> **下方歷史紀錄中所有提到球隊授權／`AdminUserTeam`／`own_teams`／`system.team_grant.*`／
+> `GET /api/v1/admin/teams` 的段落都是當時的狀態，現已移除，不再逐條改寫。**
+
 **S0-7b（2026-09-21，`backend-engineer`）**：讓 Nuxt 前台（[`apps/web`](../web/README.md)）能打真實資料庫，
 建立球員、教練與職員、新聞、賽程與賽果、俱樂部主檔五組**唯讀** GET 端點。
 
@@ -66,7 +78,7 @@ apps/api/scripts/native-json-test.sh sql "SELECT 1" [資料庫]   # 除錯用
 | 主站 §4.10 J | 1208–1214 | J1 帳號管理：新增／停用帳號、密碼政策、2FA、`primary_club_id` |
 | 主站 §6 權限與角色矩陣 | 1597–1643 | 十種角色、資料範圍欄、「合作球隊管理」邊界 |
 | 主站 §6 資料範圍規則 | 1627–1633 | 「有效範圍＝`AdminUserClub` 中啟用且未到期的俱樂部集合」「必須在資料存取層強制」「授權有起訖日，到期自動失效」 |
-| 主站 §5.3 | 1537–1549 | `AdminUserClub`／`AdminUserTeam` 兩張關聯表的設計理由；授權掛在人不掛在角色 |
+| 主站 §5.3 | 1537–1549 | `AdminUserClub` 關聯表的設計理由；授權掛在人不掛在角色（`AdminUserTeam` 已於 2026-10-08 移除） |
 | docs/12b §7 | 全節 | 七張表、`scope_mode`、權限碼命名慣例、`username` 不用 Email、種子超管 `sa@system.local` |
 | docs/12 §13.1 | 626–666 | 🔴 **本版無稽核與登入日誌表，是委託方明文指示**——本輪應該先查這條再動工，沒有查是這次的疏漏，見上方「事後更正」 |
 
@@ -545,13 +557,10 @@ set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
    見下方「S1-3 續作：J1／J2／J4 端點」整節。
 2. ✅ **已補上（S1-3 續作，2026-09-24）**：`Features/AdminRoles`（J2 角色 CRUD、權限碼字典、
    角色權限指派）已實作，見下方新增整節。
-3. ✅ **已補上（S1-3 續作，2026-09-24；`AdminUserTeam` 為第二輪補派）**：`AdminUserClub`
-   授予／撤銷（`/api/v1/admin/accounts/{id}/club-grants`）與 `AdminUserTeam`
-   授予／撤銷（`/api/v1/admin/accounts/{id}/team-grants`）皆已實作，理由見 docs/12b §5.3
-   「授權掛在人不是角色」。**只做授權資料的維護，`role_permissions.scope_type=own_teams`
-   這類列級限制的強制留給 `S1-8`（C4 賽程與賽果的寫入端點）一併實作**，見下方「第二輪補派：
-   J4 球隊授權」整節。
-4. **`role_permissions.scope_type` 的細粒度限制沒有實作**——`own_teams`／`academy_only`／
+3. ✅ **已補上（S1-3 續作，2026-09-24）**：`AdminUserClub`
+   授予／撤銷（`/api/v1/admin/accounts/{id}/club-grants`）已實作，理由見 docs/12b §5.3
+   「授權掛在人不是角色」。（球隊授權 `AdminUserTeam` 曾於第二輪補派，已於 2026-10-08 移除。）
+4. **`role_permissions.scope_type` 的細粒度限制沒有實作**——`academy_only`／
    `masked`／`translate_only` 這幾種欄位與列層級規則（docs/12b §7.4）本輪只讀取但不強制執行，
    `PermissionChecker` 目前只做「有沒有這個權限碼」的布林判斷。等對應模組真的接真實授權時
    （例如翻譯人員只能碰 `*_i18n`）需要另外實作。
@@ -640,14 +649,7 @@ J1／J2／J4（`Club` 主檔與 `admin_user_clubs` 授權）是**全域端點**�
 | POST | `/api/v1/admin/accounts/{id}/club-grants` | `system.club_grant.update`（新增或重新啟用，upsert） |
 | DELETE | `/api/v1/admin/accounts/{id}/club-grants/{clubId}` | `system.club_grant.update`（軟撤銷 `is_active=false`） |
 
-**J4（掛在帳號底下）：`AdminUserTeam` 球隊授權**（同一個 `Features/AdminAccounts/`，
-coordinator 第二輪補派新增，見下方「第二輪補派：J4 球隊授權」整節）
-
-| 方法 | 路徑 | 權限碼 |
-|---|---|---|
-| GET | `/api/v1/admin/accounts/{id}/team-grants` | `system.team_grant.view` |
-| POST | `/api/v1/admin/accounts/{id}/team-grants` | `system.team_grant.update`（新增或重新啟用，upsert；只能授權該帳號目前有效俱樂部授權範圍內的球隊） |
-| DELETE | `/api/v1/admin/accounts/{id}/team-grants/{teamId}` | `system.team_grant.update`（軟撤銷 `is_active=false`） |
+（球隊授權 `team-grants` 三個端點已於 2026-10-08 移除。）
 
 **J2 角色與權限**（`Features/AdminRoles/`，`/api/v1/admin/roles`，全域）
 
@@ -732,36 +734,9 @@ coordinator 第二輪補派新增，見下方「第二輪補派：J4 球隊授�
    「勾了但不會生效」的誤導狀態，直接擋在寫入層。既有（種子灌入的）`system_admin` 角色底下的
    `sysadmin_only` 權限列不受這個端點影響（只替換非 `sysadmin_only` 的子集，見程式碼註解）。
 
-#### 第二輪補派：J4 球隊授權（`AdminUserTeam`，2026-09-24，coordinator 補派）
+#### 第二輪補派：J4 球隊授權（`AdminUserTeam`）——🔴 2026-10-08 已整個移除
 
-漏掉的 J4 規格：主站規劃書第 1223–1231 行 J4 表格明列「指派帳號可維護哪些球隊
-（`AdminUserTeam`），供『學院管理者不得改動一線隊賽程』這類**列級**限制使用，權限僅系統
-管理員」。比照 `AdminUserClub` 補上，一樣掛在 `Features/AdminAccounts/` 底下：
-
-- **權限碼獨立成一組 `system.team_grant.view`／`system.team_grant.update`**，不沿用
-  `system.club_grant.*`——兩者是規劃書同一張 J4 表格裡並列的兩件事（「俱樂部**與球隊**授權」），
-  資源本身也不同（`admin_user_clubs` vs `admin_user_teams`），拆開才能在日後某個角色只需要
-  其中一種時單獨授予，也讓 `PermissionChecker` 的判斷維持「一個資源一組碼」的既有慣例（跟
-  `system.account.*` 與 `system.club_grant.*` 本來就是分開的兩組是同一個道理）。跟
-  `system.club.*`／`system.club_grant.*` 一樣 `sysadmin_only=1`、`is_club_scoped=0`
-  （矩陣「系統」欄只有系統管理員）。
-- **只能授權該帳號目前有效俱樂部授權範圍內的球隊**：`AdminAccountsRepository.UpsertTeamGrantAsync`
-  在寫入前查 `admin_user_teams` 目標球隊的 `club_id`，要求該帳號在 `admin_user_clubs` 對這個
-  俱樂部有一筆 `is_active=true` 且未到期的授權，否則丟 `AdminAccountValidationException`（400）。
-  這條規則的理由：球隊授權是俱樂部授權底下更細的列級限制，一個連俱樂部本身都沒被授權的帳號，
-  取得球隊授權沒有任何實際意義（`AdminClubAuthorizer` 在俱樂部範圍那一關就會先擋下它）。
-  `admin_user_teams` 本身沒有 `granted_on`／`granted_by` 欄位（比 `admin_user_clubs` 精簡），
-  這是綱要本身的形狀，不是本輪省略——**未動 `db/club-schema.sql`，`admin_user_teams` 既有欄位
-  已足夠支撐這個端點**。
-- 撤銷（`DELETE .../team-grants/{teamId}`）一樣是軟撤銷（`is_active=false`），立即生效。
-- 🔴 **只做授權資料的維護，不做強制**（coordinator 明確指示）：這一輪**沒有**在任何寫入端點
-  加上「檢查呼叫者是否只被授權特定球隊」的判斷——列級限制真正生效的地方是 C4（賽程與賽果）
-  的寫入端點檢查 `role_permissions.scope_type = 'own_teams'` 時，同時查 `admin_user_teams`
-  過濾「這個人能碰哪些球隊」，但 **C4 的寫入端點本輪根本不存在**（`STATUS.md` `S1-7` 才是
-  `C1–C3` 球隊／球員／教練，賽程賽果的寫入是之後的 `S1-8`）。`admin_user_teams` 現在可以被
-  維護，但還沒有任何程式碼真的去讀它做過濾判斷——這跟 `role_permissions.scope_type` 的既有
-  缺口（上方「本輪沒做的部分」第 4 點）是同一件事在球隊授權這個資料表上的具體落點，**強制
-  留到 `S1-8` 一併實作**，不在本輪範圍內。
+使用者裁決球隊授權不需要：實體、表 `admin_user_teams`、`team-grants` 端點、`system.team_grant.*` 權限碼與 `own_teams` 範圍值全部刪除，見檔頭說明。學院管理者的列級限制只靠 `academy_only`（`teams.type='academy'`）。
 
 #### 待裁決事項（規劃書與 docs/12 都答不到，且影響客戶看到的行為）
 
@@ -1227,25 +1202,15 @@ publishStatus=OK  publishBody={"status":"published", ...}  dbRow=status=publishe
 唯讀查詢用途，還沒有獨立的維護畫面。回應 `AdminSeasonListItemDto`：`Id`／`Code`／`StartOn`／
 `EndOn`（`Season` 沒有側表，規劃書沒有給球季名稱欄位）。
 
-### 前端回報缺口②之二：`GET /api/v1/admin/teams`
+### 前端回報缺口②之二：`GET /api/v1/admin/teams`——🔴 2026-10-08 已移除
 
-J4「球隊授權」（`admin_user_teams`）畫面需要球隊下拉選單，且**必須跨俱樂部**——指派球隊授權的
-操作者是系統管理員，球隊本身可能來自任何俱樂部（例如系統管理員要把藍鯨的某個梯隊指派給某個
-帳號）。新增 `Features/AdminTeams/`：全域端點（無 `{club}` 路由段），比照
-`Features/AdminClubs/AdminClubsEndpoints.cs`（J4 俱樂部主檔同樣需要跨俱樂部列出全部俱樂部）
-的既有先例，用 `IAdminSystemAuthorizer`。權限碼**比照同模組既有權限碼**：沿用
-`system.team_grant.view`（J4／S1-3 續作已種好，就是「球隊授權」畫面本身的檢視權限），不新增。
-支援 `?clubCode=` 選填篩選（畫面已經選定俱樂部時可以少拉一點資料）。回應
-`AdminTeamListItemDto`：`Id`／`ClubId`／`ClubCode`／`ClubNameZh`／`Code`／`Type`／`Gender`／
-`AgeBand`／`NameZh`／`NameEn`，每列自帶俱樂部代碼與名稱，前端不必再逐一查詢俱樂部主檔湊跨俱樂部
-畫面。
+這支跨俱樂部球隊下拉只服務已移除的球隊授權畫面，連同 `system.team_grant.view` 權限碼與 `AdminTeamListItemDto` 一併刪除。
 
 ### 三個新端點的授權測試
 
 `AdminMeEndpointTests.cs`（401 未登入、一般角色只看得到自己被授權且未過期的俱樂部、過期授權不
 出現在清單、系統管理員看得到全部啟用中的俱樂部）、`AdminSeasonsEndpointTests.cs`（401、403 無該
-俱樂部授權、有權限的角色 200、檢視者唯讀角色 200）、`AdminTeamsEndpointTests.cs`（401、非系統
-管理員 403、系統管理員一次拿到跨俱樂部的球隊清單、`clubCode` 篩選）——共 12 項，全部通過，
+俱樂部授權、有權限的角色 200、檢視者唯讀角色 200）、`AdminTeamsEndpointTests.cs`（已隨 `GET /api/v1/admin/teams` 於 2026-10-08 刪除）——共 12 項，全部通過，
 全套 `dotnet test`（`Tcrfc.Api.Tests.csproj`）由 224 項增為 **236 項，全數通過**。
 
 ### 本次沒動的部分
@@ -1787,12 +1752,11 @@ S0-7b 既有行為一致）。回報給下一輪決定：①要不要真的加�
 ### 🔴 學院／課程管理（`academy_program`）本輪刻意不給 C1–C3 權限
 
 矩陣寫「學院梯隊」（`scope_type=academy_only`——只能碰 `team.type='academy'` 的球隊與其球員／
-教練），但**這個角色的列級範圍過濾本輪沒有做**（依 `team.type` 或 `AdminUserTeam` 篩資料列）。
+教練），但**這個角色的列級範圍過濾本輪沒有做**（依 `team.type` 篩資料列）。
 任務指示明確要求「本輪球員／教練的寫入若規劃書要求依球隊授權限制，先回報再決定，不要自己擴大
 範圍」——在列級強制做出來之前先發這三組權限碼給 `academy_program`，效果等同給它跟
 `team_competition` 一樣的全俱樂部球隊存取權（含一線隊），超出矩陣「僅學院梯隊」的授權意圖，
-是擴大範圍不是保守預設，因此本輪不發。`role_permissions.scope_type='own_teams'`（行事曆）與
-本項（`academy_only`）性質相同，`STATUS.md` 已把前者排在 `S1-8`；**本項的列級強制建議與 `S1-8`
+是擴大範圍不是保守預設，因此本輪不發。**本項的列級強制建議與 `S1-8`
 一併處理或另開一項**，屆時把 `academy_program` 的三組權限碼一起補上。
 
 ### 改了哪些檔案
@@ -1860,7 +1824,7 @@ has-pending-model-changes` 綠燈。
 - 沒有 DELETE 端點（見上方「端點與權限碼」的說明）。
 - 沒有球員肖像同意欄位與相關輸出邏輯（見上方「未實作」段）。
 - 沒有給 `academy_program`／`translator` 兩個角色任何 C1–C3 權限（見上方對應段落）。
-- 沒有實作 `role_permissions.scope_type` 的列級強制（`own_teams`／`academy_only`）——跟現有
+- 沒有實作 `role_permissions.scope_type` 的列級強制（`academy_only`）——跟現有
   `team.competition.*` 的既有狀態一致，`STATUS.md` 已把這件事排在 `S1-8`。
 - 沒有修改 `apps/admin`（前端接線留給前端 agent）。
 - 沒有 commit。
@@ -2119,7 +2083,7 @@ dotnet ef migrations has-pending-model-changes --context ClubDbContext
 
 ---
 
-## S1-8：`C4` 賽程與賽果／積分榜 ＋ 列級授權強制（`own_teams`／`academy_only`）（2026-09-24，`backend-engineer`）
+## S1-8：`C4` 賽程與賽果／積分榜 ＋ 列級授權強制（`academy_only`；`own_teams` 已於 2026-10-08 移除）（2026-09-24，`backend-engineer`）
 
 ### 讀到的規劃書條文
 
@@ -2198,15 +2162,13 @@ permissionCode)` 針對**這個具體權限碼**算出 `TeamRowScope`——同�
 |---|---|---|
 | `Allows(teamId, teamType)` | 單一既有球隊資源 | C1 更新既有球隊本身、C2 球員的 `team_id`、C4 賽事逐一關聯球隊 |
 | `AllowsAll(IReadOnlyCollection<(TeamId, TeamType)>)` | 多筆關聯，任何一筆不通過整體就不通過；**空集合視為不通過**（fail-closed） | C3 教練的 `staff_teams`（可能同時帶多個梯隊）、C4 賽事的 `match_teams`（跨梯隊友誼賽可複選） |
-| `AllowsCreatingTeamOfType(newTeamType)` | 建立**全新**球隊（沒有既有 id 可比對） | C1 建立球隊：`own_teams` 範圍一律不能新建（現實對應：被個別指派特定梯隊的帳號不該有新建球隊這種俱樂部層級操作）；`academy_only` 範圍只能建 `academy` 類型 |
+| `AllowsCreatingTeamOfType(newTeamType)` | 建立**全新**球隊（沒有既有 id 可比對） | C1 建立球隊：`academy_only` 範圍只能建 `academy` 類型 |
 
-**`own_teams`／`academy_only` 的組裝邏輯**（`AdminTeamRowScopeResolver.ResolveAsync`）：
+**`academy_only` 的組裝邏輯**（2026-10-08 起 `own_teams` 分支已移除）（`AdminTeamRowScopeResolver.ResolveAsync`）：
 - 任一角色的這個權限碼是 `all`（或 `own_clubs`，見下方發現）→ `IsUnrestricted=true`，其餘分支
   略過。
-- 否則把 `academy_only`（設 `AllowsAcademyBlanket=true`，比對時看球隊的 `teams.type` 是否為
-  `academy`，不用先查一份「全部 academy 球隊 id」的清單）與 `own_teams`（查 `admin_user_teams`
-  中 `is_active` 且 `expires_on` 未到期的 `team_id` 集合）**聯集**——同一個人可能同時因為不同
-  角色分別拿到這兩種授權方式。
+- 否則看有沒有 `academy_only`（設 `AllowsAcademyBlanket=true`，比對時看球隊的 `teams.type` 是否為
+  `academy`，不用先查一份「全部 academy 球隊 id」的清單）。
 - 查無任何 `scope_type`（理論上不會發生，因為呼叫端已經先過權限碼檢查）→ **fail-closed**（完全
   限制），不是預設放行。
 
@@ -2367,9 +2329,7 @@ S1-15／S1-19 那一輪的範圍，這裡只確保後台資料已經備妥），
 成功案例（建立／取得／更新／刪除、硬刪除後 404）、狀態值域與對手必填驗證、延賽三種情境（缺原定
 日期擋下、非延賽夾原定日期擋下、合法延賽成功）、場次編號同季同聯賽唯一（含更新排除自己不誤判）、
 **`academy_only` 列級授權**（學院梯隊成功、一線隊 403、跨梯隊混合整筆擋下、既有一線隊賽事無法
-修改／刪除、防止把既有學院賽事改指派到一線隊逃脫範圍）、**`own_teams` 列級授權**（用
-`WithTemporaryScopeTypeAsync` 直接改一筆既有 `role_permissions.scope_type` 示範機制本身：
-未授權前擋下、授權後成功、授權到期後視同未授權再度擋下，測完還原）、CSV 匯入成功案例、CSV 整批
+修改／刪除、防止把既有學院賽事改指派到一線隊逃脫範圍）、（原 `own_teams` 列級授權測試已於 2026-10-08 隨球隊授權移除）、CSV 匯入成功案例、CSV 整批
 驗證（一列有錯整批不寫入，含行號核對）、CSV 場次編號檔案內重複、CSV 列級授權（`academy_only`
 帳號匯入含一線隊代號的 CSV，回報列級授權錯誤而非其他錯誤）、積分榜 CRUD、積分榜 CSV 整季替換、
 積分榜 CSV 混雜賽季代碼擋下、公開賽程端點向後相容。
@@ -2515,12 +2475,10 @@ No changes have been made to the model since the last migration.
 tuple 裡的權限碼共用同一個 `scope_type`），但這是現況慣例不是保證，日後如果角色權限拆到「能新增
 但不能改」這種更細的組合，需要重新檢視這裡該用哪個碼。
 
-**測試**（`Tcrfc.Api.Tests/AdminTeamsWritableEndpointTests.cs`，5 項，用 `bw` 俱樂部——`tcrfc` 只有
+**測試**（`Tcrfc.Api.Tests/AdminTeamsWritableEndpointTests.cs`，原 5 項，用 `bw` 俱樂部——`tcrfc` 只有
 `D1` 一支球隊，示範不出「收斂成部分球隊」的過濾效果，`bw` 有 `BW1`／`BW-U15`／`BW-U12` 三支）：
 未登入 401；`module` 缺漏或不支援 400；系統管理員看得到 `bw` 全部三支球隊；`academy_program`
-（`academy.manager@tcrfc.test`）只看得到 `BW-U15`／`BW-U12`，看不到 `BW1`；`own_teams`（直接改
-`partner_club_manager`／`team.match.update` 的 `scope_type` 示範機制本身，測完還原）授權前清單為
-空、授權 `BW-U15` 後清單只有 `BW-U15`、授權到期後清單再度變空。
+（`academy.manager@tcrfc.test`）只看得到 `BW-U15`／`BW-U12`，看不到 `BW1`（原 `own_teams` 案例已於 2026-10-08 刪除，現為 4 項）。
 
 ### 測試結果
 
@@ -10571,3 +10529,13 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 - 整批紅燈先看是不是「本機庫種子缺」：`AdminC1MiscTests.種子基線…`、`DevAcceptanceSeedTests` 失敗即是，重灌種子 `./db/seed/apply-seed.sh`（冪等）而不是逐項追。
 - 頁面版型遷移 `db/migrations/20261007_page-templates.sql`（產生器 `db/seed/generate-page-template-migration.py`）新增兩個修復：目標 slug 已存在時刪除藍鯨舊 `about/vision` 孤兒頁；區塊內容不是合法 JSON 的頁面視為與版型不符、整頁以版型內容重建。`AdminPageTemplatesTests` 會自己對本機庫套用此遷移（冪等）。
 - 測試守則：對種子列做會真的成功的破壞性呼叫前先斷言前提；建立資料的 helper 在回傳前失敗要自行收拾（`AdminDrawsTests.LockedDrawAsync`）。
+
+---
+
+## 2026-10-08：移除後台帳號「球隊授權」（使用者裁決）
+
+**刪除**：`AdminUserTeam` 實體與表 `admin_user_teams`；`GET／POST /api/v1/admin/accounts/{id}/team-grants`、`DELETE /api/v1/admin/accounts/{id}/team-grants/{teamId}`；`AdminAccountDetailDto.TeamGrants`（JSON `teamGrants`）、`AdminAccountTeamGrantDto`、`CreateAdminAccountTeamGrantRequest`；全域 `GET /api/v1/admin/teams?clubCode=`（`AdminTeamListItemDto`）；權限碼 `system.team_grant.view／update`；`role_permissions.scope_type` 值 `own_teams`（`AdminRolesRepository` 的合法值域與 CHECK 同步）；慈善後台帳號詳情的恆空 `TeamGrants` 欄位。
+**保留不動**：`AdminUserClub`、`scope_mode`、`academy_only` 及其列級強制（`TeamRowScope.Allows`／`AllowsAll`／`AllowsCreatingTeamOfType` 現只剩「不限（`all`／`own_clubs`／超管）」與「`academy_only`＝只能碰 `teams.type='academy'`」兩種結果，查無 `scope_type` 仍 fail-closed）、`GET /api/v1/admin/{club}/teams/writable?module=`。
+**403 訊息**：列級授權擋下時一律「你的角色資料範圍不允許…」（不再提球隊授權，也不帶權限碼）。
+**遷移**：EF `20261008073653_AdminUserTeamsDropContract`（收縮型，新版 api 上線驗證後才經 `production-db` 關卡套用；舊版 api 仍會查 `admin_user_teams`）。`Up`：刪 `scope_type='own_teams'` 殘留列（fail-closed，預期 0 列）→ 依「掛在該欄位上的 CHECK」動態查名稱拆舊 CHECK、重建 `CK_role_permissions_scope_type`（不含 `own_teams`；DDL 建的庫上舊 CHECK 是匿名自動命名）→ 刪表 → 刪兩個權限碼（`role_permissions` 由 FK 連動）。`Down` 只還原表結構與含 `own_teams` 的 CHECK。全部冪等；同源 SQL `db/migrations/20261008_admin-user-teams-drop_2-contract.sql`（本機 `tcrfc_club` 已套用兩次驗證冪等）。`db/club-schema.sql`、`db/seed/generate-club-seed-sql.py`、`db/prod/club-reference-data.sql`（已重產）同步。
+**測試**：刪除球隊授權相關案例（`AdminAccountsTests` 4 項、`AdminTeamsEndpointTests` 整檔 4 項、`AdminTeamsWritableEndpointTests` 與 `AdminMatchesAndStandingsTests` 各 1 項 `own_teams`）；`academy_only` 列級強制的測試全部保留。

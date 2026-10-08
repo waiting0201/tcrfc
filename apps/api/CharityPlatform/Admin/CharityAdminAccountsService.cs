@@ -303,7 +303,6 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
         LastLoginAt = user.LastLoginAt,
         RoleCodes = user.AdminRoles.Select(r => r.Code).OrderBy(c => c).ToList(),
         ClubGrants = [],
-        TeamGrants = [],
         CreatedAt = user.CreatedAt,
         UpdatedAt = user.UpdatedAt,
     };

@@ -5,8 +5,7 @@
  * 打得到的：公開端點 `GET /api/v1/{club}/players`／`GET /api/v1/{club}/schedule`（不需要登入，
  * 任何角色都能查）；**球隊**自 S1-7 起改接 `GET /api/v1/admin/{club}/teams`（權限碼
  * `team.team.view`，C1 俱樂部範圍端點）——這**不是**先前回報的那支系統管理員限定端點
- * （`GET /api/v1/admin/teams`，`system.team_grant.view`，那支是 J4 球隊授權下拉選單用的
- * 全域端點，兩者恰好同名資源但完全不同）。主站規劃書 §6「球隊／賽事」欄矩陣把
+ * （先前的全域球隊清單端點已一併移除）。主站規劃書 §6「球隊／賽事」欄矩陣把
  * `team.team.view` 授予「內容編輯」等唯讀角色（見 apps/api/README.md「S1-7」「角色授予」表），
  * 寫新聞的 `content_editor` 帳號因此打得到這支端點，不會得到 403，任務指示要求的查證已完成。
  * **課程**與**夥伴**則是後端根本還沒有對應模組（沒有 `Features/Programs`／`Features/Partners`）。

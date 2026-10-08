@@ -27,13 +27,11 @@ public sealed class TeamRowScope
 {
     private readonly bool _isUnrestricted;
     private readonly bool _allowsAcademyBlanket;
-    private readonly IReadOnlySet<Guid> _ownTeamsGrantedIds;
 
-    internal TeamRowScope(bool isUnrestricted, bool allowsAcademyBlanket, IReadOnlySet<Guid> ownTeamsGrantedIds)
+    internal TeamRowScope(bool isUnrestricted, bool allowsAcademyBlanket)
     {
         _isUnrestricted = isUnrestricted;
         _allowsAcademyBlanket = allowsAcademyBlanket;
-        _ownTeamsGrantedIds = ownTeamsGrantedIds;
     }
 
     /// <summary>整個俱樂部隨便碰——<c>scope_type = 'all'</c>（或系統管理員，跳過整個查詢）。</summary>
@@ -47,8 +45,7 @@ public sealed class TeamRowScope
     /// </summary>
     public bool Allows(Guid teamId, string teamType)
         => _isUnrestricted
-        || (_allowsAcademyBlanket && teamType == "academy")
-        || _ownTeamsGrantedIds.Contains(teamId);
+        || (_allowsAcademyBlanket && teamType == "academy");
 
     /// <summary>
     /// 一次檢查多筆關聯（C3 教練可能同時帶多個梯隊、C4 一場跨梯隊友誼賽可能同時掛多支球隊，
@@ -62,11 +59,8 @@ public sealed class TeamRowScope
         => _isUnrestricted || (teams.Count > 0 && teams.All(t => Allows(t.TeamId, t.TeamType)));
 
     /// <summary>
-    /// C1「建立一支全新的球隊」專用——這時候還沒有既有的 <c>teams.id</c> 可以查
-    /// <see cref="_ownTeamsGrantedIds"/>（<c>own_teams</c> 授權只可能指向已經存在的球隊，
-    /// 不可能預先指向一支還沒建立的球隊），所以 <c>own_teams</c> 範圍的帳號**一律不能新建球隊**
-    /// （現實對應：被個別指派特定梯隊的帳號，本來就不該有新建球隊這種俱樂部層級的操作）；
-    /// <c>academy_only</c> 範圍的帳號則可以新建球隊，但只能建 <paramref name="newTeamType"/>
+    /// C1「建立一支全新的球隊」專用——這時候還沒有既有的 <c>teams.id</c> 可以比對，
+    /// <c>academy_only</c> 範圍的帳號可以新建球隊，但只能建 <paramref name="newTeamType"/>
     /// 為 <c>academy</c> 的球隊。
     /// </summary>
     public bool AllowsCreatingTeamOfType(string newTeamType)

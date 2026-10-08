@@ -1219,8 +1219,6 @@ erDiagram
   club ||--o{ admin_user_club : ""
   club ||--o{ club_i18n : "zh-Hant 必存, en 可缺"
   locale ||--o{ club_i18n : ""
-  admin_user ||--o{ admin_user_team : "資料範圍：對哪一隊"
-  team ||--o{ admin_user_team : ""
   admin_user ||--o{ admin_refresh_token : "登入工作階段"
   admin_refresh_token |o--o| admin_refresh_token : "輪替鏈 replaced_by_id"
   club ||--o{ setting : ""
@@ -1284,7 +1282,6 @@ erDiagram
     uuid granted_by FK
     bool is_active
   }
-  admin_user_team {
     uuid admin_user_id FK
     uuid team_id FK
     date expires_on
@@ -1377,7 +1374,6 @@ erDiagram
 > 🔴 **`admin_refresh_token`（`S1-3` 新增，2026-09-23）是更新權杖輪替與重放偵測的必要狀態，不是被排除的日誌表**——刪掉它，登入工作階段就無法安全地輪替或撤銷（判準見 [`12b` §7.7](12b-database-tables.md#77-admin_refresh_tokens更新權杖的工作階段狀態s1-3-新增2026-09-23-補文件)）。⚠️ **它刻意不存來源 IP 與裝置字串**：原本有 `created_ip`／`user_agent` 兩欄，因為**只寫入、程式裡沒有任何地方讀取、也沒有清除機制**，等同一份持續增長的登入位置紀錄，與 §13.1 明文排除的「來源 IP」重疊，已依 **2026-09-23 使用者裁決拿掉**。日後若真要做裝置綁定或異常偵測再加回來——**那時它才有讀取端、才說得上是功能而不是紀錄**。
 > ⚠️ **`email_log` 是功能單元**（後台要查信寄出去了沒），`type` 值域 **9 個**（會員 5 ＋ 商店 4）。
 > 🔴 **「能做什麼」與「對誰做」拆開**（v3.0）：能做什麼＝`admin_role` → `role_permission` → `permission`；
-> **對誰做＝ `admin_user_club`／`admin_user_team`，掛在「人」不掛在「角色」**——掛角色的話每多一個俱樂部就要複製九個角色。
 > 🔴 **`role_permission.scope_value json` 已刪除**——資料範圍需要能被查詢，`json` 的「只存不查」紀律做不到。
 > 🔴 **`admin_user.primary_club_id` 只是站台切換器的預設值，不是資料範圍。**
 > 🔴 **資料範圍必須在資料存取層強制**，介面隱藏不算數——擋不住直接呼叫端點與匯出。`expires_on` **到期自動失效，不需人工回收**。

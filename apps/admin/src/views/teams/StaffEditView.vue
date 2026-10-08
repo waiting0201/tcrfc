@@ -251,7 +251,7 @@ function retryLoad() {
         </span>
         <span v-else-if="loadState === 'ready' && outOfScopeTeamIds.length > 0" class="staff-edit__shared-note">
           <el-tag type="info" size="small">唯讀</el-tag>
-          你的帳號沒有「{{ outOfScopeTeamNames.join('、') }}」的球隊授權範圍，這筆資料僅能檢視，如需修改請聯繫系統管理員
+          你的角色不能編輯「{{ outOfScopeTeamNames.join('、') }}」（例如學院管理者只能編輯學院梯隊），這筆資料僅能檢視，如需修改請聯繫系統管理員
         </span>
       </template>
     </PageHeader>
@@ -320,7 +320,7 @@ function retryLoad() {
                         filterable
                         placeholder="選擇球隊"
                         class="staff-edit__team-select"
-                        no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+                        no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認你的角色資料範圍"
                       >
                         <el-option v-for="t in writableTeams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
                       </el-select>

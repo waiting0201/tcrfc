@@ -82,9 +82,8 @@ S1-7a）」各節。
 ✅ **S1-4（2026-09-24）：頁面管理（B1）＋站台切換器改接 `/auth/me`＋賽季／球隊改真下拉選單**——
 新增「頁面管理」完整畫面（列表、12 種區塊的區塊化編輯器、發布／排程、版本歷程與還原、預覽連結），
 站台切換器改讀 `GET /api/v1/admin/auth/me`（只列出這個帳號目前有效的俱樂部授權，系統管理員例外
-看到全部啟用中的俱樂部）並帶出登入者姓名給 `UserMenu.vue`；賽事系列的「賽季」與帳號的「球隊授權」
-兩處原本「沒有清單只能貼識別碼」的暫時作法，已改接 `GET /admin/{club}/seasons`／
-`GET /admin/teams` 真下拉選單。詳見下方「B1 頁面管理」「站台切換器」「賽事系列」「系統管理畫面」
+看到全部啟用中的俱樂部）並帶出登入者姓名給 `UserMenu.vue`；賽事系列的「賽季」
+原本「沒有清單只能貼識別碼」的暫時作法，已改接 `GET /admin/{club}/seasons` 真下拉選單。詳見下方「B1 頁面管理」「站台切換器」「賽事系列」「系統管理畫面」
 各節與「本輪驗收（S1-4）」。
 
 ✅ **S1（2026-09-24）：接上真實登入與 J1／J2／J4／C4 賽事系列**——外殼＋儀表板＋「新聞與故事」
@@ -283,11 +282,11 @@ apps/admin/
 │   │   ├── adminAuth.ts        # 登入／refresh／登出／改密／2FA／`getMe`（S1-4 新增，見上方「站台切換器」）
 │   │   ├── adminNews.ts        # B2（既有）
 │   │   ├── adminPages.ts       # B1 頁面管理，S1-4 新增，見下方「頁面管理」
-│   │   ├── adminAccounts.ts    # J1 帳號 ＋ J4 掛在帳號底下的俱樂部／球隊授權
+│   │   ├── adminAccounts.ts    # J1 帳號 ＋ J4 掛在帳號底下的俱樂部授權
 │   │   ├── adminRoles.ts       # J2 角色與權限
 │   │   ├── adminClubs.ts       # J4 俱樂部主檔（OG 圖鍵唯讀；標誌／favicon／品牌色已於主站規劃書 v3.20 移除）
 │   │   ├── adminCompetitions.ts # C4 賽事系列（S1-4 新增 `listAdminSeasons`，見下方「賽事系列」）
-│   │   └── adminTeams.ts       # J4 球隊授權下拉選單，S1-4 新增（原 `publicClubs.ts` 已隨站台切換器改接 `/auth/me` 一併刪除）
+│   │   └── adminTeams.ts       # C1 球隊管理與可寫入球隊清單（原 `publicClubs.ts` 已隨站台切換器改接 `/auth/me` 一併刪除）
 │   ├── data/                 # 假資料與靜態設定，見下方「假資料放哪」
 │   ├── types/                 # 共用 TypeScript 型別（`pageBlocks.ts` 為 S1-4 新增，見下方「頁面管理」）
 │   ├── utils/pageBlockSerializer.ts # B1 區塊畫面狀態 ↔ 後端 JSON 互轉，S1-4 新增，見下方「頁面管理」
@@ -576,8 +575,9 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
   關鍵字）、新增（帳號、姓名、Email、預設俱樂部、初始密碼、系統管理員開關、角色多選）、編輯
   基本資料、停用／啟用、重設密碼、重設兩階段驗證。**建立帳號不寄邀請信**（apps/api 的定案寫法，
   見該檔案「執行層判斷」第 1 點）——初始密碼由建立者透過站外管道轉交，畫面成功訊息有提醒這點。
-  帳號編輯頁同時是 **J4「掛在帳號底下」的俱樂部授權／球隊授權**維護入口（規劃書 §5.3「授權掛在
-  人不是角色」）：兩個分頁各自列出目前授權、新增（俱樂部／球隊 ＋ 選填到期日）、撤銷。
+  帳號編輯頁同時是 **J4「掛在帳號底下」的俱樂部授權**維護入口（規劃書 §5.3「授權掛在
+  人不是角色」）：列出目前授權、新增（俱樂部 ＋ 選填到期日）、撤銷。**帳號沒有「球隊授權」**
+  （2026-10-08 使用者裁決移除）；球隊層級的限制只剩角色的資料範圍（學院管理者只能編輯學院梯隊）。
 - **J2 角色與權限**（`RoleListView.vue`／`RoleEditView.vue`）：角色 CRUD（系統內建角色鎖定
   基本資料，只能調整權限）、刪除前擋下「系統角色」與「仍有帳號指派」兩種情況、權限勾選矩陣依
   `moduleCode` 分組顯示**中文模組名稱**（不是代號，見 `MODULE_NAME_LABEL`）、每個勾選的權限碼
@@ -604,11 +604,7 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 供對照。**這是唯讀查詢用途**，賽季本身的維護（新增／編輯賽季）尚未開放，權限碼沿用既有的
 `team.competition.view`，未新增權限碼。
 
-同一類缺口也在 **J4 球隊授權**（`AccountEditView.vue` 的球隊授權分頁）解決：改接
-`GET /admin/teams`（`src/api/adminTeams.ts`），依俱樂部分組顯示下拉選單，且畫面上**只列出
-這個帳號目前已授權俱樂部底下的球隊**（後端也會擋，這是前端提前收斂選項範圍，避免使用者選了
-一個必然會被拒絕的球隊）——這個帳號一筆有效俱樂部授權都沒有時，畫面會提示「請先在上方新增
-俱樂部授權」而不是顯示一個空的下拉選單。
+（原 J4 球隊授權分頁與全域 `GET /admin/teams` 下拉選單已於 2026-10-08 隨「帳號球隊授權」移除。）
 
 ## 頁面管理（B1，S1-4，2026-09-24）
 
@@ -716,7 +712,7 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 - `AccountEditView.vue`／`RoleEditView.vue`／`ClubEditView.vue`／`CompetitionEditView.vue` 原本
   用 `const isCreate = route.name === 'xxx-new'` 判斷模式——這是一次性求值，Vue Router 在
   `router.replace()` 導去「同一個元件、不同路由」（新增 → 編輯）時預設會**重用元件實例**，
-  `isCreate` 因此永遠停在建立當下的值，導致建立成功後俱樂部／球隊授權分頁、頁面標題全部繼續
+  `isCreate` 因此永遠停在建立當下的值，導致建立成功後俱樂部授權區塊、頁面標題全部繼續
   顯示「新增」狀態。改成 `computed(() => route.name === 'xxx-new')` 後才正確反應路由變化。
   用無頭瀏覽器實際建立一筆帳號、觀察分頁消失又重新出現，才抓到這個問題——單靠型別檢查與人工
   讀碼看不出來。
@@ -725,8 +721,7 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
   更新）。改成改密成功後、若兩階段驗證仍未開，`router.replace` 把 `forced` 換成 `totp`，提示文字
   才會跟著換成正確的下一步。
 
-已知**不在本輪自動化驗證範圍內**：球隊授權分頁（受限於上方「已知 API 缺口」第 3 點，沒有球隊可選
-就無法真的送出一筆）、J4 俱樂部主檔的建立／編輯（邏輯與帳號／角色同一套 CRUD 樣板，已用
+已知**不在本輪自動化驗證範圍內**：J4 俱樂部主檔的建立／編輯（邏輯與帳號／角色同一套 CRUD 樣板，已用
 `npm run build` 與型別檢查覆蓋，但沒有另外用瀏覽器實際點過）。測試用的帳號與授權資料已於驗收後
 清除，`tcrfc_club_dev` 恢復乾淨；`sa@system.local` 的密碼與兩階段驗證狀態在測試過程中被永久改變
 （不再是種子腳本原始的 `Admin@123` ／2FA 停用），需要下一位知悉——種子腳本本身沒有改，重新套用
@@ -784,8 +779,8 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 | 球員 | ✅ 有 | 公開端點 `GET /api/v1/{club}/players`（不需要登入，任何角色都能查），新增
   `src/api/adminRelationTargets.ts` 的 `listPlayerRelationOptions()` |
 | 賽事 | ✅ 有 | 公開端點 `GET /api/v1/{club}/schedule`，同檔案的 `listMatchRelationOptions()` |
-| 球隊 | ⚠️ 技術上有端點，但一般寫新聞的角色用不到 | `GET /api/v1/admin/teams` 存在（S1-4 續作為 J4
-  球隊授權新增），但權限碼 `system.team_grant.view` 是 `sysadmin_only`——`content_editor`／
+| 球隊 | ⚠️ 技術上有端點，但一般寫新聞的角色用不到 | `GET /api/v1/admin/teams` 存在（曾為 J4
+  球隊授權新增，該功能已於 2026-10-08 移除），但當時權限碼是 `sysadmin_only`——`content_editor`／
   `team_competition` 這些實際會寫新聞的角色本來就沒有這個權限碼，接了也只會在打開下拉選單時
   得到 403，不是真的可用。**沒有接**，等後端補一支給內容編輯角色查得到的球隊清單（權限碼另開或
   沿用 `team.competition.view` 那一組資料範圍）再回頭做 |
@@ -1123,9 +1118,7 @@ Vue 的 `@click` 處理常式）才穩定選取成功，並用多次獨立驗證
 
 本階段（S1～S1-7a 累計）**做了**：外殼（側欄＋頂欄＋站台切換器＋使用者選單，全部接真實登入，
 切換器只列出被授權的俱樂部並顯示真實姓名）、儀表板、新聞與故事的列表頁與編輯頁、**登入／TOTP
-兩階段驗證／首次登入強制改密／JWT 15 分鐘＋更新權杖輪替與自動 refresh／登出**、帳號管理（J1，
-球隊授權改真下拉選單）、角色與權限（J2）、俱樂部與授權管理（J4，含掛在帳號底下的俱樂部授權與
-球隊授權）、賽事系列（C4 的一小部分，賽季改真下拉選單）、**頁面管理（B1）完整畫面**：列表頁、
+兩階段驗證／首次登入強制改密／JWT 15 分鐘＋更新權杖輪替與自動 refresh／登出**、帳號管理（J1）、角色與權限（J2）、俱樂部與授權管理（J4，含掛在帳號底下的俱樂部授權）、賽事系列（C4 的一小部分，賽季改真下拉選單）、**頁面管理（B1）完整畫面**：列表頁、
 新增／編輯頁（12 種區塊的區塊化編輯器：新增、排序、刪除、雙語、圖片選檔不上傳儲存才上傳）、
 SEO 設定、發布／排程、版本歷程與還原、預覽連結（顯示並可複製）、**新聞與故事（B2）補完**：
 標籤（find-or-create）、核心價值標籤、關聯（球員／球隊／賽事，球隊選項已於本輪解除停用，
@@ -1154,9 +1147,7 @@ apps/api 已在 S1-4 續作全部補上對應端點（見 apps/api/README.md「S
 1. ✅ **`GET /api/v1/admin/auth/me`**：已接線，見上方「站台切換器改接 `GET /api/v1/admin/auth/me`」。
 2. ✅ **`GET /admin/{club}/seasons`**：已接線，見下方「賽事系列」一節——`CompetitionEditView.vue`
    的「賽季」欄位已改成真正的下拉選單（顯示球季代碼與起訖日），不再需要使用者自己貼識別碼。
-3. ✅ **`GET /admin/teams`**：已接線，見下方「系統管理畫面」一節——`AccountEditView.vue` 的
-   球隊授權分頁已改成依俱樂部分組的下拉選單，且**只列出這個帳號目前已授權俱樂部底下的球隊**
-   （前端先收斂選項範圍，後端仍會再檢查一次，兩層防線）。
+3. ✅ ~~`GET /admin/teams`~~：原供帳號球隊授權分頁使用，該功能已於 2026-10-08 移除。
 
 **本輪新增的已知缺口（B1 頁面管理，回報，未動手改 `apps/api`）**：
 
@@ -1201,7 +1192,7 @@ apps/api 已在 S1-4 續作全部補上對應端點（見 apps/api/README.md「S
 14. ✅ **已解決（2026-09-24）：C1–C3（含 C4）的「所屬球隊」／「負責梯隊」／「參賽球隊」下拉
     選單已改接「我能寫哪些球隊」端點**：後端在 S1-8 續作新增
     `GET /api/v1/admin/{club}/teams/writable?module=team|player|staff|match`（見
-    apps/api/README.md「S1-8 續作」第 3 節），已回傳依 `academy_only`／`own_teams` 列級授權
+    apps/api/README.md「S1-8 續作」第 3 節），已回傳依角色資料範圍（`academy_only`）
     收斂過的可寫球隊清單。C2 球員的「所屬球隊」、C3 教練與團隊成員的「負責梯隊」、C4 賽事的
     「參賽球隊」三個選單皆已改接這支端點（`src/composables/useWritableTeamScope.ts`），只列出
     這個帳號目前能寫的球隊；編輯既有資料時，若既有關聯的球隊不在可寫清單內（例如學院管理者
@@ -1268,24 +1259,24 @@ refresh-retry）。結果對話框：全部成功顯示匯入筆數；有錯誤�
 降低誤按風險。匯入結果對話框在成功時額外顯示「原本 N 筆既有資料已被清除並換成新內容」，讓使用者
 知道實際發生了什麼，不是只看到一個模糊的成功訊息。
 
-⚠️ **這個模組沒有球隊列級授權**（`academy_only`／`own_teams` 都不套用）：`standings` 表沒有
+⚠️ **這個模組沒有球隊範圍限制**（`academy_only` 不套用）：`standings` 表沒有
 `team_id` 欄位，後端判斷「寧可不開放給 `academy_program`，也不要開放了卻擋不住」（見
 apps/api/README.md「為什麼積分榜不套列級授權」），`academy_program` 角色目前完全沒有
 `team.standing.*` 權限碼，打這組端點一律 403「沒有權限」（不是列級授權那種逐球隊訊息）。
 
-### 列級授權的呈現（`academy_only`／`own_teams`）
+### 角色資料範圍的呈現（`academy_only`）
 
-**寫入端點**（建立／更新／刪除／CSV 匯入）被列級授權擋下時，後端回傳的 403 訊息本身已經是完整
-中文句子（例如「你的球隊授權範圍不允許為這些球隊建立賽事。」，見 `Security/AdminClubAuthorizer.cs`
+**寫入端點**（建立／更新／刪除／CSV 匯入）被角色資料範圍擋下時，後端回傳的 403 訊息本身已經是完整
+中文句子（例如「你的角色資料範圍不允許為這些球隊建立賽事。」，見 `Security/AdminClubAuthorizer.cs`
 與 `AdminMatchesRepository` 各處的 `AdminForbiddenException`），前端比照既有的 `StaffEditView.vue`
 模式，`catch` 到 `AdminApiError.kind === 'forbidden'` 就用 `ElMessageBox.alert(error.message, ...)`
 原樣顯示，**不額外翻譯或加工**——已用無頭瀏覽器實測 `academy.manager@tcrfc.test`（只授權
-`bw`、`academy_only`）對 `BW1`（一線隊）建立賽事，跳出的訊息是「你的球隊授權範圍不允許為這些
+`bw`、`academy_only`）對 `BW1`（一線隊）建立賽事，跳出的訊息是「你的角色資料範圍不允許為這些
 球隊建立賽事。」，沒有出現 `academy_only`／`team.match`／`BW1` 這類代號或英文技術詞。
 
 **參賽球隊選單目前無法只列出「這個帳號能寫哪些球隊」**：任務指示「若 API 沒有提供這個資訊，就
 不要自行推測，改為依後端錯誤呈現並回報缺口」——已確認沒有這樣的端點（`GET /admin/{club}/teams`
-只依俱樂部過濾，不依帳號的球隊授權範圍過濾），下拉選單維持列出整個俱樂部的球隊，選錯了在儲存
+只依俱樂部過濾，不依角色資料範圍過濾），下拉選單維持列出整個俱樂部的球隊，選錯了在儲存
 時被 403 擋下並顯示上一段的中文原因。這與既有 C1–C3 的球隊選單是同一個缺口，已合併記在上方
 「已知的 API 缺口彙整」第 14 點，不重複記兩筆。
 
@@ -1356,7 +1347,7 @@ apps/api/README.md「為什麼積分榜不套列級授權」），`academy_progr
    race，見下方「已知的測試方法限制」）進入「賽程與賽果」列表，看得到 `bw` 既有賽事；因為
    上述「發現的權限授予缺口」，這個帳號打不開新增賽事頁（載入賽季清單先被 403 擋下），改用
    直接呼叫 API（同一組帳密與 TOTP 換到的存取權杖）驗證列級授權本身：對 `BW1`（一線隊）
-   建立賽事回 403／「你的球隊授權範圍不允許為這些球隊建立賽事。」；對 `BW-U15`（學院梯隊）
+   建立賽事回 403／「你的角色資料範圍不允許為這些球隊建立賽事。」；對 `BW-U15`（學院梯隊）
    建立賽事回 201 成功（驗完刪除）。前端顯示這段訊息的程式碼路徑（`ElMessageBox.alert` 顯示
    `AdminApiError.message`）跟第 1 步驗證過的建立／更新流程是同一段，且與既有
    `StaffEditView.vue` 已經在生產路徑上驗證過的模式逐字相同，判斷不需要為了繞過上述缺口
@@ -1444,7 +1435,7 @@ apps/api/README.md「S1-8 續作」第 3 節），本輪把 C2 球員、C3 教�
      `/teams/matches/{id}/edit`），用公開端點 `GET /api/v1/bw/schedule?season=2025`
      直接查到這筆（`teamCode: "BW-U15"`），確認真的寫進去且球隊正確。
    - 用側欄真實點擊打開**既有**的一筆 `BW1`（一線隊）賽事：整頁正確鎖唯讀，頁首顯示
-     「唯讀 你的帳號沒有「一線隊」的球隊授權範圍，這筆賽事僅能檢視，如需修改請聯繫系統管理員」
+     「唯讀 你的角色不能編輯「一線隊」（例如學院管理者只能編輯學院梯隊），這筆賽事僅能檢視，如需修改請聯繫系統管理員」
      （逐字檢查過，沒有代號或英文技術詞）；「儲存」按鈕消失；「賽季」下拉確認
      `is-disabled`；「所屬球隊」欄位確認仍然顯示「一線隊」這個名稱（不是空白或悄悄被拿掉）。
    - 清理：回列表刪除剛建立的測試賽事，公開端點再查一次確認乾淨。
@@ -3028,7 +3019,7 @@ API 契約以 `apps/api/README.md`「後台欄位串接稽核的後端修正」�
 
 | 項 | 畫面與行為 | 檔案 |
 |---|---|---|
-| **賽季管理（新）** | 球隊管理群組新增「賽季」（`/teams/seasons`，側欄排在「賽程與賽果」之後、「積分榜」之前）。列表欄位：賽季代碼、開始／結束日期、「當季」標籤（今天〔台北時間〕落在起訖內，純畫面判斷）、使用中筆數與明細（後端 `usage`）。新增／編輯用對話框（沒有雙語欄位，依 docs/21 §3 用對話框）；欄位錯誤鍵 `code`／`startOn`（含期間重疊 409）／`endOn` 標到欄位。刪除：`inUse` 時按鈕停用並以提示顯示使用情形；仍收到 409／403 時以對話框完整顯示後端訊息並重抓清單。權限比照賽程：`useCrudPermissions('team.match')` 控制新增／編輯／刪除按鈕，側欄接受 `team.match.view` 或 `team.competition.view`（後端清單同）。寫入需整個俱樂部的球隊授權，畫面不預判，由後端 403 訊息顯示。`GET /admin/{club}/seasons` 網址沒變，賽事系列、賽程、積分榜、榮譽頁的賽季下拉（`listAdminSeasons`）原樣可用 | `views/teams/SeasonListView.vue`、`api/adminSeasons.ts`、`router/index.ts`、`data/nav.ts`、`components/AppSidebar.vue` |
+| **賽季管理（新）** | 球隊管理群組新增「賽季」（`/teams/seasons`，側欄排在「賽程與賽果」之後、「積分榜」之前）。列表欄位：賽季代碼、開始／結束日期、「當季」標籤（今天〔台北時間〕落在起訖內，純畫面判斷）、使用中筆數與明細（後端 `usage`）。新增／編輯用對話框（沒有雙語欄位，依 docs/21 §3 用對話框）；欄位錯誤鍵 `code`／`startOn`（含期間重疊 409）／`endOn` 標到欄位。刪除：`inUse` 時按鈕停用並以提示顯示使用情形；仍收到 409／403 時以對話框完整顯示後端訊息並重抓清單。權限比照賽程：`useCrudPermissions('team.match')` 控制新增／編輯／刪除按鈕，側欄接受 `team.match.view` 或 `team.competition.view`（後端清單同）。寫入需整個俱樂部的資料範圍，畫面不預判，由後端 403 訊息顯示。`GET /admin/{club}/seasons` 網址沒變，賽事系列、賽程、積分榜、榮譽頁的賽季下拉（`listAdminSeasons`）原樣可用 | `views/teams/SeasonListView.vue`、`api/adminSeasons.ts`、`router/index.ts`、`data/nav.ts`、`components/AppSidebar.vue` |
 | **球員賽季數據** | 球員編輯頁（僅編輯模式）主欄新增「賽季數據」卡片，每個賽季一列：來源標籤（手動／自動彙總／無資料）、自動彙總值、目前手動值、五個數字輸入（出賽、進球、助攻、黃牌、紅牌）。「儲存為手動值」＝PUT；「清除手動值，改回自動彙總」＝DELETE（需確認，僅來源為手動時出現）。**每個賽季各自立即儲存**，卡片說明固定一行「這裡的變更會立即儲存」（比照 docs/21 §3.4）。每列自帶一份 `provideFormErrors`（五個欄位鍵每季相同，共用頁面那份會標錯列），`applyApiError` 標到該列欄位。助攻沒有自動來源，編輯起點從 0 開始；球隊不在授權範圍（整頁唯讀）或沒有 `team.player.update` 時輸入停用 | `views/teams/parts/PlayerSeasonStatsPanel.vue`、`PlayerSeasonStatRow.vue`、`api/adminPlayers.ts` |
 | **進球類型下拉** | 賽事編輯頁進球列改為下拉：一般進球（空值）／頭槌／點球／自由球／烏龍球／其他。舊資料載入時以 `types/match.ts` 的 `parseGoalType` 對照後端同義詞（含「烏龍」「own goal」字樣一律烏龍球，與後端 `IsOwnGoal` 一致）。**對不上的舊自由文字（例如「遠射」）**：下拉選「其他」並在列下提示「原本寫的是…，儲存後會歸為其他」。後端寫入端不收未知文字（400），無法原樣保留，所以選擇「提示後歸為其他」而非靜默覆寫或送出後被拒。錯誤鍵 `goals[i].goalType` 依逐層去尾退回標到進球表格的 `goals` 錨點 | `views/teams/MatchEditView.vue`、`types/match.ts` |
 | **表單設計器鎖定** | 後端 DTO 沒有回傳鎖定旗標，前端以 `types/forms.ts` 的 `FIELD_LOCKED_FORM_CODES`（對照 `FormCatalog.FieldLockedCodes`：10.1–10.7 七類＋提案下載；捐助洽詢不鎖；**後端清單異動時要手動同步**）判斷。鎖定表單：頁面加說明「這張表單的欄位由網站固定，只能修改題目文字與通知設定」；隱藏「新增欄位」「刪除」；欄位對話框的欄位代碼、型別、必填、驗證規則停用，選項值只顯示（不能新增／刪除），仍可改題目文字中英、選項英文顯示文字、內容摘要；排序（上移／下移）、收件通知、自動回覆、防機器人驗證、導向頁照舊。送出欄位時結構欄位一律用載入時的原值，避免空值差異被後端判為有改動。導向頁提示改為「站內路徑，以 / 開頭」，前端驗證同步收緊（不收完整網址、`//`、`/\`） | `views/forms/FormEditView.vue`、`types/forms.ts` |

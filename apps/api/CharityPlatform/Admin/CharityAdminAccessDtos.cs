@@ -33,17 +33,6 @@ public sealed record CharityAdminAccountClubGrantDto
     public required bool IsCurrentlyEffective { get; init; }
 }
 
-/// <summary>同上，球隊授權列（清單恆為空）。</summary>
-public sealed record CharityAdminAccountTeamGrantDto
-{
-    public required Guid TeamId { get; init; }
-    public required string TeamCode { get; init; }
-    public required string ClubCode { get; init; }
-    public DateOnly? ExpiresOn { get; init; }
-    public required bool IsActive { get; init; }
-    public required bool IsCurrentlyEffective { get; init; }
-}
-
 public sealed record CharityAdminAccountDetailDto
 {
     public required Guid Id { get; init; }
@@ -59,7 +48,6 @@ public sealed record CharityAdminAccountDetailDto
     public DateTime? LastLoginAt { get; init; }
     public required IReadOnlyList<string> RoleCodes { get; init; }
     public required IReadOnlyList<CharityAdminAccountClubGrantDto> ClubGrants { get; init; }
-    public required IReadOnlyList<CharityAdminAccountTeamGrantDto> TeamGrants { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
 }

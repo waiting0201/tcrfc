@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.22
-> **Date**: 2026-08-14 (v3.22 revision: 2026-10-07)
+> **Document version**: v3.23
+> **Date**: 2026-08-14 (v3.23 revision: 2026-10-08)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.22*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.23*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.23 revision summary — admin data scope is granted at club level; the academy-squad limit is carried by the role**
+> **The public site is unchanged; how admin permissions are assigned is tightened.** Authorisation in J4 consists of club authorisation only (with grant and expiry dates, expiring automatically); admin accounts are not assigned teams one by one. The rule that an academy manager may adjust only academy squads' fixtures and match events, and may not change the first team's, still holds and is carried by the role's data scope: the role's "Teams / matches" and "Squad matches" permissions are scoped to academy squads (`team.type = academy`), enforced at the data-access layer — hiding it in the UI does not count. Section 5.3 (admin account and authorisation types) now consists of the single type `AdminUserClub`. Where it lands: 4.3 C1, 4.10 J4, 5.3, the section 6 permission matrix and calendar-permission principle, the module tree, and the section 9 phase plan and scope notes.
 
 > **v3.22 revision summary — public-site menus are fixed; the admin offers no menu management**
 > **The public menus look the same; how they are managed in the admin is tightened.** The primary menu, mega menu and footer menu are defined by the public-site templates: their items, levels, order, links and Chinese / English labels ship with each public-site release, and the admin offers no menu management and cannot add, delete, reorder or relink menu items. This applies to both websites (Taichung Rock and Taichung Blue Whale). 4.9 module I is narrowed accordingly, and the number of types that require `club_id` in 5.4 goes from 50 to 49. Landing points: 2.2 global navigation, 4.0 public-to-admin mapping, 4.9 I, the module tree, 5.4.
@@ -125,7 +128,7 @@
 > 6. **One card per membership**: `MemberCard.membership_id` is mandatory. **The "one card, one token" rule is unchanged** — it constrains card-to-token as 1:1, not person-to-card (`MembershipPlan.card_quota` has always allowed several cards per person). The verification page `/m/<token>` returns **exactly the same fields as before**, because the token already implies the club, so an "applicable team" field is **neither needed nor permitted**.
 > 7. **Draws (K5) are run per club**: `MemberDraw.club_id` is mandatory and eligibility is evaluated against **that club's** paid membership. It is **still a boolean, still a roster snapshot, still no points and no weighting**. Someone holding both clubs' paid memberships appears once in each roster, so **the rules must state explicitly that holding both memberships allows entry to both draws** — otherwise it reads as buying extra chances.
 > 8. **The shop keeps a single collecting entity; Blue Whale goods are sold on a collect-and-remit basis**: `Order` gains `selling_club_id` (the beneficiary) and `collecting_club_id` (the collecting legal entity, always this club), value-copied onto `OrderItem` and `StoreInvoice`. **The LINE Pay merchant account, invoice track and invoice title stay single.** **Carts must not mix clubs** (`Cart.club_id` mandatory) — the current shipping rule is a single flat fee plus a free-shipping threshold, and a mixed cart has no defined answer for either. **Shop-level settlement and revenue splitting are explicitly out of scope**; the system only aggregates and exports by `selling_club_id`.
-> 9. **Row-level data scope in `J`**: new `AdminUserClub` (with **grant and expiry dates, expiring automatically**) and `AdminUserTeam` association tables; `AdminRole` gains `scope_mode`, `AdminUser` gains `primary_club_id`, `Permission` gains `is_club_scoped`. **The permission matrix gains a "data scope" column and a tenth role, "Partner club manager".** Scope **must be enforced at the data-access layer — hiding it in the UI does not count**.
+> 9. **Row-level data scope in `J`**: new `AdminUserClub` association table (with **grant and expiry dates, expiring automatically**); `AdminRole` gains `scope_mode`, `AdminUser` gains `primary_club_id`, `Permission` gains `is_club_scoped`. **The permission matrix gains a "data scope" column and a tenth role, "Partner club manager".** Scope **must be enforced at the data-access layer — hiding it in the UI does not count**.
 > 10. **Shared content (`club_id` null) is read-only to any scope-limited account**; only super administrators may create or modify it. Otherwise "can see shared content" and "cannot edit someone else's content" cannot both hold.
 > 11. **The Charity Donation Platform has its own admin and its own database** (its specification v2.0): this site's `B5` types (`Charity` / `CharityProgram` / `ImpactRecord` / `ImpactMetric`) **stay here as the master records**, with the charity platform holding read-only snapshots. There are **9** system emails (5 membership + 4 shop). `PaymentChannel` carries `owner_club_id`, with the unique key `(owner_club_id, channel_type, environment)`.
 > 12. **Section 10 gains open items 29 onwards**: whether orders are split at checkout, the actual invoice title and tax ID, member numbering, Blue Whale's membership plans and season dates, fulfilment staffing for Blue Whale goods, the Blue Whale domain and brand assets, and canonical attribution for shared content.
@@ -929,7 +932,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 │   ├── J1 Accounts
 │   ├── J2 Roles & permissions
 │   ├── J3 Audit & backup
-│   └── J4 **Clubs & authorisation** (new in v3.0: club basic and legal-entity data, club and team authorisation for admin accounts)
+│   └── J4 **Clubs & authorisation** (new in v3.0: club basic and legal-entity data, club authorisation for admin accounts)
 ├── K. Members
 │   ├── K1 Member list and detail
 │   ├── K2 Membership and plans
@@ -1117,7 +1120,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Team codes drive calendar categorisation**: teams created here automatically become filter options and subscription sources in the public Schedule (13)
 - Supports adding new age groups (matching "other age groups" in 4.2 — adding U18 or U10 later requires only a new record here)
 - **Women's football has full team records**: Taichung Blue Whale's teams, players, staff and fixtures are all maintained in this module (partitioned by `club_id`) and presented on the Blue Whale website. **A team's gender is carried by a separate `gender` field** — gender is an attribute of a team, not a kind of team (Blue Whale's first team is `TCBW`'s `first_team`, not this club's women's team)
-- **Data scope**: scope-limited accounts may only maintain their own club's teams, and can be narrowed further to specific teams via `AdminUserTeam` (e.g. an academy manager may not change first-team fixtures)
+- **Data scope**: scope-limited accounts may only maintain their own club's teams, and an academy manager's data scope is academy squads (`team.type = academy`), so they may not change the first team
 
 #### C2 Players
 - Profile: name (Chinese and English), squad number, position, date of birth, height and weight, nationality, preferred foot, join date, photo
@@ -1290,7 +1293,6 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | Club records | Create and maintain `Club`: code, name and intro (zh/en), **OG image**, front-end domain, website URL, default locale, sort order, status |
 | **Invoicing details** | Invoice title, tax ID, **whether it is a collecting entity**. ⚠️ **Only this club is currently a collecting entity**; setting this wrongly would misattribute funds and invoices |
 | **Club authorisation** | Assign which clubs an admin account may reach (`AdminUserClub`), with **grant and expiry dates**. Expiry is automatic — nobody has to remember to revoke it |
-| **Team authorisation** | Assign which teams an account may maintain (`AdminUserTeam`), for row-level limits such as "an academy manager may not change first-team fixtures" |
 | Permissions | **System administrators only.** The partner club manager role must not reach this module — otherwise it could escalate its own privileges |
 
 > **When brand assets are not yet available**: the logos, favicons and brand colours of the two sites are defined by front-end static assets and styles and are not configured in the admin; until they are supplied, the corresponding areas of the front end **are not rendered**. **Do not substitute placeholder imagery, do not leave an empty logo box, and never draw a substitute mark or trace one from a screenshot.**
@@ -1599,13 +1601,12 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | Type | Description |
 |---|---|
 | `AdminUserClub` | **Club authorisation for an admin account**: account × club, granted date, **expiry date (nullable = no expiry)**, granted by, active flag. **One person may be authorised for several clubs** (give this club's administrator two rows when they also maintain Blue Whale content). **Expires automatically.** |
-| `AdminUserTeam` | **Team authorisation for an admin account**: account × team, expiry date, active flag. Used for row-level limits such as "an academy manager may adjust their own age groups' fixtures but not the first team's" — **a rule that existed before v2.6 but had no field in the data model to enforce it**. |
 
 > **Why authorisation attaches to the person, not the role**: putting the club on `AdminRole` would mean duplicating all nine roles per club (`content_editor_tcrfc` / `content_editor_tcbw`…), and a third club would make it twenty-seven.
 > **A role defines what you can do; `AdminUserClub` defines who you may do it to.**
 >
 > Related changes: `AdminRole` gains `scope_mode` (`all_clubs` / `own_clubs`); `AdminUser` gains `primary_club_id` (the site switcher's default — **not** a `club_id`, since one person may serve both clubs); `Permission` gains `is_club_scoped` (whether the resource behind that permission code carries a `club_id`).
-> **"Which specific objects" is carried by the two association tables above**, never as a scope value on `RolePermission` — a JSON field is write-only and can never be used to filter a query.
+> **"Which specific objects" is carried by the association table above**, never as a scope value on `RolePermission` — a JSON field is write-only and can never be used to filter a query.
 
 ### 5.4 Criteria for `club_id` (new in v3.0)
 
@@ -1663,7 +1664,7 @@ Under a multi-club architecture every table must answer "which club does this be
 | System administrator | **All clubs** | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full |
 | Content editor | Authorised clubs | ✔ Edit / publish | ✔ Full | ✔ Edit | Read-only | Read-only | Custom events | — | Read-only | S1 copy / imagery | — | — | M2 composition | Per-page SEO | — |
 | Football / team manager | Authorised clubs | Draft | Relevant topics | — | ✔ Full | Read-only | Match events | — | — | — | — | — | — | — | — |
-| Academy / programs manager | Authorised clubs **and teams** | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | — | — | — | Program enquiries | — | — | — | — |
+| Academy / programs manager | Authorised clubs | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | — | — | — | Program enquiries | — | — | — | — |
 | Commercial / sponsorship | Authorised clubs | Draft | Relevant topics | Read-only | Read-only | Read-only | Read-only | — | ✔ Full | S1 / S6 (**order PII masked**) | Partnership / sponsorship enquiries | **✔ Full** | — | — | — |
 | PR / media | Authorised clubs | ✔ Edit | Read-only | ✔ Edit | Read-only | — | Custom events | — | Read-only | Read-only | Media enquiries | Reports (read) | M3 draft (**needs approval**) | — | — |
 | Support / administration | Authorised clubs | — | ✔ Edit | — | — | Registration handling | Read-only | ✔ View / handle | — | **✔ S2–S5** | ✔ Full | — | M4 view (masked) | — | — |
@@ -1684,7 +1685,7 @@ Under a multi-club architecture every table must answer "which club does this be
 - This role is for **Taichung Blue Whale's own staff** and can reach only records whose `club_id` is their own.
 - **They may work with their own `Membership` / `Order` / `Registration` records, but the `Member` master record (name, email, phone, date of birth, LINE binding) is returned masked**; full values require separate authorisation. **They can never see any membership row belonging to the other club.**
 - **No advertising rights (E4–E6), no push rights (M3), no release or credential rights (M1 / M5), no system administration.** Least privilege — someone selling advertising should not also be able to publish app releases and send pushes, and a partner maintaining content certainly should not.
-- ⚠️ **This role may only be enabled once data-scope enforcement is in place** (the two association tables in 5.3 and the runtime rules above).
+- ⚠️ **This role may only be enabled once data-scope enforcement is in place** (the association table in 5.3 and the runtime rules above).
 - **It need not have any users in the first phase**: if Blue Whale's content is maintained by the existing team under their own accounts, no partner-club account is needed. **But data scope still has to be built** — `club_id` reaches roughly 40 tables and every admin list query has to decide whether to filter, which is foundation work. **Define the role now, assign nobody to it — it does not block launch.**
 
 **Additional rules**:
@@ -1700,7 +1701,7 @@ Under a multi-club architecture every table must answer "which club does this be
 - **Exporting** member lists requires separate authorisation, and every export is written to the audit log (who, when, how many records, stated purpose).
 - **Draw rosters (K5) are treated as member personal data**: building and locking a roster is limited to system administrators and support/administration staff, and the restricted winners export requires separate authorisation and is audited. Communications staff writing the announcement receive **the masked roster only**, and gain no access to the member module by doing so.
 - ※ The translator role may edit `en` fields only, and may not modify the Chinese source or publication status.
-- **Calendar permissions follow the source module**: which events a user can edit on the calendar depends on their permissions over the underlying match data (e.g. an academy manager may reschedule their own squad's fixtures but not the first team's).
+- **Calendar permissions follow the source module**: which events a user can edit on the calendar depends on their permissions over the underlying match data (e.g. an academy manager may reschedule their own squad's fixtures but not the first team's). **This limit is carried by the role's academy-squad scope (`team.type = academy`)** and enforced at the data-access layer.
 
 ---
 
@@ -1772,7 +1773,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 > By the same logic, **the `Membership` type must be built with the membership system** (Phase 2) — extracting membership from `Member` is a structural change, not an added field.
 
 ### Phase 1 — Brand foundation and conversion (MVP, approx. 8–10 weeks)
-- **Multi-club foundation (new in v3.0, highest priority)**: the `Club` and `Competition` types, the `club_id` dimension across ~40 tables, the admin **site switcher**, `AdminUserClub` / `AdminUserTeam` with **data-access-layer enforcement**, and `J4 Clubs & authorisation`
+- **Multi-club foundation (new in v3.0, highest priority)**: the `Club` and `Competition` types, the `club_id` dimension across ~40 tables, the admin **site switcher**, `AdminUserClub` with **data-access-layer enforcement**, and `J4 Clubs & authorisation`
 - Homepage, 02 About, 03.1 First Team (basic), 04 Academy (4.1 / 4.2 / 4.7), 05 Programs (5.1 / 5.2)
 - **06 Blue Whale site entry page** (single page, low cost, delivered alongside)
 - 07 Newsroom (all categories), 10 Forms hub (all 9), Location & Map
@@ -1837,7 +1838,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | FAQ | Standalone section 12, centrally managed and embedded across pages |
 | Charity records | Section 11; every record carries three core data points — **charity organisation name, what was donated, event photography** |
 | Women's football | **Taichung Blue Whale is the second club carried by this system** (`TCBW`); its teams, players, staff and fixtures **live in this database** and are presented on a **separate-domain Blue Whale website**, see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md). Section 06 on this site carries one introductory page and an entry point and does not duplicate the roster or fixtures |
-| **Multi-club architecture (new in v3.0)** | This admin and database carry two clubs' websites, with **one login entry point and data separated by `club_id`**. ✔ Separate content, teams, programme registrations, members and orders ✔ Admin data scope (`AdminUserClub` / `AdminUserTeam`, with grant and expiry dates) ✔ A tenth role, "Partner club manager" (**need not have users in the first phase**) ✗ **Revenue splitting and settlement between the clubs** (out of scope) ✗ Independent collection for Blue Whale (**the collecting entity stays single**; merchant account and invoice track are not separated) |
+| **Multi-club architecture (new in v3.0)** | This admin and database carry two clubs' websites, with **one login entry point and data separated by `club_id`**. ✔ Separate content, teams, programme registrations, members and orders ✔ Admin data scope (`AdminUserClub`, with grant and expiry dates) ✔ A tenth role, "Partner club manager" (**need not have users in the first phase**) ✗ **Revenue splitting and settlement between the clubs** (out of scope) ✗ Independent collection for Blue Whale (**the collecting entity stays single**; merchant account and invoice track are not separated) |
 | **Dual membership (new in v3.0)** | Membership moves from "one per person" to "**one per person per club**" (new `Membership` type). **`Member` remains one account per person** (email is the login key, the LINE binding is 1:1). **One card per membership**; "one card, one token" and "no applicable-team field on the verification page" both **stand unchanged**. The two clubs' **seasons are not aligned**; expiry and renewal are calculated separately |
 | Match data | **Entirely manual**, no external API integration; CSV bulk import provided |
 | Schedule | **Match-centric**; academy courses, camps, and specialist training are excluded. Calendar content must be **bilingual** |

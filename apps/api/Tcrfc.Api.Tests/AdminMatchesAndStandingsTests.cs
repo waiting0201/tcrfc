@@ -14,7 +14,7 @@ namespace Tcrfc.Api.Tests;
 
 /// <summary>
 /// S1-8：C4（賽程與賽果／積分榜）後台 CRUD ＋ CSV 批次匯入 ＋ **列級授權強制**
-/// （<c>role_permissions.scope_type</c> 的 <c>own_teams</c>／<c>academy_only</c>，
+/// （<c>role_permissions.scope_type</c> 的 <c>academy_only</c>，
 /// <c>Security/TeamRowScope.cs</c>）。打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，
 /// 形狀比照 <c>AdminTeamsPlayersStaffTests</c>／<c>AdminClubsAndCompetitionsTests</c>。
 ///
@@ -22,10 +22,7 @@ namespace Tcrfc.Api.Tests;
 /// （<c>first_team</c>）一支球隊，沒有學院梯隊；<c>bw</c> 有 <c>BW1</c>（<c>first_team</c>）／
 /// <c>BW-U15</c>／<c>BW-U12</c>（<c>academy</c>）。**測 <c>academy_only</c> 因此借用 <c>bw</c>
 /// 俱樂部**（<c>academy.manager@tcrfc.test</c>，<c>academy_program</c> 角色，只被授權 <c>bw</c>）
-/// ——tcrfc 目前沒有 academy 球隊可供測試。**測 <c>own_teams</c> 這份種子沒有任何角色真的採用
-/// 這個 scope_type**（規劃書 §7.4 把它綁在尚未建置的行事曆模組），本檔用
-/// <see cref="WithTemporaryScopeTypeAsync"/> 直接改一筆既有 <c>role_permissions</c> 列（測完還原）
-/// 來驗證機制本身，見該方法上的完整說明。
+/// ——tcrfc 目前沒有 academy 球隊可供測試。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
@@ -317,74 +314,6 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
         }
     }
 
-    // ═════════════════════════════ 🔴 列級授權：own_teams ═════════════════════════════
-
-    [Fact]
-    public async Task 列級授權_own_teams_只能碰admin_user_teams授權的球隊()
-    {
-        // 種子資料沒有任何角色真的用 own_teams（規劃書 §7.4 把它綁在尚未建置的行事曆模組），
-        // 這裡直接改一筆既有 role_permissions（team_competition／team.match.update）示範機制本身，
-        // 測完在 finally 還原——見 WithTemporaryScopeTypeAsync 上的完整說明。
-        var seasonId = await GetSeasonIdAsync("tcrfc", "2026-27");
-        var d1TeamId = await GetTeamIdAsync("tcrfc", "D1");
-
-        using var superAdmin = await CreateClientAsync("super.admin@tcrfc.test");
-        var createResponse = await superAdmin.PostAsJsonAsync("/api/v1/admin/tcrfc/matches", NewMatchRequest(seasonId, [d1TeamId]));
-        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
-        var match = await createResponse.Content.ReadFromJsonAsync<AdminMatchDetailDto>(TestJson.Options);
-
-        try
-        {
-            await WithTemporaryScopeTypeAsync("team_competition", "team.match.update", "own_teams", async () =>
-            {
-                using var client = await CreateClientAsync("team.manager@tcrfc.test");
-
-                // 還沒有 admin_user_teams 授權 → 擋下（own_teams 預設空集合，fail-closed）。
-                var beforeGrant = await client.PutAsJsonAsync(
-                    $"/api/v1/admin/tcrfc/matches/{match!.Id}",
-                    new UpdateAdminMatchRequest
-                    {
-                        SeasonId = seasonId, TeamIds = [d1TeamId], MatchOn = match.MatchOn,
-                        Opponent = "own_teams 授權前", Status = "scheduled",
-                    });
-                Assert.Equal(HttpStatusCode.Forbidden, beforeGrant.StatusCode);
-
-                await GrantAdminUserTeamAsync("team.manager@tcrfc.test", d1TeamId);
-                try
-                {
-                    // 授權後 → 成功。
-                    var afterGrant = await client.PutAsJsonAsync(
-                        $"/api/v1/admin/tcrfc/matches/{match.Id}",
-                        new UpdateAdminMatchRequest
-                        {
-                            SeasonId = seasonId, TeamIds = [d1TeamId], MatchOn = match.MatchOn,
-                            Opponent = "own_teams 授權後", Status = "scheduled",
-                        });
-                    Assert.Equal(HttpStatusCode.OK, afterGrant.StatusCode);
-
-                    // 授權到期（expires_on 設昨天）→ 視同未授權，再度擋下。
-                    await SetAdminUserTeamExpiryAsync("team.manager@tcrfc.test", d1TeamId, "yesterday");
-                    var afterExpiry = await client.PutAsJsonAsync(
-                        $"/api/v1/admin/tcrfc/matches/{match.Id}",
-                        new UpdateAdminMatchRequest
-                        {
-                            SeasonId = seasonId, TeamIds = [d1TeamId], MatchOn = match.MatchOn,
-                            Opponent = "授權到期後", Status = "scheduled",
-                        });
-                    Assert.Equal(HttpStatusCode.Forbidden, afterExpiry.StatusCode);
-                }
-                finally
-                {
-                    await RevokeAdminUserTeamAsync("team.manager@tcrfc.test", d1TeamId);
-                }
-            });
-        }
-        finally
-        {
-            await DeleteMatchByIdAsync(match!.Id);
-        }
-    }
-
     // ═════════════════════════════ CSV 批次匯入：賽程 ═════════════════════════════
 
     [Fact]
@@ -465,7 +394,7 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<MatchCsvImportResultDto>(TestJson.Options);
         Assert.Equal(0, result!.ImportedCount);
-        Assert.Contains(result.Errors, e => e.Reason.Contains("授權範圍"));
+        Assert.Contains(result.Errors, e => e.Reason.Contains("資料範圍"));
     }
 
     // ═════════════════════════════ 積分榜 CRUD ＋ CSV（整季替換） ═════════════════════════════
@@ -640,109 +569,6 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
     {
         using var content = new StringContent(csvText, Encoding.UTF8, "text/csv");
         return await client.PostAsync(path, content);
-    }
-
-    /// <summary>
-    /// 直接改一筆既有 <c>role_permissions.scope_type</c>，執行 <paramref name="action"/>，
-    /// **不論成功或失敗都還原成原始值**——用來驗證 <c>own_teams</c> 這個 scope_type 本身的
-    /// 執行期行為，因為目前種子資料沒有任何角色的任何權限碼真的採用它（own_teams 依規劃書
-    /// §7.4 是綁在尚未建置的 L 行事曆模組上的「賽事事件」「梯隊賽事」兩格），如果不這樣做，
-    /// <see cref="Tcrfc.Api.Security.AdminTeamRowScopeResolver"/> 對 <c>own_teams</c> 分支的
-    /// 程式碼就完全沒有任何測試會執行到。測完一律還原，不留下對種子資料的永久污染。
-    /// </summary>
-    private async Task WithTemporaryScopeTypeAsync(string roleCode, string permissionCode, string temporaryScopeType, Func<Task> action)
-    {
-        var connectionString = RequireConnectionString();
-        string originalScopeType;
-
-        await using (var connection = new SqlConnection(connectionString))
-        {
-            await connection.OpenAsync();
-            await using var select = connection.CreateCommand();
-            select.CommandText = """
-                SELECT rp.scope_type FROM role_permissions rp
-                JOIN admin_roles r ON r.id = rp.admin_role_id
-                JOIN permissions p ON p.id = rp.permission_id
-                WHERE r.code = @RoleCode AND p.code = @PermissionCode;
-                """;
-            select.Parameters.AddWithValue("@RoleCode", roleCode);
-            select.Parameters.AddWithValue("@PermissionCode", permissionCode);
-            originalScopeType = (string)(await select.ExecuteScalarAsync())!;
-        }
-
-        try
-        {
-            await SetScopeTypeAsync(roleCode, permissionCode, temporaryScopeType);
-            await action();
-        }
-        finally
-        {
-            await SetScopeTypeAsync(roleCode, permissionCode, originalScopeType);
-        }
-    }
-
-    private static async Task SetScopeTypeAsync(string roleCode, string permissionCode, string scopeType)
-    {
-        await using var connection = new SqlConnection(RequireConnectionString());
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            UPDATE rp SET rp.scope_type = @ScopeType
-            FROM role_permissions rp
-            JOIN admin_roles r ON r.id = rp.admin_role_id
-            JOIN permissions p ON p.id = rp.permission_id
-            WHERE r.code = @RoleCode AND p.code = @PermissionCode;
-            """;
-        command.Parameters.AddWithValue("@ScopeType", scopeType);
-        command.Parameters.AddWithValue("@RoleCode", roleCode);
-        command.Parameters.AddWithValue("@PermissionCode", permissionCode);
-        await command.ExecuteNonQueryAsync();
-    }
-
-    private static async Task GrantAdminUserTeamAsync(string username, Guid teamId)
-    {
-        await using var connection = new SqlConnection(RequireConnectionString());
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            DECLARE @UserId uniqueidentifier = (SELECT id FROM admin_users WHERE username = @Username);
-            IF NOT EXISTS (SELECT 1 FROM admin_user_teams WHERE admin_user_id = @UserId AND team_id = @TeamId)
-              INSERT INTO admin_user_teams (admin_user_id, team_id, expires_on, is_active) VALUES (@UserId, @TeamId, NULL, 1);
-            ELSE
-              UPDATE admin_user_teams SET is_active = 1, expires_on = NULL WHERE admin_user_id = @UserId AND team_id = @TeamId;
-            """;
-        command.Parameters.AddWithValue("@Username", username);
-        command.Parameters.AddWithValue("@TeamId", teamId);
-        await command.ExecuteNonQueryAsync();
-    }
-
-    private static async Task SetAdminUserTeamExpiryAsync(string username, Guid teamId, string when)
-    {
-        await using var connection = new SqlConnection(RequireConnectionString());
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        var expiresSql = when == "yesterday" ? "DATEADD(day, -1, CAST(SYSUTCDATETIME() AS date))" : "NULL";
-        command.CommandText = $"""
-            UPDATE admin_user_teams SET expires_on = {expiresSql}
-            WHERE admin_user_id = (SELECT id FROM admin_users WHERE username = @Username) AND team_id = @TeamId;
-            """;
-        command.Parameters.AddWithValue("@Username", username);
-        command.Parameters.AddWithValue("@TeamId", teamId);
-        await command.ExecuteNonQueryAsync();
-    }
-
-    private static async Task RevokeAdminUserTeamAsync(string username, Guid teamId)
-    {
-        await using var connection = new SqlConnection(RequireConnectionString());
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            DELETE FROM admin_user_teams
-            WHERE admin_user_id = (SELECT id FROM admin_users WHERE username = @Username) AND team_id = @TeamId;
-            """;
-        command.Parameters.AddWithValue("@Username", username);
-        command.Parameters.AddWithValue("@TeamId", teamId);
-        await command.ExecuteNonQueryAsync();
     }
 
     private async Task<HttpClient> CreateClientAsync(string username)

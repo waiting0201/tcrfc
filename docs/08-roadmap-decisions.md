@@ -1,11 +1,11 @@
 # 08 — 開發階段、已定案前提與待確認事項
 
-> 來源：[`../output/TCRFC_前後台功能規劃書.md`](../output/TCRFC_前後台功能規劃書.md)（**v3.22，共 1889 行**）：
+> 來源：[`../output/TCRFC_前後台功能規劃書.md`](../output/TCRFC_前後台功能規劃書.md)（**v3.23，共 1890 行**）：
 >
 > | 章節 | 行號 |
 > |---|---|
-> | 9. 開發階段與優先順序建議 | 1758–1806 |
-> | 10. 待確認事項 | 1807–1889 |
+> | 9. 開發階段與優先順序建議 | 1759–1807 |
+> | 10. 待確認事項 | 1808–1890 |
 > 慈善捐款平台自有一套 Phase 與待確認事項，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 > 另有里程碑文件：[`../output/TCRFC_開發里程碑_Milestone.html`](../output/TCRFC_開發里程碑_Milestone.html)（英文版 `TCRFC_Development_Milestones_EN.html`）
 
@@ -19,7 +19,7 @@
 > 同理，**`Membership` 必須與會員系統同時做**（Phase 2）——會籍從 `Member` 拆出來是結構變更不是加欄位。
 
 ### Phase 1 — 品牌基礎與轉換（MVP，約 8–10 週）
-- **多俱樂部地基（v3.0，最優先）**：`Club`／`Competition` 型別、50 張表的 `club_id` 維度、後台**站台切換器**、`AdminUserClub`／`AdminUserTeam` 與**資料存取層強制**、`J4 俱樂部與授權管理`
+- **多俱樂部地基（v3.0，最優先）**：`Club`／`Competition` 型別、50 張表的 `club_id` 維度、後台**站台切換器**、`AdminUserClub` 與**資料存取層強制**、`J4 俱樂部與授權管理`
 - 首頁、02 關於台中磐石、03.1 一線隊（基本）、04 學院（4.1／4.2／4.7）、05 課程（5.1／5.2）
 - **06 女子足球介紹頁**（單頁，成本低可一併完成）
 - 07 新聞中心（全分類）、10 表單中心（7 類）、Location & Map

@@ -9,15 +9,10 @@ namespace Tcrfc.Api.Features.AdminAccounts;
 /// 不是 <see cref="IAdminClubAuthorizer"/>（見該介面上的說明）。
 ///
 /// 權限碼命名對應 docs/12b-database-tables.md §7.3，module_code=J，submodule J1（帳號）／
-/// J4（俱樂部授權與球隊授權，掛在帳號底下維護），全部 <c>sysadmin_only=true</c>——docs/12b §7.2
+/// J4（俱樂部授權，掛在帳號底下維護），全部 <c>sysadmin_only=true</c>——docs/12b §7.2
 /// 的十個角色矩陣（規劃書 §6）裡「系統」欄只有系統管理員打勾，其餘全部是「—」或「✗」，這些
 /// 權限碼本來就只該落在超管身上（見 db/seed/generate-club-seed-sql.py「18.2 permissions」既有
 /// 的種子資料）。
-///
-/// 🔴 球隊授權（<c>system.team_grant.*</c>）用**獨立於俱樂部授權（<c>system.club_grant.*</c>）
-/// 之外的權限碼**，不是共用同一組——理由見 apps/api/README.md「球隊授權（AdminUserTeam）」整節：
-/// 兩者是主站規劃書第 1223–1231 行 J4 表格裡並列的兩件事（「俱樂部與球隊授權」），資源本身也不同
-/// （`admin_user_clubs` vs `admin_user_teams`），拆開才能在日後某個角色只需要其中一種時單獨授予。
 /// </summary>
 public static class AdminAccountsEndpoints
 {
@@ -26,8 +21,6 @@ public static class AdminAccountsEndpoints
     private const string PermissionUpdate = "system.account.update";
     private const string PermissionGrantView = "system.club_grant.view";
     private const string PermissionGrantUpdate = "system.club_grant.update";
-    private const string PermissionTeamGrantView = "system.team_grant.view";
-    private const string PermissionTeamGrantUpdate = "system.team_grant.update";
 
     public static void MapAdminAccountsEndpoints(this IEndpointRouteBuilder app)
     {
@@ -180,51 +173,6 @@ public static class AdminAccountsEndpoints
             return revoked is null ? Results.NotFound() : Results.NoContent();
         })
         .WithName("AdminRevokeAccountClubGrant")
-        .Produces(StatusCodes.Status204NoContent)
-        .Produces(StatusCodes.Status401Unauthorized)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status404NotFound);
-
-        // ── J4：這個帳號的球隊授權（admin_user_teams，主站規劃書第 1223–1231 行）───────────
-        group.MapGet("/{id:guid}/team-grants", async (
-            Guid id, HttpContext httpContext, IAdminSystemAuthorizer authorizer,
-            AdminAccountsRepository repository, CancellationToken cancellationToken) =>
-        {
-            await authorizer.AuthorizeAsync(httpContext, PermissionTeamGrantView, cancellationToken);
-            var grants = await repository.ListTeamGrantsAsync(id, cancellationToken);
-            return grants is null ? Results.NotFound() : Results.Ok(grants);
-        })
-        .WithName("AdminListAccountTeamGrants")
-        .Produces<IReadOnlyList<AdminAccountTeamGrantDto>>()
-        .Produces(StatusCodes.Status401Unauthorized)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status404NotFound);
-
-        group.MapPost("/{id:guid}/team-grants", async (
-            Guid id, CreateAdminAccountTeamGrantRequest request, HttpContext httpContext,
-            IAdminSystemAuthorizer authorizer, AdminAccountsRepository repository, CancellationToken cancellationToken) =>
-        {
-            await authorizer.AuthorizeAsync(httpContext, PermissionTeamGrantUpdate, cancellationToken);
-            var grant = await repository.UpsertTeamGrantAsync(id, request, cancellationToken);
-            return grant is null ? Results.NotFound() : Results.Ok(grant);
-        })
-        .WithName("AdminUpsertAccountTeamGrant")
-        .Produces<AdminAccountTeamGrantDto>()
-        .Produces(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status401Unauthorized)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status404NotFound);
-
-        // DELETE /accounts/{id}/team-grants/{teamId} — 撤銷（is_active=false，立即生效）。
-        group.MapDelete("/{id:guid}/team-grants/{teamId:guid}", async (
-            Guid id, Guid teamId, HttpContext httpContext,
-            IAdminSystemAuthorizer authorizer, AdminAccountsRepository repository, CancellationToken cancellationToken) =>
-        {
-            await authorizer.AuthorizeAsync(httpContext, PermissionTeamGrantUpdate, cancellationToken);
-            var revoked = await repository.RevokeTeamGrantAsync(id, teamId, cancellationToken);
-            return revoked is null ? Results.NotFound() : Results.NoContent();
-        })
-        .WithName("AdminRevokeAccountTeamGrant")
         .Produces(StatusCodes.Status204NoContent)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)

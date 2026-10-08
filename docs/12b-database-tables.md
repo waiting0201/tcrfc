@@ -197,7 +197,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 > `CalendarCustomEvent.repeat_rule`／新增的 `repeat_until` 欄位由
 > `apps/api/Common/RecurrenceExpander.cs` 在讀取當下即時展開，不 materialize 成事件實例
 > （docs/12-database-schema.md §12 第 39 點）。權限碼：`calendar.view`（L1 總覽，一律
-> `scope_type=all`，賽事本身已公開，見 [`14-invariants.md`](14-invariants.md)「own_teams 盤點
+> `scope_type=all`，賽事本身已公開，見 [`14-invariants.md`](14-invariants.md)「學院梯隊範圍盤點
 > 結果」）、`calendar.custom_event.view/create/update/delete`（L2，`module_code=L`，
 > `domain=calendar`）。
 
@@ -209,16 +209,15 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 
 ## 7. 權限模型（J 模組）
 
-### 7.1 七張表（v3.0：由五張增為七張）
+### 7.1 六張表（v3.0：由五張增為六張）
 
 **能做什麼**：`AdminUser` → `AdminUserRole` → `AdminRole` → `RolePermission` → `Permission`
-**對誰做**：`AdminUser` → **`AdminUserClub`** ／ **`AdminUserTeam`**
+**對誰做**：`AdminUser` → **`AdminUserClub`**
 
 有效權限 ＝ 使用者所有角色的權限**聯集**；`is_super_admin = true` 者**跳過整個查詢**。
 
 ```
 AdminUserClub(admin_user_id PK, club_id PK, granted_on, expires_on NULL, granted_by, is_active)
-AdminUserTeam(admin_user_id PK, team_id PK, expires_on NULL, is_active)
 AdminRole   + scope_mode enum(all_clubs, own_clubs) NOT NULL DEFAULT 'all_clubs'
 AdminUser   + primary_club_id uuid NULL FK → Club     -- 站台切換器預設值，不是 club_id
 Permission  + is_club_scoped bool
@@ -227,9 +226,9 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 **為什麼授權掛在「人」不是「角色」**：把俱樂部放在 `AdminRole` 上，每多一個俱樂部就要複製整組九個角色，第三個俱樂部進來就是 27 個。**角色定義「能做什麼」，`AdminUserClub` 定義「對誰做」。**
 
-**為什麼 `scope_value` 直接刪而不是改成關聯表**：「哪些具體對象」現在全由上面兩張關聯表承載（在人身上），角色只需宣告「這個權限受不受範圍限制」。這符合 §1.4 第 1 條「陣列一律以關聯表表達」。
+**為什麼 `scope_value` 直接刪而不是改成關聯表**：「哪些具體對象」現在全由上面的關聯表承載（在人身上），角色只需宣告「這個權限受不受範圍限制」。這符合 §1.4 第 1 條「陣列一律以關聯表表達」。
 
-**`AdminUserTeam` 順帶補掉一個既有的坑**：§12 踩雷點 27 自承「學院管理者不能改一線隊這條，資料模型上沒有欄位可擋」——現在有了。
+**學院管理者不能改一線隊**：不逐帳號指派球隊，由角色的 `academy_only` 範圍（依 `team.type = 'academy'` 判斷，§7.4）承載。
 
 ### 7.1b 資料範圍的執行期規則（v3.0 新增）
 
@@ -280,8 +279,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `scope_type` | 意思 | 出現在 |
 |---|---|---|
 | `all` | 全部 | 預設 |
-| `own_teams` | 只有自己負責的隊伍 | 「賽事事件」「梯隊賽事」——**行事曆權限跟隨來源模組** |
-| `academy_only` | 只有 `team.type = 'academy'` | 學院／課程管理的球隊欄 |
+| `academy_only` | 只有 `team.type = 'academy'` | 學院／課程管理的球隊欄與「梯隊賽事」——**行事曆權限跟隨來源模組** |
 | `masked` | 可見但個資遮罩 | 商務／贊助的商店欄「訂單個資遮罩」 |
 | `translate_only` | 只能寫 `*_i18n` 且 `locale <> 'zh-Hant'` | 翻譯人員全列 |
 
@@ -363,11 +361,11 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 > `apps/api/README.md`「S1-12c」節。
 
 > **S1-10 新增（2026-09-25）**：「課程類詢問」「合作／贊助類詢問」「媒體類詢問」三格**不是**用
-> `role_permissions.scope_type` 表達（不像 `academy_only`／`own_teams` 需要另外解析列級範圍），
+> `role_permissions.scope_type` 表達（不像 `academy_only` 需要另外解析列級範圍），
 > 而是直接拆成三組獨立權限碼（`enquiry.course.*`／`enquiry.partnership.*`／`enquiry.media.*`），
 > 應用層依角色持有哪一組碼決定 `WHERE form_code IN (...)` 的過濾條件——因為這裡的「類別」邊界是
-> 固定的（9 個 `form_code` 的分類不會因使用者而變），不像球隊授權需要 `AdminUserTeam` 這種
-> 逐人指派的關聯表，用更細的權限碼比多一個 `scope_type` 列舉值＋硬編碼分類對照表更直接，也不需要
+> 固定的（9 個 `form_code` 的分類不會因使用者而變），不像 `academy_only` 需要依 `team.type`
+> 解析列級範圍，用更細的權限碼比多一個 `scope_type` 列舉值＋硬編碼分類對照表更直接，也不需要
 > 修改 `role_permissions.scope_type` 的 CHECK 值域。⚠️ **規劃書 §6（行 1604）原始表格「廣告」／
 > 「行動 App」／「表單詢問」三欄內容與表頭錯位**，本表格已改依 [`03-admin-spec.md`](03-admin-spec.md)
 > §3 手動修正過的版本核對，完整說明見 [`12-database-schema.md`](12-database-schema.md#12-踩雷點)
@@ -599,7 +597,6 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `AdminUser` | **`username`**（**`email` 不設唯一**，只作通知用） |
 | `AdminRole` / `Permission` | `code` |
 | `AdminUserClub` | `(admin_user_id, club_id)` |
-| `AdminUserTeam` | `(admin_user_id, team_id)` |
 | `PaymentChannel` | **`(owner_club_id, channel_type, environment)`** |
 | `DrawRoster` | `(member_draw_id, roster_version, serial_no)`、`(member_draw_id, roster_version, member_no_snapshot)`（C1：含版本） |
 | `DrawRosterVersion`（C1） | `(member_draw_id, roster_version)` |
@@ -655,7 +652,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `Member` → `Membership` | **`RESTRICT`**（會籍涉金流與發票，刪帳號不得連帶刪會籍） |
 | `Membership` → `MemberCard` | **`CASCADE`**（每份會籍一張卡，會籍沒了卡就該失效） |
 | `Club` → 任何帶 `club_id` 的表 | **`RESTRICT`**（俱樂部是主檔，有資料就不得刪） |
-| `AdminUser` → `AdminUserClub`／`AdminUserTeam` | `CASCADE` |
+| `AdminUser` → `AdminUserClub` | `CASCADE` |
 | `Cart` → `CartItem` | `CASCADE` |
 
 ---

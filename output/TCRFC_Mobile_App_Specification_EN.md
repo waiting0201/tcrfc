@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.16
-> **Date**: 2026-09-04 (v3.16 revision: 2026-10-06)
+> **Document version**: v3.17
+> **Date**: 2026-09-04 (v3.17 revision: 2026-10-08)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.17 revision summary — aligned with the main site's admin data-scope authorisation**
+> **No new functionality.** Admin data-scope authorisation stops at club level (main-site specification v3.23: `AdminUserClub`, `AdminRole.scope_mode`). Landing points: the §8 data-scope note, §11 permissions and roles, §16 dependencies on the main site, and the v3.0 revision summary.
 
 > **v3.16 revision summary — both clubs' crests and brand colours are bundled app resources**
 > **No new functionality.** Both clubs' crests (with @2x / @3x and dark variants) and brand colours ship inside the app and are not served by the API or configured in the admin (per main-site specification v3.20). Landing points: §10.1 `Club` field table, §9.2 club list.
@@ -95,7 +98,7 @@
 > 6. **Club records and admin authorisation sit in the main site's `J4 Clubs & authorisation`** (8.6): they are system administration, and the type is a main-site type. `M` is M1–M5.
 > 7. **Two blocking items in 16.2 are resolved**:
 >    - Item 5, "whether the website follows suit" — **the client has decided to build the Taichung Blue Whale website** (its own domain, bilingual; see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md)). That is **option A** in 2.3, and Blue Whale fixtures, rosters and news all gain a fallback target.
->    - Item 6, "the main site's `J` module data scope" — **the main-site specification v3.0 has added it** (`AdminUserClub` / `AdminUserTeam`, `scope_mode`, data-access-layer enforcement).
+>    - Item 6, "the main site's `J` module data scope" — **the main-site specification v3.0 has added it** (`AdminUserClub`, `scope_mode`, data-access-layer enforcement).
 >    ⚠️ **But a new technical condition appears**: the Blue Whale site is on **its own domain**, and a Universal Link can only be bound to a domain you control. That domain **must be held by a controllable party** and able to serve `.well-known/apple-app-site-association` and `assetlinks.json`, or Blue Whale deep links still cannot fall back (2.3).
 > 8. **Section 11's member permissions for partner-club accounts**: Blue Whale's own support staff need to see their own members. The rule is "**may reach only their own `Membership` / `Order` / `Registration`; the `Member` master record is always masked; and they can never see any membership row belonging to the other club**".
 > 9. **The Charity Donation Platform has its own admin and database** (1.2): no direct bearing on this app, but the three-way division of the specifications must stay in step.
@@ -1276,7 +1279,7 @@ E. Commercial                        (extends the existing module)
 
 ### 8.6 Clubs and data scope (main site `J4`)
 
-> **Club records (`Club`) and admin accounts' data-scope authorisation are defined in the main-site specification `4.10 J4 Clubs & authorisation`**, covering `AdminUserClub` (with grant and expiry dates, expiring automatically), `AdminUserTeam`, `AdminRole.scope_mode` and data-access-layer enforcement. This section records only what concerns the app.
+> **Club records (`Club`) and admin accounts' data-scope authorisation are defined in the main-site specification `4.10 J4 Clubs & authorisation`**, covering `AdminUserClub` (with grant and expiry dates, expiring automatically), `AdminRole.scope_mode` and data-access-layer enforcement. This section records only what concerns the app.
 >
 > ⚠️ **Data scope is a precondition of the multi-club architecture, not an optimisation that can wait**: once `club_id` reaches roughly 40 tables, every admin list query has to decide whether to filter. Build it single-club now and adding it later means rewriting the whole query layer.
 >
@@ -1581,7 +1584,7 @@ The website's nine roles carry over, with two new columns — **Mobile App** and
 
 **Unchanged**: the other club's member data, push, advertising and system administration remain closed to this role; dual membership does not relax any of these.
 
-> ✅ **The main-site specification provides data scope**: the `AdminUserClub` / `AdminUserTeam` authorisation tables, `AdminRole.scope_mode`, `Permission.is_club_scoped`, and the runtime rule that data scope must be enforced at the data-access layer.
+> ✅ **The main-site specification provides data scope**: the `AdminUserClub` authorisation table, `AdminRole.scope_mode`, `Permission.is_club_scoped`, and the runtime rule that data scope must be enforced at the data-access layer.
 > **The role need not have users in the first phase** — if Blue Whale's content is maintained by the existing team under their own accounts, no partner-club account is needed. Data scope is still built (it is foundation work), but it does not block launch. See 8.6.
 
 ---
@@ -1772,7 +1775,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 
 > **Two items were resolved in v3.0**:
 > - v2.0 item 5, "**whether the website also becomes two-club**" — the client has decided to build the Taichung Blue Whale website (option A in 2.3), giving Blue Whale fixtures, rosters and news proper fallback targets. **It does, however, produce item 4** (domain ownership and DNS control).
-> - v2.0 item 6, "**row-level data scoping in the website's `J` module**" — added by the main-site specification v3.0 (`AdminUserClub` / `AdminUserTeam` / `scope_mode` / data-access-layer enforcement).
+> - v2.0 item 6, "**row-level data scoping in the website's `J` module**" — added by the main-site specification v3.0 (`AdminUserClub` / `scope_mode` / data-access-layer enforcement).
 >
 > **The developer account holder is settled as the club** (see 16.1).
 

@@ -3,8 +3,8 @@
  * C4「積分榜」——列表頁。對照 apps/api/README.md「S1-8」。規劃書原文「積分榜：手動維護表格或
  * 匯入 CSV」——這裡就是那張表格：依賽季檢視、逐列新增／編輯／刪除，或整季 CSV 替換匯入。
  *
- * ⚠️ 這個模組沒有球隊列級授權（`standings` 沒有 `team_id` 欄位，見 `apps/api/adminStandings.ts`
- * 檔頭說明），受球隊範圍限制的帳號（例如學院管理者）目前完全沒有這組權限碼，打這個頁面的任何
+ * ⚠️ 這個模組沒有球隊範圍限制（`standings` 沒有 `team_id` 欄位，見 `apps/api/adminStandings.ts`
+ * 檔頭說明），受資料範圍限制的帳號（例如學院管理者）目前完全沒有這組權限碼，打這個頁面的任何
  * 寫入端點一律 403「沒有權限」。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'

@@ -29,9 +29,8 @@ public sealed record AdminTeamContentInput
     public AdminTeamLocaleContent? En { get; init; }
 }
 
-/// <summary>C1 球隊管理——俱樂部範圍列表用（<c>/api/v1/admin/{club}/teams</c>），
-/// 與 J4 球隊授權下拉選單用的 <see cref="AdminTeamListItemDto"/> 分開：那份是跨俱樂部唯讀查詢，
-/// 這份是「這個俱樂部自己的球隊清單」，欄位需求不同（多了 SortOrder／HeroKey／UpdatedAt）。</summary>
+/// <summary>C1 球隊管理——俱樂部範圍列表用（<c>/api/v1/admin/{club}/teams</c>）。
+/// 「這個俱樂部自己的球隊清單」，含 SortOrder／HeroKey／UpdatedAt。</summary>
 public sealed record AdminTeamAdminListItemDto
 {
     public required Guid Id { get; init; }
@@ -97,21 +96,4 @@ public sealed record UpdateAdminTeamRequest
 
     /// <summary>true＝移除目前的主視覺圖片，不接受同時夾帶新檔案（比照 <c>UpdateArticleRequest.RemoveCover</c>）。</summary>
     public bool RemoveHero { get; init; }
-}
-
-/// <summary>球隊授權（J4，<c>admin_user_teams</c>）畫面用的下拉選單資料——前端 agent 回報缺口②。
-/// 跨俱樂部（見 <c>AdminTeamsEndpoints</c> 檔頭說明），所以每一列都帶著俱樂部代碼與名稱，
-/// 前端可以依俱樂部分組顯示，不必再逐一查詢俱樂部主檔。</summary>
-public sealed record AdminTeamListItemDto
-{
-    public required Guid Id { get; init; }
-    public required Guid ClubId { get; init; }
-    public required string ClubCode { get; init; }
-    public string? ClubNameZh { get; init; }
-    public required string Code { get; init; }
-    public required string Type { get; init; }
-    public required string Gender { get; init; }
-    public string? AgeBand { get; init; }
-    public string? NameZh { get; init; }
-    public string? NameEn { get; init; }
 }

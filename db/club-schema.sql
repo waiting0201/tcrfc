@@ -1782,15 +1782,6 @@ CREATE TABLE admin_user_clubs (
   CONSTRAINT PK_admin_user_clubs PRIMARY KEY CLUSTERED (admin_user_id, club_id)
 );
 
--- 資料範圍：對哪一隊（v3.0 新增）——補上「學院管理者不能改一線隊」這條資料模型上原本沒有欄位可擋的坑。
-CREATE TABLE admin_user_teams (
-  admin_user_id   uniqueidentifier NOT NULL,
-  team_id         uniqueidentifier NOT NULL,
-  expires_on      date             NULL,
-  is_active       bit              NOT NULL DEFAULT 1,
-  CONSTRAINT PK_admin_user_teams PRIMARY KEY CLUSTERED (admin_user_id, team_id)
-);
-
 -- 權限碼字典。後台專用表，比照 admin_roles 用並排 name_zh／name_en，不走 i18n 側表。
 CREATE TABLE permissions (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
@@ -1820,7 +1811,7 @@ CREATE TABLE role_permissions (
   permission_id   uniqueidentifier NOT NULL,
   scope_type      nvarchar(32)     NOT NULL DEFAULT 'all'
                     CHECK (scope_type IN
-                      ('all','own_teams','academy_only','masked','translate_only','own_clubs')),
+                      ('all','academy_only','masked','translate_only','own_clubs')),
   CONSTRAINT PK_role_permissions PRIMARY KEY CLUSTERED (admin_role_id, permission_id)
 );
 
@@ -3956,8 +3947,6 @@ ALTER TABLE admin_user_roles   ADD CONSTRAINT FK_admin_user_roles_role        FO
 ALTER TABLE admin_user_clubs   ADD CONSTRAINT FK_admin_user_clubs_user        FOREIGN KEY (admin_user_id) REFERENCES admin_users(id) ON DELETE CASCADE;
 ALTER TABLE admin_user_clubs   ADD CONSTRAINT FK_admin_user_clubs_club        FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE admin_user_clubs   ADD CONSTRAINT FK_admin_user_clubs_granted_by  FOREIGN KEY (granted_by) REFERENCES admin_users(id);
-ALTER TABLE admin_user_teams   ADD CONSTRAINT FK_admin_user_teams_user        FOREIGN KEY (admin_user_id) REFERENCES admin_users(id) ON DELETE CASCADE;
-ALTER TABLE admin_user_teams   ADD CONSTRAINT FK_admin_user_teams_team        FOREIGN KEY (team_id) REFERENCES teams(id);
 ALTER TABLE role_permissions   ADD CONSTRAINT FK_role_permissions_role        FOREIGN KEY (admin_role_id) REFERENCES admin_roles(id) ON DELETE CASCADE;
 ALTER TABLE role_permissions   ADD CONSTRAINT FK_role_permissions_permission  FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE;
 ALTER TABLE admin_refresh_tokens ADD CONSTRAINT FK_admin_refresh_tokens_user      FOREIGN KEY (admin_user_id) REFERENCES admin_users(id) ON DELETE CASCADE;

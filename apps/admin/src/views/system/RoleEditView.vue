@@ -64,7 +64,6 @@ function moduleName(code: string): string {
 
 const SCOPE_TYPE_LABEL: Record<RoleScopeType, string> = {
   all: '全部',
-  own_teams: '僅自己的球隊',
   academy_only: '僅學院梯隊',
   masked: '遮罩顯示',
   translate_only: '僅可翻譯',

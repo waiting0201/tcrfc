@@ -29,8 +29,8 @@ namespace Tcrfc.Api.Features.AdminEnquiries;
 /// ### 依表單類別的列級授權（不是 <c>role_permissions.scope_type</c>）
 /// 學院／課程管理、商務／贊助、公關／媒體三個角色只能看到自己類別的詢問（矩陣「課程類詢問」
 /// 「合作／贊助類詢問」「媒體類詢問」）。這裡**不是**比照 <c>TeamRowScope</c> 用
-/// <c>role_permissions.scope_type</c> 解析（那是給「同一權限碼、依逐人指派的關聯表決定範圍」的
-/// 情境，例如 <c>own_teams</c> 靠 <c>AdminUserTeam</c>）——本模組的「類別」邊界是固定的 9 個
+/// <c>role_permissions.scope_type</c> 解析（那是給「同一權限碼、依資料列屬性決定範圍」的
+/// 情境，例如 <c>academy_only</c> 依 <c>teams.type</c>）——本模組的「類別」邊界是固定的 9 個
 /// <c>form_code</c> 分組，不需要逐人指派的關聯表，直接拆成 <c>enquiry.inbox.*</c>／
 /// <c>enquiry.course.*</c>／<c>enquiry.partnership.*</c>／<c>enquiry.media.*</c> 四組獨立權限碼，
 /// 應用層依角色持有哪一組決定 <c>WHERE form_code IN (...)</c>，見
@@ -292,7 +292,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
     ///
     /// **為什麼不重用 <see cref="Features.AdminAccounts.AdminAccountsRepository"/>**：那支
     /// repository 服務的是 <c>system.account.*</c>（J1 帳號管理），回傳完整帳號明細（含 Email、
-    /// 角色、俱樂部與球隊授權），刻意只給系統管理員；本方法服務的是完全不同的權限邊界——任何持有
+    /// 角色與俱樂部授權），刻意只給系統管理員；本方法服務的是完全不同的權限邊界——任何持有
     /// 這個表單類別處理權限的人都能查，但只回傳「能指派給誰」需要的最小欄位（id、顯示名稱），
     /// 不能把 J1 那份明細的存取範圍跟著放寬，否則等於繞道讓非系統管理員也能查到別人的 Email。
     ///

@@ -1,12 +1,6 @@
 <script setup lang="ts">
 /**
- * J1 帳號編輯頁 ＋ J4「掛在帳號底下」的俱樂部授權／球隊授權（分頁）。
- *
- * ✅ 球隊授權分頁已改接 `GET /admin/teams?clubCode=` 下拉選單（S1-4 續作補上，取代先前
- * 「沒有清單、只能自己貼識別碼」的暫時作法，見 apps/api/README.md「前端回報缺口②之二」）。
- * **只列出這個帳號目前已授權俱樂部底下的球隊**——後端也會擋（球隊授權必須落在帳號目前有效的
- * 俱樂部授權範圍內），這裡在畫面上先把選項收斂到範圍內，避免使用者選了一個必然會被拒絕的球隊
- * 才在送出後才看到錯誤訊息。
+ * J1 帳號編輯頁 ＋ J4「掛在帳號底下」的俱樂部授權。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -22,21 +16,16 @@ import {
   createAdminAccount,
   getAdminAccount,
   listAccountClubGrants,
-  listAccountTeamGrants,
   resetAdminAccountPassword,
   resetAdminAccountTwoFactor,
   revokeAccountClubGrant,
-  revokeAccountTeamGrant,
   setAdminAccountStatus,
   updateAdminAccount,
   upsertAccountClubGrant,
-  upsertAccountTeamGrant,
   type AdminAccountClubGrantDto,
-  type AdminAccountTeamGrantDto,
 } from '@/api/adminAccounts'
 import { listAdminClubs, type AdminClubListItemDto } from '@/api/adminClubs'
 import { listAdminRoles, type AdminRoleListItemDto } from '@/api/adminRoles'
-import { listAdminTeams, type AdminTeamListItemDto } from '@/api/adminTeams'
 import { AdminApiError } from '@/api/http'
 
 const route = useRoute()
@@ -92,7 +81,7 @@ async function loadAccount() {
       form.isSuperAdmin = detail.isSuperAdmin
       form.roleCodes = [...detail.roleCodes]
       accountStatus.value = detail.status
-      await Promise.all([loadClubGrants(), loadTeamGrants(), loadAvailableTeams()])
+      await loadClubGrants()
     }
     baselineJson.value = JSON.stringify(form)
     loadState.value = 'ready'
@@ -278,93 +267,6 @@ async function revokeClubGrant(grant: AdminAccountClubGrantDto) {
   }
 }
 
-// ── 球隊授權 ──────────────────────────────────────────────────────────────
-const teamGrants = ref<AdminAccountTeamGrantDto[]>([])
-const newTeamGrant = reactive({ teamId: '', expiresOn: '' })
-const teamGrantSubmitting = ref(false)
-
-/** 跨俱樂部的球隊清單（`GET /admin/teams`，未帶 `clubCode` ＝ 全部俱樂部），畫面上再依這個帳號
- * 目前有效的俱樂部授權篩選成「可選」的子集合，見下方 `selectableTeams`。 */
-const allTeams = ref<AdminTeamListItemDto[]>([])
-const teamsLoadError = ref<string | null>(null)
-
-async function loadAvailableTeams() {
-  teamsLoadError.value = null
-  try {
-    allTeams.value = await listAdminTeams()
-  } catch (error) {
-    allTeams.value = []
-    teamsLoadError.value = error instanceof AdminApiError ? error.message : '球隊清單載入失敗，請稍後再試'
-  }
-}
-
-/** 這個帳號目前有效（未撤銷、未過期）的俱樂部授權——球隊授權只能落在這個範圍內（後端也會擋，
- * 見 apps/api/README.md「只能授權該帳號目前有效俱樂部授權範圍內的球隊」）。 */
-const authorizedClubIds = computed(() => new Set(clubGrants.value.filter((g) => g.isCurrentlyEffective).map((g) => g.clubId)))
-
-/** 依俱樂部分組，讓畫面在系統管理員授權跨俱樂部球隊時能一眼看出球隊屬於哪一隊。 */
-const selectableTeamGroups = computed(() => {
-  const groups = new Map<string, { clubCode: string; clubNameZh?: string | null; teams: AdminTeamListItemDto[] }>()
-  for (const team of allTeams.value) {
-    if (!authorizedClubIds.value.has(team.clubId)) continue
-    const group = groups.get(team.clubId) ?? { clubCode: team.clubCode, clubNameZh: team.clubNameZh, teams: [] }
-    group.teams.push(team)
-    groups.set(team.clubId, group)
-  }
-  return [...groups.values()]
-})
-
-function teamOptionLabel(team: AdminTeamListItemDto): string {
-  return team.nameZh ? `${team.nameZh}（${team.code}）` : team.code
-}
-
-async function loadTeamGrants() {
-  teamGrants.value = await listAccountTeamGrants(accountId.value!)
-}
-
-async function submitTeamGrant() {
-  if (formErrors.replaceAll(newTeamGrant.teamId ? {} : { teamGrantTeamId: '請選擇要授權的球隊' })) {
-    await formErrors.focusFirst()
-    return
-  }
-  teamGrantSubmitting.value = true
-  try {
-    await upsertAccountTeamGrant(accountId.value!, {
-      teamId: newTeamGrant.teamId,
-      expiresOn: newTeamGrant.expiresOn || null,
-    })
-    ElMessage.success('已新增球隊授權')
-    newTeamGrant.teamId = ''
-    newTeamGrant.expiresOn = ''
-    await loadTeamGrants()
-  } catch (error) {
-    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
-    ElMessage.error(error instanceof AdminApiError ? error.message : '新增失敗，請稍後再試（請確認這個帳號已被授權該球隊所屬的俱樂部）')
-  } finally {
-    teamGrantSubmitting.value = false
-  }
-}
-
-async function revokeTeamGrant(grant: AdminAccountTeamGrantDto) {
-  try {
-    await ElMessageBox.confirm(`確定要撤銷「${grant.teamCode}」的球隊授權嗎？`, '確認撤銷', {
-      confirmButtonText: '撤銷',
-      cancelButtonText: '取消',
-      confirmButtonClass: 'el-button--danger',
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
-  try {
-    await revokeAccountTeamGrant(accountId.value!, grant.teamId)
-    ElMessage.success('已撤銷')
-    await loadTeamGrants()
-  } catch (error) {
-    ElMessage.error(error instanceof AdminApiError ? error.message : '撤銷失敗，請稍後再試')
-  }
-}
-
 function handleBack() {
   router.push('/system/accounts')
 }
@@ -455,48 +357,6 @@ function handleBack() {
                   </FormField>
                   <el-button type="primary" :loading="clubGrantSubmitting" @click="submitClubGrant">新增授權</el-button>
                 </div>
-              </FormSection>
-
-              <FormSection v-if="!isCreate" title="球隊授權">
-                <p class="account-edit__hint">供「學院管理者不得改動一線隊賽程」這類列級限制使用（J4）。</p>
-                <el-table :data="teamGrants" size="small" class="account-edit__grant-table">
-                  <el-table-column label="球隊" prop="teamCode" width="160" />
-                  <el-table-column label="所屬俱樂部" prop="clubCode" width="120" />
-                  <el-table-column label="到期日" width="120">
-                    <template #default="{ row }">{{ row.expiresOn ?? '無期限' }}</template>
-                  </el-table-column>
-                  <el-table-column label="狀態" width="100">
-                    <template #default="{ row }">
-                      <el-tag :type="row.isCurrentlyEffective ? 'success' : 'info'" size="small">
-                        {{ row.isCurrentlyEffective ? '生效中' : (row.isActive ? '已過期' : '已撤銷') }}
-                      </el-tag>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="操作" width="100">
-                    <template #default="{ row }">
-                      <el-button v-if="row.isActive" size="small" text type="danger" @click="revokeTeamGrant(row)">撤銷</el-button>
-                    </template>
-                  </el-table-column>
-                </el-table>
-                <template v-if="authorizedClubIds.size === 0">
-                  <p class="account-edit__hint">請先在上方新增俱樂部授權，才能選擇該俱樂部底下的球隊。</p>
-                </template>
-                <template v-else>
-                  <div class="account-edit__grant-form">
-                    <FormField field="teamGrantTeamId" class="account-edit__grant-field">
-                      <el-select v-model="newTeamGrant.teamId" placeholder="選擇球隊" filterable style="width: 260px" :no-data-text="teamsLoadError ?? '目前已授權的俱樂部底下還沒有任何球隊'" @change="formErrors.clear('teamGrantTeamId')">
-                        <el-option-group v-for="group in selectableTeamGroups" :key="group.clubCode" :label="group.clubNameZh ?? group.clubCode">
-                          <el-option v-for="team in group.teams" :key="team.id" :label="teamOptionLabel(team)" :value="team.id" />
-                        </el-option-group>
-                      </el-select>
-                    </FormField>
-                    <FormField field="teamGrantExpiresOn" class="account-edit__grant-field">
-                      <el-date-picker v-model="newTeamGrant.expiresOn" type="date" value-format="YYYY-MM-DD" placeholder="到期日（選填）" @change="formErrors.clear('teamGrantExpiresOn')" />
-                    </FormField>
-                    <el-button type="primary" :loading="teamGrantSubmitting" @click="submitTeamGrant">新增授權</el-button>
-                  </div>
-                  <p v-if="teamsLoadError" class="account-edit__note">{{ teamsLoadError }}</p>
-                </template>
               </FormSection>
             </el-form>
           </el-card>

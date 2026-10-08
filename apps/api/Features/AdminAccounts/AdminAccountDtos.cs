@@ -31,31 +31,6 @@ public sealed record AdminAccountClubGrantDto
     public required bool IsCurrentlyEffective { get; init; }
 }
 
-/// <summary>
-/// J4「球隊授權」（<c>admin_user_teams</c>，主站規劃書第 1223–1231 行 J4 表格）——供「學院管理者
-/// 不得改動一線隊賽程」這類**列級**限制使用。⚠️ 本輪只維護授權資料本身，**不做強制**——強制點
-/// （例如 C4 賽程寫入時檢查 <c>own_teams</c>）留給 C4 寫入端點實作時一併處理，見 apps/api/README.md。
-/// </summary>
-public sealed record AdminAccountTeamGrantDto
-{
-    public required Guid TeamId { get; init; }
-    public required string TeamCode { get; init; }
-    public required string ClubCode { get; init; }
-    public DateOnly? ExpiresOn { get; init; }
-    public required bool IsActive { get; init; }
-    public required bool IsCurrentlyEffective { get; init; }
-}
-
-/// <summary><c>admin_user_teams</c> 沒有 <c>granted_on</c>／<c>granted_by</c> 欄位（比 <c>admin_user_clubs</c>
-/// 精簡），所以這裡沒有對應的輸入欄位——這是綱要本身的形狀，不是本輪省略。</summary>
-public sealed record CreateAdminAccountTeamGrantRequest
-{
-    public required Guid TeamId { get; init; }
-
-    /// <summary>省略＝無期限。</summary>
-    public DateOnly? ExpiresOn { get; init; }
-}
-
 /// <summary>後台帳號詳情（編輯頁用）。</summary>
 public sealed record AdminAccountDetailDto
 {
@@ -72,7 +47,6 @@ public sealed record AdminAccountDetailDto
     public DateTime? LastLoginAt { get; init; }
     public required IReadOnlyList<string> RoleCodes { get; init; }
     public required IReadOnlyList<AdminAccountClubGrantDto> ClubGrants { get; init; }
-    public required IReadOnlyList<AdminAccountTeamGrantDto> TeamGrants { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
 }

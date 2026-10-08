@@ -98,7 +98,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         // 沒有正當理由能建立這種「不屬於自己任何一支球隊」的資源。
         if (!rowScope.AllowsAll(teams.Select(t => (t.Team.Id, t.Team.Type)).ToList()))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許建立這筆教練／團隊成員資料。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許建立這筆教練／團隊成員資料。");
         }
 
         var now = DateTime.UtcNow;
@@ -164,7 +164,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         // 🔴 S1-8 新增：既有指派的球隊要允許——防止範圍受限帳號碰到不屬於自己範圍的既有教練資料。
         if (!rowScope.AllowsAll(staff.StaffTeams.Select(st => (st.Team.Id, st.Team.Type)).ToList()))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這筆教練／團隊成員資料。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許修改這筆教練／團隊成員資料。");
         }
 
         staff.StaffGroup = request.StaffGroup;
@@ -199,7 +199,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             // 可以把一位原本在範圍內的教練，改指派到範圍外的球隊藉此逃脫限制。
             if (!rowScope.AllowsAll(teams.Select(t => (t.Team.Id, t.Team.Type)).ToList()))
             {
-                throw new AdminForbiddenException("你的球隊授權範圍不允許把這筆資料指派到這些球隊。");
+                throw new AdminForbiddenException("你的角色資料範圍不允許把這筆資料指派到這些球隊。");
             }
 
             dbContext.StaffTeams.RemoveRange(staff.StaffTeams);

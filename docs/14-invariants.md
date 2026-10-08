@@ -407,7 +407,7 @@
 
 - 🔴 **（S1-8，2026-09-24）`role_permissions.scope_type` 的列級授權強制，`Security/TeamRowScope.cs`／
   `AdminTeamRowScopeResolver.cs`**：`scope_type` 這個欄位從 `S1-3` 就種在資料庫，但直到 `S1-8`
-  才第一次有程式碼真的讀它做過濾——**日後看到某個角色的某個權限碼掛著 `academy_only`／`own_teams`
+  才第一次有程式碼真的讀它做過濾——**日後看到某個角色的某個權限碼掛著 `academy_only`
   之類的值，不代表它真的有效果，要去確認呼叫端有沒有經過 `IAdminTeamRowScopeResolver`**。
   目前只有 C1（`teams`）／C2（`players`）／C3（`staff` 的 `staff_teams`）／C4（`matches` 的
   `match_teams`）四個模組的**寫入端點**接上了這個機制；**列表／檢視端點沒有套用**（例如
@@ -423,8 +423,8 @@
   見 `apps/api/README.md` 該輪的完整契約說明。
 - 🔴 **（S1-8）`role_permissions.scope_type = 'own_clubs'` 在列級授權裡視同 `'all'`（不限）**：
   docs/12b-database-tables.md §7.1 講「`scope_type` 加值 `own_clubs`」，但 §7.4 那張「`scope_type`
-  是矩陣裡不是布林的格子」對照表只列了 `own_teams`／`academy_only`／`masked`／`translate_only`
-  四個，**兩段自相矛盾**（`own_clubs` 沒被正式收進值域清單）。既有種子資料
+  是矩陣裡不是布林的格子」對照表只列了 `academy_only`／`masked`／`translate_only`
+  三個，**兩段自相矛盾**（`own_clubs` 沒被正式收進值域清單）。既有種子資料
   （`db/seed/generate-club-seed-sql.py`）對 `partner_club_manager` 的全部指派都用
   `"own_clubs"`——`AdminTeamRowScopeResolver` 若把它當成未知值處理（fail-closed），會讓合作球隊
   管理角色完全無法操作任何球隊／球員／教練／賽事資料，且**這個 bug 在 `scope_type` 真的被讀取
@@ -432,15 +432,15 @@
   `IAdminClubAuthorizer` 的 `AdminUserClub` 檢查在更上一層擋住），不代表「同一個俱樂部內部」要
   對球隊再窄化一次，故視同不限。**docs/12b §7.4 尚未同步補上這個值**，是已知的文件缺口，
   不是程式碼缺口。
-- 🔴 **（S1-11，2026-09-25）`own_teams` 盤點結果：L 行事曆模組的讀取端點仍然不需要它**——
-  S1-8 當時把 `own_teams` 保留給「等 L 模組真的需要時再指派」，S1-11 實作 L1／L2 後盤點：
-  行事曆總覽（`calendar.view`）是純讀取，賽事本身早已透過 `GET /api/v1/{club}/schedule`
-  對任何人公開，不因為多了「總覽」這個入口變成需要列級限制的資料；L2 自建事件的寫入權限碼
-  （`calendar.custom_event.*`）目前拿到的角色（系統管理員／內容編輯／公關媒體／合作球隊管理）
-  在種子資料裡也都是 `all`（或效果等同 `all` 的 `own_clubs`），沒有一個角色需要「只能碰特定
-  球隊的自建事件」這種列級限制。`own_teams` 依然是**已實作但未被任何內建角色使用**的能力，
-  等到 L1「拖曳改期回寫 `Match`」（`S2-6`）真的做出來、且真的有角色需要限縮到特定球隊時再指派，
-  不需要為此再改一次程式碼，見 `apps/api/README.md`「S1-11」段。
+- 🔴 **（S1-11，2026-09-25；2026-10-08 依主站 v3.23 改寫）L 行事曆模組的讀取端點不需要列級範圍**——
+  S1-11 實作 L1／L2 後盤點：行事曆總覽（`calendar.view`）是純讀取，賽事本身早已透過
+  `GET /api/v1/{club}/schedule` 對任何人公開，不因為多了「總覽」這個入口變成需要列級限制的資料；
+  L2 自建事件的寫入權限碼（`calendar.custom_event.*`）目前拿到的角色（系統管理員／內容編輯／
+  公關媒體／合作球隊管理）在種子資料裡也都是 `all`（或效果等同 `all` 的 `own_clubs`），沒有一個角色
+  需要「只能碰特定球隊的自建事件」這種列級限制。**「學院管理者只能調整學院梯隊賽程、不能改一線隊」
+  由角色的 `academy_only` 範圍（依 `team.type = 'academy'`）承載，不逐帳號指派球隊**（主站 v3.23）；
+  等到 L1「拖曳改期回寫 `Match`」（`S2-6`）真的做出來時，行事曆的賽事事件寫入沿用同一個範圍，
+  見 `apps/api/README.md`「S1-11」段。
 
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。
 - 🏟 **賽事狀態的中文是「延賽」不是「延期」**（主站規劃書 **v3.13，2026-09-23 客戶裁決**，球界慣用語）。

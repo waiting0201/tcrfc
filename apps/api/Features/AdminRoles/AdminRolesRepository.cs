@@ -10,7 +10,7 @@ public sealed class AdminRolesRepository(ClubDbContext dbContext)
     private static readonly HashSet<string> ValidScopeModes = new(StringComparer.Ordinal) { "all_clubs", "own_clubs" };
 
     private static readonly HashSet<string> ValidScopeTypes = new(StringComparer.Ordinal)
-        { "all", "own_teams", "academy_only", "masked", "translate_only", "own_clubs" };
+        { "all", "academy_only", "masked", "translate_only", "own_clubs" };
 
     // ───────────────────────────── 權限碼字典 ─────────────────────────────
 

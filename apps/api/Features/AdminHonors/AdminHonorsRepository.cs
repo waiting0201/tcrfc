@@ -63,7 +63,7 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
         var (season, team) = await ValidateAchievementAsync(scope, request, cancellationToken);
         if (!rowScope.Allows(team.Id, team.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許建立這支球隊的榮譽。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許建立這支球隊的榮譽。");
         }
 
         var now = DateTime.UtcNow;
@@ -94,7 +94,7 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
         // 既有的球隊與新指派的球隊都要在授權範圍內（防止把範圍內的榮譽改掛到範圍外的球隊逃脫限制）。
         if (!rowScope.Allows(achievement.TeamId, achievement.Team.Type) || !rowScope.Allows(team.Id, team.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這筆榮譽。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許修改這筆榮譽。");
         }
 
         achievement.SeasonId = season.Id;
@@ -119,7 +119,7 @@ public sealed class AdminHonorsRepository(ClubDbContext dbContext, IQueryCache c
 
         if (!rowScope.Allows(achievement.TeamId, achievement.Team.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許刪除這筆榮譽。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許刪除這筆榮譽。");
         }
 
         dbContext.Achievements.Remove(achievement);

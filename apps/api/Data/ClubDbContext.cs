@@ -22,8 +22,6 @@ public partial class ClubDbContext : DbContext
 
     public virtual DbSet<AdminUserClub> AdminUserClubs { get; set; }
 
-    public virtual DbSet<AdminUserTeam> AdminUserTeams { get; set; }
-
     public virtual DbSet<Article> Articles { get; set; }
 
     public virtual DbSet<ArticleCategoriesI18n> ArticleCategoriesI18ns { get; set; }
@@ -628,29 +626,6 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.GrantedByNavigation).WithMany(p => p.AdminUserClubGrantedByNavigations)
                 .HasForeignKey(d => d.GrantedBy)
                 .HasConstraintName("FK_admin_user_clubs_granted_by");
-        });
-
-        modelBuilder.Entity<AdminUserTeam>(entity =>
-        {
-            entity.HasKey(e => new { e.AdminUserId, e.TeamId });
-
-            entity.ToTable("admin_user_teams");
-
-            entity.Property(e => e.AdminUserId).HasColumnName("admin_user_id");
-            entity.Property(e => e.TeamId).HasColumnName("team_id");
-            entity.Property(e => e.ExpiresOn).HasColumnName("expires_on");
-            entity.Property(e => e.IsActive)
-                .HasDefaultValue(true)
-                .HasColumnName("is_active");
-
-            entity.HasOne(d => d.AdminUser).WithMany(p => p.AdminUserTeams)
-                .HasForeignKey(d => d.AdminUserId)
-                .HasConstraintName("FK_admin_user_teams_user");
-
-            entity.HasOne(d => d.Team).WithMany(p => p.AdminUserTeams)
-                .HasForeignKey(d => d.TeamId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_admin_user_teams_team");
         });
 
         modelBuilder.Entity<Article>(entity =>

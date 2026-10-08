@@ -32,8 +32,8 @@
 -- MANIFEST forms=18
 -- MANIFEST home_sections=18
 -- MANIFEST locales=2
--- MANIFEST permissions=271
--- MANIFEST role_permissions=792
+-- MANIFEST permissions=269
+-- MANIFEST role_permissions=790
 -- ============================================================================
 
 SET ANSI_NULLS ON;
@@ -516,30 +516,6 @@ BEGIN
   SET @id = N'610b0e7d-15aa-53da-a8c2-9412c4710163';
   INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
   VALUES (@id, N'system.club.update', N'J', N'J4', N'system', N'update', 0, 0, 1, N'建立／編輯俱樂部主檔', N'Update Clubs');
-  COMMIT TRANSACTION;
-END
-GO
-
-DECLARE @id uniqueidentifier;
-SELECT @id = id FROM permissions WHERE code = N'system.team_grant.view';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'29c7bce9-49a9-59c8-a4a5-01a435cb6c40';
-  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
-  VALUES (@id, N'system.team_grant.view', N'J', N'J4', N'system', N'view', 0, 0, 1, N'檢視球隊授權', N'View Team Grants');
-  COMMIT TRANSACTION;
-END
-GO
-
-DECLARE @id uniqueidentifier;
-SELECT @id = id FROM permissions WHERE code = N'system.team_grant.update';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'4a742a2b-c28a-5bd4-b7c2-90d5e422260f';
-  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
-  VALUES (@id, N'system.team_grant.update', N'J', N'J4', N'system', N'update', 0, 0, 1, N'指派球隊授權', N'Update Team Grants');
   COMMIT TRANSACTION;
 END
 GO
@@ -3645,16 +3621,6 @@ GO
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'system.club.update'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'system.club.update'), N'all');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'system.team_grant.view'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'system.team_grant.view'), N'all');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'system.team_grant.update'))
-  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
-  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'system.team_grant.update'), N'all');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'team.competition.view'))

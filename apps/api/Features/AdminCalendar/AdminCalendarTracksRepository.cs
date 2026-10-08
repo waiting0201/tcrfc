@@ -212,7 +212,7 @@ public sealed class AdminCalendarTracksRepository(
 
         if (!rowScope.AllowsAll(match.Teams.Select(t => (t.Id, t.Type)).ToList()))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這筆賽事。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許修改這筆賽事。");
         }
 
         if (match.Status is "played" or "live" or "cancelled")

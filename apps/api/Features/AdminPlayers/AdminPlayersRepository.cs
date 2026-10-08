@@ -100,7 +100,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         // 🔴 S1-8 新增：列級授權——球員必屬於某支球隊（team_id 必填），直接用該球隊檢查即可。
         if (!rowScope.Allows(team.Id, team.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許在這支球隊底下建立球員。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許在這支球隊底下建立球員。");
         }
 
         // 網址代稱：有指定就驗證，沒指定依英文姓名／隊別與背號自動產生；兩者都要在同一俱樂部內唯一。
@@ -176,14 +176,14 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         // 先看到一位一線隊球員就無法比對，或反過來把一位學院球員轉調到一線隊藉此逃脫範圍限制。
         if (!rowScope.Allows(player.TeamId, player.Team.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這位球員。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許修改這位球員。");
         }
 
         var team = await ResolveTeamAsync(scope, request.TeamId, cancellationToken);
 
         if (!rowScope.Allows(team.Id, team.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許把球員指派到這支球隊。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許把球員指派到這支球隊。");
         }
 
         if (request.Slug is { } newSlug && newSlug != player.Slug)
@@ -377,7 +377,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
 
         if (!rowScope.Allows(player.TeamId, player.Team.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這位球員。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許修改這位球員。");
         }
 
         ValidateStat(request.Appearances, "出賽場次", "appearances");
@@ -418,7 +418,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
 
         if (!rowScope.Allows(player.TeamId, player.Team.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這位球員。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許修改這位球員。");
         }
 
         var row = await dbContext.PlayerSeasonStats.FirstOrDefaultAsync(m => m.PlayerId == playerId && m.SeasonId == seasonId, cancellationToken);

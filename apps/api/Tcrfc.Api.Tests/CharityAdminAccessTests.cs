@@ -132,7 +132,6 @@ public sealed class CharityAdminAccessTests(CharityApiFixture fx) : IAsyncLifeti
         Assert.Equal("active", created.Status);
         Assert.Equal(["viewer"], created.RoleCodes);
         Assert.Empty(created.ClubGrants);
-        Assert.Empty(created.TeamGrants);
         Assert.Null(created.PrimaryClubId);
 
         // 新帳號可以直接登入

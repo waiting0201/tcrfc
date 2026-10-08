@@ -158,7 +158,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
 
         if (!rowScope.AllowsAll(teams.Select(t => (t.Id, t.Type)).ToList()))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許為這些球隊建立賽事。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許為這些球隊建立賽事。");
         }
 
         if (request.MatchNo is int matchNo)
@@ -245,7 +245,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         // 既有關聯的球隊要允許——防止範圍受限帳號碰到不屬於自己範圍的既有賽事。
         if (!rowScope.AllowsAll(match.Teams.Select(t => (t.Id, t.Type)).ToList()))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這筆賽事。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許修改這筆賽事。");
         }
 
         var season = await ResolveSeasonAsync(scope, request.SeasonId, cancellationToken);
@@ -256,7 +256,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         // 新的球隊清單也要整批通過——防止把賽事改指派到範圍外的球隊藉此逃脫限制。
         if (!rowScope.AllowsAll(teams.Select(t => (t.Id, t.Type)).ToList()))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許把這筆賽事指派到這些球隊。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許把這筆賽事指派到這些球隊。");
         }
 
         if (request.MatchNo is int matchNo)
@@ -334,7 +334,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
 
         if (!rowScope.AllowsAll(match.Teams.Select(t => (t.Id, t.Type)).ToList()))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許刪除這筆賽事。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許刪除這筆賽事。");
         }
 
         dbContext.Matches.Remove(match);
@@ -468,7 +468,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
 
             if (teams.Count > 0 && !rowScope.AllowsAll(teams.Select(t => (t.Id, t.Type)).ToList()))
             {
-                rowErrors.Add("你的球隊授權範圍不允許為這些球隊建立賽事。");
+                rowErrors.Add("你的角色資料範圍不允許為這些球隊建立賽事。");
             }
 
             Season? season = null;

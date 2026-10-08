@@ -6,7 +6,7 @@ namespace Tcrfc.Api.CharityPlatform.Admin;
 
 /// <summary>
 /// 慈善後台帳號與角色管理端點（<c>/api/v1/donation-platform/admin/accounts</c>、<c>/roles</c>）。路徑與形狀比照主站
-/// <c>/api/v1/admin/accounts</c>、<c>/api/v1/admin/roles</c>（去掉俱樂部授權與球隊授權兩組端點，慈善沒有這個維度）。
+/// <c>/api/v1/admin/accounts</c>、<c>/api/v1/admin/roles</c>（去掉俱樂部授權端點，慈善沒有這個維度）。
 /// 🔴 權限一律是 <c>sysadmin_only</c> 的 <c>n7.admin_account.*</c>／<c>n7.admin_role.*</c>（比照主站 <c>system.account.*</c>／<c>system.role.*</c>）。
 /// </summary>
 public static class CharityAdminAccessEndpoints

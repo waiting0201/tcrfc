@@ -1,6 +1,6 @@
 /**
  * 帳號管理：`/api/v1/donation-platform/admin/accounts`。形狀比照主站 `apps/admin/src/api/adminAccounts.ts`，
- * 但拿掉慈善庫沒有的維度（俱樂部授權、球隊授權、預設俱樂部）。全部端點只有系統管理員能呼叫。
+ * 但拿掉慈善庫沒有的維度（俱樂部授權、預設俱樂部）。全部端點只有系統管理員能呼叫。
  */
 import { ADMIN_ROOT, apiRequest, buildQuery } from './http'
 import type { PagedResult } from './types'

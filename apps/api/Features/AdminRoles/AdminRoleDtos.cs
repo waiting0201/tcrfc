@@ -22,7 +22,7 @@ public sealed record AdminRolePermissionAssignmentDto
     public required string PermissionCode { get; init; }
     public required string NameZh { get; init; }
 
-    /// <summary>值域：<c>all</c>／<c>own_teams</c>／<c>academy_only</c>／<c>masked</c>／
+    /// <summary>值域：<c>all</c>／<c>academy_only</c>／<c>masked</c>／
     /// <c>translate_only</c>／<c>own_clubs</c>（<c>role_permissions.scope_type</c> 的 CHECK 約束）。</summary>
     public required string ScopeType { get; init; }
 }

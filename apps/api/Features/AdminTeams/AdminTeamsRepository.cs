@@ -9,63 +9,14 @@ using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminTeams;
 
-// S1-7 新增：本檔案同時保留 J4 球隊授權下拉選單的唯讀查詢（下方 AdminTeamsRepository 類別開頭）
-// 與新增的 C1 球隊管理俱樂部範圍 CRUD（ListForClubAsync 以下）。兩組方法都圍繞 teams 這張表，
-// 分開成兩個 repository 只會製造「同一張表兩個維護入口」的假象，故意合併在同一個類別。
-
-/// <summary>J4「球隊授權」（<c>admin_user_teams</c>）畫面的唯讀支援資料——只有一個查詢，
-/// **以及 S1-7 新增的 C1 球隊管理俱樂部範圍 CRUD**（見下方 <c>ListForClubAsync</c> 以下）。
+/// <summary>C1 球隊管理俱樂部範圍 CRUD（S1-7 新增）與「我能寫哪些球隊」唯讀查詢。
 /// 🔴 <c>IQueryCache</c> 只為了寫入後失效——S1-7 同時新增了公開唯讀端點
 /// <c>Features/Teams/TeamsEndpoints.cs</c>（entity="teams"），寫入這裡卻不失效會讓公開頁面
 /// 在 TTL 到期前一直顯示舊資料，是 docs/17 §4「五條實作硬規則」之一，逐字比照
 /// <c>AdminArticlesRepository.InvalidatePublicCacheAsync</c> 的既有做法。</summary>
 public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
-    /// <summary>不分俱樂部列出全部球隊——見 <c>AdminTeamsEndpoints</c> 檔頭「跨俱樂部」的說明。
-    /// <paramref name="clubCode"/> 給定時縮小到單一俱樂部（畫面已經選定俱樂部時可以少拉一點資料，
-    /// 不給就是完整跨俱樂部清單）。</summary>
     private static readonly string[] TeamDependentCacheEntities = ["players", "staff", "schedule", "honors", "calendar"];
-
-    public async Task<IReadOnlyList<AdminTeamListItemDto>> ListAsync(string? clubCode, CancellationToken cancellationToken)
-    {
-        var query = dbContext.Teams.AsNoTracking().AsQueryable();
-
-        if (!string.IsNullOrWhiteSpace(clubCode))
-        {
-            query = query.Where(t => t.Club.Code == clubCode);
-        }
-
-        var rows = await query
-            .OrderBy(t => t.Club.SortOrder).ThenBy(t => t.SortOrder).ThenBy(t => t.Code)
-            .Select(t => new
-            {
-                t.Id,
-                t.ClubId,
-                ClubCode = t.Club.Code,
-                ClubNameZh = t.Club.ClubsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
-                t.Code,
-                t.Type,
-                t.Gender,
-                t.AgeBand,
-                NameZh = t.TeamsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
-                NameEn = t.TeamsI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
-            })
-            .ToListAsync(cancellationToken);
-
-        return rows.Select(r => new AdminTeamListItemDto
-        {
-            Id = r.Id,
-            ClubId = r.ClubId,
-            ClubCode = r.ClubCode,
-            ClubNameZh = r.ClubNameZh,
-            Code = r.Code,
-            Type = r.Type,
-            Gender = r.Gender,
-            AgeBand = r.AgeBand,
-            NameZh = r.NameZh,
-            NameEn = r.NameEn,
-        }).ToList();
-    }
 
     // ───────────────────────────── C1 球隊管理（俱樂部範圍 CRUD，S1-7 新增） ─────────────────────────────
 
@@ -117,8 +68,7 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     /// <see cref="TeamRowScope"/>）過濾成呼叫端真的 <c>Allows</c> 的球隊，不是整份清單加旗標。
     /// 見 <c>AdminTeamsEndpoints</c> 檔頭「為什麼是獨立端點不是加旗標」的完整取捨說明。
     /// **先查全部再用 <c>Allows</c> 逐筆過濾，不下推到 SQL**——這支查詢一個俱樂部最多幾十筆球隊，
-    /// 不是效能敏感路徑，且 <see cref="TeamRowScope"/> 的判斷邏輯（<c>academy_only</c>／
-    /// <c>own_teams</c> 聯集）刻意只活在這一個型別裡，逐筆呼叫 <c>Allows</c> 比把同一套邏輯翻譯成
+    /// 不是效能敏感路徑，且 <see cref="TeamRowScope"/> 的判斷邏輯（<c>academy_only</c>）刻意只活在這一個型別裡，逐筆呼叫 <c>Allows</c> 比把同一套邏輯翻譯成
     /// LINQ／SQL 再維護兩份更安全。
     /// </summary>
     public async Task<IReadOnlyList<AdminWritableTeamDto>> ListWritableForClubAsync(
@@ -174,11 +124,10 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
         ValidateContent(request.Content);
 
         // 🔴 S1-8 新增：列級授權——見 TeamRowScope.AllowsCreatingTeamOfType 上的說明，
-        // own_teams 範圍的帳號一律不能新建球隊（沒有既有 id 可以比對授權），
         // academy_only 範圍的帳號只能新建 academy 類型的球隊。
         if (!rowScope.AllowsCreatingTeamOfType(request.Type))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許新建這個類型的球隊。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許新建這個類型的球隊。");
         }
 
         if (await dbContext.Teams.AsNoTracking().AnyAsync(t => t.Code == request.Code, cancellationToken))
@@ -240,14 +189,12 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
 
         // 🔴 S1-8 新增：既有球隊本身（目前的類型）要允許；若這次連類型都要改，新類型也必須通過
         // 「新建這個類型」的檢查——防止 academy_only 範圍的帳號把一支學院梯隊改成一線隊藉此逃脫
-        // 範圍限制。**只有類型真的改變時才多做這層檢查**：own_teams 範圍（例如被個別指派管理
-        // 某支特定梯隊的合作方帳號）對「新建球隊」天生是 false（TeamRowScope.AllowsCreatingTeamOfType
-        // 的設計說明），但對「維持既有類型不變的更新」不該被這條擋下，否則會連正常授權範圍內、
-        // 完全不改類型的更新都一併被拒絕。
+        // 範圍限制。**只有類型真的改變時才多做這層檢查**：維持既有類型不變的更新不該被
+        // 「新建球隊」的類型檢查擋下。
         var changingType = !string.Equals(team.Type, request.Type, StringComparison.Ordinal);
         if (!rowScope.Allows(team.Id, team.Type) || (changingType && !rowScope.AllowsCreatingTeamOfType(request.Type)))
         {
-            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這支球隊。");
+            throw new AdminForbiddenException("你的角色資料範圍不允許修改這支球隊。");
         }
 
         if (!string.Equals(team.Code, request.Code, StringComparison.Ordinal)

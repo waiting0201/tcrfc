@@ -346,103 +346,6 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
     }
 
     /// <summary>
-    /// J4 球隊授權（<c>admin_user_teams</c>，規劃書第 1223–1231 行）。只授權過 tcrfc 俱樂部的
-    /// 帳號，應該可以拿到 tcrfc 底下球隊（D1）的授權，新增立即生效；撤銷立即失效——跟俱樂部授權
-    /// 是同一套 upsert／軟撤銷語意。
-    /// </summary>
-    [Fact]
-    public async Task 球隊授權_新增後立即生效_撤銷後立即失效()
-    {
-        using var adminClient = await CreateSuperAdminClientAsync();
-        var username = $"test.teamgrant.{Guid.NewGuid():N}@tcrfc.test";
-
-        try
-        {
-            var created = await CreateAccountAsync(adminClient, username, "InitialPassword-123", ["content_editor"]);
-            var tcrfcClubId = await GetClubIdByCodeAsync("tcrfc");
-            var d1TeamId = await GetTeamIdByCodeAsync("D1");
-
-            var grantClubResponse = await adminClient.PostAsJsonAsync($"/api/v1/admin/accounts/{created.Id}/club-grants",
-                new CreateAdminAccountClubGrantRequest { ClubId = tcrfcClubId });
-            Assert.Equal(HttpStatusCode.OK, grantClubResponse.StatusCode);
-
-            var grantTeamResponse = await adminClient.PostAsJsonAsync($"/api/v1/admin/accounts/{created.Id}/team-grants",
-                new CreateAdminAccountTeamGrantRequest { TeamId = d1TeamId });
-            Assert.Equal(HttpStatusCode.OK, grantTeamResponse.StatusCode);
-            var grant = await grantTeamResponse.Content.ReadFromJsonAsync<AdminAccountTeamGrantDto>(TestJson.Options);
-            Assert.True(grant!.IsCurrentlyEffective);
-            Assert.Equal("tcrfc", grant.ClubCode);
-            Assert.Equal("D1", grant.TeamCode);
-
-            var grantsAfterCreate = await adminClient.GetFromJsonAsync<List<AdminAccountTeamGrantDto>>(
-                $"/api/v1/admin/accounts/{created.Id}/team-grants", TestJson.Options);
-            Assert.Contains(grantsAfterCreate!, g => g.TeamId == d1TeamId && g.IsCurrentlyEffective);
-
-            var revokeResponse = await adminClient.DeleteAsync($"/api/v1/admin/accounts/{created.Id}/team-grants/{d1TeamId}");
-            Assert.Equal(HttpStatusCode.NoContent, revokeResponse.StatusCode);
-
-            var grantsAfterRevoke = await adminClient.GetFromJsonAsync<List<AdminAccountTeamGrantDto>>(
-                $"/api/v1/admin/accounts/{created.Id}/team-grants", TestJson.Options);
-            var d1Grant = Assert.Single(grantsAfterRevoke!, g => g.TeamId == d1TeamId);
-            Assert.False(d1Grant.IsActive);
-            Assert.False(d1Grant.IsCurrentlyEffective);
-        }
-        finally
-        {
-            await DeleteAccountByUsernameAsync(username);
-        }
-    }
-
-    /// <summary>
-    /// 🔴 防呆核心（coordinator 指示）：不能授權一個帳號目前沒有有效俱樂部授權的球隊——
-    /// 這裡故意只給帳號 tcrfc 的俱樂部授權，卻嘗試指派 bw 底下的球隊（BW1），應該被擋下（400）。
-    /// </summary>
-    [Fact]
-    public async Task 球隊授權_不在有效俱樂部授權範圍內_擋下()
-    {
-        using var adminClient = await CreateSuperAdminClientAsync();
-        var username = $"test.tg.oos.{Guid.NewGuid():N}@tcrfc.test";
-
-        try
-        {
-            var created = await CreateAccountAsync(adminClient, username, "InitialPassword-123", ["content_editor"]);
-            var tcrfcClubId = await GetClubIdByCodeAsync("tcrfc");
-            var bw1TeamId = await GetTeamIdByCodeAsync("BW1");
-
-            var grantClubResponse = await adminClient.PostAsJsonAsync($"/api/v1/admin/accounts/{created.Id}/club-grants",
-                new CreateAdminAccountClubGrantRequest { ClubId = tcrfcClubId });
-            Assert.Equal(HttpStatusCode.OK, grantClubResponse.StatusCode);
-
-            var grantTeamResponse = await adminClient.PostAsJsonAsync($"/api/v1/admin/accounts/{created.Id}/team-grants",
-                new CreateAdminAccountTeamGrantRequest { TeamId = bw1TeamId });
-            Assert.Equal(HttpStatusCode.BadRequest, grantTeamResponse.StatusCode);
-        }
-        finally
-        {
-            await DeleteAccountByUsernameAsync(username);
-        }
-    }
-
-    [Fact]
-    public async Task 球隊授權_未登入_擋下()
-    {
-        using var client = fixture.CreateClient();
-        var response = await client.GetAsync($"/api/v1/admin/accounts/{Guid.NewGuid()}/team-grants");
-        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
-    }
-
-    [Fact]
-    public async Task 球隊授權_非超管帳號_擋下()
-    {
-        using var client = fixture.CreateClient();
-        var token = await TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test");
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
-        var response = await client.GetAsync($"/api/v1/admin/accounts/{Guid.NewGuid()}/team-grants");
-        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-    }
-
-    /// <summary>
     /// 🔴 執行層安全措施（task 5，規劃書未明文）：不能把系統操作到「沒有任何啟用中的最高管理權限
     /// 帳號」。用一個全新建立的測試帳號當「最後一根稻草」，暫時把其他所有超管（種子的 sa@system.local、
     /// clean.login@tcrfc.test，以及本機手建的）的 is_super_admin 降為 false（只剩呼叫端本身 super.admin@tcrfc.test
@@ -520,16 +423,6 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
     private static string RequireConnectionString() =>
         Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING")
         ?? throw new InvalidOperationException("CLUB_SQL_CONNECTION_STRING 未設定。");
-
-    private static async Task<Guid> GetTeamIdByCodeAsync(string code)
-    {
-        await using var connection = new SqlConnection(RequireConnectionString());
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id FROM teams WHERE code = @Code";
-        command.Parameters.AddWithValue("@Code", code);
-        return (Guid)(await command.ExecuteScalarAsync())!;
-    }
 
     private static async Task<Guid> GetClubIdByCodeAsync(string code)
     {

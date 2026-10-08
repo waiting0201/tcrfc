@@ -63,8 +63,6 @@ public partial class AdminUser
 
     public virtual ICollection<AdminUserClub> AdminUserClubGrantedByNavigations { get; set; } = new List<AdminUserClub>();
 
-    public virtual ICollection<AdminUserTeam> AdminUserTeams { get; set; } = new List<AdminUserTeam>();
-
     public virtual ICollection<ArticleCategory> ArticleCategoryCreatedByNavigations { get; set; } = new List<ArticleCategory>();
 
     public virtual ICollection<ArticleCategory> ArticleCategoryUpdatedByNavigations { get; set; } = new List<ArticleCategory>();

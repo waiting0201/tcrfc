@@ -1,34 +1,8 @@
 /**
- * `GET /admin/teams`（S1-4 續作補上的端點，見 apps/api/README.md「前端回報缺口②之二」）：
- * J4「球隊授權」畫面的跨俱樂部球隊下拉選單，取代先前「沒有清單、只能自己貼識別碼」的暫時作法。
- * 全域端點（無 `{club}` 路由段——指派球隊授權的操作者是系統管理員，球隊本身可能來自任何俱樂部），
- * 權限碼比照既有的 `system.team_grant.view`，不是新的權限碼。
- *
- * 🔴 本檔案下半段（S1-7 新增）是**另一組完全不同的端點**——C1「球隊」俱樂部範圍 CRUD
- * （`/api/v1/admin/{club}/teams`，權限碼 `team.team.*`），跟上面這個全域下拉選單端點只是恰好
- * 同名資源、不同用途：上面那組是「系統管理員指派球隊授權時要選哪支球隊」，下面這組是「這個
- * 俱樂部自己維護球隊主檔資料」。兩者刻意放在同一個檔案（都是 `Features/AdminTeams`），
- * 不建議合併成同一組型別——欄位需求本來就不同（見 apps/api/README.md「S1-7」對兩份 DTO 的說明）。
+ * C1 球隊管理（俱樂部範圍 CRUD，`/api/v1/admin/{club}/teams`，權限碼 `team.team.*`）與
+ * 可寫入球隊清單（`/admin/{club}/teams/writable`）。
  */
 import { apiRequest, apiUploadRequest } from './http'
-
-export interface AdminTeamListItemDto {
-  id: string
-  clubId: string
-  clubCode: string
-  clubNameZh?: string | null
-  code: string
-  type: string
-  gender: string
-  ageBand?: string | null
-  nameZh?: string | null
-  nameEn?: string | null
-}
-
-export function listAdminTeams(clubCode?: string): Promise<AdminTeamListItemDto[]> {
-  const query = clubCode ? `?clubCode=${encodeURIComponent(clubCode)}` : ''
-  return apiRequest<AdminTeamListItemDto[]>(`/api/v1/admin/teams${query}`)
-}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // C1 球隊管理（俱樂部範圍 CRUD，S1-7 新增）。對照 `Features/AdminTeams/AdminTeamDtos.cs`。
@@ -131,7 +105,7 @@ export function updateAdminClubTeam(
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 「我能寫哪些球隊」（S1-8 續作新增）。對照 apps/api/README.md「S1-8 續作」第 3 節。
-// 已依帳號的列級授權（`academy_only`／`own_teams`）收斂——回應本身就是完整的可寫選項清單，
+// 已依角色資料範圍（`academy_only`）收斂——回應本身就是完整的可寫選項清單，
 // 不是「全部球隊 + canWrite 旗標」，畫面直接把回應綁進下拉選單即可，不需要再自行過濾一次。
 // ══════════════════════════════════════════════════════════════════════════════
 

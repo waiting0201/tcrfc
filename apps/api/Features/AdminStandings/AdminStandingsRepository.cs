@@ -14,7 +14,7 @@ namespace Tcrfc.Api.Features.AdminStandings;
 /// <c>(club_id, season_id, team_name, rank, played, points)</c>，`team_name` 是自由文字
 /// （docs/12-database-schema.md §12 第 24 點「`Team` 只放本會四隊，積分榜其餘球隊是
 /// `team_name` 字串」），沒有任何欄位指向本方 `teams.id`。列級授權需要知道「這一列屬於哪支
-/// 本方球隊」才能判斷 `academy_only`／`own_teams` 准不准碰，這張表的結構完全無法回答這個問題
+/// 本方球隊」才能判斷 `academy_only` 准不准碰，這張表的結構完全無法回答這個問題
 /// ——一份積分榜代表整個聯賽的排名表（本方與對手的名次同列並陳），不是「本方某支球隊的積分」。
 /// 實務上目前只有一線隊（D1）參加有正式積分榜的聯賽（企業甲組），學院梯隊的友誼賽事沒有積分榜
 /// 需求（規劃書 3.1「Results & Standings」只出現在 FOOTBALL CLUB／一線隊頁面），因此本輪判斷

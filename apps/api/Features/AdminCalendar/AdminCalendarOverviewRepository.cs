@@ -20,9 +20,8 @@ namespace Tcrfc.Api.Features.AdminCalendar;
 /// 行事曆總覽只是換一種畫面（月曆／列表）呈現同一份資料，不會因為多了「總覽」這個入口就變成需要
 /// 列級限制的敏感資料。規劃書「行事曆權限採跟隨來源模組」講的是**編輯**哪些事件（見
 /// <c>team.match.*</c> 與 <c>calendar.custom_event.*</c> 兩組寫入權限碼各自的範圍），不是「能不能
-/// 看到」，故 <c>calendar.view</c> 一律 <c>scope_type="all"</c>。S1-8 當時保留給 L 模組使用的
-/// <c>own_teams</c> scope_type 盤點後在本輪讀取端仍然沒有實際用途，見 apps/api/README.md「S1-11」
-/// 段「規劃書沒寫清楚、自行判斷」的完整說明。
+/// 看到」，故 <c>calendar.view</c> 一律 <c>scope_type="all"</c>。列級範圍（<c>academy_only</c>）在讀取端沒有實際用途，
+/// 見 apps/api/README.md「S1-11」段的說明。
 /// </summary>
 public sealed class AdminCalendarOverviewRepository(IClubSqlConnectionFactory connectionFactory)
 {

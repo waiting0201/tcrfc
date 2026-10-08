@@ -17,7 +17,7 @@ export interface AdminPermissionDto {
   nameEn?: string | null
 }
 
-export type RoleScopeType = 'all' | 'own_teams' | 'academy_only' | 'masked' | 'translate_only' | 'own_clubs'
+export type RoleScopeType = 'all' | 'academy_only' | 'masked' | 'translate_only' | 'own_clubs'
 
 export interface AdminRolePermissionAssignmentDto {
   permissionCode: string

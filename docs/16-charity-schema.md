@@ -117,7 +117,7 @@ N3 的異常佇列（行 517）也把「對帳差異」列為三類待人工處�
 | `RolePermission` | `(admin_role_id, permission_id)` | |
 | `AdminRefreshToken` | **更新權杖的工作階段狀態**（CH-3，2026-10-01 新增，形狀與用意同主站 [`12b` §7.7](12b-database-tables.md#77-admin_refresh_tokens更新權杖的工作階段狀態s1-3-新增2026-09-23-補文件)）：`token_hash`（只存 SHA-256）、`issued_at`／`expires_at`、`revoked_at`、`replaced_by_id`（輪替鏈，重放偵測用）。**登入輪替與重放偵測的必要狀態，不是日誌表**；刻意不存來源 IP 與裝置字串。⚠️ **規劃書 §10 只寫「帳號與權限」，沒有寫這個實作機制**，列為待裁決（[§10](#10-本檔不決定的事)） | 🔒 |
 
-> 🔴 **沒有 `AdminUserClub`／`AdminUserTeam`**——本平台是單一法人，沒有資料範圍維度。
+> 🔴 **沒有 `AdminUserClub`**——本平台是單一法人，沒有資料範圍維度。
 > 🔴 **`Permission` 與主站同形**（[`12b` §7.3](12b-database-tables.md#73-權限碼命名)）：保留 `module_code`／`submodule_code`／`domain`／`action` 四欄分解
 > ——本庫的 `module_code` 是 `N`、`submodule_code` 是 `N1`–`N7`，有實際值域。
 > **唯一不要的是 `is_club_scoped`**（沒有俱樂部維度）。
@@ -498,7 +498,7 @@ erDiagram
 | # | 差異 | 為什麼 |
 |---|---|---|
 | 1 | 🔴 **有 `AuditLog`，主站沒有** | 主站「不建任何日誌表」是**委託方指示**（[`12` §13.1](12-database-schema.md#131-沒有稽核與登入日誌表)）；本平台的退款、分潤設定、個資匯出三類操作**由慈善規劃書 §11.2 明訂須留稽核軌跡**，是勸募法遵要求 |
-| 2 | 🔴 **沒有 `club_id`** | 單一法人（協會），不是多俱樂部架構。連帶：沒有 `AdminUserClub`／`AdminUserTeam`、沒有站台切換器、`PaymentChannel` 沒有主體欄位 |
+| 2 | 🔴 **沒有 `club_id`** | 單一法人（協會），不是多俱樂部架構。連帶：沒有 `AdminUserClub`、沒有站台切換器、`PaymentChannel` 沒有主體欄位 |
 | 3 | 🔴 **沒有 `Member`** | 捐款人**不登入不註冊**。會員比對只在 N3 查詢當下以 Email 軟性進行，**不寫入任何表** |
 | 4 | 🔴 **`Charity`／`CharityProgram` 是唯讀快照不是外鍵** | 兩個資料庫互相獨立、Azure SQL 不支援跨庫查詢；且撥付對象名稱要印在已開立的憑證上，**不得隨主站改名而變動** |
 

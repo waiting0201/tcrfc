@@ -7,7 +7,7 @@ namespace Tcrfc.Api.Security;
 /// 再套受限欄位授權；兩道關卡不可互相取代」在一般寫入操作上的對應版本。
 ///
 /// ⚠️ 本次只實作「有沒有這個權限碼」的布林判斷，**不實作 <c>role_permissions.scope_type</c>
-/// 的細粒度限制**（own_teams／academy_only／masked／translate_only）——那是欄位層級與列層級的
+/// 的細粒度限制**（academy_only／masked／translate_only）——那是欄位層級與列層級的
 /// 篩選規則，牽涉到每個模組各自的資料形狀，留給實作對應模組寫入端點時一併處理，見
 /// apps/api/README.md「本輪沒做的部分」。
 /// </summary>

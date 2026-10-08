@@ -379,7 +379,7 @@ function addLineup() {
         <FrontendUnitBanner module-code="C4" />
         <span v-if="loadState === 'ready' && isReadOnly" class="match-edit__locked-note">
           <el-tag type="info" size="small">唯讀</el-tag>
-          你的帳號沒有「{{ outOfScopeTeamNames.join('、') }}」的球隊授權範圍，這筆賽事僅能檢視，如需修改請聯繫系統管理員
+          你的角色不能編輯「{{ outOfScopeTeamNames.join('、') }}」（例如學院管理者只能編輯學院梯隊），這筆賽事僅能檢視，如需修改請聯繫系統管理員
         </span>
       </template>
     </PageHeader>
@@ -558,7 +558,7 @@ function addLineup() {
                       filterable
                       placeholder="請選擇球隊"
                       style="width: 100%"
-                      no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+                      no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認你的角色資料範圍"
                       @change="formErrors.clear('teamIds')"
                     >
                       <el-option v-for="t in teamSelectOptions" :key="t.id" :label="t.label" :value="t.id" :disabled="t.disabled" />

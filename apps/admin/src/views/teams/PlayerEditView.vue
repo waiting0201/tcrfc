@@ -253,7 +253,7 @@ function retryLoad() {
         <FrontendUnitBanner module-code="C2" />
         <span v-if="loadState === 'ready' && isTeamOutOfScope" class="player-edit__locked-note">
           <el-tag type="info" size="small">唯讀</el-tag>
-          你的帳號沒有「{{ lockedTeamLabel }}」的球隊授權範圍，這筆球員資料僅能檢視，如需修改請聯繫系統管理員
+          你的角色不能編輯「{{ lockedTeamLabel }}」（例如學院管理者只能編輯學院梯隊），這筆球員資料僅能檢視，如需修改請聯繫系統管理員
         </span>
       </template>
     </PageHeader>
@@ -323,7 +323,7 @@ function retryLoad() {
                       v-model="form.teamId"
                       filterable
                       style="width: 100%"
-                      no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+                      no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認你的角色資料範圍"
                       @change="formErrors.clear('teamId')"
                     >
                       <el-option v-for="t in teamOptions" :key="t.id" :label="t.label" :value="t.id" :disabled="t.disabled" />

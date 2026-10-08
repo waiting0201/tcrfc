@@ -1,8 +1,8 @@
 /**
  * `apps/api` C4「賽程與賽果」後台端點（`Features/AdminMatches`），對照
- * apps/api/README.md「S1-8」。權限碼 `team.match.*`，寫入端點套用球隊列級授權
- * （`academy_only`／`own_teams`）——後端擋下時回傳的 403 訊息已經是完整中文句子
- * （例如「你的球隊授權範圍不允許為這些球隊建立賽事。」），畫面直接顯示 `AdminApiError.message`
+ * apps/api/README.md「S1-8」。權限碼 `team.match.*`，寫入端點套用角色資料範圍
+ * （`academy_only`，學院管理者只能編輯學院梯隊）——後端擋下時回傳的 403 訊息已經是完整中文句子
+ * （例如「你的角色資料範圍不允許為這些球隊建立賽事。」），畫面直接顯示 `AdminApiError.message`
  * 即可，不需要另外轉譯或補充權限碼說明。
  */
 import { apiRequest } from './http'

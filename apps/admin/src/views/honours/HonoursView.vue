@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 榮譽與里程碑（對應前台「關於台中磐石」的榮譽紀錄與里程碑時間軸）。
- * 榮譽依球隊授權：只能新增、修改自己有權管理的球隊的榮譽，其他球隊的榮譽只能檢視。
+ * 榮譽依角色資料範圍：只能新增、修改自己角色可編輯的球隊的榮譽，其他球隊的榮譽只能檢視。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

@@ -902,11 +902,6 @@ PERMISSIONS = [
     # sysadmin_only，規劃書 §6 矩陣「系統」欄只有系統管理員打勾。
     ("system.club.view", "J", "J4", "system", "view", 0, 0, 1, "檢視俱樂部主檔", "View Clubs"),
     ("system.club.update", "J", "J4", "system", "update", 0, 0, 1, "建立／編輯俱樂部主檔", "Update Clubs"),
-    # S1-3 續作第二輪（2026-09-24，coordinator 補派）：J4「球隊授權」（admin_user_teams，
-    # 規劃書第 1223–1231 行 J4 表格），供「學院管理者不得改動一線隊賽程」這類列級限制使用。
-    # 獨立於 system.club_grant.* 之外自成一組（不共用），理由見 apps/api/README.md。
-    ("system.team_grant.view", "J", "J4", "system", "view", 0, 0, 1, "檢視球隊授權", "View Team Grants"),
-    ("system.team_grant.update", "J", "J4", "system", "update", 0, 0, 1, "指派球隊授權", "Update Team Grants"),
     # Competition（賽事系列）型別：is_club_scoped=1（competitions.club_id 必填），不是
     # sysadmin_only——歸在 module_code=C（球隊管理）／submodule=C4（賽程與賽果），比照矩陣
     # 「球隊／賽事」欄，競技／球隊管理角色 ✔全，其餘角色唯讀或不給，見下方 ROLE_PERMISSIONS。
@@ -952,8 +947,8 @@ PERMISSIONS = [
     ("content.faq_category.delete", "B", "B4", "content", "delete", 0, 0, 0, "刪除常見問題分類", "Delete FAQ Categories"),
     # S1-8 新增：C4 賽程與賽果／積分榜。domain 沿用既有的 "team"（跟 team.team.* 等同一個 domain
     # 值，方便權限查詢時整組 domain='team' 一次撈）。matches／standings 皆為 club_id 必填，
-    # is_club_scoped=1，非 sysadmin_only。🔴 team.match.* 是本輪「列級授權強制」（own_teams／
-    # academy_only）第一個真正接上 TeamRowScope 的權限碼，見 Security/TeamRowScope.cs；
+    # is_club_scoped=1，非 sysadmin_only。🔴 team.match.* 是本輪「列級授權強制」（academy_only）
+    # 第一個真正接上 TeamRowScope 的權限碼，見 Security/TeamRowScope.cs；
     # team.standing.* **刻意不套列級授權**——standings 表沒有 team_id 欄位可以判斷「這一列屬於
     # 哪支本方球隊」，見 Features/AdminStandings/AdminStandingsRepository.cs 檔頭的完整說明。
     ("team.match.view", "C", "C4", "team", "view", 1, 0, 0, "檢視賽程與賽果", "View Matches"),
@@ -993,7 +988,7 @@ PERMISSIONS = [
     # enquiry_answers 透過父表間接歸屬），is_club_scoped=1，非 sysadmin_only。
     #
     # 🔴 G2 依表單類別的列級授權**不是**用 role_permissions.scope_type 表達（那是給「同一權限碼、
-    # 依逐人指派的關聯表決定範圍」的情境，例如 own_teams 靠 AdminUserTeam）；矩陣「課程類詢問」
+    # 依資料列屬性決定範圍」的情境，例如 academy_only 依 teams.type）；矩陣「課程類詢問」
     # 「合作／贊助類詢問」「媒體類詢問」三格的邊界是固定的 9 個 form_code 分組，不需要逐人指派，
     # 直接拆成 enquiry.course.*／enquiry.partnership.*／enquiry.media.* 三組獨立權限碼比多一個
     # scope_type 列舉值＋硬編碼分類對照表更直接，見 apps/api/README.md「S1-10」段與
@@ -1022,8 +1017,7 @@ PERMISSIONS = [
     # 總覽把同樣的資料換一種畫面呈現，不因此變成需要列級限制的敏感資料；主站規劃書「行事曆權限
     # 採跟隨來源模組原則」講的是**編輯**哪些事件（見下方 calendar.custom_event.* 與
     # team.match.*），不是「能不能看到」，因此 calendar.view 一律 scope_type="all"，不套用
-    # TeamRowScope（S1-8 當時保留的 own_teams 用途，本輪盤點後判斷讀取端不需要，見
-    # apps/api/README.md「S1-11」段的完整說明）。
+    # TeamRowScope（讀取端不需要列級範圍，見 apps/api/README.md「S1-11」段的說明）。
     #
     # calendar.custom_event.*：矩陣「自建事件」（內容編輯／公關媒體）給全部四個動作；「賽事事件」
     # （競技／球隊管理）「梯隊賽事」（學院／課程管理）不落在這組權限碼上——那兩格對應的是
@@ -1322,8 +1316,8 @@ END
 #
 # 🔴 學院／課程管理（academy_program）本輪刻意不指派 team.team.*／team.player.*／team.staff.*：
 # 矩陣寫的是「學院梯隊」（scope_type=academy_only，只能碰 team.type='academy' 的球隊與其球員／
-# 教練），但這個角色的列級範圍過濾（依 AdminUserTeam／team.type 篩資料列）本輪沒有做——
-# 派工單明確要求「本輪球員／教練的寫入若規劃書要求依球隊授權限制，先回報再決定，不要自己擴大
+# 教練），但這個角色的列級範圍過濾（依 team.type 篩資料列）本輪沒有做——
+# 派工單明確要求「本輪球員／教練的寫入若規劃書要求依球隊範圍限制，先回報再決定，不要自己擴大
 # 範圍」。在列級強制做出來之前先發這三組權限碼給 academy_program，效果等同給它跟
 # team_competition 一樣的全俱樂部球隊存取權（含一線隊），超出矩陣「僅學院梯隊」的授權意圖，
 # 是擴大範圍不是保守預設，因此本輪不發，回報給下一輪決定（見任務回報「綱要缺口或待裁決」）。
