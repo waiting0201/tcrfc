@@ -12,6 +12,8 @@ import { formatTaipeiDateTime, toMemberApiError } from '#shared/utils/member'
 import type { FanEvent, FanEventDetail } from '#shared/utils/member'
 
 const props = defineProps<{ event: FanEvent, initialMy: FanEventDetail['myRegistration'] }>()
+// 報名／取消成功後通知頁面重抓詳情（剩餘名額、是否額滿由頁面顯示，元件本身不持有）
+const emit = defineEmits<{ changed: [] }>()
 
 const config = useRuntimeConfig()
 const club = config.public.club
@@ -82,6 +84,7 @@ async function submit() {
     form.note = ''
     form.phone = form.email = form.applicantName = ''
     form.consent = false
+    emit('changed')
   }
   catch (err) {
     const e = toMemberApiError(err, undefined, isEn.value)
@@ -100,6 +103,7 @@ async function cancel() {
     await authedFetch(`/api/backend/${club}/fan-events/${props.event.slug}/registrations/me`, { method: 'DELETE' })
     my.value = null
     result.value = null
+    emit('changed')
   }
   catch (err) { const e = toMemberApiError(err, undefined, isEn.value); error.value = errorText(e.code, e.detail) }
   finally { busy.value = false }

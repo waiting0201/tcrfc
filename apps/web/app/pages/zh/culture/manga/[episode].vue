@@ -33,7 +33,7 @@ useSeoMeta({
   description: computed(() => (isEn.value ? getMangaEpisodeSeoEn(episodeNo, ep.value?.title ?? '').description : `台中磐石漫畫第 ${episodeNo} 集《${ep.value?.title ?? ''}》線上閱讀，免費、不需登入。`)),
 })
 
-const pages = computed(() => (ep.value?.pages ?? []).filter(p => /^(https:\/\/|\/)/.test(p.imageUrl)))
+const pages = computed(() => (ep.value?.pages ?? []).filter(p => safeImageUrl(p.imageUrl)))
 const mode = ref<'paginated' | 'scroll'>('paginated')
 const index = ref(0)
 const total = computed(() => pages.value.length)

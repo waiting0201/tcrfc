@@ -175,6 +175,15 @@ node scripts/check-club-image-leak.mjs --base-url=http://127.0.0.1:3012 [--inven
 `check-site-units-coverage.mjs`、`check-bw-units-citation.mjs`、`check-faq-schema-live.mjs`（兩站）皆通過；tcrfc 164 條路由的圖片來源與頁首背景元素數，
 與修正前映像檔逐頁比對 0 差異；兩站 `X-Robots-Tag: noindex, nofollow` 仍在。**未驗證**：API 有資料時的圖片來源（見盲區）；兩站的瀏覽器視覺（藍鯨佔位方塊、頁首漸層版面）未截圖確認。
 
+## 圖片網址消毒：`safeImageUrl()`（E-301，2026-10-08）
+
+後端回傳的圖片網址要放進 `<img src>` 前，**一律走 `app/utils/safe-image-url.ts` 的 `safeImageUrl(u)`**（Nuxt 自動匯入，回傳 `string | null`），頁面不得自己寫正規式：
+
+- 放行：`https://…`、站內路徑（`/` 開頭但不是 `//`、`/\`）。
+- `http://` **只在 `import.meta.dev` 放行**——本機 API 接 Azurite 時圖片是 `http://127.0.0.1:10000/images/…`；正式環境行為不變，仍只收 https。
+- 拒絕：`javascript:`／`data:`／`vbscript:`、協定相對 `//host`、空值。
+- 純函式 `checkImageUrl(u, allowHttp)` 供測試；`npm run lint:safe-image-url`（`scripts/check-safe-image-url.mjs`）釘住上述行為，並禁止 `app/` 再出現複製的 `/^(https:\/\/|\/)/`。
+
 ## 開發注意事項
 
 三個今天搬遷時踩到、值得動手前先知道的細節（詳見 [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-22`–`E-24`）：
@@ -189,6 +198,10 @@ node scripts/check-club-image-leak.mjs --base-url=http://127.0.0.1:3012 [--inven
   `v-show` 在 DOM 層是另一種東西（`style="display: none;"` vs `hidden` 屬性），會被 compare-dom
   判定成差異。需要對應 mockup 的 `hidden` 行為時用 `:hidden="condition"` 或直接綁 `hidden` 屬性，
   不要改用 `v-show`。
+- ⚠️ **`npm run dev` 跑著時改 `public/assets/css/*.css`，瀏覽器看不到變化**（2026-10-08）：版本化路徑
+  `/assets/css-<雜湊>/` 的雜湊在 dev server **啟動時**算一次、回應標頭是 immutable 長快取，伺服器雖已回新內容，
+  瀏覽器仍用舊檔。重啟 dev server（雜湊改變）或對該 `<link>` 加查詢字串強制重抓；正式建置每次重算，不受影響。
+- ⚠️ **前台樣式不只在 `app/`**：`member.css`／`shop.css`／`club-bw.css` 在 `public/assets/css/`，grep 樣式時要含這個資料夾（`E-302`）。
 
 ## 已知缺口與尚未完成的事
 

@@ -15,7 +15,7 @@ const clubAssets = computed(() => getClubAssets(club))
 const identity = computed(() => (isEn.value ? (club === 'bw' ? getClubIdentityEnBw() : getClubIdentityEn()) : getClubIdentity(club)))
 const slug = String(route.params.slug ?? '')
 
-const { data: detail, error } = await useFetch<FanEventDetail>(`/api/backend/${club}/fan-events/${encodeURIComponent(slug)}`, {
+const { data: detail, error, refresh } = await useFetch<FanEventDetail>(`/api/backend/${club}/fan-events/${encodeURIComponent(slug)}`, {
   query: { lang: locale.value },
   key: `fan-event-${club}-${slug}-${locale.value}`,
 })
@@ -24,9 +24,8 @@ if (error.value || !detail.value) {
 }
 
 const ev = computed(() => detail.value!.event)
-const safeImg = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 const paragraphs = computed(() => (detail.value?.description ?? '').split(/\n+/).map(p => p.trim()).filter(Boolean))
-const images = computed(() => (detail.value?.images ?? []).filter(i => safeImg(i.imageUrl)))
+const images = computed(() => (detail.value?.images ?? []).filter(i => safeImageUrl(i.imageUrl)))
 const isPast = computed(() => ev.value.phase === 'past')
 
 useSeoMeta({
@@ -67,7 +66,7 @@ useSeoMeta({
     <h2 id="fe-detail-title" class="visually-hidden">{{ tx('活動資訊', 'Event information') }}</h2>
     <div class="fe-detail">
       <div>
-        <img v-if="safeImg(ev.coverUrl)" class="fe-detail__cover" :src="safeImg(ev.coverUrl)!" :alt="ev.coverAlt || ev.name" width="1280" height="853">
+        <img v-if="safeImageUrl(ev.coverUrl)" class="fe-detail__cover" :src="safeImageUrl(ev.coverUrl)!" :alt="ev.coverAlt || ev.name" width="1280" height="853">
         <div class="prose">
           <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
         </div>
@@ -79,7 +78,7 @@ useSeoMeta({
           <div><dt>{{ tx('名額', 'Places') }}</dt><dd>{{ isEn ? (ev.capacity === null ? 'No limit' : `${ev.capacity}${ev.spotsLeft !== null ? ` (${ev.spotsLeft} left)` : ''}`) + (ev.isFull ? '; full, you can join the waitlist' : '') : (ev.capacity === null ? '不限' : `${ev.capacity} 人${ev.spotsLeft !== null ? `（剩餘 ${ev.spotsLeft}）` : ''}`) + (ev.isFull ? '，已額滿可登記候補' : '') }}</dd></div>
           <div v-if="ev.isPaidMembersOnly"><dt>{{ tx('報名資格', 'Eligibility') }}</dt><dd>{{ tx('限付費球迷會員', 'Paid Fan Club members only') }}</dd></div>
         </dl>
-        <FanEventRegistration v-if="!isPast" :event="ev" :initial-my="detail!.myRegistration" />
+        <FanEventRegistration v-if="!isPast" :event="ev" :initial-my="detail!.myRegistration" @changed="refresh()" />
         <p v-else class="mc-alert mc-alert--info" role="status">{{ tx('此活動已結束。', 'This event has ended.') }}</p>
       </aside>
     </div>
@@ -88,7 +87,7 @@ useSeoMeta({
       <h2 class="section-title">{{ tx('活動回顧', 'Event review') }}</h2>
       <div class="fe-gallery">
         <figure v-for="(im, i) in images" :key="i" class="event-photo">
-          <img :src="safeImg(im.imageThumbUrl || im.imageUrl)!" :alt="isEn ? `${ev.name} event photo ${i + 1}` : `${ev.name} 活動照片 ${i + 1}`" loading="lazy" :width="im.width ?? undefined" :height="im.height ?? undefined">
+          <img :src="safeImageUrl(im.imageThumbUrl || im.imageUrl)!" :alt="isEn ? `${ev.name} event photo ${i + 1}` : `${ev.name} 活動照片 ${i + 1}`" loading="lazy" :width="im.width ?? undefined" :height="im.height ?? undefined">
         </figure>
       </div>
     </div>

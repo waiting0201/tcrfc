@@ -17,6 +17,10 @@ npm run typecheck  # nuxt typecheck
 npm run lint
 ```
 
+> ⚠️ **本機對 `dotnet run` 的 API 實走捐款時**（2026-10-08 實機驗收踩到）：
+> - 用 `npx nuxi dev --port 3002`（或 3001／3003）。瀏覽器直打 API，`appsettings.Development.json` 的 `CORS_ALLOWED_ORIGINS` 只放行 3000–3003、5174、5175，其他埠捐款送出會顯示「無法連線到伺服器」。
+> - API 要帶 `CHARITY_PUBLIC_BASE_URL=http://localhost:3002`，否則付款網址預設 `http://charity.localhost`（給 docker compose＋Caddy 用、無埠號），按捐款後會導到打不開的頁面。
+
 環境變數（皆為 Nuxt runtimeConfig，執行期才讀，見 `nuxt.config.ts`）：
 
 | 變數 | 用途 | 預設 |

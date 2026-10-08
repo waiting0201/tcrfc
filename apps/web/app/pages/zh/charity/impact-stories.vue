@@ -32,8 +32,6 @@ const { data } = await useFetch<PagedResponse<ImpactRecord>>(`/api/backend/${clu
   key: `charity-records-${club}-${locale.value}`,
 })
 
-/** Logo 只接受 https 或站內路徑（API 回的是已解析的完整網址，這裡再擋一次非預期協定）。 */
-const safeImgUrl = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 
 interface TimelineFact { label: string, text: string, href?: string }
 interface TimelineItem {
@@ -103,7 +101,7 @@ const years = computed<TimelineYear[]>(() => {
       imageWidth: r.imageWidth ?? 640,
       imageHeight: r.imageHeight ?? 427,
       gallery: r.images,
-      logoUrl: safeImgUrl(r.charityLogoUrl),
+      logoUrl: safeImageUrl(r.charityLogoUrl),
       title: r.charityName ?? '',
       facts,
     })

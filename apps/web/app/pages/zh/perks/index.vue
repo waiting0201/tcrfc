@@ -30,7 +30,6 @@ function setFilter(key: 'category' | 'region' | 'tier', value: string) {
   for (const [k, v] of Object.entries({ ...filterQuery.value, [key]: value })) if (v) query[k] = v
   router.replace({ query })
 }
-const safeImg = (u: string | null) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 
 useSeoMeta({
   title: computed(() => (isEn.value ? (isTcrfc.value ? CLUB_PERKS_SEO_EN : CLUB_PERKS_SEO_EN_BW).title : `特約店家 Partner Perks｜${clubAssets.value.nameZh}`)),
@@ -103,7 +102,7 @@ useSeoMeta({
       <article v-for="st in stores" :key="st.slug" class="store-card">
         <a class="store-card__link" :href="lp(`/zh/perks/${st.slug}/`)">
           <div class="store-card__media">
-            <img v-if="safeImg(st.imageUrl)" :src="safeImg(st.imageUrl)!" :alt="st.name" loading="lazy" width="640" height="427">
+            <img v-if="safeImageUrl(st.imageUrl)" :src="safeImageUrl(st.imageUrl)!" :alt="st.name" loading="lazy" width="640" height="427">
           </div>
           <div class="store-card__body">
             <p v-if="st.category" class="store-card__cat">{{ st.category }}<template v-if="st.region">・{{ st.region }}</template></p>

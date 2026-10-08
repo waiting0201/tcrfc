@@ -37,7 +37,6 @@ function playerOf(c: ComicCharacter) {
 }
 
 const paragraphs = computed(() => (about.value?.body ?? '').split(/\n{1,}/).map(p => p.trim()).filter(Boolean))
-const safeImg = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 const fmtDate = (d: string | null) => formatPlainDate(d)
 
 useSeoMeta({
@@ -79,7 +78,7 @@ useSeoMeta({
     </div>
     <div class="mg-latest">
       <a class="mg-latest__cover" :href="lp(`/zh/culture/manga/${latest.episodeNo}/`)" :aria-label="isEn ? `Read episode ${latest.episodeNo}: ${latest.title}` : `閱讀第 ${latest.episodeNo} 集：${latest.title}`">
-        <img v-if="safeImg(latest.coverUrl)" :src="safeImg(latest.coverUrl)!" :alt="isEn ? `Cover of episode ${latest.episodeNo}` : `第 ${latest.episodeNo} 集封面`" width="480" height="640">
+        <img v-if="safeImageUrl(latest.coverUrl)" :src="safeImageUrl(latest.coverUrl)!" :alt="isEn ? `Cover of episode ${latest.episodeNo}` : `第 ${latest.episodeNo} 集封面`" width="480" height="640">
         <span v-else>EP{{ String(latest.episodeNo).padStart(2, '0') }}</span>
       </a>
       <div>
@@ -122,7 +121,7 @@ useSeoMeta({
     <div v-if="(characters ?? []).length > 0" class="grid grid--4 char-wall">
       <article v-for="c in characters" :key="c.id" class="char-card char-card--live">
         <div class="char-card__portrait">
-          <img v-if="safeImg(c.imageThumbUrl || c.imageUrl)" :src="safeImg(c.imageThumbUrl || c.imageUrl)!" :alt="c.name" loading="lazy" width="320" height="427">
+          <img v-if="safeImageUrl(c.imageThumbUrl || c.imageUrl)" :src="safeImageUrl(c.imageThumbUrl || c.imageUrl)!" :alt="c.name" loading="lazy" width="320" height="427">
           <span v-else aria-hidden="true">?</span>
         </div>
         <h3 class="char-card__name">{{ c.name }}</h3>
@@ -147,7 +146,7 @@ useSeoMeta({
       <article v-for="e in episodes" :key="e.episodeNo" class="ep-card">
         <a class="ep-card__link" :href="lp(`/zh/culture/manga/${e.episodeNo}/`)">
           <div class="ep-card__cover">
-            <img v-if="safeImg(e.coverThumbUrl || e.coverUrl)" :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="isEn ? `Cover of episode ${e.episodeNo}` : `第 ${e.episodeNo} 集封面`" loading="lazy" width="480" height="640">
+            <img v-if="safeImageUrl(e.coverThumbUrl || e.coverUrl)" :src="safeImageUrl(e.coverThumbUrl || e.coverUrl)!" :alt="isEn ? `Cover of episode ${e.episodeNo}` : `第 ${e.episodeNo} 集封面`" loading="lazy" width="480" height="640">
             <span v-else>EP{{ String(e.episodeNo).padStart(2, '0') }}</span>
           </div>
           <p class="ep-card__title">
