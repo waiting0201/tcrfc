@@ -51,6 +51,8 @@ function emptyForm(): FormState {
 const form = reactive<FormState>(emptyForm())
 const baselineJson = ref(JSON.stringify(form))
 const accountStatus = ref<'active' | 'disabled'>('active')
+/** 後台不提供啟用 2FA 的入口（規劃書 J1），重設只對已啟用的帳號有意義。 */
+const twoFactorEnabled = ref(false)
 
 const clubs = ref<AdminClubListItemDto[]>([])
 const roles = ref<AdminRoleListItemDto[]>([])
@@ -81,6 +83,7 @@ async function loadAccount() {
       form.isSuperAdmin = detail.isSuperAdmin
       form.roleCodes = [...detail.roleCodes]
       accountStatus.value = detail.status
+      twoFactorEnabled.value = detail.twoFactorEnabled
       await loadClubGrants()
     }
     baselineJson.value = JSON.stringify(form)
@@ -199,7 +202,7 @@ async function handleResetPassword() {
 
 async function handleResetTotp() {
   try {
-    await ElMessageBox.confirm('確定要重設這個帳號的兩階段驗證設定嗎？重設後下次登入需要重新設定。', '確認重設', {
+    await ElMessageBox.confirm('確定要重設這個帳號的兩階段驗證設定嗎？重設後該帳號登入不再需要輸入驗證碼，目前所有登入工作階段會被強制登出。', '確認重設', {
       confirmButtonText: '重設',
       cancelButtonText: '取消',
       type: 'warning',
@@ -209,6 +212,7 @@ async function handleResetTotp() {
   }
   try {
     await resetAdminAccountTwoFactor(accountId.value!)
+    twoFactorEnabled.value = false
     ElMessage.success('已重設兩階段驗證設定')
   } catch (error) {
     ElMessage.error(error instanceof AdminApiError ? error.message : '重設失敗，請稍後再試')
@@ -387,7 +391,7 @@ function handleBack() {
                   <template v-if="!isCreate">
                     <el-button @click="toggleStatus">{{ accountStatus === 'active' ? '停用帳號' : '啟用帳號' }}</el-button>
                     <el-button @click="handleResetPassword">重設密碼</el-button>
-                    <el-button @click="handleResetTotp">重設兩階段驗證</el-button>
+                    <el-button v-if="twoFactorEnabled" @click="handleResetTotp">重設兩階段驗證</el-button>
                   </template>
                 </div>
               </FormSection>

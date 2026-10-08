@@ -116,7 +116,7 @@ async function handleResetPassword(row: AdminAccountListItemDto) {
 async function handleResetTotp(row: AdminAccountListItemDto) {
   try {
     await ElMessageBox.confirm(
-      `確定要重設帳號「${row.username}」的兩階段驗證設定嗎？重設後，該帳號下次登入時需要重新設定兩階段驗證。`,
+      `確定要重設帳號「${row.username}」的兩階段驗證設定嗎？重設後該帳號登入不再需要輸入驗證碼，目前所有登入工作階段會被強制登出。`,
       '確認重設',
       { confirmButtonText: '重設', cancelButtonText: '取消', type: 'warning' },
     )
@@ -228,7 +228,7 @@ const isEmpty = computed(() => !loading.value && !listError.value && accounts.va
                     {{ row.status === 'active' ? '停用帳號' : '啟用帳號' }}
                   </el-dropdown-item>
                   <el-dropdown-item @click="handleResetPassword(row)">重設密碼</el-dropdown-item>
-                  <el-dropdown-item @click="handleResetTotp(row)">重設兩階段驗證</el-dropdown-item>
+                  <el-dropdown-item v-if="row.twoFactorEnabled" @click="handleResetTotp(row)">重設兩階段驗證</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
