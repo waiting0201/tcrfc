@@ -107,14 +107,21 @@ const seoDefaultDescription = computed(() => {
 const seoOgImage = computed(() => {
   const s = seoSettings.value
   const url = typeof s?.ogImageUrl === 'string' && s.ogImageUrl ? s.ogImageUrl : null
-  if (!url) return { url: assets.value.ogImage, width: undefined, height: undefined }
-  return { url, width: s?.ogImageWidth ?? undefined, height: s?.ogImageHeight ?? undefined }
+  if (!url) {
+    // 沒有後台上傳的分享圖：沿用前台靜態資產，Alt 取俱樂部名稱（不發明描述）。
+    const name = isEn.value ? (club.value === 'bw' ? BW_NAME_EN : CLUB_NAME_EN) : assets.value.nameZh
+    return { url: assets.value.ogImage, width: undefined, height: undefined, alt: name }
+  }
+  // Alt 依語系取後台 SEO 設定；英文空白回退繁中；都空則不輸出（不用錯誤的圖說頂替）。
+  const alt = imgAlt(isEn.value ? s?.ogImageAltEn : undefined, s?.ogImageAltZh) || undefined
+  return { url, width: s?.ogImageWidth ?? undefined, height: s?.ogImageHeight ?? undefined, alt }
 })
 useSeoMeta({
   description: () => seoDefaultDescription.value,
   ogImage: () => seoOgImage.value.url,
   ogImageWidth: () => seoOgImage.value.width,
   ogImageHeight: () => seoOgImage.value.height,
+  ogImageAlt: () => seoOgImage.value.alt,
 }, { tagPriority: 'low' })
 
 const route = useRoute()

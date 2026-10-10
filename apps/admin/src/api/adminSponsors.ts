@@ -18,6 +18,8 @@ export type SponsorContractStatus = 'none' | 'active' | 'alert' | 'expired'
 export interface SponsorLocaleContent {
   name: string
   content?: string | null
+  /** 圖片說明（替代文字，≤200 字）。 */
+  logoAlt?: string | null
 }
 
 export interface SponsorListItemDto {
@@ -34,6 +36,10 @@ export interface SponsorListItemDto {
   sortOrder: number
   logoDarkThumbUrl?: string | null
   logoLightThumbUrl?: string | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
   nameZh?: string | null
   nameEn?: string | null
   packageCount: number
@@ -57,6 +63,10 @@ export interface SponsorDetailDto {
   logoDarkUrl?: string | null
   logoLightKey?: string | null
   logoLightUrl?: string | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
   zh: SponsorLocaleContent
   en?: SponsorLocaleContent | null
   packages: { id: string; slug: string; nameZh?: string | null }[]
@@ -203,6 +213,8 @@ export interface ActivationImageDto {
   thumbUrl?: string | null
   imageWidth?: number | null
   imageHeight?: number | null
+  altZh?: string | null
+  altEn?: string | null
   sortOrder: number
 }
 
@@ -249,6 +261,10 @@ export function deleteActivationImage(club: string, sponsorId: string, id: strin
   return apiRequest<void>(`${activationBase(club, sponsorId)}/${id}/images/${imageId}`, { method: 'DELETE' })
 }
 
+/** 活動圖集圖片說明（替代文字），各 ≤200 字、空白清為無；回傳更新後的活動。 */
+export function updateActivationImageAlt(club: string, sponsorId: string, id: string, imageId: string, altZh: string | null, altEn: string | null): Promise<ActivationDto> {
+  return apiRequest<ActivationDto>(`${activationBase(club, sponsorId)}/${id}/images/${imageId}`, { method: 'PUT', body: { altZh, altEn } })
+}
 export function reorderActivationImages(club: string, sponsorId: string, id: string, ids: string[]): Promise<ActivationDto> {
   return apiRequest<ActivationDto>(`${activationBase(club, sponsorId)}/${id}/images/order`, { method: 'PUT', body: { ids } })
 }

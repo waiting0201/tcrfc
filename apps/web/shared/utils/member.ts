@@ -187,6 +187,9 @@ export interface PartnerStore {
   mapUrl: string | null
   websiteUrl: string | null
   imageUrl: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  imageAlt?: string | null
   isShared: boolean
 }
 
@@ -204,6 +207,9 @@ export interface ComicCharacter {
   description: string | null
   imageUrl: string | null
   imageThumbUrl: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  imageAlt?: string | null
   playerId: string | null
 }
 
@@ -212,6 +218,9 @@ export interface ComicEpisode {
   title: string
   coverUrl: string | null
   coverThumbUrl: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
+  coverAlt?: string | null
   publishedOn: string | null
   isLatest: boolean
   pageCount: number
@@ -223,12 +232,16 @@ export interface ComicPage {
   imageThumbUrl: string | null
   width: number | null
   height: number | null
+  alt?: string | null
 }
 
 export interface ComicEpisodeDetail {
   episodeNo: number
   title: string
   coverUrl: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
+  coverAlt?: string | null
   publishedOn: string | null
   isLatest: boolean
   pages: ComicPage[]
@@ -251,6 +264,8 @@ export interface FanEvent {
   phase: 'upcoming' | 'past'
   coverUrl: string | null
   coverThumbUrl: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   /** 封面圖片替代文字（API 依請求語系回傳，無封面為 null） */
   coverAlt?: string | null
 }
@@ -259,7 +274,7 @@ export interface FanEventDetail {
   event: FanEvent
   description: string | null
   venueName: string | null
-  images: Array<{ imageUrl: string | null, imageThumbUrl: string | null, width: number | null, height: number | null }>
+  images: Array<{ imageUrl: string | null, imageThumbUrl: string | null, width: number | null, height: number | null, alt?: string | null }>
   articles: Array<{ slug: string, title: string }>
   myRegistration: { status: string, statusLabel: string } | null
 }

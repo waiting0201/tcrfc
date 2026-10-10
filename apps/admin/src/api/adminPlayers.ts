@@ -6,6 +6,8 @@ import { apiRequest, apiUploadRequest } from './http'
 export interface AdminPlayerLocaleContentDto {
   name?: string | null
   bio?: string | null
+  /** 圖片說明（替代文字，≤200 字）。 */
+  photoAlt?: string | null
 }
 
 export interface AdminPlayerContentInputDto {
@@ -27,6 +29,8 @@ export interface AdminPlayerListItemDto {
   /** 後端依 photoKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   photoUrl?: string | null
   photoThumbUrl?: string | null
+  photoWidth?: number | null
+  photoHeight?: number | null
   /** 肖像同意狀態（S1-7a），必填三態字串，見 apps/admin/src/types/team.ts。 */
   portraitConsentStatus: string
   nameZh?: string | null
@@ -52,6 +56,8 @@ export interface AdminPlayerDetailDto {
   /** 後端依 photoKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   photoUrl?: string | null
   photoThumbUrl?: string | null
+  photoWidth?: number | null
+  photoHeight?: number | null
   portraitConsentStatus: string
   zh: AdminPlayerLocaleContentDto
   en?: AdminPlayerLocaleContentDto | null

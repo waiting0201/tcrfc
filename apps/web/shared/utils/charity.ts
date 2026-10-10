@@ -27,12 +27,18 @@ export interface PublicCharityOrg {
   name: string | null
   intro: string | null
   logoUrl: string | null
+  logoWidth?: number | null
+  logoHeight?: number | null
+  logoAlt?: string | null
   websiteUrl: string | null
 }
 
 export interface PublicCharityImage {
   imageUrl: string
   thumbUrl: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  alt?: string | null
 }
 
 export interface CharityProgramListItem {
@@ -46,6 +52,9 @@ export interface CharityProgramListItem {
   progress: 'ongoing' | 'completed' | string
   isPinned: boolean
   coverUrl: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
+  coverAlt?: string | null
   charityName: string | null
 }
 
@@ -54,6 +63,11 @@ export interface CharityLinkedItem {
   name: string | null
   logoDarkUrl: string | null
   logoLightUrl: string | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
+  logoAlt?: string | null
 }
 
 export interface CharityArticleLink {
@@ -70,6 +84,9 @@ export interface CharityProgramDetail {
   endOn: string | null
   progress: string
   coverUrl: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
+  coverAlt?: string | null
   content: string | null
   donationContent: string | null
   charity: PublicCharityOrg | null
@@ -84,12 +101,16 @@ export interface ImpactRecord {
   happenedOn: string | null
   charityName: string | null
   charityLogoUrl: string | null
+  charityLogoWidth?: number | null
+  charityLogoHeight?: number | null
+  charityLogoAlt?: string | null
   donationContent: string | null
   location: string | null
   briefDescription: string | null
   imageUrl: string | null
   imageWidth: number | null
   imageHeight: number | null
+  imageAlt?: string | null
   images: PublicCharityImage[]
   programSlug: string | null
   programName: string | null

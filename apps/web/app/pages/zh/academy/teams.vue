@@ -149,7 +149,7 @@ useSeoMeta({
       >
         <!-- B-10：球隊簡介、主視覺、年齡層、代表色（來自後台球隊 C1；色塊文字依亮度取黑／白確保可讀） -->
         <div v-if="tab.team" class="team-intro">
-          <img v-if="tab.team.heroUrl" class="team-intro__hero" :src="tab.team.heroUrl" alt="" loading="lazy" width="800" height="450">
+          <img v-if="tab.team.heroUrl" class="team-intro__hero" :src="tab.team.heroUrl" :alt="imgAlt(tab.team.heroAlt, tab.team.name)" loading="lazy" v-bind="imgAttrs(tab.team.heroWidth, tab.team.heroHeight)">
           <div class="team-intro__body">
             <h3 class="team-intro__name">{{ tab.team.name ?? tab.labelZh }}</h3>
             <span

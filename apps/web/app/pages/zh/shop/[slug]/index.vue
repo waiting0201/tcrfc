@@ -157,6 +157,9 @@ useSeoMeta({
   description: computed(() => product.value?.seoDescription
     || (isEn.value ? getShopProductSeoEn(clubNameEn.value, product.value?.name).description : `${clubAssets.value.nameZh}官方商店「${product.value?.name ?? ''}」。以 LINE Pay 付款並開立電子發票。`)),
   ogImage: computed(() => images.value[0]?.url ?? undefined),
+  ogImageWidth: computed(() => images.value[0]?.width ?? undefined),
+  ogImageHeight: computed(() => images.value[0]?.height ?? undefined),
+  ogImageAlt: computed(() => (images.value[0] ? imgAlt(images.value[0].alt, product.value?.name) || undefined : undefined)),
 })
 </script>
 
@@ -188,12 +191,12 @@ useSeoMeta({
     <div class="product-detail">
       <div class="product-gallery">
         <div class="product-gallery__main">
-          <img v-if="mainImage" :src="mainImage.url" :alt="product?.name ?? ''" :width="mainImage.width ?? 1280" :height="mainImage.height ?? 1280">
+          <img v-if="mainImage" :src="mainImage.url" :alt="imgAlt(mainImage.alt, product?.name)" v-bind="imgAttrs(mainImage.width, mainImage.height)">
         </div>
         <ul v-if="images.length > 1" class="product-gallery__thumbs">
           <li v-for="(img, i) in images" :key="img.url">
             <button type="button" class="sh-thumb" :aria-label="tx(`檢視第 ${i + 1} 張圖片`, `View image ${i + 1}`)" :aria-pressed="i === imageIdx" @click="imageIdx = i">
-              <img :src="img.thumbUrl" alt="" loading="lazy" width="72" height="72">
+              <img :src="img.thumbUrl" :alt="imgAlt(img.alt)" loading="lazy" width="72" height="72">
             </button>
           </li>
         </ul>

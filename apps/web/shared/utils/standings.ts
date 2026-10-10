@@ -34,6 +34,9 @@ export interface PlayerSeasonStat {
   shirtNo: number | null
   position: string | null
   photoUrl: string | null
+  photoWidth?: number | null
+  photoHeight?: number | null
+  photoAlt?: string | null
   appearances: number
   goals: number
   /** 自動彙總時為 `null`（賽事紀錄沒有助攻資料）；只有後台手動輸入的球季數據才有值 */

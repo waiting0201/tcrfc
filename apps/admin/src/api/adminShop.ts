@@ -110,6 +110,8 @@ export interface ProductImageDto {
   imageThumbUrl?: string | null
   width?: number | null
   height?: number | null
+  altZh?: string | null
+  altEn?: string | null
   sortOrder: number
 }
 
@@ -187,6 +189,10 @@ export function addProductImages(club: string, id: string, files: File[]): Promi
 }
 export function deleteProductImage(club: string, id: string, imageId: string): Promise<void> {
   return apiRequest<void>(`${base(club)}/products/${id}/images/${imageId}`, { method: 'DELETE' })
+}
+/** 商品圖片說明（替代文字），各 ≤200 字、空白清為無；回傳更新後的商品詳情。 */
+export function updateProductImageAlt(club: string, id: string, imageId: string, altZh: string | null, altEn: string | null): Promise<ProductDetailDto> {
+  return apiRequest<ProductDetailDto>(`${base(club)}/products/${id}/images/${imageId}`, { method: 'PUT', body: { altZh, altEn } })
 }
 export function reorderProductImages(club: string, id: string, ids: string[]): Promise<void> {
   return putOrder(`${base(club)}/products/${id}/images/order`, ids)

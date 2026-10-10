@@ -14,6 +14,11 @@ export interface ProgramPartnerView {
   websiteUrl: string | null
   logoDarkUrl?: string | null
   logoLightUrl?: string | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
+  logoAlt?: string | null
 }
 
 export interface ProgramSessionView extends ProgramSessionLike {
@@ -38,6 +43,9 @@ export interface ProgramDetailView {
   ageMin: number | null
   ageMax: number | null
   coverUrl: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
+  coverAlt?: string | null
   name: string | null
   intro: string | null
   content: string | null

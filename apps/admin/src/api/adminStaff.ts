@@ -8,6 +8,8 @@ export interface AdminStaffLocaleContentDto {
   name?: string | null
   title?: string | null
   bio?: string | null
+  /** 圖片說明（替代文字，≤200 字）。 */
+  photoAlt?: string | null
 }
 
 export interface AdminStaffContentInputDto {
@@ -36,6 +38,8 @@ export interface AdminStaffListItemDto {
   /** 後端依 photoKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   photoUrl?: string | null
   photoThumbUrl?: string | null
+  photoWidth?: number | null
+  photoHeight?: number | null
   portraitConsentStatus: string
   nameZh?: string | null
   nameEn?: string | null
@@ -52,6 +56,8 @@ export interface AdminStaffDetailDto {
   /** 後端依 photoKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   photoUrl?: string | null
   photoThumbUrl?: string | null
+  photoWidth?: number | null
+  photoHeight?: number | null
   portraitConsentStatus: string
   zh: AdminStaffLocaleContentDto
   en?: AdminStaffLocaleContentDto | null

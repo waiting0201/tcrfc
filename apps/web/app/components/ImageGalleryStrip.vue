@@ -3,8 +3,9 @@
 //
 // 用於贊助活動紀錄、慈善事蹟：後台可傳多張圖，前台過去只顯示前 2～3 張。這裡全部列出縮圖，
 // 點任一張以原生 `<dialog>` 放大（內建 focus trap、Esc 關閉、::backdrop），可用上一張／下一張切換。
+// 縮圖是固定框裁切（96×64）且按鈕已有 aria-label，縮圖 alt 留空；大圖帶後端寬高與 Alt。
 // 不載入任何第三方腳本；只在第一次點擊後才渲染大圖（不增加首屏圖片請求）。
-interface GalleryImage { imageUrl: string, thumbUrl?: string | null }
+interface GalleryImage { imageUrl: string, thumbUrl?: string | null, imageWidth?: number | null, imageHeight?: number | null, alt?: string | null }
 const props = defineProps<{
   images: readonly GalleryImage[]
   /** 圖集的描述（用於縮圖按鈕與大圖的替代文字，例如活動名稱）。 */
@@ -50,7 +51,7 @@ function onKey(e: KeyboardEvent) {
     </button>
     <dialog v-if="opened" ref="dialogEl" class="gallery-dialog" :aria-label="label" @click="onDialogClick" @keydown="onKey" @close="opened = false">
       <div class="gallery-dialog__inner">
-        <img v-if="current" class="gallery-dialog__img" :src="current.imageUrl" :alt="tx(`${label}（第 ${index + 1} 張，共 ${total} 張）`, `${label} (photo ${index + 1} of ${total})`)">
+        <img v-if="current" class="gallery-dialog__img" :src="current.imageUrl" :alt="imgAlt(current.alt, tx(`${label}（第 ${index + 1} 張，共 ${total} 張）`, `${label} (photo ${index + 1} of ${total})`))" v-bind="imgAttrs(current.imageWidth, current.imageHeight)">
         <div class="gallery-dialog__bar">
           <button v-if="total > 1" type="button" class="btn btn--light btn--sm" @click="step(-1)">{{ tx('上一張', 'Previous') }}</button>
           <span class="gallery-dialog__count" role="status">{{ index + 1 }} / {{ total }}</span>

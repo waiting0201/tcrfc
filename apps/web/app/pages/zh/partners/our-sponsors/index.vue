@@ -11,7 +11,7 @@
 // 🔴 等級字面值：後端是「主贊助／官方贊助／支持夥伴」，mockup 第三區標題沿用「支持贊助」——
 // 用 `match` 對後端字面值、`title` 放頁面標題，兩者刻意分開（SPONSOR_TIER_SECTIONS）。
 import type { PublicSponsor } from '#shared/utils/partners'
-import { SPONSOR_TIER_SECTIONS, groupByKnownType, pickLogoUrl } from '#shared/utils/partners'
+import { SPONSOR_TIER_SECTIONS, groupByKnownType, pickLogoProps } from '#shared/utils/partners'
 
 definePageMeta({ nav: 'partners', unit: '9.2', enReady: true, enReadyBw: true })
 
@@ -76,7 +76,7 @@ useSeoMeta({
     <h2 :id="`${tier.key}-title`" class="section-title partner-type-title" :style="isDark(i) ? 'color:#fff' : undefined"><template v-if="isEn">{{ tier.en ?? tier.title }}</template><template v-else>{{ tier.title }}<span v-if="tier.en" class="en">{{ tier.en }}</span></template></h2>
 
     <div v-if="tier.items.length" class="sponsor-grid" :style="tier.key === 'title-sponsors' ? 'grid-template-columns:repeat(3,minmax(0,1fr))' : undefined">
-      <PartnerLogoTile v-for="s in tier.items" :key="s.id" :name="s.name" :logo-url="pickLogoUrl(s)" />
+      <PartnerLogoTile v-for="s in tier.items" :key="s.id" :name="s.name" v-bind="pickLogoProps(s)" />
     </div>
     <div v-else class="sponsor-grid" :style="tier.key === 'title-sponsors' ? 'grid-template-columns:repeat(3,minmax(0,1fr))' : undefined">
       <div v-for="n in (tier.key === 'title-sponsors' ? 3 : 5)" :key="n" class="sponsor-tile sponsor-tile--empty" :style="tier.key === 'title-sponsors' ? 'aspect-ratio:16/9' : undefined"><span>{{ tx('尚未公開', 'Not yet announced') }}</span></div>

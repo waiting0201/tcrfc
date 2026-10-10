@@ -217,7 +217,7 @@ useSeoMeta({
           <span v-if="p.stockStatus === 'sold_out'" class="product-card__flag product-card__flag--muted">{{ tx('缺貨', 'Sold out') }}</span>
           <span v-else-if="p.onSale" class="product-card__flag">{{ tx('優惠', 'Sale') }}</span>
           <span v-else-if="p.isNewArrival" class="product-card__flag">{{ tx('新上市', 'New') }}</span>
-          <img v-if="p.imageThumbUrl || p.imageUrl" :src="(p.imageThumbUrl || p.imageUrl) ?? ''" :alt="p.name || ''" loading="lazy" width="640" height="640">
+          <img v-if="p.imageThumbUrl || p.imageUrl" :src="(p.imageThumbUrl || p.imageUrl) ?? ''" :alt="imgAlt(p.imageAlt, p.name)" loading="lazy" v-bind="imgAttrs(p.imageWidth, p.imageHeight)">
         </a>
         <div class="product-card__body">
           <p class="product-card__name"><a :href="lp(`/zh/shop/${p.slug}/`)">{{ p.name || p.slug }}</a></p>

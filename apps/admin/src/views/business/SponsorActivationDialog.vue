@@ -19,6 +19,7 @@ import {
   deleteActivationImage,
   reorderActivationImages,
   updateActivation,
+  updateActivationImageAlt,
   type ActivationDto,
 } from '@/api/adminSponsors'
 
@@ -123,6 +124,10 @@ async function galleryRemove(imageId: string) {
   await deleteActivationImage(props.clubId, props.sponsorId, form.id!, imageId)
   await props.reload()
 }
+async function gallerySaveAlt(imageId: string, altZh: string | null, altEn: string | null) {
+  await updateActivationImageAlt(props.clubId, props.sponsorId, form.id!, imageId, altZh, altEn)
+  await props.reload()
+}
 async function galleryReorder(ids: string[]) {
   await reorderActivationImages(props.clubId, props.sponsorId, form.id!, ids)
   await props.reload()
@@ -153,11 +158,12 @@ async function galleryReorder(ids: string[]) {
     <p v-if="!form.id" class="activation-dialog__hint">請先儲存基本資料，才能管理相簿</p>
     <GalleryManager
       v-else
-      :images="(editing?.images ?? []).map((i) => ({ id: i.id, thumbUrl: i.thumbUrl, imageUrl: i.imageUrl }))"
+      :images="(editing?.images ?? []).map((i) => ({ id: i.id, thumbUrl: i.thumbUrl, imageUrl: i.imageUrl, altZh: i.altZh, altEn: i.altEn }))"
       :disabled="!canUpdate"
       :on-upload="galleryUpload"
       :on-remove="galleryRemove"
       :on-reorder="galleryReorder"
+      :on-save-alt="gallerySaveAlt"
     />
     <template #footer>
       <FormErrorStatus />

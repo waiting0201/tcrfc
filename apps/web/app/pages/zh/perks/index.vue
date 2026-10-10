@@ -102,7 +102,7 @@ useSeoMeta({
       <article v-for="st in stores" :key="st.slug" class="store-card">
         <a class="store-card__link" :href="lp(`/zh/perks/${st.slug}/`)">
           <div class="store-card__media">
-            <img v-if="safeImageUrl(st.imageUrl)" :src="safeImageUrl(st.imageUrl)!" :alt="st.name" loading="lazy" width="640" height="427">
+            <img v-if="safeImageUrl(st.imageUrl)" :src="safeImageUrl(st.imageUrl)!" :alt="imgAlt(st.imageAlt, st.name)" loading="lazy" v-bind="imgAttrs(st.imageWidth, st.imageHeight)">
           </div>
           <div class="store-card__body">
             <p v-if="st.category" class="store-card__cat">{{ st.category }}<template v-if="st.region">・{{ st.region }}</template></p>

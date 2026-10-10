@@ -126,6 +126,9 @@ const anyLogo = computed(() => charities.value.some((c) => c.logoUrl))
           :key="c.slug"
           :name="c.name"
           :logo-url="c.logoUrl"
+          :logo-width="c.logoWidth"
+          :logo-height="c.logoHeight"
+          :logo-alt="c.logoAlt"
           :href="safeExternalUrl(c.websiteUrl)"
           external
         />

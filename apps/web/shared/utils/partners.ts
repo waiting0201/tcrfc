@@ -33,6 +33,12 @@ export interface PublicPartner {
   content: string | null
   logoDarkUrl: string | null
   logoLightUrl: string | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
+  /** 深淺兩版共用的 Alt（依語系，英文空白回退繁中）；空值由 `logoImg()` 回退名稱。 */
+  logoAlt?: string | null
   charityPrograms: PartnerCharityProgramLink[]
 }
 
@@ -41,6 +47,7 @@ export interface SponsorActivationImage {
   thumbUrl: string | null
   imageWidth: number | null
   imageHeight: number | null
+  alt?: string | null
 }
 
 export interface SponsorActivation {
@@ -66,6 +73,12 @@ export interface PublicSponsor {
   content: string | null
   logoDarkUrl: string | null
   logoLightUrl: string | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
+  /** 深淺兩版共用的 Alt（依語系，英文空白回退繁中）；空值由 `logoImg()` 回退名稱。 */
+  logoAlt?: string | null
   stories: SponsorStory[]
   activations: SponsorActivation[]
   charityPrograms: PartnerCharityProgramLink[]
@@ -160,6 +173,25 @@ export function groupByKnownType<T>(
 /** Logo 牆格子底色一律是淺色（`.sponsor-tile{background:var(--paper)}`），所以淺底版優先，沒有才回退深底版。 */
 export function pickLogoUrl(item: { logoLightUrl: string | null, logoDarkUrl: string | null }): string | null {
   return item.logoLightUrl ?? item.logoDarkUrl ?? null
+}
+
+/** 同 `pickLogoUrl` 的深淺版選擇，連同該版寬高與共用 Alt 一起回傳（給 `PartnerLogoTile` 用 `v-bind` 展開）。 */
+export function pickLogoProps(item: {
+  logoLightUrl?: string | null
+  logoDarkUrl?: string | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoAlt?: string | null
+}): { logoUrl: string | null, logoWidth: number | null, logoHeight: number | null, logoAlt: string | null } {
+  if (item.logoLightUrl) {
+    return { logoUrl: item.logoLightUrl, logoWidth: item.logoLightWidth ?? null, logoHeight: item.logoLightHeight ?? null, logoAlt: item.logoAlt ?? null }
+  }
+  if (item.logoDarkUrl) {
+    return { logoUrl: item.logoDarkUrl, logoWidth: item.logoDarkWidth ?? null, logoHeight: item.logoDarkHeight ?? null, logoAlt: item.logoAlt ?? null }
+  }
+  return { logoUrl: null, logoWidth: null, logoHeight: null, logoAlt: null }
 }
 
 /** 只放行 http／https 網址（後端 `websiteUrl` 已驗證，這裡是輸出前的最後一道，不信任資料）。 */

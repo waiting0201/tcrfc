@@ -66,7 +66,7 @@ useSeoMeta({
     <h2 id="fe-detail-title" class="visually-hidden">{{ tx('活動資訊', 'Event information') }}</h2>
     <div class="fe-detail">
       <div>
-        <img v-if="safeImageUrl(ev.coverUrl)" class="fe-detail__cover" :src="safeImageUrl(ev.coverUrl)!" :alt="ev.coverAlt || ev.name" width="1280" height="853">
+        <img v-if="safeImageUrl(ev.coverUrl)" class="fe-detail__cover" :src="safeImageUrl(ev.coverUrl)!" :alt="imgAlt(ev.coverAlt, ev.name)" v-bind="imgAttrs(ev.coverWidth, ev.coverHeight)">
         <div class="prose">
           <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
         </div>
@@ -87,7 +87,7 @@ useSeoMeta({
       <h2 class="section-title">{{ tx('活動回顧', 'Event review') }}</h2>
       <div class="fe-gallery">
         <figure v-for="(im, i) in images" :key="i" class="event-photo">
-          <img :src="safeImageUrl(im.imageThumbUrl || im.imageUrl)!" :alt="isEn ? `${ev.name} event photo ${i + 1}` : `${ev.name} 活動照片 ${i + 1}`" loading="lazy" :width="im.width ?? undefined" :height="im.height ?? undefined">
+          <img :src="safeImageUrl(im.imageThumbUrl || im.imageUrl)!" :alt="imgAlt(im.alt, isEn ? `${ev.name} event photo ${i + 1}` : `${ev.name} 活動照片 ${i + 1}`)" loading="lazy" v-bind="imgAttrs(im.width, im.height)">
         </figure>
       </div>
     </div>

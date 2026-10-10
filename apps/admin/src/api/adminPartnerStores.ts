@@ -37,6 +37,8 @@ export interface PartnerStoreListItemDto {
   imageKey?: string | null
   imageUrl?: string | null
   imageThumbUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
   nameZh?: string | null
   nameEn?: string | null
   offerZh?: string | null
@@ -47,6 +49,8 @@ export interface StoreLocaleContent {
   name: string
   address?: string | null
   offerContent?: string | null
+  /** 圖片說明（替代文字，≤200 字）。 */
+  imageAlt?: string | null
 }
 
 /** 儲存時「由地址定位」的結果（僅新增／更新回應有，`GET` 不帶）。 */

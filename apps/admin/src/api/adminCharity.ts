@@ -18,6 +18,8 @@ const base = (club: string) => `/api/v1/admin/${club}/charity`
 export interface OrgLocaleContent {
   name: string
   intro?: string | null
+  /** 標誌圖片說明（替代文字，≤200 字）。 */
+  logoAlt?: string | null
 }
 
 export interface OrgListItemDto {
@@ -29,6 +31,8 @@ export interface OrgListItemDto {
   contactPhone?: string | null
   logoUrl?: string | null
   logoThumbUrl?: string | null
+  logoWidth?: number | null
+  logoHeight?: number | null
   nameZh?: string | null
   nameEn?: string | null
   programCount: number
@@ -45,6 +49,8 @@ export interface OrgDetailDto {
   contactPhone?: string | null
   logoKey?: string | null
   logoUrl?: string | null
+  logoWidth?: number | null
+  logoHeight?: number | null
   zh: OrgLocaleContent
   en?: OrgLocaleContent | null
   programs: { id: string; nameZh?: string | null; status: string }[]
@@ -88,6 +94,8 @@ export type ProgramStatus = 'draft' | 'published'
 
 export interface ProgramLocaleContent {
   name: string
+  /** 封面圖片說明（替代文字，≤200 字）。 */
+  coverAlt?: string | null
   targetAudience?: string | null
   content?: string | null
   donationContent?: string | null
@@ -98,6 +106,10 @@ export interface GalleryImageDto {
   imageKey: string
   imageUrl?: string | null
   thumbUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  altZh?: string | null
+  altEn?: string | null
   sortOrder: number
 }
 
@@ -121,6 +133,8 @@ export interface ProgramListItemDto {
   charityNameZh?: string | null
   coverUrl?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   nameZh?: string | null
   nameEn?: string | null
   updatedAt: string
@@ -141,6 +155,8 @@ export interface ProgramDetailDto {
   coverKey?: string | null
   coverUrl?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   zh: ProgramLocaleContent
   en?: ProgramLocaleContent | null
   partners: LinkRefDto[]
@@ -201,6 +217,10 @@ export function deleteProgramImage(club: string, id: string, imageId: string): P
   return apiRequest<void>(`${base(club)}/programs/${id}/images/${imageId}`, { method: 'DELETE' })
 }
 
+/** 活動圖集圖片說明（替代文字），各 ≤200 字、空白清為無；回傳更新後的計畫詳情。 */
+export function updateProgramImageAlt(club: string, id: string, imageId: string, altZh: string | null, altEn: string | null): Promise<ProgramDetailDto> {
+  return apiRequest<ProgramDetailDto>(`${base(club)}/programs/${id}/images/${imageId}`, { method: 'PUT', body: { altZh, altEn } })
+}
 export function reorderProgramImages(club: string, id: string, ids: string[]): Promise<ProgramDetailDto> {
   return apiRequest<ProgramDetailDto>(`${base(club)}/programs/${id}/images/order`, { method: 'PUT', body: { ids } })
 }
@@ -211,6 +231,8 @@ export interface RecordLocaleContent {
   donationContent: string
   location?: string | null
   briefDescription?: string | null
+  /** 主圖說明（替代文字，≤200 字）。 */
+  imageAlt?: string | null
 }
 
 export interface RecordListItemDto {
@@ -298,6 +320,10 @@ export function deleteRecordImage(club: string, id: string, imageId: string): Pr
   return apiRequest<void>(`${base(club)}/records/${id}/images/${imageId}`, { method: 'DELETE' })
 }
 
+/** 事蹟圖集圖片說明（替代文字），各 ≤200 字、空白清為無；回傳更新後的紀錄詳情。 */
+export function updateRecordImageAlt(club: string, id: string, imageId: string, altZh: string | null, altEn: string | null): Promise<RecordDetailDto> {
+  return apiRequest<RecordDetailDto>(`${base(club)}/records/${id}/images/${imageId}`, { method: 'PUT', body: { altZh, altEn } })
+}
 export function reorderRecordImages(club: string, id: string, ids: string[]): Promise<RecordDetailDto> {
   return apiRequest<RecordDetailDto>(`${base(club)}/records/${id}/images/order`, { method: 'PUT', body: { ids } })
 }

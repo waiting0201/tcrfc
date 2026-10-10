@@ -19,6 +19,7 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -64,11 +65,15 @@ const form = reactive({
   titleEn: '',
   descriptionZh: '',
   descriptionEn: '',
+  coverAltZh: '',
+  coverAltEn: '',
 })
 const baselineJson = ref('')
 const coverKey = ref<string | null>(null)
 /** 既有圖片的預覽網址（後端附帶的 coverThumbUrl／coverUrl，沒有就是 null）。 */
 const coverPreviewUrl = ref<string | null>(null)
+const coverWidth = ref<number | null>(null)
+const coverHeight = ref<number | null>(null)
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 const exceptionDatePicker = ref<Date | null>(null)
@@ -125,6 +130,10 @@ async function loadEvent() {
       form.descriptionEn = detail.en?.description ?? ''
       coverKey.value = detail.coverKey ?? null
       coverPreviewUrl.value = detail.coverThumbUrl ?? detail.coverUrl ?? null
+      coverWidth.value = detail.coverWidth ?? null
+      coverHeight.value = detail.coverHeight ?? null
+      form.coverAltZh = detail.zh.coverAlt ?? ''
+      form.coverAltEn = detail.en?.coverAlt ?? ''
     } else {
       form.isPublic = true
     }
@@ -196,8 +205,10 @@ function buildPayload(): SaveCalendarCustomEventPayload {
     ctaUrl: form.ctaUrl.trim() || null,
     teamIds: form.teamIds,
     content: {
-      zh: { title: form.titleZh.trim(), description: form.descriptionZh || null },
-      en: form.titleEn.trim() ? { title: form.titleEn.trim(), description: form.descriptionEn || null } : undefined,
+      zh: { title: form.titleZh.trim(), description: form.descriptionZh || null, coverAlt: form.coverAltZh.trim() || null },
+      en: form.titleEn.trim() || form.coverAltEn.trim()
+        ? { title: form.titleEn.trim(), description: form.descriptionEn || null, coverAlt: form.coverAltEn.trim() || null }
+        : undefined,
     },
   }
 }
@@ -218,6 +229,8 @@ async function handleSave() {
       eventId.value = created.id
       coverKey.value = created.coverKey ?? null
       coverPreviewUrl.value = created.coverThumbUrl ?? created.coverUrl ?? null
+      coverWidth.value = created.coverWidth ?? null
+      coverHeight.value = created.coverHeight ?? null
     } else {
       const updated = await updateAdminCalendarCustomEvent(
         activeClubId.value,
@@ -227,6 +240,8 @@ async function handleSave() {
       )
       coverKey.value = updated.coverKey ?? null
       coverPreviewUrl.value = updated.coverThumbUrl ?? updated.coverUrl ?? null
+      coverWidth.value = updated.coverWidth ?? null
+      coverHeight.value = updated.coverHeight ?? null
       ElMessage.success('已儲存')
     }
     coverFile.value = null
@@ -418,6 +433,15 @@ function retryLoad() {
                       :disabled="saving || isReadOnly"
                     />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.coverAltZh"
+                    v-model:en="form.coverAltEn"
+                    field="coverAlt"
+                    :has-image="(!!coverKey && !removeCover) || coverFile !== null"
+                    :width="coverWidth"
+                    :height="coverHeight"
+                    fallback="活動標題"
+                  />
                 </FormSection>
               </el-card>
 

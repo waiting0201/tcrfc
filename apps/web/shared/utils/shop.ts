@@ -54,6 +54,9 @@ export interface ShopProductListItem {
   isNewArrival: boolean
   imageUrl: string | null
   imageThumbUrl: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  imageAlt?: string | null
   priceMin: number | null
   priceMax: number | null
   listPriceMin: number | null
@@ -69,6 +72,7 @@ export interface ShopImage {
   thumbUrl: string
   width: number | null
   height: number | null
+  alt?: string | null
 }
 
 export interface ShopVariant {
@@ -113,6 +117,9 @@ export interface ShopCartItem {
   variantLabel: string
   sku: string
   imageThumbUrl: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  imageAlt?: string | null
   listPrice: number
   unitPrice: number
   onSale: boolean

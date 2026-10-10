@@ -70,7 +70,7 @@ useCourseSchema(
 </nav>
 
 <section class="page-hero" :class="{ 'page-hero--media': program.coverUrl }">
-  <img v-if="program.coverUrl" class="page-hero__bg" :src="program.coverUrl" alt="" width="1600" height="1200">
+  <img v-if="program.coverUrl" class="page-hero__bg" :src="program.coverUrl" :alt="imgAlt(program.coverAlt)" v-bind="imgAttrs(program.coverWidth, program.coverHeight)">
   <div class="container">
     <p class="page-hero__eyebrow">Programs</p>
     <h1>{{ program.name }}</h1>

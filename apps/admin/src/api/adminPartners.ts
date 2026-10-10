@@ -6,6 +6,8 @@ import { apiRequest, apiUploadRequest, buildMultipart, buildQuery, putOrder, typ
 export interface PartnerLocaleContent {
   name: string
   content?: string | null
+  /** 圖片說明（替代文字，≤200 字）。 */
+  logoAlt?: string | null
 }
 
 export interface PartnerListItemDto {
@@ -23,6 +25,10 @@ export interface PartnerListItemDto {
   logoDarkThumbUrl?: string | null
   logoLightUrl?: string | null
   logoLightThumbUrl?: string | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
   nameZh?: string | null
   nameEn?: string | null
   isActive: boolean
@@ -44,6 +50,10 @@ export interface PartnerDetailDto {
   logoDarkUrl?: string | null
   logoLightKey?: string | null
   logoLightUrl?: string | null
+  logoDarkWidth?: number | null
+  logoDarkHeight?: number | null
+  logoLightWidth?: number | null
+  logoLightHeight?: number | null
   zh: PartnerLocaleContent
   en?: PartnerLocaleContent | null
   createdAt: string

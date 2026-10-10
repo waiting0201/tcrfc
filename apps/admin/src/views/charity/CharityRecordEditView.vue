@@ -10,6 +10,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import GalleryManager from '@/components/GalleryManager.vue'
 import SharedContentNotice from '@/components/SharedContentNotice.vue'
@@ -34,6 +35,7 @@ import {
   listPrograms,
   reorderRecordImages,
   updateRecord,
+  updateRecordImageAlt,
   type GalleryImageDto,
   type OrgListItemDto,
   type ProgramListItemDto,
@@ -50,12 +52,16 @@ const club = computed(() => activeClubId.value)
 const form = reactive({
   charityId: '', programId: '', happenedOn: '', sortOrder: 0, isPinned: false,
   donationZh: '', donationEn: '', locationZh: '', locationEn: '', briefZh: '', briefEn: '',
+  imageAltZh: '',
+  imageAltEn: '',
 })
 const baselineJson = ref('')
 const imageFile = ref<File | null>(null)
 const removeFlag = ref(false)
 const imageUrl = ref<string | null>(null)
 const hasImage = ref(false)
+const imageWidth = ref<number | null>(null)
+const imageHeight = ref<number | null>(null)
 const gallery = ref<GalleryImageDto[]>([])
 const isShared = ref(false)
 const orgs = ref<OrgListItemDto[]>([])
@@ -85,6 +91,10 @@ function apply(d: RecordDetailDto) {
   form.briefEn = d.en?.briefDescription ?? ''
   imageUrl.value = d.imageThumbUrl ?? d.imageUrl ?? null
   hasImage.value = !!d.imageKey
+  imageWidth.value = d.imageWidth ?? null
+  imageHeight.value = d.imageHeight ?? null
+  form.imageAltZh = d.zh.imageAlt ?? ''
+  form.imageAltEn = d.en?.imageAlt ?? ''
   gallery.value = d.images
   isShared.value = d.isShared
 }
@@ -142,10 +152,10 @@ async function handleSave() {
       sortOrder: form.sortOrder,
       isPinned: form.isPinned,
       content: {
-        zh: { donationContent: form.donationZh.trim(), location: nullIfBlank(form.locationZh), briefDescription: nullIfBlank(form.briefZh) },
+        zh: { donationContent: form.donationZh.trim(), location: nullIfBlank(form.locationZh), briefDescription: nullIfBlank(form.briefZh), imageAlt: nullIfBlank(form.imageAltZh) },
         en: enOrUndefined(
-          { donationContent: form.donationEn.trim(), location: nullIfBlank(form.locationEn) as string, briefDescription: nullIfBlank(form.briefEn) as string },
-          'donationContent', 'location', 'briefDescription',
+          { donationContent: form.donationEn.trim(), location: nullIfBlank(form.locationEn) as string, briefDescription: nullIfBlank(form.briefEn) as string, imageAlt: nullIfBlank(form.imageAltEn) as string },
+          'donationContent', 'location', 'briefDescription', 'imageAlt',
         ),
       },
     }
@@ -175,6 +185,9 @@ async function galleryUpload(file: File) {
 async function galleryRemove(id: string) {
   await deleteRecordImage(club.value, recordId.value!, id)
   gallery.value = gallery.value.filter((g) => g.id !== id)
+}
+async function gallerySaveAlt(id: string, altZh: string | null, altEn: string | null) {
+  gallery.value = (await updateRecordImageAlt(club.value, recordId.value!, id, altZh, altEn)).images
 }
 async function galleryReorder(ids: string[]) {
   gallery.value = (await reorderRecordImages(club.value, recordId.value!, ids)).images
@@ -239,12 +252,21 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'record
                   <FormField field="image" label="活動圖片（主圖）" required>
                     <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeFlag" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.imageAltZh"
+                    v-model:en="form.imageAltEn"
+                    field="imageAlt"
+                    :has-image="(hasImage && !removeFlag) || imageFile !== null"
+                    :width="imageWidth"
+                    :height="imageHeight"
+                    fallback="捐贈內容"
+                  />
                   <p class="record-edit__hint">主圖不能移除，只能更換。</p>
                 </FormSection>
                 <FormSection title="其他活動圖片">
                   <p class="record-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
                   <p v-if="isCreate" class="record-edit__hint">請先儲存基本資料，才能管理相簿</p>
-                  <GalleryManager v-else :images="gallery" :disabled="readOnly" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+                  <GalleryManager v-else :images="gallery" :disabled="readOnly" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" :on-save-alt="gallerySaveAlt" />
                 </FormSection>
               </el-card>
               <el-card shadow="never" header="發布設定">

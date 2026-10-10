@@ -7,6 +7,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import SharedContentNotice from '@/components/SharedContentNotice.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
@@ -29,12 +30,14 @@ const isCreate = computed(() => route.name === 'charity-org-new')
 const orgId = ref<string | undefined>(route.params.id as string | undefined)
 const { canCreate, canUpdate } = useCrudPermissions('charity.content')
 
-const form = reactive({ websiteUrl: '', contactName: '', contactPhone: '', nameZh: '', nameEn: '', introZh: '', introEn: '' })
+const form = reactive({ websiteUrl: '', contactName: '', contactPhone: '', nameZh: '', nameEn: '', introZh: '', introEn: '', logoAltZh: '', logoAltEn: '' })
 const baselineJson = ref('')
 const logoFile = ref<File | null>(null)
 const removeLogo = ref(false)
 const logoUrl = ref<string | null>(null)
 const hasLogo = ref(false)
+const logoWidth = ref<number | null>(null)
+const logoHeight = ref<number | null>(null)
 const isShared = ref(false)
 const programs = ref<OrgDetailDto['programs']>([])
 const records = ref<OrgDetailDto['records']>([])
@@ -59,6 +62,10 @@ function apply(d: OrgDetailDto) {
   form.introEn = d.en?.intro ?? ''
   logoUrl.value = d.logoUrl ?? null
   hasLogo.value = !!d.logoKey
+  logoWidth.value = d.logoWidth ?? null
+  logoHeight.value = d.logoHeight ?? null
+  form.logoAltZh = d.zh.logoAlt ?? ''
+  form.logoAltEn = d.en?.logoAlt ?? ''
   isShared.value = d.isShared
   programs.value = d.programs
   records.value = d.records
@@ -107,8 +114,11 @@ async function handleSave() {
       contactName: nullIfBlank(form.contactName),
       contactPhone: nullIfBlank(form.contactPhone),
       content: {
-        zh: { name: form.nameZh.trim(), intro: nullIfBlank(form.introZh) },
-        en: enOrUndefined({ name: form.nameEn.trim(), intro: nullIfBlank(form.introEn) as string }, 'name', 'intro'),
+        zh: { name: form.nameZh.trim(), intro: nullIfBlank(form.introZh), logoAlt: nullIfBlank(form.logoAltZh) },
+        en: enOrUndefined(
+          { name: form.nameEn.trim(), intro: nullIfBlank(form.introEn) as string, logoAlt: nullIfBlank(form.logoAltEn) as string },
+          'name', 'intro', 'logoAlt',
+        ),
       },
       removeLogo: logoFile.value ? false : removeLogo.value,
     }
@@ -193,6 +203,15 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'organi
                   <FormField field="logo" label="標誌或代表圖">
                     <ImageUploader v-model:file="logoFile" v-model:remove-cover="removeLogo" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLogo" :existing-preview-url="logoUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.logoAltZh"
+                    v-model:en="form.logoAltEn"
+                    field="logoAlt"
+                    :has-image="(hasLogo && !removeLogo) || logoFile !== null"
+                    :width="logoWidth"
+                    :height="logoHeight"
+                    fallback="團體名稱"
+                  />
                 </FormSection>
               </el-card>
             </template>

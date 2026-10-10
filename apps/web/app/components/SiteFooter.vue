@@ -40,6 +40,10 @@ const { data: footerPartnerData } = useFetch<PublicPartner[]>(() => `/api/backen
   query: computed(() => ({ lang: locale.value, footer: true })),
   key: `partners-footer-${config.public.club}-${locale.value}`,
 })
+// 頁尾用的是深底版（沒有才回退淺底版），寬高跟著實際被選的那一版。
+function footerLogoSize(p: PublicPartner) {
+  return p.logoDarkUrl ? imgAttrs(p.logoDarkWidth, p.logoDarkHeight) : imgAttrs(p.logoLightWidth, p.logoLightHeight)
+}
 const footerPartners = computed(() => (footerPartnerData.value ?? []).slice(0, 8))
 
 // G-09 電子報訂閱（H 批）：POST newsletter/subscribe。單一確認（勾選同意即訂閱）、不寄確認信；
@@ -157,11 +161,11 @@ async function onSubscribe() {
         <ul class="footer-partners__list">
           <li v-for="p in footerPartners" :key="p.id">
             <a v-if="safeExternalUrl(p.websiteUrl)" :href="safeExternalUrl(p.websiteUrl) ?? undefined" target="_blank" rel="noopener noreferrer" :aria-label="tx(`${p.name}（另開新分頁）`, `${p.name} (opens in a new tab)`)">
-              <img v-if="p.logoDarkUrl ?? p.logoLightUrl" :src="p.logoDarkUrl ?? p.logoLightUrl ?? undefined" alt="" loading="lazy" width="120" height="48">
+              <img v-if="p.logoDarkUrl ?? p.logoLightUrl" :src="p.logoDarkUrl ?? p.logoLightUrl ?? undefined" alt="" loading="lazy" v-bind="footerLogoSize(p)">
               <span v-else>{{ p.name }}</span>
             </a>
             <template v-else>
-              <img v-if="p.logoDarkUrl ?? p.logoLightUrl" :src="p.logoDarkUrl ?? p.logoLightUrl ?? undefined" :alt="p.name ?? ''" loading="lazy" width="120" height="48">
+              <img v-if="p.logoDarkUrl ?? p.logoLightUrl" :src="p.logoDarkUrl ?? p.logoLightUrl ?? undefined" :alt="imgAlt(p.logoAlt, p.name)" loading="lazy" v-bind="footerLogoSize(p)">
               <span v-else>{{ p.name }}</span>
             </template>
           </li>

@@ -12,7 +12,7 @@
 import { parseContentBlocks } from '#shared/utils/content-blocks'
 import type { CharityProgramDetail, ImpactRecord } from '#shared/utils/charity'
 import type { PagedResponse } from '#shared/utils/api-types'
-import { pickLogoUrl } from '#shared/utils/partners'
+import { pickLogoProps } from '#shared/utils/partners'
 
 definePageMeta({ nav: 'charity', unit: '11', enReady: true })
 
@@ -54,6 +54,9 @@ useSeoMeta({
       .filter(Boolean).join('；').slice(0, 160) || `${clubName.value}慈善計畫「${p.name ?? ''}」`
   }),
   ogImage: computed(() => program.value?.coverUrl ?? undefined),
+  ogImageWidth: computed(() => (program.value?.coverUrl ? program.value.coverWidth ?? undefined : undefined)),
+  ogImageHeight: computed(() => (program.value?.coverUrl ? program.value.coverHeight ?? undefined : undefined)),
+  ogImageAlt: computed(() => (program.value?.coverUrl ? imgAlt(program.value.coverAlt, program.value.name) || undefined : undefined)),
 })
 </script>
 
@@ -72,7 +75,7 @@ useSeoMeta({
 <LocaleFallbackNotice v-if="isEn && hasFallbackLocale([program, records])" partial />
 
 <section :class="['page-hero', { 'page-hero--media': program?.coverUrl }]">
-  <img v-if="program?.coverUrl" class="page-hero__bg" :src="program.coverUrl" alt="" width="1600" height="1000">
+  <img v-if="program?.coverUrl" class="page-hero__bg" :src="program.coverUrl" :alt="imgAlt(program.coverAlt)" v-bind="imgAttrs(program.coverWidth, program.coverHeight)">
   <div class="container">
     <p class="page-hero__eyebrow">11.2 Charity Programs</p>
     <h1>{{ program?.name }}</h1>
@@ -111,7 +114,7 @@ useSeoMeta({
       <template v-if="program?.charity">
         <h3 class="program-detail__aside-sub">{{ tx('受贈公益團體', 'Beneficiary charity') }}</h3>
         <div class="charity-org">
-          <img v-if="program.charity.logoUrl" :src="program.charity.logoUrl" :alt="`${program.charity.name ?? ''} Logo`" loading="lazy" width="96" height="96">
+          <img v-if="program.charity.logoUrl" :src="program.charity.logoUrl" :alt="imgAlt(program.charity.logoAlt, `${program.charity.name ?? ''} Logo`)" loading="lazy" v-bind="imgAttrs(program.charity.logoWidth, program.charity.logoHeight)">
           <div>
             <p class="charity-org__name">{{ program.charity.name }}</p>
             <p v-if="program.charity.intro" class="charity-org__intro">{{ program.charity.intro }}</p>
@@ -129,7 +132,7 @@ useSeoMeta({
     <ul class="program-gallery">
       <li v-for="(img, i) in program.images" :key="i">
         <a :href="img.imageUrl" target="_blank" rel="noopener noreferrer" :aria-label="isEn ? `${program.name ?? ''} activity photo ${i + 1} (opens in a new tab)` : `${program.name ?? ''} 活動圖片 ${i + 1}（另開新分頁）`">
-          <img :src="img.thumbUrl ?? img.imageUrl" alt="" loading="lazy" width="480" height="320">
+          <img :src="img.thumbUrl ?? img.imageUrl" :alt="imgAlt(img.alt)" loading="lazy" v-bind="imgAttrs(img.imageWidth, img.imageHeight)">
         </a>
       </li>
     </ul>
@@ -155,8 +158,8 @@ useSeoMeta({
   <div class="container">
     <h2 id="program-sponsors-title" class="section-title">{{ tx('共同參與的夥伴與贊助商', 'Partners and sponsors taking part') }}</h2>
     <div class="sponsor-grid">
-      <PartnerLogoTile v-for="p in program.partners" :key="`p-${p.slug}`" :name="p.name" :logo-url="pickLogoUrl(p)" :href="lp('/zh/partners/our-partners/')" />
-      <PartnerLogoTile v-for="s in program.sponsors" :key="`s-${s.slug}`" :name="s.name" :logo-url="pickLogoUrl(s)" :href="lp('/zh/partners/our-sponsors/')" />
+      <PartnerLogoTile v-for="p in program.partners" :key="`p-${p.slug}`" :name="p.name" v-bind="pickLogoProps(p)" :href="lp('/zh/partners/our-partners/')" />
+      <PartnerLogoTile v-for="s in program.sponsors" :key="`s-${s.slug}`" :name="s.name" v-bind="pickLogoProps(s)" :href="lp('/zh/partners/our-sponsors/')" />
     </div>
   </div>
 </section>

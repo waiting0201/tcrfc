@@ -135,9 +135,8 @@ onMounted(() => {
           :key="current.pageNo"
           class="reader__page"
           :src="current.imageUrl"
-          :alt="isEn ? `Episode ${ep.episodeNo}, page ${current.pageNo}` : `第 ${ep.episodeNo} 集 第 ${current.pageNo} 頁`"
-          :width="current.width ?? undefined"
-          :height="current.height ?? undefined"
+          :alt="imgAlt(current.alt, isEn ? `Episode ${ep.episodeNo}, page ${current.pageNo}` : `第 ${ep.episodeNo} 集 第 ${current.pageNo} 頁`)"
+          v-bind="imgAttrs(current.width, current.height)"
         >
         <div class="reader__nav">
           <button type="button" class="reader__nav-btn" :disabled="index === 0" @click="go(-1)">{{ tx('← 上一頁', '← Previous page') }}</button>
@@ -153,9 +152,8 @@ onMounted(() => {
           :key="p.pageNo"
           class="reader__page"
           :src="p.imageUrl"
-          :alt="isEn ? `Episode ${ep.episodeNo}, page ${p.pageNo}` : `第 ${ep.episodeNo} 集 第 ${p.pageNo} 頁`"
-          :width="p.width ?? undefined"
-          :height="p.height ?? undefined"
+          :alt="imgAlt(p.alt, isEn ? `Episode ${ep.episodeNo}, page ${p.pageNo}` : `第 ${ep.episodeNo} 集 第 ${p.pageNo} 頁`)"
+          v-bind="imgAttrs(p.width, p.height)"
           :loading="i === 0 ? 'eager' : 'lazy'"
         >
       </div>

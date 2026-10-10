@@ -14,6 +14,7 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -50,11 +51,15 @@ const form = reactive({
   nameEn: '',
   introZh: '',
   introEn: '',
+  heroAltZh: '',
+  heroAltEn: '',
 })
 const baselineJson = ref('')
 const heroKey = ref<string | null>(null)
 /** 既有圖片的預覽網址（後端附帶的 heroThumbUrl／heroUrl，沒有就是 null）。 */
 const heroPreviewUrl = ref<string | null>(null)
+const heroWidth = ref<number | null>(null)
+const heroHeight = ref<number | null>(null)
 const heroFile = ref<File | null>(null)
 const removeHero = ref(false)
 
@@ -82,6 +87,10 @@ async function loadTeam() {
       form.nameEn = detail.en?.name ?? ''
       form.introZh = detail.zh.intro ?? ''
       form.introEn = detail.en?.intro ?? ''
+      form.heroAltZh = detail.zh.heroAlt ?? ''
+      form.heroAltEn = detail.en?.heroAlt ?? ''
+      heroWidth.value = detail.heroWidth ?? null
+      heroHeight.value = detail.heroHeight ?? null
       heroKey.value = detail.heroKey ?? null
       heroPreviewUrl.value = detail.heroThumbUrl ?? detail.heroUrl ?? null
     }
@@ -109,7 +118,7 @@ useUnsavedChanges(isDirty)
 const pageTitle = computed(() => (isCreate.value ? '新增球隊' : `編輯球隊：${form.nameZh || form.code}`))
 
 function isEnEmpty(): boolean {
-  return !form.nameEn.trim() && !form.introEn.trim()
+  return !form.nameEn.trim() && !form.introEn.trim() && !form.heroAltEn.trim()
 }
 
 /** 一次檢查全部必填，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
@@ -129,8 +138,10 @@ function buildPayload(): SaveTeamPayload {
     teamColor: form.teamColor || null,
     sortOrder: form.sortOrder,
     content: {
-      zh: { name: form.nameZh.trim(), intro: form.introZh || null },
-      en: isEnEmpty() ? undefined : { name: form.nameEn || null, intro: form.introEn || null },
+      zh: { name: form.nameZh.trim(), intro: form.introZh || null, heroAlt: form.heroAltZh.trim() || null },
+      en: isEnEmpty()
+        ? undefined
+        : { name: form.nameEn || null, intro: form.introEn || null, heroAlt: form.heroAltEn.trim() || null },
     },
   }
 }
@@ -150,6 +161,8 @@ async function handleSave() {
       teamId.value = created.id
       heroKey.value = created.heroKey ?? null
       heroPreviewUrl.value = created.heroThumbUrl ?? created.heroUrl ?? null
+      heroWidth.value = created.heroWidth ?? null
+      heroHeight.value = created.heroHeight ?? null
     } else {
       const updated = await updateAdminClubTeam(
         activeClubId.value,
@@ -159,6 +172,8 @@ async function handleSave() {
       )
       heroKey.value = updated.heroKey ?? null
       heroPreviewUrl.value = updated.heroThumbUrl ?? updated.heroUrl ?? null
+      heroWidth.value = updated.heroWidth ?? null
+      heroHeight.value = updated.heroHeight ?? null
       ElMessage.success('已儲存')
     }
     heroFile.value = null
@@ -280,6 +295,15 @@ function retryLoad() {
                       :disabled="saving"
                     />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.heroAltZh"
+                    v-model:en="form.heroAltEn"
+                    field="heroAlt"
+                    :has-image="(!!heroKey && !removeHero) || heroFile !== null"
+                    :width="heroWidth"
+                    :height="heroHeight"
+                    fallback="球隊名稱"
+                  />
                 </FormSection>
               </el-card>
               <el-card shadow="never" header="發布設定">

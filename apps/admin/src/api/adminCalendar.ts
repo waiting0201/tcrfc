@@ -159,6 +159,8 @@ export function listAdminCalendarEventTypes(club: string): Promise<AdminEventTyp
 export interface AdminCalendarEventLocaleContent {
   title: string
   description?: string | null
+  /** 圖片說明（替代文字，≤200 字）。 */
+  coverAlt?: string | null
 }
 
 export interface AdminCalendarEventContentInput {
@@ -177,6 +179,8 @@ export interface AdminCalendarCustomEventListItemDto {
   /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   coverUrl?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   teamCodes: string[]
   eventTypeCode?: string | null
   titleZh?: string | null
@@ -200,6 +204,8 @@ export interface AdminCalendarCustomEventDetailDto {
   /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   coverUrl?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   ctaUrl?: string | null
   teamIds: string[]
   teamCodes: string[]

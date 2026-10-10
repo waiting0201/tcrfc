@@ -76,7 +76,7 @@ useSeoMeta({
     <div v-if="programs.length" class="program-grid">
       <a v-for="p in programs" :key="p.id" class="program-card" :href="lp(`/zh/charity/programs/${p.slug}/`)">
         <div class="program-card__cover">
-          <img v-if="p.coverUrl" :src="p.coverUrl" alt="" loading="lazy" width="640" height="400">
+          <img v-if="p.coverUrl" :src="p.coverUrl" :alt="imgAlt(p.coverAlt, p.name)" loading="lazy" v-bind="imgAttrs(p.coverWidth, p.coverHeight)">
         </div>
         <div class="program-card__body">
           <div class="program-card__meta-row">

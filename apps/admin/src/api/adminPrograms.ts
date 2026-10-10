@@ -11,6 +11,8 @@ export interface AdminProgramLocaleContentDto {
   /** `programs_i18n.content`（與靜態頁相同的區塊 JSON 陣列文字）。後端只驗證語法合法性，不驗證區塊
    * 結構——規劃書沒有像 B1 頁面那樣明訂區塊型別清單，見 `apps/api` `AdminProgramLocaleContent` 檔頭。 */
   content?: string | null
+  /** 圖片說明（替代文字，≤200 字）。 */
+  coverAlt?: string | null
 }
 
 export interface AdminProgramContentInputDto {
@@ -31,6 +33,8 @@ export interface AdminProgramListItemDto {
   /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   coverUrl?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   nameZh?: string | null
   nameEn?: string | null
   sessionCount: number
@@ -60,6 +64,8 @@ export interface AdminProgramDetailDto {
   /** 後端依 coverKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   coverUrl?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   zh: AdminProgramLocaleContentDto
   en?: AdminProgramLocaleContentDto | null
   staff: AdminProgramStaffDto[]

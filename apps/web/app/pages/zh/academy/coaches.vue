@@ -29,6 +29,9 @@ interface CoachStaff {
   title: string | null
   licence: string | null
   photoUrl: string | null
+  photoWidth?: number | null
+  photoHeight?: number | null
+  photoAlt?: string | null
   teamCodes: string[]
 }
 const { locale } = useLocale()
@@ -85,7 +88,7 @@ const hero = computed(() => (isEn.value ? getYouthCoachesHeroEn(clubKey.value) :
     <div v-if="coaches.length > 0" class="grid grid--3 person-grid">
       <article v-for="c in coaches" :key="c.id" class="person-card clip-card clip-card--outlined">
         <div v-if="c.photoUrl" class="person-card__photo">
-          <img :src="c.photoUrl" :alt="isEn ? `${c.title ?? 'Coach'} ${c.name}` : `${c.title ?? '教練'}${c.name}`" width="800" height="800" loading="lazy">
+          <img :src="c.photoUrl" :alt="imgAlt(c.photoAlt, isEn ? `${c.title ?? 'Coach'} ${c.name}` : `${c.title ?? '教練'}${c.name}`)" loading="lazy" v-bind="imgAttrs(c.photoWidth, c.photoHeight)">
         </div>
         <div v-else class="person-card__photo person-card__photo--empty">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>

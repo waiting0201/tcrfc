@@ -13,6 +13,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import GalleryManager from '@/components/GalleryManager.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import NewsPicker from '@/components/NewsPicker.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
@@ -35,6 +36,7 @@ import {
   getFanEvent,
   reorderFanEventImages,
   updateFanEvent,
+  updateFanEventImageAlt,
   type FanEventDetailDto,
   type FanEventStatus,
 } from '@/api/adminFanEvents'
@@ -61,6 +63,8 @@ const baselineJson = ref('')
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 const coverUrl = ref<string | null>(null)
+const coverWidth = ref<number | null>(null)
+const coverHeight = ref<number | null>(null)
 const hasCover = ref(false)
 const images = ref<FanEventDetailDto['images']>([])
 const articleSeed = ref<{ id: string; label: string; status?: string }[]>([])
@@ -101,6 +105,8 @@ function apply(d: FanEventDetailDto) {
   articleSeed.value = d.articles.map((a) => ({ id: a.id, label: a.titleZh || a.slug, status: a.status }))
   coverUrl.value = d.coverUrl ?? d.coverThumbUrl ?? null
   hasCover.value = !!d.coverKey
+  coverWidth.value = d.coverWidth ?? null
+  coverHeight.value = d.coverHeight ?? null
   images.value = d.images ?? []
   counts.registered = d.registeredCount
   counts.waitlist = d.waitlistCount
@@ -215,6 +221,10 @@ async function galleryRemove(id: string) {
   await deleteFanEventImage(club.value, eventId.value!, id)
   await refreshDetail()
 }
+async function gallerySaveAlt(id: string, altZh: string | null, altEn: string | null) {
+  const d = await updateFanEventImageAlt(club.value, eventId.value!, id, altZh, altEn)
+  images.value = d.images ?? []
+}
 async function galleryReorder(ids: string[]) {
   await reorderFanEventImages(club.value, eventId.value!, ids)
   await refreshDetail()
@@ -295,21 +305,20 @@ async function galleryReorder(ids: string[]) {
                       <FormField field="cover" label="封面圖片">
                         <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
                       </FormField>
-                      <BilingualShortField
+                      <ImageAltField
+                        v-model:zh="form.coverAltZh"
+                        v-model:en="form.coverAltEn"
                         field="coverAlt"
-                        label="圖片說明"
-                        :zh="form.coverAltZh"
-                        :en="form.coverAltEn"
-                        :maxlength="200"
-                        placeholder="選填，用一句話描述圖片內容，供視障讀者的輔助工具朗讀"
-                        @update:zh="(v) => (form.coverAltZh = v)"
-                        @update:en="(v) => (form.coverAltEn = v)"
+                        :has-image="(hasCover && !removeCover) || coverFile !== null"
+                        :width="coverWidth"
+                        :height="coverHeight"
+                        fallback="活動名稱"
                       />
                     </FormSection>
                     <FormSection title="活動回顧圖集">
                       <p class="event-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
                       <p v-if="isCreate" class="event-edit__hint">請先儲存基本資料，才能管理相簿</p>
-                      <GalleryManager :images="images.map((i) => ({ id: i.id, thumbUrl: i.imageThumbUrl, imageUrl: i.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+                      <GalleryManager :images="images.map((i) => ({ id: i.id, thumbUrl: i.imageThumbUrl, imageUrl: i.imageUrl, altZh: i.altZh, altEn: i.altEn }))" :disabled="isCreate || !canUpdate" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" :on-save-alt="gallerySaveAlt" />
                     </FormSection>
                   </el-card>
 

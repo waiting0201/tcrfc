@@ -12,6 +12,9 @@ export interface PublicTeamView {
   name: string | null
   intro: string | null
   heroUrl: string | null
+  heroWidth?: number | null
+  heroHeight?: number | null
+  heroAlt?: string | null
   isFallbackLocale?: boolean
 }
 

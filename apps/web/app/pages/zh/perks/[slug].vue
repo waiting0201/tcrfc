@@ -61,7 +61,7 @@ useSeoMeta({
   <div class="container">
     <h2 id="store-detail-title" class="visually-hidden">{{ tx('店家資訊', 'Store information') }}</h2>
     <div class="store-detail">
-      <img v-if="safeImageUrl(store.imageUrl)" :src="safeImageUrl(store.imageUrl)!" :alt="store.name" width="960" height="640">
+      <img v-if="safeImageUrl(store.imageUrl)" :src="safeImageUrl(store.imageUrl)!" :alt="imgAlt(store.imageAlt, store.name)" v-bind="imgAttrs(store.imageWidth, store.imageHeight)">
       <dl>
         <div><dt>{{ tx('優惠內容', 'Offer') }}</dt><dd>{{ store.offerContent || '—' }}</dd></div>
         <div><dt>{{ tx('適用層級', 'Eligible tier') }}</dt><dd>{{ store.applicableTierLabel }}</dd></div>

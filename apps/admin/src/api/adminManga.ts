@@ -31,16 +31,18 @@ export interface MangaCharacterDto {
   imageKey?: string | null
   imageUrl?: string | null
   imageThumbUrl?: string | null
+  imageWidth?: number | null
+  imageHeight?: number | null
   sortOrder: number
-  zh: { name: string; description?: string | null }
-  en?: { name: string; description?: string | null } | null
+  zh: { name: string; description?: string | null; imageAlt?: string | null }
+  en?: { name: string; description?: string | null; imageAlt?: string | null } | null
   updatedAt: string
 }
 export interface SaveMangaCharacterPayload {
   playerId?: string | null
   sortOrder?: number
   removeImage?: boolean
-  content: BilingualContentInput<{ name: string; description?: string | null }>
+  content: BilingualContentInput<{ name: string; description?: string | null; imageAlt?: string | null }>
 }
 export function listMangaCharacters(club: string): Promise<MangaCharacterDto[]> {
   return apiRequest<MangaCharacterDto[]>(`${base(club)}/characters`)
@@ -66,6 +68,8 @@ export interface MangaEpisodeListItemDto {
   coverKey?: string | null
   coverUrl?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   publishedOn?: string | null
   status: MangaEpisodeStatus
   statusLabel: string
@@ -83,11 +87,13 @@ export interface MangaPageDto {
   imageThumbUrl?: string | null
   imageWidth?: number | null
   imageHeight?: number | null
+  altZh?: string | null
+  altEn?: string | null
   sortOrder: number
 }
 export interface MangaEpisodeDetailDto extends MangaEpisodeListItemDto {
-  zh: { title: string }
-  en?: { title: string } | null
+  zh: { title: string; coverAlt?: string | null }
+  en?: { title: string; coverAlt?: string | null } | null
   pages: MangaPageDto[]
   createdAt: string
 }
@@ -96,7 +102,7 @@ export interface SaveMangaEpisodePayload {
   publishedOn?: string | null
   status: MangaEpisodeStatus
   removeCover?: boolean
-  content: BilingualContentInput<{ title: string }>
+  content: BilingualContentInput<{ title: string; coverAlt?: string | null }>
 }
 export function listMangaEpisodes(club: string, params: { status?: string } = {}): Promise<MangaEpisodeListItemDto[]> {
   return apiRequest<MangaEpisodeListItemDto[]>(`${base(club)}/episodes${buildQuery(params)}`)
@@ -121,6 +127,10 @@ export function addMangaPages(club: string, id: string, files: File[]): Promise<
 }
 export function deleteMangaPage(club: string, id: string, pageId: string): Promise<void> {
   return apiRequest<void>(`${base(club)}/episodes/${id}/pages/${pageId}`, { method: 'DELETE' })
+}
+/** 內頁圖片說明（替代文字），各 ≤200 字、空白清為無；回傳更新後的集數詳情。 */
+export function updateMangaPageAlt(club: string, id: string, pageId: string, altZh: string | null, altEn: string | null): Promise<MangaEpisodeDetailDto> {
+  return apiRequest<MangaEpisodeDetailDto>(`${base(club)}/episodes/${id}/pages/${pageId}`, { method: 'PUT', body: { altZh, altEn } })
 }
 export function reorderMangaPages(club: string, id: string, ids: string[]): Promise<MangaEpisodeDetailDto> {
   return apiRequest<MangaEpisodeDetailDto>(`${base(club)}/episodes/${id}/pages/order`, { method: 'PUT', body: { ids } })

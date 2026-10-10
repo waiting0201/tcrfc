@@ -22,6 +22,7 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import PageBlockListEditor from '@/components/pageBlocks/PageBlockListEditor.vue'
@@ -61,6 +62,8 @@ const form = reactive({
   introEn: '',
   staffIds: [] as string[],
   partnerIds: [] as string[],
+  coverAltZh: '',
+  coverAltEn: '',
 })
 
 /** 課程內容可用的區塊類型：不含需要圖片上傳的「圖文左右」「圖片藝廊」，也不含前台尚未渲染的類型。 */
@@ -108,6 +111,8 @@ function snapshot(): string {
 const coverKey = ref<string | null>(null)
 /** 既有圖片的預覽網址（後端附帶的 coverThumbUrl／coverUrl，沒有就是 null）。 */
 const coverPreviewUrl = ref<string | null>(null)
+const coverWidth = ref<number | null>(null)
+const coverHeight = ref<number | null>(null)
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 
@@ -169,6 +174,10 @@ async function loadProgram() {
       }
       coverKey.value = detail.coverKey ?? null
       coverPreviewUrl.value = detail.coverThumbUrl ?? detail.coverUrl ?? null
+      coverWidth.value = detail.coverWidth ?? null
+      coverHeight.value = detail.coverHeight ?? null
+      form.coverAltZh = detail.zh.coverAlt ?? ''
+      form.coverAltEn = detail.en?.coverAlt ?? ''
     }
     coverFile.value = null
     removeCover.value = false
@@ -195,7 +204,7 @@ const pageTitle = computed(() => (isCreate.value ? '新增課程／營隊項目'
 const isReadOnly = computed(() => !canManageItems.value)
 
 function isEnEmpty(): boolean {
-  return !form.nameEn.trim() && !form.introEn.trim()
+  return !form.nameEn.trim() && !form.introEn.trim() && !form.coverAltEn.trim()
 }
 
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
@@ -240,8 +249,10 @@ function buildPayload(): SaveProgramPayload {
     ageMax: form.ageMax,
     status: form.status,
     content: {
-      zh: { name: form.nameZh.trim(), intro: form.introZh || null, content: contentJson },
-      en: isEnEmpty() ? undefined : { name: form.nameEn || null, intro: form.introEn || null, content: contentJson },
+      zh: { name: form.nameZh.trim(), intro: form.introZh || null, content: contentJson, coverAlt: form.coverAltZh.trim() || null },
+      en: isEnEmpty()
+        ? undefined
+        : { name: form.nameEn || null, intro: form.introEn || null, content: contentJson, coverAlt: form.coverAltEn.trim() || null },
     },
     staffIds: form.staffIds,
     partnerIds: form.partnerIds,
@@ -264,6 +275,8 @@ async function handleSave() {
       programId.value = created.id
       coverKey.value = created.coverKey ?? null
       coverPreviewUrl.value = created.coverThumbUrl ?? created.coverUrl ?? null
+      coverWidth.value = created.coverWidth ?? null
+      coverHeight.value = created.coverHeight ?? null
     } else {
       const updated = await updateAdminProgram(
         activeClubId.value,
@@ -273,6 +286,8 @@ async function handleSave() {
       )
       coverKey.value = updated.coverKey ?? null
       coverPreviewUrl.value = updated.coverThumbUrl ?? updated.coverUrl ?? null
+      coverWidth.value = updated.coverWidth ?? null
+      coverHeight.value = updated.coverHeight ?? null
       ElMessage.success('已儲存')
     }
     coverFile.value = null
@@ -434,6 +449,15 @@ function retryLoad() {
                       :disabled="saving || isReadOnly"
                     />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.coverAltZh"
+                    v-model:en="form.coverAltEn"
+                    field="coverAlt"
+                    :has-image="(!!coverKey && !removeCover) || coverFile !== null"
+                    :width="coverWidth"
+                    :height="coverHeight"
+                    fallback="課程名稱"
+                  />
                 </FormSection>
               </el-card>
 

@@ -28,6 +28,8 @@ export interface FanEventListItemDto {
   statusLabel: string
   coverKey?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   venueId?: string | null
   nameZh?: string | null
   nameEn?: string | null
@@ -52,6 +54,8 @@ export interface FanEventImageDto {
   imageThumbUrl?: string | null
   imageWidth?: number | null
   imageHeight?: number | null
+  altZh?: string | null
+  altEn?: string | null
   sortOrder: number
 }
 
@@ -116,6 +120,10 @@ export function addFanEventImages(club: string, id: string, files: File[]): Prom
 }
 export function deleteFanEventImage(club: string, id: string, imageId: string): Promise<void> {
   return apiRequest<void>(`${base(club)}/${id}/images/${imageId}`, { method: 'DELETE' })
+}
+/** 圖集圖片說明（替代文字），各 ≤200 字、空白清為無；回傳更新後的活動詳情。 */
+export function updateFanEventImageAlt(club: string, id: string, imageId: string, altZh: string | null, altEn: string | null): Promise<FanEventDetailDto> {
+  return apiRequest<FanEventDetailDto>(`${base(club)}/${id}/images/${imageId}`, { method: 'PUT', body: { altZh, altEn } })
 }
 export function reorderFanEventImages(club: string, id: string, ids: string[]): Promise<void> {
   return putOrder(`${base(club)}/${id}/images/order`, ids)

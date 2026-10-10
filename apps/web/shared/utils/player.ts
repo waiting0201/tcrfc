@@ -20,6 +20,9 @@ export interface PlayerDto {
   name: string | null
   bio: string | null
   photoUrl: string | null
+  photoWidth?: number | null
+  photoHeight?: number | null
+  photoAlt?: string | null
   schemaEligible?: boolean
   /** 球員狀態（稽核 A-2）；公開端只回現役，目前恆為 `active`。前台不依此過濾，僅型別容許。 */
   status?: string

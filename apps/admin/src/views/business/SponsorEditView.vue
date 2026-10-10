@@ -10,6 +10,8 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
+import ImageSizeHint from '@/components/ImageSizeHint.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
@@ -53,6 +55,8 @@ const form = reactive({
   nameZh: '', nameEn: '', contentZh: '', contentEn: '',
   packageIds: [] as string[],
   articleIds: [] as string[],
+  logoAltZh: '',
+  logoAltEn: '',
 })
 const baselineJson = ref('')
 const darkFile = ref<File | null>(null)
@@ -63,6 +67,10 @@ const darkUrl = ref<string | null>(null)
 const lightUrl = ref<string | null>(null)
 const hasDark = ref(false)
 const hasLight = ref(false)
+const darkWidth = ref<number | null>(null)
+const darkHeight = ref<number | null>(null)
+const lightWidth = ref<number | null>(null)
+const lightHeight = ref<number | null>(null)
 const contractStatus = ref<string>('none')
 
 const packageOptions = ref<SponsorPackageListItemDto[]>([])
@@ -101,6 +109,12 @@ function apply(d: SponsorDetailDto) {
   lightUrl.value = d.logoLightUrl ?? null
   hasDark.value = !!d.logoDarkKey
   hasLight.value = !!d.logoLightKey
+  darkWidth.value = d.logoDarkWidth ?? null
+  darkHeight.value = d.logoDarkHeight ?? null
+  lightWidth.value = d.logoLightWidth ?? null
+  lightHeight.value = d.logoLightHeight ?? null
+  form.logoAltZh = d.zh.logoAlt ?? ''
+  form.logoAltEn = d.en?.logoAlt ?? ''
   contractStatus.value = d.contractStatus
   articleSeed.value = d.articles.map((a) => ({ id: a.id, label: a.titleZh || a.slug, status: a.status }))
 }
@@ -156,8 +170,11 @@ function buildPayload(): SaveSponsorPayload {
     contactEmail: nullIfBlank(form.contactEmail),
     sortOrder: form.sortOrder,
     content: {
-      zh: { name: form.nameZh.trim(), content: nullIfBlank(form.contentZh) },
-      en: enOrUndefined({ name: form.nameEn.trim(), content: nullIfBlank(form.contentEn) as string }, 'name', 'content'),
+      zh: { name: form.nameZh.trim(), content: nullIfBlank(form.contentZh), logoAlt: nullIfBlank(form.logoAltZh) },
+      en: enOrUndefined(
+        { name: form.nameEn.trim(), content: nullIfBlank(form.contentEn) as string, logoAlt: nullIfBlank(form.logoAltEn) as string },
+        'name', 'content', 'logoAlt',
+      ),
     },
     // 關聯陣列語意：一律明確帶出畫面上的完整清單（空陣列＝清空）
     packageIds: form.packageIds,
@@ -330,11 +347,24 @@ async function removeActivation(a: ActivationDto) {
                   <FormField field="logoDark" label="放在深色背景上的標誌">
                     <ImageUploader v-model:file="darkFile" v-model:remove-cover="removeDark" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasDark" :existing-preview-url="darkUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <ImageSizeHint :has-image="hasDark && !removeDark" :width="darkWidth" :height="darkHeight" />
                 </FormSection>
                 <FormSection title="淺色底用標誌">
                   <FormField field="logoLight" label="放在淺色背景上的標誌">
                     <ImageUploader v-model:file="lightFile" v-model:remove-cover="removeLight" variant="logo" :min-width="0" :min-height="0" :has-existing-image="hasLight" :existing-preview-url="lightUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <ImageSizeHint :has-image="hasLight && !removeLight" :width="lightWidth" :height="lightHeight" />
+                </FormSection>
+                <FormSection title="標誌圖片說明">
+                  <p class="sponsor-edit__hint">深色底與淺色底兩版標誌共用同一個說明。</p>
+                  <ImageAltField
+                    v-model:zh="form.logoAltZh"
+                    v-model:en="form.logoAltEn"
+                    field="logoAlt"
+                    :has-image="(hasDark && !removeDark) || (hasLight && !removeLight) || darkFile !== null || lightFile !== null"
+                    :show-size="false"
+                    fallback="贊助商名稱"
+                  />
                 </FormSection>
               </el-card>
               <el-card shadow="never" header="發布設定">

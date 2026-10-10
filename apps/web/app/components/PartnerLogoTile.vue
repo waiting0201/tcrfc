@@ -7,6 +7,10 @@
 const props = defineProps<{
   name: string | null
   logoUrl: string | null
+  /** 後端圖片欄位組（null 就不帶 width／height；Alt 空值回退名稱）。 */
+  logoWidth?: number | null
+  logoHeight?: number | null
+  logoAlt?: string | null
   /** 有值就整格可點；`external` 為 true 時開新分頁。 */
   href?: string | null
   external?: boolean
@@ -24,7 +28,7 @@ const tileLabel = computed(() => (props.href && props.name ? (props.external ? `
     :rel="href && external ? 'noopener noreferrer' : undefined"
     :aria-label="tileLabel"
   >
-    <img v-if="logoUrl" :src="logoUrl" :alt="href ? '' : (name ?? '')" loading="lazy" width="200" height="125">
+    <img v-if="logoUrl" :src="logoUrl" :alt="href ? '' : imgAlt(logoAlt, name)" loading="lazy" v-bind="imgAttrs(logoWidth, logoHeight)">
     <span v-else class="partner-logo-tile__name">{{ name }}</span>
   </component>
 </template>

@@ -8,6 +8,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import SharedContentNotice from '@/components/SharedContentNotice.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
@@ -65,12 +66,16 @@ const form = reactive({
   addressEn: '',
   offerZh: '',
   offerEn: '',
+  imageAltZh: '',
+  imageAltEn: '',
 })
 const baselineJson = ref('')
 const imageFile = ref<File | null>(null)
 const removeImage = ref(false)
 const imageUrl = ref<string | null>(null)
 const hasImage = ref(false)
+const imageWidth = ref<number | null>(null)
+const imageHeight = ref<number | null>(null)
 const categoryOptions = ref<string[]>([])
 const regionOptions = ref<string[]>([])
 /** 這筆是不是兩隊共用的店家（建立後才有意義）。 */
@@ -122,6 +127,10 @@ function applyDetail(d: PartnerStoreDetailDto) {
   loadedShared.value = d.isShared
   imageUrl.value = d.imageThumbUrl ?? d.imageUrl ?? null
   hasImage.value = !!d.imageKey
+  imageWidth.value = d.imageWidth ?? null
+  imageHeight.value = d.imageHeight ?? null
+  form.imageAltZh = d.zh.imageAlt ?? ''
+  form.imageAltEn = d.en?.imageAlt ?? ''
 }
 
 async function load() {
@@ -226,10 +235,10 @@ function buildPayload(): SavePartnerStorePayload {
     status: form.status,
     removeImage: img.remove,
     content: {
-      zh: { name: form.nameZh.trim(), address: nullIfBlank(form.addressZh), offerContent: nullIfBlank(form.offerZh) },
+      zh: { name: form.nameZh.trim(), address: nullIfBlank(form.addressZh), offerContent: nullIfBlank(form.offerZh), imageAlt: nullIfBlank(form.imageAltZh) },
       en: enOrUndefined(
-        { name: form.nameEn.trim(), address: nullIfBlank(form.addressEn) as string, offerContent: nullIfBlank(form.offerEn) as string },
-        'name', 'address', 'offerContent',
+        { name: form.nameEn.trim(), address: nullIfBlank(form.addressEn) as string, offerContent: nullIfBlank(form.offerEn) as string, imageAlt: nullIfBlank(form.imageAltEn) as string },
+        'name', 'address', 'offerContent', 'imageAlt',
       ),
     },
   }
@@ -402,6 +411,15 @@ const backToList = () => router.push({ path: '/members/partner-stores', query: {
                   <FormField field="image" label="店家照片">
                     <ImageUploader v-model:file="imageFile" v-model:remove-cover="removeImage" variant="photo" :min-width="0" :min-height="0" :has-existing-image="hasImage" :existing-preview-url="imageUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.imageAltZh"
+                    v-model:en="form.imageAltEn"
+                    field="imageAlt"
+                    :has-image="(hasImage && !removeImage) || imageFile !== null"
+                    :width="imageWidth"
+                    :height="imageHeight"
+                    fallback="店家名稱"
+                  />
                 </FormSection>
               </el-card>
 

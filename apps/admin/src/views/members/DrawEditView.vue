@@ -12,6 +12,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
@@ -40,12 +41,16 @@ const form = reactive({
   snapshotAt: '', drawnAt: '', drawOccasion: '', claimDeadlineOn: '',
   internalNote: '',
   nameZh: '', nameEn: '', prizeZh: '', prizeEn: '', rulesZh: '', rulesEn: '', notesZh: '', notesEn: '',
+  coverAltZh: '',
+  coverAltEn: '',
 })
 const baselineJson = ref('')
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 const coverUrl = ref<string | null>(null)
 const hasCover = ref(false)
+const coverWidth = ref<number | null>(null)
+const coverHeight = ref<number | null>(null)
 const status = ref<DrawDetailDto['status']>('draft')
 const canEditDraw = ref(true)
 
@@ -75,6 +80,10 @@ function apply(d: DrawDetailDto) {
   form.notesZh = d.zh?.notes ?? ''; form.notesEn = d.en?.notes ?? ''
   coverUrl.value = d.coverThumbUrl ?? d.coverUrl ?? null
   hasCover.value = !!d.coverKey
+  coverWidth.value = d.coverWidth ?? null
+  coverHeight.value = d.coverHeight ?? null
+  form.coverAltZh = d.zh?.coverAlt ?? ''
+  form.coverAltEn = d.en?.coverAlt ?? ''
   status.value = d.status
   canEditDraw.value = d.availableActions.includes('edit')
 }
@@ -125,10 +134,10 @@ async function handleSave() {
     internalNote: nullIfBlank(form.internalNote),
     removeCover: coverFile.value ? false : removeCover.value,
     content: {
-      zh: { name: form.nameZh.trim(), prizeDescription: nullIfBlank(form.prizeZh), rules: nullIfBlank(form.rulesZh), notes: nullIfBlank(form.notesZh) },
+      zh: { name: form.nameZh.trim(), prizeDescription: nullIfBlank(form.prizeZh), rules: nullIfBlank(form.rulesZh), notes: nullIfBlank(form.notesZh), coverAlt: nullIfBlank(form.coverAltZh) },
       en: enOrUndefined(
-        { name: form.nameEn.trim(), prizeDescription: nullIfBlank(form.prizeEn) as string, rules: nullIfBlank(form.rulesEn) as string, notes: nullIfBlank(form.notesEn) as string },
-        'name', 'prizeDescription', 'rules', 'notes',
+        { name: form.nameEn.trim(), prizeDescription: nullIfBlank(form.prizeEn) as string, rules: nullIfBlank(form.rulesEn) as string, notes: nullIfBlank(form.notesEn) as string, coverAlt: nullIfBlank(form.coverAltEn) as string },
+        'name', 'prizeDescription', 'rules', 'notes', 'coverAlt',
       ),
     },
   }
@@ -222,6 +231,15 @@ function back() {
                   <FormField field="cover" label="封面圖片">
                     <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.coverAltZh"
+                    v-model:en="form.coverAltEn"
+                    field="coverAlt"
+                    :has-image="(hasCover && !removeCover) || coverFile !== null"
+                    :width="coverWidth"
+                    :height="coverHeight"
+                    fallback="抽獎活動名稱"
+                  />
                 </FormSection>
               </el-card>
             </template>

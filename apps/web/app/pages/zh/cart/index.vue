@@ -118,7 +118,7 @@ const shippingFee = computed(() => cart.value?.shipping.fee ?? 0)
             <tr v-for="it in items" :key="it.variantId">
               <td>
                 <div class="cart-item">
-                  <img v-if="it.imageThumbUrl" :src="it.imageThumbUrl" :alt="it.productName ?? ''" loading="lazy" width="200" height="200">
+                  <img v-if="it.imageThumbUrl" :src="it.imageThumbUrl" :alt="imgAlt(it.imageAlt, it.productName)" loading="lazy" v-bind="imgAttrs(it.imageWidth, it.imageHeight)">
                   <div>
                     <p class="cart-item__name"><a :href="lp(`/zh/shop/${it.productSlug}/`)">{{ it.productName || it.productSlug }}</a></p>
                     <p class="cart-item__variant">

@@ -78,7 +78,7 @@ useSeoMeta({
     </div>
     <div class="mg-latest">
       <a class="mg-latest__cover" :href="lp(`/zh/culture/manga/${latest.episodeNo}/`)" :aria-label="isEn ? `Read episode ${latest.episodeNo}: ${latest.title}` : `閱讀第 ${latest.episodeNo} 集：${latest.title}`">
-        <img v-if="safeImageUrl(latest.coverUrl)" :src="safeImageUrl(latest.coverUrl)!" :alt="isEn ? `Cover of episode ${latest.episodeNo}` : `第 ${latest.episodeNo} 集封面`" width="480" height="640">
+        <img v-if="safeImageUrl(latest.coverUrl)" :src="safeImageUrl(latest.coverUrl)!" :alt="imgAlt(latest.coverAlt, isEn ? `Cover of episode ${latest.episodeNo}` : `第 ${latest.episodeNo} 集封面`)" v-bind="imgAttrs(latest.coverWidth, latest.coverHeight)">
         <span v-else>EP{{ String(latest.episodeNo).padStart(2, '0') }}</span>
       </a>
       <div>
@@ -121,7 +121,7 @@ useSeoMeta({
     <div v-if="(characters ?? []).length > 0" class="grid grid--4 char-wall">
       <article v-for="c in characters" :key="c.id" class="char-card char-card--live">
         <div class="char-card__portrait">
-          <img v-if="safeImageUrl(c.imageThumbUrl || c.imageUrl)" :src="safeImageUrl(c.imageThumbUrl || c.imageUrl)!" :alt="c.name" loading="lazy" width="320" height="427">
+          <img v-if="safeImageUrl(c.imageThumbUrl || c.imageUrl)" :src="safeImageUrl(c.imageThumbUrl || c.imageUrl)!" :alt="imgAlt(c.imageAlt, c.name)" loading="lazy" v-bind="imgAttrs(c.imageWidth, c.imageHeight)">
           <span v-else aria-hidden="true">?</span>
         </div>
         <h3 class="char-card__name">{{ c.name }}</h3>
@@ -146,7 +146,7 @@ useSeoMeta({
       <article v-for="e in episodes" :key="e.episodeNo" class="ep-card">
         <a class="ep-card__link" :href="lp(`/zh/culture/manga/${e.episodeNo}/`)">
           <div class="ep-card__cover">
-            <img v-if="safeImageUrl(e.coverThumbUrl || e.coverUrl)" :src="safeImageUrl(e.coverThumbUrl || e.coverUrl)!" :alt="isEn ? `Cover of episode ${e.episodeNo}` : `第 ${e.episodeNo} 集封面`" loading="lazy" width="480" height="640">
+            <img v-if="safeImageUrl(e.coverThumbUrl || e.coverUrl)" :src="safeImageUrl(e.coverThumbUrl || e.coverUrl)!" :alt="imgAlt(e.coverAlt, isEn ? `Cover of episode ${e.episodeNo}` : `第 ${e.episodeNo} 集封面`)" loading="lazy" v-bind="imgAttrs(e.coverWidth, e.coverHeight)">
             <span v-else>EP{{ String(e.episodeNo).padStart(2, '0') }}</span>
           </div>
           <p class="ep-card__title">

@@ -11,6 +11,8 @@ import { apiRequest, apiUploadRequest } from './http'
 export interface AdminTeamLocaleContentDto {
   name?: string | null
   intro?: string | null
+  /** 主視覺圖片說明（替代文字，≤200 字）。 */
+  heroAlt?: string | null
 }
 
 export interface AdminTeamContentInputDto {
@@ -29,6 +31,8 @@ export interface AdminTeamAdminListItemDto {
   /** 後端依 heroKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   heroUrl?: string | null
   heroThumbUrl?: string | null
+  heroWidth?: number | null
+  heroHeight?: number | null
   sortOrder: number
   nameZh?: string | null
   nameEn?: string | null
@@ -46,6 +50,8 @@ export interface AdminTeamDetailDto {
   /** 後端依 heroKey 附帶回傳的可顯示網址（大圖／160px 方形縮圖）。 */
   heroUrl?: string | null
   heroThumbUrl?: string | null
+  heroWidth?: number | null
+  heroHeight?: number | null
   sortOrder: number
   zh: AdminTeamLocaleContentDto
   en?: AdminTeamLocaleContentDto | null

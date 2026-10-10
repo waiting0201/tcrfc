@@ -12,6 +12,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import GalleryManager from '@/components/GalleryManager.vue'
 import SharedContentNotice from '@/components/SharedContentNotice.vue'
@@ -39,6 +40,7 @@ import {
   listOrgs,
   reorderProgramImages,
   updateProgram,
+  updateProgramImageAlt,
   type GalleryImageDto,
   type LinkRefDto,
   type OrgListItemDto,
@@ -58,12 +60,16 @@ const form = reactive({
   charityId: '', status: 'draft' as 'draft' | 'published', startOn: '', endOn: '', sortOrder: 0, isPinned: false,
   nameZh: '', nameEn: '', audienceZh: '', audienceEn: '', contentZh: '', contentEn: '', donationZh: '', donationEn: '',
   partnerIds: [] as string[], sponsorIds: [] as string[], articleIds: [] as string[],
+  coverAltZh: '',
+  coverAltEn: '',
 })
 const baselineJson = ref('')
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 const coverUrl = ref<string | null>(null)
 const hasCover = ref(false)
+const coverWidth = ref<number | null>(null)
+const coverHeight = ref<number | null>(null)
 const gallery = ref<GalleryImageDto[]>([])
 const isShared = ref(false)
 const progress = ref<'ongoing' | 'completed'>('ongoing')
@@ -121,6 +127,10 @@ function apply(d: ProgramDetailDto) {
   articleSeed.value = d.articles.map((r) => ({ id: r.id, label: r.title || r.slug }))
   coverUrl.value = d.coverThumbUrl ?? d.coverUrl ?? null
   hasCover.value = !!d.coverKey
+  coverWidth.value = d.coverWidth ?? null
+  coverHeight.value = d.coverHeight ?? null
+  form.coverAltZh = d.zh.coverAlt ?? ''
+  form.coverAltEn = d.en?.coverAlt ?? ''
   gallery.value = d.images
   isShared.value = d.isShared
   progress.value = d.progress
@@ -186,6 +196,7 @@ async function handleSave() {
           targetAudience: nullIfBlank(form.audienceZh),
           content: encodeCharityContent(contentField('zh')),
           donationContent: nullIfBlank(form.donationZh),
+          coverAlt: nullIfBlank(form.coverAltZh),
         },
         en: enOrUndefined(
           {
@@ -193,8 +204,9 @@ async function handleSave() {
             targetAudience: nullIfBlank(form.audienceEn) as string,
             content: encodeCharityContent(contentField('en')) as string,
             donationContent: nullIfBlank(form.donationEn) as string,
+            coverAlt: nullIfBlank(form.coverAltEn) as string,
           },
-          'name', 'targetAudience', 'content', 'donationContent',
+          'name', 'targetAudience', 'content', 'donationContent', 'coverAlt',
         ),
       },
       partnerIds: form.partnerIds,
@@ -229,6 +241,9 @@ async function galleryUpload(file: File) {
 async function galleryRemove(id: string) {
   await deleteProgramImage(club.value, programId.value!, id)
   gallery.value = gallery.value.filter((g) => g.id !== id)
+}
+async function gallerySaveAlt(id: string, altZh: string | null, altEn: string | null) {
+  gallery.value = (await updateProgramImageAlt(club.value, programId.value!, id, altZh, altEn)).images
 }
 async function galleryReorder(ids: string[]) {
   gallery.value = (await reorderProgramImages(club.value, programId.value!, ids)).images
@@ -305,11 +320,20 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'progra
                   <FormField field="cover" label="封面圖片">
                     <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.coverAltZh"
+                    v-model:en="form.coverAltEn"
+                    field="coverAlt"
+                    :has-image="(hasCover && !removeCover) || coverFile !== null"
+                    :width="coverWidth"
+                    :height="coverHeight"
+                    fallback="計畫名稱"
+                  />
                 </FormSection>
                 <FormSection title="活動圖集">
                   <p class="program-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
                   <p v-if="isCreate" class="program-edit__hint">請先儲存基本資料，才能管理相簿</p>
-                  <GalleryManager v-else :images="gallery" :disabled="readOnly" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+                  <GalleryManager v-else :images="gallery" :disabled="readOnly" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" :on-save-alt="gallerySaveAlt" />
                 </FormSection>
               </el-card>
               <el-card shadow="never" header="發布設定">

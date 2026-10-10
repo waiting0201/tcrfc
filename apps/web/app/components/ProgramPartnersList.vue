@@ -9,7 +9,7 @@ const partners = computed(() => uniqueById(props.programs.map((p) => p.partners)
   <div v-if="partners.length" class="program-partners">
     <PartnerLogoTile
       v-for="p in partners" :key="p.id"
-      :name="p.name" :logo-url="p.logoLightUrl ?? p.logoDarkUrl ?? null"
+      :name="p.name" v-bind="pickLogoProps(p)"
       :href="safeHttps(p.websiteUrl)" external
     />
   </div>

@@ -136,7 +136,7 @@ watchEffect(() => {
     p.schemaEligible && p.name && !isKnownMinor(p.birthOn))
   if (eligible.length === 0) return
   useSchemaOrg(
-    eligible.map((p: { id: string, slug?: string, name: string, position?: string | null, photoUrl?: string | null }) =>
+    eligible.map((p: { id: string, slug?: string, name: string, position?: string | null, photoUrl?: string | null, photoWidth?: number | null, photoHeight?: number | null }) =>
       definePerson({
         // 唯一 @id（見 about/our-people.vue 同一處說明、docs/18 E-96）：不給就全部合併成站台身分節點。
         '@id': `player-${p.id}`,
@@ -144,7 +144,7 @@ watchEffect(() => {
         // 詳情頁的正規網址（slug）；沒有 slug 時不輸出 url，不拿 id 網址頂替（id 網址會 301，不是正規形式）。
         url: p.slug ? `${siteUrl}${lp(playerPath(p.slug))}` : undefined,
         jobTitle: p.position ?? undefined,
-        image: p.photoUrl ?? undefined,
+        image: schemaImage(p.photoUrl, p.photoWidth, p.photoHeight),
       }),
     ),
   )
@@ -207,7 +207,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無一線隊合影照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石球員合影頂替 -->
-  <img v-if="firstTeam?.heroUrl" class="page-hero__bg" :src="firstTeam.heroUrl" alt="" width="1600" height="900">
+  <img v-if="firstTeam?.heroUrl" class="page-hero__bg" :src="firstTeam.heroUrl" :alt="imgAlt(firstTeam.heroAlt)" v-bind="imgAttrs(firstTeam.heroWidth, firstTeam.heroHeight)">
   <img v-else-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/club/first-team-01-squad.jpg')" :alt="isEn ? `Taichung Rock First Team players posing together at ${primaryVenue.nameEn ?? primaryVenue.nameZh}` : `台中磐石一線隊球員於${primaryVenue.nameZh}合影`" width="1920" height="1280">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
@@ -244,7 +244,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
     <div v-else class="player-grid" id="player-grid">
       <article v-for="p in players" :key="p.id" class="player-card clip-card" :data-pos="p.position">
         <div class="player-card__visual">
-          <img v-if="p.photoUrl" :src="p.photoUrl" :alt="isEn ? `Photo of ${p.name}` : `${p.name} 球員照片`" width="300" height="300" loading="lazy" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+          <img v-if="p.photoUrl" :src="p.photoUrl" :alt="imgAlt(p.photoAlt, isEn ? `Photo of ${p.name}` : `${p.name} 球員照片`)" v-bind="imgAttrs(p.photoWidth, p.photoHeight)" loading="lazy" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
           <img class="player-card__crest" :src="assets.headerMark.src" alt="" width="64" height="67" aria-hidden="true">
           <span class="player-card__num">{{ p.shirtNo ?? '—' }}</span>
         </div>
@@ -270,7 +270,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
     <div v-else class="coach-grid">
       <article v-for="c in coaches" :key="c.id" class="coach-card clip-card">
         <div class="coach-card__visual">
-          <img v-if="c.photoUrl" :src="c.photoUrl" :alt="isEn ? `Photo of ${c.name}` : `${c.name} 教練照片`" width="240" height="150" loading="lazy" style="width:100%; height:100%; object-fit:cover;">
+          <img v-if="c.photoUrl" :src="c.photoUrl" :alt="imgAlt(c.photoAlt, isEn ? `Photo of ${c.name}` : `${c.name} 教練照片`)" v-bind="imgAttrs(c.photoWidth, c.photoHeight)" loading="lazy" style="width:100%; height:100%; object-fit:cover;">
           <img v-else :src="assets.headerMark.src" alt="" width="52" height="55" aria-hidden="true">
         </div>
         <div class="coach-card__body">

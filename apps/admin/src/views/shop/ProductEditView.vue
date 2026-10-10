@@ -38,6 +38,7 @@ import {
   getProduct,
   listCollections,
   reorderProductImages,
+  updateProductImageAlt,
   reorderVariants,
   updateProduct,
   updateVariant,
@@ -236,6 +237,10 @@ async function galleryUpload(file: File) {
 }
 async function galleryRemove(id: string) {
   await deleteProductImage(club.value, productId.value!, id)
+  await refreshDetail()
+}
+async function gallerySaveAlt(id: string, altZh: string | null, altEn: string | null) {
+  await updateProductImageAlt(club.value, productId.value!, id, altZh, altEn)
   await refreshDetail()
 }
 async function galleryReorder(ids: string[]) {
@@ -477,7 +482,7 @@ async function moveVariant(index: number, delta: -1 | 1) {
                 <FormSection title="商品圖片">
                   <p class="product-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
                   <p v-if="isCreate" class="product-edit__hint">請先儲存基本資料，才能管理相簿</p>
-                  <GalleryManager :images="images.map((i) => ({ id: i.id, thumbUrl: i.imageThumbUrl, imageUrl: i.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" />
+                  <GalleryManager :images="images.map((i) => ({ id: i.id, thumbUrl: i.imageThumbUrl, imageUrl: i.imageUrl, altZh: i.altZh, altEn: i.altEn }))" :disabled="isCreate || !canUpdate" :on-upload="galleryUpload" :on-remove="galleryRemove" :on-reorder="galleryReorder" :on-save-alt="gallerySaveAlt" />
                 </FormSection>
               </el-card>
 

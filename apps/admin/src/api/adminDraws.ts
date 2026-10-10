@@ -63,12 +63,16 @@ export interface DrawLocale {
   prizeDescription?: string | null
   rules?: string | null
   notes?: string | null
+  /** 圖片說明（替代文字，≤200 字）。 */
+  coverAlt?: string | null
 }
 
 export interface DrawDetailDto extends DrawListItemDto {
   coverKey?: string | null
   coverUrl?: string | null
   coverThumbUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
   internalNote?: string | null
   rosterHash?: string | null
   lockedAt?: string | null

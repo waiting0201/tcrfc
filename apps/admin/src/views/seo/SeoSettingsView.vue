@@ -15,6 +15,7 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import FormSection from '@/components/FormSection.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -36,6 +37,8 @@ interface SettingsForm {
   metaPixelId: string
   lineTagId: string
   ogImageUrl: string | null
+  ogImageAltZh: string
+  ogImageAltEn: string
 }
 
 function emptyForm(): SettingsForm {
@@ -50,6 +53,8 @@ function emptyForm(): SettingsForm {
     metaPixelId: '',
     lineTagId: '',
     ogImageUrl: null,
+    ogImageAltZh: '',
+    ogImageAltEn: '',
   }
 }
 
@@ -57,6 +62,8 @@ const loadState = ref<'loading' | 'error' | 'ready'>('loading')
 const loadErrorMessage = ref('')
 const form = reactive<SettingsForm>(emptyForm())
 const baselineJson = ref('')
+const ogImageWidth = ref<number | null>(null)
+const ogImageHeight = ref<number | null>(null)
 
 /** 分享圖片的「這次瀏覽階段的意圖」，規則比照 `NewsEditView.vue` 的 `coverFile`／`removeCover`：
  * `ogImageFile` 非 `null` 是「選了要換的新圖」，`removeOgImage` 為真是「儲存時清空」，
@@ -81,6 +88,10 @@ function applyLoaded(dto: AdminSeoSettingsDto) {
   form.metaPixelId = dto.metaPixelId ?? ''
   form.lineTagId = dto.lineTagId ?? ''
   form.ogImageUrl = dto.ogImageUrl ?? null
+  form.ogImageAltZh = dto.ogImageAltZh ?? ''
+  form.ogImageAltEn = dto.ogImageAltEn ?? ''
+  ogImageWidth.value = dto.ogImageWidth ?? null
+  ogImageHeight.value = dto.ogImageHeight ?? null
   ogImageFile.value = null
   removeOgImage.value = false
   baselineJson.value = JSON.stringify(form)
@@ -144,6 +155,9 @@ async function handleSave() {
         gtmContainerId: form.gtmContainerId || null,
         metaPixelId: form.metaPixelId || null,
         lineTagId: form.lineTagId || null,
+        // 整份取代：沒送＝清空，所以讀回的值一律帶回去
+        ogImageAltZh: form.ogImageAltZh.trim() || null,
+        ogImageAltEn: form.ogImageAltEn.trim() || null,
         removeOgImage: removeOgImage.value,
       },
       ogImageFile.value,
@@ -252,6 +266,15 @@ async function handleSave() {
                       :disabled="saving"
                     />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.ogImageAltZh"
+                    v-model:en="form.ogImageAltEn"
+                    field="ogImageAlt"
+                    :has-image="(!!form.ogImageUrl && !removeOgImage) || ogImageFile !== null"
+                    :width="ogImageWidth"
+                    :height="ogImageHeight"
+                    fallback="網站名稱"
+                  />
                 </FormSection>
 
                 <FormSection title="追蹤碼">

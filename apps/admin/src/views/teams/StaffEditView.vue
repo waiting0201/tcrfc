@@ -19,6 +19,7 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
@@ -58,11 +59,15 @@ const form = reactive({
   bioZh: '',
   bioEn: '',
   teams: [] as StaffTeamAssignment[],
+  photoAltZh: '',
+  photoAltEn: '',
 })
 const baselineJson = ref('')
 const photoKey = ref<string | null>(null)
 /** 既有圖片的預覽網址（後端附帶的 photoThumbUrl／photoUrl，沒有就是 null）。 */
 const photoPreviewUrl = ref<string | null>(null)
+const photoWidth = ref<number | null>(null)
+const photoHeight = ref<number | null>(null)
 const photoFile = ref<File | null>(null)
 const removePhoto = ref(false)
 const isShared = ref(false)
@@ -101,6 +106,10 @@ async function loadStaff() {
       form.teams = detail.teams.map((t) => ({ teamId: t.teamId, teamCode: t.teamCode, roleCode: t.roleCode ?? '' }))
       photoKey.value = detail.photoKey ?? null
       photoPreviewUrl.value = detail.photoThumbUrl ?? detail.photoUrl ?? null
+      photoWidth.value = detail.photoWidth ?? null
+      photoHeight.value = detail.photoHeight ?? null
+      form.photoAltZh = detail.zh.photoAlt ?? ''
+      form.photoAltEn = detail.en?.photoAlt ?? ''
       isShared.value = detail.isShared
     }
     photoFile.value = null
@@ -157,7 +166,7 @@ function removeTeamAssignment(index: number) {
 }
 
 function isEnEmpty(): boolean {
-  return !form.nameEn.trim() && !form.titleEn.trim() && !form.bioEn.trim()
+  return !form.nameEn.trim() && !form.titleEn.trim() && !form.bioEn.trim() && !form.photoAltEn.trim()
 }
 
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
@@ -174,8 +183,10 @@ function buildPayload(): SaveStaffPayload {
     // 🔴 一律明確帶出，理由同 PlayerEditView：省略會被後端回退成 not_consented。
     portraitConsentStatus: form.portraitConsentStatus,
     content: {
-      zh: { name: form.nameZh.trim(), title: form.titleZh || null, bio: form.bioZh || null },
-      en: isEnEmpty() ? undefined : { name: form.nameEn || null, title: form.titleEn || null, bio: form.bioEn || null },
+      zh: { name: form.nameZh.trim(), title: form.titleZh || null, bio: form.bioZh || null, photoAlt: form.photoAltZh.trim() || null },
+      en: isEnEmpty()
+        ? undefined
+        : { name: form.nameEn || null, title: form.titleEn || null, bio: form.bioEn || null, photoAlt: form.photoAltEn.trim() || null },
     },
     // 一律明確帶出目前畫面上的完整陣列（跟新聞標籤／關聯同一種既有語意）。
     teams: form.teams.map((t) => ({ teamId: t.teamId, roleCode: t.roleCode || null })),
@@ -198,6 +209,8 @@ async function handleSave() {
       staffId.value = created.id
       photoKey.value = created.photoKey ?? null
       photoPreviewUrl.value = created.photoThumbUrl ?? created.photoUrl ?? null
+      photoWidth.value = created.photoWidth ?? null
+      photoHeight.value = created.photoHeight ?? null
     } else {
       const updated = await updateAdminStaff(
         activeClubId.value,
@@ -207,6 +220,8 @@ async function handleSave() {
       )
       photoKey.value = updated.photoKey ?? null
       photoPreviewUrl.value = updated.photoThumbUrl ?? updated.photoUrl ?? null
+      photoWidth.value = updated.photoWidth ?? null
+      photoHeight.value = updated.photoHeight ?? null
       ElMessage.success('已儲存')
     }
     photoFile.value = null
@@ -378,6 +393,15 @@ function retryLoad() {
                       :disabled="saving || isReadOnly"
                     />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.photoAltZh"
+                    v-model:en="form.photoAltEn"
+                    field="photoAlt"
+                    :has-image="(!!photoKey && !removePhoto) || photoFile !== null"
+                    :width="photoWidth"
+                    :height="photoHeight"
+                    fallback="教練姓名"
+                  />
                 </FormSection>
               </el-card>
             </template>

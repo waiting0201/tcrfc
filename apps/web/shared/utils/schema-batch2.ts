@@ -26,6 +26,7 @@
 // ERR_MODULE_NOT_FOUND（已於本輪撰寫檢查腳本時實測到）。Nuxt／Vite 端一樣能正確解析
 // 帶副檔名的相對路徑，不影響既有建置。
 import { cleanFaqSchemaText } from './faq-schema.ts'
+import { schemaImage } from './image-attrs.ts'
 
 // ---------------------------------------------------------------------------
 // SportsEvent 場地地址查找（本輪任務要求「場地（Place 與地址，來自場地資料）」）
@@ -64,6 +65,9 @@ export interface ClubEventSchemaSourceItem {
   venueName: string | null
   description: string | null
   coverUrl: string | null
+  /** 後端圖片欄位組：兩者都有時 image 輸出 ImageObject（含寬高），否則維持網址字串。 */
+  coverWidth?: number | null
+  coverHeight?: number | null
 }
 
 /**
@@ -116,7 +120,7 @@ export function buildClubEventSchemaNodes(
     // 乾淨，不會出現 `"image":null` 這種殘缺欄位。
     const desc = item.description ? cleanFaqSchemaText(item.description) : ''
     node.description = desc || null
-    node.image = item.coverUrl || null
+    node.image = schemaImage(item.coverUrl, item.coverWidth, item.coverHeight) ?? null
     nodes.push(node)
   }
   return nodes

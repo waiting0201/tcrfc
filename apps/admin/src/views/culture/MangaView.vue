@@ -12,6 +12,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import FormField from '@/components/FormField.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
@@ -160,11 +161,13 @@ async function moveCharacter(index: number, delta: -1 | 1) {
 const charDialog = ref(false)
 const charSaving = ref(false)
 const charFormError = ref<string | null>(null)
-const charForm = reactive({ id: null as string | null, playerId: '', nameZh: '', nameEn: '', descZh: '', descEn: '' })
+const charForm = reactive({ id: null as string | null, playerId: '', nameZh: '', nameEn: '', descZh: '', descEn: '', imageAltZh: '', imageAltEn: '' })
 const charFile = ref<File | null>(null)
 const charRemoveImage = ref(false)
 const charHasImage = ref(false)
 const charImageUrl = ref<string | null>(null)
+const charImageWidth = ref<number | null>(null)
+const charImageHeight = ref<number | null>(null)
 watch([charFile, charRemoveImage], () => formErrors.clear('image'))
 
 function openCharacter(c: MangaCharacterDto | null) {
@@ -175,11 +178,14 @@ function openCharacter(c: MangaCharacterDto | null) {
     playerId: c?.playerId ?? '',
     nameZh: c?.zh.name ?? '', nameEn: c?.en?.name ?? '',
     descZh: c?.zh.description ?? '', descEn: c?.en?.description ?? '',
+    imageAltZh: c?.zh.imageAlt ?? '', imageAltEn: c?.en?.imageAlt ?? '',
   })
   charFile.value = null
   charRemoveImage.value = false
   charHasImage.value = !!c?.imageKey
   charImageUrl.value = c?.imageThumbUrl ?? c?.imageUrl ?? null
+  charImageWidth.value = c?.imageWidth ?? null
+  charImageHeight.value = c?.imageHeight ?? null
   charDialog.value = true
 }
 
@@ -201,8 +207,11 @@ async function saveCharacter() {
     playerId: charForm.playerId || null,
     removeImage: charFile.value ? false : charRemoveImage.value,
     content: {
-      zh: { name: charForm.nameZh.trim(), description: nullIfBlank(charForm.descZh) },
-      en: enOrUndefined({ name: charForm.nameEn.trim(), description: nullIfBlank(charForm.descEn) as string }, 'name', 'description'),
+      zh: { name: charForm.nameZh.trim(), description: nullIfBlank(charForm.descZh), imageAlt: nullIfBlank(charForm.imageAltZh) },
+      en: enOrUndefined(
+        { name: charForm.nameEn.trim(), description: nullIfBlank(charForm.descEn) as string, imageAlt: nullIfBlank(charForm.imageAltEn) as string },
+        'name', 'description', 'imageAlt',
+      ),
     },
   }
   try {
@@ -432,18 +441,27 @@ watch(club, () => {
     <el-dialog v-model="charDialog" :title="charForm.id ? '編輯角色' : '新增角色'" width="600px" :close-on-click-modal="false" class="manga__dialog">
       <el-alert v-if="charFormError" :title="charFormError" type="warning" show-icon class="manga__block" @close="charFormError = null" />
       <el-form label-position="top" :disabled="!canUpdate && !!charForm.id">
-       <LangTabsBar variant="bare">
-        <BilingualShortField field="name" label="角色名稱" :zh="charForm.nameZh" :en="charForm.nameEn" required @update:zh="(v) => (charForm.nameZh = v)" @update:en="(v) => (charForm.nameEn = v)" />
-        <BilingualTextareaField field="desc" label="角色簡介" :zh="charForm.descZh" :en="charForm.descEn" :rows="3" @update:zh="(v) => (charForm.descZh = v)" @update:en="(v) => (charForm.descEn = v)" />
-        <FormField field="playerId" label="關聯真實球員（選填）">
-          <el-select v-model="charForm.playerId" clearable filterable placeholder="不關聯球員" style="width: 100%" @change="formErrors.clear('playerId')">
-            <el-option v-for="p in players" :key="p.id" :label="`${p.shirtNo ? p.shirtNo + ' 號 ' : ''}${p.nameZh || p.nameEn || '（未命名）'}`" :value="p.id" />
-          </el-select>
-        </FormField>
-        <FormField field="image" label="角色圖片">
-          <ImageUploader v-model:file="charFile" v-model:remove-cover="charRemoveImage" :min-width="0" :min-height="0" :has-existing-image="charHasImage" :existing-preview-url="charImageUrl" :disabled="charSaving" />
-        </FormField>
-       </LangTabsBar>
+        <LangTabsBar variant="bare">
+          <BilingualShortField field="name" label="角色名稱" :zh="charForm.nameZh" :en="charForm.nameEn" required @update:zh="(v) => (charForm.nameZh = v)" @update:en="(v) => (charForm.nameEn = v)" />
+          <BilingualTextareaField field="desc" label="角色簡介" :zh="charForm.descZh" :en="charForm.descEn" :rows="3" @update:zh="(v) => (charForm.descZh = v)" @update:en="(v) => (charForm.descEn = v)" />
+          <FormField field="playerId" label="關聯真實球員（選填）">
+            <el-select v-model="charForm.playerId" clearable filterable placeholder="不關聯球員" style="width: 100%" @change="formErrors.clear('playerId')">
+              <el-option v-for="p in players" :key="p.id" :label="`${p.shirtNo ? p.shirtNo + ' 號 ' : ''}${p.nameZh || p.nameEn || '（未命名）'}`" :value="p.id" />
+            </el-select>
+          </FormField>
+          <FormField field="image" label="角色圖片">
+            <ImageUploader v-model:file="charFile" v-model:remove-cover="charRemoveImage" :min-width="0" :min-height="0" :has-existing-image="charHasImage" :existing-preview-url="charImageUrl" :disabled="charSaving" />
+          </FormField>
+          <ImageAltField
+            v-model:zh="charForm.imageAltZh"
+            v-model:en="charForm.imageAltEn"
+            field="imageAlt"
+            :has-image="(charHasImage && !charRemoveImage) || charFile !== null"
+            :width="charImageWidth"
+            :height="charImageHeight"
+            fallback="角色名稱"
+          />
+        </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="charDialog = false">關閉</el-button>

@@ -29,6 +29,9 @@ export interface AdminSeoSettingsDto {
   ogImageUrl?: string | null
   ogImageWidth?: number | null
   ogImageHeight?: number | null
+  /** 分享圖片說明（替代文字，≤200 字）。 */
+  ogImageAltZh?: string | null
+  ogImageAltEn?: string | null
 }
 
 /** 對照 `UpdateSeoSettingsRequest`（`payload` 這個 multipart 欄位的 JSON 內容）。
@@ -43,6 +46,10 @@ export interface UpdateSeoSettingsPayload {
   gtmContainerId?: string | null
   metaPixelId?: string | null
   lineTagId?: string | null
+  /** 分享圖片說明。🔴 跟其他文字欄位一樣整份取代：沒送＝清空，所以一律把讀回的值一併送出。
+   * 英文說明需該俱樂部已有英文名稱，否則有值時 400（錯誤鍵 ogImageAltEn）。 */
+  ogImageAltZh?: string | null
+  ogImageAltEn?: string | null
   /** 勾選「移除全站預設分享圖片」。跟這次請求的 `ogImage` 檔案互斥，兩者都有視為請求矛盾（400）。 */
   removeOgImage?: boolean
 }

@@ -12,7 +12,7 @@
 // 🔴 類型值是中文字面值（標準五類＋俱樂部自訂，如藍鯨的「指導單位」），不隨語系翻譯；標準五類區塊
 // 標題的英文副標是版型固定文字，自訂類型沒有英文副標，只顯示後台填的類型名稱。
 import type { PublicPartner } from '#shared/utils/partners'
-import { PARTNER_TYPE_SECTIONS, PARTNER_CUSTOM_TYPE_EN, groupByKnownType, pickLogoUrl, safeExternalUrl, formatPartnerPeriod } from '#shared/utils/partners'
+import { PARTNER_TYPE_SECTIONS, PARTNER_CUSTOM_TYPE_EN, groupByKnownType, pickLogoProps, safeExternalUrl, formatPartnerPeriod } from '#shared/utils/partners'
 
 definePageMeta({ nav: 'partners', unit: '9.1', enReady: true, enReadyBw: true })
 
@@ -83,7 +83,7 @@ useSeoMeta({
         v-for="p in sec.items"
         :key="p.id"
         :name="p.name"
-        :logo-url="pickLogoUrl(p)"
+        v-bind="pickLogoProps(p)"
         :href="safeExternalUrl(p.websiteUrl)"
         external
       />

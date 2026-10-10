@@ -194,6 +194,9 @@ interface ClubEventItem {
   description: string | null
   ctaUrl: string | null
   coverUrl: string | null
+  coverWidth: number | null
+  coverHeight: number | null
+  coverAlt: string | null
 }
 function toClubEvents(items: unknown[] | undefined | null): ClubEventItem[] {
   return (items ?? [])
@@ -206,6 +209,7 @@ function toClubEvents(items: unknown[] | undefined | null): ClubEventItem[] {
         title: r.title, venueName: r.venueName ?? null, eventTypeCode: r.eventTypeCode ?? null,
         eventTypeName: r.eventTypeName ?? null, eventTypeColour: r.eventTypeColour ?? null, eventTypeIcon: r.eventTypeIcon ?? null,
         description: r.description ?? null, ctaUrl: r.ctaUrl ?? null, coverUrl: r.coverUrl ?? null,
+        coverWidth: r.coverWidth ?? null, coverHeight: r.coverHeight ?? null, coverAlt: r.coverAlt ?? null,
       }
     })
 }

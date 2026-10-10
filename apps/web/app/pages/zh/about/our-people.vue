@@ -78,6 +78,9 @@ interface PersonCard {
   schemaEligible: boolean
   /** 已套用肖像同意 fail-closed 規則後的完整照片網址，未同意者恆為 null（S1-7a）。 */
   photoUrl: string | null
+  photoWidth: number | null
+  photoHeight: number | null
+  photoAlt: string | null
   /** 英文版（/en/）顯示用：姓名、職稱、簡介一律取資料庫 en 側表已有的值，沒有就退回中文原值（不自行音譯／翻譯）。 */
   displayName: string
   displayRole: string | null
@@ -110,6 +113,9 @@ const people = computed<PersonCard[]>(() => {
         photoKey: s.photoKey,
         schemaEligible: s.schemaEligible,
         photoUrl: s.photoUrl,
+        photoWidth: s.photoWidth ?? null,
+        photoHeight: s.photoHeight ?? null,
+        photoAlt: s.photoAlt ?? null,
         displayName: en && en !== s.name ? en : (s.name ?? ''),
         // 有翻譯的英文職稱優先；英文側表沒填（回傳值等同中文職稱）且是既有「技術顧問」例外才用覆寫。
         displayRole: ((enItems.get(s.id)?.title && enItems.get(s.id)?.title !== s.title) ? enItems.get(s.id)?.title : null)
@@ -180,7 +186,7 @@ watchEffect(() => {
         '@id': `person-${p.id}`,
         name: isEn.value ? p.displayName : p.nameZh,
         jobTitle: (isEn.value ? p.displayRole : p.role) ?? undefined,
-        image: p.photoUrl ?? undefined,
+        image: schemaImage(p.photoUrl, p.photoWidth, p.photoHeight),
       }),
     ),
   )

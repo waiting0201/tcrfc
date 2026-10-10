@@ -33,7 +33,7 @@ const multi = computed(() => props.programs.length > 1)
         <div class="prose program-info">
           <h2>{{ contentTitle ?? tx('課程內容', 'Program Details') }}</h2>
           <article v-for="it in items" :key="it.p.id" class="program-info__item">
-            <img v-if="it.p.coverUrl" class="program-info__cover" :src="it.p.coverUrl" alt="" loading="lazy" width="800" height="600">
+            <img v-if="it.p.coverUrl" class="program-info__cover" :src="it.p.coverUrl" :alt="imgAlt(it.p.coverAlt, it.p.name)" loading="lazy" v-bind="imgAttrs(it.p.coverWidth, it.p.coverHeight)">
             <h3 v-if="multi">{{ it.p.name }}</h3>
             <p v-if="it.p.intro">{{ it.p.intro }}</p>
             <p v-if="it.p.audience || it.age">

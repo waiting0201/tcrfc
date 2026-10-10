@@ -39,12 +39,15 @@ interface TimelineItem {
   date: string
   imageUrl: string | null
   imageAlt: string
-  imageWidth: number
-  imageHeight: number
+  imageWidth: number | null
+  imageHeight: number | null
   /** B-21：全部活動圖片（縮圖列＋燈箱），不再截斷成前 2 張。 */
   gallery: PublicCharityImage[]
   /** B-21：公益團體 Logo（後台有上傳才有值）。 */
   logoUrl: string | null
+  logoWidth?: number | null
+  logoHeight?: number | null
+  logoAlt?: string
   title: string
   facts: TimelineFact[]
 }
@@ -97,11 +100,14 @@ const years = computed<TimelineYear[]>(() => {
       key: r.id,
       date: r.happenedOn ?? '',
       imageUrl: r.imageUrl,
-      imageAlt: r.charityName ? (isEn.value ? `${r.charityName} activity photo` : `${r.charityName} 活動照片`) : '',
-      imageWidth: r.imageWidth ?? 640,
-      imageHeight: r.imageHeight ?? 427,
+      imageAlt: imgAlt(r.imageAlt, r.charityName ? (isEn.value ? `${r.charityName} activity photo` : `${r.charityName} 活動照片`) : ''),
+      imageWidth: r.imageWidth ?? null,
+      imageHeight: r.imageHeight ?? null,
       gallery: r.images,
       logoUrl: safeImageUrl(r.charityLogoUrl),
+      logoWidth: r.charityLogoWidth ?? null,
+      logoHeight: r.charityLogoHeight ?? null,
+      logoAlt: imgAlt(r.charityLogoAlt, r.charityName, ''),
       title: r.charityName ?? '',
       facts,
     })
@@ -150,11 +156,11 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
         <ol class="timeline-list">
           <li v-for="it in y.items" :key="it.key" :class="['timeline-item', { 'timeline-item--no-media': !it.imageUrl }]">
             <p v-if="it.date" class="timeline-item__date">{{ it.date }}</p>
-            <div v-if="it.imageUrl" class="timeline-item__media"><img :src="it.imageUrl" :alt="it.imageAlt" loading="lazy" :width="it.imageWidth" :height="it.imageHeight"></div>
+            <div v-if="it.imageUrl" class="timeline-item__media"><img :src="it.imageUrl" :alt="it.imageAlt" loading="lazy" v-bind="imgAttrs(it.imageWidth, it.imageHeight)"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">{{ tx('公益團體 Beneficiary', 'Beneficiary') }}</p>
               <h4 class="timeline-item__title">
-                <img v-if="it.logoUrl" class="impact-logo" :src="it.logoUrl" :alt="tx(`${it.title} Logo`, `${it.title} logo`)" loading="lazy" height="32">
+                <img v-if="it.logoUrl" class="impact-logo" :src="it.logoUrl" :alt="imgAlt(it.logoAlt, tx(`${it.title} Logo`, `${it.title} logo`))" loading="lazy" :height="it.logoWidth && it.logoHeight ? it.logoHeight : undefined" :width="it.logoWidth && it.logoHeight ? it.logoWidth : undefined">
                 {{ it.title }}
               </h4>
               <dl v-if="it.facts.length" class="impact-facts">

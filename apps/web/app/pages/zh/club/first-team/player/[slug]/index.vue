@@ -90,7 +90,7 @@ const hasFallback = computed(() => hasFallbackLocale(playerData.value))
 <section class="player-hero" aria-labelledby="player-name">
   <div class="container player-hero__inner">
     <div class="player-hero__visual clip-card clip-card--on-dark">
-      <img v-if="player?.photoUrl" class="player-hero__photo" :src="player.photoUrl" :alt="isEn ? `Photo of ${player.name}` : `${player.name} 球員照片`" width="160" height="160">
+      <img v-if="player?.photoUrl" class="player-hero__photo" :src="player.photoUrl" :alt="imgAlt(player.photoAlt, isEn ? `Photo of ${player.name}` : `${player.name} 球員照片`)" v-bind="imgAttrs(player.photoWidth, player.photoHeight)">
       <template v-else>
         <img class="player-hero__crest" :src="assets.headerMark.src" alt="" width="140" height="146" aria-hidden="true">
         <span class="player-hero__num">{{ player?.shirtNo ?? '—' }}</span>

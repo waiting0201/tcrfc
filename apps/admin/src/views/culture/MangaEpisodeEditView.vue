@@ -10,6 +10,7 @@ import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import ImageAltField from '@/components/ImageAltField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import GalleryManager from '@/components/GalleryManager.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
@@ -31,6 +32,7 @@ import {
   deleteMangaPage,
   getMangaEpisode,
   reorderMangaPages,
+  updateMangaPageAlt,
   updateMangaEpisode,
   type MangaEpisodeDetailDto,
   type MangaEpisodeStatus,
@@ -50,12 +52,16 @@ const form = reactive({
   status: 'draft' as MangaEpisodeStatus,
   titleZh: '',
   titleEn: '',
+  coverAltZh: '',
+  coverAltEn: '',
 })
 const baselineJson = ref('')
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 const coverUrl = ref<string | null>(null)
 const hasCover = ref(false)
+const coverWidth = ref<number | null>(null)
+const coverHeight = ref<number | null>(null)
 const pages = ref<MangaEpisodeDetailDto['pages']>([])
 const meta = reactive({ isLatest: false, viewCount: 0 })
 
@@ -78,6 +84,10 @@ function apply(d: MangaEpisodeDetailDto) {
   form.titleEn = d.en?.title ?? ''
   coverUrl.value = d.coverThumbUrl ?? d.coverUrl ?? null
   hasCover.value = !!d.coverKey
+  coverWidth.value = d.coverWidth ?? null
+  coverHeight.value = d.coverHeight ?? null
+  form.coverAltZh = d.zh?.coverAlt ?? ''
+  form.coverAltEn = d.en?.coverAlt ?? ''
   pages.value = d.pages ?? []
   meta.isLatest = d.isLatest
   meta.viewCount = d.viewCount
@@ -134,8 +144,8 @@ async function handleSave() {
     status: form.status,
     removeCover: coverFile.value ? false : removeCover.value,
     content: {
-      zh: { title: form.titleZh.trim() },
-      en: enOrUndefined({ title: form.titleEn.trim() }, 'title'),
+      zh: { title: form.titleZh.trim(), coverAlt: form.coverAltZh.trim() || null },
+      en: enOrUndefined({ title: form.titleEn.trim(), coverAlt: form.coverAltEn.trim() || null }, 'title', 'coverAlt'),
     },
   }
   try {
@@ -177,6 +187,10 @@ async function pageUpload(file: File) {
 async function pageRemove(id: string) {
   await deleteMangaPage(club.value, episodeId.value!, id)
   await refreshPages()
+}
+async function pageSaveAlt(id: string, altZh: string | null, altEn: string | null) {
+  const d = await updateMangaPageAlt(club.value, episodeId.value!, id, altZh, altEn)
+  pages.value = d.pages ?? []
 }
 async function pageReorder(ids: string[]) {
   await reorderMangaPages(club.value, episodeId.value!, ids)
@@ -233,12 +247,21 @@ async function pageReorder(ids: string[]) {
                   <FormField field="cover" label="封面圖片">
                     <ImageUploader v-model:file="coverFile" v-model:remove-cover="removeCover" :min-width="0" :min-height="0" :has-existing-image="hasCover" :existing-preview-url="coverUrl" :disabled="saving || readOnly" />
                   </FormField>
+                  <ImageAltField
+                    v-model:zh="form.coverAltZh"
+                    v-model:en="form.coverAltEn"
+                    field="coverAlt"
+                    :has-image="(hasCover && !removeCover) || coverFile !== null"
+                    :width="coverWidth"
+                    :height="coverHeight"
+                    fallback="集數標題"
+                  />
                 </FormSection>
                 <FormSection title="內頁（依順序閱讀）">
                   <p class="episode-edit__hint">這裡的變更會立即儲存，不需要按下方的儲存</p>
                   <p v-if="isCreate" class="episode-edit__hint">請先儲存基本資料，才能管理相簿</p>
                   <p v-else class="episode-edit__hint">目前 {{ pages.length }} 頁。已發布的集數不能把內頁刪光；一次最多上傳 60 張。</p>
-                  <GalleryManager :images="pages.map((p) => ({ id: p.id, thumbUrl: p.imageThumbUrl, imageUrl: p.imageUrl }))" :disabled="isCreate || !canUpdate" :on-upload="pageUpload" :on-remove="pageRemove" :on-reorder="pageReorder" />
+                  <GalleryManager :images="pages.map((p) => ({ id: p.id, thumbUrl: p.imageThumbUrl, imageUrl: p.imageUrl, altZh: p.altZh, altEn: p.altEn }))" :disabled="isCreate || !canUpdate" :on-upload="pageUpload" :on-remove="pageRemove" :on-reorder="pageReorder" :on-save-alt="pageSaveAlt" />
                 </FormSection>
               </el-card>
 

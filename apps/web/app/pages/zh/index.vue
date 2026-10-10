@@ -239,6 +239,9 @@ interface RosterPlayer {
   position: string | null
   name: string | null
   photoUrl: string | null
+  photoWidth?: number | null
+  photoHeight?: number | null
+  photoAlt?: string | null
 }
 const { data: rosterData } = await useFetch<PagedResponse<RosterPlayer>>(`/api/backend/${config.public.club}/players`, {
   query: { team: firstTeamCode.value, pageSize: 100, lang: locale.value },
@@ -778,7 +781,7 @@ onBeforeUnmount(() => {
           <div v-for="p in rosterStrip" :key="p.id" class="roster-card">
             <div class="roster-card__photo">
               <span v-if="p.shirtNo != null" class="roster-card__num">{{ p.shirtNo }}</span>
-              <img v-if="p.photoUrl" :src="p.photoUrl" :alt="`${p.shirtNo != null ? tx(`${p.shirtNo} 號球員 `, `Player ${p.shirtNo}: `) : ''}${p.name}`" loading="lazy" width="620" height="620">
+              <img v-if="p.photoUrl" :src="p.photoUrl" :alt="imgAlt(p.photoAlt, `${p.shirtNo != null ? tx(`${p.shirtNo} 號球員 `, `Player ${p.shirtNo}: `) : ''}${p.name}`)" loading="lazy" v-bind="imgAttrs(p.photoWidth, p.photoHeight)">
               <img v-else class="roster-card__crest" :src="assets.headerMark.src" alt="" loading="lazy" width="64" height="67">
             </div>
             <p class="roster-card__name">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position ? `${tx('　', ' · ')}${p.position}` : '' }}</p>
@@ -914,7 +917,7 @@ onBeforeUnmount(() => {
         <ul v-if="shopEntryProducts.length" class="sh-entry-grid">
           <li v-for="p in shopEntryProducts" :key="p.slug" class="sh-entry-card">
             <a :href="lp(`/zh/shop/${p.slug}/`)">
-              <img v-if="p.imageThumbUrl || p.imageUrl" :src="(p.imageThumbUrl || p.imageUrl) ?? ''" :alt="p.name || ''" loading="lazy" width="320" height="320">
+              <img v-if="p.imageThumbUrl || p.imageUrl" :src="(p.imageThumbUrl || p.imageUrl) ?? ''" :alt="imgAlt(p.imageAlt, p.name)" loading="lazy" v-bind="imgAttrs(p.imageWidth, p.imageHeight)">
               <span class="sh-entry-card__name">{{ p.name || p.slug }}</span>
               <span class="sh-entry-card__price">{{ formatPriceRange(p.priceMin, p.priceMax) ?? tx('暫無販售', 'Currently unavailable') }}</span>
             </a>
@@ -945,7 +948,7 @@ onBeforeUnmount(() => {
           v-for="p in homePartnerTiles"
           :key="p.id"
           :name="p.name"
-          :logo-url="pickLogoUrl(p)"
+          v-bind="pickLogoProps(p)"
           :href="lp('/zh/partners/our-partners/')"
         />
       </div>
