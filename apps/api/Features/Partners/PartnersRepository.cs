@@ -1,5 +1,6 @@
 using Dapper;
 using Tcrfc.Api.Caching;
+using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
@@ -24,13 +25,13 @@ public sealed class PartnersRepository(IClubSqlConnectionFactory connectionFacto
     public async Task<IReadOnlyList<PartnerDto>> ListAsync(
         ClubScope scope, string? partnerType, bool homeOnly, bool footerOnly, string dbLocale, CancellationToken cancellationToken)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PublicPeriodFilter.Today;
         var qualifier = $"{today:yyyyMMdd}:{partnerType ?? CacheDimensions.NoQualifier}:{(homeOnly ? 1 : 0)}{(footerOnly ? 1 : 0)}";
 
         return await cache.GetOrCreateAsync("partners", scope.ClubCode, dbLocale, qualifier, async ct =>
         {
             using var connection = connectionFactory.CreateConnection();
-            const string sql = """
+            var sql = $"""
                 SELECT p.id AS Id, p.slug AS Slug, p.partner_type AS PartnerType, p.country AS Country,
                        p.start_on AS StartOn, p.end_on AS EndOn, p.website_url AS WebsiteUrl,
                        p.show_in_footer AS ShowInFooter, p.show_on_home AS ShowOnHome, p.sort_order AS SortOrder,
@@ -48,8 +49,7 @@ public sealed class PartnersRepository(IClubSqlConnectionFactory connectionFacto
                   AND (@PartnerType IS NULL OR p.partner_type = @PartnerType)
                   AND (@HomeOnly = 0 OR p.show_on_home = 1)
                   AND (@FooterOnly = 0 OR p.show_in_footer = 1)
-                  AND (p.start_on IS NULL OR p.start_on <= @Today)
-                  AND (p.end_on IS NULL OR p.end_on >= @Today)
+                  AND {PublicPeriodFilter.CoversToday("p.start_on", "p.end_on")}
                 ORDER BY p.sort_order, p.row_seq
                 """;
             var parameters = new

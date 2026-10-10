@@ -47,7 +47,7 @@ ALLOW_CLUB = {
     "19": "faq_categories：規劃書 3.12 十個固定主題",
     "20": "home_sections：規劃書 3.1 首頁九大固定區塊（兩俱樂部各一份）",
     "21": "faq_embed_slots：G-12 四個固定掛載點",
-    "22": "forms／form_fields：規劃書 §3.10 九個固定表單與預設欄位（兩俱樂部各一份）",
+    "22": "forms／form_fields：規劃書 §3.10 八個固定表單與預設欄位（兩俱樂部各一份）",
     "23": "event_types：L2 自建事件的起始分類字典（後台 L3 可再編輯）",
 }
 ALLOW_CHARITY = {

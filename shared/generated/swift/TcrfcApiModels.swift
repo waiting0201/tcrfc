@@ -5824,6 +5824,7 @@ public struct SubmitProgramRegistrationRequest: Codable, Equatable, Sendable {
     public var guardianPhone: String?
     public var healthDeclaration: String?
     public var note: String?
+    public var privacyConsent: Bool?
 
     public init(
         applicantName: String,
@@ -5833,7 +5834,8 @@ public struct SubmitProgramRegistrationRequest: Codable, Equatable, Sendable {
         guardianName: String? = nil,
         guardianPhone: String? = nil,
         healthDeclaration: String? = nil,
-        note: String? = nil
+        note: String? = nil,
+        privacyConsent: Bool? = nil
     ) {
         self.applicantName = applicantName
         self.phone = phone
@@ -5843,6 +5845,7 @@ public struct SubmitProgramRegistrationRequest: Codable, Equatable, Sendable {
         self.guardianPhone = guardianPhone
         self.healthDeclaration = healthDeclaration
         self.note = note
+        self.privacyConsent = privacyConsent
     }
 }
 
@@ -5855,6 +5858,7 @@ public struct SubmitTrialRegistrationRequest: Codable, Equatable, Sendable {
     public var guardianPhone: String?
     public var healthDeclaration: String?
     public var note: String?
+    public var privacyConsent: Bool?
 
     public init(
         applicantName: String? = nil,
@@ -5864,7 +5868,8 @@ public struct SubmitTrialRegistrationRequest: Codable, Equatable, Sendable {
         guardianName: String? = nil,
         guardianPhone: String? = nil,
         healthDeclaration: String? = nil,
-        note: String? = nil
+        note: String? = nil,
+        privacyConsent: Bool? = nil
     ) {
         self.applicantName = applicantName
         self.phone = phone
@@ -5874,6 +5879,7 @@ public struct SubmitTrialRegistrationRequest: Codable, Equatable, Sendable {
         self.guardianPhone = guardianPhone
         self.healthDeclaration = healthDeclaration
         self.note = note
+        self.privacyConsent = privacyConsent
     }
 }
 

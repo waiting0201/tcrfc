@@ -81,7 +81,7 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
 
     public async Task<CharityProgramDetailDto?> GetProgramAsync(ClubScope scope, string slug, string dbLocale, CancellationToken cancellationToken)
     {
-        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var today = PublicPeriodFilter.Today;
         return await cache.GetOrCreateAsync(Entity, scope.ClubCode, dbLocale, $"program:{slug}:{today:yyyyMMdd}", async ct =>
         {
             using var connection = connectionFactory.CreateConnection();
@@ -120,7 +120,8 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 "SELECT charity_program_id AS ParentId, image_key AS ImageKey, image_width AS ImageWidth, image_height AS ImageHeight, image_alt_zh AS ImageAltZh, image_alt_en AS ImageAltEn FROM charity_program_images WHERE charity_program_id = @Id ORDER BY sort_order, row_seq",
                 new { program.Id }, cancellationToken: ct));
 
-            var partners = await connection.QueryAsync<LinkedRow>(new CommandDefinition("""
+            // 夥伴（合作期間）與贊助商（合約期間）只列涵蓋今日者；濾法與公開夥伴列表共用 PublicPeriodFilter（v3.25）。
+            var partners = await connection.QueryAsync<LinkedRow>(new CommandDefinition($"""
                 SELECT l.charity_program_id AS ProgramId, x.slug AS Slug, COALESCE(NULLIF(r.name, N''), d.name) AS Name,
                        x.logo_dark_key AS LogoDarkKey, x.logo_light_key AS LogoLightKey,
                        x.logo_dark_width AS LogoDarkWidth, x.logo_dark_height AS LogoDarkHeight,
@@ -129,10 +130,11 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 FROM charity_program_partners l JOIN partners x ON x.id = l.partner_id
                 LEFT JOIN partners_i18n r ON r.partner_id = x.id AND r.locale = @Locale
                 LEFT JOIN partners_i18n d ON d.partner_id = x.id AND d.locale = @DefaultLocale
-                WHERE l.charity_program_id = @Id ORDER BY x.sort_order, x.row_seq
-                """, new { program.Id, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale }, cancellationToken: ct));
+                WHERE l.charity_program_id = @Id AND {PublicPeriodFilter.CoversToday("x.start_on", "x.end_on")}
+                ORDER BY x.sort_order, x.row_seq
+                """, new { program.Id, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale, Today = today.ToDateTime(TimeOnly.MinValue) }, cancellationToken: ct));
 
-            var sponsors = await connection.QueryAsync<LinkedRow>(new CommandDefinition("""
+            var sponsors = await connection.QueryAsync<LinkedRow>(new CommandDefinition($"""
                 SELECT l.charity_program_id AS ProgramId, x.slug AS Slug, COALESCE(NULLIF(r.name, N''), d.name) AS Name,
                        x.logo_dark_key AS LogoDarkKey, x.logo_light_key AS LogoLightKey,
                        x.logo_dark_width AS LogoDarkWidth, x.logo_dark_height AS LogoDarkHeight,
@@ -141,8 +143,9 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 FROM charity_program_sponsors l JOIN sponsors x ON x.id = l.sponsor_id
                 LEFT JOIN sponsors_i18n r ON r.sponsor_id = x.id AND r.locale = @Locale
                 LEFT JOIN sponsors_i18n d ON d.sponsor_id = x.id AND d.locale = @DefaultLocale
-                WHERE l.charity_program_id = @Id ORDER BY x.sort_order, x.row_seq
-                """, new { program.Id, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale }, cancellationToken: ct));
+                WHERE l.charity_program_id = @Id AND {PublicPeriodFilter.CoversToday("x.contract_start_on", "x.contract_end_on")}
+                ORDER BY x.sort_order, x.row_seq
+                """, new { program.Id, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale, Today = today.ToDateTime(TimeOnly.MinValue) }, cancellationToken: ct));
 
             var articles = await connection.QueryAsync<ArticleRow>(new CommandDefinition("""
                 SELECT l.charity_program_id AS ProgramId, a.slug AS Slug, COALESCE(NULLIF(r.title, N''), d.title) AS Title

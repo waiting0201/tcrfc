@@ -556,7 +556,7 @@ erDiagram
   }
 ```
 
-> `enquiry` 涵蓋 **7 類表單 ＋ 提案下載 ＋ 捐助洽詢**（規劃書 §5）。**提案下載的 Lead 名單就是 `form_code = 'proposal_download'` 的 `enquiry`**，不另建表。
+> `enquiry` 涵蓋 **7 類表單 ＋ 提案下載**（規劃書 §5；v3.25 起新增 `privacy_consented_at`／`privacy_policy_version` 兩欄，見 `docs/12b` §6.13）。**提案下載的 Lead 名單就是 `form_code = 'proposal_download'` 的 `enquiry`**，不另建表。
 > ⚠️ **沒有志工報名表**（v2.1 移出）。
 > 🔵 **S0-3d 新增 `enquiry.tags`**（行 1150：「指派負責人、內部備註、標籤」）：與「指派負責人」「內部備註」並列，屬**內部**分類用途（後台篩選），非前台顯示文字，故留在主表、不走 i18n 側表——與 `Product.tags`（前台可見的商品分類文案，見 `docs/12c` §3.11）性質不同。
 

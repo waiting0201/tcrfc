@@ -1,6 +1,6 @@
 namespace Tcrfc.Api.Features.AdminForms;
 
-/// <summary>G1 表單設計器清單項目——9 個固定 <c>form_code</c> 之一（見
+/// <summary>G1 表單設計器清單項目——8 個固定 <c>form_code</c> 之一（見
 /// <c>Features.Forms.FormCatalog</c>）。**不含表單顯示名稱**：規劃書 §3.10 的固定表格中英名稱
 /// 已於 2026-09-22 拍板不建 <c>forms_i18n.name</c>、不開放後台編輯（docs/12-database-schema.md
 /// §4.6），顯示名稱由前端依 <see cref="FormCode"/> 對照規劃書固定表格自行呈現，不是本 API 的職責。</summary>
@@ -66,7 +66,7 @@ public sealed record AdminFormDetailDto
     public required DateTime UpdatedAt { get; init; }
 }
 
-/// <summary>更新表單設定——**不含 <see cref="AdminFormDetailDto.FormCode"/>**：9 個表單是固定目錄，
+/// <summary>更新表單設定——**不含 <see cref="AdminFormDetailDto.FormCode"/>**：8 個表單是固定目錄，
 /// 不開放改代碼（見 <c>Features/Forms/FormCatalog.cs</c> 檔頭）。</summary>
 public sealed record UpdateAdminFormRequest
 {

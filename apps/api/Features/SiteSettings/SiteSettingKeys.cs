@@ -13,6 +13,12 @@ public static class SiteSettingKeys
     public const string PolicyPrivacy = "policy.privacy";
     public const string PolicyMemberTerms = "policy.member_terms";
 
+    // ── 隱私權政策版本編號（全域設定，v3.25）：單一值，每俱樂部一個 ────────────────────────────
+    public const string GroupLegal = "legal";
+    /// <summary>目前生效的隱私權政策版本編號（≤ 50 字，自由文字，例 <c>2026-10</c>、<c>v2</c>）。送出報名或詢問時由伺服器留存為「同意的政策版本」；
+    /// 沒有這個設定列＝用 <c>PrivacyConsentStamp.DefaultVersion</c>。</summary>
+    public const string LegalPrivacyPolicyVersion = "legal.privacy_policy_version";
+
     // ── 維護模式（全域設定）─────────────────────────────────────────────────────────────
     public const string GroupMaintenance = "maintenance";
     /// <summary>單一值：<c>"1"</c>＝開啟、其餘（含沒有這個設定列）＝關閉。</summary>

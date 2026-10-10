@@ -37,7 +37,7 @@ public sealed class ProgramSessionCapacityRaceTests(AdminWriteApiFixture fixture
                     using var scope = fixture.Services.CreateScope();
                     var repository = scope.ServiceProvider.GetRequiredService<ProgramsRepository>();
                     return await repository.SubmitRegistrationAsync(clubScope, sessionId,
-                        new SubmitProgramRegistrationRequest { ApplicantName = $"ZZ名額{round}-{i}", Phone = $"0933{round:00}{i:0000}" }, CancellationToken.None);
+                        new SubmitProgramRegistrationRequest { PrivacyConsent = true, ApplicantName = $"ZZ名額{round}-{i}", Phone = $"0933{round:00}{i:0000}" }, CancellationToken.None);
                 })));
                 Assert.Equal(1, results.Count(r => r.Status == "待確認"));
                 Assert.Equal(15, results.Count(r => r.Status == "候補"));

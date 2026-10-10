@@ -434,7 +434,7 @@ flowchart LR
 | `ProgramStaff` | — | `(program_id, staff_id)` 教練團 | |
 | `ProgramPartner` | — | `(program_id, partner_id)` 合作單位 | |
 | `Session` | **●** | 梯次／場次：期間、時段、場地、名額、已報名數、價格、報名起訖、狀態。**永不進 `CalendarEvent`** | |
-| `Registration` | **●** | 報名。**`member_id` 可為空**（非會員可報名）；**繳費線下** | 🔒 |
+| `Registration` | **●** | 報名。**`member_id` 可為空**（非會員可報名）；**繳費線下**。**v3.25 新增 `privacy_consented_at`／`privacy_policy_version`**（伺服器於送出時寫入的隱私同意時間與政策版本，後台唯讀，明細見 `docs/12b` §6.13） | 🔒 |
 | `Trial` | **●** | 試訓場次：日期、場地、對象、名額、截止；**`enrolled_count`／`status`（開放／額滿／候補／已結束）比照 `Session`（B1）**。**同步行事曆由 L3 開關決定，預設關閉**（開關寫入設定並連動各場次的 `sync_to_calendar`） | 🌐 |
 
 > ✅ **`Session` 不建 `*_i18n` 側表**（2026-09-22 核實）：規劃書與 ERD 全文查無任何文字型欄位（全部是日期／數字／
@@ -480,7 +480,7 @@ flowchart LR
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `Form` | **●** | 表單定義（7 類 ＋ 提案下載 ＋ 捐助洽詢）：通知信收件者、自動回覆樣板、CAPTCHA 開關、送出後導向 | 🌐 |
+| `Form` | **●** | 表單定義（7 類 ＋ 提案下載，共 8 種）：通知信收件者、自動回覆樣板、CAPTCHA 開關、送出後導向 | 🌐 |
 | `FormField` | — | 動態欄位（型別、必填、驗證、排序） | 🌐 |
 | `Enquiry` | **●** | 收件：來源頁、UTM、狀態、`assignee_admin_user_id`、備註、標籤 | 🔒 |
 | `EnquiryAnswer` | — | `(enquiry_id, form_field_id, value)` | 🔒 |
@@ -494,14 +494,12 @@ flowchart LR
 > ✅ **`FormField` 的 🌐 已解決（S1-10 修正，2026-09-25）：建 `form_fields_i18n`**——動態欄位的題目文字
 > （`label`）與下拉／多選選項的英文顯示文字（`options_json`）皆語系化，zh-Hant 必存、en 可缺，補齊 CLAUDE.md
 > 全域規定第 4 條在動態表單欄位上的落差（原本公開表單完全沒有題目可顯示）。完整說明見 [§12 第 40 點](#12-踩雷點)。
-> ✅ **`Form.form_code` 九碼目錄拍板（S1-10，2026-09-25，`backend-engineer` 判斷）**：規劃書
-> §3.10 只用中文標題列出 7 類表單＋提案下載＋捐助洽詢共 9 種，未定義程式用代碼字串，本輪定案：
+> ✅ **`Form.form_code` 九碼目錄拍板（S1-10，2026-09-25，`backend-engineer` 判斷；2026-10-09 起縮為八碼）**：規劃書
+> §3.10 只用中文標題列出 7 類表單＋提案下載共 8 種（原第 9 種捐助洽詢已於 2026-10-09 整個拿掉，規劃書 v3.25，記錄見 [`docs/15`](15-out-of-scope-record.md)；收縮遷移 `db/migrations/20261010_donation-enquiry-drop_2-contract.sql`），未定義程式用代碼字串，本輪定案：
 > `join_player`（10.1）／`academy_children_training`（10.2）／`camp_registration`（10.3）／
 > `international_player_enquiry`（10.4）／`partnership_sponsorship`（10.5）／`media_enquiry`
 > （10.6）／`general_contact`（10.7）／`proposal_download`（9.4 CTA 提案下載，`docs/12a` 早已
-> 引用這個字面值）／`donation_enquiry`（捐助洽詢——**規劃書全文未曾定義這個表單的實際欄位**，
-> 只在 G2 收件匣分頁清單與 `Enquiry` 型別說明兩處被提及，見 `apps/api/README.md`「S1-10」段的
-> 完整說明）。九筆 `Form`／預設 `FormField` 種子資料見 `db/seed/generate-club-seed-sql.py`
+> 引用這個字面值）。八筆 `Form`／預設 `FormField` 種子資料見 `db/seed/generate-club-seed-sql.py`
 > 對應段落，兩俱樂部（`tcrfc`／`bw`）各自種一份，欄位內容依規劃書 §3.10 逐表單的欄位清單設定
 > 為系統預先定義的欄位（規劃書 v3.19 起，後台 G1 只檢視欄位清單，不新增、刪除，也不改欄位代碼、必填與選項）。
 
@@ -686,7 +684,7 @@ flowchart LR
 23. **`EmailLog.type` 值域是 13 個不是 5 個**：會員系統五封（行 734–738）＋商店交易四封（行 382）＋慈善平台四封（慈善站 §9.2）。**不要誤縮成五封。** 中獎人的人工聯繫**不得寫入 `EmailLog`**。
 24. **`Standing` 的對手是自由文字**：`Team` 只放本會四隊，積分榜其餘球隊是 `team_name` 字串。硬要建對手球隊表會憑空長出規劃書沒有的維護負擔。
 25. **`Registration` 同時服務 `session` 與 `trial`**，兩個外鍵**恰有一個非空**。不要為試訓另建報名表。
-26. **`Enquiry` 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢**，**Lead 名單不另建表**。**沒有志工報名表**（v2.1 移出範圍）。
+26. **`Enquiry` 涵蓋 7 類表單 ＋ 提案下載**，**Lead 名單不另建表**。**沒有志工報名表**（v2.1 移出範圍）。
 27. **行事曆權限跟隨來源模組**：`RolePermission.scope_type = 'academy_only'`（依 `team.type = 'academy'` 判斷）。學院管理者可調整學院梯隊賽程，**但不能改一線隊賽程**；範圍由角色的資料範圍承載，不逐帳號指派球隊（主站 v3.23）。
 28. **本檔不含行動 App 的十一個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
 29. ⛔ **有五類資料不得讀快取**：庫存與商品可購買狀態、金流回呼的冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單付款狀態、購物車。會員卡那條是**安全問題**——讀到陳舊值等於 token 撤銷機制失效。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4。
@@ -742,8 +740,7 @@ flowchart LR
     （例如 `camp_registration`／`proposal_download` 沒有敘述性文字欄位）內容摘要維持 `null`，
     不是缺陷。種子資料把每個表單「最像敘述性文字」的欄位標記為摘要（`join_player`／
     `academy_children_training`／`international_player_enquiry` 標 `experience`；
-    `partnership_sponsorship` 標 `cooperation_direction`；`general_contact`／`donation_enquiry`
-    標 `message`；`camp_registration`／`media_enquiry`／`proposal_download` 沒有合適欄位，
+    `partnership_sponsorship` 標 `cooperation_direction`；`general_contact` 標 `message`；`camp_registration`／`media_enquiry`／`proposal_download` 沒有合適欄位，
     不標記）。**套用時 `form_fields` 已有 114 筆種子資料**（跟第 37 點兩張表 0 筆的情境不同），
     但這是單純新增一個帶 `DEFAULT` 的欄位，不是對既有資料新增 CHECK 約束，對既有列永遠安全；
     套用後另外對已種下的種子資料跑一次 `UPDATE`，依上述分配把 `is_summary=1` 補回對應欄位
@@ -1025,7 +1022,7 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 | 27 | `StoreInvoice` | **●** | `StoreInvoice` `InvoiceDonationCode` | 📸；捐贈碼名單全系統共用 |
 | 28 | `ComicEpisode` | **●** | `ComicEpisode` `ComicCharacter` `ComicPage` | 角色與內頁拆表 |
 | 29 | `FanEvent` | **●** | `FanEvent` `FanEventRegistration` | 報名 `member_id` 可空 |
-| 30 | `Enquiry` | **●** | `Enquiry` `EnquiryAnswer` `Form` `FormField` | 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢 |
+| 30 | `Enquiry` | **●** | `Enquiry` `EnquiryAnswer` `Form` `FormField` | 涵蓋 7 類表單 ＋ 提案下載 |
 | 31 | `Venue` | — | `Venue` | 🔴 **刻意不加**——場地是地理實體，兩隊共用同一座球場 |
 | 32 | `PressResource` | **○** | `PressResource` | 7.8 媒體專區 |
 | 33 | `Faq` | **○** | `Faq` `FaqCategory` `FaqCategoryLink` `FaqSearchMiss` `FaqEmbedSlot` `FaqEmbedSlotLink` | 一題多分類；分類**刻意不帶 `club_id`**；G-12 嵌入設定見 [§12 第 34 點](#12-踩雷點) |

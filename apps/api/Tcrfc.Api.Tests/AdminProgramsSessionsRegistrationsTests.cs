@@ -410,19 +410,19 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
             // 缺姓名 → 400。
             var missingNameResponse = await publicClient.PostAsJsonAsync(
                 $"/api/v1/bw/programs/sessions/{sessionId}/registrations",
-                new SubmitProgramRegistrationRequest { ApplicantName = "", Phone = "0912345678" }, TestJson.WriteOptions);
+                new SubmitProgramRegistrationRequest { PrivacyConsent = true, ApplicantName = "", Phone = "0912345678" }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.BadRequest, missingNameResponse.StatusCode);
 
             // 電話與 Email 都沒填 → 400。
             var missingContactResponse = await publicClient.PostAsJsonAsync(
                 $"/api/v1/bw/programs/sessions/{sessionId}/registrations",
-                new SubmitProgramRegistrationRequest { ApplicantName = "訪客甲" }, TestJson.WriteOptions);
+                new SubmitProgramRegistrationRequest { PrivacyConsent = true, ApplicantName = "訪客甲" }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.BadRequest, missingContactResponse.StatusCode);
 
             // 第一位報名：名額 1、佔用成功 → 待確認。
             var first = await publicClient.PostAsJsonAsync(
                 $"/api/v1/bw/programs/sessions/{sessionId}/registrations",
-                new SubmitProgramRegistrationRequest { ApplicantName = "訪客甲", Phone = "0911111111" }, TestJson.WriteOptions);
+                new SubmitProgramRegistrationRequest { PrivacyConsent = true, ApplicantName = "訪客甲", Phone = "0911111111" }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.OK, first.StatusCode);
             var firstBody = await first.Content.ReadFromJsonAsync<ProgramRegistrationSubmittedDto>(TestJson.Options);
             Assert.Equal("待確認", firstBody!.Status);
@@ -433,7 +433,7 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
             // 第二位報名：名額已滿 → 候補，不佔用名額。
             var second = await publicClient.PostAsJsonAsync(
                 $"/api/v1/bw/programs/sessions/{sessionId}/registrations",
-                new SubmitProgramRegistrationRequest { ApplicantName = "訪客乙", Phone = "0922222222" }, TestJson.WriteOptions);
+                new SubmitProgramRegistrationRequest { PrivacyConsent = true, ApplicantName = "訪客乙", Phone = "0922222222" }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.OK, second.StatusCode);
             var secondBody = await second.Content.ReadFromJsonAsync<ProgramRegistrationSubmittedDto>(TestJson.Options);
             Assert.Equal("候補", secondBody!.Status);
@@ -442,7 +442,7 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
             // 已結束的梯次拒絕報名。
             var endedResponse = await publicClient.PostAsJsonAsync(
                 $"/api/v1/bw/programs/sessions/{endedSessionId}/registrations",
-                new SubmitProgramRegistrationRequest { ApplicantName = "訪客丙", Phone = "0933333333" }, TestJson.WriteOptions);
+                new SubmitProgramRegistrationRequest { PrivacyConsent = true, ApplicantName = "訪客丙", Phone = "0933333333" }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.BadRequest, endedResponse.StatusCode);
         }
         finally
@@ -472,7 +472,7 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
             // 這個梯次屬於 bw，用 tcrfc 的網址去報名應該 404。
             var response = await publicClient.PostAsJsonAsync(
                 $"/api/v1/tcrfc/programs/sessions/{sessionId}/registrations",
-                new SubmitProgramRegistrationRequest { ApplicantName = "訪客", Phone = "0912345678" }, TestJson.WriteOptions);
+                new SubmitProgramRegistrationRequest { PrivacyConsent = true, ApplicantName = "訪客", Phone = "0912345678" }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
         finally

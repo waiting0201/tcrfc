@@ -197,7 +197,7 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
     // ═════════════════════════════ G1 表單設計器 ═════════════════════════════
 
     [Fact]
-    public async Task Forms_列表回九個固定表單_詳情含預設欄位()
+    public async Task Forms_列表回八個固定表單_詳情含預設欄位()
     {
         using var client = await CreateClientAsync("customer.service@tcrfc.test");
 
@@ -205,7 +205,8 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         var forms = await listResponse.Content.ReadFromJsonAsync<List<AdminFormListItemDto>>(TestJson.Options);
         Assert.NotNull(forms);
-        Assert.Equal(9, forms!.Count);
+        Assert.Equal(8, forms!.Count);
+        Assert.DoesNotContain(forms, f => f.FormCode == "donation_enquiry");
         Assert.Contains(forms, f => f.FormCode == FormCatalog.GeneralContact);
 
         var generalContact = forms.First(f => f.FormCode == FormCatalog.GeneralContact);
@@ -222,7 +223,7 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
     public async Task Form_更新設定_Email格式驗證_自動回覆信雙語可寫入且可還原()
     {
         using var client = await CreateClientAsync("customer.service@tcrfc.test");
-        var formId = await GetFormIdAsync(client, "tcrfc", FormCatalog.DonationEnquiry);
+        var formId = await GetFormIdAsync(client, "tcrfc", FormCatalog.GeneralContact);
 
         var original = await client.GetFromJsonAsync<AdminFormDetailDto>($"/api/v1/admin/tcrfc/forms/{formId}", TestJson.Options);
         Assert.NotNull(original);
@@ -271,7 +272,8 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
     public async Task FormField_建立成功_欄位代碼重複回409_下拉缺選項回400_刪除後恢復_使用中的欄位刪除被擋下()
     {
         using var client = await CreateClientAsync("customer.service@tcrfc.test");
-        var formId = await GetFormIdAsync(client, "tcrfc", FormCatalog.DonationEnquiry);
+        await using var testForm = await UnlockedTestForm.CreateAsync();
+        var formId = testForm.Id;
         Guid? createdFieldId = null;
 
         try
@@ -330,18 +332,19 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
     [Fact]
     public async Task FormField_已有詢問資料引用_刪除被擋下409()
     {
-        // 七類表單與提案下載的欄位已鎖定（A-3，刪除一律 400），「使用中不能刪」只會在仍可編輯的捐助洽詢表單出現。
+        // 七類表單與提案下載的欄位已鎖定（A-3，刪除一律 400），「使用中不能刪」只會在不在鎖定名單的表單出現（測試用臨時表單）。
         using var adminClient = await CreateClientAsync("customer.service@tcrfc.test");
         using var publicClient = fixture.CreateClient();
 
-        var formId = await GetFormIdAsync(adminClient, "tcrfc", FormCatalog.DonationEnquiry);
+        await using var testForm = await UnlockedTestForm.CreateAsync();
+        var formId = testForm.Id;
         var detail = await adminClient.GetFromJsonAsync<AdminFormDetailDto>($"/api/v1/admin/tcrfc/forms/{formId}", TestJson.Options);
         var nameFieldId = detail!.Fields.First(f => f.FieldKey == "name").Id;
 
         Guid? enquiryId = null;
         try
         {
-            enquiryId = await SubmitAndGetIdAsync(publicClient, "tcrfc", FormCatalog.DonationEnquiry, new Dictionary<string, string>
+            enquiryId = await SubmitAndGetIdAsync(publicClient, "tcrfc", testForm.Code, new Dictionary<string, string>
             {
                 ["name"] = "刪除保護測試",
                 ["contact"] = "delete-guard@example.com",
@@ -362,10 +365,11 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
     public async Task FormField_內容摘要同一表單最多一個_標記新的會自動取代舊的()
     {
         using var client = await CreateClientAsync("customer.service@tcrfc.test");
-        var formId = await GetFormIdAsync(client, "tcrfc", FormCatalog.DonationEnquiry);
+        await using var testForm = await UnlockedTestForm.CreateAsync();
+        var formId = testForm.Id;
 
         var before = await client.GetFromJsonAsync<AdminFormDetailDto>($"/api/v1/admin/tcrfc/forms/{formId}", TestJson.Options);
-        var originalSummaryField = before!.Fields.Single(f => f.IsSummary); // 種子資料：donation_enquiry 的 message 欄位。
+        var originalSummaryField = before!.Fields.Single(f => f.IsSummary); // 測試表單預設的 message 欄位。
         Assert.Equal("message", originalSummaryField.FieldKey);
 
         Guid? newFieldId = null;
@@ -466,7 +470,8 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
     public async Task FormField_建立與更新_題目文字中文為必填_選項英文顯示文字筆數須與選項一致()
     {
         using var client = await CreateClientAsync("customer.service@tcrfc.test");
-        var formId = await GetFormIdAsync(client, "tcrfc", FormCatalog.DonationEnquiry);
+        await using var testForm = await UnlockedTestForm.CreateAsync();
+        var formId = testForm.Id;
 
         // 中文題目文字空白 → 400。
         var missingLabelResponse = await client.PostAsJsonAsync($"/api/v1/admin/tcrfc/forms/{formId}/fields", new CreateAdminFormFieldRequest
@@ -519,7 +524,7 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
 
             var publicClient = fixture.CreateClient();
             var publicForm = await publicClient.GetFromJsonAsync<PublicFormDto>(
-                $"/api/v1/tcrfc/forms/{FormCatalog.DonationEnquiry}?lang=en", TestJson.Options);
+                $"/api/v1/tcrfc/forms/{testForm.Code}?lang=en", TestJson.Options);
             var publicField = publicForm!.Fields.Single(f => f.FieldKey == "test_label_lifecycle");
             Assert.Equal("測試題目", publicField.Label); // en 列已被刪除，回退顯示中文。
         }

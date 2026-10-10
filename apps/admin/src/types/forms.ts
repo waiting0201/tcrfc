@@ -20,9 +20,8 @@ export type FormCode =
   | 'media_enquiry'
   | 'general_contact'
   | 'proposal_download'
-  | 'donation_enquiry'
 
-/** 依主站規劃書 §3.10 表格順序（10.1–10.7），再接提案下載與捐助洽詢——對照 `FormCatalog.AllCodes`。 */
+/** 依主站規劃書 §3.10 表格順序（10.1–10.7），再接提案下載（共 8 種；捐助洽詢已於 2026-10-09 移除）——對照 `FormCatalog.AllCodes`。 */
 export const FORM_CODE_ORDER: FormCode[] = [
   'join_player',
   'academy_children_training',
@@ -32,7 +31,6 @@ export const FORM_CODE_ORDER: FormCode[] = [
   'media_enquiry',
   'general_contact',
   'proposal_download',
-  'donation_enquiry',
 ]
 
 export const FORM_CODE_LABEL: Record<FormCode, string> = {
@@ -44,14 +42,13 @@ export const FORM_CODE_LABEL: Record<FormCode, string> = {
   media_enquiry: '媒體詢問',
   general_contact: '一般聯絡',
   proposal_download: '提案簡介下載',
-  donation_enquiry: '捐助洽詢',
 }
 
 /**
  * 欄位由網站固定的表單（10.1–10.7 七類＋提案下載）——對照後端 `FormCatalog.FieldLockedCodes`。
  * 後端 API 沒有回傳「是否鎖定」旗標，這裡以同一份清單判斷；**後端清單異動時要手動同步**
  * （同上方表單代碼對照的限制）。後端對鎖定表單另有硬性檢查（新增／刪除欄位與改結構一律 400），
- * 這份清單只決定畫面要不要隱藏／唯讀，不是安全邊界。`donation_enquiry` 刻意不鎖。
+ * 這份清單只決定畫面要不要隱藏／唯讀，不是安全邊界。捐助洽詢移除後，八種表單全部鎖定。
  */
 export const FIELD_LOCKED_FORM_CODES: ReadonlySet<string> = new Set<FormCode>([
   'join_player',

@@ -3543,7 +3543,7 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - **B-6 `homeTeamCodes`**：首頁「近期賽事」非一線隊面板改讀 `GET calendar/settings` 的 `homeTeamCodes`（規劃書 §嵌入元件預設篩選「首頁顯示哪些隊別」）；空清單、API 失敗＝不限制，沿用原行為。一線隊面板固定顯示不受影響。
 - **積分榜備援標示**：`StandingsResponse`／`StandingRow` 型別補可選欄位 `isFallbackLocale`；`first-team` 優先用 `hasFallbackLocale()`，舊版 API 沒回時退回原本的「隊名含中日文字」判斷。
 - **職員分組英文名稱**：`our-people.vue` 的 `STAFF_GROUPS`（Management／Administration／Medical Staff／Operations）已登錄在 `docs/06` §1，列為開發端初稿待客戶確認。
-- **B-17**：`proposal_download` 已由 `Features/Proposals`（`opportunities` 頁表單）承接——它呼叫 `FormsRepository.SubmitAsync`，Lead 就是 `form_code='proposal_download'` 的收件，收件匣該分頁不會空，**不是重複**。`donation_enquiry` 規劃書只在 G2 分頁清單與 `Enquiry` 型別各提一次，**沒有定義前台入口與欄位**，列待決（見報告），不自行設計。
+- **B-17**：`proposal_download` 已由 `Features/Proposals`（`opportunities` 頁表單）承接——它呼叫 `FormsRepository.SubmitAsync`，Lead 就是 `form_code='proposal_download'` 的收件，收件匣該分頁不會空，**不是重複**。`donation_enquiry` 規劃書只在 G2 分頁清單與 `Enquiry` 型別各提一次，**沒有定義前台入口與欄位**，列待決（見報告），不自行設計。**2026-10-09 使用者拍板整個移除，後端已於 2026-10-10 清除。**
 - **C-6**：商店配送方式（宅配／超商取貨／「主場賽事日或俱樂部現場自取」）與發票類型（手機條碼、自然人憑證、統編、捐贈）是主站 §8.3 兩俱樂部共用的固定規格；藍鯨同樣有主場賽事（太原、豐原），「主場賽事日」不是磐石專屬。收款方／發票抬頭已依 `collectingSubjectName` 動態顯示，查無磐石寫死外洩，故不改。
 - **B-5**：規劃書 G-01 語系固定繁中／英文、未翻譯回退繁中；前台沒有讀 `site-settings.languages／fallbackMode／formats`，後台側欄已隱藏「多語系」。建議結案方式：標為「規格已固定，不接」，由後端／後台決定是否移除 I4 的語系與備援設定（保留字串翻譯表與翻譯狀態矩陣）。
 - **C-5**：fallback 寫死內容（國際夥伴隊徽、9 張贊助方案卡、慈善事蹟）屬過渡設計；建議在客戶內容到位、後台建立第一筆後移除寫死版本，不在本輪動。

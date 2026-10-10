@@ -14,7 +14,7 @@
 --   19    faq_categories：規劃書 3.12 十個固定主題
 --   20    home_sections：規劃書 3.1 首頁九大固定區塊（兩俱樂部各一份）
 --   21    faq_embed_slots：G-12 四個固定掛載點
---   22    forms／form_fields：規劃書 §3.10 九個固定表單與預設欄位（兩俱樂部各一份）
+--   22    forms／form_fields：規劃書 §3.10 八個固定表單與預設欄位（兩俱樂部各一份）
 --   23    event_types：L2 自建事件的起始分類字典（後台 L3 可再編輯）
 -- 預期列數（deploy/prod-db-init.sh 灌完後逐表核對；`-- MANIFEST` 行是機器讀的）：
 -- MANIFEST admin_roles=10
@@ -27,9 +27,9 @@
 -- MANIFEST faq_categories=10
 -- MANIFEST faq_categories_i18n=20
 -- MANIFEST faq_embed_slots=4
--- MANIFEST form_fields=114
--- MANIFEST form_fields_i18n=228
--- MANIFEST forms=18
+-- MANIFEST form_fields=106
+-- MANIFEST form_fields_i18n=212
+-- MANIFEST forms=16
 -- MANIFEST home_sections=18
 -- MANIFEST locales=2
 -- MANIFEST permissions=269
@@ -7722,7 +7722,7 @@ IF NOT EXISTS (SELECT 1 FROM faq_embed_slots WHERE code = N'sponsorship')
   INSERT INTO faq_embed_slots (id, code, name) VALUES (N'df78b64a-3085-5bb7-a9b7-2e63c79c8471', N'sponsorship', N'贊助頁（9.4）');
 GO
 
--- ── 22. forms／form_fields／form_fields_i18n：9 個固定表單目錄 ＋ 預設欄位，兩俱樂部各種一份 ──
+-- ── 22. forms／form_fields／form_fields_i18n：8 個固定表單目錄 ＋ 預設欄位，兩俱樂部各種一份 ──
 DECLARE @id uniqueidentifier;
 SELECT @id = id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player';
 IF @id IS NULL
@@ -8615,78 +8615,6 @@ IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id F
 GO
 
 DECLARE @id uniqueidentifier;
-SELECT @id = id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'bfd41c29-46ed-5034-b0b1-9123e5847ccb';
-  INSERT INTO forms (id, club_id, form_code, captcha_enabled)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'donation_enquiry', 1);
-  COMMIT TRANSACTION;
-END
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'name')
-  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'c01b2416-d726-5121-ad74-27dd3305a48f', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry'), N'name', N'text', 1, NULL, NULL, 0, 0);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'name'), N'zh-Hant', N'姓名');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'name') AND locale = N'en')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'name'), N'en', N'Name', NULL);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'contact')
-  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'797bc24e-5476-5eb9-8a63-f10d79cf1137', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry'), N'contact', N'text', 1, NULL, NULL, 0, 1);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'contact') AND locale = N'en')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'contact'), N'en', N'Contact Info', NULL);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'message')
-  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'084bae4b-b7bc-5097-ae80-e49f1db92f83', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry'), N'message', N'textarea', 0, NULL, NULL, 1, 2);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'message') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'message'), N'zh-Hant', N'洽詢內容');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'message') AND locale = N'en')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'message'), N'en', N'Enquiry Message', NULL);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent')
-  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'e8935016-1cec-5681-bf92-43d3a0dc667a', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry'), N'privacy_consent', N'consent', 1, NULL, NULL, 0, 3);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent') AND locale = N'en')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent'), N'en', N'I have read and agree to the club''s collection, processing, and use of my personal data in accordance with its privacy policy', NULL);
-GO
-
-DECLARE @id uniqueidentifier;
 SELECT @id = id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player';
 IF @id IS NULL
 BEGIN
@@ -9575,78 +9503,6 @@ GO
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'privacy_consent') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
   VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'privacy_consent'), N'en', N'I have read and agree to the club''s collection, processing, and use of my personal data in accordance with its privacy policy', NULL);
-GO
-
-DECLARE @id uniqueidentifier;
-SELECT @id = id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'97870eb1-1cf7-5001-95e4-e748cee92c3b';
-  INSERT INTO forms (id, club_id, form_code, captcha_enabled)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'donation_enquiry', 1);
-  COMMIT TRANSACTION;
-END
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'name')
-  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'a99de6f1-4dcf-5fe3-8fce-0dce728233b8', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry'), N'name', N'text', 1, NULL, NULL, 0, 0);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'name'), N'zh-Hant', N'姓名');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'name') AND locale = N'en')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'name'), N'en', N'Name', NULL);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'contact')
-  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'9352b60f-ab18-5599-b71b-2ba4db46519d', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry'), N'contact', N'text', 1, NULL, NULL, 0, 1);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'contact') AND locale = N'en')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'contact'), N'en', N'Contact Info', NULL);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'message')
-  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'206d13a8-8a42-5ebd-986a-e5f68fda9e4d', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry'), N'message', N'textarea', 0, NULL, NULL, 1, 2);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'message') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'message'), N'zh-Hant', N'洽詢內容');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'message') AND locale = N'en')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'message'), N'en', N'Enquiry Message', NULL);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent')
-  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'cd27576a-59b5-535b-8d5c-91eb2f291368', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry'), N'privacy_consent', N'consent', 1, NULL, NULL, 0, 3);
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
-GO
-
-IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent') AND locale = N'en')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'donation_enquiry') AND field_key = N'privacy_consent'), N'en', N'I have read and agree to the club''s collection, processing, and use of my personal data in accordance with its privacy policy', NULL);
 GO
 
 -- ── 23. event_types：L2 自建事件六個起始分類（不帶 club_id，全站共用） ────────

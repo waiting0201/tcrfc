@@ -48,7 +48,7 @@ public sealed class PublicWriteEndpointRateLimitingTests(ApiFixture fixture)
     public async Task 課程報名端點_超過Submission額度後回429()
     {
         using var client = fixture.CreateClient();
-        var request = new SubmitProgramRegistrationRequest { ApplicantName = "限流測試訪客", Phone = "0912345678" };
+        var request = new SubmitProgramRegistrationRequest { PrivacyConsent = true, ApplicantName = "限流測試訪客", Phone = "0912345678" };
 
         for (var i = 1; i <= PublicRateLimitPolicies.SubmissionPermitLimit; i++)
         {

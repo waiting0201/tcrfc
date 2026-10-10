@@ -4,7 +4,7 @@ namespace Tcrfc.Api.Features.AdminForms;
 
 /// <summary>G1「表單設計器」後台端點。權限碼命名照 docs/12b §7.3：module_code=G、submodule_code=G1、
 /// domain=enquiry（表單與詢問共用同一個 domain，見 db/seed/generate-club-seed-sql.py 對應段落）。
-/// **沒有建立／刪除表單本身的端點**——9 個 <c>form_code</c> 是固定目錄，見
+/// **沒有建立／刪除表單本身的端點**——8 個 <c>form_code</c> 是固定目錄，見
 /// <c>AdminFormsRepository</c> 檔頭。</summary>
 public static class AdminFormsEndpoints
 {

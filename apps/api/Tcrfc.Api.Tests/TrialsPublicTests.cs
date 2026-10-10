@@ -96,7 +96,7 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
             var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 10);
             var response = await RegisterAsync(client, "tcrfc", id, new
             {
-                applicantName = Marker + " 王小明", phone = "0912345678", email = "ZZTEST@Example.test",
+                privacyConsent = true, applicantName = Marker + " 王小明", phone = "0912345678", email = "ZZTEST@Example.test",
                 birthOn = "2000-05-05", healthDeclaration = "無特殊疾病", note = "希望踢前鋒",
             });
             var result = await BizTest.ReadAsync<TrialRegistrationSubmittedDto>(response);
@@ -125,12 +125,12 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
         {
             var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 1);
             var first = await BizTest.ReadAsync<TrialRegistrationSubmittedDto>(
-                await RegisterAsync(client, "tcrfc", id, new { applicantName = Marker + " 甲", phone = "0911000001" }));
+                await RegisterAsync(client, "tcrfc", id, new { privacyConsent = true, applicantName = Marker + " 甲", phone = "0911000001" }));
             Assert.Equal("待確認", first.Status);
             Assert.Equal((1, "額滿"), await TrialStateAsync(id));
 
             var second = await BizTest.ReadAsync<TrialRegistrationSubmittedDto>(
-                await RegisterAsync(client, "tcrfc", id, new { applicantName = Marker + " 乙", phone = "0911000002" }));
+                await RegisterAsync(client, "tcrfc", id, new { privacyConsent = true, applicantName = Marker + " 乙", phone = "0911000002" }));
             Assert.Equal("候補", second.Status);
             Assert.Equal((1, "額滿"), await TrialStateAsync(id));
 
@@ -155,7 +155,7 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
             {
                 var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 1);
                 var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(i => Task.Run(() =>
-                    RegisterAsync(client, "tcrfc", id, new { applicantName = $"{Marker} 搶{round}-{i}", phone = $"0944{round:00}{i:0000}" }))));
+                    RegisterAsync(client, "tcrfc", id, new { privacyConsent = true, applicantName = $"{Marker} 搶{round}-{i}", phone = $"0944{round:00}{i:0000}" }))));
                 var dtos = new List<TrialRegistrationSubmittedDto>();
                 foreach (var r in results)
                 {
@@ -183,7 +183,7 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
             for (var round = 0; round < 10; round++)
             {
                 var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 50);
-                var body = new { applicantName = $"{Marker} 重複{round}", phone = $"0922000{round:000}" };
+                var body = new { privacyConsent = true, applicantName = $"{Marker} 重複{round}", phone = $"0922000{round:000}" };
                 var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => RegisterAsync(client, "tcrfc", id, body))));
                 var codes = string.Join(",", results.Select(r => (int)r.StatusCode));
                 Assert.True(results.All(r => r.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK or HttpStatusCode.Conflict), $"第 {round} 輪：{codes}");
@@ -205,7 +205,7 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
         try
         {
             var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 1);
-            var tasks = Enumerable.Range(1, 6).Select(i => RegisterAsync(client, "tcrfc", id, new { applicantName = $"{Marker} 並行{i}", phone = $"09110001{i:00}" })).ToArray();
+            var tasks = Enumerable.Range(1, 6).Select(i => RegisterAsync(client, "tcrfc", id, new { privacyConsent = true, applicantName = $"{Marker} 並行{i}", phone = $"09110001{i:00}" })).ToArray();
             var responses = await Task.WhenAll(tasks);
             var results = new List<TrialRegistrationSubmittedDto>();
             foreach (var r in responses)
@@ -231,10 +231,10 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
         try
         {
             var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 10);
-            var body = new { applicantName = Marker + " 重複", phone = "0922000001" };
+            var body = new { privacyConsent = true, applicantName = Marker + " 重複", phone = "0922000001" };
             Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, "tcrfc", id, body)).StatusCode);
             Assert.Equal(HttpStatusCode.Conflict, (await RegisterAsync(client, "tcrfc", id, body)).StatusCode);
-            Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, "tcrfc", id, new { applicantName = Marker + " 重複", phone = "0922000002" })).StatusCode); // 不同電話視為不同人
+            Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, "tcrfc", id, new { privacyConsent = true, applicantName = Marker + " 重複", phone = "0922000002" })).StatusCode); // 不同電話視為不同人
 
             await BizTest.ExecuteSqlAsync("UPDATE registrations SET status = N'取消' WHERE trial_id = @I AND phone = N'0922000001'", ("@I", id));
             Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, "tcrfc", id, body)).StatusCode);
@@ -254,9 +254,9 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
             var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 10);
             var minor = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-13)).ToString("yyyy-MM-dd");
             Assert.Equal(HttpStatusCode.BadRequest, (await RegisterAsync(client, "tcrfc", id,
-                new { applicantName = Marker + " 小球員", phone = "0933000001", birthOn = minor })).StatusCode);
+                new { privacyConsent = true, applicantName = Marker + " 小球員", phone = "0933000001", birthOn = minor })).StatusCode);
             Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, "tcrfc", id,
-                new { applicantName = Marker + " 小球員", phone = "0933000001", birthOn = minor, guardianName = "王大明", guardianPhone = "0933000002" })).StatusCode);
+                new { privacyConsent = true, applicantName = Marker + " 小球員", phone = "0933000001", birthOn = minor, guardianName = "王大明", guardianPhone = "0933000002" })).StatusCode);
         }
         finally
         {
@@ -275,7 +275,7 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
             var past = await InsertTrialAsync("tcrfc", TaiwanClock.Today.AddDays(-2));
             var deadlineToday = await InsertTrialAsync("tcrfc", Soon(), deadline: TaiwanClock.Today); // 截止日當天仍可報名（含當日）
             var open = await InsertTrialAsync("tcrfc", Soon());
-            var body = new { applicantName = Marker + " 測試", phone = "0944000001" };
+            var body = new { privacyConsent = true, applicantName = Marker + " 測試", phone = "0944000001" };
 
             Assert.Equal(HttpStatusCode.Conflict, (await RegisterAsync(client, "tcrfc", ended, body)).StatusCode);
             Assert.Equal(HttpStatusCode.Conflict, (await RegisterAsync(client, "tcrfc", deadlinePassed, body)).StatusCode);
@@ -283,8 +283,8 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, "tcrfc", deadlineToday, body)).StatusCode);
             Assert.Equal(HttpStatusCode.NotFound, (await RegisterAsync(client, "tcrfc", Guid.NewGuid(), body)).StatusCode);
             Assert.Equal(HttpStatusCode.NotFound, (await RegisterAsync(client, "bw", open, body)).StatusCode); // 別的俱樂部看不到
-            Assert.Equal(HttpStatusCode.BadRequest, (await RegisterAsync(client, "tcrfc", open, new { applicantName = "  ", phone = "0944000001" })).StatusCode);
-            Assert.Equal(HttpStatusCode.BadRequest, (await RegisterAsync(client, "tcrfc", open, new { applicantName = Marker + " 無聯絡方式" })).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await RegisterAsync(client, "tcrfc", open, new { privacyConsent = true, applicantName = "  ", phone = "0944000001" })).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await RegisterAsync(client, "tcrfc", open, new { privacyConsent = true, applicantName = Marker + " 無聯絡方式" })).StatusCode);
             Assert.Equal((0, "開放"), await TrialStateAsync(open)); // 驗證失敗不佔名額
         }
         finally
@@ -301,7 +301,7 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
         try
         {
             var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 5);
-            Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, "tcrfc", id, new { applicantName = Marker + " 後台", phone = "0955000001" })).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await RegisterAsync(client, "tcrfc", id, new { privacyConsent = true, applicantName = Marker + " 後台", phone = "0955000001" })).StatusCode);
             var detail = await BizTest.ReadAsync<AdminTrialDetailDto>(await admin.GetAsync($"/api/v1/admin/tcrfc/trials/{id}"));
             Assert.Equal(1, detail.EnrolledCount);
         }

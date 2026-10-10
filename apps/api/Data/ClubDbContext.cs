@@ -2382,6 +2382,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.FormId).HasColumnName("form_id");
             entity.Property(e => e.InternalNote).HasColumnName("internal_note");
             entity.Property(e => e.ProposalId).HasColumnName("proposal_id");
+            entity.Property(e => e.PrivacyConsentedAt)
+                .HasPrecision(3)
+                .HasColumnName("privacy_consented_at");
+            entity.Property(e => e.PrivacyPolicyVersion)
+                .HasMaxLength(50)
+                .HasColumnName("privacy_policy_version");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -6407,6 +6413,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.HealthDeclaration).HasColumnName("health_declaration");
             entity.Property(e => e.MemberId).HasColumnName("member_id");
             entity.Property(e => e.Note).HasColumnName("note");
+            entity.Property(e => e.PrivacyConsentedAt)
+                .HasPrecision(3)
+                .HasColumnName("privacy_consented_at");
+            entity.Property(e => e.PrivacyPolicyVersion)
+                .HasMaxLength(50)
+                .HasColumnName("privacy_policy_version");
             entity.Property(e => e.Phone)
                 .HasMaxLength(32)
                 .HasColumnName("phone");

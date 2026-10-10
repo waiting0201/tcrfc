@@ -68,6 +68,9 @@ public sealed record SubmitTrialRegistrationRequest
     public string? HealthDeclaration { get; init; }
 
     public string? Note { get; init; }
+
+    /// <summary>隱私同意勾選結果（必須為 true，否則 400）。伺服器寫入同意時間與政策版本，不接受客戶端傳值（見課程報名同名欄位）。</summary>
+    public bool PrivacyConsent { get; init; }
 }
 
 public sealed record TrialRegistrationSubmittedDto

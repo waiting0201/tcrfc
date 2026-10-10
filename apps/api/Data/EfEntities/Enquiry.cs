@@ -37,6 +37,10 @@ public partial class Enquiry
 
     public Guid? ProposalId { get; set; }
 
+    public DateTime? PrivacyConsentedAt { get; set; }
+
+    public string? PrivacyPolicyVersion { get; set; }
+
     public virtual AdminUser? AssigneeAdminUser { get; set; }
 
     public virtual Club Club { get; set; } = null!;

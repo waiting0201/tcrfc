@@ -133,6 +133,10 @@ public sealed record SubmitProgramRegistrationRequest
     public string? GuardianPhone { get; init; }
     public string? HealthDeclaration { get; init; }
     public string? Note { get; init; }
+
+    /// <summary>隱私同意勾選結果（必須為 true，否則 400）。v3.25：伺服器收到後以當下 UTC 時間與該俱樂部目前的隱私權政策版本
+    /// 寫入 <c>privacy_consented_at</c>／<c>privacy_policy_version</c>；時間與版本<b>不由客戶端傳入</b>。</summary>
+    public bool PrivacyConsent { get; init; }
 }
 
 public sealed record ProgramRegistrationSubmittedDto

@@ -149,21 +149,21 @@ public sealed class SiteBackendOfflineTranslationTests
         await using var db = OfflineQueryTranslation.CreateContext();
         var repository = new TrialsRepository(db);
         await Assert.ThrowsAsync<PublicValidationException>(() => repository.SubmitRegistrationAsync(
-            Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest { ApplicantName = "  ", Phone = "0912" }, null, CancellationToken.None));
+            Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest { PrivacyConsent = true, ApplicantName = "  ", Phone = "0912" }, null, CancellationToken.None));
         await Assert.ThrowsAsync<PublicValidationException>(() => repository.SubmitRegistrationAsync(
-            Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest { ApplicantName = "王小明" }, null, CancellationToken.None));
+            Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest { PrivacyConsent = true, ApplicantName = "王小明" }, null, CancellationToken.None));
         await Assert.ThrowsAsync<PublicValidationException>(() => repository.SubmitRegistrationAsync(
-            Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest { ApplicantName = "王小明", Email = "壞信箱" }, null, CancellationToken.None));
+            Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest { PrivacyConsent = true, ApplicantName = "王小明", Email = "壞信箱" }, null, CancellationToken.None));
         // 未滿 18 歲沒有家長聯絡方式
         var minorBirth = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(-14));
         await Assert.ThrowsAsync<PublicValidationException>(() => repository.SubmitRegistrationAsync(
-            Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest { ApplicantName = "王小明", Phone = "0912345678", BirthOn = minorBirth },
+            Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest { PrivacyConsent = true, ApplicantName = "王小明", Phone = "0912345678", BirthOn = minorBirth },
             null, CancellationToken.None));
         // 未來的出生日期
         await Assert.ThrowsAsync<PublicValidationException>(() => repository.SubmitRegistrationAsync(
             Public(), Guid.NewGuid(), new SubmitTrialRegistrationRequest
             {
-                ApplicantName = "王小明", Phone = "0912345678", BirthOn = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
+                PrivacyConsent = true, ApplicantName = "王小明", Phone = "0912345678", BirthOn = DateOnly.FromDateTime(DateTime.UtcNow.AddYears(1)),
             }, null, CancellationToken.None));
     }
 

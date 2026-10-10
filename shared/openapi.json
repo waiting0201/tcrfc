@@ -16853,6 +16853,9 @@
               "null",
               "string"
             ]
+          },
+          "privacyConsent": {
+            "type": "boolean"
           }
         }
       },
@@ -16907,6 +16910,9 @@
               "null",
               "string"
             ]
+          },
+          "privacyConsent": {
+            "type": "boolean"
           }
         }
       },

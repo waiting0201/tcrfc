@@ -2,6 +2,7 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.Forms;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -268,6 +269,10 @@ public sealed class ProgramsRepository(
         {
             throw new ProgramRegistrationValidationException("電話與 Email 至少需要填寫一項，以便後續聯繫。");
         }
+        if (!request.PrivacyConsent)
+        {
+            throw new ProgramRegistrationValidationException(PrivacyConsentStamp.NotConsentedMessage);
+        }
 
         using var connection = connectionFactory.CreateConnection();
         connection.Open();
@@ -314,14 +319,16 @@ public sealed class ProgramsRepository(
         var status = claimedId is not null ? "待確認" : "候補";
 
         var registrationNo = await GenerateUniqueRegistrationNoAsync(connection, transaction, scope.ClubCode, now, cancellationToken);
+        // 同意時間與政策版本由伺服器決定（不信任客戶端）；同意時間用與 created_at 同一個 now。
+        var policyVersion = await PrivacyConsentStamp.LoadVersionAsync(connection, transaction, scope.ClubId, cancellationToken);
 
         const string insertSql = """
             INSERT INTO registrations
                 (id, registration_no, club_id, session_id, member_id, applicant_name, phone, email, birth_on,
-                 guardian_name, guardian_phone, health_declaration, note, status, created_at, updated_at)
+                 guardian_name, guardian_phone, health_declaration, note, privacy_consented_at, privacy_policy_version, status, created_at, updated_at)
             VALUES
                 (@Id, @RegistrationNo, @ClubId, @SessionId, @MemberId, @ApplicantName, @Phone, @Email, @BirthOn,
-                 @GuardianName, @GuardianPhone, @HealthDeclaration, @Note, @Status, @Now, @Now)
+                 @GuardianName, @GuardianPhone, @HealthDeclaration, @Note, @Now, @PolicyVersion, @Status, @Now, @Now)
             """;
         await connection.ExecuteAsync(new CommandDefinition(insertSql, new
         {
@@ -338,6 +345,7 @@ public sealed class ProgramsRepository(
             request.GuardianPhone,
             request.HealthDeclaration,
             request.Note,
+            PolicyVersion = policyVersion,
             Status = status,
             Now = now,
         }, transaction, cancellationToken: cancellationToken));

@@ -35,6 +35,10 @@ public partial class Registration
 
     public string? Note { get; set; }
 
+    public DateTime? PrivacyConsentedAt { get; set; }
+
+    public string? PrivacyPolicyVersion { get; set; }
+
     public string Status { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }

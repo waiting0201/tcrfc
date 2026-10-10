@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.Forms;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -103,6 +104,10 @@ public sealed partial class TrialsRepository(ClubDbContext db)
         ClubScope scope, Guid trialId, SubmitTrialRegistrationRequest request, Guid? memberId, CancellationToken cancellationToken)
     {
         var input = Validate(request);
+        if (!request.PrivacyConsent)
+        {
+            throw new PublicValidationException(PrivacyConsentStamp.NotConsentedMessage);
+        }
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
 
@@ -147,6 +152,7 @@ public sealed partial class TrialsRepository(ClubDbContext db)
                 .SetProperty(t => t.UpdatedAt, now), cancellationToken);
 
         var registrationNo = await GenerateUniqueRegistrationNoAsync(scope.ClubCode, now, cancellationToken);
+        var policyVersion = await PrivacyConsentStamp.LoadVersionAsync(db, scope.ClubId, cancellationToken); // 伺服器決定，不信任客戶端
         var status = claimed > 0 ? RegistrationPending : RegistrationWaitlisted;
 
         db.Registrations.Add(new Registration
@@ -155,6 +161,7 @@ public sealed partial class TrialsRepository(ClubDbContext db)
             ApplicantName = input.Name, Phone = input.Phone, Email = input.Email, BirthOn = input.BirthOn,
             GuardianName = input.GuardianName, GuardianPhone = input.GuardianPhone,
             HealthDeclaration = input.HealthDeclaration, Note = input.Note,
+            PrivacyConsentedAt = now, PrivacyPolicyVersion = policyVersion,
             Status = status, CreatedAt = now, UpdatedAt = now,
         });
         await db.SaveChangesAsync(cancellationToken);

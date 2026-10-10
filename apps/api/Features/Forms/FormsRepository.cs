@@ -129,14 +129,20 @@ public sealed class FormsRepository(
             validatedAnswers[field.Id] = rawValue!;
         }
 
+        // 隱私同意留存（v3.25）：表單帶有「同意」型別欄位且訪客已勾選（必填者沒勾在上面已被 400 擋下）才留存；
+        // 時間與政策版本由伺服器決定，答案裡只有「勾了沒」。
+        var consented = fields.Any(f => f.FieldType == FormFieldTypes.Consent
+            && validatedAnswers.TryGetValue(f.Id, out var consentValue) && FormFieldTypes.IsTruthy(consentValue));
+        var policyVersion = consented ? await PrivacyConsentStamp.LoadVersionAsync(connection, null, scope.ClubId, cancellationToken) : null;
+
         using var transaction = connection.BeginTransaction();
 
         var enquiryId = Guid.NewGuid();
         var now = DateTime.UtcNow;
 
         const string insertEnquirySql = """
-            INSERT INTO enquiries (id, club_id, form_id, proposal_id, source_path, utm_source, utm_campaign, status, created_at, updated_at)
-            VALUES (@Id, @ClubId, @FormId, @ProposalId, @SourcePath, @UtmSource, @UtmCampaign, N'新進', @Now, @Now)
+            INSERT INTO enquiries (id, club_id, form_id, proposal_id, source_path, utm_source, utm_campaign, privacy_consented_at, privacy_policy_version, status, created_at, updated_at)
+            VALUES (@Id, @ClubId, @FormId, @ProposalId, @SourcePath, @UtmSource, @UtmCampaign, @ConsentedAt, @PolicyVersion, N'新進', @Now, @Now)
             """;
         await connection.ExecuteAsync(new CommandDefinition(insertEnquirySql, new
         {
@@ -147,6 +153,8 @@ public sealed class FormsRepository(
             request.SourcePath,
             request.UtmSource,
             request.UtmCampaign,
+            ConsentedAt = consented ? now : (DateTime?)null,
+            PolicyVersion = policyVersion,
             Now = now,
         }, transaction, cancellationToken: cancellationToken));
 

@@ -10406,7 +10406,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 |---|---|---|
 | **A-1 烏龍球** | 自動彙總（`Standings/StandingsRepository.AutoTotalsAsync`）排除烏龍球：出賽仍算、進球不算。`match_goals.goal_type` 原本是自由文字，後台寫入改為**固定值域**：`header`（頭槌）／`penalty`（點球）／`free_kick`（自由球）／`own_goal`（烏龍球）／`other`（其他），**空＝一般進球**；寫入時接受常見中文與英文同義詞並正規化成代碼（`頭槌`→`header`、`烏龍球`→`own_goal`…），不認得的值回 400 `goals[i].goalType`。讀取端對**舊資料的自由文字**（含「烏龍」「own goal」）也認得為烏龍球，不需要資料遷移 | `AdminMatches/MatchGoalTypes.cs`、`AdminMatchesRepository.ApplyGoalsAsync` |
 | **A-2 球員狀態** | 公開 `players` 列表、詳情（slug 或 id）與全站搜尋**只回現役**（`status = 'active'` 或 NULL）；離隊／外借／海外發展一律不輸出（詳情 404）。`PlayerDto` 新增 `status`（目前恆為 `active`；型別可空，避免 App 舊快取解碼失敗）。球員數據榜（`/stats/players`）不過濾（歷史賽季數據仍需呈現離隊球員） | `Players/PlayersRepository.cs`、`Search/SearchRepository.cs` |
-| **A-3 表單欄位鎖定** | `FormCatalog.FieldLockedCodes`＝10.1–10.7 七類＋`proposal_download`（提案下載由 `Features/Proposals` 以固定鍵送出）。`donation_enquiry` **不鎖**（規劃書未定義欄位、無任何程式以固定鍵送出）。鎖定表單：`POST .../fields` → 400 `fieldKey`；`DELETE .../fields/{id}` → 400 `fieldId`；`PUT .../fields/{id}` 若 `fieldKey`／`fieldType`／`isRequired`／`validationRule`／`options` 任一與現況不同 → 400，鍵依序為 `fieldKey`／`fieldType`／`isRequired`／`validationRule`／`options`。仍可改：表單層的 `notifyEmails`／`captchaEnabled`／`redirectPath`／`autoReplyBodyZh|En`，欄位層的 `labelZh|En`、`optionLabelsEn`、`isSummary`、`sortOrder`（前提是結構欄位原樣送回） | `Forms/FormCatalog.cs`、`AdminForms/AdminFormsRepository.cs` |
+| **A-3 表單欄位鎖定** | `FormCatalog.FieldLockedCodes`＝10.1–10.7 七類＋`proposal_download`（提案下載由 `Features/Proposals` 以固定鍵送出）。（~~`donation_enquiry` 不鎖~~ 2026-10-10 起捐助洽詢已移除，目錄八種表單全鎖；不在目錄的代碼仍視為可調整，測試用 `Fixtures/UnlockedTestForm` 臨時建表單。）鎖定表單：`POST .../fields` → 400 `fieldKey`；`DELETE .../fields/{id}` → 400 `fieldId`；`PUT .../fields/{id}` 若 `fieldKey`／`fieldType`／`isRequired`／`validationRule`／`options` 任一與現況不同 → 400，鍵依序為 `fieldKey`／`fieldType`／`isRequired`／`validationRule`／`options`。仍可改：表單層的 `notifyEmails`／`captchaEnabled`／`redirectPath`／`autoReplyBodyZh|En`，欄位層的 `labelZh|En`、`optionLabelsEn`、`isSummary`、`sortOrder`（前提是結構欄位原樣送回） | `Forms/FormCatalog.cs`、`AdminForms/AdminFormsRepository.cs` |
 | **A-4 表單通知信** | `FormsRepository.SubmitAsync` 在 commit 後（honeypot 命中不寄）：① **收件通知**寄給 `notify_emails`（逗號／分號分隔、去重複，每人一封；內容＝題目＋答案，不含同意條款欄位）；② **自動回覆**寄給送件者：Email 取答案中的 `email`、`contact` 欄位值，**值不像 Email（例如電話）就不寄**；內文取 `forms_i18n.auto_reply_body`，依 `lang` 選 zh／en，該語系沒填回退 zh，兩者都空就不寄。寄信失敗只記 log，不影響送出。`SubmitFormRequest` 新增選填 `lang`（`zh`／`en`，也可用查詢字串 `?lang=`，body 優先）。信件 Kind：`form_notify`／`form_auto_reply`（`Features/Email/FormEmailTemplates.cs`）。目前寄信是本機假實作（已知） | `Forms/FormsRepository.cs` |
 | **B-16 導向頁** | `PublicFormDto.redirectPath`：只輸出站內相對路徑（`/` 開頭、非 `//`、非 `/\`），不合法或未設定為 `null`。後台 `redirectPath` 驗證同步收緊為**只收站內路徑**（原本也收 `http(s)://`），不合 400 `redirectPath` | `Forms/FormDtos.cs`、`FormsRepository.SafeRedirectPath` |
 | **A-6 訂單詳情** | `AdminOrderDetailDto.buyerEmail`（無 `shop.order.reveal` 回遮罩 `b***@example.com`）；`invoice` 新增 `type`（`mobile_barcode`／`citizen_cert`／`tax_id`／`donation`，皆無為 `null`）、`typeLabel`（手機條碼載具／自然人憑證載具／公司戶（統一編號）／捐贈發票）、`carrierId`（無權限遮罩 `/A****23`，只留前 2 後 2）、`taxId`、`donationCode`（公開資訊不遮罩）、`issueStatusLabel`（待開立／已開立／開立失敗（待重試））、`voidStatusLabel`（未作廢／已作廢／已折讓）。列表未加 | `AdminShop/AdminShopOrdersRepository.cs`、`Common/PiiMasking.MaskCarrier` |
@@ -10628,3 +10628,21 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 **不含**：搜尋結果 `imageUrl`（各來源縮圖彙整，不輸出寬高與 Alt）；慈善獨立庫（`CharityPlatform/`）未盤點未動。
 
 **驗收**：`Tcrfc.Api.Tests/ImageFieldGroupTests.cs`（11 項，對真實 Azurite）：寬高寫回、逐語系 Alt 讀寫與過長 400、公開 DTO 依語系輸出與英文空白回退、移除圖片後寬高清空、子表 `PUT` Alt（含 404、400）、肖像未同意 fail-closed。
+
+## 2026-10-10：報名隱私同意留存、慈善夥伴期間、移除捐助洽詢（主站 v3.25／App v3.18）
+
+**資料表**（遷移 `db/migrations/20261010_privacy-consent_1-expand.sql`＝EF `ClubPrivacyConsentExpand`，冪等，🔴 先 migrate 再 deploy，E-289）：`registrations`、`enquiries` 各新增 `privacy_consented_at datetime2(3) NULL`（UTC）、`privacy_policy_version nvarchar(50) NULL`。時間用 `datetime2(3)` 而非 `datetimeoffset`——全庫一律 `datetime2(3)` UTC，EF 全域轉換器只處理 `DateTime`。舊資料不回填。
+
+**寫入規則**（`Features/Forms/PrivacyConsentStamp`）：時間＝送出當下 UTC、版本＝該俱樂部 `settings.legal.privacy_policy_version`（`SiteSettingKeys.LegalPrivacyPolicyVersion`；沒設定用預設 `1.0`），**不信任客戶端**（DTO 沒有這兩個屬性，多傳的同名欄位被忽略）。
+- 課程報名 `POST /api/v1/{club}/programs/sessions/{id}/registrations` 與試訓報名 `POST /api/v1/{club}/trials/{id}/registrations`（行動 App 同一組端點）：請求新增 **`privacyConsent: bool`，必須為 `true`，否則 400「請先閱讀並勾選同意隱私權政策，才能送出。」**（不寫報名、不佔名額）。🔴 **這是破壞性變更**：現行網頁前台與 App 都沒送這欄，須同步改。
+- 表單送出（七類表單、提案下載）：沿用既有 `privacy_consent` 同意型欄位（必填者沒勾維持既有 400）；有勾才寫入。提案下載的 `consent` 本來就必須為 true。
+- 後台代填報名不留存（兩欄為空）。
+
+**後台**：報名明細（`AdminRegistrationDetailDto`）、試訓名單明細（`AdminTrialRegistrationDetailDto`）、收件匣明細（`AdminEnquiryDetailDto`）唯讀回傳 `privacyConsentedAt`、`privacyPolicyVersion`，列表不帶。全域設定 `GET/PUT /api/v1/admin/{club}/global-settings` 新增 `privacyPolicyVersion`（≤ 50 字；PUT 省略＝維持不變、空字串＝清除回預設）。
+
+**慈善計畫詳情**：夥伴（`start_on`／`end_on`）與贊助商（`contract_start_on`／`contract_end_on`）只列涵蓋今日者，空＝進行中；與 `PartnersRepository` 共用 `Common/PublicPeriodFilter.CoversToday`。
+
+**移除捐助洽詢**：`FormCatalog` 八種；`GET/POST /forms/donation_enquiry` 回 404；種子、`db/prod/club-reference-data.sql`（forms 16、form_fields 106）已重產；收縮遷移 `db/migrations/20261010_donation-enquiry-drop_2-contract.sql`＝EF `DonationEnquiryDropContract`（只刪資料、不改結構，新版 API 上線後才套用）。全部表單鎖欄位後，測試改用 `Fixtures/UnlockedTestForm` 臨時建不在目錄的表單。
+
+**驗收**：`Tcrfc.Api.Tests/PrivacyConsentTests.cs`（9 項）；全套 1577 項通過 1572。失敗 5 項：1 項是本次漏改（表單數 9→8，已修）；其餘 4 項（`DevAcceptanceSeedTests` 球衣額度、`AdminDrawsTests` 三項）判定為本機庫驗收資料污染，與本次無關（球衣：`jersey-single@example.com` 於 2026-10-08 有一筆手動登記的 `jersey_issues`；抽獎：合格會員 6 人而測試預期 4——`M900003` 驗收中被升為球迷會員、`M900132` 是 `b1-activate` 測試殘留）。
+

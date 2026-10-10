@@ -14,7 +14,7 @@ namespace Tcrfc.Api.Features.AdminEnquiries;
 /// <c>EnquiryAnswer</c>（<c>(enquiry_id, form_field_id) → value</c>），因為 G1 是「表單設計器」，
 /// 欄位是動態的。本檔採**慣例欄位鍵**：G1 建立表單欄位時若把姓名欄位的 <c>field_key</c> 取為
 /// <c>"name"</c>、聯絡方式取為 <c>"contact"</c>，清單就能撈出來顯示；種子資料
-/// （<c>db/seed/generate-club-seed-sql.py</c>）已依此慣例建立九個表單的預設欄位。**若後台把這
+/// （<c>db/seed/generate-club-seed-sql.py</c>）已依此慣例建立八個表單的預設欄位。**若後台把這
 /// 兩個鍵改名或刪除，清單只會顯示 <c>null</c>，不是程式錯誤**——這是動態表單的必然取捨，沒有
 /// 資料庫層的機制能保證「某個 <c>field_key</c> 一定存在」。
 ///
@@ -30,7 +30,7 @@ namespace Tcrfc.Api.Features.AdminEnquiries;
 /// 學院／課程管理、商務／贊助、公關／媒體三個角色只能看到自己類別的詢問（矩陣「課程類詢問」
 /// 「合作／贊助類詢問」「媒體類詢問」）。這裡**不是**比照 <c>TeamRowScope</c> 用
 /// <c>role_permissions.scope_type</c> 解析（那是給「同一權限碼、依資料列屬性決定範圍」的
-/// 情境，例如 <c>academy_only</c> 依 <c>teams.type</c>）——本模組的「類別」邊界是固定的 9 個
+/// 情境，例如 <c>academy_only</c> 依 <c>teams.type</c>）——本模組的「類別」邊界是固定的 8 個
 /// <c>form_code</c> 分組，不需要逐人指派的關聯表，直接拆成 <c>enquiry.inbox.*</c>／
 /// <c>enquiry.course.*</c>／<c>enquiry.partnership.*</c>／<c>enquiry.media.*</c> 四組獨立權限碼，
 /// 應用層依角色持有哪一組決定 <c>WHERE form_code IN (...)</c>，見
@@ -398,6 +398,8 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
         InternalNote = enquiry.InternalNote,
         Tags = enquiry.Tags,
         AssigneeAdminUserId = enquiry.AssigneeAdminUserId,
+        PrivacyConsentedAt = enquiry.PrivacyConsentedAt,
+        PrivacyPolicyVersion = enquiry.PrivacyPolicyVersion,
         Answers = enquiry.EnquiryAnswers
             .OrderBy(a => a.FormField.SortOrder)
             .Select(a => new AdminEnquiryAnswerDto { FieldKey = a.FormField.FieldKey, FieldType = a.FormField.FieldType, Value = a.Value })

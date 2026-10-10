@@ -1803,7 +1803,7 @@ EditView 路由狀態一次性求值檢查）與 `npm run build`（`vue-tsc -b &
 對照主站規劃書 §4.7，逐一模組如下：
 
 - **G1**（`src/views/forms/FormListView.vue`／`FormEditView.vue`）：9 個固定表單（招募、學院與
-  營隊、國際球員、合作贊助、媒體、一般聯絡、提案下載、捐助洽詢）**沒有新增／刪除**，列表依
+  營隊、國際球員、合作贊助、媒體、一般聯絡、提案下載；捐助洽詢已於 2026-10-09 移除，共 8 種）**沒有新增／刪除**，列表依
   `types/forms.ts` 的 `FORM_CODE_ORDER` 排序（後端回應本身依 `form_code` 字母排序，畫面上重排成
   規劃書 §3.10 的邏輯順序）。編輯頁：收件通知 Email（可多人）、送出後導向頁、自動回覆信（雙語）、
   防機器人驗證開關；動態欄位新增／編輯／刪除，含**題目文字**（中文必填、英文選填，
@@ -3025,7 +3025,7 @@ API 契約以 `apps/api/README.md`「後台欄位串接稽核的後端修正」�
 | **賽季管理（新）** | 球隊管理群組新增「賽季」（`/teams/seasons`，側欄排在「賽程與賽果」之後、「積分榜」之前）。列表欄位：賽季代碼、開始／結束日期、「當季」標籤（今天〔台北時間〕落在起訖內，純畫面判斷）、使用中筆數與明細（後端 `usage`）。新增／編輯用對話框（沒有雙語欄位，依 docs/21 §3 用對話框）；欄位錯誤鍵 `code`／`startOn`（含期間重疊 409）／`endOn` 標到欄位。刪除：`inUse` 時按鈕停用並以提示顯示使用情形；仍收到 409／403 時以對話框完整顯示後端訊息並重抓清單。權限比照賽程：`useCrudPermissions('team.match')` 控制新增／編輯／刪除按鈕，側欄接受 `team.match.view` 或 `team.competition.view`（後端清單同）。寫入需整個俱樂部的資料範圍，畫面不預判，由後端 403 訊息顯示。`GET /admin/{club}/seasons` 網址沒變，賽事系列、賽程、積分榜、榮譽頁的賽季下拉（`listAdminSeasons`）原樣可用 | `views/teams/SeasonListView.vue`、`api/adminSeasons.ts`、`router/index.ts`、`data/nav.ts`、`components/AppSidebar.vue` |
 | **球員賽季數據** | 球員編輯頁（僅編輯模式）主欄新增「賽季數據」卡片，每個賽季一列：來源標籤（手動／自動彙總／無資料）、自動彙總值、目前手動值、五個數字輸入（出賽、進球、助攻、黃牌、紅牌）。「儲存為手動值」＝PUT；「清除手動值，改回自動彙總」＝DELETE（需確認，僅來源為手動時出現）。**每個賽季各自立即儲存**，卡片說明固定一行「這裡的變更會立即儲存」（比照 docs/21 §3.4）。每列自帶一份 `provideFormErrors`（五個欄位鍵每季相同，共用頁面那份會標錯列），`applyApiError` 標到該列欄位。助攻沒有自動來源，編輯起點從 0 開始；球隊不在授權範圍（整頁唯讀）或沒有 `team.player.update` 時輸入停用 | `views/teams/parts/PlayerSeasonStatsPanel.vue`、`PlayerSeasonStatRow.vue`、`api/adminPlayers.ts` |
 | **進球類型下拉** | 賽事編輯頁進球列改為下拉：一般進球（空值）／頭槌／點球／自由球／烏龍球／其他。舊資料載入時以 `types/match.ts` 的 `parseGoalType` 對照後端同義詞（含「烏龍」「own goal」字樣一律烏龍球，與後端 `IsOwnGoal` 一致）。**對不上的舊自由文字（例如「遠射」）**：下拉選「其他」並在列下提示「原本寫的是…，儲存後會歸為其他」。後端寫入端不收未知文字（400），無法原樣保留，所以選擇「提示後歸為其他」而非靜默覆寫或送出後被拒。錯誤鍵 `goals[i].goalType` 依逐層去尾退回標到進球表格的 `goals` 錨點 | `views/teams/MatchEditView.vue`、`types/match.ts` |
-| **表單設計器鎖定** | 後端 DTO 沒有回傳鎖定旗標，前端以 `types/forms.ts` 的 `FIELD_LOCKED_FORM_CODES`（對照 `FormCatalog.FieldLockedCodes`：10.1–10.7 七類＋提案下載；捐助洽詢不鎖；**後端清單異動時要手動同步**）判斷。鎖定表單：頁面加說明「這張表單的欄位由網站固定，只能修改題目文字與通知設定」；隱藏「新增欄位」「刪除」；欄位對話框的欄位代碼、型別、必填、驗證規則停用，選項值只顯示（不能新增／刪除），仍可改題目文字中英、選項英文顯示文字、內容摘要；排序（上移／下移）、收件通知、自動回覆、防機器人驗證、導向頁照舊。送出欄位時結構欄位一律用載入時的原值，避免空值差異被後端判為有改動。導向頁提示改為「站內路徑，以 / 開頭」，前端驗證同步收緊（不收完整網址、`//`、`/\`） | `views/forms/FormEditView.vue`、`types/forms.ts` |
+| **表單設計器鎖定** | 後端 DTO 沒有回傳鎖定旗標，前端以 `types/forms.ts` 的 `FIELD_LOCKED_FORM_CODES`（對照 `FormCatalog.FieldLockedCodes`：10.1–10.7 七類＋提案下載；捐助洽詢已移除、八種全鎖；**後端清單異動時要手動同步**）判斷。鎖定表單：頁面加說明「這張表單的欄位由網站固定，只能修改題目文字與通知設定」；隱藏「新增欄位」「刪除」；欄位對話框的欄位代碼、型別、必填、驗證規則停用，選項值只顯示（不能新增／刪除），仍可改題目文字中英、選項英文顯示文字、內容摘要；排序（上移／下移）、收件通知、自動回覆、防機器人驗證、導向頁照舊。送出欄位時結構欄位一律用載入時的原值，避免空值差異被後端判為有改動。導向頁提示改為「站內路徑，以 / 開頭」，前端驗證同步收緊（不收完整網址、`//`、`/\`） | `views/forms/FormEditView.vue`、`types/forms.ts` |
 | **訂單詳情** | 「訂購資訊」新增買家 Email（有值才顯示，遮罩值原樣顯示；訂單詳情沒有獨立的「顯示完整個資」按鈕，遮罩由後端依 `shop.order.reveal` 決定，遮罩提示文字擴寫為涵蓋收件人、買家 Email、載具號碼）。發票區塊新增開立方式、載具號碼、統一編號、捐贈碼（各自有值才顯示）；開立／作廢狀態改顯示 `issueStatusLabel`／`voidStatusLabel`（舊欄位只作缺值回退） | `views/shop/OrderDetailView.vue`、`api/adminShop.ts` |
 | **追蹤碼與 CTA 連結** | SEO 設定四個追蹤碼與行事曆自建活動 `ctaUrl` 原本就已有 `FormField`、`provideFormErrors` 與 catch 的 `applyApiError`（E-276 三項檢查皆在），後端 400 鍵 `ga4MeasurementId`／`gtmContainerId`／`metaPixelId`／`lineTagId`／`ctaUrl` 可標到欄位；本次補輸入框下方的格式提示，並在前端先做同規則檢查（GA4 `G-`、GTM `GTM-`〔大小寫不拘，後端轉大寫〕、Meta Pixel 純數字 5–20 位、LINE Tag 英數與連字號；`ctaUrl` 為 `http(s)://` 或單一 `/` 開頭） | `views/seo/SeoSettingsView.vue`、`views/calendar/CalendarEventEditView.vue` |
 

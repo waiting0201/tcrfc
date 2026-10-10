@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.Forms;
 using Tcrfc.Api.Features.SiteSettings;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -29,7 +30,7 @@ public sealed class AdminGlobalSettingsRepository(
     private static readonly string[] AllKeys =
     [
         SiteSettingKeys.PolicyCookie, SiteSettingKeys.PolicyPrivacy, SiteSettingKeys.PolicyMemberTerms,
-        SiteSettingKeys.MaintenanceEnabled, SiteSettingKeys.MaintenanceMessage,
+        SiteSettingKeys.MaintenanceEnabled, SiteSettingKeys.MaintenanceMessage, SiteSettingKeys.LegalPrivacyPolicyVersion,
     ];
 
     public async Task<AdminGlobalSettingsDto> GetAsync(AdminClubScope scope, CancellationToken cancellationToken)
@@ -48,6 +49,10 @@ public sealed class AdminGlobalSettingsRepository(
         var messageZh = LimitText(request.MaintenanceMessageZh, "維護頁訊息（繁中）", MaxMaintenanceMessageLength, "maintenanceMessageZh");
         var messageEn = LimitText(request.MaintenanceMessageEn, "維護頁訊息（英文）", MaxMaintenanceMessageLength, "maintenanceMessageEn");
 
+        var policyVersion = request.PrivacyPolicyVersion is null
+            ? null
+            : AdminInput.OptionalText(request.PrivacyPolicyVersion, "隱私權政策版本編號", PrivacyConsentStamp.MaxVersionLength, "privacyPolicyVersion") ?? string.Empty;
+
         var club = await db.Clubs.FirstAsync(c => c.Id == scope.ClubId, cancellationToken);
         var settings = await settingsEditor.LoadAsync(scope.ClubId, AllKeys, cancellationToken);
         var wasMaintenance = ClubSettingsEditor.Value(settings, SiteSettingKeys.MaintenanceEnabled) == "1";
@@ -59,6 +64,12 @@ public sealed class AdminGlobalSettingsRepository(
         settingsEditor.SetI18n(settings, scope.ClubId, SiteSettingKeys.PolicyCookie, SiteSettingKeys.GroupPolicy, cookie.Zh, cookie.En, operatorId);
         settingsEditor.SetI18n(settings, scope.ClubId, SiteSettingKeys.PolicyPrivacy, SiteSettingKeys.GroupPolicy, privacy.Zh, privacy.En, operatorId);
         settingsEditor.SetI18n(settings, scope.ClubId, SiteSettingKeys.PolicyMemberTerms, SiteSettingKeys.GroupPolicy, terms.Zh, terms.En, operatorId);
+        if (policyVersion is not null)
+        {
+            // 空字串＝清除設定值（讀取時回到預設版本）；其餘存成使用者填的編號。
+            settingsEditor.SetValue(settings, scope.ClubId, SiteSettingKeys.LegalPrivacyPolicyVersion, SiteSettingKeys.GroupLegal,
+                policyVersion.Length == 0 ? null : policyVersion, operatorId);
+        }
         settingsEditor.SetValue(settings, scope.ClubId, SiteSettingKeys.MaintenanceEnabled, SiteSettingKeys.GroupMaintenance,
             request.MaintenanceEnabled ? "1" : "0", operatorId);
         settingsEditor.SetI18n(settings, scope.ClubId, SiteSettingKeys.MaintenanceMessage, SiteSettingKeys.GroupMaintenance, messageZh, messageEn, operatorId);
@@ -97,6 +108,7 @@ public sealed class AdminGlobalSettingsRepository(
                 BodyEn = ClubSettingsEditor.I18n(settings, p.SettingKey, "en"),
                 UpdatedAt = ClubSettingsEditor.UpdatedAt(settings, p.SettingKey),
             }).ToList(),
+            PrivacyPolicyVersion = PrivacyConsentStamp.Normalize(ClubSettingsEditor.Value(settings, SiteSettingKeys.LegalPrivacyPolicyVersion)),
             Maintenance = new AdminMaintenanceSettingsDto
             {
                 Enabled = ClubSettingsEditor.Value(settings, SiteSettingKeys.MaintenanceEnabled) == "1",

@@ -2291,6 +2291,7 @@ data class SubmitProgramRegistrationRequest(
     val guardianPhone: String? = null,
     val healthDeclaration: String? = null,
     val note: String? = null,
+    val privacyConsent: Boolean? = null,
 )
 
 @Serializable
@@ -2303,6 +2304,7 @@ data class SubmitTrialRegistrationRequest(
     val guardianPhone: String? = null,
     val healthDeclaration: String? = null,
     val note: String? = null,
+    val privacyConsent: Boolean? = null,
 )
 
 @Serializable

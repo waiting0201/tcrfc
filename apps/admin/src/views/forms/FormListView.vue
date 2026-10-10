@@ -57,7 +57,7 @@ function handleEdit(row: AdminFormListItemDto) {
     </PageHeader>
 
     <el-alert
-      title="表單種類固定為 9 種（招募、學院與營隊、國際球員、合作贊助、媒體、一般聯絡、提案下載、捐助洽詢），不能新增或刪除；能調整的是每張表單的通知信、自動回覆信、送出後導向與底下的欄位。"
+      title="表單種類固定為 8 種（招募、學院與營隊、國際球員、合作贊助、媒體、一般聯絡、提案下載），不能新增或刪除；能調整的是每張表單的通知信、自動回覆信與送出後導向，欄位由系統預先定義。"
       type="info"
       show-icon
       :closable="false"

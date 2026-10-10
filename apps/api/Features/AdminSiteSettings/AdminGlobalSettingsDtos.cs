@@ -32,6 +32,10 @@ public sealed record AdminGlobalSettingsDto
     public required IReadOnlyList<AdminPolicySettingDto> Policies { get; init; }
 
     public required AdminMaintenanceSettingsDto Maintenance { get; init; }
+
+    /// <summary>目前生效的隱私權政策版本編號（未設定時為預設值 <c>1.0</c>）。前台送出報名／詢問時，伺服器把它連同同意時間留存（v3.25）；
+    /// 改了政策內文就該同步改這個編號，之後的送出才會記到新版本。</summary>
+    public required string PrivacyPolicyVersion { get; init; }
 }
 
 public sealed record AdminPolicyInput
@@ -49,6 +53,9 @@ public sealed record UpdateAdminGlobalSettingsRequest
     public AdminPolicyInput? PrivacyPolicy { get; init; }
 
     public AdminPolicyInput? MemberTerms { get; init; }
+
+    /// <summary>隱私權政策版本編號（≤ 50 字）。<b>省略（null）＝維持不變</b>，不會因為舊版前端沒送就被清掉；空字串＝清除、回到預設值。</summary>
+    public string? PrivacyPolicyVersion { get; init; }
 
     public bool MaintenanceEnabled { get; init; }
 

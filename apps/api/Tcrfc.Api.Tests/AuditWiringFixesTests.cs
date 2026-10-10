@@ -174,8 +174,11 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
-    public void 表單欄位鎖定_捐助洽詢不鎖()
-        => Assert.False(FormCatalog.AreFieldsLocked(FormCatalog.DonationEnquiry));
+    public void 表單欄位鎖定_不在目錄內的代碼不鎖_捐助洽詢移除後八種表單全鎖()
+    {
+        Assert.False(FormCatalog.AreFieldsLocked("zz_not_in_catalog"));
+        Assert.All(FormCatalog.AllCodes, code => Assert.True(FormCatalog.AreFieldsLocked(code), code));
+    }
 
     [Fact]
     public async Task 鎖定的表單_新增刪除欄位與改代碼類型必填選項都回400欄位錯誤_題目文字仍可改()
@@ -260,7 +263,7 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
     public async Task 送出後導向頁_只接受站內相對路徑_公開表單定義輸出redirectPath()
     {
         using var client = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
-        var formId = await FormIdAsync(client, FormCatalog.DonationEnquiry);
+        var formId = await FormIdAsync(client, FormCatalog.GeneralContact);
         var original = await client.GetFromJsonAsync<AdminFormDetailDto>($"/api/v1/admin/tcrfc/forms/{formId}", TestJson.Options);
         UpdateAdminFormRequest With(string? redirect) => new() { NotifyEmails = original!.NotifyEmails, CaptchaEnabled = original.CaptchaEnabled, RedirectPath = redirect };
         try
@@ -273,11 +276,11 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
             }
 
             Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/forms/{formId}", With("/zh/thanks"), TestJson.WriteOptions)).StatusCode);
-            var publicForm = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tcrfc/forms/{FormCatalog.DonationEnquiry}", TestJson.Options);
+            var publicForm = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tcrfc/forms/{FormCatalog.GeneralContact}", TestJson.Options);
             Assert.Equal("/zh/thanks", publicForm.GetProperty("redirectPath").GetString());
 
             Assert.Equal(HttpStatusCode.OK, (await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/forms/{formId}", With(null), TestJson.WriteOptions)).StatusCode);
-            var cleared = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tcrfc/forms/{FormCatalog.DonationEnquiry}", TestJson.Options);
+            var cleared = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tcrfc/forms/{FormCatalog.GeneralContact}", TestJson.Options);
             Assert.Equal(JsonValueKind.Null, cleared.GetProperty("redirectPath").ValueKind);
         }
         finally
@@ -304,7 +307,8 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
     {
         using var admin = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
         using var anon = fixture.CreateClient();
-        var formId = await FormIdAsync(admin, FormCatalog.DonationEnquiry);
+        await using var testForm = await UnlockedTestForm.CreateAsync();
+        var formId = testForm.Id;
         var original = await admin.GetFromJsonAsync<AdminFormDetailDto>($"/api/v1/admin/tcrfc/forms/{formId}", TestJson.Options);
         var tag = Guid.NewGuid().ToString("N")[..8];
         var staffA = $"staff-a-{tag}@example.test";
@@ -319,7 +323,7 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
                 AutoReplyBodyZh = $"中文自動回覆 {tag}", AutoReplyBodyEn = $"English auto reply {tag}",
             }, TestJson.WriteOptions)).StatusCode);
 
-            Task<HttpResponseMessage> Submit(string contact, string? lang) => anon.PostAsJsonAsync("/api/v1/tcrfc/forms/donation_enquiry/submissions", new SubmitFormRequest
+            Task<HttpResponseMessage> Submit(string contact, string? lang) => anon.PostAsJsonAsync($"/api/v1/tcrfc/forms/{testForm.Code}/submissions", new SubmitFormRequest
             {
                 Answers = new Dictionary<string, string> { ["name"] = $"通知測試{tag}", ["contact"] = contact, ["message"] = "想了解捐助方式", ["privacy_consent"] = "true" },
                 Lang = lang,
@@ -357,7 +361,8 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
     public async Task 表單通知信_沒設定收件人與自動回覆內文就不寄_寄信失敗不影響送出()
     {
         using var admin = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
-        var formId = await FormIdAsync(admin, FormCatalog.DonationEnquiry);
+        await using var testForm = await UnlockedTestForm.CreateAsync();
+        var formId = testForm.Id;
         var original = await admin.GetFromJsonAsync<AdminFormDetailDto>($"/api/v1/admin/tcrfc/forms/{formId}", TestJson.Options);
         var tag = Guid.NewGuid().ToString("N")[..8];
         try
@@ -374,7 +379,7 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
                 s.AddSingleton<IEmailSender, ThrowingEmailSender>();
             }));
             using var anon = factory.CreateClient();
-            var response = await anon.PostAsJsonAsync("/api/v1/tcrfc/forms/donation_enquiry/submissions", new SubmitFormRequest
+            var response = await anon.PostAsJsonAsync($"/api/v1/tcrfc/forms/{testForm.Code}/submissions", new SubmitFormRequest
             {
                 Answers = new Dictionary<string, string> { ["name"] = $"失敗測試{tag}", ["contact"] = $"fail-{tag}@example.test", ["privacy_consent"] = "true" },
             }, TestJson.WriteOptions);
@@ -779,7 +784,7 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
         using var admin = await BizTest.ClientAsync(factory, "super.admin@tcrfc.test");
 
         // 表單：寫回同值
-        var formId = await FormIdAsync(admin, FormCatalog.DonationEnquiry);
+        var formId = await FormIdAsync(admin, FormCatalog.GeneralContact);
         var form = await admin.GetFromJsonAsync<AdminFormDetailDto>($"/api/v1/admin/tcrfc/forms/{formId}", TestJson.Options);
         await RestoreFormAsync(admin, formId, form!);
         Assert.Contains("forms:tcrfc", cache.Invalidated);

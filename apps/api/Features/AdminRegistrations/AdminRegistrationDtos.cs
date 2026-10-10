@@ -40,6 +40,9 @@ public sealed record AdminRegistrationDetailDto
     public string? GuardianPhone { get; init; }
     public string? HealthDeclaration { get; init; }
     public string? Note { get; init; }
+    /// <summary>隱私同意時間（UTC）與當時同意的隱私權政策版本；唯讀，由伺服器於前台送出時寫入。舊資料或後台代填為 null。</summary>
+    public DateTime? PrivacyConsentedAt { get; init; }
+    public string? PrivacyPolicyVersion { get; init; }
     public required string Status { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }

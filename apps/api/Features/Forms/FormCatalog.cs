@@ -1,21 +1,19 @@
 namespace Tcrfc.Api.Features.Forms;
 
 /// <summary>
-/// 9 個固定 `form_code` 目錄（7 類表單 ＋ 提案下載 ＋ 捐助洽詢，主站規劃書 §3.10／§4.7 G2，
+/// 8 個固定 `form_code` 目錄（7 類表單 ＋ 提案下載，主站規劃書 §3.10／§4.7 G2，
 /// docs/12-database-schema.md §4.6）。**表單本身是固定目錄，不是可由後台自由新增的資料**——
-/// G1「表單設計器」只能編輯既有 9 筆 <c>forms</c> 的設定與底下的動態欄位（<c>form_fields</c>），
-/// 沒有「新增一種表單類型」的端點，見 <c>Features/AdminForms/AdminFormsEndpoints.cs</c> 檔頭。
+/// G1「表單設計器」只能編輯既有 8 筆 <c>forms</c> 的設定（欄位由系統預先定義，見 <see cref="FieldLockedCodes"/>），
+/// 🔴 「捐助洽詢」（<c>donation_enquiry</c>）已於 2026-10-09 整個拿掉（規劃書 v3.25，記錄見 docs/15；
+/// 收縮遷移 <c>db/migrations/20261010_donation-enquiry-drop_2-contract.sql</c>），代碼不再被接受；
+/// 另外沒有「新增一種表單類型」的端點，見 <c>Features/AdminForms/AdminFormsEndpoints.cs</c> 檔頭。
 ///
-/// 🔴 **代碼字串本身是本輪（S1-10）判斷**：規劃書 §3.10 只用中文標題列出這 9 種，未定義程式用
+/// 🔴 **代碼字串本身是本輪（S1-10）判斷**：規劃書 §3.10 只用中文標題列出這 8 種，未定義程式用
 /// 代碼，見 docs/12-database-schema.md §4.6 附註「Form.form_code 九碼目錄拍板」的完整說明。
-/// `db/seed/generate-club-seed-sql.py` 各自宣告一份同樣的九個代碼字面值（既有慣例，見該檔
+/// `db/seed/generate-club-seed-sql.py` 各自宣告一份同樣的八個代碼字面值（既有慣例，見該檔
 /// `HOME_SECTIONS` 段的檔頭說明：「C# 與本腳本各自宣告一份同樣的代碼，靠命名一致與 code review
 /// 維持同步，不是自動化比對」）——改這裡的字串一定要同步改種子腳本，否則種子資料的
 /// `form_code` 會跟這裡對不上，导致 G2 依類別過濾的查詢永遠找不到對應的表單。
-///
-/// ⚠️ `DonationEnquiry`（捐助洽詢）**規劃書全文未曾定義這個表單的實際欄位**——只在 G2 收件匣
-/// 分頁清單（行 1163）與 `Enquiry` 型別說明兩處被提及，見 `apps/api/README.md`「S1-10」段
-/// 「規劃書沒寫清楚、本輪自行判斷的地方」。
 /// </summary>
 public static class FormCatalog
 {
@@ -27,13 +25,12 @@ public static class FormCatalog
     public const string MediaEnquiry = "media_enquiry"; // 10.6 媒體詢問
     public const string GeneralContact = "general_contact"; // 10.7 一般聯絡
     public const string ProposalDownload = "proposal_download"; // 9.4 CTA 提案簡介下載
-    public const string DonationEnquiry = "donation_enquiry"; // 捐助洽詢（規劃書未定義欄位，見上方說明）
 
-    /// <summary>依規劃書 §3.10 表格順序（10.1–10.7），再接提案下載與捐助洽詢。</summary>
+    /// <summary>依規劃書 §3.10 表格順序（10.1–10.7），再接提案下載。</summary>
     public static readonly IReadOnlyList<string> AllCodes =
     [
         JoinPlayer, AcademyChildrenTraining, CampRegistration, InternationalPlayerEnquiry,
-        PartnershipSponsorship, MediaEnquiry, GeneralContact, ProposalDownload, DonationEnquiry,
+        PartnershipSponsorship, MediaEnquiry, GeneralContact, ProposalDownload,
     ];
 
     /// <summary>學院／課程管理角色（矩陣「課程類詢問」）能看到的 <c>form_code</c> 集合。</summary>
@@ -54,7 +51,7 @@ public static class FormCatalog
     /// 欄位由系統預先定義、後台不得增刪改的表單（稽核 A-3，2026-10-06 使用者拍板）。
     /// 前台 10.1–10.7 七張表單的 DOM 是寫死的，答案鍵（<c>field_key</c>）、必填、類型、選項一旦被後台改掉，前台送出就會被
     /// 後端 400 擋下；<see cref="ProposalDownload"/> 的欄位由 <c>Features/Proposals</c> 以固定鍵送出，同樣不可動。
-    /// <see cref="DonationEnquiry"/> 規劃書未定義欄位、也沒有任何程式以固定鍵送出，維持可由表單設計器調整。
+    /// 捐助洽詢移除後，目錄內八種表單全部在此集合；<see cref="AreFieldsLocked"/> 的判斷保留（不在目錄的 form_code 視為可調整，測試用）。
     /// 鎖定範圍：新增／刪除欄位，以及修改欄位代碼、類型、必填、驗證規則、選項；
     /// 題目文字（中英）、選項英文顯示文字、內容摘要來源、排序仍可改。
     /// </summary>
@@ -83,7 +80,6 @@ public static class FormCatalog
             [MediaEnquiry] = ("媒體詢問", "Media Enquiries"),
             [GeneralContact] = ("一般聯絡", "General Contact"),
             [ProposalDownload] = ("提案簡介下載", "Sponsorship Deck Download"),
-            [DonationEnquiry] = ("捐助洽詢", "Donation Enquiry"),
         };
 
     public static string DisplayNameZh(string formCode) => DisplayNames.TryGetValue(formCode, out var names) ? names.Zh : formCode;

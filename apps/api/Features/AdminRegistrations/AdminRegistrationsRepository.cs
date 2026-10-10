@@ -564,6 +564,8 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
         GuardianPhone = registration.GuardianPhone,
         HealthDeclaration = registration.HealthDeclaration,
         Note = registration.Note,
+        PrivacyConsentedAt = registration.PrivacyConsentedAt,
+        PrivacyPolicyVersion = registration.PrivacyPolicyVersion,
         Status = registration.Status,
         CreatedAt = registration.CreatedAt,
         UpdatedAt = registration.UpdatedAt,

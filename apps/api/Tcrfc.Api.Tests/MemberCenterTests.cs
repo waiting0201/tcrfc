@@ -267,7 +267,7 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
         var memberNos = new List<string>();
         try
         {
-            var body = new { applicantName = "【M測試】報名者", phone = "0900-000-444", note = "member-reg-test" };
+            var body = new { privacyConsent = true, applicantName = "【M測試】報名者", phone = "0900-000-444", note = "member-reg-test" };
             var memberReg = await m.Client.PostAsJsonAsync($"/api/v1/tcrfc/programs/sessions/{sessionId}/registrations", body, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.OK, memberReg.StatusCode);
             memberNos.Add((await ReadJsonAsync(memberReg)).GetProperty("registrationNo").GetString()!);

@@ -1121,6 +1121,10 @@ CREATE TABLE registrations (
   guardian_phone        nvarchar(32)     NULL,
   health_declaration     nvarchar(max)   NULL,
   note                  nvarchar(max)    NULL,
+  -- v3.25（2026-10-09）：隱私同意留存。有勾選隱私同意才寫；由伺服器於送出當下以 UTC 現在時間與當時俱樂部設定的政策版本寫入，
+  -- 不信任客戶端；後台唯讀；舊資料不回填（NULL＝當時未留存）。展開遷移 db/migrations/20261010_privacy-consent_1-expand.sql。
+  privacy_consented_at   datetime2(3)    NULL,
+  privacy_policy_version nvarchar(50)    NULL,
   status                nvarchar(16)     NOT NULL DEFAULT N'待確認'
                           CHECK (status IN (N'待確認',N'已確認',N'已繳費',N'完成',N'取消',N'候補')),
   created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -1554,7 +1558,7 @@ CREATE TABLE fan_event_registrations (
    4.6 G 表單與詢問
    ============================================================================ */
 
--- 表單定義（7 類 ＋ 提案下載 ＋ 捐助洽詢）：通知信收件者、CAPTCHA 開關、送出後導向。
+-- 表單定義（7 類 ＋ 提案下載，共 8 種；v3.25 起不再有捐助洽詢 donation_enquiry）：通知信收件者、CAPTCHA 開關、送出後導向。
 CREATE TABLE forms (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -1623,7 +1627,7 @@ CREATE TABLE form_fields_i18n (
   CONSTRAINT PK_form_fields_i18n PRIMARY KEY CLUSTERED (form_field_id, locale)
 );
 
--- 收件：來源頁、UTM、狀態、指派、備註、標籤。涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢。
+-- 收件：來源頁、UTM、狀態、指派、備註、標籤。涵蓋 7 類表單 ＋ 提案下載。
 CREATE TABLE enquiries (
   id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
@@ -1639,6 +1643,9 @@ CREATE TABLE enquiries (
   status                    nvarchar(16)     NULL,
   internal_note             nvarchar(max)    NULL,
   tags                      nvarchar(255)    NULL,
+  -- v3.25（2026-10-09）：隱私同意留存，語意同 registrations.privacy_consented_at（帶同意勾選欄位的表單必有值）。
+  privacy_consented_at      datetime2(3)     NULL,
+  privacy_policy_version    nvarchar(50)     NULL,
   created_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by                uniqueidentifier NULL,

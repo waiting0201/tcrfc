@@ -294,7 +294,8 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
     {
         Id = r.Id, RegistrationNo = r.RegistrationNo, TrialId = r.TrialId!.Value, MemberId = r.MemberId, ApplicantName = r.ApplicantName, Phone = r.Phone,
         Email = r.Email, BirthOn = r.BirthOn, GuardianName = r.GuardianName, GuardianPhone = r.GuardianPhone, HealthDeclaration = r.HealthDeclaration,
-        Note = r.Note, Status = r.Status, CreatedAt = r.CreatedAt, UpdatedAt = r.UpdatedAt,
+        Note = r.Note, PrivacyConsentedAt = r.PrivacyConsentedAt, PrivacyPolicyVersion = r.PrivacyPolicyVersion,
+        Status = r.Status, CreatedAt = r.CreatedAt, UpdatedAt = r.UpdatedAt,
     };
 }
 

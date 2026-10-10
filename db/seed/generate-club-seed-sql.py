@@ -989,7 +989,7 @@ PERMISSIONS = [
     #
     # 🔴 G2 依表單類別的列級授權**不是**用 role_permissions.scope_type 表達（那是給「同一權限碼、
     # 依資料列屬性決定範圍」的情境，例如 academy_only 依 teams.type）；矩陣「課程類詢問」
-    # 「合作／贊助類詢問」「媒體類詢問」三格的邊界是固定的 9 個 form_code 分組，不需要逐人指派，
+    # 「合作／贊助類詢問」「媒體類詢問」三格的邊界是固定的 8 個 form_code 分組，不需要逐人指派，
     # 直接拆成 enquiry.course.*／enquiry.partnership.*／enquiry.media.* 三組獨立權限碼比多一個
     # scope_type 列舉值＋硬編碼分類對照表更直接，見 apps/api/README.md「S1-10」段與
     # docs/12b-database-tables.md §7.4「S1-10 新增」附註。
@@ -1919,18 +1919,17 @@ IF NOT EXISTS (SELECT 1 FROM faq_embed_slots WHERE code = {esc(code)})
 """)
 
 # ============================================================================
-# S1-10（G1 表單設計器／G2 詢問收件匣，2026-09-25）：forms／form_fields 九個固定表單，
+# S1-10（G1 表單設計器／G2 詢問收件匣，2026-09-25）：forms／form_fields 八個固定表單，
 # 兩俱樂部各種一份。
 # ----------------------------------------------------------------------------
-# `FORM_CODES` 九碼字面值必須與 apps/api/Features/Forms/FormCatalog.cs 逐一對應（既有慣例，見
+# `FORM_CODES` 八碼字面值必須與 apps/api/Features/Forms/FormCatalog.cs 逐一對應（既有慣例，見
 # 上方 HOME_SECTIONS 段的檔頭說明：「C# 與本腳本各自宣告一份同樣的代碼，靠命名一致與 code review
 # 維持同步，不是自動化比對」）——改這裡的字串或那邊的常數，兩處要一起改，否則 G2 依類別過濾的
 # 查詢會找不到對應的表單。
 #
 # `FORM_FIELD_DEFAULTS` 是每個表單的**預設欄位組**，逐一對應主站規劃書 §3.10 逐表單列出的欄位
 # 清單（10.1–10.7）；`proposal_download`（9.4 CTA「填寫公司／姓名／Email → 取得下載連結」）與
-# `donation_enquiry`（🔴 規劃書全文未定義這個表單的實際欄位，只在 G2 收件匣分頁清單與 Enquiry
-# 型別說明提及，見 apps/api/README.md「S1-10」段）採最小可行原則自訂。所有表單統一補一個
+# （2026-10-09 起不再有 `donation_enquiry`：使用者拍板整個拿掉，規劃書 v3.25，記錄見 docs/15）。所有表單統一補一個
 # `privacy_consent`（同意條款）欄位，對應規劃書 §3.10「共通機制：個資同意條款勾選（含隱私政策
 # 連結）與保存期限說明」。
 #
@@ -1943,7 +1942,7 @@ IF NOT EXISTS (SELECT 1 FROM faq_embed_slots WHERE code = {esc(code)})
 # `Features/Forms/FormCatalog.cs` 的固定字典輸出顯示名稱（純程式碼常數，不是資料庫欄位）。
 #
 # **個別欄位的題目文字（`form_fields_i18n.label`）則相反——S1-10 修正（2026-09-25）已建表**：
-# 一張表單的顯示名稱是規劃書 §3.10 固定表格裡的九個項目、數量有限、後台不開放編輯；但每張表單
+# 一張表單的顯示名稱是規劃書 §3.10 固定表格裡的八個項目、數量有限、後台不開放編輯；但每張表單
 # 底下的動態欄位是 G1 表單設計器可以新增／編輯／刪除的，題目文字沒有清單可以寫死在程式碼常數裡，
 # 只能跟著每個欄位一起存進資料庫。`label_zh()` 輔助函式把每個欄位的中文題目文字（必填，
 # CLAUDE.md 全域規定第 4 條要求前台可見內容皆需 zh／en 雙欄位）與可選的英文題目文字、下拉選項的
@@ -1951,7 +1950,7 @@ IF NOT EXISTS (SELECT 1 FROM faq_embed_slots WHERE code = {esc(code)})
 # ============================================================================
 FORM_CODES = [
     "join_player", "academy_children_training", "camp_registration", "international_player_enquiry",
-    "partnership_sponsorship", "media_enquiry", "general_contact", "proposal_download", "donation_enquiry",
+    "partnership_sponsorship", "media_enquiry", "general_contact", "proposal_download",
 ]
 
 
@@ -2052,15 +2051,9 @@ FORM_FIELD_DEFAULTS = {
         field("contact", "text", True, label_zh="Email", label_en="Email"),
         CONSENT_FIELD,
     ],
-    "donation_enquiry": [  # 🔴 規劃書未定義欄位，本輪最小可行自訂（見上方檔頭說明）
-        field("name", "text", True, label_zh="姓名", label_en="Name"),
-        field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
-        field("message", "textarea", label_zh="洽詢內容", label_en="Enquiry Message", summary=True),  # 內容摘要來源
-        CONSENT_FIELD,
-    ],
 }
 
-emit("-- ── 22. forms／form_fields／form_fields_i18n：9 個固定表單目錄 ＋ 預設欄位，兩俱樂部各種一份 ──")
+emit("-- ── 22. forms／form_fields／form_fields_i18n：8 個固定表單目錄 ＋ 預設欄位，兩俱樂部各種一份 ──")
 for club_code in ("tcrfc", "bw"):
     club_ref = CLUB_TCRFC if club_code == "tcrfc" else CLUB_BW
     for form_code in FORM_CODES:
