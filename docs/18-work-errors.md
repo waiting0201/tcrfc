@@ -3063,3 +3063,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：多步驟指令用 `;` 串接，沒用 `&&`，前一步失敗不會阻止後一步；commit 前沒有看 `git diff --cached --stat` 核對內容。
 - **下次怎麼避免**：會產生副作用的步驟（commit、遷移、刪檔）一律用 `&&` 接在檢查之後；commit 前先 `git diff --cached --stat` 確認清單符合預期；改程式檔避免用 shell 字串內嵌程式碼，改用編輯工具。`eslint --fix` 只對本次改動的檔案跑。
 - **防呆**：無。
+
+### E-311 把 XCTest 的「N failures (0 unexpected)」讀成「全部通過、只有預期失敗」，替一個真缺陷背書（2026-10-10，主 session）
+
+- **錯在哪**：iOS 全套輸出 `Executed 180 tests, with 2 failures (0 unexpected)`，我向使用者回報「0 unexpected、那 2 筆是測試標註的預期失敗」，並把 App agent 回報的失敗判成不穩定測試。實際上 XCTest 的 `unexpected` 只計未捕捉例外，斷言失敗不算在內；那 2 筆是 `PhaseDTests.testOfflineDisplayUsesPrefetchButNeverMeasuresOrQueuesEvents` 的兩個真斷言失敗（離線時廣告版位不顯示預載素材），且改動前後都穩定失敗。
+- **根因（可改掉的行為）**：只看摘要列的字面猜語意，沒有 grep 失敗的 `Test Case ... failed` 行或回頭看測試原始碼有沒有 `XCTExpectFailure`；我自己的 grep 條件剛好濾掉了斷言失敗行，卻把「沒抓到失敗行」當成「沒有失敗」。
+- **下次怎麼避免**：判讀 iOS 測試結果以 `failures` 數為準（必須為 0），`unexpected` 不代表通過；要宣稱「預期失敗」前先在原始碼找到 `XCTExpectFailure`。比對基準時用 `-resultBundlePath` 或 `grep -E "error: -\[|failed \("` 取出逐項失敗，而不是只看摘要。
+- **防呆**：無。修正：已派工修該缺陷（iOS repo）。
