@@ -16,6 +16,7 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import PrivacyConsentCard from '@/components/PrivacyConsentCard.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
@@ -56,6 +57,8 @@ const form = reactive({
 const baselineJson = ref('')
 const registrationNo = ref('')
 const memberId = ref<string | null>(null)
+const privacyConsentedAt = ref<string | null>(null)
+const privacyPolicyVersion = ref<string | null>(null)
 const trialLabel = ref('')
 const trialQuota = ref<{ capacity: number | null; enrolled: number } | null>(null)
 /** 會佔用名額的狀態（與狀態說明文字一致）。 */
@@ -99,6 +102,8 @@ function applyDetail(d: TrialRegistrationDetailDto) {
   form.status = d.status
   registrationNo.value = d.registrationNo
   memberId.value = d.memberId ?? null
+  privacyConsentedAt.value = d.privacyConsentedAt ?? null
+  privacyPolicyVersion.value = d.privacyPolicyVersion ?? null
   originalStatus.value = d.status
   serverOver.value = typeof d.isOverCapacity === 'boolean' ? d.isOverCapacity : null
 }
@@ -283,6 +288,7 @@ async function handleSave() {
               <p class="trial-reg-edit__hint">「待確認、已確認、已繳費、完成」會佔用名額，「取消、候補」不佔。候補要遞補時，請回名單按「遞補」。</p>
               <p v-if="memberId" class="trial-reg-edit__hint">這筆報名已關聯會員帳號，這裡不能變更。</p>
             </el-card>
+            <PrivacyConsentCard v-if="!isCreate" :consented-at="privacyConsentedAt" :policy-version="privacyPolicyVersion" />
           </template>
         </EditLayout>
       </el-form>

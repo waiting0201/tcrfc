@@ -106,6 +106,11 @@ async function onSubmit() {
     errorMessage.value = tx('未滿 18 歲的報名者，請填寫家長／緊急聯絡人的姓名與電話。', 'Registrants under 18 must provide the name and phone number of a parent or emergency contact.')
     return
   }
+  if (!privacyConsent.value) {
+    phase.value = 'error'
+    errorMessage.value = tx('請先閱讀並勾選同意隱私權政策，才能送出。', 'Please read and agree to the Privacy Policy before submitting.')
+    return
+  }
   // 誘捕欄位有值＝機器人：安靜當作成功，不送出（端點本身另有依 IP 的限流）。
   if (website.value) { phase.value = 'success'; result.value = null; return }
 
@@ -124,6 +129,7 @@ async function onSubmit() {
           guardianName: guardianName.value.trim() || undefined,
           guardianPhone: guardianPhone.value.trim() || undefined,
           healthDeclaration: healthConsent.value ? HEALTH_DECLARATION_MARKER : undefined,
+          privacyConsent: true,
           note: note.value.trim() || undefined,
         },
       },
@@ -142,6 +148,7 @@ function registerAnother() {
   birthOn.value = ''
   note.value = ''
   healthConsent.value = false
+  privacyConsent.value = false
   result.value = null
   phase.value = 'idle'
   errorMessage.value = ''

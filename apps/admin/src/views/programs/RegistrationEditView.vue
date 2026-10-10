@@ -19,6 +19,7 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import PrivacyConsentCard from '@/components/PrivacyConsentCard.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
@@ -52,6 +53,8 @@ const form = reactive({
 const baselineJson = ref('')
 const registrationNo = ref('')
 const memberId = ref<string | null>(null)
+const privacyConsentedAt = ref<string | null>(null)
+const privacyPolicyVersion = ref<string | null>(null)
 
 const sessions = ref<AdminSessionListItemDto[]>([])
 const sessionLabelById = computed(() => {
@@ -97,6 +100,8 @@ async function loadRegistration() {
       form.status = detail.status as RegistrationStatus
       registrationNo.value = detail.registrationNo
       memberId.value = detail.memberId ?? null
+      privacyConsentedAt.value = detail.privacyConsentedAt ?? null
+      privacyPolicyVersion.value = detail.privacyPolicyVersion ?? null
     } else if (route.query.sessionId) {
       form.sessionId = String(route.query.sessionId)
     }
@@ -339,6 +344,7 @@ function retryLoad() {
                 </el-select>
               </FormField>
             </el-card>
+            <PrivacyConsentCard v-if="!isCreate" :consented-at="privacyConsentedAt" :policy-version="privacyPolicyVersion" />
           </template>
         </EditLayout>
       </el-form>

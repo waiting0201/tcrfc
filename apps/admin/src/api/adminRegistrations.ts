@@ -43,6 +43,10 @@ export interface AdminRegistrationDetailDto {
   guardianPhone?: string | null
   healthDeclaration?: string | null
   note?: string | null
+  /** 訪客送出時同意隱私權政策的時間（UTC，唯讀）；後台代填或舊資料為空。 */
+  privacyConsentedAt?: string | null
+  /** 同意當下的隱私權政策版本（唯讀）。 */
+  privacyPolicyVersion?: string | null
   status: string
   createdAt: string
   updatedAt: string

@@ -39,6 +39,10 @@ export interface AdminEnquiryDetailDto {
   tags?: string | null
   assigneeAdminUserId?: string | null
   answers: AdminEnquiryAnswerDto[]
+  /** 訪客送出時同意隱私權政策的時間（UTC，唯讀）；沒有同意型欄位或舊資料為空。 */
+  privacyConsentedAt?: string | null
+  /** 同意當下的隱私權政策版本（唯讀）。 */
+  privacyPolicyVersion?: string | null
   createdAt: string
   updatedAt: string
 }

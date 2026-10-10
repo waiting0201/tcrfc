@@ -30,7 +30,7 @@
 - **B-17**：提案下載經 `Features/Proposals` 寫入 `form_code='proposal_download'`，收件匣分頁有資料，**非重複** ✅；捐助洽詢 ✅ **使用者 2026-10-09 拍板：整個拿掉**（規劃書 v3.25 已刪 G2 分頁與 `Enquiry` 涵蓋，記錄在 `docs/15`），**已實作（2026-10-10）**：`FormCatalog`／種子／正式庫參照資料／測試／後台 `types/forms.ts` 與表單清單說明全數移除（表單 9 → 8 種），收縮遷移 `db/migrations/20261010_donation-enquiry-drop_2-contract.sql`（新版 API 上線後才套用）。
 - **B-5**：規劃書 G-01 已固定繁中／英文、回退繁中，後台側欄已隱藏「多語系」→ 建議以「規格已固定、不接」結案。**C-5**：過渡設計，待客戶內容到位、後台建立第一筆後再移除寫死版。
 - 零星項 ✅：首頁近期賽事接 `homeTeamCodes`；職員分組英文名登錄 `docs/06`（初稿待確認）；榮譽對話框逐欄錯誤；積分榜 `StandingRowDto.isFallbackLocale`（後端＋前台）。
-- **F 類**：轉址正規化（有／無結尾斜線視為同一網址）＋儲存時迴圈偵測 ✅；賽程多隊賽事重複列與計數 ✅（`MatchesRepository`、`CalendarRepository` 的 `COUNT(DISTINCT)`）；廣告備援連結放行 `tcrfc://` ✅（App 規劃書 §2.3、§7）；球迷活動與媒體封面雙語 Alt ✅（`cover_alt`，展開遷移 `ClubCoverAltExpand`）；慈善計畫詳情夥伴／贊助商只顯示期間內者 ✅ **已拍板（2026-10-09，規劃書 v3.25 3.11 11.2），已實作（2026-10-10）**：夥伴看 `start_on`／`end_on`、贊助商看 `contract_start_on`／`contract_end_on`，與 `PartnersRepository` 公開列表共用 `Common/PublicPeriodFilter`；報名隱私同意留存 ✅ **已拍板（同日，v3.25 5.1 `Registration`／`Enquiry`，App v3.18 連動），後端已實作（2026-10-10）**：`registrations`／`enquiries` 新增 `privacy_consented_at`、`privacy_policy_version`（伺服器寫入；請求須帶 `privacyConsent: true`，課程與試訓報名沒勾 400）；版本由 `settings.legal.privacy_policy_version` 維護（後台全域設定 `privacyPolicyVersion`）。🔴 **前台尚須配合送出 `privacyConsent`**，否則課程與試訓報名會 400；後台三張明細待顯示兩欄。
+- **F 類**：轉址正規化（有／無結尾斜線視為同一網址）＋儲存時迴圈偵測 ✅；賽程多隊賽事重複列與計數 ✅（`MatchesRepository`、`CalendarRepository` 的 `COUNT(DISTINCT)`）；廣告備援連結放行 `tcrfc://` ✅（App 規劃書 §2.3、§7）；球迷活動與媒體封面雙語 Alt ✅（`cover_alt`，展開遷移 `ClubCoverAltExpand`）；慈善計畫詳情夥伴／贊助商只顯示期間內者 ✅ **已拍板（2026-10-09，規劃書 v3.25 3.11 11.2），已實作（2026-10-10）**：夥伴看 `start_on`／`end_on`、贊助商看 `contract_start_on`／`contract_end_on`，與 `PartnersRepository` 公開列表共用 `Common/PublicPeriodFilter`；報名隱私同意留存 ✅ **已拍板（同日，v3.25 5.1 `Registration`／`Enquiry`，App v3.18 連動），後端已實作（2026-10-10）**：`registrations`／`enquiries` 新增 `privacy_consented_at`、`privacy_policy_version`（伺服器寫入；請求須帶 `privacyConsent: true`，課程與試訓報名沒勾 400）；版本由 `settings.legal.privacy_policy_version` 維護（後台全域設定 `privacyPolicyVersion`）。**前端已接（2026-10-10）**：`apps/web` 的 `ProgramRegistration.vue`、`TrialSchedule.vue` 請求本文送 `privacyConsent: true`（未勾先擋，並補一個 JS 防線）；後台報名／試訓名單／收件匣明細顯示唯讀 `privacyConsentedAt`（台灣時間）與 `privacyPolicyVersion`（元件 `PrivacyConsentCard.vue`），全域設定頁加版本編號欄。尚未做瀏覽器實機驗收。
 - 同批順帶：`ad_creatives.click_url` 改用同一套連結規則（原本 `tcrfc://` 開頭即不驗）；球員數據 `PlayerSeasonStatDto.isFallbackLocale`；後台球迷活動與媒體專區補「圖片說明」輸入、前台封面 alt 改讀 `coverAlt`。
 - API 測試 1562／1562；後台與前台 lint、build 通過。**全部未實機驗收**。
 
@@ -111,7 +111,7 @@
 
 ## F. ❓ 其他待確認
 
-- 報名的隱私同意只勾選不留存（`privacyConsent` 未送出）——若需留同意紀錄即為缺口。
+- 報名的隱私同意只勾選不留存（`privacyConsent` 未送出）——已於 2026-10-10 補上（後端留存、前端送出、後台顯示）。
 - 轉址 `fromPath` 不正規化（結尾斜線），`/zh/about` 打不到 `/zh/about/`；無迴圈偵測。
 - 賽程列表多隊賽事 JOIN `match_teams` 無 DISTINCT，可能重複列。
 - 廣告版位「備援連結」UI 說可填 App 連結，API 只收 https（`AdminAdSlotsRepository.cs:158`）。

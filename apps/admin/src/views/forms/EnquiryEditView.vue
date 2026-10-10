@@ -58,6 +58,8 @@ const sourcePath = ref<string | null>(null)
 const utmSource = ref<string | null>(null)
 const utmCampaign = ref<string | null>(null)
 const createdAt = ref('')
+const privacyConsentedAt = ref<string | null>(null)
+const privacyPolicyVersion = ref<string | null>(null)
 const answers = ref<AdminEnquiryAnswerDto[]>([])
 /** `fieldKey` → 題目文字，來自 `getPublicForm` 的即時對照（見檔頭說明）。載入失敗或答案引用的
  * 欄位已被刪除時，`fieldLabel()` 會退回顯示原始欄位代碼本身。 */
@@ -124,6 +126,8 @@ async function loadEnquiry() {
     utmSource.value = detail.utmSource ?? null
     utmCampaign.value = detail.utmCampaign ?? null
     createdAt.value = detail.createdAt
+    privacyConsentedAt.value = detail.privacyConsentedAt ?? null
+    privacyPolicyVersion.value = detail.privacyPolicyVersion ?? null
     answers.value = detail.answers
     form.status = detail.status ?? '新進'
     form.assigneeAdminUserId = detail.assigneeAdminUserId ?? null
@@ -258,6 +262,14 @@ function retryLoad() {
                 <div class="enquiry-edit__meta-row">
                   <dt>送出時間</dt>
                   <dd>{{ formatDateTime(createdAt) }}</dd>
+                </div>
+                <div class="enquiry-edit__meta-row">
+                  <dt>同意隱私權政策時間</dt>
+                  <dd>{{ privacyConsentedAt ? formatDateTime(privacyConsentedAt) : '無紀錄（舊資料或表單沒有同意欄位）' }}</dd>
+                </div>
+                <div class="enquiry-edit__meta-row">
+                  <dt>同意的政策版本</dt>
+                  <dd>{{ privacyPolicyVersion || '無紀錄（舊資料或表單沒有同意欄位）' }}</dd>
                 </div>
               </dl>
 

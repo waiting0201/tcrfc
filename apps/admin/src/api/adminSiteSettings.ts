@@ -20,6 +20,8 @@ export interface AdminPolicy {
 
 export interface AdminGlobalSettingsDto {
   policies: AdminPolicy[]
+  /** 目前的隱私權政策版本編號（沒設定時後端回預設 1.0）。 */
+  privacyPolicyVersion?: string | null
   maintenance: { enabled: boolean; messageZh?: string | null; messageEn?: string | null; updatedAt?: string | null }
 }
 
@@ -32,6 +34,8 @@ export interface UpdateGlobalSettingsPayload {
   cookiePolicy: PolicyInput
   privacyPolicy: PolicyInput
   memberTerms: PolicyInput
+  /** 省略＝維持不變；空字串＝回到預設 1.0；上限 50 字。 */
+  privacyPolicyVersion?: string
   maintenanceEnabled: boolean
   maintenanceMessageZh: string
   maintenanceMessageEn: string

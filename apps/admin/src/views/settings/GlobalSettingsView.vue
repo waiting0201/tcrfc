@@ -36,6 +36,7 @@ const canUpdate = usePermission('site.global.update')
 const club = computed(() => activeClubId.value)
 
 const POLICY_MAX = 50000
+const PRIVACY_VERSION_MAX = 50
 const MAINTENANCE_MAX = 500
 
 const loadState = ref<'loading' | 'ready' | 'error'>('loading')
@@ -57,6 +58,7 @@ const form = reactive({
   privacyEn: '',
   termsZh: '',
   termsEn: '',
+  privacyPolicyVersion: '',
   maintenanceEnabled: false,
   maintenanceMessageZh: '',
   maintenanceMessageEn: '',
@@ -81,6 +83,7 @@ function apply(d: AdminGlobalSettingsDto) {
   form.privacyEn = privacy?.bodyEn ?? ''
   form.termsZh = terms?.bodyZh ?? ''
   form.termsEn = terms?.bodyEn ?? ''
+  form.privacyPolicyVersion = d.privacyPolicyVersion ?? ''
   policyUpdatedAt.cookie = cookie?.updatedAt ?? null
   policyUpdatedAt.privacy = privacy?.updatedAt ?? null
   policyUpdatedAt['member-terms'] = terms?.updatedAt ?? null
@@ -155,6 +158,7 @@ async function handleSave() {
         cookiePolicy: { bodyZh: form.cookieZh, bodyEn: form.cookieEn },
         privacyPolicy: { bodyZh: form.privacyZh, bodyEn: form.privacyEn },
         memberTerms: { bodyZh: form.termsZh, bodyEn: form.termsEn },
+        privacyPolicyVersion: form.privacyPolicyVersion.trim(),
         maintenanceEnabled: form.maintenanceEnabled,
         maintenanceMessageZh: form.maintenanceMessageZh,
         maintenanceMessageEn: form.maintenanceMessageEn,
@@ -201,6 +205,10 @@ const POLICY_BLOCKS = [
               <el-card shadow="never">
                 <FormSection title="政策與條款">
                   <p class="global-settings__hint">內容是純文字，用空白行分段，不支援粗體、連結等格式。每則最多 {{ POLICY_MAX.toLocaleString() }} 字；英文留空時，英文版前台會顯示中文內容。</p>
+                  <FormField field="privacyPolicyVersion" label="隱私權政策版本編號">
+                    <el-input v-model="form.privacyPolicyVersion" :maxlength="PRIVACY_VERSION_MAX" show-word-limit placeholder="例如：1.0、2026-10" style="max-width: 280px" />
+                    <div class="global-settings__hint">每次修訂隱私權政策時更新。訪客送出報名或表單時，系統會記下當時的版本編號；留空會使用預設的 1.0。</div>
+                  </FormField>
                   <el-collapse v-model="openPolicies">
                     <el-collapse-item v-for="p in POLICY_BLOCKS" :key="p.key" :name="p.key">
                       <template #title>
