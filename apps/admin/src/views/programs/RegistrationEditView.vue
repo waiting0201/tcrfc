@@ -333,7 +333,7 @@ function retryLoad() {
                 <p v-if="!isCreate" class="registration-edit__hint">更換梯次即為「轉梯次」，會自動調整新舊梯次的已報名數。</p>
               </FormField>
               <p v-if="memberId" class="registration-edit__hint">
-                這筆報名關聯既有會員（會員系統 K1 尚未開發，這裡僅顯示是否關聯，無法在此變更或搜尋會員）。
+                這筆報名關聯既有會員（會員系統尚未開放，這裡僅顯示是否關聯，無法在此變更或搜尋會員）。
               </p>
             </el-card>
 
@@ -343,8 +343,8 @@ function retryLoad() {
                   <el-option v-for="s in REGISTRATION_STATUS_ORDER" :key="s" :label="s" :value="s" />
                 </el-select>
               </FormField>
+              <PrivacyConsentCard v-if="!isCreate" :consented-at="privacyConsentedAt" :policy-version="privacyPolicyVersion" />
             </el-card>
-            <PrivacyConsentCard v-if="!isCreate" :consented-at="privacyConsentedAt" :policy-version="privacyPolicyVersion" />
           </template>
         </EditLayout>
       </el-form>

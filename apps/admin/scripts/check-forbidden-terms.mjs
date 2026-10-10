@@ -80,8 +80,11 @@ function listVueFiles(dir) {
 }
 
 function extractTemplateBlock(source) {
-  const match = source.match(/<template>([\s\S]*?)<\/template>/)
-  return match ? match[1] : ''
+  // 頂層 <template> 內會有巢狀的 <template #main> 等具名插槽，必須取到「最後一個」</template>，
+  // 非貪婪比對只會掃到第一個巢狀插槽關閉為止，EditLayout 的主欄／側欄文字整段漏掃（E-314）。
+  const start = source.indexOf('<template>')
+  const end = source.lastIndexOf('</template>')
+  return start >= 0 && end > start ? source.slice(start + '<template>'.length, end) : ''
 }
 
 function extractDisplayText(template) {
@@ -195,6 +198,20 @@ function scanTemplateLeaks(displayText) {
   return findings
 }
 
+// 「使用者要自己輸入的資料範例」：欄位本身的內容就是這個字串，不是系統內部名詞外露。
+// 每一條都要寫明理由；新增前先確認不是可以改成日常中文說法的情況（E-314）。
+const DATA_EXAMPLE_EXEMPT = [
+  { file: 'views/ads/parts/SlotTab.vue', match: /WebP/i, why: '「允許的檔案格式」欄位的輸入範例（jpg,png,webp）' },
+  { file: 'views/seo/LlmsContentView.vue', match: /taichungrock\.example/, why: '聯絡信箱範例網域' },
+  { file: 'views/seo/SeoSettingsView.vue', match: /robots\.txt/, why: '檔案名稱本身就是這個欄位的產品名（線上編輯 robots.txt）' },
+  { file: 'views/settings/parts/UiStringsPanel.vue', match: /button\.submit/, why: '字串代號欄位的輸入範例' },
+  { file: 'views/teams/TeamEditView.vue', match: /\b(D1|BW1)\b/, why: '「隊別代號」欄位的輸入範例（欄位本身就是代號，是否改名待規格裁決）' },
+]
+
+function isExempt(file, finding) {
+  return DATA_EXAMPLE_EXEMPT.some((e) => file.endsWith(e.file) && e.match.test(finding))
+}
+
 function main() {
   const files = listVueFiles(SRC_DIR)
   let hasError = false
@@ -204,6 +221,7 @@ function main() {
     const template = extractTemplateBlock(source)
     const displayText = template ? extractDisplayText(template) : ''
     const findings = [...(template ? scanText(displayText) : []), ...scanTemplateLeaks(displayText), ...scanScriptLeaks(source)]
+      .filter((f) => !isExempt(file, f))
 
     if (findings.length > 0) {
       hasError = true

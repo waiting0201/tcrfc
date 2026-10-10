@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import { computed, reactive, ref, shallowRef, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -126,8 +126,10 @@ const ogImageFile = ref<File | null>(null)
 const removeOgImage = ref(false)
 
 function applyLoadedArticle(article: NewsArticle) {
-  baseline.value = article
   Object.assign(form, structuredClone(article))
+  // baseline 必須是 form 自己的鍵順序：isDirty 用 JSON.stringify 比對，鍵順序不同（例如 emptyArticle
+  // 沒有的 statusAt 會被 Object.assign 附加在最後）就會讓「剛載入、什麼都沒改」被判成有未儲存變更（E-313）。
+  baseline.value = structuredClone(toRaw(form))
   currentId.value = article.id
   coverFile.value = null
   removeCover.value = false

@@ -330,7 +330,7 @@ function handleBack() {
               </FormSection>
 
               <FormSection v-if="!isCreate" title="俱樂部授權">
-                <p class="account-edit__hint">指派這個帳號可以在站台切換器操作哪些俱樂部（J4）。</p>
+                <p class="account-edit__hint">指派這個帳號可以在站台切換器操作哪些俱樂部。</p>
                 <el-table :data="clubGrants" size="small" class="account-edit__grant-table">
                   <el-table-column label="俱樂部" prop="clubCode" width="120" />
                   <el-table-column label="授權起日" prop="grantedOn" width="120" />

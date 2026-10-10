@@ -287,8 +287,8 @@ async function handleSave() {
               </FormField>
               <p class="trial-reg-edit__hint">「待確認、已確認、已繳費、完成」會佔用名額，「取消、候補」不佔。候補要遞補時，請回名單按「遞補」。</p>
               <p v-if="memberId" class="trial-reg-edit__hint">這筆報名已關聯會員帳號，這裡不能變更。</p>
+              <PrivacyConsentCard v-if="!isCreate" :consented-at="privacyConsentedAt" :policy-version="privacyPolicyVersion" />
             </el-card>
-            <PrivacyConsentCard v-if="!isCreate" :consented-at="privacyConsentedAt" :policy-version="privacyPolicyVersion" />
           </template>
         </EditLayout>
       </el-form>

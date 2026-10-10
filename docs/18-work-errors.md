@@ -3072,3 +3072,35 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **後續查明**：該失敗不是產品缺陷，是**測試的時間地雷**——`FixtureContentAPI(today: 2026-10-05 12:00)` 產出的預載目錄 `validUntil` 為 +10 小時，而 `AppContainer` 的 `ServerClock()` 用真實時鐘，過了 2026-10-05 22:00（台北）整份預載依規格被清除，測試從此必敗；產品行為符合 App 規劃書 §2.4。已在 iOS repo 改為 `FixtureContentAPI(today: Date())`，iOS 181／0 failures、Android 332／0 failures（Android 同類測試注入 `FakeClock`，無此問題）。
 - **同類防範（時間地雷）**：測試資料若有到期欄位（`validUntil`、`endsAt`、檔期、權杖期限），要嘛整條路徑注入固定時鐘，要嘛以「現在」為基準產生資料；不得固定日期資料搭配真實時鐘。
 - **防呆**：無。
+
+### E-312 頁尾寫死「加入學院」連結，藍鯨站點下去是 404；同單元的頁首有 `isUnitEnabledForClub` 過濾、頁尾漏了（2026-10-10，S2-21／S2-24 實機驗收）
+
+- **錯在哪**：`SiteFooter.vue` 的「加入青年隊」連結指向 `/zh/academy/join/`，該頁 `unit: '4.7'` 對藍鯨整頁 404（`units.ts`），但頁尾沒有過濾，藍鯨每一頁的頁尾都帶一條死連結。頁首 `SiteHeader.vue` 同一條連結有 `v-if="isUnitEnabledForClub('4.7', club)"`。S2-24 把選單改為前台寫死後，頁首與頁尾各維護一份連結，只有頁首套了單元開關。
+- **根因（可改掉的行為）**：頁首、頁尾兩處各自手寫同一批連結，新增或調整連結時只改（或只檢查）其中一處；現有檢查（`lint:site-units-coverage`）只比對頁面是否宣告單元，不比對「版型內連到被關閉單元的連結」。是 `npm run lint` 全綠、靠爬站（雙站各 120 頁，找非 200 的內部連結）才抓到。
+- **下次怎麼避免**：版型寫死連結時，凡指向帶 `unit` 的頁面，頁首、行動版選單、頁尾三處都要套同一個 `isUnitEnabledForClub`；改完對兩站（`NUXT_PUBLIC_CLUB=tcrfc`／`bw`）各爬一次站確認沒有非 200 的內部連結。
+- **修正**：`SiteFooter.vue` 新增 `showAcademyJoin`，連結加 `v-if`；兩站爬站 `zh`／`en` 各 120 頁無非 200。
+- **防呆**：無（建議日後把「版型連結指向被關閉單元」納入 `check-site-units-coverage.mjs`）。
+
+### E-313 新聞編輯頁一載入就判定「有未儲存變更」，離開時每次都跳警告（2026-10-10，S2-22／S2-25 後台實機驗收）
+
+- **錯在哪**：`NewsEditView.vue` 的 `isDirty` 用 `JSON.stringify(form) !== JSON.stringify(baseline)` 比對；`form` 以 `emptyArticle()` 的鍵順序建立，`baseline` 是 API 轉出的物件，兩者鍵順序不同（`statusAt` 在 `emptyArticle()` 沒有，經 `Object.assign` 附加在最後；DTO 轉換則放在 `status` 後面）。結果任何既有文章開啟後什麼都沒改，離開也會跳「這頁還有未儲存的變更」（實測 8 篇全部命中）。
+- **根因（可改掉的行為）**：用字串化比較物件相等，卻讓兩個物件由不同來源（空表單模板／DTO 映射）建立，沒有確認鍵順序一致；其他編輯頁沒犯是因為各自的載入函式用同一個形狀。
+- **下次怎麼避免**：以 `JSON.stringify` 做 dirty 判斷時，`baseline` 必須由「載入完成後的 `form` 本身」複製而來（不是另一個來源的物件）。
+- **修正**：`NewsEditView.vue` `applyLoadedArticle` 先 `Object.assign(form, …)`，再以 `structuredClone(toRaw(form))` 建 `baseline`；實測 8 篇開啟後離開皆不再跳警告。
+- **防呆**：無（`check-editview-reactivity` 只查路由狀態；可日後加一支「載入後不得為 dirty」的瀏覽器煙霧測試）。
+
+### E-314 `check-forbidden-terms.mjs` 只掃到第一個巢狀 `</template>`，所有用 `EditLayout` 具名插槽的編輯頁畫面文字整段沒被掃描（2026-10-10，S2-22 後台實機驗收）
+
+- **錯在哪**：`extractTemplateBlock` 用非貪婪 `/<template>([\s\S]*?)<\/template>/`，頂層 `<template>` 內第一個 `<template #main>` 的 `</template>` 就結束，之後的主欄／側欄全沒掃。結果 `lint:forbidden-terms` 長期「通過」，實際畫面仍有 `K1`（報名編輯頁「會員系統 K1 尚未開發」）、`J4`（帳號編輯頁「（J4）」）。
+- **根因（可改掉的行為）**：寫掃描腳本時沒有拿「已知會出現違規的檔案」做反例驗證（E-05 同類：檢查腳本自己有盲點，長期回報全綠）。
+- **下次怎麼避免**：改或新增 lint 時，先在一個含巢狀結構的檔案植入違規字串，確認會被抓到再收工。
+- **修正**：改為取第一個 `<template>` 到「最後一個」`</template>`；掃出的真違規已改文字（`RegistrationEditView.vue` 拿掉 K1、`AccountEditView.vue` 拿掉 J4）；其餘 5 處是「使用者要輸入的資料範例」（`WebP`／`taichungrock.example`／`robots.txt`／`button.submit`／隊別代號欄位的 `D1、BW1`），列入腳本內的 `DATA_EXAMPLE_EXEMPT`（每條附理由）。❓ `TeamEditView` 的隊別代號範例是否該改，待規格裁決（`docs/06` §1 說隊別代號不外露，但該欄位本身就是代號）。
+- **防呆**：腳本本身（已修）；`DATA_EXAMPLE_EXEMPT` 逐條有理由。
+
+### E-315 隱私權同意紀錄在報名與試訓報名編輯頁多開第四張卡，違反 S2-22「每頁最多三張卡」，`lint:edit-layout` 沒抓到（2026-10-10，S2-22 後台實機驗收）
+
+- **錯在哪**：10-10 新增的 `PrivacyConsentCard.vue` 自己是一張 `el-card`，放在側欄「發布設定」之後，報名／試訓報名編輯頁因此有「主欄、基本設定、發布設定、隱私權同意紀錄」四張卡。
+- **根因（可改掉的行為）**：新增唯讀資訊區塊時只想到「做成卡片元件」，沒回頭看 `docs/21` §3.3a 的卡片數規則；`lint:edit-layout` 只數 `EditLayout` 插槽內直接寫的 `el-card`，元件內部開的卡數不到。
+- **下次怎麼避免**：編輯頁要加資訊區塊一律用 `FormSection` 放進既有卡片，不再包裝成會自己開卡的元件。
+- **修正**：`PrivacyConsentCard.vue` 改為 `FormSection`，兩個編輯頁把它放進「發布設定」卡內；實測報名編輯頁回到三張卡。
+- **防呆**：無（可日後讓 `lint:edit-layout` 解析被引用的元件是否根節點為 `el-card`）。

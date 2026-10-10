@@ -25,6 +25,8 @@ const acaEn = computed(() => (club.value === 'bw' ? 'Youth' : 'Academy'))
 const clubShortName = computed(() => (isEn.value ? clubNameEn.value : assets.value.shortNameZh))
 const showWomens = computed(() => isUnitEnabledForClub('06', club.value))
 const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
+// 4.7 加入學院只服務磐石（units.ts 對藍鯨整頁 404），頁首已用同一個開關過濾，頁尾必須一致。
+const showAcademyJoin = computed(() => isUnitEnabledForClub('4.7', club.value))
 
 // 頁尾導覽連結（本檔 19 處 href）一律用 lp() 換算成目前語系版本（S1-13，
 // shared/utils/locale.ts 單一真實來源）；語系切換器本身另外用 switchTo()。
@@ -120,7 +122,7 @@ async function onSubscribe() {
             <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
             <li v-if="showWomens"><a :href="lp('/zh/womens/')">{{ tx('女子足球', "Women's Football") }}</a></li>
             <li><a :href="lp('/zh/join/player/')">{{ tx('加入球隊', 'Join as a Player') }}</a></li>
-            <li><a :href="lp('/zh/academy/join/')">{{ isEn ? `Join the ${club === 'bw' ? 'Youth Teams' : 'Academy'}` : '加入' + identity.academyShortLabelZh }}</a></li>
+            <li v-if="showAcademyJoin"><a :href="lp('/zh/academy/join/')">{{ isEn ? `Join the ${club === 'bw' ? 'Youth Teams' : 'Academy'}` : '加入' + identity.academyShortLabelZh }}</a></li>
           </ul>
         </div>
         <div class="footer-col">
