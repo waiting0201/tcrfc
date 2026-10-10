@@ -67,16 +67,20 @@ public static class AdminPlayersEndpoints
 
             var playerId = Guid.NewGuid();
             string? photoKey = null;
+            int? photoWidth = null;
+            int? photoHeight = null;
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("players", "photo");
                 var uploaded = await UploadPhotoAsync(scope, playerId, file, imageStorage, cancellationToken);
                 photoKey = uploaded.Key;
+                photoWidth = uploaded.Width;
+                photoHeight = uploaded.Height;
             }
 
             try
             {
-                var created = await repository.CreateAsync(scope, rowScope, playerId, request, photoKey, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(scope, rowScope, playerId, request, photoKey, photoWidth, photoHeight, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/players/{created.Id}", created);
             }
             catch
@@ -122,7 +126,7 @@ public static class AdminPlayersEndpoints
                 UploadSlotPolicy.Validate("players", "photo");
                 var uploaded = await UploadPhotoAsync(scope, id, file, imageStorage, cancellationToken);
                 uploadedKey = uploaded.Key;
-                photoUpdate = PhotoKeyUpdate.Set(uploaded.Key);
+                photoUpdate = PhotoKeyUpdate.Set(uploaded.Key, uploaded.Width, uploaded.Height);
             }
             else if (request.RemovePhoto)
             {

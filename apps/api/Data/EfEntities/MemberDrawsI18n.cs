@@ -9,6 +9,8 @@ public partial class MemberDrawsI18n
 
     public string Locale { get; set; } = null!;
 
+    public string? CoverAlt { get; set; }
+
     public string? Name { get; set; }
 
     public string? PrizeDescription { get; set; }

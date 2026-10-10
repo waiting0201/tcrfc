@@ -22,9 +22,9 @@ public sealed class PlayersRepository(
     private sealed record PlayerRow(
         Guid Id, string Slug, string TeamCode, int? ShirtNo, string? Position, DateTime? BirthOn,
         int? HeightCm, int? WeightKg, string? Nationality, string? PreferredFoot, string? PhotoKey,
-        string PortraitConsentStatus, string? Status);
+        int? PhotoWidth, int? PhotoHeight, string PortraitConsentStatus, string? Status);
 
-    private sealed record PlayerI18nRow(Guid PlayerId, string Locale, string? Name, string? Bio);
+    private sealed record PlayerI18nRow(Guid PlayerId, string Locale, string? Name, string? Bio, string? PhotoAlt);
 
     /// <summary>
     /// 球員名單（<b>只回現役</b>：<c>status</c> 為 <c>active</c> 或尚未填寫；離隊／外借／海外發展不公開，稽核 A-2）。<paramref name="scope"/> 型別是 <see cref="ClubScope"/>——不是 Guid、不是 string，
@@ -57,7 +57,7 @@ public sealed class PlayersRepository(
                 const string listSql = """
                     SELECT p.id AS Id, p.slug AS Slug, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
                            p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
-                           p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey,
+                           p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey, p.photo_width AS PhotoWidth, p.photo_height AS PhotoHeight,
                            p.portrait_consent_status AS PortraitConsentStatus, p.status AS Status
                     FROM players p
                     JOIN teams t ON t.id = p.team_id
@@ -105,7 +105,7 @@ public sealed class PlayersRepository(
                 const string sql = """
                     SELECT p.id AS Id, p.slug AS Slug, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
                            p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
-                           p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey,
+                           p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey, p.photo_width AS PhotoWidth, p.photo_height AS PhotoHeight,
                            p.portrait_consent_status AS PortraitConsentStatus, p.status AS Status
                     FROM players p
                     JOIN teams t ON t.id = p.team_id
@@ -134,7 +134,7 @@ public sealed class PlayersRepository(
         }
 
         const string i18nSql = """
-            SELECT player_id AS PlayerId, locale AS Locale, name AS Name, bio AS Bio
+            SELECT player_id AS PlayerId, locale AS Locale, name AS Name, bio AS Bio, photo_alt AS PhotoAlt
             FROM players_i18n
             WHERE player_id IN @PlayerIds AND locale IN @Locales
             """;
@@ -182,6 +182,9 @@ public sealed class PlayersRepository(
             IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
             Bio = RequestLocale.Pick(requested?.Bio, fallback?.Bio),
             PhotoUrl = imageUrlResolver.Resolve(photoKey),
+            PhotoWidth = photoKey is null ? null : row.PhotoWidth,
+            PhotoHeight = photoKey is null ? null : row.PhotoHeight,
+            PhotoAlt = photoKey is null ? null : RequestLocale.Pick(requested?.PhotoAlt, fallback?.PhotoAlt),
             SchemaEligible = schemaEligible,
         };
     }

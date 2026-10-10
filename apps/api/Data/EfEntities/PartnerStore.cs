@@ -15,6 +15,10 @@ public partial class PartnerStore
 
     public string? ImageKey { get; set; }
 
+    public int? ImageWidth { get; set; }
+
+    public int? ImageHeight { get; set; }
+
     public string? Category { get; set; }
 
     public string? Address { get; set; }

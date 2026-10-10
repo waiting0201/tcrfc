@@ -59,6 +59,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
                 p.AgeMax,
                 p.Status,
                 p.CoverKey,
+                p.CoverWidth,
+                p.CoverHeight,
                 p.UpdatedAt,
                 SessionCount = p.Sessions.Count,
                 NameZh = p.ProgramsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
@@ -79,6 +81,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             CoverKey = r.CoverKey,
             CoverUrl = imageUrls.Resolve(r.CoverKey),
             CoverThumbUrl = imageUrls.ResolveThumbnail(r.CoverKey),
+            CoverWidth = r.CoverKey is null ? null : r.CoverWidth,
+            CoverHeight = r.CoverKey is null ? null : r.CoverHeight,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
             SessionCount = r.SessionCount,
@@ -98,7 +102,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
     }
 
     public async Task<AdminProgramDetailDto> CreateAsync(
-        AdminClubScope scope, Guid programId, CreateAdminProgramRequest request, string? coverKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid programId, CreateAdminProgramRequest request, string? coverKey, int? coverWidth, int? coverHeight, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateProgramType(request.ProgramType);
         ValidateStatus(request.Status);
@@ -127,6 +131,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             AgeMax = request.AgeMax,
             Status = request.Status ?? "draft",
             CoverKey = coverKey,
+            CoverWidth = coverKey is null ? null : coverWidth,
+            CoverHeight = coverKey is null ? null : coverHeight,
             CreatedAt = now,
             UpdatedAt = now,
             CreatedBy = operatorId,
@@ -194,6 +200,8 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         if (coverUpdate.Change)
         {
             program.CoverKey = coverUpdate.NewKey;
+            program.CoverWidth = coverUpdate.NewKey is null ? null : coverUpdate.Width;
+            program.CoverHeight = coverUpdate.NewKey is null ? null : coverUpdate.Height;
         }
 
         ApplyI18n(program, request.Content, audience, audienceEn);
@@ -301,6 +309,7 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         existing.Name = content?.Name;
         existing.Intro = content?.Intro;
         existing.Content = content?.Content;
+        existing.CoverAlt = string.IsNullOrWhiteSpace(content?.CoverAlt) ? null : content!.CoverAlt!.Trim();
         existing.Audience = audience;
     }
 
@@ -342,6 +351,16 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
             throw new AdminProgramValidationException("中文名稱為必填欄位。", "nameZh");
+        }
+
+        if ((content.Zh.CoverAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminProgramValidationException("封面圖片替代文字（中文）不可超過 200 字。", "coverAltZh");
+        }
+
+        if ((content.En?.CoverAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminProgramValidationException("封面圖片替代文字（英文）不可超過 200 字。", "coverAltEn");
         }
 
         ValidateContentJson(content.Zh.Content, "contentZh");
@@ -388,8 +407,10 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
             CoverKey = program.CoverKey,
             CoverUrl = imageUrls.Resolve(program.CoverKey),
             CoverThumbUrl = imageUrls.ResolveThumbnail(program.CoverKey),
-            Zh = new AdminProgramLocaleContent { Name = zh?.Name ?? "", Intro = zh?.Intro, Content = zh?.Content },
-            En = en is null || en.Name is null ? null : new AdminProgramLocaleContent { Name = en.Name, Intro = en.Intro, Content = en.Content },
+            CoverWidth = program.CoverKey is null ? null : program.CoverWidth,
+            CoverHeight = program.CoverKey is null ? null : program.CoverHeight,
+            Zh = new AdminProgramLocaleContent { Name = zh?.Name ?? "", Intro = zh?.Intro, Content = zh?.Content, CoverAlt = zh?.CoverAlt },
+            En = en is null || en.Name is null ? null : new AdminProgramLocaleContent { Name = en.Name, Intro = en.Intro, Content = en.Content, CoverAlt = en.CoverAlt },
             Staff = program.Staff
                 .Select(s => new AdminProgramStaffDto
                 {

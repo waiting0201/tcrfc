@@ -69,7 +69,7 @@ public sealed class AdminPartnerStoresRepository(
             .Select(s => new
             {
                 s.Id, s.Slug, s.ClubId, s.Category, s.Region, s.Address, s.Lat, s.Lng, s.Phone, s.ApplicableTier, s.StartOn, s.EndOn,
-                s.SortOrder, s.Status, s.ImageKey, s.UpdatedAt,
+                s.SortOrder, s.Status, s.ImageKey, s.ImageWidth, s.ImageHeight, s.UpdatedAt,
                 NameZh = s.PartnerStoresI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = s.PartnerStoresI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
                 OfferZh = s.PartnerStoresI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.OfferContent).FirstOrDefault(),
@@ -83,6 +83,7 @@ public sealed class AdminPartnerStoresRepository(
             Lat = r.Lat, Lng = r.Lng, Phone = r.Phone, ApplicableTier = r.ApplicableTier, ApplicableTierLabel = TierLabel(r.ApplicableTier),
             StartOn = r.StartOn, EndOn = r.EndOn, IsActive = IsActive(r.StartOn, r.EndOn, today), SortOrder = r.SortOrder, Status = r.Status,
             StatusLabel = StatusLabel(r.Status), ImageKey = r.ImageKey, ImageUrl = imageUrls.Resolve(r.ImageKey), ImageThumbUrl = Thumb(r.ImageKey),
+            ImageWidth = r.ImageKey is null ? null : r.ImageWidth, ImageHeight = r.ImageKey is null ? null : r.ImageHeight,
             NameZh = r.NameZh, NameEn = r.NameEn, OfferZh = r.OfferZh, UpdatedAt = r.UpdatedAt,
         }).ToList();
     }
@@ -119,7 +120,7 @@ public sealed class AdminPartnerStoresRepository(
         var now = DateTime.UtcNow;
         var store = new PartnerStore
         {
-            Id = id, ClubId = clubId, Slug = slug, ImageKey = image?.Key, CreatedAt = now, UpdatedAt = now, CreatedBy = operatorId, UpdatedBy = operatorId,
+            Id = id, ClubId = clubId, Slug = slug, ImageKey = image?.Key, ImageWidth = image?.Width, ImageHeight = image?.Height, CreatedAt = now, UpdatedAt = now, CreatedBy = operatorId, UpdatedBy = operatorId,
         };
         var (lat, lng, locateStatus) = await ResolveCoordinatesAsync(request, cancellationToken);
         Apply(store, request, v, lat, lng);
@@ -151,6 +152,8 @@ public sealed class AdminPartnerStoresRepository(
         {
             orphans.Image(store.ImageKey);
             store.ImageKey = image.Key;
+            store.ImageWidth = image.Key is null ? null : image.Width;
+            store.ImageHeight = image.Key is null ? null : image.Height;
         }
 
         var (lat, lng, locateStatus) = await ResolveCoordinatesAsync(request, cancellationToken);
@@ -252,10 +255,12 @@ public sealed class AdminPartnerStoresRepository(
 
         AdminInput.RequireText(request.Content.Zh.Name, "中文店名", 128, "nameZh");
         AdminInput.OptionalText(request.Content.Zh.Address, "中文地址", 500, "addressZh");
+        AdminInput.OptionalText(request.Content.Zh.ImageAlt, "店家圖片替代文字（中文）", 200, "imageAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
             AdminInput.RequireText(request.Content.En.Name, "英文店名", 128, "nameEn");
             AdminInput.OptionalText(request.Content.En.Address, "英文地址", 500, "addressEn");
+            AdminInput.OptionalText(request.Content.En.ImageAlt, "店家圖片替代文字（英文）", 200, "imageAltEn");
         }
 
         return new Validated(slug, category, region, phone, mapUrl, website, hours);
@@ -360,6 +365,7 @@ public sealed class AdminPartnerStoresRepository(
 
         row.Name = content.Name.Trim();
         row.OfferContent = string.IsNullOrWhiteSpace(content.OfferContent) ? null : content.OfferContent;
+        row.ImageAlt = string.IsNullOrWhiteSpace(content.ImageAlt) ? null : content.ImageAlt.Trim();
         row.Address = includeAddress && !string.IsNullOrWhiteSpace(content.Address) ? content.Address.Trim() : null;
     }
 
@@ -394,8 +400,9 @@ public sealed class AdminPartnerStoresRepository(
             MapUrl = store.MapUrl, WebsiteUrl = store.WebsiteUrl, ApplicableTier = store.ApplicableTier, ApplicableTierLabel = TierLabel(store.ApplicableTier),
             StartOn = store.StartOn, EndOn = store.EndOn, IsActive = IsActive(store.StartOn, store.EndOn, today), SortOrder = store.SortOrder,
             Status = store.Status, StatusLabel = StatusLabel(store.Status), ImageKey = store.ImageKey, ImageUrl = imageUrls.Resolve(store.ImageKey), ImageThumbUrl = Thumb(store.ImageKey),
-            Zh = new AdminStoreLocaleContent { Name = zh?.Name ?? "", Address = store.Address, OfferContent = zh?.OfferContent },
-            En = en is null ? null : new AdminStoreLocaleContent { Name = en.Name ?? "", Address = en.Address, OfferContent = en.OfferContent },
+            ImageWidth = store.ImageKey is null ? null : store.ImageWidth, ImageHeight = store.ImageKey is null ? null : store.ImageHeight,
+            Zh = new AdminStoreLocaleContent { Name = zh?.Name ?? "", Address = store.Address, OfferContent = zh?.OfferContent, ImageAlt = zh?.ImageAlt },
+            En = en is null ? null : new AdminStoreLocaleContent { Name = en.Name ?? "", Address = en.Address, OfferContent = en.OfferContent, ImageAlt = en.ImageAlt },
             CreatedAt = store.CreatedAt, UpdatedAt = store.UpdatedAt,
         };
     }

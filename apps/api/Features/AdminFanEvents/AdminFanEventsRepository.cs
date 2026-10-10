@@ -80,6 +80,7 @@ public sealed class AdminFanEventsRepository(
             Id = r.Event.Id, Slug = r.Event.Slug, StartsAt = r.Event.StartsAt, EndsAt = r.Event.EndsAt,
             RegistrationDeadlineAt = r.Event.RegistrationDeadlineAt, Capacity = r.Event.Capacity, IsPaidMembersOnly = r.Event.IsPaidMembersOnly,
             Status = r.Event.Status, StatusLabel = StatusLabels[r.Event.Status], CoverKey = r.Event.CoverKey, CoverUrl = imageUrls.Resolve(r.Event.CoverKey), CoverThumbUrl = ThumbUrl(r.Event.CoverKey),
+            CoverWidth = r.Event.CoverKey is null ? null : r.Event.CoverWidth, CoverHeight = r.Event.CoverKey is null ? null : r.Event.CoverHeight,
             VenueId = r.Event.VenueId, NameZh = r.Zh, NameEn = r.En, RegisteredCount = r.Registered, WaitlistCount = r.Waitlist,
             IsRegistrationOpen = IsOpen(r.Event, r.Registered, now), UpdatedAt = r.Event.UpdatedAt,
         }).ToList();
@@ -102,7 +103,8 @@ public sealed class AdminFanEventsRepository(
         var now = DateTime.UtcNow;
         var row = new FanEvent
         {
-            Id = id, ClubId = scope.ClubId, Slug = slug, CoverKey = cover.Change ? cover.Key : null, CreatedAt = now, UpdatedAt = now,
+            Id = id, ClubId = scope.ClubId, Slug = slug, CoverKey = cover.Change ? cover.Key : null,
+            CoverWidth = cover.Change && cover.Key is not null ? cover.Width : null, CoverHeight = cover.Change && cover.Key is not null ? cover.Height : null, CreatedAt = now, UpdatedAt = now,
             CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
         };
         Apply(row, request);
@@ -135,6 +137,8 @@ public sealed class AdminFanEventsRepository(
         {
             orphans.Image(row.CoverKey);
             row.CoverKey = cover.Key;
+            row.CoverWidth = cover.Key is null ? null : cover.Width;
+            row.CoverHeight = cover.Key is null ? null : cover.Height;
         }
 
         Apply(row, request);
@@ -200,6 +204,27 @@ public sealed class AdminFanEventsRepository(
 
         row.UpdatedAt = now;
         row.UpdatedBy = scope.Identity.AdminUserId;
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetAsync(scope, id, cancellationToken);
+    }
+
+    /// <summary>更新單張圖集圖片的替代文字（<c>fan_event_images.image_alt_zh／image_alt_en</c>）。回傳更新後的活動詳情；活動或圖片不存在回 <c>null</c>。</summary>
+    public async Task<AdminFanEventDetailDto?> UpdateImageAltAsync(
+        AdminClubScope scope, Guid id, Guid imageId, UpdateImageAltRequest request, CancellationToken cancellationToken)
+    {
+        var (altZh, altEn) = GalleryImageAlt.Normalize(request);
+        var row = await db.FanEvents.Include(e => e.FanEventImages).FirstOrDefaultAsync(e => e.Id == id && e.ClubId == scope.ClubId, cancellationToken);
+        var image = row?.FanEventImages.FirstOrDefault(i => i.Id == imageId);
+        if (row is null || image is null)
+        {
+            return null;
+        }
+
+        image.ImageAltZh = altZh;
+        image.ImageAltEn = altEn;
+        image.UpdatedAt = DateTime.UtcNow;
+        image.UpdatedBy = scope.Identity.AdminUserId;
+        row.UpdatedAt = image.UpdatedAt;
         await db.SaveChangesAsync(cancellationToken);
         return await GetAsync(scope, id, cancellationToken);
     }
@@ -580,14 +605,15 @@ public sealed class AdminFanEventsRepository(
         {
             Id = e.Id, Slug = e.Slug, StartsAt = e.StartsAt, EndsAt = e.EndsAt, RegistrationDeadlineAt = e.RegistrationDeadlineAt, Capacity = e.Capacity,
             IsPaidMembersOnly = e.IsPaidMembersOnly, Status = e.Status, StatusLabel = StatusLabels[e.Status], CoverKey = e.CoverKey,
-            CoverUrl = e.CoverKey is null ? null : imageUrls.Resolve(e.CoverKey), CoverThumbUrl = ThumbUrl(e.CoverKey), VenueId = e.VenueId, VenueName = venueName,
+            CoverUrl = e.CoverKey is null ? null : imageUrls.Resolve(e.CoverKey), CoverThumbUrl = ThumbUrl(e.CoverKey),
+            CoverWidth = e.CoverKey is null ? null : e.CoverWidth, CoverHeight = e.CoverKey is null ? null : e.CoverHeight, VenueId = e.VenueId, VenueName = venueName,
             Zh = new AdminFanEventLocaleContent { Name = zh?.Name ?? "", Description = zh?.Description, Location = zh?.Location, CoverAlt = zh?.CoverAlt },
             En = en is null ? null : new AdminFanEventLocaleContent { Name = en.Name ?? "", Description = en.Description, Location = en.Location, CoverAlt = en.CoverAlt },
             RegisteredCount = registered, WaitlistCount = waitlist, IsRegistrationOpen = IsOpen(e, registered, DateTime.UtcNow),
             Images = e.FanEventImages.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new AdminFanEventImageDto
             {
                 Id = i.Id, ImageKey = i.ImageKey, ImageUrl = imageUrls.Resolve(i.ImageKey), ImageThumbUrl = ThumbUrl(i.ImageKey),
-                ImageWidth = i.ImageWidth, ImageHeight = i.ImageHeight, SortOrder = i.SortOrder,
+                ImageWidth = i.ImageWidth, ImageHeight = i.ImageHeight, AltZh = i.ImageAltZh, AltEn = i.ImageAltEn, SortOrder = i.SortOrder,
             }).ToList(),
             Articles = articleIds.Select(id => articleRows.FirstOrDefault(a => a.Id == id)).Where(a => a is not null)
                 .Select(a => new AdminFanEventArticleDto { Id = a!.Id, Slug = a.Slug, TitleZh = a.Title, Status = a.Status }).ToList(),

@@ -17,9 +17,9 @@ public sealed class TeamsRepository(
     // 不進 TeamDto（既有的球隊清單欄位維持不變，這是新增計算，不是契約變更）。
     private sealed record TeamRow(
         Guid Id, string Code, string Type, string Gender, string? AgeBand, string? TeamColor, string? HeroKey,
-        string ClubDomain);
+        int? HeroWidth, int? HeroHeight, string ClubDomain);
 
-    private sealed record TeamI18nRow(Guid TeamId, string Locale, string? Name, string? Intro);
+    private sealed record TeamI18nRow(Guid TeamId, string Locale, string? Name, string? Intro, string? HeroAlt);
 
     /// <summary><c>teams.club_id</c> 是 50 張必填 club_id 表之一，硬過濾不回退共同內容
     /// （比照 <see cref="Players.PlayersRepository"/> 同一種寫法）。</summary>
@@ -33,7 +33,7 @@ public sealed class TeamsRepository(
 
                 const string listSql = """
                     SELECT t.id AS Id, t.code AS Code, t.type AS Type, t.gender AS Gender,
-                           t.age_band AS AgeBand, t.team_color AS TeamColor, t.hero_key AS HeroKey,
+                           t.age_band AS AgeBand, t.team_color AS TeamColor, t.hero_key AS HeroKey, t.hero_width AS HeroWidth, t.hero_height AS HeroHeight,
                            c.domain AS ClubDomain
                     FROM teams t
                     JOIN clubs c ON c.id = t.club_id
@@ -61,7 +61,7 @@ public sealed class TeamsRepository(
         }
 
         const string i18nSql = """
-            SELECT team_id AS TeamId, locale AS Locale, name AS Name, intro AS Intro
+            SELECT team_id AS TeamId, locale AS Locale, name AS Name, intro AS Intro, hero_alt AS HeroAlt
             FROM teams_i18n
             WHERE team_id IN @TeamIds AND locale IN @Locales
             """;
@@ -102,6 +102,9 @@ public sealed class TeamsRepository(
             IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
             Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
             HeroUrl = imageUrlResolver.Resolve(row.HeroKey),
+            HeroWidth = row.HeroKey is null ? null : row.HeroWidth,
+            HeroHeight = row.HeroKey is null ? null : row.HeroHeight,
+            HeroAlt = row.HeroKey is null ? null : RequestLocale.Pick(requested?.HeroAlt, fallback?.HeroAlt),
             SchemaEligible = schemaEligible,
         };
     }

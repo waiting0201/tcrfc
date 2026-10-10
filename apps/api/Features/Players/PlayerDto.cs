@@ -51,6 +51,11 @@ public sealed record PlayerDto
     /// 沿用同一個 fail-closed 結果即可。</summary>
     public string? PhotoUrl { get; init; }
 
+    /// <summary>照片寬高（像素）與替代文字（當前語系，英文空白回退繁中）。與 <see cref="PhotoUrl"/> 同一套肖像同意規則：沒有照片時三者皆 <c>null</c>。</summary>
+    public int? PhotoWidth { get; init; }
+    public int? PhotoHeight { get; init; }
+    public string? PhotoAlt { get; init; }
+
     /// <summary>GEO-05（S1-12c／S1-12f）：這筆球員資料是否足以輸出 Person 結構化資料
     /// （<see cref="SchemaType.Person"/> 只要求 <c>name</c>）。判斷條件單一來源見
     /// <see cref="SchemaRequiredFields"/>，這裡不重新判斷一次（E-39）。肖像同意不影響本欄位——

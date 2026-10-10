@@ -9,6 +9,8 @@ public partial class CalendarCustomEventsI18n
 
     public string Locale { get; set; } = null!;
 
+    public string? CoverAlt { get; set; }
+
     public string? Title { get; set; }
 
     public string? Description { get; set; }

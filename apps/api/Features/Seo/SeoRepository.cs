@@ -36,6 +36,7 @@ public sealed class SeoRepository(IClubSqlConnectionFactory connectionFactory, I
     private sealed record RedirectRow(string FromPath, string ToPath);
     private sealed record SitemapRow(string Slug, DateTime UpdatedAt);
     private sealed record ClubOgImageRow(string? OgImageKey, int? OgImageWidth, int? OgImageHeight);
+    private sealed record ClubOgAltRow(string Locale, string? OgImageAlt);
 
     public async Task<PublicSeoSettingsDto> GetSettingsAsync(ClubScope scope, CancellationToken cancellationToken)
     {
@@ -68,6 +69,9 @@ public sealed class SeoRepository(IClubSqlConnectionFactory connectionFactory, I
                     """;
                 var club = await connection.QuerySingleOrDefaultAsync<ClubOgImageRow>(new CommandDefinition(
                     clubSql, new { scope.ClubId }, cancellationToken: ct));
+                var ogAlts = (await connection.QueryAsync<ClubOgAltRow>(new CommandDefinition(
+                    "SELECT locale AS Locale, og_image_alt AS OgImageAlt FROM clubs_i18n WHERE club_id = @ClubId",
+                    new { scope.ClubId }, cancellationToken: ct))).ToList();
 
                 string? Value(string key) => valueRows.FirstOrDefault(r => r.SettingKey == key)?.SettingValue;
                 string? I18n(string key, string locale) => i18nRows
@@ -87,6 +91,8 @@ public sealed class SeoRepository(IClubSqlConnectionFactory connectionFactory, I
                     OgImageUrl = imageUrlResolver.Resolve(club?.OgImageKey),
                     OgImageWidth = club?.OgImageWidth,
                     OgImageHeight = club?.OgImageHeight,
+                    OgImageAltZh = club?.OgImageKey is null ? null : ogAlts.FirstOrDefault(a => a.Locale == RequestLocale.DefaultDbLocale)?.OgImageAlt,
+                    OgImageAltEn = club?.OgImageKey is null ? null : ogAlts.FirstOrDefault(a => a.Locale == "en")?.OgImageAlt,
                 };
             },
             cancellationToken);

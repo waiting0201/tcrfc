@@ -42,6 +42,11 @@ public sealed record PlayerSeasonStatDto
 
     /// <summary>肖像同意未到位者為 null（同球員名單的 fail-closed 規則）。</summary>
     public string? PhotoUrl { get; init; }
+
+    /// <summary>照片寬高（像素）與替代文字（當前語系，英文空白回退繁中）；與 <see cref="PhotoUrl"/> 同一套肖像同意規則，沒有照片時三者皆 <c>null</c>。</summary>
+    public int? PhotoWidth { get; init; }
+    public int? PhotoHeight { get; init; }
+    public string? PhotoAlt { get; init; }
     public required int Appearances { get; init; }
     public required int Goals { get; init; }
 

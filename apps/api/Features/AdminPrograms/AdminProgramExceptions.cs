@@ -17,8 +17,10 @@ public sealed class ProgramSlugConflictException(string slug)
 
 /// <summary>圖片欄位插槽把「封面圖」對到 <c>programs.cover_key</c> 三態，形狀比照
 /// <c>Features/AdminStaff/StaffPhotoKeyUpdate</c>。</summary>
-public readonly record struct ProgramCoverKeyUpdate(bool Change, string? NewKey)
+public readonly record struct ProgramCoverKeyUpdate(bool Change, string? NewKey, int? Width = null, int? Height = null)
 {
     public static readonly ProgramCoverKeyUpdate Keep = new(false, null);
-    public static ProgramCoverKeyUpdate Set(string? newKey) => new(true, newKey);
+
+    /// <summary>換圖時帶主檔縮小後的寬高；清空時 <paramref name="newKey"/> 傳 null，寬高一併清成 null。</summary>
+    public static ProgramCoverKeyUpdate Set(string? newKey, int? width = null, int? height = null) => new(true, newKey, width, height);
 }

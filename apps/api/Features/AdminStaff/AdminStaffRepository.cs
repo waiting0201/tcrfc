@@ -46,6 +46,8 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
                 s.StaffGroup,
                 s.Licence,
                 s.PhotoKey,
+                s.PhotoWidth,
+                s.PhotoHeight,
                 s.PortraitConsentStatus,
                 s.UpdatedAt,
                 NameZh = s.StaffI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
@@ -63,6 +65,8 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             PhotoKey = r.PhotoKey,
             PhotoUrl = imageUrls.Resolve(r.PhotoKey),
             PhotoThumbUrl = imageUrls.ResolveThumbnail(r.PhotoKey),
+            PhotoWidth = r.PhotoKey is null ? null : r.PhotoWidth,
+            PhotoHeight = r.PhotoKey is null ? null : r.PhotoHeight,
             PortraitConsentStatus = r.PortraitConsentStatus,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
@@ -84,7 +88,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
     /// <summary>🔴 建立一律歸屬 <paramref name="scope"/> 當下的俱樂部，不接受建立共同
     /// （<c>club_id</c> 為空）資料——見本檔 <c>CreateAdminStaffRequest</c> 上的說明。</summary>
     public async Task<AdminStaffDetailDto> CreateAsync(
-        AdminClubScope scope, TeamRowScope rowScope, Guid staffId, CreateAdminStaffRequest request, string? photoKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid staffId, CreateAdminStaffRequest request, string? photoKey, int? photoWidth, int? photoHeight, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStaffGroup(request.StaffGroup);
         ValidatePortraitConsentStatus(request.PortraitConsentStatus);
@@ -109,6 +113,8 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             StaffGroup = request.StaffGroup,
             Licence = request.Licence,
             PhotoKey = photoKey,
+            PhotoWidth = photoKey is null ? null : photoWidth,
+            PhotoHeight = photoKey is null ? null : photoHeight,
             // 🔴 fail-closed（docs/12 §12 第 32 點），同 AdminPlayersRepository.CreateAsync。
             PortraitConsentStatus = request.PortraitConsentStatus ?? "not_consented",
             CreatedAt = now,
@@ -176,6 +182,8 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         if (photoUpdate.Change)
         {
             staff.PhotoKey = photoUpdate.NewKey;
+            staff.PhotoWidth = photoUpdate.NewKey is null ? null : photoUpdate.Width;
+            staff.PhotoHeight = photoUpdate.NewKey is null ? null : photoUpdate.Height;
         }
 
         AddOrReplaceI18n(staff, RequestLocale.DefaultDbLocale, request.Content.Zh);
@@ -250,6 +258,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         existing.Name = content.Name;
         existing.Title = content.Title;
         existing.Bio = content.Bio;
+        existing.PhotoAlt = string.IsNullOrWhiteSpace(content.PhotoAlt) ? null : content.PhotoAlt.Trim();
     }
 
     private static void ValidateStaffGroup(string? staffGroup)
@@ -275,6 +284,16 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         {
             throw new AdminStaffValidationException("中文姓名為必填欄位。", "nameZh");
         }
+
+        if ((content.Zh.PhotoAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminStaffValidationException("照片替代文字（中文）不可超過 200 字。", "photoAltZh");
+        }
+
+        if ((content.En?.PhotoAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminStaffValidationException("照片替代文字（英文）不可超過 200 字。", "photoAltEn");
+        }
     }
 
     private AdminStaffDetailDto ToDetailDto(Data.EfEntities.Staff staff)
@@ -291,9 +310,11 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             PhotoKey = staff.PhotoKey,
             PhotoUrl = imageUrls.Resolve(staff.PhotoKey),
             PhotoThumbUrl = imageUrls.ResolveThumbnail(staff.PhotoKey),
+            PhotoWidth = staff.PhotoKey is null ? null : staff.PhotoWidth,
+            PhotoHeight = staff.PhotoKey is null ? null : staff.PhotoHeight,
             PortraitConsentStatus = staff.PortraitConsentStatus,
-            Zh = new AdminStaffLocaleContent { Name = zh?.Name ?? "", Title = zh?.Title, Bio = zh?.Bio },
-            En = en is null ? null : new AdminStaffLocaleContent { Name = en.Name ?? "", Title = en.Title, Bio = en.Bio },
+            Zh = new AdminStaffLocaleContent { Name = zh?.Name ?? "", Title = zh?.Title, Bio = zh?.Bio, PhotoAlt = zh?.PhotoAlt },
+            En = en is null ? null : new AdminStaffLocaleContent { Name = en.Name ?? "", Title = en.Title, Bio = en.Bio, PhotoAlt = en.PhotoAlt },
             Teams = staff.StaffTeams
                 .Select(st => new AdminStaffTeamAssignmentDto { TeamId = st.TeamId, TeamCode = st.Team.Code, RoleCode = st.RoleCode })
                 .ToList(),

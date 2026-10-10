@@ -2,6 +2,7 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -20,15 +21,18 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
     private const string Entity = "charity";
 
     private sealed record ProgramRow(
-        Guid Id, string Slug, DateTime? StartOn, DateTime? EndOn, bool IsPinned, string? CoverKey, Guid CharityId, string? Name,
+        Guid Id, string Slug, DateTime? StartOn, DateTime? EndOn, bool IsPinned, string? CoverKey, int? CoverWidth, int? CoverHeight, string? CoverAlt, Guid CharityId, string? Name,
         string? TargetAudience, string? Content, string? DonationContent, string? CharityName);
-    private sealed record OrgRow(Guid Id, string Slug, string? LogoKey, string? WebsiteUrl, string? Name, string? Intro);
-    private sealed record ImageRow(Guid ParentId, string ImageKey);
-    private sealed record LinkedRow(Guid ProgramId, string Slug, string? Name, string? LogoDarkKey, string? LogoLightKey);
+    private sealed record OrgRow(Guid Id, string Slug, string? LogoKey, int? LogoWidth, int? LogoHeight, string? LogoAlt, string? WebsiteUrl, string? Name, string? Intro);
+    private sealed record ImageRow(Guid ParentId, string ImageKey, int? ImageWidth, int? ImageHeight, string? ImageAltZh, string? ImageAltEn);
+    private sealed record LinkedRow(
+        Guid ProgramId, string Slug, string? Name, string? LogoDarkKey, string? LogoLightKey,
+        int? LogoDarkWidth, int? LogoDarkHeight, int? LogoLightWidth, int? LogoLightHeight, string? LogoAlt);
     private sealed record ArticleRow(Guid ProgramId, string Slug, string? Title);
     private sealed record RecordRow(
         Guid Id, DateTime? HappenedOn, Guid CharityId, string? ImageKey, int? ImageWidth, int? ImageHeight, string? DonationContent,
-        string? Location, string? BriefDescription, string? ProgramSlug, string? ProgramName, string? CharityName, string? CharityLogoKey);
+        string? Location, string? BriefDescription, string? ImageAlt, string? ProgramSlug, string? ProgramName, string? CharityName, string? CharityLogoKey,
+        int? CharityLogoWidth, int? CharityLogoHeight, string? CharityLogoAlt);
     private sealed record MetricRow(string? Name, string? Unit, int? Value, string? ProgramSlug);
 
     private static object P(ClubScope scope, string dbLocale) => new { scope.ClubId, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale };
@@ -47,7 +51,8 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
             const string countSql = "SELECT COUNT(*) FROM charity_programs WHERE (club_id = @ClubId OR club_id IS NULL) AND status = 'published'";
             const string sql = """
                 SELECT cp.id AS Id, cp.slug AS Slug, cp.start_on AS StartOn, cp.end_on AS EndOn, cp.is_pinned AS IsPinned,
-                       cp.cover_key AS CoverKey, cp.charity_id AS CharityId,
+                       cp.cover_key AS CoverKey, cp.cover_width AS CoverWidth, cp.cover_height AS CoverHeight,
+                       COALESCE(NULLIF(r.cover_alt, N''), d.cover_alt) AS CoverAlt, cp.charity_id AS CharityId,
                        COALESCE(NULLIF(r.name, N''), d.name) AS Name, COALESCE(NULLIF(r.target_audience, N''), d.target_audience) AS TargetAudience,
                        CAST(NULL AS nvarchar(max)) AS Content, CAST(NULL AS nvarchar(max)) AS DonationContent,
                        COALESCE(NULLIF(cr.name, N''), cd.name) AS CharityName
@@ -67,6 +72,8 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
             {
                 Id = r.Id, Slug = r.Slug, Name = r.Name, TargetAudience = r.TargetAudience, StartOn = D(r.StartOn), EndOn = D(r.EndOn),
                 Progress = Progress(r.EndOn, today), IsPinned = r.IsPinned, CoverUrl = imageUrls.Resolve(r.CoverKey), CharityName = r.CharityName,
+                CoverWidth = r.CoverKey is null ? null : r.CoverWidth, CoverHeight = r.CoverKey is null ? null : r.CoverHeight,
+                CoverAlt = r.CoverKey is null ? null : r.CoverAlt,
             }).ToList();
             return new PagedResult<CharityProgramListItemDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = total };
         }, cancellationToken);
@@ -80,7 +87,8 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
             using var connection = connectionFactory.CreateConnection();
             const string sql = """
                 SELECT TOP 1 cp.id AS Id, cp.slug AS Slug, cp.start_on AS StartOn, cp.end_on AS EndOn, cp.is_pinned AS IsPinned,
-                       cp.cover_key AS CoverKey, cp.charity_id AS CharityId,
+                       cp.cover_key AS CoverKey, cp.cover_width AS CoverWidth, cp.cover_height AS CoverHeight,
+                       COALESCE(NULLIF(r.cover_alt, N''), d.cover_alt) AS CoverAlt, cp.charity_id AS CharityId,
                        COALESCE(NULLIF(r.name, N''), d.name) AS Name, COALESCE(NULLIF(r.target_audience, N''), d.target_audience) AS TargetAudience,
                        COALESCE(NULLIF(CAST(r.content AS nvarchar(max)), N''), CAST(d.content AS nvarchar(max))) AS Content,
                        COALESCE(NULLIF(r.donation_content, N''), d.donation_content) AS DonationContent,
@@ -99,7 +107,8 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
             }
 
             var org = await connection.QueryFirstOrDefaultAsync<OrgRow>(new CommandDefinition("""
-                SELECT c.id AS Id, c.slug AS Slug, c.logo_key AS LogoKey, c.website_url AS WebsiteUrl,
+                SELECT c.id AS Id, c.slug AS Slug, c.logo_key AS LogoKey, c.logo_width AS LogoWidth, c.logo_height AS LogoHeight,
+                       COALESCE(NULLIF(r.logo_alt, N''), d.logo_alt) AS LogoAlt, c.website_url AS WebsiteUrl,
                        COALESCE(NULLIF(r.name, N''), d.name) AS Name, COALESCE(NULLIF(r.intro, N''), d.intro) AS Intro
                 FROM charities c
                 LEFT JOIN charities_i18n r ON r.charity_id = c.id AND r.locale = @Locale
@@ -108,12 +117,15 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 """, new { program.CharityId, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale }, cancellationToken: ct));
 
             var images = await connection.QueryAsync<ImageRow>(new CommandDefinition(
-                "SELECT charity_program_id AS ParentId, image_key AS ImageKey FROM charity_program_images WHERE charity_program_id = @Id ORDER BY sort_order, row_seq",
+                "SELECT charity_program_id AS ParentId, image_key AS ImageKey, image_width AS ImageWidth, image_height AS ImageHeight, image_alt_zh AS ImageAltZh, image_alt_en AS ImageAltEn FROM charity_program_images WHERE charity_program_id = @Id ORDER BY sort_order, row_seq",
                 new { program.Id }, cancellationToken: ct));
 
             var partners = await connection.QueryAsync<LinkedRow>(new CommandDefinition("""
                 SELECT l.charity_program_id AS ProgramId, x.slug AS Slug, COALESCE(NULLIF(r.name, N''), d.name) AS Name,
-                       x.logo_dark_key AS LogoDarkKey, x.logo_light_key AS LogoLightKey
+                       x.logo_dark_key AS LogoDarkKey, x.logo_light_key AS LogoLightKey,
+                       x.logo_dark_width AS LogoDarkWidth, x.logo_dark_height AS LogoDarkHeight,
+                       x.logo_light_width AS LogoLightWidth, x.logo_light_height AS LogoLightHeight,
+                       COALESCE(NULLIF(r.logo_alt, N''), d.logo_alt) AS LogoAlt
                 FROM charity_program_partners l JOIN partners x ON x.id = l.partner_id
                 LEFT JOIN partners_i18n r ON r.partner_id = x.id AND r.locale = @Locale
                 LEFT JOIN partners_i18n d ON d.partner_id = x.id AND d.locale = @DefaultLocale
@@ -122,7 +134,10 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
 
             var sponsors = await connection.QueryAsync<LinkedRow>(new CommandDefinition("""
                 SELECT l.charity_program_id AS ProgramId, x.slug AS Slug, COALESCE(NULLIF(r.name, N''), d.name) AS Name,
-                       x.logo_dark_key AS LogoDarkKey, x.logo_light_key AS LogoLightKey
+                       x.logo_dark_key AS LogoDarkKey, x.logo_light_key AS LogoLightKey,
+                       x.logo_dark_width AS LogoDarkWidth, x.logo_dark_height AS LogoDarkHeight,
+                       x.logo_light_width AS LogoLightWidth, x.logo_light_height AS LogoLightHeight,
+                       COALESCE(NULLIF(r.logo_alt, N''), d.logo_alt) AS LogoAlt
                 FROM charity_program_sponsors l JOIN sponsors x ON x.id = l.sponsor_id
                 LEFT JOIN sponsors_i18n r ON r.sponsor_id = x.id AND r.locale = @Locale
                 LEFT JOIN sponsors_i18n d ON d.sponsor_id = x.id AND d.locale = @DefaultLocale
@@ -142,22 +157,33 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
             {
                 Id = program.Id, Slug = program.Slug, Name = program.Name, TargetAudience = program.TargetAudience,
                 StartOn = D(program.StartOn), EndOn = D(program.EndOn), Progress = Progress(program.EndOn, today),
-                CoverUrl = imageUrls.Resolve(program.CoverKey), Content = program.Content, DonationContent = program.DonationContent,
+                CoverUrl = imageUrls.Resolve(program.CoverKey), Content = program.Content,
+                CoverWidth = program.CoverKey is null ? null : program.CoverWidth, CoverHeight = program.CoverKey is null ? null : program.CoverHeight,
+                CoverAlt = program.CoverKey is null ? null : program.CoverAlt, DonationContent = program.DonationContent,
                 Charity = org is null ? null : new PublicCharityOrgDto
                 {
                     Slug = org.Slug, Name = org.Name, Intro = org.Intro, LogoUrl = imageUrls.Resolve(org.LogoKey), WebsiteUrl = org.WebsiteUrl,
+                    LogoWidth = org.LogoKey is null ? null : org.LogoWidth, LogoHeight = org.LogoKey is null ? null : org.LogoHeight,
+                    LogoAlt = org.LogoKey is null ? null : org.LogoAlt,
                 },
                 Images = images.Select(i => new PublicCharityImageDto
                 {
                     ImageUrl = imageUrls.Resolve(i.ImageKey)!, ThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)),
+                    ImageWidth = i.ImageWidth, ImageHeight = i.ImageHeight, Alt = GalleryImageAlt.Pick(dbLocale, i.ImageAltZh, i.ImageAltEn),
                 }).ToList(),
                 Partners = partners.Select(x => new CharityLinkedItemDto
                 {
                     Slug = x.Slug, Name = x.Name, LogoDarkUrl = imageUrls.Resolve(x.LogoDarkKey), LogoLightUrl = imageUrls.Resolve(x.LogoLightKey),
+                    LogoDarkWidth = x.LogoDarkKey is null ? null : x.LogoDarkWidth, LogoDarkHeight = x.LogoDarkKey is null ? null : x.LogoDarkHeight,
+                    LogoLightWidth = x.LogoLightKey is null ? null : x.LogoLightWidth, LogoLightHeight = x.LogoLightKey is null ? null : x.LogoLightHeight,
+                    LogoAlt = x.LogoDarkKey is null && x.LogoLightKey is null ? null : x.LogoAlt,
                 }).ToList(),
                 Sponsors = sponsors.Select(x => new CharityLinkedItemDto
                 {
                     Slug = x.Slug, Name = x.Name, LogoDarkUrl = imageUrls.Resolve(x.LogoDarkKey), LogoLightUrl = imageUrls.Resolve(x.LogoLightKey),
+                    LogoDarkWidth = x.LogoDarkKey is null ? null : x.LogoDarkWidth, LogoDarkHeight = x.LogoDarkKey is null ? null : x.LogoDarkHeight,
+                    LogoLightWidth = x.LogoLightKey is null ? null : x.LogoLightWidth, LogoLightHeight = x.LogoLightKey is null ? null : x.LogoLightHeight,
+                    LogoAlt = x.LogoDarkKey is null && x.LogoLightKey is null ? null : x.LogoAlt,
                 }).ToList(),
                 Articles = articles.Select(a => new CharityArticleLinkDto { Slug = a.Slug, Title = a.Title }).ToList(),
             };
@@ -181,9 +207,11 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                        COALESCE(NULLIF(r.donation_content, N''), d.donation_content) AS DonationContent,
                        COALESCE(NULLIF(r.location, N''), d.location) AS Location,
                        COALESCE(NULLIF(r.brief_description, N''), d.brief_description) AS BriefDescription,
+                       COALESCE(NULLIF(r.image_alt, N''), d.image_alt) AS ImageAlt,
                        cp.slug AS ProgramSlug,
                        COALESCE(NULLIF(pr.name, N''), pd.name) AS ProgramName,
-                       COALESCE(NULLIF(cr.name, N''), cd.name) AS CharityName, c.logo_key AS CharityLogoKey
+                       COALESCE(NULLIF(cr.name, N''), cd.name) AS CharityName, c.logo_key AS CharityLogoKey, c.logo_width AS CharityLogoWidth, c.logo_height AS CharityLogoHeight,
+                       COALESCE(NULLIF(cr.logo_alt, N''), cd.logo_alt) AS CharityLogoAlt
                 FROM impact_records ir
                 JOIN charities c ON c.id = ir.charity_id
                 LEFT JOIN charity_programs cp ON cp.id = ir.charity_program_id
@@ -209,13 +237,14 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
             if (rows.Count > 0)
             {
                 var images = await connection.QueryAsync<ImageRow>(new CommandDefinition(
-                    "SELECT impact_record_id AS ParentId, image_key AS ImageKey FROM impact_record_images WHERE impact_record_id IN @Ids ORDER BY sort_order, row_seq",
+                    "SELECT impact_record_id AS ParentId, image_key AS ImageKey, image_width AS ImageWidth, image_height AS ImageHeight, image_alt_zh AS ImageAltZh, image_alt_en AS ImageAltEn FROM impact_record_images WHERE impact_record_id IN @Ids ORDER BY sort_order, row_seq",
                     new { Ids = rows.Select(r => r.Id).ToList() }, cancellationToken: ct));
                 foreach (var g in images.GroupBy(i => i.ParentId))
                 {
                     galleries[g.Key] = g.Select(i => new PublicCharityImageDto
                     {
                         ImageUrl = imageUrls.Resolve(i.ImageKey)!, ThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)),
+                        ImageWidth = i.ImageWidth, ImageHeight = i.ImageHeight, Alt = GalleryImageAlt.Pick(dbLocale, i.ImageAltZh, i.ImageAltEn),
                     }).ToList();
                 }
             }
@@ -225,6 +254,9 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 Id = r.Id, HappenedOn = D(r.HappenedOn), CharityName = r.CharityName, CharityLogoUrl = imageUrls.Resolve(r.CharityLogoKey),
                 DonationContent = r.DonationContent, Location = r.Location, BriefDescription = r.BriefDescription,
                 ImageUrl = imageUrls.Resolve(r.ImageKey), ImageWidth = r.ImageWidth, ImageHeight = r.ImageHeight,
+                ImageAlt = r.ImageKey is null ? null : r.ImageAlt,
+                CharityLogoWidth = r.CharityLogoKey is null ? null : r.CharityLogoWidth, CharityLogoHeight = r.CharityLogoKey is null ? null : r.CharityLogoHeight,
+                CharityLogoAlt = r.CharityLogoKey is null ? null : r.CharityLogoAlt,
                 Images = galleries.GetValueOrDefault(r.Id) ?? [], ProgramSlug = r.ProgramSlug, ProgramName = r.ProgramName,
             }).ToList();
             return new PagedResult<ImpactRecordDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = total };
@@ -261,7 +293,8 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
             var metrics = await connection.QueryAsync<MetricRow>(new CommandDefinition(metricSql, p, cancellationToken: ct));
 
             const string orgSql = """
-                SELECT c.id AS Id, c.slug AS Slug, c.logo_key AS LogoKey, c.website_url AS WebsiteUrl,
+                SELECT c.id AS Id, c.slug AS Slug, c.logo_key AS LogoKey, c.logo_width AS LogoWidth, c.logo_height AS LogoHeight,
+                       COALESCE(NULLIF(r.logo_alt, N''), d.logo_alt) AS LogoAlt, c.website_url AS WebsiteUrl,
                        COALESCE(NULLIF(r.name, N''), d.name) AS Name, CAST(NULL AS nvarchar(max)) AS Intro
                 FROM charities c
                 LEFT JOIN charities_i18n r ON r.charity_id = c.id AND r.locale = @Locale
@@ -291,6 +324,8 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 Charities = orgs.Select(o => new PublicCharityOrgDto
                 {
                     Slug = o.Slug, Name = o.Name, LogoUrl = imageUrls.Resolve(o.LogoKey), WebsiteUrl = o.WebsiteUrl,
+                    LogoWidth = o.LogoKey is null ? null : o.LogoWidth, LogoHeight = o.LogoKey is null ? null : o.LogoHeight,
+                    LogoAlt = o.LogoKey is null ? null : o.LogoAlt,
                 }).ToList(),
             };
         }, cancellationToken);

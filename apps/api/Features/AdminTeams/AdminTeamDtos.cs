@@ -21,6 +21,9 @@ public sealed record AdminTeamLocaleContent
 {
     public required string Name { get; init; }
     public string? Intro { get; init; }
+
+    /// <summary>主視覺圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>teams_i18n.hero_alt</c>。</summary>
+    public string? HeroAlt { get; init; }
 }
 
 public sealed record AdminTeamContentInput
@@ -42,6 +45,8 @@ public sealed record AdminTeamAdminListItemDto
     public string? HeroKey { get; init; }
     public string? HeroUrl { get; init; }
     public string? HeroThumbUrl { get; init; }
+    public int? HeroWidth { get; init; }
+    public int? HeroHeight { get; init; }
     public required int SortOrder { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
@@ -59,6 +64,8 @@ public sealed record AdminTeamDetailDto
     public string? HeroKey { get; init; }
     public string? HeroUrl { get; init; }
     public string? HeroThumbUrl { get; init; }
+    public int? HeroWidth { get; init; }
+    public int? HeroHeight { get; init; }
     public required int SortOrder { get; init; }
     public required AdminTeamLocaleContent Zh { get; init; }
     public AdminTeamLocaleContent? En { get; init; }

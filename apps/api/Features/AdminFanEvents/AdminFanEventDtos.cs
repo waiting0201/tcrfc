@@ -26,6 +26,10 @@ public sealed record AdminFanEventImageDto
     public string? ImageThumbUrl { get; init; }
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
+
+    /// <summary>圖集圖片替代文字（中文／英文；<c>fan_event_images.image_alt_zh／image_alt_en</c>），用 <c>PUT .../images/{imageId}</c> 修改。</summary>
+    public string? AltZh { get; init; }
+    public string? AltEn { get; init; }
     public required int SortOrder { get; init; }
 }
 
@@ -51,6 +55,8 @@ public sealed record AdminFanEventListItemDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public Guid? VenueId { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
@@ -78,6 +84,8 @@ public sealed record AdminFanEventDetailDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public Guid? VenueId { get; init; }
     public string? VenueName { get; init; }
     public required AdminFanEventLocaleContent Zh { get; init; }

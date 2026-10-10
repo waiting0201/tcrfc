@@ -9,6 +9,8 @@ public partial class CharitiesI18n
 
     public string Locale { get; set; } = null!;
 
+    public string? LogoAlt { get; set; }
+
     public string? Name { get; set; }
 
     public string? Intro { get; set; }

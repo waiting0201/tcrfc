@@ -13,6 +13,14 @@ public partial class CharityProgramImage
 
     public string ImageKey { get; set; } = null!;
 
+    public int? ImageWidth { get; set; }
+
+    public int? ImageHeight { get; set; }
+
+    public string? ImageAltZh { get; set; }
+
+    public string? ImageAltEn { get; set; }
+
     public int SortOrder { get; set; }
 
     public DateTime CreatedAt { get; set; }

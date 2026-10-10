@@ -5,6 +5,9 @@ public sealed record AdminPartnerLocaleContent
 {
     public required string Name { get; init; }
     public string? Content { get; init; }
+
+    /// <summary>標誌替代文字（§4.0 圖片欄位組，逐語系；深色／淺色兩版是同一個標誌，共用這一欄）。對應 <c>partners_i18n.logo_alt</c>。</summary>
+    public string? LogoAlt { get; init; }
 }
 
 public sealed record AdminPartnerContentInput
@@ -30,6 +33,10 @@ public sealed record AdminPartnerListItemDto
     public string? LogoDarkKey { get; init; }
     public string? LogoDarkUrl { get; init; }
     public string? LogoDarkThumbUrl { get; init; }
+    public int? LogoDarkWidth { get; init; }
+    public int? LogoDarkHeight { get; init; }
+    public int? LogoLightWidth { get; init; }
+    public int? LogoLightHeight { get; init; }
     public string? LogoLightKey { get; init; }
     public string? LogoLightUrl { get; init; }
     public string? LogoLightThumbUrl { get; init; }
@@ -57,6 +64,10 @@ public sealed record AdminPartnerDetailDto
     public string? LogoDarkUrl { get; init; }
     public string? LogoLightKey { get; init; }
     public string? LogoLightUrl { get; init; }
+    public int? LogoDarkWidth { get; init; }
+    public int? LogoDarkHeight { get; init; }
+    public int? LogoLightWidth { get; init; }
+    public int? LogoLightHeight { get; init; }
     public required AdminPartnerLocaleContent Zh { get; init; }
     public AdminPartnerLocaleContent? En { get; init; }
     public required DateTime CreatedAt { get; init; }

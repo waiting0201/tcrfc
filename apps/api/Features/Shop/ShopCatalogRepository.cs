@@ -5,6 +5,7 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.AdminShop;
 using Tcrfc.Api.Features.MembershipPayments;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -158,8 +159,8 @@ public sealed class ShopCatalogRepository(
         var variants = await db.ProductVariants.AsNoTracking().Where(v => ids.Contains(v.ProductId) && v.Status == "active")
             .OrderBy(v => v.SortOrder).ThenBy(v => v.RowSeq).ToListAsync(cancellationToken);
         var covers = await db.ProductImages.AsNoTracking().Where(i => ids.Contains(i.ProductId))
-            .OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new { i.ProductId, i.ImageKey }).ToListAsync(cancellationToken);
-        var coverByProduct = covers.GroupBy(c => c.ProductId).ToDictionary(g => g.Key, g => g.First().ImageKey);
+            .OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new { i.ProductId, Cover = new ProductCover(i.ImageKey, i.Width, i.Height, i.ImageAltZh, i.ImageAltEn) }).ToListAsync(cancellationToken);
+        var coverByProduct = covers.GroupBy(c => c.ProductId).ToDictionary(g => g.Key, g => g.First().Cover);
         var threshold = await settings.GetLowStockThresholdAsync(scope.ClubId, cancellationToken);
         var en = dbLocale == "en";
         var items = products.Select(p => ToListItem(p, variants.Where(v => v.ProductId == p.Id).ToList(), coverByProduct.GetValueOrDefault(p.Id), threshold, dbLocale, en)).ToList();
@@ -193,7 +194,7 @@ public sealed class ShopCatalogRepository(
             Tags = ParseTags(RequestLocale.Pick(requested?.Tags, fallback?.Tags)), IsNewArrival = product.IsNewArrival, SizeChart = ParseJson(product.SizeChart),
             Images = product.ProductImages.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new ShopImageDto
             {
-                Url = imageUrls.Resolve(i.ImageKey) ?? string.Empty, ThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)) ?? string.Empty, Width = i.Width, Height = i.Height,
+                Url = imageUrls.Resolve(i.ImageKey) ?? string.Empty, ThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)) ?? string.Empty, Width = i.Width, Height = i.Height, Alt = GalleryImageAlt.Pick(dbLocale, i.ImageAltZh, i.ImageAltEn),
             }).ToList(),
             Variants = variants.Select(ToVariant).ToList(), PriceMin = summary.PriceMin, PriceMax = summary.PriceMax, ListPriceMin = summary.ListPriceMin,
             OnSale = summary.OnSale, StockStatus = summary.StockStatus, StockStatusLabel = summary.StockStatusLabel,
@@ -233,17 +234,22 @@ public sealed class ShopCatalogRepository(
             onSaleVariants.Count > 0, status, ShopLabelsPublic.StockLabel(status, en));
     }
 
+    /// <summary>商品列表／購物車用的封面（排序第一張圖）：物件鍵、寬高與雙語 Alt。</summary>
+    internal sealed record ProductCover(string Key, int? Width, int? Height, string? AltZh, string? AltEn);
+
     private ShopProductListItemDto ToListItem(
-        Product p, IReadOnlyList<ProductVariant> variants, string? coverKey, int threshold, string dbLocale, bool en)
+        Product p, IReadOnlyList<ProductVariant> variants, ProductCover? cover, int threshold, string dbLocale, bool en)
     {
         var requested = p.ProductsI18ns.FirstOrDefault(i => i.Locale == dbLocale);
         var fallback = p.ProductsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var summary = Summarize(variants, threshold, en);
+        var coverKey = cover?.Key;
         return new ShopProductListItemDto
         {
             Slug = p.Slug, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), CollectionSlug = p.Collection?.Slug, CollectionName = CollectionName(p.Collection, dbLocale),
             Tags = ParseTags(RequestLocale.Pick(requested?.Tags, fallback?.Tags)), IsNewArrival = p.IsNewArrival,
             ImageUrl = coverKey is null ? null : imageUrls.Resolve(coverKey), ImageThumbUrl = coverKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(coverKey)),
+            ImageWidth = cover?.Width, ImageHeight = cover?.Height, ImageAlt = cover is null ? null : GalleryImageAlt.Pick(dbLocale, cover.AltZh, cover.AltEn),
             PriceMin = summary.PriceMin, PriceMax = summary.PriceMax, ListPriceMin = summary.ListPriceMin, OnSale = summary.OnSale,
             StockStatus = summary.StockStatus, StockStatusLabel = summary.StockStatusLabel,
             Sizes = variants.Select(v => v.Size).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s!).Distinct().ToList(),

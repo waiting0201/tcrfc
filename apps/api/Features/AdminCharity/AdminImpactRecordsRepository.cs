@@ -178,11 +178,33 @@ public sealed class AdminImpactRecordsRepository(ClubDbContext dbContext, IQuery
         var now = DateTime.UtcNow;
         dbContext.ImpactRecordImages.Add(new ImpactRecordImage
         {
-            Id = Guid.NewGuid(), ImpactRecordId = id, ImageKey = image.Key, CreatedAt = now, UpdatedAt = now,
+            Id = Guid.NewGuid(), ImpactRecordId = id, ImageKey = image.Key, ImageWidth = image.Width, ImageHeight = image.Height, CreatedAt = now, UpdatedAt = now,
             SortOrder = record.ImpactRecordImages.Count == 0 ? 0 : record.ImpactRecordImages.Max(i => i.SortOrder) + 1,
             CreatedBy = operatorId, UpdatedBy = operatorId,
         });
         record.UpdatedAt = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await cache.InvalidateAsync(AdminCharityOrgsRepository.CacheEntity, scope.ClubCode, cancellationToken);
+        return await GetByIdAsync(scope, id, cancellationToken);
+    }
+
+    /// <summary>更新單張圖集圖片的替代文字（<c>impact_record_images.image_alt_zh／image_alt_en</c>）。回傳更新後的事蹟；事蹟或圖片不存在回 <c>null</c>。</summary>
+    public async Task<AdminImpactRecordDetailDto?> UpdateImageAltAsync(
+        AdminClubScope scope, Guid id, Guid imageId, UpdateImageAltRequest request, CancellationToken cancellationToken)
+    {
+        var (altZh, altEn) = GalleryImageAlt.Normalize(request);
+        var record = await LoadOwnForGalleryAsync(scope, id, cancellationToken);
+        var image = record?.ImpactRecordImages.FirstOrDefault(i => i.Id == imageId);
+        if (record is null || image is null)
+        {
+            return null;
+        }
+
+        image.ImageAltZh = altZh;
+        image.ImageAltEn = altEn;
+        image.UpdatedAt = DateTime.UtcNow;
+        image.UpdatedBy = scope.Identity.AdminUserId;
+        record.UpdatedAt = image.UpdatedAt;
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync(AdminCharityOrgsRepository.CacheEntity, scope.ClubCode, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
@@ -246,9 +268,11 @@ public sealed class AdminImpactRecordsRepository(ClubDbContext dbContext, IQuery
     {
         AdminInput.RequireText(request.Content.Zh.DonationContent, "中文捐助內容", 4000, "donationZh");
         AdminInput.OptionalText(request.Content.Zh.Location, "地點", 128, "locationZh");
+        AdminInput.OptionalText(request.Content.Zh.ImageAlt, "活動圖片替代文字（中文）", 200, "imageAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.DonationContent))
         {
             AdminInput.OptionalText(request.Content.En.Location, "地點（英文）", 128, "locationEn");
+            AdminInput.OptionalText(request.Content.En.ImageAlt, "活動圖片替代文字（英文）", 200, "imageAltEn");
         }
     }
 
@@ -302,6 +326,7 @@ public sealed class AdminImpactRecordsRepository(ClubDbContext dbContext, IQuery
         row.DonationContent = content.DonationContent.Trim();
         row.Location = string.IsNullOrWhiteSpace(content.Location) ? null : content.Location.Trim();
         row.BriefDescription = string.IsNullOrWhiteSpace(content.BriefDescription) ? null : content.BriefDescription;
+        row.ImageAlt = string.IsNullOrWhiteSpace(content.ImageAlt) ? null : content.ImageAlt.Trim();
     }
 
     private AdminImpactRecordDetailDto ToDetail(ImpactRecord record)
@@ -316,12 +341,13 @@ public sealed class AdminImpactRecordsRepository(ClubDbContext dbContext, IQuery
             ProgramNameZh = record.CharityProgram?.CharityProgramsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Name,
             HappenedOn = record.HappenedOn, SortOrder = record.SortOrder, IsPinned = record.IsPinned,
             ImageKey = record.ImageKey, ImageUrl = imageUrls.Resolve(record.ImageKey), ImageThumbUrl = imageUrls.ResolveThumbnail(record.ImageKey), ImageWidth = record.ImageWidth, ImageHeight = record.ImageHeight,
-            Zh = new AdminImpactRecordLocaleContent { DonationContent = zh?.DonationContent ?? "", Location = zh?.Location, BriefDescription = zh?.BriefDescription },
-            En = en is null ? null : new AdminImpactRecordLocaleContent { DonationContent = en.DonationContent ?? "", Location = en.Location, BriefDescription = en.BriefDescription },
+            Zh = new AdminImpactRecordLocaleContent { DonationContent = zh?.DonationContent ?? "", Location = zh?.Location, BriefDescription = zh?.BriefDescription, ImageAlt = zh?.ImageAlt },
+            En = en is null ? null : new AdminImpactRecordLocaleContent { DonationContent = en.DonationContent ?? "", Location = en.Location, BriefDescription = en.BriefDescription, ImageAlt = en.ImageAlt },
             Images = record.ImpactRecordImages.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new AdminGalleryImageDto
             {
                 Id = i.Id, ImageKey = i.ImageKey, ImageUrl = imageUrls.Resolve(i.ImageKey),
                 ThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)), SortOrder = i.SortOrder,
+                ImageWidth = i.ImageWidth, ImageHeight = i.ImageHeight, AltZh = i.ImageAltZh, AltEn = i.ImageAltEn,
             }).ToList(),
             CreatedAt = record.CreatedAt, UpdatedAt = record.UpdatedAt,
         };

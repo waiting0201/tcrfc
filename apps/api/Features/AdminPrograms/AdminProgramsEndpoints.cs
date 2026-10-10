@@ -65,16 +65,20 @@ public static class AdminProgramsEndpoints
 
             var programId = Guid.NewGuid();
             string? coverKey = null;
+            int? coverWidth = null;
+            int? coverHeight = null;
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("programs", "cover");
                 var uploaded = await UploadCoverAsync(scope, programId, file, imageStorage, cancellationToken);
                 coverKey = uploaded.Key;
+                coverWidth = uploaded.Width;
+                coverHeight = uploaded.Height;
             }
 
             try
             {
-                var created = await repository.CreateAsync(scope, programId, request, coverKey, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(scope, programId, request, coverKey, coverWidth, coverHeight, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/programs/{created.Id}", created);
             }
             catch
@@ -120,7 +124,7 @@ public static class AdminProgramsEndpoints
                 UploadSlotPolicy.Validate("programs", "cover");
                 var uploaded = await UploadCoverAsync(scope, id, file, imageStorage, cancellationToken);
                 uploadedKey = uploaded.Key;
-                coverUpdate = ProgramCoverKeyUpdate.Set(uploaded.Key);
+                coverUpdate = ProgramCoverKeyUpdate.Set(uploaded.Key, uploaded.Width, uploaded.Height);
             }
             else if (request.RemoveCover)
             {

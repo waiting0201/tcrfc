@@ -82,6 +82,10 @@ public sealed record AdminProductImageDto
     public string? ImageThumbUrl { get; init; }
     public int? Width { get; init; }
     public int? Height { get; init; }
+
+    /// <summary>商品圖片替代文字（中文／英文；<c>product_images.image_alt_zh／image_alt_en</c>），用 <c>PUT .../images/{imageId}</c> 修改。</summary>
+    public string? AltZh { get; init; }
+    public string? AltEn { get; init; }
     public required int SortOrder { get; init; }
 }
 

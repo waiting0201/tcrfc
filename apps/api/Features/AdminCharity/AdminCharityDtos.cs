@@ -6,6 +6,9 @@ public sealed record AdminCharityOrgLocaleContent
 {
     public required string Name { get; init; }
     public string? Intro { get; init; }
+
+    /// <summary>標誌／代表圖替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>charities_i18n.logo_alt</c>。</summary>
+    public string? LogoAlt { get; init; }
 }
 
 public sealed record AdminCharityOrgContentInput
@@ -27,6 +30,8 @@ public sealed record AdminCharityOrgListItemDto
     public string? LogoKey { get; init; }
     public string? LogoUrl { get; init; }
     public string? LogoThumbUrl { get; init; }
+    public int? LogoWidth { get; init; }
+    public int? LogoHeight { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
     public required int ProgramCount { get; init; }
@@ -58,6 +63,8 @@ public sealed record AdminCharityOrgDetailDto
     public string? ContactPhone { get; init; }
     public string? LogoKey { get; init; }
     public string? LogoUrl { get; init; }
+    public int? LogoWidth { get; init; }
+    public int? LogoHeight { get; init; }
     public required AdminCharityOrgLocaleContent Zh { get; init; }
     public AdminCharityOrgLocaleContent? En { get; init; }
 
@@ -90,6 +97,9 @@ public sealed record AdminCharityProgramLocaleContent
 
     /// <summary>捐助內容（文字描述）。</summary>
     public string? DonationContent { get; init; }
+
+    /// <summary>封面圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>charity_programs_i18n.cover_alt</c>。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 public sealed record AdminCharityProgramContentInput
@@ -118,6 +128,8 @@ public sealed record AdminCharityProgramListItemDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
     public required DateTime UpdatedAt { get; init; }
@@ -136,6 +148,12 @@ public sealed record AdminGalleryImageDto
     public required string ImageKey { get; init; }
     public string? ImageUrl { get; init; }
     public string? ThumbUrl { get; init; }
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
+
+    /// <summary>圖集圖片替代文字（中文／英文；<c>charity_program_images／impact_record_images.image_alt_zh／image_alt_en</c>），用 <c>PUT .../images/{imageId}</c> 修改。</summary>
+    public string? AltZh { get; init; }
+    public string? AltEn { get; init; }
     public required int SortOrder { get; init; }
 }
 
@@ -155,6 +173,8 @@ public sealed record AdminCharityProgramDetailDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public required AdminCharityProgramLocaleContent Zh { get; init; }
     public AdminCharityProgramLocaleContent? En { get; init; }
 
@@ -201,6 +221,9 @@ public sealed record AdminImpactRecordLocaleContent
     public required string DonationContent { get; init; }
     public string? Location { get; init; }
     public string? BriefDescription { get; init; }
+
+    /// <summary>活動圖片（主圖）替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>impact_records_i18n.image_alt</c>。</summary>
+    public string? ImageAlt { get; init; }
 }
 
 public sealed record AdminImpactRecordContentInput

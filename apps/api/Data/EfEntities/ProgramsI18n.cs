@@ -9,6 +9,8 @@ public partial class ProgramsI18n
 
     public string Locale { get; set; } = null!;
 
+    public string? CoverAlt { get; set; }
+
     public string? Name { get; set; }
 
     public string? Intro { get; set; }

@@ -132,16 +132,20 @@ public static class AdminTeamsEndpoints
 
             var teamId = Guid.NewGuid();
             string? heroKey = null;
+            int? heroWidth = null;
+            int? heroHeight = null;
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("teams", "hero");
                 var uploaded = await UploadHeroAsync(scope, teamId, file, imageStorage, cancellationToken);
                 heroKey = uploaded.Key;
+                heroWidth = uploaded.Width;
+                heroHeight = uploaded.Height;
             }
 
             try
             {
-                var created = await repository.CreateAsync(scope, rowScope, teamId, request, heroKey, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(scope, rowScope, teamId, request, heroKey, heroWidth, heroHeight, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/teams/{created.Id}", created);
             }
             catch
@@ -190,7 +194,7 @@ public static class AdminTeamsEndpoints
                 UploadSlotPolicy.Validate("teams", "hero");
                 var uploaded = await UploadHeroAsync(scope, id, file, imageStorage, cancellationToken);
                 uploadedKey = uploaded.Key;
-                heroUpdate = HeroKeyUpdate.Set(uploaded.Key);
+                heroUpdate = HeroKeyUpdate.Set(uploaded.Key, uploaded.Width, uploaded.Height);
             }
             else if (request.RemoveHero)
             {

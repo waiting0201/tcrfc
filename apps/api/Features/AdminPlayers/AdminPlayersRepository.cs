@@ -49,6 +49,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
                 p.BirthOn,
                 p.Status,
                 p.PhotoKey,
+                p.PhotoWidth,
+                p.PhotoHeight,
                 p.PortraitConsentStatus,
                 p.UpdatedAt,
                 NameZh = p.PlayersI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
@@ -69,6 +71,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             PhotoKey = r.PhotoKey,
             PhotoUrl = imageUrls.Resolve(r.PhotoKey),
             PhotoThumbUrl = imageUrls.ResolveThumbnail(r.PhotoKey),
+            PhotoWidth = r.PhotoKey is null ? null : r.PhotoWidth,
+            PhotoHeight = r.PhotoKey is null ? null : r.PhotoHeight,
             PortraitConsentStatus = r.PortraitConsentStatus,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
@@ -89,7 +93,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
     /// <summary>🔴 建立一律歸屬 <paramref name="scope"/> 當下的俱樂部（<c>players.club_id</c> 必填），
     /// <paramref name="request"/>.TeamId 必須是這個俱樂部自己的球隊——見 <see cref="ResolveTeamAsync"/>。</summary>
     public async Task<AdminPlayerDetailDto> CreateAsync(
-        AdminClubScope scope, TeamRowScope rowScope, Guid playerId, CreateAdminPlayerRequest request, string? photoKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid playerId, CreateAdminPlayerRequest request, string? photoKey, int? photoWidth, int? photoHeight, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStatus(request.Status);
         ValidatePortraitConsentStatus(request.PortraitConsentStatus);
@@ -133,6 +137,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             JoinedOn = request.JoinedOn,
             Status = request.Status ?? "active",
             PhotoKey = photoKey,
+            PhotoWidth = photoKey is null ? null : photoWidth,
+            PhotoHeight = photoKey is null ? null : photoHeight,
             // 🔴 fail-closed（docs/12 §12 第 32 點）：省略時預設 not_consented，新建球員預設
             // 不對公開端點輸出照片，直到後台明確填寫已取得同意。
             PortraitConsentStatus = request.PortraitConsentStatus ?? "not_consented",
@@ -210,6 +216,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         if (photoUpdate.Change)
         {
             player.PhotoKey = photoUpdate.NewKey;
+            player.PhotoWidth = photoUpdate.NewKey is null ? null : photoUpdate.Width;
+            player.PhotoHeight = photoUpdate.NewKey is null ? null : photoUpdate.Height;
         }
 
         AddOrReplaceI18n(player, RequestLocale.DefaultDbLocale, request.Content.Zh);
@@ -276,6 +284,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
 
         existing.Name = content.Name;
         existing.Bio = content.Bio;
+        existing.PhotoAlt = string.IsNullOrWhiteSpace(content.PhotoAlt) ? null : content.PhotoAlt.Trim();
     }
 
     private static void ValidateStatus(string? status)
@@ -301,6 +310,16 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
             throw new AdminPlayerValidationException("中文姓名為必填欄位。", "nameZh");
+        }
+
+        if ((content.Zh.PhotoAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminPlayerValidationException("照片替代文字（中文）不可超過 200 字。", "photoAltZh");
+        }
+
+        if ((content.En?.PhotoAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminPlayerValidationException("照片替代文字（英文）不可超過 200 字。", "photoAltEn");
         }
     }
 
@@ -463,9 +482,11 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             PhotoKey = player.PhotoKey,
             PhotoUrl = imageUrls.Resolve(player.PhotoKey),
             PhotoThumbUrl = imageUrls.ResolveThumbnail(player.PhotoKey),
+            PhotoWidth = player.PhotoKey is null ? null : player.PhotoWidth,
+            PhotoHeight = player.PhotoKey is null ? null : player.PhotoHeight,
             PortraitConsentStatus = player.PortraitConsentStatus,
-            Zh = new AdminPlayerLocaleContent { Name = zh?.Name ?? "", Bio = zh?.Bio },
-            En = en is null ? null : new AdminPlayerLocaleContent { Name = en.Name ?? "", Bio = en.Bio },
+            Zh = new AdminPlayerLocaleContent { Name = zh?.Name ?? "", Bio = zh?.Bio, PhotoAlt = zh?.PhotoAlt },
+            En = en is null ? null : new AdminPlayerLocaleContent { Name = en.Name ?? "", Bio = en.Bio, PhotoAlt = en.PhotoAlt },
             CreatedAt = player.CreatedAt,
             UpdatedAt = player.UpdatedAt,
         };

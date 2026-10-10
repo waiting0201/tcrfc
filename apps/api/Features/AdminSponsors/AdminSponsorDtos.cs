@@ -5,6 +5,9 @@ public sealed record AdminSponsorLocaleContent
 {
     public required string Name { get; init; }
     public string? Content { get; init; }
+
+    /// <summary>標誌替代文字（§4.0 圖片欄位組，逐語系；深色／淺色兩版是同一個標誌，共用這一欄）。對應 <c>sponsors_i18n.logo_alt</c>。</summary>
+    public string? LogoAlt { get; init; }
 }
 
 public sealed record AdminSponsorContentInput
@@ -32,6 +35,10 @@ public sealed record AdminSponsorListItemDto
     public string? LogoDarkKey { get; init; }
     public string? LogoDarkUrl { get; init; }
     public string? LogoDarkThumbUrl { get; init; }
+    public int? LogoDarkWidth { get; init; }
+    public int? LogoDarkHeight { get; init; }
+    public int? LogoLightWidth { get; init; }
+    public int? LogoLightHeight { get; init; }
     public string? LogoLightKey { get; init; }
     public string? LogoLightUrl { get; init; }
     public string? LogoLightThumbUrl { get; init; }
@@ -74,6 +81,10 @@ public sealed record AdminSponsorDetailDto
     public string? LogoDarkUrl { get; init; }
     public string? LogoLightKey { get; init; }
     public string? LogoLightUrl { get; init; }
+    public int? LogoDarkWidth { get; init; }
+    public int? LogoDarkHeight { get; init; }
+    public int? LogoLightWidth { get; init; }
+    public int? LogoLightHeight { get; init; }
     public required AdminSponsorLocaleContent Zh { get; init; }
     public AdminSponsorLocaleContent? En { get; init; }
     public required IReadOnlyList<AdminSponsorPackageRefDto> Packages { get; init; }
@@ -191,6 +202,10 @@ public sealed record AdminActivationImageDto
     public string? ThumbUrl { get; init; }
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
+
+    /// <summary>圖集圖片替代文字（中文／英文；<c>sponsor_activation_images.image_alt_zh／image_alt_en</c>），用 <c>PUT .../images/{imageId}</c> 修改。</summary>
+    public string? AltZh { get; init; }
+    public string? AltEn { get; init; }
     public required int SortOrder { get; init; }
 }
 

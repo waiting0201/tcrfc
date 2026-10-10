@@ -41,6 +41,10 @@ public sealed record AdminSeoSettingsDto
 
     public int? OgImageWidth { get; init; }
     public int? OgImageHeight { get; init; }
+
+    /// <summary>全站預設 OG 圖片替代文字（§4.0 圖片欄位組，中文／英文；<c>clubs_i18n.og_image_alt</c>）。</summary>
+    public string? OgImageAltZh { get; init; }
+    public string? OgImageAltEn { get; init; }
 }
 
 /// <summary>
@@ -61,6 +65,10 @@ public sealed record UpdateSeoSettingsRequest
     public string? GtmContainerId { get; init; }
     public string? MetaPixelId { get; init; }
     public string? LineTagId { get; init; }
+
+    /// <summary>全站預設 OG 圖片替代文字（中文／英文，各 ≤200 字，整份取代：沒送＝清空）。英文需該俱樂部已有英文名稱列。</summary>
+    public string? OgImageAltZh { get; init; }
+    public string? OgImageAltEn { get; init; }
 
     /// <summary>勾選「移除全站預設 OG 圖片」。跟這次請求的 <c>ogImage</c> 檔案欄位互斥——
     /// 兩者都有視為請求矛盾，回 400。兩者都沒有＝維持目前的圖片不變。</summary>

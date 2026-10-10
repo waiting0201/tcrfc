@@ -3,6 +3,7 @@ using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.AdminComics;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -59,6 +60,8 @@ public sealed class ComicsRepository(ClubDbContext db, IImagePublicUrlResolver i
             {
                 Id = c.Id, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), Description = RequestLocale.Pick(requested?.Description, fallback?.Description),
                 ImageUrl = Url(c.ImageKey), ImageThumbUrl = Thumb(c.ImageKey), PlayerId = c.PlayerId,
+                ImageWidth = c.ImageKey is null ? null : c.ImageWidth, ImageHeight = c.ImageKey is null ? null : c.ImageHeight,
+                ImageAlt = c.ImageKey is null ? null : RequestLocale.Pick(requested?.ImageAlt, fallback?.ImageAlt),
             };
         }).ToList();
     }
@@ -101,12 +104,14 @@ public sealed class ComicsRepository(ClubDbContext db, IImagePublicUrlResolver i
             .FirstAsync(x => x.EpisodeNo == episodeNo, cancellationToken);
         var index = visibleNos.IndexOf(episodeNo);
         var pages = e.ComicPages.OrderBy(p => p.SortOrder).ThenBy(p => p.RowSeq)
-            .Select((p, i) => new ComicPagePublicDto { PageNo = i + 1, ImageUrl = Url(p.ImageKey), ImageThumbUrl = Thumb(p.ImageKey), Width = p.ImageWidth, Height = p.ImageHeight }).ToList();
+            .Select((p, i) => new ComicPagePublicDto { PageNo = i + 1, ImageUrl = Url(p.ImageKey), ImageThumbUrl = Thumb(p.ImageKey), Width = p.ImageWidth, Height = p.ImageHeight, Alt = GalleryImageAlt.Pick(dbLocale, p.ImageAltZh, p.ImageAltEn) }).ToList();
         var requested = e.ComicEpisodesI18ns.FirstOrDefault(i => i.Locale == dbLocale);
         var fallback = e.ComicEpisodesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         return new ComicEpisodeDetailDto
         {
             EpisodeNo = e.EpisodeNo, Title = RequestLocale.Pick(requested?.Title, fallback?.Title), CoverUrl = Url(e.CoverKey), PublishedOn = e.PublishedOn,
+            CoverWidth = e.CoverKey is null ? null : e.CoverWidth, CoverHeight = e.CoverKey is null ? null : e.CoverHeight,
+            CoverAlt = e.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
             IsLatest = index == visibleNos.Count - 1, Pages = pages,
             PreviousEpisodeNo = index > 0 ? visibleNos[index - 1] : null, NextEpisodeNo = index < visibleNos.Count - 1 ? visibleNos[index + 1] : null,
         };
@@ -128,6 +133,8 @@ public sealed class ComicsRepository(ClubDbContext db, IImagePublicUrlResolver i
         return new ComicEpisodeListItemDto
         {
             EpisodeNo = e.EpisodeNo, Title = RequestLocale.Pick(requested?.Title, fallback?.Title), CoverUrl = Url(e.CoverKey), CoverThumbUrl = Thumb(e.CoverKey),
+            CoverWidth = e.CoverKey is null ? null : e.CoverWidth, CoverHeight = e.CoverKey is null ? null : e.CoverHeight,
+            CoverAlt = e.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
             PublishedOn = e.PublishedOn, IsLatest = isLatest, PageCount = pageCount,
         };
     }

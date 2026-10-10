@@ -57,4 +57,9 @@ public sealed record PublicCalendarEventDto
     /// <c>Features/Staff/StaffDto.PhotoUrl</c> 的既有慣例。<c>null</c>＝這則自建活動沒有封面圖。
     /// match 來源事件恆為 <c>null</c>（<c>matches</c> 沒有封面圖欄位）。</summary>
     public string? CoverUrl { get; init; }
+
+    /// <summary>封面寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有封面圖時三者皆 <c>null</c>。match 來源恆為 <c>null</c>。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+    public string? CoverAlt { get; init; }
 }

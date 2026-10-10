@@ -389,6 +389,11 @@ data class CharityLinkedItemDto(
     val name: String? = null,
     val logoDarkUrl: String? = null,
     val logoLightUrl: String? = null,
+    val logoDarkWidth: Int? = null,
+    val logoDarkHeight: Int? = null,
+    val logoLightWidth: Int? = null,
+    val logoLightHeight: Int? = null,
+    val logoAlt: String? = null,
 )
 
 @Serializable
@@ -401,6 +406,9 @@ data class CharityProgramDetailDto(
     val endOn: String? = null,
     val progress: String,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val content: String? = null,
     val donationContent: String? = null,
     val charity: PublicCharityOrgDto? = null,
@@ -421,6 +429,9 @@ data class CharityProgramListItemDto(
     val progress: String,
     val isPinned: Boolean,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val charityName: String? = null,
 )
 
@@ -456,6 +467,9 @@ data class ClubDto(
     val ogImageKey: String? = null,
     val defaultLocale: String,
     val ogImageUrl: String? = null,
+    val ogImageWidth: Int? = null,
+    val ogImageHeight: Int? = null,
+    val ogImageAlt: String? = null,
     val schemaEligible: Boolean,
 )
 
@@ -472,6 +486,9 @@ data class ComicCharacterPublicDto(
     val description: String? = null,
     val imageUrl: String? = null,
     val imageThumbUrl: String? = null,
+    val imageWidth: Int? = null,
+    val imageHeight: Int? = null,
+    val imageAlt: String? = null,
     val playerId: String? = null,
 )
 
@@ -480,6 +497,9 @@ data class ComicEpisodeDetailDto(
     val episodeNo: Int,
     val title: String? = null,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val publishedOn: String? = null,
     val isLatest: Boolean,
     val pages: List<ComicPagePublicDto>,
@@ -492,6 +512,9 @@ data class ComicEpisodeListItemDto(
     val episodeNo: Int,
     val title: String? = null,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val coverThumbUrl: String? = null,
     val publishedOn: String? = null,
     val isLatest: Boolean,
@@ -505,6 +528,7 @@ data class ComicPagePublicDto(
     val imageThumbUrl: String? = null,
     val width: Int? = null,
     val height: Int? = null,
+    val alt: String? = null,
 )
 
 @Serializable
@@ -572,6 +596,7 @@ data class FanEventImagePublicDto(
     val imageThumbUrl: String? = null,
     val width: Int? = null,
     val height: Int? = null,
+    val alt: String? = null,
 )
 
 @Serializable
@@ -590,6 +615,8 @@ data class FanEventListItemDto(
     val phase: String,
     val coverUrl: String? = null,
     val coverThumbUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
     val coverAlt: String? = null,
 )
 
@@ -666,12 +693,16 @@ data class ImpactRecordDto(
     val happenedOn: String? = null,
     val charityName: String? = null,
     val charityLogoUrl: String? = null,
+    val charityLogoWidth: Int? = null,
+    val charityLogoHeight: Int? = null,
+    val charityLogoAlt: String? = null,
     val donationContent: String? = null,
     val location: String? = null,
     val briefDescription: String? = null,
     val imageUrl: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
+    val imageAlt: String? = null,
     val images: List<PublicCharityImageDto>,
     val programSlug: String? = null,
     val programName: String? = null,
@@ -791,6 +822,9 @@ data class MemberDrawDto(
     val notes: String? = null,
     val isFallbackLocale: Boolean,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val occasion: String? = null,
     val occasionLabel: String? = null,
     val snapshotAt: JsonElement? = null,
@@ -1306,6 +1340,11 @@ data class PartnerDto(
     val content: String? = null,
     val logoDarkUrl: String? = null,
     val logoLightUrl: String? = null,
+    val logoDarkWidth: Int? = null,
+    val logoDarkHeight: Int? = null,
+    val logoLightWidth: Int? = null,
+    val logoLightHeight: Int? = null,
+    val logoAlt: String? = null,
     val charityPrograms: List<PartnerCharityProgramDto>,
 )
 
@@ -1333,6 +1372,9 @@ data class PartnerStorePublicDto(
     val mapUrl: String? = null,
     val websiteUrl: String? = null,
     val imageUrl: String? = null,
+    val imageWidth: Int? = null,
+    val imageHeight: Int? = null,
+    val imageAlt: String? = null,
     val isShared: Boolean,
 )
 
@@ -1372,6 +1414,9 @@ data class PlayerDto(
     val name: String? = null,
     val bio: String? = null,
     val photoUrl: String? = null,
+    val photoWidth: Int? = null,
+    val photoHeight: Int? = null,
+    val photoAlt: String? = null,
     val schemaEligible: Boolean,
 )
 
@@ -1384,6 +1429,9 @@ data class PlayerSeasonStatDto(
     val shirtNo: Int? = null,
     val position: String? = null,
     val photoUrl: String? = null,
+    val photoWidth: Int? = null,
+    val photoHeight: Int? = null,
+    val photoAlt: String? = null,
     val appearances: Int,
     val goals: Int,
     val assists: Int? = null,
@@ -1425,6 +1473,9 @@ data class ProgramDetailDto(
     val ageMax: Int? = null,
     val coverKey: String? = null,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val name: String? = null,
     val intro: String? = null,
     val content: String? = null,
@@ -1444,6 +1495,9 @@ data class ProgramListItemDto(
     val ageMax: Int? = null,
     val coverKey: String? = null,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val name: String? = null,
     val intro: String? = null,
     val hasOpenSession: Boolean,
@@ -1459,6 +1513,11 @@ data class ProgramPartnerSummaryDto(
     val logoDarkUrl: String? = null,
     val logoLightUrl: String? = null,
     val websiteUrl: String? = null,
+    val logoDarkWidth: Int? = null,
+    val logoDarkHeight: Int? = null,
+    val logoLightWidth: Int? = null,
+    val logoLightHeight: Int? = null,
+    val logoAlt: String? = null,
 )
 
 @Serializable
@@ -1550,6 +1609,9 @@ data class PublicCalendarEventDto(
     val ctaUrl: String? = null,
     val coverKey: String? = null,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
 )
 
 @Serializable
@@ -1583,6 +1645,9 @@ data class PublicCalendarTeamDto(
 data class PublicCharityImageDto(
     val imageUrl: String,
     val thumbUrl: String? = null,
+    val imageWidth: Int? = null,
+    val imageHeight: Int? = null,
+    val alt: String? = null,
 )
 
 @Serializable
@@ -1591,6 +1656,9 @@ data class PublicCharityOrgDto(
     val name: String? = null,
     val intro: String? = null,
     val logoUrl: String? = null,
+    val logoWidth: Int? = null,
+    val logoHeight: Int? = null,
+    val logoAlt: String? = null,
     val websiteUrl: String? = null,
 )
 
@@ -1702,6 +1770,8 @@ data class PublicSeoSettingsDto(
     val ogImageUrl: String? = null,
     val ogImageWidth: Int? = null,
     val ogImageHeight: Int? = null,
+    val ogImageAltZh: String? = null,
+    val ogImageAltEn: String? = null,
 )
 
 @Serializable
@@ -1886,6 +1956,9 @@ data class ShopCartItemDto(
     val variantLabel: String,
     val sku: String,
     val imageThumbUrl: String? = null,
+    val imageWidth: Int? = null,
+    val imageHeight: Int? = null,
+    val imageAlt: String? = null,
     val listPrice: Int,
     val unitPrice: Int,
     val onSale: Boolean,
@@ -1931,6 +2004,7 @@ data class ShopImageDto(
     val thumbUrl: String,
     val width: Int? = null,
     val height: Int? = null,
+    val alt: String? = null,
 )
 
 @Serializable
@@ -2061,6 +2135,9 @@ data class ShopProductListItemDto(
     val isNewArrival: Boolean,
     val imageUrl: String? = null,
     val imageThumbUrl: String? = null,
+    val imageWidth: Int? = null,
+    val imageHeight: Int? = null,
+    val imageAlt: String? = null,
     val priceMin: Int? = null,
     val priceMax: Int? = null,
     val listPriceMin: Int? = null,
@@ -2106,6 +2183,7 @@ data class SponsorActivationImageDto(
     val thumbUrl: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
+    val alt: String? = null,
 )
 
 @Serializable
@@ -2119,6 +2197,11 @@ data class SponsorDto(
     val content: String? = null,
     val logoDarkUrl: String? = null,
     val logoLightUrl: String? = null,
+    val logoDarkWidth: Int? = null,
+    val logoDarkHeight: Int? = null,
+    val logoLightWidth: Int? = null,
+    val logoLightHeight: Int? = null,
+    val logoAlt: String? = null,
     val stories: List<SponsorStoryDto>,
     val activations: List<SponsorActivationDto>,
     val charityPrograms: List<PartnerCharityProgramDto>,
@@ -2159,6 +2242,9 @@ data class StaffDto(
     val teamCodes: List<String>,
     val isShared: Boolean,
     val photoUrl: String? = null,
+    val photoWidth: Int? = null,
+    val photoHeight: Int? = null,
+    val photoAlt: String? = null,
     val schemaEligible: Boolean,
 )
 
@@ -2241,6 +2327,9 @@ data class TeamDto(
     val isFallbackLocale: Boolean,
     val intro: String? = null,
     val heroUrl: String? = null,
+    val heroWidth: Int? = null,
+    val heroHeight: Int? = null,
+    val heroAlt: String? = null,
     val schemaEligible: Boolean,
 )
 

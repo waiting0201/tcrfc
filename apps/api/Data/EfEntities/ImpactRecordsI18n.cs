@@ -9,6 +9,8 @@ public partial class ImpactRecordsI18n
 
     public string Locale { get; set; } = null!;
 
+    public string? ImageAlt { get; set; }
+
     public string? DonationContent { get; set; }
 
     public string? Location { get; set; }

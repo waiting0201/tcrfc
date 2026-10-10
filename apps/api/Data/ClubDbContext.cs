@@ -971,6 +971,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.CoverKey)
                 .HasMaxLength(500)
                 .HasColumnName("cover_key");
+            entity.Property(e => e.CoverWidth).HasColumnName("cover_width");
+            entity.Property(e => e.CoverHeight).HasColumnName("cover_height");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -1038,6 +1040,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.CoverAlt)
+                .HasMaxLength(200)
+                .HasColumnName("cover_alt");
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.Title)
                 .HasMaxLength(128)
@@ -1286,6 +1291,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.LogoAlt)
+                .HasMaxLength(200)
+                .HasColumnName("logo_alt");
             entity.Property(e => e.Intro).HasColumnName("intro");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
@@ -1328,6 +1336,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.LogoKey)
                 .HasMaxLength(500)
                 .HasColumnName("logo_key");
+            entity.Property(e => e.LogoWidth).HasColumnName("logo_width");
+            entity.Property(e => e.LogoHeight).HasColumnName("logo_height");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -1378,6 +1388,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.CoverKey)
                 .HasMaxLength(500)
                 .HasColumnName("cover_key");
+            entity.Property(e => e.CoverWidth).HasColumnName("cover_width");
+            entity.Property(e => e.CoverHeight).HasColumnName("cover_height");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -1498,6 +1510,14 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
+            entity.Property(e => e.ImageAltZh)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_zh");
+            entity.Property(e => e.ImageAltEn)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_en");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -1533,6 +1553,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.CoverAlt)
+                .HasMaxLength(200)
+                .HasColumnName("cover_alt");
             entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.DonationContent).HasColumnName("donation_content");
             entity.Property(e => e.Name)
@@ -1627,6 +1650,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.OgImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("og_image_alt");
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.Name)
                 .HasMaxLength(64)
@@ -1740,6 +1766,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
             entity.Property(e => e.PlayerId).HasColumnName("player_id");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
@@ -1781,6 +1809,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.ImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt");
             entity.Property(e => e.Description).HasColumnName("description");
             entity.Property(e => e.Name)
                 .HasMaxLength(64)
@@ -1810,6 +1841,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.CoverKey)
                 .HasMaxLength(500)
                 .HasColumnName("cover_key");
+            entity.Property(e => e.CoverWidth).HasColumnName("cover_width");
+            entity.Property(e => e.CoverHeight).HasColumnName("cover_height");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -1858,6 +1891,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.CoverAlt)
+                .HasMaxLength(200)
+                .HasColumnName("cover_alt");
             entity.Property(e => e.Title)
                 .HasMaxLength(128)
                 .HasColumnName("title");
@@ -1890,6 +1926,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageAltZh)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_zh");
+            entity.Property(e => e.ImageAltEn)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_en");
             entity.Property(e => e.ImageWidth).HasColumnName("image_width");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
@@ -2506,6 +2548,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.CoverKey)
                 .HasMaxLength(500)
                 .HasColumnName("cover_key");
+            entity.Property(e => e.CoverWidth).HasColumnName("cover_width");
+            entity.Property(e => e.CoverHeight).HasColumnName("cover_height");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -2598,6 +2642,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageAltZh)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_zh");
+            entity.Property(e => e.ImageAltEn)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_en");
             entity.Property(e => e.ImageWidth).HasColumnName("image_width");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
@@ -3378,6 +3428,14 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
+            entity.Property(e => e.ImageAltZh)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_zh");
+            entity.Property(e => e.ImageAltEn)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_en");
             entity.Property(e => e.ImpactRecordId).HasColumnName("impact_record_id");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
@@ -3414,6 +3472,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.ImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt");
             entity.Property(e => e.BriefDescription).HasColumnName("brief_description");
             entity.Property(e => e.DonationContent).HasColumnName("donation_content");
             entity.Property(e => e.Location)
@@ -4087,6 +4148,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.CoverKey)
                 .HasMaxLength(500)
                 .HasColumnName("cover_key");
+            entity.Property(e => e.CoverWidth).HasColumnName("cover_width");
+            entity.Property(e => e.CoverHeight).HasColumnName("cover_height");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -4163,6 +4226,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.CoverAlt)
+                .HasMaxLength(200)
+                .HasColumnName("cover_alt");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
                 .HasColumnName("name");
@@ -5066,6 +5132,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.LogoLightKey)
                 .HasMaxLength(500)
                 .HasColumnName("logo_light_key");
+            entity.Property(e => e.LogoDarkWidth).HasColumnName("logo_dark_width");
+            entity.Property(e => e.LogoDarkHeight).HasColumnName("logo_dark_height");
+            entity.Property(e => e.LogoLightWidth).HasColumnName("logo_light_width");
+            entity.Property(e => e.LogoLightHeight).HasColumnName("logo_light_height");
             entity.Property(e => e.PartnerType)
                 .HasMaxLength(32)
                 .HasColumnName("partner_type");
@@ -5140,6 +5210,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
             entity.Property(e => e.Lat)
                 .HasColumnType("decimal(9, 6)")
                 .HasColumnName("lat");
@@ -5201,6 +5273,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.ImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt");
             entity.Property(e => e.Address)
                 .HasMaxLength(500)
                 .HasColumnName("address");
@@ -5226,6 +5301,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.LogoAlt)
+                .HasMaxLength(200)
+                .HasColumnName("logo_alt");
             entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
@@ -5390,6 +5468,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PhotoKey)
                 .HasMaxLength(500)
                 .HasColumnName("photo_key");
+            entity.Property(e => e.PhotoWidth).HasColumnName("photo_width");
+            entity.Property(e => e.PhotoHeight).HasColumnName("photo_height");
             entity.Property(e => e.Position)
                 .HasMaxLength(32)
                 .HasColumnName("position");
@@ -5503,6 +5583,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.PhotoAlt)
+                .HasMaxLength(200)
+                .HasColumnName("photo_alt");
             entity.Property(e => e.Bio).HasColumnName("bio");
             entity.Property(e => e.Name)
                 .HasMaxLength(64)
@@ -5692,6 +5775,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageAltZh)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_zh");
+            entity.Property(e => e.ImageAltEn)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_en");
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
@@ -5843,6 +5932,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.CoverKey)
                 .HasMaxLength(500)
                 .HasColumnName("cover_key");
+            entity.Property(e => e.CoverWidth).HasColumnName("cover_width");
+            entity.Property(e => e.CoverHeight).HasColumnName("cover_height");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -5926,6 +6017,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.CoverAlt)
+                .HasMaxLength(200)
+                .HasColumnName("cover_alt");
             entity.Property(e => e.Audience)
                 .HasMaxLength(64)
                 .HasColumnName("audience");
@@ -6685,6 +6779,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.LogoLightKey)
                 .HasMaxLength(500)
                 .HasColumnName("logo_light_key");
+            entity.Property(e => e.LogoDarkWidth).HasColumnName("logo_dark_width");
+            entity.Property(e => e.LogoDarkHeight).HasColumnName("logo_dark_height");
+            entity.Property(e => e.LogoLightWidth).HasColumnName("logo_light_width");
+            entity.Property(e => e.LogoLightHeight).HasColumnName("logo_light_height");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -6807,6 +6905,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageAltZh)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_zh");
+            entity.Property(e => e.ImageAltEn)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt_en");
             entity.Property(e => e.ImageWidth).HasColumnName("image_width");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
@@ -6968,6 +7072,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.LogoAlt)
+                .HasMaxLength(200)
+                .HasColumnName("logo_alt");
             entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
@@ -7003,6 +7110,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PhotoKey)
                 .HasMaxLength(500)
                 .HasColumnName("photo_key");
+            entity.Property(e => e.PhotoWidth).HasColumnName("photo_width");
+            entity.Property(e => e.PhotoHeight).HasColumnName("photo_height");
             entity.Property(e => e.PortraitConsentStatus)
                 .HasMaxLength(32)
                 .HasDefaultValue("not_consented")
@@ -7044,6 +7153,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.PhotoAlt)
+                .HasMaxLength(200)
+                .HasColumnName("photo_alt");
             entity.Property(e => e.Bio).HasColumnName("bio");
             entity.Property(e => e.Name)
                 .HasMaxLength(64)
@@ -7304,6 +7416,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.HeroKey)
                 .HasMaxLength(500)
                 .HasColumnName("hero_key");
+            entity.Property(e => e.HeroWidth).HasColumnName("hero_width");
+            entity.Property(e => e.HeroHeight).HasColumnName("hero_height");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -7346,6 +7460,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.HeroAlt)
+                .HasMaxLength(200)
+                .HasColumnName("hero_alt");
             entity.Property(e => e.Intro).HasColumnName("intro");
             entity.Property(e => e.Name)
                 .HasMaxLength(64)

@@ -289,6 +289,16 @@ public static class AdminComicsEndpoints
         }).WithName("AdminAddComicPages").Produces<AdminComicEpisodeDetailDto>(StatusCodes.Status201Created)
           .Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status404NotFound).DisableAntiforgery();
 
+        group.MapPut("/episodes/{id:guid}/pages/{pageId:guid}", async (
+            string club, Guid id, Guid pageId, UpdateImageAltRequest request, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminComicsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, Update, cancellationToken);
+            var result = await repository.UpdatePageAltAsync(scope, id, pageId, request, cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        }).WithName("AdminUpdateComicPageAlt").Produces<AdminComicEpisodeDetailDto>().Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound);
+
         group.MapDelete("/episodes/{id:guid}/pages/{pageId:guid}", async (
             string club, Guid id, Guid pageId, HttpContext httpContext, IAdminClubAuthorizer authorizer, AdminComicsRepository repository,
             IImageStorageService images, IDocumentStorageService documents, CancellationToken cancellationToken) =>

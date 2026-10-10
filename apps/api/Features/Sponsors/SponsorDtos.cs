@@ -8,6 +8,9 @@ public sealed record SponsorActivationImageDto
     public string? ThumbUrl { get; init; }
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
+
+    /// <summary>圖片替代文字（當前語系，英文空白回退中文）；沒填為 <c>null</c>。</summary>
+    public string? Alt { get; init; }
 }
 
 /// <summary>贊助活動紀錄（前台 9.2）。</summary>
@@ -48,6 +51,15 @@ public sealed record SponsorDto
     public string? Content { get; init; }
     public string? LogoDarkUrl { get; init; }
     public string? LogoLightUrl { get; init; }
+
+    /// <summary>深色／淺色底版本 Logo 的寬高（像素）；沒上傳的版本為 <c>null</c>。</summary>
+    public int? LogoDarkWidth { get; init; }
+    public int? LogoDarkHeight { get; init; }
+    public int? LogoLightWidth { get; init; }
+    public int? LogoLightHeight { get; init; }
+
+    /// <summary>標誌替代文字（當前語系，英文空白回退繁中；兩版共用）；兩版都沒上傳時為 <c>null</c>。</summary>
+    public string? LogoAlt { get; init; }
     public required IReadOnlyList<SponsorStoryDto> Stories { get; init; }
     public required IReadOnlyList<SponsorActivationDto> Activations { get; init; }
 

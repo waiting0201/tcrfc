@@ -16,7 +16,8 @@ public sealed class PartnersRepository(IClubSqlConnectionFactory connectionFacto
 {
     private sealed record PartnerRow(
         Guid Id, string Slug, string? PartnerType, string? Country, DateTime? StartOn, DateTime? EndOn, string? WebsiteUrl,
-        bool ShowInFooter, bool ShowOnHome, int SortOrder, string? LogoDarkKey, string? LogoLightKey, string? Name, string? Content, bool IsFallbackLocale);
+        bool ShowInFooter, bool ShowOnHome, int SortOrder, string? LogoDarkKey, string? LogoLightKey,
+        int? LogoDarkWidth, int? LogoDarkHeight, int? LogoLightWidth, int? LogoLightHeight, string? LogoAlt, string? Name, string? Content, bool IsFallbackLocale);
 
     private sealed record ProgramLinkRow(Guid PartnerId, string Slug, string? Name);
 
@@ -34,6 +35,9 @@ public sealed class PartnersRepository(IClubSqlConnectionFactory connectionFacto
                        p.start_on AS StartOn, p.end_on AS EndOn, p.website_url AS WebsiteUrl,
                        p.show_in_footer AS ShowInFooter, p.show_on_home AS ShowOnHome, p.sort_order AS SortOrder,
                        p.logo_dark_key AS LogoDarkKey, p.logo_light_key AS LogoLightKey,
+                       p.logo_dark_width AS LogoDarkWidth, p.logo_dark_height AS LogoDarkHeight,
+                       p.logo_light_width AS LogoLightWidth, p.logo_light_height AS LogoLightHeight,
+                       COALESCE(NULLIF(r.logo_alt, N''), d.logo_alt) AS LogoAlt,
                        COALESCE(NULLIF(r.name, N''), d.name) AS Name,
                        COALESCE(NULLIF(r.content, N''), d.content) AS Content,
                        CAST(CASE WHEN @Locale <> @DefaultLocale AND NULLIF(r.name, N'') IS NULL THEN 1 ELSE 0 END AS bit) AS IsFallbackLocale
@@ -85,6 +89,9 @@ public sealed class PartnersRepository(IClubSqlConnectionFactory connectionFacto
                 WebsiteUrl = r.WebsiteUrl, ShowInFooter = r.ShowInFooter, ShowOnHome = r.ShowOnHome, SortOrder = r.SortOrder,
                 Name = r.Name, IsFallbackLocale = r.IsFallbackLocale, Content = r.Content,
                 LogoDarkUrl = imageUrls.Resolve(r.LogoDarkKey), LogoLightUrl = imageUrls.Resolve(r.LogoLightKey),
+                LogoDarkWidth = r.LogoDarkKey is null ? null : r.LogoDarkWidth, LogoDarkHeight = r.LogoDarkKey is null ? null : r.LogoDarkHeight,
+                LogoLightWidth = r.LogoLightKey is null ? null : r.LogoLightWidth, LogoLightHeight = r.LogoLightKey is null ? null : r.LogoLightHeight,
+                LogoAlt = r.LogoDarkKey is null && r.LogoLightKey is null ? null : r.LogoAlt,
                 CharityPrograms = links.GetValueOrDefault(r.Id) ?? [],
             }).ToList();
         }, cancellationToken);

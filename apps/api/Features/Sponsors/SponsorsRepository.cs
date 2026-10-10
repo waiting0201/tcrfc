@@ -2,6 +2,7 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Features.Partners;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -16,10 +17,11 @@ namespace Tcrfc.Api.Features.Sponsors;
 public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
     private sealed record SponsorRow(
-        Guid Id, string Slug, string? Tier, int SortOrder, string? LogoDarkKey, string? LogoLightKey, string? Name, string? Content, bool IsFallbackLocale);
+        Guid Id, string Slug, string? Tier, int SortOrder, string? LogoDarkKey, string? LogoLightKey,
+        int? LogoDarkWidth, int? LogoDarkHeight, int? LogoLightWidth, int? LogoLightHeight, string? LogoAlt, string? Name, string? Content, bool IsFallbackLocale);
     private sealed record StoryRow(Guid SponsorId, string Slug, string? Title, string? Summary);
     private sealed record ActivationRow(Guid Id, Guid SponsorId, DateTime? HappenedOn, string? Title, string? ResultSummary);
-    private sealed record ActivationImageRow(Guid ActivationId, string ImageKey, int? ImageWidth, int? ImageHeight);
+    private sealed record ActivationImageRow(Guid ActivationId, string ImageKey, int? ImageWidth, int? ImageHeight, string? ImageAltZh, string? ImageAltEn);
     private sealed record ProgramLinkRow(Guid SponsorId, string Slug, string? Name);
     private sealed record PackageRow(
         Guid Id, string Slug, int SortOrder, bool IsPricePublic, int? PriceMin, int? PriceMax,
@@ -36,6 +38,9 @@ public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFacto
             const string sponsorSql = """
                 SELECT s.id AS Id, s.slug AS Slug, s.tier AS Tier, s.sort_order AS SortOrder,
                        s.logo_dark_key AS LogoDarkKey, s.logo_light_key AS LogoLightKey,
+                       s.logo_dark_width AS LogoDarkWidth, s.logo_dark_height AS LogoDarkHeight,
+                       s.logo_light_width AS LogoLightWidth, s.logo_light_height AS LogoLightHeight,
+                       COALESCE(NULLIF(r.logo_alt, N''), d.logo_alt) AS LogoAlt,
                        COALESCE(NULLIF(r.name, N''), d.name) AS Name, COALESCE(NULLIF(r.content, N''), d.content) AS Content,
                        CAST(CASE WHEN @Locale <> @DefaultLocale AND NULLIF(r.name, N'') IS NULL THEN 1 ELSE 0 END AS bit) AS IsFallbackLocale
                 FROM sponsors s
@@ -80,7 +85,8 @@ public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFacto
             if (activations.Count > 0)
             {
                 const string imageSql = """
-                    SELECT sponsor_activation_id AS ActivationId, image_key AS ImageKey, image_width AS ImageWidth, image_height AS ImageHeight
+                    SELECT sponsor_activation_id AS ActivationId, image_key AS ImageKey, image_width AS ImageWidth, image_height AS ImageHeight,
+                           image_alt_zh AS ImageAltZh, image_alt_en AS ImageAltEn
                     FROM sponsor_activation_images WHERE sponsor_activation_id IN @ActivationIds ORDER BY sort_order, row_seq
                     """;
                 images = (await connection.QueryAsync<ActivationImageRow>(new CommandDefinition(
@@ -102,6 +108,9 @@ public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFacto
             {
                 Id = s.Id, Slug = s.Slug, Tier = s.Tier, SortOrder = s.SortOrder, Name = s.Name, IsFallbackLocale = s.IsFallbackLocale, Content = s.Content,
                 LogoDarkUrl = imageUrls.Resolve(s.LogoDarkKey), LogoLightUrl = imageUrls.Resolve(s.LogoLightKey),
+                LogoDarkWidth = s.LogoDarkKey is null ? null : s.LogoDarkWidth, LogoDarkHeight = s.LogoDarkKey is null ? null : s.LogoDarkHeight,
+                LogoLightWidth = s.LogoLightKey is null ? null : s.LogoLightWidth, LogoLightHeight = s.LogoLightKey is null ? null : s.LogoLightHeight,
+                LogoAlt = s.LogoDarkKey is null && s.LogoLightKey is null ? null : s.LogoAlt,
                 Stories = stories.Where(x => x.SponsorId == s.Id).Select(x => new SponsorStoryDto { Slug = x.Slug, Title = x.Title, Summary = x.Summary }).ToList(),
                 Activations = activations.Where(a => a.SponsorId == s.Id).Select(a => new SponsorActivationDto
                 {
@@ -110,7 +119,7 @@ public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFacto
                     Images = images.Where(i => i.ActivationId == a.Id).Select(i => new SponsorActivationImageDto
                     {
                         ImageUrl = imageUrls.Resolve(i.ImageKey)!, ThumbUrl = imageUrls.Resolve(Images.ImageObjectKey.ForThumbnail(i.ImageKey)),
-                        ImageWidth = i.ImageWidth, ImageHeight = i.ImageHeight,
+                        ImageWidth = i.ImageWidth, ImageHeight = i.ImageHeight, Alt = GalleryImageAlt.Pick(dbLocale, i.ImageAltZh, i.ImageAltEn),
                     }).ToList(),
                 }).ToList(),
                 CharityPrograms = links.Where(l => l.SponsorId == s.Id).Select(l => new PartnerCharityProgramDto { Slug = l.Slug, Name = l.Name }).ToList(),

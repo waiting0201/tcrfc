@@ -216,6 +216,8 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Cach
             OgImageKey = club.OgImageKey,
             OgImageUrl = imageUrls.Resolve(club.OgImageKey),
             OgImageThumbUrl = imageUrls.ResolveThumbnail(club.OgImageKey),
+            OgImageWidth = club.OgImageKey is null ? null : club.OgImageWidth,
+            OgImageHeight = club.OgImageKey is null ? null : club.OgImageHeight,
             InvoiceTitle = club.InvoiceTitle,
             TaxId = club.TaxId,
             IsCollectingSubject = club.IsCollectingSubject,

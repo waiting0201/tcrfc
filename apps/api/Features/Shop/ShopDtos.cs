@@ -64,6 +64,11 @@ public sealed record ShopProductListItemDto
     public string? ImageUrl { get; init; }
     public string? ImageThumbUrl { get; init; }
 
+    /// <summary>封面（第一張圖）的寬高（像素）與替代文字（當前語系，英文空白回退中文）；沒有圖片時為 <c>null</c>。</summary>
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
+    public string? ImageAlt { get; init; }
+
     /// <summary>目前售價（促銷價優先）的最低與最高。沒有任何販售中規格時為 null。</summary>
     public int? PriceMin { get; init; }
     public int? PriceMax { get; init; }
@@ -85,6 +90,9 @@ public sealed record ShopImageDto
     public required string ThumbUrl { get; init; }
     public int? Width { get; init; }
     public int? Height { get; init; }
+
+    /// <summary>圖片替代文字（當前語系，英文空白回退中文）；沒填為 <c>null</c>。</summary>
+    public string? Alt { get; init; }
 }
 
 public sealed record ShopVariantDto
@@ -151,6 +159,9 @@ public sealed record ShopCartItemDto
     public required string VariantLabel { get; init; }
     public required string Sku { get; init; }
     public string? ImageThumbUrl { get; init; }
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
+    public string? ImageAlt { get; init; }
     public required int ListPrice { get; init; }
     public required int UnitPrice { get; init; }
     public required bool OnSale { get; init; }

@@ -44,6 +44,11 @@ public sealed record MemberDrawDto
 
     public string? CoverUrl { get; init; }
 
+    /// <summary>封面寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有封面時三者皆 <c>null</c>。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+    public string? CoverAlt { get; init; }
+
     /// <summary>開獎場合：<c>home_match</c>／<c>livestream</c>／<c>other</c>；沒填為 null。</summary>
     public string? Occasion { get; init; }
     public string? OccasionLabel { get; init; }

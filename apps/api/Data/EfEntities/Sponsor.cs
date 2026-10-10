@@ -19,6 +19,14 @@ public partial class Sponsor
 
     public string? LogoLightKey { get; set; }
 
+    public int? LogoDarkWidth { get; set; }
+
+    public int? LogoDarkHeight { get; set; }
+
+    public int? LogoLightWidth { get; set; }
+
+    public int? LogoLightHeight { get; set; }
+
     public DateOnly? ContractStartOn { get; set; }
 
     public DateOnly? ContractEndOn { get; set; }

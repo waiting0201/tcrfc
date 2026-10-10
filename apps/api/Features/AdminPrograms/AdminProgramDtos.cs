@@ -10,6 +10,9 @@ public sealed record AdminProgramLocaleContent
     public required string Name { get; init; }
     public string? Intro { get; init; }
     public string? Content { get; init; }
+
+    /// <summary>封面圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>programs_i18n.cover_alt</c>。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 public sealed record AdminProgramContentInput
@@ -33,6 +36,8 @@ public sealed record AdminProgramListItemDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
     public required int SessionCount { get; init; }
@@ -64,6 +69,8 @@ public sealed record AdminProgramDetailDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public required AdminProgramLocaleContent Zh { get; init; }
     public AdminProgramLocaleContent? En { get; init; }
     public required IReadOnlyList<AdminProgramStaffDto> Staff { get; init; }

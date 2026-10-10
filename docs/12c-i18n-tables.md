@@ -442,6 +442,30 @@
 | `name` | `string(64)` | 中 | 行1054：「影響力數據：可自訂統計項目（**名稱**、單位、數值、是否公開）」，未標語系 |
 | `unit` | `string(16)` | 中 | **E1a 已建**（原列於 §4 低信心度）。規劃書行1054 明文「單位」，中英單位本就不同（人／persons、元／NTD），走側表 |
 
+### 3.13 圖片欄位組補齊的側表欄位（2026-10-09，S0-7h 收尾）
+
+規劃書 §4.0 圖片欄位組「物件鍵、寬、高、雙語 Alt」：下列側表各補一個 **`nvarchar(200) NULL`** 的 Alt 欄（信心度高，依據同 `articles_i18n.cover_alt`；寬高在主表，見 `docs/12b`「圖片欄位組補齊」）。**既有側表其餘欄位不變**。
+
+| 側表 | 新增欄位 | 說明 |
+|---|---|---|
+| `teams_i18n` | `hero_alt` | 球隊主視覺圖 |
+| `players_i18n` | `photo_alt` | 球員照片（肖像未同意時公開端不輸出） |
+| `staff_i18n` | `photo_alt` | 教練／職員照片（同上） |
+| `programs_i18n` | `cover_alt` | 課程封面 |
+| `comic_characters_i18n` | `image_alt` | 漫畫角色圖 |
+| `comic_episodes_i18n` | `cover_alt` | 漫畫集封面 |
+| `partner_stores_i18n` | `image_alt` | 特約店家圖 |
+| `member_draws_i18n` | `cover_alt` | 會員抽獎封面 |
+| `calendar_custom_events_i18n` | `cover_alt` | 行事曆自建活動封面 |
+| `charities_i18n` | `logo_alt` | 公益團體標誌 |
+| `charity_programs_i18n` | `cover_alt` | 慈善計畫封面 |
+| `impact_records_i18n` | `image_alt` | 事蹟主圖 |
+| `partners_i18n` | `logo_alt` | 深色／淺色兩版 Logo 是同一個標誌，**共用一欄** |
+| `sponsors_i18n` | `logo_alt` | 同上 |
+| `clubs_i18n` | `og_image_alt` | 俱樂部全站預設 OG 圖 |
+
+**沒有側表的多圖子表**（`product_images`、`charity_program_images`、`impact_record_images`、`sponsor_activation_images`、`comic_pages`、`fan_event_images`）不另建側表，改在子表本身並排 `image_alt_zh`／`image_alt_en`（理由：單純圖集、每列一張圖，6 張側表只為各存兩個字串是過度設計）；英文空白回退中文的規則與側表欄位一致。
+
 ---
 
 ## §4 信心度低的欄位

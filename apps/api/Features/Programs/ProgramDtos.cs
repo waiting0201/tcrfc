@@ -20,6 +20,11 @@ public sealed record ProgramListItemDto
     /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出，比照
     /// <c>Features/Staff/StaffDto.PhotoUrl</c> 的既有慣例。<c>null</c>＝這個課程沒有封面圖。</summary>
     public string? CoverUrl { get; init; }
+
+    /// <summary>封面寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有封面圖時三者皆 <c>null</c>。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+    public string? CoverAlt { get; init; }
     public string? Name { get; init; }
     public string? Intro { get; init; }
 
@@ -77,6 +82,13 @@ public sealed record ProgramPartnerSummaryDto
     /// <summary><see cref="LogoLightKey"/> 完整可公開存取網址（E-64 修正）。</summary>
     public string? LogoLightUrl { get; init; }
     public string? WebsiteUrl { get; init; }
+
+    /// <summary>Logo 寬高（像素，深／淺各一組）與替代文字（當前語系，英文空白回退繁中；兩版共用）；沒上傳的版本寬高為 <c>null</c>。</summary>
+    public int? LogoDarkWidth { get; init; }
+    public int? LogoDarkHeight { get; init; }
+    public int? LogoLightWidth { get; init; }
+    public int? LogoLightHeight { get; init; }
+    public string? LogoAlt { get; init; }
 }
 
 public sealed record ProgramDetailDto
@@ -94,6 +106,11 @@ public sealed record ProgramDetailDto
 
     /// <summary><see cref="CoverKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）。</summary>
     public string? CoverUrl { get; init; }
+
+    /// <summary>封面寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有封面圖時三者皆 <c>null</c>。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+    public string? CoverAlt { get; init; }
     public string? Name { get; init; }
     public string? Intro { get; init; }
     public string? Content { get; init; }

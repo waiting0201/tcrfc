@@ -34,6 +34,10 @@ public partial class CalendarCustomEvent
 
     public string? CoverKey { get; set; }
 
+    public int? CoverWidth { get; set; }
+
+    public int? CoverHeight { get; set; }
+
     public string? CtaUrl { get; set; }
 
     public DateTime CreatedAt { get; set; }

@@ -172,7 +172,9 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
             return new PlayerSeasonStatDto
             {
                 PlayerId = p.Id, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), TeamCode = p.Team.Code, ShirtNo = p.ShirtNo, Position = p.Position,
-                PhotoUrl = photo is null ? null : imageUrls.Resolve(photo), Appearances = t.Appearances, Goals = t.Goals, Assists = t.Assists, YellowCards = t.Yellow, RedCards = t.Red, Source = t.Source,
+                PhotoUrl = photo is null ? null : imageUrls.Resolve(photo),
+                PhotoWidth = photo is null ? null : p.PhotoWidth, PhotoHeight = photo is null ? null : p.PhotoHeight,
+                PhotoAlt = photo is null ? null : RequestLocale.Pick(requested?.PhotoAlt, fallback?.PhotoAlt), Appearances = t.Appearances, Goals = t.Goals, Assists = t.Assists, YellowCards = t.Yellow, RedCards = t.Red, Source = t.Source,
             };
         }).OrderByDescending(i => i.Goals).ThenByDescending(i => i.Appearances).ThenBy(i => i.ShirtNo ?? int.MaxValue).ToList();
         return new PlayerStatsDto { Season = Ref(season), Seasons = codes, Items = items };

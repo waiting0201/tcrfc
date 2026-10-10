@@ -9,6 +9,11 @@ public sealed record PublicCharityOrgDto
     public string? Name { get; init; }
     public string? Intro { get; init; }
     public string? LogoUrl { get; init; }
+
+    /// <summary>標誌寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有標誌時三者皆 <c>null</c>。</summary>
+    public int? LogoWidth { get; init; }
+    public int? LogoHeight { get; init; }
+    public string? LogoAlt { get; init; }
     public string? WebsiteUrl { get; init; }
 }
 
@@ -16,6 +21,11 @@ public sealed record PublicCharityImageDto
 {
     public required string ImageUrl { get; init; }
     public string? ThumbUrl { get; init; }
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
+
+    /// <summary>圖片替代文字（當前語系，英文空白回退中文）；沒填為 <c>null</c>。</summary>
+    public string? Alt { get; init; }
 }
 
 /// <summary>11.2 慈善計畫列表項目。只回已發布的計畫，排序＝置頂優先、排序值、開始日（新到舊）。</summary>
@@ -32,6 +42,11 @@ public sealed record CharityProgramListItemDto
     public required string Progress { get; init; }
     public required bool IsPinned { get; init; }
     public string? CoverUrl { get; init; }
+
+    /// <summary>封面寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有封面時三者皆 <c>null</c>。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+    public string? CoverAlt { get; init; }
     public string? CharityName { get; init; }
 }
 
@@ -41,6 +56,11 @@ public sealed record CharityLinkedItemDto
     public string? Name { get; init; }
     public string? LogoDarkUrl { get; init; }
     public string? LogoLightUrl { get; init; }
+    public int? LogoDarkWidth { get; init; }
+    public int? LogoDarkHeight { get; init; }
+    public int? LogoLightWidth { get; init; }
+    public int? LogoLightHeight { get; init; }
+    public string? LogoAlt { get; init; }
 }
 
 public sealed record CharityArticleLinkDto
@@ -60,6 +80,11 @@ public sealed record CharityProgramDetailDto
     public DateOnly? EndOn { get; init; }
     public required string Progress { get; init; }
     public string? CoverUrl { get; init; }
+
+    /// <summary>封面寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有封面時三者皆 <c>null</c>。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+    public string? CoverAlt { get; init; }
 
     /// <summary>緣起與內容（區塊編輯器 JSON 字串，前台解析後渲染）。</summary>
     public string? Content { get; init; }
@@ -81,12 +106,18 @@ public sealed record ImpactRecordDto
     public DateOnly? HappenedOn { get; init; }
     public string? CharityName { get; init; }
     public string? CharityLogoUrl { get; init; }
+    public int? CharityLogoWidth { get; init; }
+    public int? CharityLogoHeight { get; init; }
+    public string? CharityLogoAlt { get; init; }
     public string? DonationContent { get; init; }
     public string? Location { get; init; }
     public string? BriefDescription { get; init; }
     public string? ImageUrl { get; init; }
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
+
+    /// <summary>活動圖片（主圖）替代文字（當前語系，英文空白回退繁中）；沒有主圖時為 <c>null</c>。</summary>
+    public string? ImageAlt { get; init; }
     public required IReadOnlyList<PublicCharityImageDto> Images { get; init; }
     public string? ProgramSlug { get; init; }
     public string? ProgramName { get; init; }

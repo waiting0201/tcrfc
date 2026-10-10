@@ -63,6 +63,9 @@ public sealed record AdminCalendarEventLocaleContent
 {
     public required string Title { get; init; }
     public string? Description { get; init; }
+
+    /// <summary>封面圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>calendar_custom_events_i18n.cover_alt</c>。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 public sealed record AdminCalendarEventContentInput
@@ -82,6 +85,8 @@ public sealed record AdminCalendarCustomEventListItemDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public required IReadOnlyList<string> TeamCodes { get; init; }
     public string? EventTypeCode { get; init; }
     public string? TitleZh { get; init; }
@@ -104,6 +109,8 @@ public sealed record AdminCalendarCustomEventDetailDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public string? CtaUrl { get; init; }
     public required IReadOnlyList<Guid> TeamIds { get; init; }
     public required IReadOnlyList<string> TeamCodes { get; init; }

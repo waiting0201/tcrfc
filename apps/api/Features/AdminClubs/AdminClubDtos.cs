@@ -42,6 +42,8 @@ public sealed record AdminClubDetailDto
     public string? OgImageKey { get; init; }
     public string? OgImageUrl { get; init; }
     public string? OgImageThumbUrl { get; init; }
+    public int? OgImageWidth { get; init; }
+    public int? OgImageHeight { get; init; }
     public string? InvoiceTitle { get; init; }
     public string? TaxId { get; init; }
     public required bool IsCollectingSubject { get; init; }

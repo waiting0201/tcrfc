@@ -15,6 +15,10 @@ public partial class Charity
 
     public string? LogoKey { get; set; }
 
+    public int? LogoWidth { get; set; }
+
+    public int? LogoHeight { get; set; }
+
     public string? WebsiteUrl { get; set; }
 
     public string? ContactName { get; set; }

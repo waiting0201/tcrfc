@@ -29,6 +29,10 @@ public sealed record FanEventListItemDto
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
 
+    /// <summary>封面寬高（像素，主檔縮小後的尺寸）；沒有封面或舊資料未記錄時為 <c>null</c>。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+
     /// <summary>封面圖片替代文字（§4.0）：請求語系優先、空白回退繁中；沒有封面圖時為 null。</summary>
     public string? CoverAlt { get; init; }
 }
@@ -39,6 +43,9 @@ public sealed record FanEventImagePublicDto
     public string? ImageThumbUrl { get; init; }
     public int? Width { get; init; }
     public int? Height { get; init; }
+
+    /// <summary>圖片替代文字（當前語系，英文空白回退中文）；沒填為 <c>null</c>。</summary>
+    public string? Alt { get; init; }
 }
 
 public sealed record FanEventArticlePublicDto

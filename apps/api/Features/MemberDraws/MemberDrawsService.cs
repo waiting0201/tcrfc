@@ -45,7 +45,7 @@ public sealed class MemberDrawsService(ClubDbContext db, IImagePublicUrlResolver
             .Take(MaxItems)
             .Select(d => new
             {
-                d.Id, d.DrawCode, d.ClubId, ClubCode = d.Club.Code, d.SnapshotAt, d.DrawnAt, d.DrawOccasion, d.ClaimDeadlineOn, d.Status, d.CoverKey,
+                d.Id, d.DrawCode, d.ClubId, ClubCode = d.Club.Code, d.SnapshotAt, d.DrawnAt, d.DrawOccasion, d.ClaimDeadlineOn, d.Status, d.CoverKey, d.CoverWidth, d.CoverHeight,
                 ArticleSlug = d.AnnouncementArticle != null && d.AnnouncementArticle.Status == "published" ? d.AnnouncementArticle.Slug : null,
                 ArticleCategory = d.AnnouncementArticle != null ? d.AnnouncementArticle.ArticleCategory.Code : null,
                 I18n = d.MemberDrawsI18ns.Where(i => i.Locale == dbLocale || i.Locale == RequestLocale.DefaultDbLocale).ToList(),
@@ -82,6 +82,9 @@ public sealed class MemberDrawsService(ClubDbContext db, IImagePublicUrlResolver
                 Notes = RequestLocale.Pick(requested?.Notes, fallback?.Notes),
                 IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
                 CoverUrl = imageUrls.Resolve(d.CoverKey),
+                CoverWidth = d.CoverKey is null ? null : d.CoverWidth,
+                CoverHeight = d.CoverKey is null ? null : d.CoverHeight,
+                CoverAlt = d.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
                 Occasion = d.DrawOccasion,
                 OccasionLabel = d.DrawOccasion is not null && OccasionLabels.TryGetValue(d.DrawOccasion, out var o) ? (en ? o.En : o.Zh) : null,
                 SnapshotAt = d.SnapshotAt,

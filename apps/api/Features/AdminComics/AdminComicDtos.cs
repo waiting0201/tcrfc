@@ -29,6 +29,9 @@ public sealed record AdminComicCharacterLocaleContent
 {
     public required string Name { get; init; }
     public string? Description { get; init; }
+
+    /// <summary>角色圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>comic_characters_i18n.image_alt</c>。</summary>
+    public string? ImageAlt { get; init; }
 }
 
 public sealed record AdminComicCharacterContentInput
@@ -47,6 +50,8 @@ public sealed record AdminComicCharacterDto
     public string? ImageKey { get; init; }
     public string? ImageUrl { get; init; }
     public string? ImageThumbUrl { get; init; }
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
     public required int SortOrder { get; init; }
     public required AdminComicCharacterLocaleContent Zh { get; init; }
     public AdminComicCharacterLocaleContent? En { get; init; }
@@ -68,6 +73,9 @@ public sealed record UpsertAdminComicCharacterRequest
 public sealed record AdminComicEpisodeLocaleContent
 {
     public required string Title { get; init; }
+
+    /// <summary>封面圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>comic_episodes_i18n.cover_alt</c>。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 public sealed record AdminComicEpisodeContentInput
@@ -84,6 +92,10 @@ public sealed record AdminComicPageDto
     public string? ImageThumbUrl { get; init; }
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
+
+    /// <summary>內頁圖片替代文字（中文／英文；<c>comic_pages.image_alt_zh／image_alt_en</c>），用 <c>PUT .../pages/{pageId}</c> 修改。</summary>
+    public string? AltZh { get; init; }
+    public string? AltEn { get; init; }
     public required int SortOrder { get; init; }
 }
 
@@ -94,6 +106,8 @@ public sealed record AdminComicEpisodeListItemDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public DateOnly? PublishedOn { get; init; }
     public required string Status { get; init; }
     public required string StatusLabel { get; init; }
@@ -114,6 +128,8 @@ public sealed record AdminComicEpisodeDetailDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public DateOnly? PublishedOn { get; init; }
     public required string Status { get; init; }
     public required string StatusLabel { get; init; }

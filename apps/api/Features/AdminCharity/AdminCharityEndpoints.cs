@@ -243,6 +243,15 @@ public static class AdminCharityEndpoints
             }
         }).WithName("AdminAddCharityProgramImage").Produces<AdminCharityProgramDetailDto>(StatusCodes.Status201Created).DisableAntiforgery();
 
+        group.MapPut("/{id:guid}/images/{imageId:guid}", async (
+            string club, Guid id, Guid imageId, UpdateImageAltRequest request, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminCharityProgramsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, ContentUpdate, cancellationToken);
+            var result = await repository.UpdateImageAltAsync(scope, id, imageId, request, cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        }).WithName("AdminUpdateCharityProgramImageAlt").Produces<AdminCharityProgramDetailDto>().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status404NotFound);
+
         group.MapDelete("/{id:guid}/images/{imageId:guid}", async (
             string club, Guid id, Guid imageId, HttpContext httpContext, IAdminClubAuthorizer authorizer,
             AdminCharityProgramsRepository repository, IImageStorageService images, IDocumentStorageService documents, CancellationToken cancellationToken) =>
@@ -385,6 +394,15 @@ public static class AdminCharityEndpoints
                 throw;
             }
         }).WithName("AdminAddImpactRecordImage").Produces<AdminImpactRecordDetailDto>(StatusCodes.Status201Created).DisableAntiforgery();
+
+        group.MapPut("/{id:guid}/images/{imageId:guid}", async (
+            string club, Guid id, Guid imageId, UpdateImageAltRequest request, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminImpactRecordsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, ContentUpdate, cancellationToken);
+            var result = await repository.UpdateImageAltAsync(scope, id, imageId, request, cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        }).WithName("AdminUpdateImpactRecordImageAlt").Produces<AdminImpactRecordDetailDto>().Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status404NotFound);
 
         group.MapDelete("/{id:guid}/images/{imageId:guid}", async (
             string club, Guid id, Guid imageId, HttpContext httpContext, IAdminClubAuthorizer authorizer,

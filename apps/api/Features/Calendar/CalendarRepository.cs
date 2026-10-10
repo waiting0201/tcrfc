@@ -40,7 +40,7 @@ public sealed class CalendarRepository(
     // （docs/18-work-errors.md E-20）。傳給 RecurrenceExpander 前再轉成 DateOnly。
     private sealed record CustomEventRow(
         Guid Id, DateTime StartsAt, DateTime? EndsAt, bool IsAllDay, Guid? VenueId, Guid? EventTypeId, string? EventTypeCode,
-        string? EventTypeColour, string? EventTypeIcon, string? CtaUrl, string? CoverKey, string? RepeatRule, DateTime? RepeatUntil);
+        string? EventTypeColour, string? EventTypeIcon, string? CtaUrl, string? CoverKey, int? CoverWidth, int? CoverHeight, string? RepeatRule, DateTime? RepeatUntil);
 
     private sealed record EventTypeNameRow(Guid EventTypeId, string Locale, string? Name);
 
@@ -48,6 +48,7 @@ public sealed class CalendarRepository(
     internal const int DefaultClubEventsWindowDays = 180;
 
     private sealed record I18nTextRow(Guid Id, string Locale, string? Text1, string? Text2);
+    private sealed record CustomEventI18nRow(Guid Id, string Locale, string? Title, string? Description, string? CoverAlt);
     private sealed record TeamCodeRow(Guid Id, string Code);
     private sealed record CompetitionNameRow(Guid CompetitionId, string Locale, string? Name);
 
@@ -245,7 +246,7 @@ public sealed class CalendarRepository(
         const string customSql = """
             SELECT c.id AS Id, c.starts_at AS StartsAt, c.ends_at AS EndsAt, c.is_all_day AS IsAllDay,
                    c.venue_id AS VenueId, c.event_type_id AS EventTypeId, et.code AS EventTypeCode,
-                   et.colour AS EventTypeColour, et.icon AS EventTypeIcon, c.cta_url AS CtaUrl, c.cover_key AS CoverKey,
+                   et.colour AS EventTypeColour, et.icon AS EventTypeIcon, c.cta_url AS CtaUrl, c.cover_key AS CoverKey, c.cover_width AS CoverWidth, c.cover_height AS CoverHeight,
                    c.repeat_rule AS RepeatRule, c.repeat_until AS RepeatUntil
             FROM calendar_custom_events c
             LEFT JOIN event_types et ON et.id = c.event_type_id
@@ -345,6 +346,9 @@ public sealed class CalendarRepository(
             CtaUrl = row.CtaUrl,
             CoverKey = row.CoverKey,
             CoverUrl = imageUrlResolver.Resolve(row.CoverKey),
+            CoverWidth = row.CoverKey is null ? null : row.CoverWidth,
+            CoverHeight = row.CoverKey is null ? null : row.CoverHeight,
+            CoverAlt = row.CoverKey is null ? null : i18n.CoverAlt,
         };
 
         return (dto, exceptions);
@@ -380,21 +384,22 @@ public sealed class CalendarRepository(
         });
     }
 
-    private static async Task<(string? Title, string? Description)> LoadCustomEventI18nAsync(
+    private static async Task<(string? Title, string? Description, string? CoverAlt)> LoadCustomEventI18nAsync(
         System.Data.IDbConnection connection, Guid eventId, string dbLocale, CancellationToken cancellationToken)
     {
         var locales = LocaleFallbackChain(dbLocale);
         const string sql = """
-            SELECT calendar_custom_event_id AS Id, locale AS Locale, title AS Text1, description AS Text2
+            SELECT calendar_custom_event_id AS Id, locale AS Locale, title AS Title, description AS Description, cover_alt AS CoverAlt
             FROM calendar_custom_events_i18n WHERE calendar_custom_event_id = @Id AND locale IN @Locales
             """;
-        var rows = (await connection.QueryAsync<I18nTextRow>(new CommandDefinition(
+        var rows = (await connection.QueryAsync<CustomEventI18nRow>(new CommandDefinition(
             sql, new { Id = eventId, Locales = locales }, cancellationToken: cancellationToken))).AsList();
 
         var byLocale = rows.ToDictionary(r => r.Locale, r => r);
         var requested = byLocale.GetValueOrDefault(dbLocale);
         var fallback = byLocale.GetValueOrDefault(RequestLocale.DefaultDbLocale);
-        return (RequestLocale.Pick(requested?.Text1, fallback?.Text1), RequestLocale.Pick(requested?.Text2, fallback?.Text2));
+        return (RequestLocale.Pick(requested?.Title, fallback?.Title), RequestLocale.Pick(requested?.Description, fallback?.Description),
+            RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt));
     }
 
     private static async Task<Dictionary<Guid, IReadOnlyList<string>>> LoadTeamCodesAsync(

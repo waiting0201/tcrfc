@@ -55,6 +55,8 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
                 e.RepeatRule,
                 e.IsPublic,
                 e.CoverKey,
+                e.CoverWidth,
+                e.CoverHeight,
                 e.UpdatedAt,
                 EventTypeCode = e.EventType != null ? e.EventType.Code : null,
                 TitleZh = e.CalendarCustomEventsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Title).FirstOrDefault(),
@@ -76,6 +78,8 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
             CoverKey = r.CoverKey,
             CoverUrl = imageUrls.Resolve(r.CoverKey),
             CoverThumbUrl = imageUrls.ResolveThumbnail(r.CoverKey),
+            CoverWidth = r.CoverKey is null ? null : r.CoverWidth,
+            CoverHeight = r.CoverKey is null ? null : r.CoverHeight,
             TeamCodes = teamCodesById.GetValueOrDefault(r.Id, []),
             EventTypeCode = r.EventTypeCode,
             TitleZh = r.TitleZh,
@@ -106,7 +110,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
     }
 
     public async Task<AdminCalendarCustomEventDetailDto> CreateAsync(
-        AdminClubScope scope, Guid eventId, CreateAdminCalendarCustomEventRequest request, string? coverKey,
+        AdminClubScope scope, Guid eventId, CreateAdminCalendarCustomEventRequest request, string? coverKey, int? coverWidth, int? coverHeight,
         Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
@@ -131,6 +135,8 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
             RepeatUntil = request.RepeatUntil,
             IsPublic = request.IsPublic,
             CoverKey = coverKey,
+            CoverWidth = coverKey is null ? null : coverWidth,
+            CoverHeight = coverKey is null ? null : coverHeight,
             CtaUrl = ctaUrl,
             CreatedAt = now,
             UpdatedAt = now,
@@ -206,6 +212,8 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
         if (coverUpdate.Change)
         {
             entity.CoverKey = coverUpdate.NewKey;
+            entity.CoverWidth = coverUpdate.NewKey is null ? null : coverUpdate.Width;
+            entity.CoverHeight = coverUpdate.NewKey is null ? null : coverUpdate.Height;
         }
 
         AddOrReplaceI18n(entity, RequestLocale.DefaultDbLocale, request.Content.Zh);
@@ -368,6 +376,16 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
         {
             throw new AdminCalendarValidationException("中文標題為必填欄位。", "titleZh");
         }
+
+        if ((content.Zh.CoverAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminCalendarValidationException("封面圖片替代文字（中文）不可超過 200 字。", "coverAltZh");
+        }
+
+        if ((content.En?.CoverAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminCalendarValidationException("封面圖片替代文字（英文）不可超過 200 字。", "coverAltEn");
+        }
     }
 
     private static void ValidateTimeRange(DateTime startsAt, DateTime? endsAt)
@@ -403,6 +421,7 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
 
         existing.Title = content.Title;
         existing.Description = content.Description;
+        existing.CoverAlt = string.IsNullOrWhiteSpace(content.CoverAlt) ? null : content.CoverAlt.Trim();
     }
 
     private AdminCalendarCustomEventDetailDto ToDetailDto(
@@ -426,11 +445,13 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
             CoverKey = entity.CoverKey,
             CoverUrl = imageUrls.Resolve(entity.CoverKey),
             CoverThumbUrl = imageUrls.ResolveThumbnail(entity.CoverKey),
+            CoverWidth = entity.CoverKey is null ? null : entity.CoverWidth,
+            CoverHeight = entity.CoverKey is null ? null : entity.CoverHeight,
             CtaUrl = entity.CtaUrl,
             TeamIds = teamIds,
             TeamCodes = teamCodes,
-            Zh = new AdminCalendarEventLocaleContent { Title = zh?.Title ?? "", Description = zh?.Description },
-            En = en is null ? null : new AdminCalendarEventLocaleContent { Title = en.Title ?? "", Description = en.Description },
+            Zh = new AdminCalendarEventLocaleContent { Title = zh?.Title ?? "", Description = zh?.Description, CoverAlt = zh?.CoverAlt },
+            En = en is null ? null : new AdminCalendarEventLocaleContent { Title = en.Title ?? "", Description = en.Description, CoverAlt = en.CoverAlt },
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt,
         };

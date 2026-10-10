@@ -32,6 +32,11 @@ public sealed record ClubDto
     /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/>，不是共用同一次計算。</summary>
     public string? OgImageUrl { get; init; }
 
+    /// <summary>全站預設 OG 圖片寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有 OG 圖片時三者皆 <c>null</c>。</summary>
+    public int? OgImageWidth { get; init; }
+    public int? OgImageHeight { get; init; }
+    public string? OgImageAlt { get; init; }
+
     /// <summary>GEO-05（S1-12c／S1-12f）：這個俱樂部的資料是否足以輸出 Organization
     /// 結構化資料（<see cref="SchemaType.Organization"/> 必填欄位——名稱、網域——齊全）。
     /// 判斷條件單一來源見 <see cref="SchemaRequiredFields"/>，這裡不重新判斷一次（E-39）。

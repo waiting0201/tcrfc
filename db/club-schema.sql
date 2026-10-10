@@ -42,6 +42,8 @@
     9. 圖片沒有外鍵，是該表自己的欄位組：<名稱>_key（nvarchar(500)）＋
        _width／_height（int）＋ _alt_zh／_alt_en（走 i18n 側表）。多圖以
        子表承載加 sort_order。全系統不設媒體庫。
+       （2026-10-09 補齊）多圖子表沒有 i18n 側表，替代文字改用並排
+       image_alt_zh／image_alt_en；深淺色兩版 Logo 的 Alt 共用側表一欄 logo_alt。
    10. 索引、唯一鍵、外鍵刪除行為依 docs/12b §11.1／§11.2／§11.3；未逐一
        列出行為的關係一律預設 NO ACTION（省略 ON DELETE 子句）。
    11. 輸出結構：本檔先依 4.0–4.13 分模組建表（僅含欄位與主鍵／叢集鍵／
@@ -702,6 +704,8 @@ CREATE TABLE teams (
   gender          nvarchar(16)     NOT NULL CHECK (gender IN ('men','women','mixed')),
   age_band        nvarchar(16)     NULL,
   hero_key        nvarchar(500)    NULL,
+  hero_width      int              NULL,
+  hero_height     int              NULL,
   team_color      nvarchar(16)     NULL,
   sort_order      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -717,6 +721,7 @@ CREATE TABLE teams_i18n (
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(64)     NULL,
   intro           nvarchar(max)    NULL,
+  hero_alt        nvarchar(200)    NULL,
   CONSTRAINT PK_teams_i18n PRIMARY KEY CLUSTERED (team_id, locale)
 );
 
@@ -748,6 +753,8 @@ CREATE TABLE players (
   joined_on                date             NULL,
   status                   nvarchar(16)     NULL,
   photo_key                nvarchar(500)    NULL,
+  photo_width              int              NULL,
+  photo_height             int              NULL,
   portrait_consent_status  nvarchar(32)     NOT NULL DEFAULT 'not_consented'
                              CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
   created_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -763,6 +770,7 @@ CREATE TABLE players_i18n (
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(64)     NULL,
   bio             nvarchar(max)    NULL,
+  photo_alt       nvarchar(200)    NULL,
   CONSTRAINT PK_players_i18n PRIMARY KEY CLUSTERED (player_id, locale)
 );
 
@@ -795,6 +803,8 @@ CREATE TABLE staff (
   staff_group              nvarchar(32)     NULL,
   licence                  nvarchar(64)     NULL,
   photo_key                nvarchar(500)    NULL,
+  photo_width              int              NULL,
+  photo_height             int              NULL,
   portrait_consent_status  nvarchar(32)     NOT NULL DEFAULT 'not_consented'
                              CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
   created_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -811,6 +821,7 @@ CREATE TABLE staff_i18n (
   name            nvarchar(64)     NULL,
   title           nvarchar(64)     NULL,
   bio             nvarchar(max)    NULL,
+  photo_alt       nvarchar(200)    NULL,
   CONSTRAINT PK_staff_i18n PRIMARY KEY CLUSTERED (staff_id, locale)
 );
 
@@ -1020,6 +1031,8 @@ CREATE TABLE programs (
   age_max         int              NULL,
   status          nvarchar(16)     NULL,
   cover_key       nvarchar(500)    NULL,
+  cover_width     int              NULL,
+  cover_height    int              NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -1041,6 +1054,7 @@ CREATE TABLE programs_i18n (
   intro           nvarchar(max)    NULL,
   audience        nvarchar(64)     NULL,
   content         json             NULL,
+  cover_alt       nvarchar(200)    NULL,
   CONSTRAINT PK_programs_i18n PRIMARY KEY CLUSTERED (program_id, locale)
 );
 
@@ -1167,6 +1181,10 @@ CREATE TABLE partners (
   country         nvarchar(32)     NULL,
   logo_dark_key   nvarchar(500)    NULL,
   logo_light_key  nvarchar(500)    NULL,
+  logo_dark_width    int              NULL,
+  logo_dark_height   int              NULL,
+  logo_light_width   int              NULL,
+  logo_light_height  int              NULL,
   start_on        date             NULL,
   end_on          date             NULL,
   website_url     nvarchar(500)    NULL,
@@ -1187,6 +1205,7 @@ CREATE TABLE partners_i18n (
   name            nvarchar(128)    NULL,
   -- E1-a（2026-09-30）：規劃書 E1（行 1129）「合作內容」——原本 ERD 與本表都沒有落點，補在側表（前台可見文字，雙語）。
   content         nvarchar(max)    NULL,
+  logo_alt        nvarchar(200)    NULL,
   CONSTRAINT PK_partners_i18n PRIMARY KEY CLUSTERED (partner_id, locale)
 );
 
@@ -1200,6 +1219,10 @@ CREATE TABLE sponsors (
                       CHECK (tier IN (N'主贊助',N'官方贊助',N'支持夥伴')),
   logo_dark_key     nvarchar(500)    NULL,
   logo_light_key    nvarchar(500)    NULL,
+  logo_dark_width    int              NULL,
+  logo_dark_height   int              NULL,
+  logo_light_width   int              NULL,
+  logo_light_height  int              NULL,
   contract_start_on date             NULL,
   contract_end_on   date             NULL,
   contact_name      nvarchar(64)     NULL,
@@ -1220,6 +1243,7 @@ CREATE TABLE sponsors_i18n (
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(128)    NULL,
   content         nvarchar(max)    NULL,
+  logo_alt        nvarchar(200)    NULL,
   CONSTRAINT PK_sponsors_i18n PRIMARY KEY CLUSTERED (sponsor_id, locale)
 );
 
@@ -1338,6 +1362,8 @@ CREATE TABLE sponsor_activation_images (
   image_key             nvarchar(500)    NOT NULL,
   image_width           int              NULL,
   image_height          int              NULL,
+  image_alt_zh          nvarchar(200)    NULL,
+  image_alt_en          nvarchar(200)    NULL,
   sort_order            int              NOT NULL DEFAULT 0,
   created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -1368,6 +1394,8 @@ CREATE TABLE comic_characters (
   club_id         uniqueidentifier NOT NULL,
   player_id       uniqueidentifier NULL,
   image_key       nvarchar(500)    NULL,
+  image_width     int              NULL,
+  image_height    int              NULL,
   sort_order      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -1382,6 +1410,7 @@ CREATE TABLE comic_characters_i18n (
   locale               nvarchar(10)   NOT NULL,
   name                 nvarchar(64)   NULL,
   description           nvarchar(max) NULL,
+  image_alt          nvarchar(200)    NULL,
   CONSTRAINT PK_comic_characters_i18n PRIMARY KEY CLUSTERED (comic_character_id, locale)
 );
 
@@ -1392,6 +1421,8 @@ CREATE TABLE comic_episodes (
   club_id         uniqueidentifier NOT NULL,
   episode_no      int              NOT NULL,
   cover_key       nvarchar(500)    NULL,
+  cover_width     int              NULL,
+  cover_height    int              NULL,
   published_on    date             NULL,
   -- C1（2026-09-30）：收斂為 draft／published、NOT NULL DEFAULT 'draft'（同 press_resources）；is_latest 由後台在每次異動後重算。
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
@@ -1410,6 +1441,7 @@ CREATE TABLE comic_episodes_i18n (
   comic_episode_id uniqueidentifier NOT NULL,
   locale            nvarchar(10)    NOT NULL,
   title             nvarchar(128)   NULL,
+  cover_alt        nvarchar(200)    NULL,
   CONSTRAINT PK_comic_episodes_i18n PRIMARY KEY CLUSTERED (comic_episode_id, locale)
 );
 
@@ -1421,6 +1453,8 @@ CREATE TABLE comic_pages (
   image_key         nvarchar(500)    NOT NULL,
   image_width       int              NULL,
   image_height      int              NULL,
+  image_alt_zh      nvarchar(200)    NULL,
+  image_alt_en      nvarchar(200)    NULL,
   sort_order        int              NOT NULL DEFAULT 0,
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -1441,6 +1475,8 @@ CREATE TABLE fan_events (
   is_paid_members_only    bit              NOT NULL DEFAULT 0,
   -- C1（2026-09-30，F2 球迷活動 CRUD）：封面、結束時間、報名截止、場地、上下架。
   cover_key               nvarchar(500)    NULL,
+  cover_width             int              NULL,
+  cover_height            int              NULL,
   ends_at                 datetime2(3)     NULL,
   registration_deadline_at datetime2(3)    NULL,
   venue_id                uniqueidentifier NULL,
@@ -1473,6 +1509,8 @@ CREATE TABLE fan_event_images (
   image_key       nvarchar(500)    NOT NULL,
   image_width     int              NULL,
   image_height    int              NULL,
+  image_alt_zh    nvarchar(200)    NULL,
+  image_alt_en    nvarchar(200)    NULL,
   sort_order      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -1714,6 +1752,7 @@ CREATE TABLE clubs_i18n (
   -- 簡稱（2026-10-05）：磐石中文「台中磐石」英文「Taichung Rock FC」、藍鯨中文「台中藍鯨」；藍鯨英文一律 NULL（B-5：客戶尚未指定英文全名）。
   short_name      nvarchar(32)     NULL,
   description     nvarchar(max)    NULL,
+  og_image_alt    nvarchar(200)    NULL,
   CONSTRAINT PK_clubs_i18n PRIMARY KEY CLUSTERED (club_id, locale)
 );
 
@@ -2112,6 +2151,8 @@ CREATE TABLE partner_stores (
   club_id             uniqueidentifier NULL,
   slug                nvarchar(160)    NOT NULL,
   image_key           nvarchar(500)    NULL,
+  image_width         int              NULL,
+  image_height        int              NULL,
   category            nvarchar(32)     NULL,
   -- B1（2026-09-30，S2-5 K4）：address 存中文地址（座標定位與既有決定不變）；英文地址在 partner_stores_i18n.address。
   -- region（縣市／地區，供 8.4 地區篩選）、map_url（地圖連結）為規劃書 K4 欄位「地圖連結」「地區篩選項目」的落點。
@@ -2147,6 +2188,7 @@ CREATE TABLE partner_stores_i18n (
   name               nvarchar(128)   NULL,
   address             nvarchar(500)  NULL,
   offer_content       nvarchar(max)  NULL,
+  image_alt         nvarchar(200)    NULL,
   CONSTRAINT PK_partner_stores_i18n PRIMARY KEY CLUSTERED (partner_store_id, locale)
 );
 
@@ -2170,6 +2212,8 @@ CREATE TABLE member_draws (
   locked_by                 uniqueidentifier NULL,
   locked_at                 datetime2(3)     NULL,
   cover_key                 nvarchar(500)    NULL,
+  cover_width               int              NULL,
+  cover_height              int              NULL,
   internal_note             nvarchar(max)    NULL,
   created_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -2186,6 +2230,7 @@ CREATE TABLE member_draws_i18n (
   prize_description    nvarchar(max) NULL,
   rules                 nvarchar(max)NULL,
   notes                  nvarchar(max) NULL,
+  cover_alt         nvarchar(200)    NULL,
   CONSTRAINT PK_member_draws_i18n PRIMARY KEY CLUSTERED (member_draw_id, locale)
 );
 
@@ -2268,6 +2313,8 @@ CREATE TABLE calendar_custom_events (
   repeat_until    date             NULL,
   is_public       bit              NOT NULL DEFAULT 1,
   cover_key       nvarchar(500)    NULL,
+  cover_width     int              NULL,
+  cover_height    int              NULL,
   cta_url         nvarchar(500)    NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -2285,6 +2332,7 @@ CREATE TABLE calendar_custom_events_i18n (
   locale                    nvarchar(10)    NOT NULL,
   title                     nvarchar(128)   NULL,
   description                nvarchar(max) NULL,
+  cover_alt                nvarchar(200)    NULL,
   CONSTRAINT PK_calendar_custom_events_i18n PRIMARY KEY CLUSTERED (calendar_custom_event_id, locale)
 );
 
@@ -2437,6 +2485,8 @@ CREATE TABLE product_images (
   image_key       nvarchar(500)    NOT NULL,
   width           int              NULL,
   height          int              NULL,
+  image_alt_zh    nvarchar(200)    NULL,
+  image_alt_en    nvarchar(200)    NULL,
   sort_order      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -2734,6 +2784,8 @@ CREATE TABLE charities (
   club_id         uniqueidentifier NULL,
   slug            nvarchar(160)    NOT NULL,
   logo_key        nvarchar(500)    NULL,
+  logo_width      int              NULL,
+  logo_height     int              NULL,
   website_url     nvarchar(500)    NULL,
   contact_name    nvarchar(64)     NULL,
   contact_phone   nvarchar(32)     NULL,
@@ -2750,6 +2802,7 @@ CREATE TABLE charities_i18n (
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(128)    NULL,
   intro            nvarchar(max)   NULL,
+  logo_alt        nvarchar(200)    NULL,
   CONSTRAINT PK_charities_i18n PRIMARY KEY CLUSTERED (charity_id, locale)
 );
 
@@ -2768,6 +2821,8 @@ CREATE TABLE charity_programs (
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
                     CHECK (status IN ('draft','published')),
   cover_key       nvarchar(500)    NULL,
+  cover_width     int              NULL,
+  cover_height    int              NULL,
   -- E1-a（2026-09-30）：規劃書 B5「顯示控制：於慈善單元內的排序與置頂」。is_pinned 的置頂項目排最前，
   -- 其餘依 sort_order（小者在前）再依日期。
   sort_order      int              NOT NULL DEFAULT 0,
@@ -2787,6 +2842,7 @@ CREATE TABLE charity_programs_i18n (
   target_audience        nvarchar(200) NULL,
   content                 json         NULL,
   donation_content          nvarchar(max) NULL,
+  cover_alt          nvarchar(200)    NULL,
   CONSTRAINT PK_charity_programs_i18n PRIMARY KEY CLUSTERED (charity_program_id, locale)
 );
 
@@ -2796,6 +2852,10 @@ CREATE TABLE charity_program_images (
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   charity_program_id  uniqueidentifier NOT NULL,
   image_key           nvarchar(500)    NOT NULL,
+  image_width         int              NULL,
+  image_height        int              NULL,
+  image_alt_zh        nvarchar(200)    NULL,
+  image_alt_en        nvarchar(200)    NULL,
   sort_order          int              NOT NULL DEFAULT 0,
   created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -2834,6 +2894,7 @@ CREATE TABLE impact_records_i18n (
   donation_content      nvarchar(max) NULL,
   location                nvarchar(128) NULL,
   brief_description         nvarchar(max) NULL,
+  image_alt         nvarchar(200)    NULL,
   CONSTRAINT PK_impact_records_i18n PRIMARY KEY CLUSTERED (impact_record_id, locale)
 );
 
@@ -2843,6 +2904,10 @@ CREATE TABLE impact_record_images (
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   impact_record_id    uniqueidentifier NOT NULL,
   image_key           nvarchar(500)    NOT NULL,
+  image_width         int              NULL,
+  image_height        int              NULL,
+  image_alt_zh        nvarchar(200)    NULL,
+  image_alt_en        nvarchar(200)    NULL,
   sort_order          int              NOT NULL DEFAULT 0,
   created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),

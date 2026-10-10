@@ -13,6 +13,10 @@ public partial class ProductImage
 
     public string ImageKey { get; set; } = null!;
 
+    public string? ImageAltZh { get; set; }
+
+    public string? ImageAltEn { get; set; }
+
     public int? Width { get; set; }
 
     public int? Height { get; set; }

@@ -166,6 +166,7 @@ public sealed partial class AdminDrawsRepository(
         var draw = new MemberDraw
         {
             Id = id, ClubId = scope.ClubId, DrawCode = code, Status = "draft", RosterVersion = 1, CoverKey = cover.Change ? cover.Key : null,
+            CoverWidth = cover.Change && cover.Key is not null ? cover.Width : null, CoverHeight = cover.Change && cover.Key is not null ? cover.Height : null,
             CreatedAt = now, UpdatedAt = now, CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
         };
         Apply(draw, request);
@@ -212,6 +213,8 @@ public sealed partial class AdminDrawsRepository(
         {
             orphans.Image(draw.CoverKey);
             draw.CoverKey = cover.Key;
+            draw.CoverWidth = cover.Key is null ? null : cover.Width;
+            draw.CoverHeight = cover.Key is null ? null : cover.Height;
         }
 
         var keepSnapshot = draw.Status != "draft" ? draw.SnapshotAt : null;
@@ -1028,12 +1031,14 @@ public sealed partial class AdminDrawsRepository(
         AdminInput.OptionalText(request.Content.Zh.Rules, "中文活動辦法", 20000, "rulesZh");
         AdminInput.OptionalText(request.Content.Zh.PrizeDescription, "中文獎品內容", 20000, "prizeZh");
         AdminInput.OptionalText(request.Content.Zh.Notes, "中文注意事項", 20000, "notesZh");
+        AdminInput.OptionalText(request.Content.Zh.CoverAlt, "封面圖片替代文字（中文）", 200, "coverAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
             AdminInput.RequireText(request.Content.En.Name, "英文活動名稱", 128, "nameEn");
             AdminInput.OptionalText(request.Content.En.Rules, "英文活動辦法", 20000, "rulesEn");
             AdminInput.OptionalText(request.Content.En.PrizeDescription, "英文獎品內容", 20000, "prizeEn");
             AdminInput.OptionalText(request.Content.En.Notes, "英文注意事項", 20000, "notesEn");
+            AdminInput.OptionalText(request.Content.En.CoverAlt, "封面圖片替代文字（英文）", 200, "coverAltEn");
         }
 
         if (request.DrawOccasion is not null)
@@ -1100,6 +1105,7 @@ public sealed partial class AdminDrawsRepository(
         i18n.PrizeDescription = string.IsNullOrWhiteSpace(content.PrizeDescription) ? null : content.PrizeDescription;
         i18n.Rules = string.IsNullOrWhiteSpace(content.Rules) ? null : content.Rules;
         i18n.Notes = string.IsNullOrWhiteSpace(content.Notes) ? null : content.Notes;
+        i18n.CoverAlt = string.IsNullOrWhiteSpace(content.CoverAlt) ? null : content.CoverAlt.Trim();
     }
 
     private Task<MemberDraw?> LoadAsync(AdminClubScope scope, Guid id, bool tracking, CancellationToken cancellationToken)
@@ -1158,9 +1164,10 @@ public sealed partial class AdminDrawsRepository(
             DrawOccasionLabel = d.DrawOccasion is null ? null : ShopOrDefault(OccasionLabels, d.DrawOccasion), ClaimDeadlineOn = d.ClaimDeadlineOn, Status = d.Status,
             StatusLabel = StatusLabels[d.Status], RosterVersion = d.RosterVersion, TotalCount = d.TotalCount, RosterHash = d.RosterHash, LockedAt = d.LockedAt,
             LockedByName = Name(d.LockedBy), CoverKey = d.CoverKey, CoverUrl = d.CoverKey is null ? null : imageUrls.Resolve(d.CoverKey),
-            CoverThumbUrl = d.CoverKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(d.CoverKey)), InternalNote = d.InternalNote,
-            Zh = new AdminDrawLocaleContent { Name = zh?.Name ?? "", PrizeDescription = zh?.PrizeDescription, Rules = zh?.Rules, Notes = zh?.Notes },
-            En = en is null ? null : new AdminDrawLocaleContent { Name = en.Name ?? "", PrizeDescription = en.PrizeDescription, Rules = en.Rules, Notes = en.Notes },
+            CoverThumbUrl = d.CoverKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(d.CoverKey)),
+            CoverWidth = d.CoverKey is null ? null : d.CoverWidth, CoverHeight = d.CoverKey is null ? null : d.CoverHeight, InternalNote = d.InternalNote,
+            Zh = new AdminDrawLocaleContent { Name = zh?.Name ?? "", PrizeDescription = zh?.PrizeDescription, Rules = zh?.Rules, Notes = zh?.Notes, CoverAlt = zh?.CoverAlt },
+            En = en is null ? null : new AdminDrawLocaleContent { Name = en.Name ?? "", PrizeDescription = en.PrizeDescription, Rules = en.Rules, Notes = en.Notes, CoverAlt = en.CoverAlt },
             WinnerCount = winners, BackupCount = counts.Count(c => c.IsBackup), FulfilledCount = counts.Count(c => c.IsWinner && c.FulfilmentStatus is "shipped" or "claimed"),
             AnnouncementArticleId = d.AnnouncementArticleId, AnnouncementStatus = articleStatus,
             AnnouncementStatusLabel = articleStatus is null ? null : ShopOrDefault(ArticleStatusLabels, articleStatus),

@@ -66,16 +66,20 @@ public static class AdminStaffEndpoints
 
             var staffId = Guid.NewGuid();
             string? photoKey = null;
+            int? photoWidth = null;
+            int? photoHeight = null;
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("staff", "photo");
                 var uploaded = await UploadPhotoAsync(scope, staffId, file, imageStorage, cancellationToken);
                 photoKey = uploaded.Key;
+                photoWidth = uploaded.Width;
+                photoHeight = uploaded.Height;
             }
 
             try
             {
-                var created = await repository.CreateAsync(scope, rowScope, staffId, request, photoKey, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(scope, rowScope, staffId, request, photoKey, photoWidth, photoHeight, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/staff/{created.Id}", created);
             }
             catch
@@ -121,7 +125,7 @@ public static class AdminStaffEndpoints
                 UploadSlotPolicy.Validate("staff", "photo");
                 var uploaded = await UploadPhotoAsync(scope, id, file, imageStorage, cancellationToken);
                 uploadedKey = uploaded.Key;
-                photoUpdate = StaffPhotoKeyUpdate.Set(uploaded.Key);
+                photoUpdate = StaffPhotoKeyUpdate.Set(uploaded.Key, uploaded.Width, uploaded.Height);
             }
             else if (request.RemovePhoto)
             {

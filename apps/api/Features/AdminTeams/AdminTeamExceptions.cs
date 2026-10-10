@@ -24,8 +24,10 @@ public sealed class AdminTeamFirstTeamAlreadyExistsException(string existingTeam
 
 /// <summary>圖片欄位插槽把「主視覺」對到 <c>teams.hero_key</c> 三態（維持不變／清空／換成新值），
 /// 形狀比照 <c>Features/AdminNews/CoverKeyUpdate.cs</c> 的說明。</summary>
-public readonly record struct HeroKeyUpdate(bool Change, string? NewKey)
+public readonly record struct HeroKeyUpdate(bool Change, string? NewKey, int? Width = null, int? Height = null)
 {
     public static readonly HeroKeyUpdate Keep = new(false, null);
-    public static HeroKeyUpdate Set(string? newKey) => new(true, newKey);
+
+    /// <summary>換圖時帶主檔縮小後的寬高（<c>teams.hero_width／hero_height</c>）；清空時 <paramref name="newKey"/> 傳 null，寬高一併清成 null。</summary>
+    public static HeroKeyUpdate Set(string? newKey, int? width = null, int? height = null) => new(true, newKey, width, height);
 }

@@ -23,6 +23,10 @@ public partial class TrainingProgram
 
     public string? CoverKey { get; set; }
 
+    public int? CoverWidth { get; set; }
+
+    public int? CoverHeight { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

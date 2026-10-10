@@ -130,7 +130,7 @@ public sealed class AdminShopProductsRepository(
             Zh = ToLocale(zh), En = en is null ? null : ToLocale(en),
             Images = product.ProductImages.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new AdminProductImageDto
             {
-                Id = i.Id, ImageKey = i.ImageKey, ImageUrl = imageUrls.Resolve(i.ImageKey), ImageThumbUrl = ThumbUrl(i.ImageKey), Width = i.Width, Height = i.Height, SortOrder = i.SortOrder,
+                Id = i.Id, ImageKey = i.ImageKey, ImageUrl = imageUrls.Resolve(i.ImageKey), ImageThumbUrl = ThumbUrl(i.ImageKey), Width = i.Width, Height = i.Height, AltZh = i.ImageAltZh, AltEn = i.ImageAltEn, SortOrder = i.SortOrder,
             }).ToList(),
             Variants = access.CanViewVariants ? variants.Select(v => ToVariantDto(v, access.CanViewCost, threshold)).ToList() : [],
             CanViewVariants = access.CanViewVariants, CanViewCost = access.CanViewCost, CreatedAt = product.CreatedAt, UpdatedAt = product.UpdatedAt,
@@ -277,6 +277,27 @@ public sealed class AdminShopProductsRepository(
 
         row.UpdatedAt = now;
         row.UpdatedBy = scope.Identity.AdminUserId;
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetAsync(scope, id, cancellationToken);
+    }
+
+    /// <summary>更新單張商品圖片的替代文字（<c>product_images.image_alt_zh／image_alt_en</c>）。回傳更新後的商品詳情；商品或圖片不存在回 <c>null</c>。</summary>
+    public async Task<AdminProductDetailDto?> UpdateImageAltAsync(
+        AdminClubScope scope, Guid id, Guid imageId, UpdateImageAltRequest request, CancellationToken cancellationToken)
+    {
+        var (altZh, altEn) = GalleryImageAlt.Normalize(request);
+        var row = await db.Products.Include(p => p.ProductImages).FirstOrDefaultAsync(p => p.Id == id && p.ClubId == scope.ClubId, cancellationToken);
+        var image = row?.ProductImages.FirstOrDefault(i => i.Id == imageId);
+        if (row is null || image is null)
+        {
+            return null;
+        }
+
+        image.ImageAltZh = altZh;
+        image.ImageAltEn = altEn;
+        image.UpdatedAt = DateTime.UtcNow;
+        image.UpdatedBy = scope.Identity.AdminUserId;
+        row.UpdatedAt = image.UpdatedAt;
         await db.SaveChangesAsync(cancellationToken);
         return await GetAsync(scope, id, cancellationToken);
     }

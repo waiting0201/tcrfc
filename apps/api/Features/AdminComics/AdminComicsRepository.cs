@@ -111,7 +111,8 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         var row = new ComicCharacter
         {
             Id = id, ClubId = scope.ClubId, PlayerId = request.PlayerId, SortOrder = request.SortOrder ?? (maxOrder ?? -1) + 1,
-            ImageKey = image.Change ? image.Key : null, CreatedAt = now, UpdatedAt = now,
+            ImageKey = image.Change ? image.Key : null,
+            ImageWidth = image.Change && image.Key is not null ? image.Width : null, ImageHeight = image.Change && image.Key is not null ? image.Height : null, CreatedAt = now, UpdatedAt = now,
             CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
         };
         db.ComicCharacters.Add(row);
@@ -143,6 +144,8 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         {
             orphans.Image(row.ImageKey);
             row.ImageKey = image.Key;
+            row.ImageWidth = image.Key is null ? null : image.Width;
+            row.ImageHeight = image.Key is null ? null : image.Height;
         }
 
         row.UpdatedAt = DateTime.UtcNow;
@@ -190,10 +193,12 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
     {
         AdminInput.RequireText(request.Content.Zh.Name, "中文角色名稱", 64, "nameZh");
         AdminInput.OptionalText(request.Content.Zh.Description, "中文角色設定", 20000, "descZh");
+        AdminInput.OptionalText(request.Content.Zh.ImageAlt, "角色圖片替代文字（中文）", 200, "imageAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
             AdminInput.RequireText(request.Content.En.Name, "英文角色名稱", 64, "nameEn");
             AdminInput.OptionalText(request.Content.En.Description, "英文角色設定", 20000, "descEn");
+            AdminInput.OptionalText(request.Content.En.ImageAlt, "角色圖片替代文字（英文）", 200, "imageAltEn");
         }
 
         AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
@@ -234,6 +239,7 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
 
         i18n.Name = content.Name.Trim();
         i18n.Description = string.IsNullOrWhiteSpace(content.Description) ? null : content.Description;
+        i18n.ImageAlt = string.IsNullOrWhiteSpace(content.ImageAlt) ? null : content.ImageAlt.Trim();
     }
 
     private async Task<Dictionary<Guid, string>> PlayerNamesAsync(IReadOnlyCollection<Guid> playerIds, CancellationToken cancellationToken)
@@ -257,8 +263,9 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         {
             Id = row.Id, PlayerId = row.PlayerId, PlayerName = row.PlayerId is Guid p && playerNames.TryGetValue(p, out var n) ? n : null,
             ImageKey = row.ImageKey, ImageUrl = ImageUrl(row.ImageKey), ImageThumbUrl = ThumbUrl(row.ImageKey), SortOrder = row.SortOrder,
-            Zh = new AdminComicCharacterLocaleContent { Name = zh?.Name ?? "", Description = zh?.Description },
-            En = en is null ? null : new AdminComicCharacterLocaleContent { Name = en.Name ?? "", Description = en.Description },
+            ImageWidth = row.ImageKey is null ? null : row.ImageWidth, ImageHeight = row.ImageKey is null ? null : row.ImageHeight,
+            Zh = new AdminComicCharacterLocaleContent { Name = zh?.Name ?? "", Description = zh?.Description, ImageAlt = zh?.ImageAlt },
+            En = en is null ? null : new AdminComicCharacterLocaleContent { Name = en.Name ?? "", Description = en.Description, ImageAlt = en.ImageAlt },
             UpdatedAt = row.UpdatedAt,
         };
     }
@@ -286,7 +293,8 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         return rows.Select(r => new AdminComicEpisodeListItemDto
         {
             Id = r.Episode.Id, EpisodeNo = r.Episode.EpisodeNo, CoverKey = r.Episode.CoverKey, CoverUrl = ImageUrl(r.Episode.CoverKey),
-            CoverThumbUrl = ThumbUrl(r.Episode.CoverKey), PublishedOn = r.Episode.PublishedOn, Status = r.Episode.Status,
+            CoverThumbUrl = ThumbUrl(r.Episode.CoverKey),
+            CoverWidth = r.Episode.CoverKey is null ? null : r.Episode.CoverWidth, CoverHeight = r.Episode.CoverKey is null ? null : r.Episode.CoverHeight, PublishedOn = r.Episode.PublishedOn, Status = r.Episode.Status,
             StatusLabel = StatusLabels[r.Episode.Status], IsLatest = r.Episode.IsLatest, ViewCount = r.Episode.ViewCount,
             PageCount = r.PageCount, TitleZh = r.Zh, TitleEn = r.En, UpdatedAt = r.Episode.UpdatedAt,
         }).ToList();
@@ -315,6 +323,7 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         var row = new ComicEpisode
         {
             Id = id, ClubId = scope.ClubId, EpisodeNo = request.EpisodeNo, CoverKey = cover.Change ? cover.Key : null,
+            CoverWidth = cover.Change && cover.Key is not null ? cover.Width : null, CoverHeight = cover.Change && cover.Key is not null ? cover.Height : null,
             PublishedOn = request.PublishedOn, Status = request.Status, CreatedAt = now, UpdatedAt = now,
             CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
         };
@@ -350,6 +359,8 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         {
             orphans.Image(row.CoverKey);
             row.CoverKey = cover.Key;
+            row.CoverWidth = cover.Key is null ? null : cover.Width;
+            row.CoverHeight = cover.Key is null ? null : cover.Height;
         }
 
         row.UpdatedAt = DateTime.UtcNow;
@@ -406,6 +417,27 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
 
         episode.UpdatedAt = now;
         episode.UpdatedBy = scope.Identity.AdminUserId;
+        await db.SaveChangesAsync(cancellationToken);
+        return await GetEpisodeAsync(scope, id, cancellationToken);
+    }
+
+    /// <summary>更新單張內頁的替代文字（<c>comic_pages.image_alt_zh／image_alt_en</c>）。回傳更新後的集數詳情；集數或內頁不存在回 <c>null</c>。</summary>
+    public async Task<AdminComicEpisodeDetailDto?> UpdatePageAltAsync(
+        AdminClubScope scope, Guid id, Guid pageId, UpdateImageAltRequest request, CancellationToken cancellationToken)
+    {
+        EnsureSupported(scope);
+        var (altZh, altEn) = GalleryImageAlt.Normalize(request);
+        var episode = await db.ComicEpisodes.Include(e => e.ComicPages).FirstOrDefaultAsync(e => e.Id == id && e.ClubId == scope.ClubId, cancellationToken);
+        var page = episode?.ComicPages.FirstOrDefault(p => p.Id == pageId);
+        if (episode is null || page is null)
+        {
+            return null;
+        }
+
+        page.ImageAltZh = altZh;
+        page.ImageAltEn = altEn;
+        page.UpdatedAt = DateTime.UtcNow;
+        page.UpdatedBy = scope.Identity.AdminUserId;
         await db.SaveChangesAsync(cancellationToken);
         return await GetEpisodeAsync(scope, id, cancellationToken);
     }
@@ -488,9 +520,11 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
 
         AdminInput.OneOf(request.Status, StatusLabels.Keys.ToHashSet(), "狀態", "「草稿」或「已發布」", "status");
         AdminInput.RequireText(request.Content.Zh.Title, "中文集數標題", 128, "titleZh");
+        AdminInput.OptionalText(request.Content.Zh.CoverAlt, "封面圖片替代文字（中文）", 200, "coverAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Title))
         {
             AdminInput.RequireText(request.Content.En.Title, "英文集數標題", 128, "titleEn");
+            AdminInput.OptionalText(request.Content.En.CoverAlt, "封面圖片替代文字（英文）", 200, "coverAltEn");
         }
     }
 
@@ -528,6 +562,7 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         }
 
         i18n.Title = content.Title.Trim();
+        i18n.CoverAlt = string.IsNullOrWhiteSpace(content.CoverAlt) ? null : content.CoverAlt.Trim();
     }
 
     private AdminComicEpisodeDetailDto ToEpisodeDto(ComicEpisode row)
@@ -537,13 +572,14 @@ public sealed class AdminComicsRepository(ClubDbContext db, IImagePublicUrlResol
         return new AdminComicEpisodeDetailDto
         {
             Id = row.Id, EpisodeNo = row.EpisodeNo, CoverKey = row.CoverKey, CoverUrl = ImageUrl(row.CoverKey), CoverThumbUrl = ThumbUrl(row.CoverKey),
+            CoverWidth = row.CoverKey is null ? null : row.CoverWidth, CoverHeight = row.CoverKey is null ? null : row.CoverHeight,
             PublishedOn = row.PublishedOn, Status = row.Status, StatusLabel = StatusLabels[row.Status], IsLatest = row.IsLatest, ViewCount = row.ViewCount,
-            Zh = new AdminComicEpisodeLocaleContent { Title = zh?.Title ?? "" },
-            En = en is null ? null : new AdminComicEpisodeLocaleContent { Title = en.Title ?? "" },
+            Zh = new AdminComicEpisodeLocaleContent { Title = zh?.Title ?? "", CoverAlt = zh?.CoverAlt },
+            En = en is null ? null : new AdminComicEpisodeLocaleContent { Title = en.Title ?? "", CoverAlt = en.CoverAlt },
             Pages = row.ComicPages.OrderBy(p => p.SortOrder).ThenBy(p => p.RowSeq).Select(p => new AdminComicPageDto
             {
                 Id = p.Id, ImageKey = p.ImageKey, ImageUrl = ImageUrl(p.ImageKey), ImageThumbUrl = ThumbUrl(p.ImageKey),
-                ImageWidth = p.ImageWidth, ImageHeight = p.ImageHeight, SortOrder = p.SortOrder,
+                ImageWidth = p.ImageWidth, ImageHeight = p.ImageHeight, AltZh = p.ImageAltZh, AltEn = p.ImageAltEn, SortOrder = p.SortOrder,
             }).ToList(),
             CreatedAt = row.CreatedAt, UpdatedAt = row.UpdatedAt,
         };

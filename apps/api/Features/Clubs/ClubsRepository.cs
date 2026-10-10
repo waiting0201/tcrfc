@@ -17,9 +17,9 @@ public sealed class ClubsRepository(
     public const string DetailEntity = "club-detail";
 
     private sealed record ClubRow(
-        Guid Id, string Code, string Domain, string? OgImageKey, string DefaultLocale);
+        Guid Id, string Code, string Domain, string? OgImageKey, int? OgImageWidth, int? OgImageHeight, string DefaultLocale);
 
-    private sealed record ClubI18nRow(Guid ClubId, string Locale, string Name, string? ShortName, string? Description);
+    private sealed record ClubI18nRow(Guid ClubId, string Locale, string Name, string? ShortName, string? Description, string? OgImageAlt);
 
     /// <summary>俱樂部清單（前台的站台選擇／導覽用）。<c>clubs</c> 不是 club_id 範圍內的資料——
     /// 它本身就是「有哪些俱樂部」的定義來源，因此這裡沒有 <see cref="ClubScope"/> 參數。
@@ -35,7 +35,7 @@ public sealed class ClubsRepository(
 
                 const string clubSql = """
                     SELECT id AS Id, code AS Code, domain AS Domain,
-                           og_image_key AS OgImageKey, default_locale AS DefaultLocale
+                           og_image_key AS OgImageKey, og_image_width AS OgImageWidth, og_image_height AS OgImageHeight, default_locale AS DefaultLocale
                     FROM clubs
                     WHERE status = 'active'
                     ORDER BY sort_order, code
@@ -70,7 +70,7 @@ public sealed class ClubsRepository(
 
                 const string clubSql = """
                     SELECT id AS Id, code AS Code, domain AS Domain,
-                           og_image_key AS OgImageKey, default_locale AS DefaultLocale
+                           og_image_key AS OgImageKey, og_image_width AS OgImageWidth, og_image_height AS OgImageHeight, default_locale AS DefaultLocale
                     FROM clubs
                     WHERE id = @ClubId
                     """;
@@ -92,7 +92,7 @@ public sealed class ClubsRepository(
         System.Data.IDbConnection connection, IEnumerable<Guid> clubIds, string dbLocale, CancellationToken cancellationToken)
     {
         const string i18nSql = """
-            SELECT club_id AS ClubId, locale AS Locale, name AS Name, short_name AS ShortName, description AS Description
+            SELECT club_id AS ClubId, locale AS Locale, name AS Name, short_name AS ShortName, description AS Description, og_image_alt AS OgImageAlt
             FROM clubs_i18n
             WHERE club_id IN @ClubIds AND locale IN @Locales
             """;
@@ -133,6 +133,9 @@ public sealed class ClubsRepository(
             OgImageKey = club.OgImageKey,
             DefaultLocale = club.DefaultLocale,
             OgImageUrl = imageUrlResolver.Resolve(club.OgImageKey),
+            OgImageWidth = club.OgImageKey is null ? null : club.OgImageWidth,
+            OgImageHeight = club.OgImageKey is null ? null : club.OgImageHeight,
+            OgImageAlt = club.OgImageKey is null ? null : RequestLocale.Pick(requested?.OgImageAlt, fallback?.OgImageAlt),
             SchemaEligible = schemaEligible,
         };
     }

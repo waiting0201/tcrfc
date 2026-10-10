@@ -32,7 +32,7 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
         var rows = await query.OrderBy(c => c.ClubId == null ? 1 : 0).ThenBy(c => c.RowSeq)
             .Select(c => new
             {
-                c.Id, c.Slug, IsShared = c.ClubId == null, c.WebsiteUrl, c.ContactName, c.ContactPhone, c.LogoKey, c.UpdatedAt,
+                c.Id, c.Slug, IsShared = c.ClubId == null, c.WebsiteUrl, c.ContactName, c.ContactPhone, c.LogoKey, c.LogoWidth, c.LogoHeight, c.UpdatedAt,
                 NameZh = c.CharitiesI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = c.CharitiesI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
                 ProgramCount = c.CharityPrograms.Count, RecordCount = c.ImpactRecords.Count,
@@ -43,6 +43,7 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
             Id = r.Id, Slug = r.Slug, IsShared = r.IsShared, WebsiteUrl = r.WebsiteUrl, ContactName = r.ContactName,
             ContactPhone = r.ContactPhone, LogoKey = r.LogoKey, LogoUrl = imageUrls.Resolve(r.LogoKey),
             LogoThumbUrl = r.LogoKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(r.LogoKey)),
+            LogoWidth = r.LogoKey is null ? null : r.LogoWidth, LogoHeight = r.LogoKey is null ? null : r.LogoHeight,
             NameZh = r.NameZh, NameEn = r.NameEn, ProgramCount = r.ProgramCount, RecordCount = r.RecordCount, UpdatedAt = r.UpdatedAt,
         }).ToList();
     }
@@ -80,8 +81,9 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
             Id = charity.Id, Slug = charity.Slug, IsShared = charity.ClubId is null, WebsiteUrl = charity.WebsiteUrl,
             ContactName = charity.ContactName, ContactPhone = charity.ContactPhone, LogoKey = charity.LogoKey,
             LogoUrl = imageUrls.Resolve(charity.LogoKey),
-            Zh = new AdminCharityOrgLocaleContent { Name = zh?.Name ?? "", Intro = zh?.Intro },
-            En = en is null ? null : new AdminCharityOrgLocaleContent { Name = en.Name ?? "", Intro = en.Intro },
+            LogoWidth = charity.LogoKey is null ? null : charity.LogoWidth, LogoHeight = charity.LogoKey is null ? null : charity.LogoHeight,
+            Zh = new AdminCharityOrgLocaleContent { Name = zh?.Name ?? "", Intro = zh?.Intro, LogoAlt = zh?.LogoAlt },
+            En = en is null ? null : new AdminCharityOrgLocaleContent { Name = en.Name ?? "", Intro = en.Intro, LogoAlt = en.LogoAlt },
             Programs = programs, Records = records, CreatedAt = charity.CreatedAt, UpdatedAt = charity.UpdatedAt,
         };
     }
@@ -95,7 +97,7 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
         var now = DateTime.UtcNow;
         var charity = new Charity
         {
-            Id = id, ClubId = scope.ClubId, Slug = slug, LogoKey = logo?.Key, CreatedAt = now, UpdatedAt = now,
+            Id = id, ClubId = scope.ClubId, Slug = slug, LogoKey = logo?.Key, LogoWidth = logo?.Width, LogoHeight = logo?.Height, CreatedAt = now, UpdatedAt = now,
             CreatedBy = operatorId, UpdatedBy = operatorId,
         };
         Apply(charity, request);
@@ -133,6 +135,8 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
         {
             orphans.Image(charity.LogoKey);
             charity.LogoKey = logo.Key;
+            charity.LogoWidth = logo.Key is null ? null : logo.Width;
+            charity.LogoHeight = logo.Key is null ? null : logo.Height;
         }
 
         Apply(charity, request);
@@ -181,9 +185,11 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
         AdminInput.OptionalText(request.ContactName, "聯絡窗口姓名", 64, "contactName");
         AdminInput.OptionalText(request.ContactPhone, "聯絡窗口電話", 32, "contactPhone");
         AdminInput.RequireText(request.Content.Zh.Name, "中文團體名稱", 128, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.LogoAlt, "標誌替代文字（中文）", 200, "logoAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
             AdminInput.RequireText(request.Content.En.Name, "英文團體名稱", 128, "nameEn");
+            AdminInput.OptionalText(request.Content.En.LogoAlt, "標誌替代文字（英文）", 200, "logoAltEn");
         }
 
         return slug;
@@ -222,6 +228,7 @@ public sealed class AdminCharityOrgsRepository(ClubDbContext dbContext, IQueryCa
 
         row.Name = content.Name.Trim();
         row.Intro = string.IsNullOrWhiteSpace(content.Intro) ? null : content.Intro;
+        row.LogoAlt = string.IsNullOrWhiteSpace(content.LogoAlt) ? null : content.LogoAlt.Trim();
     }
 
     private async Task EnsureSlugFreeAsync(AdminClubScope scope, string slug, Guid? exceptId, CancellationToken cancellationToken)

@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Caching;
+using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.Uploads;
@@ -57,7 +58,7 @@ public sealed partial class AdminSeoSettingsRepository(ClubDbContext dbContext, 
             .Where(s => s.ClubId == scope.ClubId && AllKeys.Contains(s.SettingKey))
             .ToListAsync(cancellationToken);
 
-        var club = await dbContext.Clubs.AsNoTracking()
+        var club = await dbContext.Clubs.AsNoTracking().Include(c => c.ClubsI18ns)
             .FirstOrDefaultAsync(c => c.Id == scope.ClubId, cancellationToken);
 
         return BuildDto(settings, club);
@@ -101,20 +102,44 @@ public sealed partial class AdminSeoSettingsRepository(ClubDbContext dbContext, 
         UpsertValue(settings, KeyMetaPixel, GroupTracking, scope.ClubId, metaPixel, operatorId);
         UpsertValue(settings, KeyLineTag, GroupTracking, scope.ClubId, lineTag, operatorId);
 
+        var ogAltZh = AdminInput.OptionalText(request.OgImageAltZh, "OG 圖片替代文字（中文）", 200, "ogImageAltZh");
+        var ogAltEn = AdminInput.OptionalText(request.OgImageAltEn, "OG 圖片替代文字（英文）", 200, "ogImageAltEn");
+
+        var clubForOg = await dbContext.Clubs.Include(c => c.ClubsI18ns).FirstOrDefaultAsync(c => c.Id == scope.ClubId, cancellationToken)
+            ?? throw new AdminSeoValidationException("找不到俱樂部主檔，無法更新全站預設 OG 圖片。");
+
         if (ogImageUpdate.Change)
         {
-            var club = await dbContext.Clubs.FirstOrDefaultAsync(c => c.Id == scope.ClubId, cancellationToken)
-                ?? throw new AdminSeoValidationException("找不到俱樂部主檔，無法更新全站預設 OG 圖片。");
+            clubForOg.OgImageKey = ogImageUpdate.Key;
+            clubForOg.OgImageWidth = ogImageUpdate.Key is null ? null : ogImageUpdate.Width;
+            clubForOg.OgImageHeight = ogImageUpdate.Key is null ? null : ogImageUpdate.Height;
+            clubForOg.UpdatedAt = DateTime.UtcNow;
+            clubForOg.UpdatedBy = operatorId;
+        }
 
-            club.OgImageKey = ogImageUpdate.Key;
-            club.OgImageWidth = ogImageUpdate.Width;
-            club.OgImageHeight = ogImageUpdate.Height;
-            club.UpdatedAt = DateTime.UtcNow;
-            club.UpdatedBy = operatorId;
+        // Alt 在 clubs_i18n.og_image_alt；該語系的俱樂部名稱列（name NOT NULL）不存在時無法另建，只能擋下有值的請求。
+        // 文字欄位一律整份取代（與本請求其他欄位一致）：沒送＝清空。
+        foreach (var (locale, alt) in new[] { (RequestLocale.DefaultDbLocale, ogAltZh), ("en", ogAltEn) })
+        {
+            var row = clubForOg.ClubsI18ns.FirstOrDefault(i => i.Locale == locale);
+            if (row is null)
+            {
+                if (alt is not null)
+                {
+                    throw new AdminSeoValidationException("尚未建立這個語系的俱樂部名稱，無法儲存 OG 圖片替代文字。", locale == "en" ? "ogImageAltEn" : "ogImageAltZh");
+                }
+
+                continue;
+            }
+
+            row.OgImageAlt = alt;
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync(SeoRepository.SettingsEntity, scope.ClubCode, cancellationToken);
+        // 俱樂部公開端點（Clubs）也輸出 OG 圖片網址、寬高與 Alt，一併失效。
+        await cache.InvalidateAsync(Features.Clubs.ClubsRepository.DetailEntity, scope.ClubCode, cancellationToken);
+        await cache.InvalidateAsync(Features.Clubs.ClubsRepository.ListEntity, Caching.CacheDimensions.SharedClub, cancellationToken);
 
         return await GetAsync(scope, cancellationToken);
     }
@@ -180,6 +205,8 @@ public sealed partial class AdminSeoSettingsRepository(ClubDbContext dbContext, 
             OgImageUrl = imageUrlResolver.Resolve(club?.OgImageKey),
             OgImageWidth = club?.OgImageWidth,
             OgImageHeight = club?.OgImageHeight,
+            OgImageAltZh = club?.ClubsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.OgImageAlt,
+            OgImageAltEn = club?.ClubsI18ns.FirstOrDefault(i => i.Locale == "en")?.OgImageAlt,
         };
     }
 

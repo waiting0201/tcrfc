@@ -45,7 +45,7 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
             .Select(s => new
             {
                 s.Id, s.Slug, s.Tier, s.ContractStartOn, s.ContractEndOn, s.ExpiryAlertOn, s.ContactName, s.ContactPhone,
-                s.ContactEmail, s.SortOrder, s.LogoDarkKey, s.LogoLightKey, s.UpdatedAt,
+                s.ContactEmail, s.SortOrder, s.LogoDarkKey, s.LogoLightKey, s.LogoDarkWidth, s.LogoDarkHeight, s.LogoLightWidth, s.LogoLightHeight, s.UpdatedAt,
                 NameZh = s.SponsorsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = s.SponsorsI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
                 PackageCount = s.SponsorPackages.Count,
@@ -72,6 +72,10 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
             LogoLightKey = r.LogoLightKey,
             LogoLightUrl = imageUrls.Resolve(r.LogoLightKey),
             LogoLightThumbUrl = Thumb(r.LogoLightKey),
+            LogoDarkWidth = r.LogoDarkKey is null ? null : r.LogoDarkWidth,
+            LogoDarkHeight = r.LogoDarkKey is null ? null : r.LogoDarkHeight,
+            LogoLightWidth = r.LogoLightKey is null ? null : r.LogoLightWidth,
+            LogoLightHeight = r.LogoLightKey is null ? null : r.LogoLightHeight,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
             PackageCount = r.PackageCount,
@@ -114,6 +118,7 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
             Id = id, ClubId = scope.ClubId, Slug = slug, CreatedAt = now, UpdatedAt = now,
             CreatedBy = operatorId, UpdatedBy = operatorId,
             LogoDarkKey = logoDark?.Key, LogoLightKey = logoLight?.Key,
+            LogoDarkWidth = logoDark?.Width, LogoDarkHeight = logoDark?.Height, LogoLightWidth = logoLight?.Width, LogoLightHeight = logoLight?.Height,
         };
         Apply(sponsor, request);
         dbContext.Sponsors.Add(sponsor);
@@ -153,12 +158,16 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
         {
             orphans.Image(sponsor.LogoDarkKey);
             sponsor.LogoDarkKey = logoDark.Key;
+            sponsor.LogoDarkWidth = logoDark.Key is null ? null : logoDark.Width;
+            sponsor.LogoDarkHeight = logoDark.Key is null ? null : logoDark.Height;
         }
 
         if (logoLight.Change)
         {
             orphans.Image(sponsor.LogoLightKey);
             sponsor.LogoLightKey = logoLight.Key;
+            sponsor.LogoLightWidth = logoLight.Key is null ? null : logoLight.Width;
+            sponsor.LogoLightHeight = logoLight.Key is null ? null : logoLight.Height;
         }
 
         Apply(sponsor, request);
@@ -274,9 +283,11 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
         AdminInput.OptionalText(request.ContactPhone, "聯絡電話", 32, "contactPhone");
         AdminInput.OptionalEmail(request.ContactEmail, "聯絡 Email", "contactEmail");
         AdminInput.RequireText(request.Content.Zh.Name, "中文名稱", 128, "nameZh");
+        AdminInput.OptionalText(request.Content.Zh.LogoAlt, "標誌替代文字（中文）", 200, "logoAltZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
             AdminInput.RequireText(request.Content.En.Name, "英文名稱", 128, "nameEn");
+            AdminInput.OptionalText(request.Content.En.LogoAlt, "標誌替代文字（英文）", 200, "logoAltEn");
         }
 
         return slug;
@@ -320,6 +331,7 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
 
         row.Name = content.Name.Trim();
         row.Content = string.IsNullOrWhiteSpace(content.Content) ? null : content.Content;
+        row.LogoAlt = string.IsNullOrWhiteSpace(content.LogoAlt) ? null : content.LogoAlt.Trim();
     }
 
     private async Task<List<SponsorPackage>> ResolvePackagesAsync(AdminClubScope scope, IReadOnlyList<Guid> ids, CancellationToken cancellationToken)
@@ -407,8 +419,12 @@ public sealed class AdminSponsorsRepository(ClubDbContext dbContext, IQueryCache
             LogoDarkUrl = imageUrls.Resolve(sponsor.LogoDarkKey),
             LogoLightKey = sponsor.LogoLightKey,
             LogoLightUrl = imageUrls.Resolve(sponsor.LogoLightKey),
-            Zh = new AdminSponsorLocaleContent { Name = zh?.Name ?? "", Content = zh?.Content },
-            En = en is null ? null : new AdminSponsorLocaleContent { Name = en.Name ?? "", Content = en.Content },
+            LogoDarkWidth = sponsor.LogoDarkKey is null ? null : sponsor.LogoDarkWidth,
+            LogoDarkHeight = sponsor.LogoDarkKey is null ? null : sponsor.LogoDarkHeight,
+            LogoLightWidth = sponsor.LogoLightKey is null ? null : sponsor.LogoLightWidth,
+            LogoLightHeight = sponsor.LogoLightKey is null ? null : sponsor.LogoLightHeight,
+            Zh = new AdminSponsorLocaleContent { Name = zh?.Name ?? "", Content = zh?.Content, LogoAlt = zh?.LogoAlt },
+            En = en is null ? null : new AdminSponsorLocaleContent { Name = en.Name ?? "", Content = en.Content, LogoAlt = en.LogoAlt },
             Packages = sponsor.SponsorPackages.OrderBy(p => p.SortOrder).ThenBy(p => p.RowSeq).Select(p => new AdminSponsorPackageRefDto
             {
                 Id = p.Id,

@@ -16,8 +16,9 @@ public sealed class StaffRepository(
 
 
     private sealed record StaffRow(
-        Guid Id, bool IsShared, string? StaffGroup, string? Licence, string? PhotoKey, string PortraitConsentStatus);
-    private sealed record StaffI18nRow(Guid StaffId, string Locale, string? Name, string? Title, string? Bio);
+        Guid Id, bool IsShared, string? StaffGroup, string? Licence, string? PhotoKey, string PortraitConsentStatus,
+        int? PhotoWidth, int? PhotoHeight);
+    private sealed record StaffI18nRow(Guid StaffId, string Locale, string? Name, string? Title, string? Bio, string? PhotoAlt);
     private sealed record StaffTeamRow(Guid StaffId, string TeamCode);
 
     /// <summary>
@@ -53,7 +54,7 @@ public sealed class StaffRepository(
                     SELECT s.id AS Id,
                            CASE WHEN s.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
                            s.staff_group AS StaffGroup, s.licence AS Licence, s.photo_key AS PhotoKey,
-                           s.portrait_consent_status AS PortraitConsentStatus
+                           s.portrait_consent_status AS PortraitConsentStatus, s.photo_width AS PhotoWidth, s.photo_height AS PhotoHeight
                     FROM staff s
                     WHERE {ClubOrSharedSql.WhereClubOrShared}
                       AND (@TeamCode IS NULL OR EXISTS (
@@ -92,7 +93,7 @@ public sealed class StaffRepository(
         }
 
         const string i18nSql = """
-            SELECT staff_id AS StaffId, locale AS Locale, name AS Name, title AS Title, bio AS Bio
+            SELECT staff_id AS StaffId, locale AS Locale, name AS Name, title AS Title, bio AS Bio, photo_alt AS PhotoAlt
             FROM staff_i18n
             WHERE staff_id IN @StaffIds AND locale IN @Locales
             """;
@@ -156,6 +157,9 @@ public sealed class StaffRepository(
             Bio = RequestLocale.Pick(requested?.Bio, fallback?.Bio),
             TeamCodes = teamCodes,
             PhotoUrl = imageUrlResolver.Resolve(photoKey),
+            PhotoWidth = photoKey is null ? null : row.PhotoWidth,
+            PhotoHeight = photoKey is null ? null : row.PhotoHeight,
+            PhotoAlt = photoKey is null ? null : RequestLocale.Pick(requested?.PhotoAlt, fallback?.PhotoAlt),
             SchemaEligible = schemaEligible,
         };
     }

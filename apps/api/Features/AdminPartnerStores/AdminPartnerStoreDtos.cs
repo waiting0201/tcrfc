@@ -9,6 +9,9 @@ public sealed record AdminStoreLocaleContent
 
     /// <summary>優惠內容。</summary>
     public string? OfferContent { get; init; }
+
+    /// <summary>店家圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>partner_stores_i18n.image_alt</c>。</summary>
+    public string? ImageAlt { get; init; }
 }
 
 public sealed record AdminStoreContentInput
@@ -75,6 +78,8 @@ public sealed record AdminPartnerStoreListItemDto
     public string? ImageKey { get; init; }
     public string? ImageUrl { get; init; }
     public string? ImageThumbUrl { get; init; }
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
     public string? OfferZh { get; init; }
@@ -106,6 +111,8 @@ public sealed record AdminPartnerStoreDetailDto
     public string? ImageKey { get; init; }
     public string? ImageUrl { get; init; }
     public string? ImageThumbUrl { get; init; }
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
     public required AdminStoreLocaleContent Zh { get; init; }
     public AdminStoreLocaleContent? En { get; init; }
     public required DateTime CreatedAt { get; init; }

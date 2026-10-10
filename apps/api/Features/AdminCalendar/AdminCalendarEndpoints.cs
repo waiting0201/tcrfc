@@ -103,16 +103,20 @@ public static class AdminCalendarEndpoints
 
             var eventId = Guid.NewGuid();
             string? coverKey = null;
+            int? coverWidth = null;
+            int? coverHeight = null;
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("calendar_custom_events", "cover");
                 var uploaded = await UploadCoverAsync(scope, eventId, file, imageStorage, cancellationToken);
                 coverKey = uploaded.Key;
+                coverWidth = uploaded.Width;
+                coverHeight = uploaded.Height;
             }
 
             try
             {
-                var created = await repository.CreateAsync(scope, eventId, request, coverKey, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(scope, eventId, request, coverKey, coverWidth, coverHeight, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/calendar/custom-events/{created.Id}", created);
             }
             catch
@@ -157,7 +161,7 @@ public static class AdminCalendarEndpoints
                 UploadSlotPolicy.Validate("calendar_custom_events", "cover");
                 var uploaded = await UploadCoverAsync(scope, id, file, imageStorage, cancellationToken);
                 uploadedKey = uploaded.Key;
-                coverUpdate = CalendarEventCoverKeyUpdate.Set(uploaded.Key);
+                coverUpdate = CalendarEventCoverKeyUpdate.Set(uploaded.Key, uploaded.Width, uploaded.Height);
             }
             else if (request.RemoveCover)
             {

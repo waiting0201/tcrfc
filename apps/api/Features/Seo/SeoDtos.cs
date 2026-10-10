@@ -27,6 +27,10 @@ public sealed record PublicSeoSettingsDto
 
     public int? OgImageWidth { get; init; }
     public int? OgImageHeight { get; init; }
+
+    /// <summary>全站預設 OG 圖片替代文字（中文／英文，與其他雙語欄位一樣兩個都給，前台依語系取、英文空白自行回退中文）；沒有 OG 圖片時為 <c>null</c>。</summary>
+    public string? OgImageAltZh { get; init; }
+    public string? OgImageAltEn { get; init; }
 }
 
 /// <summary>單筆生效中的 301 轉址（<c>is_active = 1</c>）。前台（Nuxt server middleware）用來

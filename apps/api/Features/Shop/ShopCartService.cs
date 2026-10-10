@@ -6,6 +6,7 @@ using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.AdminShop;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -309,7 +310,7 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
     }
 
     public sealed record CartLine(
-        Guid VariantId, string ProductSlug, string? ProductName, string VariantLabel, string Sku, string? ImageKey, int ListPrice, int UnitPrice, bool OnSale,
+        Guid VariantId, string ProductSlug, string? ProductName, string VariantLabel, string Sku, string? ImageKey, int? ImageWidth, int? ImageHeight, string? ImageAlt, int ListPrice, int UnitPrice, bool OnSale,
         int Quantity, int Available, bool Purchasable, string? Issue, string? IssueMessage);
 
     private async Task<IReadOnlyList<CartLine>> BuildLinesAsync(ClubScope scope, Cart cart, string dbLocale, CancellationToken cancellationToken)
@@ -324,8 +325,8 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
             .Where(v => ids.Contains(v.Id) && v.ClubId == scope.ClubId).AsSplitQuery().ToListAsync(cancellationToken);
         var productIds = rows.Select(r => r.ProductId).Distinct().ToList();
         var covers = await db.ProductImages.AsNoTracking().Where(i => productIds.Contains(i.ProductId))
-            .OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new { i.ProductId, i.ImageKey }).ToListAsync(cancellationToken);
-        var coverBy = covers.GroupBy(c => c.ProductId).ToDictionary(g => g.Key, g => g.First().ImageKey);
+            .OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new { i.ProductId, Cover = new ShopCatalogRepository.ProductCover(i.ImageKey, i.Width, i.Height, i.ImageAltZh, i.ImageAltEn) }).ToListAsync(cancellationToken);
+        var coverBy = covers.GroupBy(c => c.ProductId).ToDictionary(g => g.Key, g => g.First().Cover);
         var lines = new List<CartLine>();
         foreach (var item in cart.CartItems.OrderBy(i => i.ProductVariantId))
         {
@@ -355,7 +356,8 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
 
             lines.Add(new CartLine(
                 v.Id, v.Product.Slug, RequestLocale.Pick(requested?.Name, fallback?.Name), AdminShopProductsRepository.VariantLabel(v.Size, v.Colour), v.Sku,
-                coverBy.GetValueOrDefault(v.ProductId), v.Price, unit, onSale, item.Quantity, available, issue is null, issue, message));
+                coverBy.GetValueOrDefault(v.ProductId)?.Key, coverBy.GetValueOrDefault(v.ProductId)?.Width, coverBy.GetValueOrDefault(v.ProductId)?.Height,
+                coverBy.TryGetValue(v.ProductId, out var cv) ? GalleryImageAlt.Pick(dbLocale, cv.AltZh, cv.AltEn) : null, v.Price, unit, onSale, item.Quantity, available, issue is null, issue, message));
         }
 
         return lines;
@@ -374,7 +376,8 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
             Items = lines.Select(l => new ShopCartItemDto
             {
                 VariantId = l.VariantId, ProductSlug = l.ProductSlug, ProductName = l.ProductName, VariantLabel = l.VariantLabel, Sku = l.Sku,
-                ImageThumbUrl = l.ImageKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(l.ImageKey)), ListPrice = l.ListPrice, UnitPrice = l.UnitPrice,
+                ImageThumbUrl = l.ImageKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(l.ImageKey)),
+                ImageWidth = l.ImageWidth, ImageHeight = l.ImageHeight, ImageAlt = l.ImageAlt, ListPrice = l.ListPrice, UnitPrice = l.UnitPrice,
                 OnSale = l.OnSale, Quantity = l.Quantity, LineTotal = l.UnitPrice * l.Quantity, AvailableQty = Math.Min(l.Available, ShopCatalogRepository.MaxReportedQty),
                 Purchasable = l.Purchasable, Issue = l.Issue, IssueMessage = l.IssueMessage,
             }).ToList(),

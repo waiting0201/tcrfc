@@ -719,3 +719,31 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 ### 補充：封面圖片替代文字（2026-10-07）
 
 主站規劃書 §4.0 圖片欄位組要求每個圖片欄位都有雙語替代文字。`fan_events_i18n`（球迷活動封面）與 `press_resources_i18n`（媒體專區封面；高解析圖以主檔縮圖作封面，同用此欄）原本缺這欄，現各補 **`cover_alt nvarchar(200) NULL`**（比照 `articles_i18n.cover_alt`）。後台讀寫 DTO 欄位名 `coverAlt`（`zh`／`en` 各一），公開 DTO 欄位名 `coverAlt`（請求語系優先、空白回退繁中，沒有封面圖時為 null）。遷移：EF `ClubCoverAltExpand`、`db/migrations/20261007_cover-alt_1-expand.sql`（展開型，可隨新版 api 上）。
+
+### 補充：圖片欄位組補齊（2026-10-09，S0-7h 收尾）
+
+主站規劃書 §4.0 圖片欄位組（物件鍵、寬、高、雙語 Alt）全表補齊，共 63 個可為空欄位（遷移 EF `ClubImageFieldGroupExpand`、`db/migrations/20261009_image-field-group_1-expand.sql`，展開型、冪等，🔴 先 migrate 再 deploy）。命名規則：寬高 `<名稱>_width`／`<名稱>_height`（`int NULL`）放主表；Alt `<名稱>_alt`（`nvarchar(200) NULL`）放 `_i18n` 側表；**多圖子表沒有側表，用並排 `image_alt_zh`／`image_alt_en`**（不為單純圖集另建 6 張側表）。既有資料列不回填，維持 `NULL`。
+
+| 表 | 新增欄位 |
+|---|---|
+| `teams`／`teams_i18n` | `hero_width`、`hero_height`／`hero_alt` |
+| `players`／`players_i18n` | `photo_width`、`photo_height`／`photo_alt` |
+| `staff`／`staff_i18n` | `photo_width`、`photo_height`／`photo_alt` |
+| `programs`／`programs_i18n` | `cover_width`、`cover_height`／`cover_alt` |
+| `comic_characters`／`_i18n` | `image_width`、`image_height`／`image_alt` |
+| `comic_episodes`／`_i18n` | `cover_width`、`cover_height`／`cover_alt` |
+| `fan_events` | `cover_width`、`cover_height`（`fan_events_i18n.cover_alt` 2026-10-07 已有） |
+| `partner_stores`／`_i18n` | `image_width`、`image_height`／`image_alt` |
+| `member_draws`／`_i18n` | `cover_width`、`cover_height`／`cover_alt` |
+| `calendar_custom_events`／`_i18n` | `cover_width`、`cover_height`／`cover_alt` |
+| `charities`／`charities_i18n` | `logo_width`、`logo_height`／`logo_alt` |
+| `charity_programs`／`_i18n` | `cover_width`、`cover_height`／`cover_alt` |
+| `impact_records_i18n` | `image_alt`（主表寬高早已有） |
+| `partners`／`partners_i18n` | `logo_dark_width`、`logo_dark_height`、`logo_light_width`、`logo_light_height`／`logo_alt`（深淺同一標誌，Alt 共用） |
+| `sponsors`／`sponsors_i18n` | 同 `partners` |
+| `clubs_i18n` | `og_image_alt`（`clubs.og_image_width／height` 早已有） |
+| `product_images` | `image_alt_zh`、`image_alt_en`（寬高早已是 `width`／`height`） |
+| `charity_program_images`、`impact_record_images` | `image_width`、`image_height`、`image_alt_zh`、`image_alt_en` |
+| `sponsor_activation_images`、`comic_pages`、`fan_event_images` | `image_alt_zh`、`image_alt_en`（寬高早已有） |
+
+API 契約：上傳成功後把主檔縮小後的寬高寫回；移除圖片寬高一併清成 `null`。後台讀取 DTO 是 `{名稱}Width`／`{名稱}Height`（沒有圖片時 `null`），Alt 在逐語系內容物件（`zh.{名稱}Alt`／`en.{名稱}Alt`，`≤200` 字，過長 400）；多圖子表圖片 DTO 是 `altZh`／`altEn`，以 `PUT .../images/{imageId}`（漫畫 `.../pages/{pageId}`）更新。公開 DTO 是 `{名稱}Width`／`{名稱}Height`／`{名稱}Alt`（當前語系、英文空白回退繁中、沒有圖片時三者 `null`；多圖子表為 `width`／`height`／`alt`）。逐端點精確欄位名見 `apps/api/README.md`「圖片欄位組補齊」。

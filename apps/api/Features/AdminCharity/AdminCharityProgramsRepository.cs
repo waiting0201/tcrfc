@@ -41,7 +41,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
             .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(p => new
             {
-                p.Id, p.Slug, IsShared = p.ClubId == null, p.Status, p.StartOn, p.EndOn, p.SortOrder, p.IsPinned, p.CharityId, p.CoverKey, p.UpdatedAt,
+                p.Id, p.Slug, IsShared = p.ClubId == null, p.Status, p.StartOn, p.EndOn, p.SortOrder, p.IsPinned, p.CharityId, p.CoverKey, p.CoverWidth, p.CoverHeight, p.UpdatedAt,
                 NameZh = p.CharityProgramsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = p.CharityProgramsI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
                 CharityNameZh = p.Charity.CharitiesI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
@@ -54,6 +54,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
             StartOn = r.StartOn, EndOn = r.EndOn, SortOrder = r.SortOrder, IsPinned = r.IsPinned, CharityId = r.CharityId,
             CharityNameZh = r.CharityNameZh, CoverKey = r.CoverKey, CoverUrl = imageUrls.Resolve(r.CoverKey),
             CoverThumbUrl = r.CoverKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(r.CoverKey)),
+            CoverWidth = r.CoverKey is null ? null : r.CoverWidth, CoverHeight = r.CoverKey is null ? null : r.CoverHeight,
             NameZh = r.NameZh, NameEn = r.NameEn, UpdatedAt = r.UpdatedAt,
         }).ToList();
         return new PagedResult<AdminCharityProgramListItemDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = total };
@@ -85,7 +86,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
         var now = DateTime.UtcNow;
         var program = new CharityProgram
         {
-            Id = id, ClubId = scope.ClubId, Slug = slug, CoverKey = cover?.Key, CreatedAt = now, UpdatedAt = now,
+            Id = id, ClubId = scope.ClubId, Slug = slug, CoverKey = cover?.Key, CoverWidth = cover?.Width, CoverHeight = cover?.Height, CreatedAt = now, UpdatedAt = now,
             CreatedBy = operatorId, UpdatedBy = operatorId,
         };
         Apply(program, request);
@@ -133,6 +134,8 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
         {
             orphans.Image(program.CoverKey);
             program.CoverKey = cover.Key;
+            program.CoverWidth = cover.Key is null ? null : cover.Width;
+            program.CoverHeight = cover.Key is null ? null : cover.Height;
         }
 
         Apply(program, request);
@@ -216,11 +219,33 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
         var now = DateTime.UtcNow;
         dbContext.CharityProgramImages.Add(new CharityProgramImage
         {
-            Id = Guid.NewGuid(), CharityProgramId = id, ImageKey = image.Key, CreatedAt = now, UpdatedAt = now,
+            Id = Guid.NewGuid(), CharityProgramId = id, ImageKey = image.Key, ImageWidth = image.Width, ImageHeight = image.Height, CreatedAt = now, UpdatedAt = now,
             SortOrder = program.CharityProgramImages.Count == 0 ? 0 : program.CharityProgramImages.Max(i => i.SortOrder) + 1,
             CreatedBy = operatorId, UpdatedBy = operatorId,
         });
         program.UpdatedAt = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await InvalidateAsync(scope, cancellationToken);
+        return await GetByIdAsync(scope, id, cancellationToken);
+    }
+
+    /// <summary>更新單張圖集圖片的替代文字（<c>charity_program_images.image_alt_zh／image_alt_en</c>）。回傳更新後的計畫；計畫或圖片不存在回 <c>null</c>。</summary>
+    public async Task<AdminCharityProgramDetailDto?> UpdateImageAltAsync(
+        AdminClubScope scope, Guid id, Guid imageId, UpdateImageAltRequest request, CancellationToken cancellationToken)
+    {
+        var (altZh, altEn) = GalleryImageAlt.Normalize(request);
+        var program = await LoadOwnForGalleryAsync(scope, id, cancellationToken);
+        var image = program?.CharityProgramImages.FirstOrDefault(i => i.Id == imageId);
+        if (program is null || image is null)
+        {
+            return null;
+        }
+
+        image.ImageAltZh = altZh;
+        image.ImageAltEn = altEn;
+        image.UpdatedAt = DateTime.UtcNow;
+        image.UpdatedBy = scope.Identity.AdminUserId;
+        program.UpdatedAt = image.UpdatedAt;
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidateAsync(scope, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
@@ -298,11 +323,13 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
         AdminInput.DateRange(request.StartOn, request.EndOn, "計畫期間", "endOn");
         AdminInput.RequireText(request.Content.Zh.Name, "中文計畫名稱", 128, "nameZh");
         AdminInput.OptionalText(request.Content.Zh.TargetAudience, "計畫對象", 200, "audienceZh");
+        AdminInput.OptionalText(request.Content.Zh.CoverAlt, "封面圖片替代文字（中文）", 200, "coverAltZh");
         AdminInput.OptionalJson(request.Content.Zh.Content, "中文緣起與內容", "contentZh");
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
         {
             AdminInput.RequireText(request.Content.En.Name, "英文計畫名稱", 128, "nameEn");
             AdminInput.OptionalText(request.Content.En.TargetAudience, "計畫對象（英文）", 200, "audienceEn");
+            AdminInput.OptionalText(request.Content.En.CoverAlt, "封面圖片替代文字（英文）", 200, "coverAltEn");
             AdminInput.OptionalJson(request.Content.En.Content, "英文緣起與內容", "contentEn");
         }
 
@@ -347,6 +374,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
         row.TargetAudience = string.IsNullOrWhiteSpace(content.TargetAudience) ? null : content.TargetAudience.Trim();
         row.Content = string.IsNullOrWhiteSpace(content.Content) ? null : content.Content;
         row.DonationContent = string.IsNullOrWhiteSpace(content.DonationContent) ? null : content.DonationContent;
+        row.CoverAlt = string.IsNullOrWhiteSpace(content.CoverAlt) ? null : content.CoverAlt.Trim();
     }
 
     private async Task EnsureCharityAsync(AdminClubScope scope, Guid charityId, CancellationToken cancellationToken)
@@ -427,8 +455,9 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
             SortOrder = program.SortOrder, IsPinned = program.IsPinned, CharityId = program.CharityId,
             CharityNameZh = program.Charity.CharitiesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Name,
             CoverKey = program.CoverKey, CoverUrl = imageUrls.Resolve(program.CoverKey), CoverThumbUrl = imageUrls.ResolveThumbnail(program.CoverKey),
-            Zh = new AdminCharityProgramLocaleContent { Name = zh?.Name ?? "", TargetAudience = zh?.TargetAudience, Content = zh?.Content, DonationContent = zh?.DonationContent },
-            En = en is null ? null : new AdminCharityProgramLocaleContent { Name = en.Name ?? "", TargetAudience = en.TargetAudience, Content = en.Content, DonationContent = en.DonationContent },
+            CoverWidth = program.CoverKey is null ? null : program.CoverWidth, CoverHeight = program.CoverKey is null ? null : program.CoverHeight,
+            Zh = new AdminCharityProgramLocaleContent { Name = zh?.Name ?? "", TargetAudience = zh?.TargetAudience, Content = zh?.Content, DonationContent = zh?.DonationContent, CoverAlt = zh?.CoverAlt },
+            En = en is null ? null : new AdminCharityProgramLocaleContent { Name = en.Name ?? "", TargetAudience = en.TargetAudience, Content = en.Content, DonationContent = en.DonationContent, CoverAlt = en.CoverAlt },
             Partners = program.Partners.OrderBy(p => p.SortOrder).Select(p => new AdminCharityLinkRefDto
             {
                 Id = p.Id, Slug = p.Slug, Title = p.PartnersI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Name,
@@ -445,6 +474,7 @@ public sealed class AdminCharityProgramsRepository(ClubDbContext dbContext, IQue
             {
                 Id = i.Id, ImageKey = i.ImageKey, ImageUrl = imageUrls.Resolve(i.ImageKey),
                 ThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)), SortOrder = i.SortOrder,
+                ImageWidth = i.ImageWidth, ImageHeight = i.ImageHeight, AltZh = i.ImageAltZh, AltEn = i.ImageAltEn,
             }).ToList(),
             CreatedAt = program.CreatedAt, UpdatedAt = program.UpdatedAt,
         };

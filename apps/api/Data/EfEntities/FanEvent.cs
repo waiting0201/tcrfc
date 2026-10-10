@@ -29,6 +29,10 @@ public partial class FanEvent
 
     public string? CoverKey { get; set; }
 
+    public int? CoverWidth { get; set; }
+
+    public int? CoverHeight { get; set; }
+
     public DateTime? EndsAt { get; set; }
 
     public DateTime? RegistrationDeadlineAt { get; set; }

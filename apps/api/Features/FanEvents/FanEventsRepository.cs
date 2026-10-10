@@ -4,6 +4,7 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.AdminMembers;
 using Tcrfc.Api.Features.MemberAuth;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -101,7 +102,7 @@ public sealed class FanEventsRepository(ClubDbContext db, IImagePublicUrlResolve
             Event = ToListItem(e, dbLocale, counts.GetValueOrDefault(e.Id), now),
             Description = RequestLocale.Pick(requested?.Description, fallback?.Description), VenueName = venueName,
             Images = e.FanEventImages.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq)
-                .Select(i => new FanEventImagePublicDto { ImageUrl = imageUrls.Resolve(i.ImageKey), ImageThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)), Width = i.ImageWidth, Height = i.ImageHeight }).ToList(),
+                .Select(i => new FanEventImagePublicDto { ImageUrl = imageUrls.Resolve(i.ImageKey), ImageThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)), Width = i.ImageWidth, Height = i.ImageHeight, Alt = GalleryImageAlt.Pick(dbLocale, i.ImageAltZh, i.ImageAltEn) }).ToList(),
             Articles = articleIds.Select(id => articles.FirstOrDefault(a => a.Id == id)).OfType<Article>()
                 .Select(a => new FanEventArticlePublicDto
                 {
@@ -240,6 +241,8 @@ public sealed class FanEventsRepository(ClubDbContext db, IImagePublicUrlResolve
             IsRegistrationOpen = open, IsFull = full, Phase = end is DateTime endAt && endAt < now ? "past" : "upcoming",
             CoverUrl = e.CoverKey is null ? null : imageUrls.Resolve(e.CoverKey),
             CoverThumbUrl = e.CoverKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(e.CoverKey)),
+            CoverWidth = e.CoverKey is null ? null : e.CoverWidth,
+            CoverHeight = e.CoverKey is null ? null : e.CoverHeight,
             CoverAlt = e.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
         };
     }

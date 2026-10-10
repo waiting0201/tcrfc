@@ -120,6 +120,27 @@ public sealed class AdminSponsorActivationsRepository(ClubDbContext dbContext, I
         return await GetAsync(scope, sponsorId, id, cancellationToken);
     }
 
+    /// <summary>更新單張圖集圖片的替代文字。回傳更新後的活動；活動或圖片不存在回 <c>null</c>。</summary>
+    public async Task<AdminActivationDto?> UpdateImageAltAsync(
+        AdminClubScope scope, Guid sponsorId, Guid id, Guid imageId, UpdateImageAltRequest request, CancellationToken cancellationToken)
+    {
+        var (altZh, altEn) = GalleryImageAlt.Normalize(request);
+        var activation = await LoadAsync(scope, sponsorId, id, tracking: true, cancellationToken);
+        var image = activation?.SponsorActivationImages.FirstOrDefault(i => i.Id == imageId);
+        if (activation is null || image is null)
+        {
+            return null;
+        }
+
+        image.ImageAltZh = altZh;
+        image.ImageAltEn = altEn;
+        image.UpdatedAt = DateTime.UtcNow;
+        image.UpdatedBy = scope.Identity.AdminUserId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await InvalidateAsync(scope, cancellationToken);
+        return await GetAsync(scope, sponsorId, id, cancellationToken);
+    }
+
     public async Task<bool> DeleteImageAsync(
         AdminClubScope scope, Guid sponsorId, Guid id, Guid imageId, OrphanedObjects orphans, CancellationToken cancellationToken)
     {
@@ -237,6 +258,8 @@ public sealed class AdminSponsorActivationsRepository(ClubDbContext dbContext, I
                 ThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)),
                 ImageWidth = i.ImageWidth,
                 ImageHeight = i.ImageHeight,
+                AltZh = i.ImageAltZh,
+                AltEn = i.ImageAltEn,
                 SortOrder = i.SortOrder,
             }).ToList(),
             UpdatedAt = activation.UpdatedAt,

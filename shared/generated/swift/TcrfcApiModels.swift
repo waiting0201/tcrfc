@@ -971,17 +971,32 @@ public struct CharityLinkedItemDto: Codable, Equatable, Sendable {
     public var name: String?
     public var logoDarkUrl: String?
     public var logoLightUrl: String?
+    public var logoDarkWidth: Int?
+    public var logoDarkHeight: Int?
+    public var logoLightWidth: Int?
+    public var logoLightHeight: Int?
+    public var logoAlt: String?
 
     public init(
         slug: String,
         name: String? = nil,
         logoDarkUrl: String? = nil,
-        logoLightUrl: String? = nil
+        logoLightUrl: String? = nil,
+        logoDarkWidth: Int? = nil,
+        logoDarkHeight: Int? = nil,
+        logoLightWidth: Int? = nil,
+        logoLightHeight: Int? = nil,
+        logoAlt: String? = nil
     ) {
         self.slug = slug
         self.name = name
         self.logoDarkUrl = logoDarkUrl
         self.logoLightUrl = logoLightUrl
+        self.logoDarkWidth = logoDarkWidth
+        self.logoDarkHeight = logoDarkHeight
+        self.logoLightWidth = logoLightWidth
+        self.logoLightHeight = logoLightHeight
+        self.logoAlt = logoAlt
     }
 }
 
@@ -994,6 +1009,9 @@ public struct CharityProgramDetailDto: Codable, Equatable, Sendable {
     public var endOn: String?
     public var progress: String
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var content: String?
     public var donationContent: String?
     public var charity: PublicCharityOrgDto?
@@ -1011,6 +1029,9 @@ public struct CharityProgramDetailDto: Codable, Equatable, Sendable {
         endOn: String? = nil,
         progress: String,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         content: String? = nil,
         donationContent: String? = nil,
         charity: PublicCharityOrgDto? = nil,
@@ -1027,6 +1048,9 @@ public struct CharityProgramDetailDto: Codable, Equatable, Sendable {
         self.endOn = endOn
         self.progress = progress
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.content = content
         self.donationContent = donationContent
         self.charity = charity
@@ -1047,6 +1071,9 @@ public struct CharityProgramListItemDto: Codable, Equatable, Sendable {
     public var progress: String
     public var isPinned: Bool
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var charityName: String?
 
     public init(
@@ -1059,6 +1086,9 @@ public struct CharityProgramListItemDto: Codable, Equatable, Sendable {
         progress: String,
         isPinned: Bool,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         charityName: String? = nil
     ) {
         self.id = id
@@ -1070,6 +1100,9 @@ public struct CharityProgramListItemDto: Codable, Equatable, Sendable {
         self.progress = progress
         self.isPinned = isPinned
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.charityName = charityName
     }
 }
@@ -1137,6 +1170,9 @@ public struct ClubDto: Codable, Equatable, Sendable {
     public var ogImageKey: String?
     public var defaultLocale: String
     public var ogImageUrl: String?
+    public var ogImageWidth: Int?
+    public var ogImageHeight: Int?
+    public var ogImageAlt: String?
     public var schemaEligible: Bool
 
     public init(
@@ -1149,6 +1185,9 @@ public struct ClubDto: Codable, Equatable, Sendable {
         ogImageKey: String? = nil,
         defaultLocale: String,
         ogImageUrl: String? = nil,
+        ogImageWidth: Int? = nil,
+        ogImageHeight: Int? = nil,
+        ogImageAlt: String? = nil,
         schemaEligible: Bool
     ) {
         self.code = code
@@ -1160,6 +1199,9 @@ public struct ClubDto: Codable, Equatable, Sendable {
         self.ogImageKey = ogImageKey
         self.defaultLocale = defaultLocale
         self.ogImageUrl = ogImageUrl
+        self.ogImageWidth = ogImageWidth
+        self.ogImageHeight = ogImageHeight
+        self.ogImageAlt = ogImageAlt
         self.schemaEligible = schemaEligible
     }
 }
@@ -1183,6 +1225,9 @@ public struct ComicCharacterPublicDto: Codable, Equatable, Sendable {
     public var description: String?
     public var imageUrl: String?
     public var imageThumbUrl: String?
+    public var imageWidth: Int?
+    public var imageHeight: Int?
+    public var imageAlt: String?
     public var playerId: String?
 
     public init(
@@ -1191,6 +1236,9 @@ public struct ComicCharacterPublicDto: Codable, Equatable, Sendable {
         description: String? = nil,
         imageUrl: String? = nil,
         imageThumbUrl: String? = nil,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil,
+        imageAlt: String? = nil,
         playerId: String? = nil
     ) {
         self.id = id
@@ -1198,6 +1246,9 @@ public struct ComicCharacterPublicDto: Codable, Equatable, Sendable {
         self.description = description
         self.imageUrl = imageUrl
         self.imageThumbUrl = imageThumbUrl
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
+        self.imageAlt = imageAlt
         self.playerId = playerId
     }
 }
@@ -1206,6 +1257,9 @@ public struct ComicEpisodeDetailDto: Codable, Equatable, Sendable {
     public var episodeNo: Int
     public var title: String?
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var publishedOn: String?
     public var isLatest: Bool
     public var pages: [ComicPagePublicDto]
@@ -1216,6 +1270,9 @@ public struct ComicEpisodeDetailDto: Codable, Equatable, Sendable {
         episodeNo: Int,
         title: String? = nil,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         publishedOn: String? = nil,
         isLatest: Bool,
         pages: [ComicPagePublicDto],
@@ -1225,6 +1282,9 @@ public struct ComicEpisodeDetailDto: Codable, Equatable, Sendable {
         self.episodeNo = episodeNo
         self.title = title
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.publishedOn = publishedOn
         self.isLatest = isLatest
         self.pages = pages
@@ -1237,6 +1297,9 @@ public struct ComicEpisodeListItemDto: Codable, Equatable, Sendable {
     public var episodeNo: Int
     public var title: String?
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var coverThumbUrl: String?
     public var publishedOn: String?
     public var isLatest: Bool
@@ -1246,6 +1309,9 @@ public struct ComicEpisodeListItemDto: Codable, Equatable, Sendable {
         episodeNo: Int,
         title: String? = nil,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         coverThumbUrl: String? = nil,
         publishedOn: String? = nil,
         isLatest: Bool,
@@ -1254,6 +1320,9 @@ public struct ComicEpisodeListItemDto: Codable, Equatable, Sendable {
         self.episodeNo = episodeNo
         self.title = title
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.coverThumbUrl = coverThumbUrl
         self.publishedOn = publishedOn
         self.isLatest = isLatest
@@ -1267,19 +1336,22 @@ public struct ComicPagePublicDto: Codable, Equatable, Sendable {
     public var imageThumbUrl: String?
     public var width: Int?
     public var height: Int?
+    public var alt: String?
 
     public init(
         pageNo: Int,
         imageUrl: String? = nil,
         imageThumbUrl: String? = nil,
         width: Int? = nil,
-        height: Int? = nil
+        height: Int? = nil,
+        alt: String? = nil
     ) {
         self.pageNo = pageNo
         self.imageUrl = imageUrl
         self.imageThumbUrl = imageThumbUrl
         self.width = width
         self.height = height
+        self.alt = alt
     }
 }
 
@@ -1425,17 +1497,20 @@ public struct FanEventImagePublicDto: Codable, Equatable, Sendable {
     public var imageThumbUrl: String?
     public var width: Int?
     public var height: Int?
+    public var alt: String?
 
     public init(
         imageUrl: String? = nil,
         imageThumbUrl: String? = nil,
         width: Int? = nil,
-        height: Int? = nil
+        height: Int? = nil,
+        alt: String? = nil
     ) {
         self.imageUrl = imageUrl
         self.imageThumbUrl = imageThumbUrl
         self.width = width
         self.height = height
+        self.alt = alt
     }
 }
 
@@ -1454,6 +1529,8 @@ public struct FanEventListItemDto: Codable, Equatable, Sendable {
     public var phase: String
     public var coverUrl: String?
     public var coverThumbUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
     public var coverAlt: String?
 
     public init(
@@ -1471,6 +1548,8 @@ public struct FanEventListItemDto: Codable, Equatable, Sendable {
         phase: String,
         coverUrl: String? = nil,
         coverThumbUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
         coverAlt: String? = nil
     ) {
         self.slug = slug
@@ -1487,6 +1566,8 @@ public struct FanEventListItemDto: Codable, Equatable, Sendable {
         self.phase = phase
         self.coverUrl = coverUrl
         self.coverThumbUrl = coverThumbUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
         self.coverAlt = coverAlt
     }
 }
@@ -1652,12 +1733,16 @@ public struct ImpactRecordDto: Codable, Equatable, Sendable {
     public var happenedOn: String?
     public var charityName: String?
     public var charityLogoUrl: String?
+    public var charityLogoWidth: Int?
+    public var charityLogoHeight: Int?
+    public var charityLogoAlt: String?
     public var donationContent: String?
     public var location: String?
     public var briefDescription: String?
     public var imageUrl: String?
     public var imageWidth: Int?
     public var imageHeight: Int?
+    public var imageAlt: String?
     public var images: [PublicCharityImageDto]
     public var programSlug: String?
     public var programName: String?
@@ -1667,12 +1752,16 @@ public struct ImpactRecordDto: Codable, Equatable, Sendable {
         happenedOn: String? = nil,
         charityName: String? = nil,
         charityLogoUrl: String? = nil,
+        charityLogoWidth: Int? = nil,
+        charityLogoHeight: Int? = nil,
+        charityLogoAlt: String? = nil,
         donationContent: String? = nil,
         location: String? = nil,
         briefDescription: String? = nil,
         imageUrl: String? = nil,
         imageWidth: Int? = nil,
         imageHeight: Int? = nil,
+        imageAlt: String? = nil,
         images: [PublicCharityImageDto],
         programSlug: String? = nil,
         programName: String? = nil
@@ -1681,12 +1770,16 @@ public struct ImpactRecordDto: Codable, Equatable, Sendable {
         self.happenedOn = happenedOn
         self.charityName = charityName
         self.charityLogoUrl = charityLogoUrl
+        self.charityLogoWidth = charityLogoWidth
+        self.charityLogoHeight = charityLogoHeight
+        self.charityLogoAlt = charityLogoAlt
         self.donationContent = donationContent
         self.location = location
         self.briefDescription = briefDescription
         self.imageUrl = imageUrl
         self.imageWidth = imageWidth
         self.imageHeight = imageHeight
+        self.imageAlt = imageAlt
         self.images = images
         self.programSlug = programSlug
         self.programName = programName
@@ -1962,6 +2055,9 @@ public struct MemberDrawDto: Codable, Equatable, Sendable {
     public var notes: String?
     public var isFallbackLocale: Bool
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var occasion: String?
     public var occasionLabel: String?
     public var snapshotAt: JSONValue?
@@ -1982,6 +2078,9 @@ public struct MemberDrawDto: Codable, Equatable, Sendable {
         notes: String? = nil,
         isFallbackLocale: Bool,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         occasion: String? = nil,
         occasionLabel: String? = nil,
         snapshotAt: JSONValue? = nil,
@@ -2001,6 +2100,9 @@ public struct MemberDrawDto: Codable, Equatable, Sendable {
         self.notes = notes
         self.isFallbackLocale = isFallbackLocale
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.occasion = occasion
         self.occasionLabel = occasionLabel
         self.snapshotAt = snapshotAt
@@ -3245,6 +3347,11 @@ public struct PartnerDto: Codable, Equatable, Sendable {
     public var content: String?
     public var logoDarkUrl: String?
     public var logoLightUrl: String?
+    public var logoDarkWidth: Int?
+    public var logoDarkHeight: Int?
+    public var logoLightWidth: Int?
+    public var logoLightHeight: Int?
+    public var logoAlt: String?
     public var charityPrograms: [PartnerCharityProgramDto]
 
     public init(
@@ -3263,6 +3370,11 @@ public struct PartnerDto: Codable, Equatable, Sendable {
         content: String? = nil,
         logoDarkUrl: String? = nil,
         logoLightUrl: String? = nil,
+        logoDarkWidth: Int? = nil,
+        logoDarkHeight: Int? = nil,
+        logoLightWidth: Int? = nil,
+        logoLightHeight: Int? = nil,
+        logoAlt: String? = nil,
         charityPrograms: [PartnerCharityProgramDto]
     ) {
         self.id = id
@@ -3280,6 +3392,11 @@ public struct PartnerDto: Codable, Equatable, Sendable {
         self.content = content
         self.logoDarkUrl = logoDarkUrl
         self.logoLightUrl = logoLightUrl
+        self.logoDarkWidth = logoDarkWidth
+        self.logoDarkHeight = logoDarkHeight
+        self.logoLightWidth = logoLightWidth
+        self.logoLightHeight = logoLightHeight
+        self.logoAlt = logoAlt
         self.charityPrograms = charityPrograms
     }
 }
@@ -3314,6 +3431,9 @@ public struct PartnerStorePublicDto: Codable, Equatable, Sendable {
     public var mapUrl: String?
     public var websiteUrl: String?
     public var imageUrl: String?
+    public var imageWidth: Int?
+    public var imageHeight: Int?
+    public var imageAlt: String?
     public var isShared: Bool
 
     public init(
@@ -3333,6 +3453,9 @@ public struct PartnerStorePublicDto: Codable, Equatable, Sendable {
         mapUrl: String? = nil,
         websiteUrl: String? = nil,
         imageUrl: String? = nil,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil,
+        imageAlt: String? = nil,
         isShared: Bool
     ) {
         self.slug = slug
@@ -3351,6 +3474,9 @@ public struct PartnerStorePublicDto: Codable, Equatable, Sendable {
         self.mapUrl = mapUrl
         self.websiteUrl = websiteUrl
         self.imageUrl = imageUrl
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
+        self.imageAlt = imageAlt
         self.isShared = isShared
     }
 }
@@ -3414,6 +3540,9 @@ public struct PlayerDto: Codable, Equatable, Sendable {
     public var name: String?
     public var bio: String?
     public var photoUrl: String?
+    public var photoWidth: Int?
+    public var photoHeight: Int?
+    public var photoAlt: String?
     public var schemaEligible: Bool
 
     public init(
@@ -3434,6 +3563,9 @@ public struct PlayerDto: Codable, Equatable, Sendable {
         name: String? = nil,
         bio: String? = nil,
         photoUrl: String? = nil,
+        photoWidth: Int? = nil,
+        photoHeight: Int? = nil,
+        photoAlt: String? = nil,
         schemaEligible: Bool
     ) {
         self.id = id
@@ -3453,6 +3585,9 @@ public struct PlayerDto: Codable, Equatable, Sendable {
         self.name = name
         self.bio = bio
         self.photoUrl = photoUrl
+        self.photoWidth = photoWidth
+        self.photoHeight = photoHeight
+        self.photoAlt = photoAlt
         self.schemaEligible = schemaEligible
     }
 }
@@ -3465,6 +3600,9 @@ public struct PlayerSeasonStatDto: Codable, Equatable, Sendable {
     public var shirtNo: Int?
     public var position: String?
     public var photoUrl: String?
+    public var photoWidth: Int?
+    public var photoHeight: Int?
+    public var photoAlt: String?
     public var appearances: Int
     public var goals: Int
     public var assists: Int?
@@ -3480,6 +3618,9 @@ public struct PlayerSeasonStatDto: Codable, Equatable, Sendable {
         shirtNo: Int? = nil,
         position: String? = nil,
         photoUrl: String? = nil,
+        photoWidth: Int? = nil,
+        photoHeight: Int? = nil,
+        photoAlt: String? = nil,
         appearances: Int,
         goals: Int,
         assists: Int? = nil,
@@ -3494,6 +3635,9 @@ public struct PlayerSeasonStatDto: Codable, Equatable, Sendable {
         self.shirtNo = shirtNo
         self.position = position
         self.photoUrl = photoUrl
+        self.photoWidth = photoWidth
+        self.photoHeight = photoHeight
+        self.photoAlt = photoAlt
         self.appearances = appearances
         self.goals = goals
         self.assists = assists
@@ -3569,6 +3713,9 @@ public struct ProgramDetailDto: Codable, Equatable, Sendable {
     public var ageMax: Int?
     public var coverKey: String?
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var name: String?
     public var intro: String?
     public var content: String?
@@ -3586,6 +3733,9 @@ public struct ProgramDetailDto: Codable, Equatable, Sendable {
         ageMax: Int? = nil,
         coverKey: String? = nil,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         name: String? = nil,
         intro: String? = nil,
         content: String? = nil,
@@ -3602,6 +3752,9 @@ public struct ProgramDetailDto: Codable, Equatable, Sendable {
         self.ageMax = ageMax
         self.coverKey = coverKey
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.name = name
         self.intro = intro
         self.content = content
@@ -3621,6 +3774,9 @@ public struct ProgramListItemDto: Codable, Equatable, Sendable {
     public var ageMax: Int?
     public var coverKey: String?
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var name: String?
     public var intro: String?
     public var hasOpenSession: Bool
@@ -3635,6 +3791,9 @@ public struct ProgramListItemDto: Codable, Equatable, Sendable {
         ageMax: Int? = nil,
         coverKey: String? = nil,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         name: String? = nil,
         intro: String? = nil,
         hasOpenSession: Bool
@@ -3648,6 +3807,9 @@ public struct ProgramListItemDto: Codable, Equatable, Sendable {
         self.ageMax = ageMax
         self.coverKey = coverKey
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.name = name
         self.intro = intro
         self.hasOpenSession = hasOpenSession
@@ -3663,6 +3825,11 @@ public struct ProgramPartnerSummaryDto: Codable, Equatable, Sendable {
     public var logoDarkUrl: String?
     public var logoLightUrl: String?
     public var websiteUrl: String?
+    public var logoDarkWidth: Int?
+    public var logoDarkHeight: Int?
+    public var logoLightWidth: Int?
+    public var logoLightHeight: Int?
+    public var logoAlt: String?
 
     public init(
         id: String,
@@ -3672,7 +3839,12 @@ public struct ProgramPartnerSummaryDto: Codable, Equatable, Sendable {
         logoLightKey: String? = nil,
         logoDarkUrl: String? = nil,
         logoLightUrl: String? = nil,
-        websiteUrl: String? = nil
+        websiteUrl: String? = nil,
+        logoDarkWidth: Int? = nil,
+        logoDarkHeight: Int? = nil,
+        logoLightWidth: Int? = nil,
+        logoLightHeight: Int? = nil,
+        logoAlt: String? = nil
     ) {
         self.id = id
         self.slug = slug
@@ -3682,6 +3854,11 @@ public struct ProgramPartnerSummaryDto: Codable, Equatable, Sendable {
         self.logoDarkUrl = logoDarkUrl
         self.logoLightUrl = logoLightUrl
         self.websiteUrl = websiteUrl
+        self.logoDarkWidth = logoDarkWidth
+        self.logoDarkHeight = logoDarkHeight
+        self.logoLightWidth = logoLightWidth
+        self.logoLightHeight = logoLightHeight
+        self.logoAlt = logoAlt
     }
 }
 
@@ -3864,6 +4041,9 @@ public struct PublicCalendarEventDto: Codable, Equatable, Sendable {
     public var ctaUrl: String?
     public var coverKey: String?
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
 
     public init(
         sourceType: String,
@@ -3894,7 +4074,10 @@ public struct PublicCalendarEventDto: Codable, Equatable, Sendable {
         description: String? = nil,
         ctaUrl: String? = nil,
         coverKey: String? = nil,
-        coverUrl: String? = nil
+        coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil
     ) {
         self.sourceType = sourceType
         self.id = id
@@ -3925,6 +4108,9 @@ public struct PublicCalendarEventDto: Codable, Equatable, Sendable {
         self.ctaUrl = ctaUrl
         self.coverKey = coverKey
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
     }
 }
 
@@ -3997,13 +4183,22 @@ public struct PublicCalendarTeamDto: Codable, Equatable, Sendable {
 public struct PublicCharityImageDto: Codable, Equatable, Sendable {
     public var imageUrl: String
     public var thumbUrl: String?
+    public var imageWidth: Int?
+    public var imageHeight: Int?
+    public var alt: String?
 
     public init(
         imageUrl: String,
-        thumbUrl: String? = nil
+        thumbUrl: String? = nil,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil,
+        alt: String? = nil
     ) {
         self.imageUrl = imageUrl
         self.thumbUrl = thumbUrl
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
+        self.alt = alt
     }
 }
 
@@ -4012,6 +4207,9 @@ public struct PublicCharityOrgDto: Codable, Equatable, Sendable {
     public var name: String?
     public var intro: String?
     public var logoUrl: String?
+    public var logoWidth: Int?
+    public var logoHeight: Int?
+    public var logoAlt: String?
     public var websiteUrl: String?
 
     public init(
@@ -4019,12 +4217,18 @@ public struct PublicCharityOrgDto: Codable, Equatable, Sendable {
         name: String? = nil,
         intro: String? = nil,
         logoUrl: String? = nil,
+        logoWidth: Int? = nil,
+        logoHeight: Int? = nil,
+        logoAlt: String? = nil,
         websiteUrl: String? = nil
     ) {
         self.slug = slug
         self.name = name
         self.intro = intro
         self.logoUrl = logoUrl
+        self.logoWidth = logoWidth
+        self.logoHeight = logoHeight
+        self.logoAlt = logoAlt
         self.websiteUrl = websiteUrl
     }
 }
@@ -4269,6 +4473,8 @@ public struct PublicSeoSettingsDto: Codable, Equatable, Sendable {
     public var ogImageUrl: String?
     public var ogImageWidth: Int?
     public var ogImageHeight: Int?
+    public var ogImageAltZh: String?
+    public var ogImageAltEn: String?
 
     public init(
         titleTemplateZh: String? = nil,
@@ -4282,7 +4488,9 @@ public struct PublicSeoSettingsDto: Codable, Equatable, Sendable {
         lineTagId: String? = nil,
         ogImageUrl: String? = nil,
         ogImageWidth: Int? = nil,
-        ogImageHeight: Int? = nil
+        ogImageHeight: Int? = nil,
+        ogImageAltZh: String? = nil,
+        ogImageAltEn: String? = nil
     ) {
         self.titleTemplateZh = titleTemplateZh
         self.titleTemplateEn = titleTemplateEn
@@ -4296,6 +4504,8 @@ public struct PublicSeoSettingsDto: Codable, Equatable, Sendable {
         self.ogImageUrl = ogImageUrl
         self.ogImageWidth = ogImageWidth
         self.ogImageHeight = ogImageHeight
+        self.ogImageAltZh = ogImageAltZh
+        self.ogImageAltEn = ogImageAltEn
     }
 }
 
@@ -4743,6 +4953,9 @@ public struct ShopCartItemDto: Codable, Equatable, Sendable {
     public var variantLabel: String
     public var sku: String
     public var imageThumbUrl: String?
+    public var imageWidth: Int?
+    public var imageHeight: Int?
+    public var imageAlt: String?
     public var listPrice: Int
     public var unitPrice: Int
     public var onSale: Bool
@@ -4760,6 +4973,9 @@ public struct ShopCartItemDto: Codable, Equatable, Sendable {
         variantLabel: String,
         sku: String,
         imageThumbUrl: String? = nil,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil,
+        imageAlt: String? = nil,
         listPrice: Int,
         unitPrice: Int,
         onSale: Bool,
@@ -4776,6 +4992,9 @@ public struct ShopCartItemDto: Codable, Equatable, Sendable {
         self.variantLabel = variantLabel
         self.sku = sku
         self.imageThumbUrl = imageThumbUrl
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
+        self.imageAlt = imageAlt
         self.listPrice = listPrice
         self.unitPrice = unitPrice
         self.onSale = onSale
@@ -4857,17 +5076,20 @@ public struct ShopImageDto: Codable, Equatable, Sendable {
     public var thumbUrl: String
     public var width: Int?
     public var height: Int?
+    public var alt: String?
 
     public init(
         url: String,
         thumbUrl: String,
         width: Int? = nil,
-        height: Int? = nil
+        height: Int? = nil,
+        alt: String? = nil
     ) {
         self.url = url
         self.thumbUrl = thumbUrl
         self.width = width
         self.height = height
+        self.alt = alt
     }
 }
 
@@ -5199,6 +5421,9 @@ public struct ShopProductListItemDto: Codable, Equatable, Sendable {
     public var isNewArrival: Bool
     public var imageUrl: String?
     public var imageThumbUrl: String?
+    public var imageWidth: Int?
+    public var imageHeight: Int?
+    public var imageAlt: String?
     public var priceMin: Int?
     public var priceMax: Int?
     public var listPriceMin: Int?
@@ -5217,6 +5442,9 @@ public struct ShopProductListItemDto: Codable, Equatable, Sendable {
         isNewArrival: Bool,
         imageUrl: String? = nil,
         imageThumbUrl: String? = nil,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil,
+        imageAlt: String? = nil,
         priceMin: Int? = nil,
         priceMax: Int? = nil,
         listPriceMin: Int? = nil,
@@ -5234,6 +5462,9 @@ public struct ShopProductListItemDto: Codable, Equatable, Sendable {
         self.isNewArrival = isNewArrival
         self.imageUrl = imageUrl
         self.imageThumbUrl = imageThumbUrl
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
+        self.imageAlt = imageAlt
         self.priceMin = priceMin
         self.priceMax = priceMax
         self.listPriceMin = listPriceMin
@@ -5322,17 +5553,20 @@ public struct SponsorActivationImageDto: Codable, Equatable, Sendable {
     public var thumbUrl: String?
     public var imageWidth: Int?
     public var imageHeight: Int?
+    public var alt: String?
 
     public init(
         imageUrl: String,
         thumbUrl: String? = nil,
         imageWidth: Int? = nil,
-        imageHeight: Int? = nil
+        imageHeight: Int? = nil,
+        alt: String? = nil
     ) {
         self.imageUrl = imageUrl
         self.thumbUrl = thumbUrl
         self.imageWidth = imageWidth
         self.imageHeight = imageHeight
+        self.alt = alt
     }
 }
 
@@ -5346,6 +5580,11 @@ public struct SponsorDto: Codable, Equatable, Sendable {
     public var content: String?
     public var logoDarkUrl: String?
     public var logoLightUrl: String?
+    public var logoDarkWidth: Int?
+    public var logoDarkHeight: Int?
+    public var logoLightWidth: Int?
+    public var logoLightHeight: Int?
+    public var logoAlt: String?
     public var stories: [SponsorStoryDto]
     public var activations: [SponsorActivationDto]
     public var charityPrograms: [PartnerCharityProgramDto]
@@ -5360,6 +5599,11 @@ public struct SponsorDto: Codable, Equatable, Sendable {
         content: String? = nil,
         logoDarkUrl: String? = nil,
         logoLightUrl: String? = nil,
+        logoDarkWidth: Int? = nil,
+        logoDarkHeight: Int? = nil,
+        logoLightWidth: Int? = nil,
+        logoLightHeight: Int? = nil,
+        logoAlt: String? = nil,
         stories: [SponsorStoryDto],
         activations: [SponsorActivationDto],
         charityPrograms: [PartnerCharityProgramDto]
@@ -5373,6 +5617,11 @@ public struct SponsorDto: Codable, Equatable, Sendable {
         self.content = content
         self.logoDarkUrl = logoDarkUrl
         self.logoLightUrl = logoLightUrl
+        self.logoDarkWidth = logoDarkWidth
+        self.logoDarkHeight = logoDarkHeight
+        self.logoLightWidth = logoLightWidth
+        self.logoLightHeight = logoLightHeight
+        self.logoAlt = logoAlt
         self.stories = stories
         self.activations = activations
         self.charityPrograms = charityPrograms
@@ -5445,6 +5694,9 @@ public struct StaffDto: Codable, Equatable, Sendable {
     public var teamCodes: [String]
     public var isShared: Bool
     public var photoUrl: String?
+    public var photoWidth: Int?
+    public var photoHeight: Int?
+    public var photoAlt: String?
     public var schemaEligible: Bool
 
     public init(
@@ -5460,6 +5712,9 @@ public struct StaffDto: Codable, Equatable, Sendable {
         teamCodes: [String],
         isShared: Bool,
         photoUrl: String? = nil,
+        photoWidth: Int? = nil,
+        photoHeight: Int? = nil,
+        photoAlt: String? = nil,
         schemaEligible: Bool
     ) {
         self.id = id
@@ -5474,6 +5729,9 @@ public struct StaffDto: Codable, Equatable, Sendable {
         self.teamCodes = teamCodes
         self.isShared = isShared
         self.photoUrl = photoUrl
+        self.photoWidth = photoWidth
+        self.photoHeight = photoHeight
+        self.photoAlt = photoAlt
         self.schemaEligible = schemaEligible
     }
 }
@@ -5651,6 +5909,9 @@ public struct TeamDto: Codable, Equatable, Sendable {
     public var isFallbackLocale: Bool
     public var intro: String?
     public var heroUrl: String?
+    public var heroWidth: Int?
+    public var heroHeight: Int?
+    public var heroAlt: String?
     public var schemaEligible: Bool
 
     public init(
@@ -5666,6 +5927,9 @@ public struct TeamDto: Codable, Equatable, Sendable {
         isFallbackLocale: Bool,
         intro: String? = nil,
         heroUrl: String? = nil,
+        heroWidth: Int? = nil,
+        heroHeight: Int? = nil,
+        heroAlt: String? = nil,
         schemaEligible: Bool
     ) {
         self.id = id
@@ -5680,6 +5944,9 @@ public struct TeamDto: Codable, Equatable, Sendable {
         self.isFallbackLocale = isFallbackLocale
         self.intro = intro
         self.heroUrl = heroUrl
+        self.heroWidth = heroWidth
+        self.heroHeight = heroHeight
+        self.heroAlt = heroAlt
         self.schemaEligible = schemaEligible
     }
 }

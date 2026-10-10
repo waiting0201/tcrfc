@@ -10554,3 +10554,77 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 - `invoices/export` 內嵌的 switch 改用同一份對照（行為不變）。**新增匯出欄位時不得直接輸出狀態代碼，一律走 `CharityLabels`。**
 
 測試：`CharityAdminDonationsTests` 匯出案例與 `CharityAdminReportsTests` CSV 案例新增「含 `已完成`、不含英文代碼」斷言；`CharityAdminInvoicesTests` 手動補登案例新增 `issuedAt` 換算台灣時間為 12:00 的斷言（對應 `ManualNumberAsync` 的 `.AddHours(12)`）。
+
+## 圖片欄位組補齊（S0-7h 收尾，2026-10-09）
+
+規劃書 §4.0「每個圖片欄位是一組：物件鍵、寬、高、雙語 Alt」。補完前只有 `articles`／`venues` 等少數表有；本輪補齊其餘 63 欄（遷移 EF `ClubImageFieldGroupExpand`＝`db/migrations/20261009_image-field-group_1-expand.sql`，**展開型、冪等，🔴 先 migrate 再 deploy**，E-289；逐表明細見 `docs/12b`「圖片欄位組補齊」）。
+
+**通則（前後台共用）**
+- 上傳成功就把主檔縮小後的寬高寫回；換圖更新寬高、移除圖片（`removeXxx=true`）寬高清成 `null`；沒換圖不動。**既有列不回填，維持 `null`**（前台無寬高就不輸出屬性）。
+- 後台讀取 DTO（列表與詳情都有圖片網址者）：`{名稱}Width`／`{名稱}Height`（`int?`，沒有圖片為 `null`）。Alt 放在逐語系內容物件，寫入與讀取同名：`content.zh.{名稱}Alt`／`content.en.{名稱}Alt`（`string?`，≤200 字、trim、空白存 `null`；過長 400，欄位鍵 `{名稱}AltZh`／`{名稱}AltEn` 駝峰）。**不改既有必填規則**（英文整段沒填仍照原規則不建英文列，Alt 也就不存）。
+- 公開 DTO：`{名稱}Width`／`{名稱}Height`／`{名稱}Alt`（Alt＝當前語系、英文空白回退繁中；沒有圖片或肖像未同意時三者皆 `null`）。
+- **多圖子表**（無側表）：後台圖片 DTO 多 `altZh`／`altEn`（`string?`）；新端點 `PUT …/{圖片 id}`，body `{ "altZh": string?, "altEn": string? }`，各 ≤200 字，回更新後的父層詳情 DTO（父層或圖片不存在 404，過長 400）；上傳端點本身不接 Alt（先上傳再 PUT）。公開子表圖片 DTO 多 `alt`（依語系，英文空白回退中文）。
+- 深淺色兩版 Logo（夥伴／贊助商）：寬高 `logoDarkWidth`／`logoDarkHeight`／`logoLightWidth`／`logoLightHeight`，Alt 兩版共用 `logoAlt`。
+- 標誌類也補（規劃書未區分）；`app_layout_items.icon_key` 是圖示代碼不是圖片，不處理。
+
+**後台端點（`/api/v1/admin/{club}/…`）新增欄位**
+
+| 端點 | 讀取新增 | 寫入（`content.zh|en.`）新增 | 備註 |
+|---|---|---|---|
+| `teams`（GET 列表／詳情、POST／PUT） | `heroWidth`、`heroHeight`（列表與詳情） | `heroAlt` | 圖片欄位 `file` |
+| `players` | `photoWidth`、`photoHeight` | `photoAlt` | 同上 |
+| `staff` | `photoWidth`、`photoHeight` | `photoAlt` | 同上 |
+| `programs` | `coverWidth`、`coverHeight` | `coverAlt` | |
+| `partner-stores` | `imageWidth`、`imageHeight` | `imageAlt` | 圖片欄位 `image` |
+| `draws` | `coverWidth`、`coverHeight`（詳情） | `coverAlt` | 圖片欄位 `cover` |
+| `calendar/custom-events` | `coverWidth`、`coverHeight` | `coverAlt` | |
+| `comic/characters` | `imageWidth`、`imageHeight` | `imageAlt` | |
+| `comic/episodes` | `coverWidth`、`coverHeight`（列表與詳情） | `coverAlt` | 內頁 `pages[]` 多 `altZh`、`altEn`（`imageWidth`／`imageHeight` 原本就有） |
+| `PUT comic/episodes/{id}/pages/{pageId}` | — | body `{altZh, altEn}` | 新端點，權限同集數更新 |
+| `fan-events` | `coverWidth`、`coverHeight`（列表與詳情；`content.*.coverAlt` 2026-10-07 已有） | — | 圖集 `images[]` 多 `altZh`、`altEn` |
+| `PUT fan-events/{id}/images/{imageId}` | — | body `{altZh, altEn}` | 新端點 |
+| `partners` | `logoDarkWidth`、`logoDarkHeight`、`logoLightWidth`、`logoLightHeight`（列表與詳情） | `logoAlt` | |
+| `sponsors` | 同 `partners` | `logoAlt` | |
+| `sponsors/{sponsorId}/activations/{id}` | `images[]` 多 `altZh`、`altEn` | — | |
+| `PUT sponsors/{sponsorId}/activations/{id}/images/{imageId}` | — | body `{altZh, altEn}` | 新端點 |
+| `shop/products/{id}` | `images[]` 多 `altZh`、`altEn`（`width`／`height` 原本就有） | — | |
+| `PUT shop/products/{id}/images/{imageId}` | — | body `{altZh, altEn}` | 新端點（權限 `shop.product.update`） |
+| `charity/organizations` | `logoWidth`、`logoHeight`（列表與詳情） | `logoAlt` | |
+| `charity/programs` | `coverWidth`、`coverHeight`（列表與詳情） | `coverAlt` | `images[]`（圖集）多 `imageWidth`、`imageHeight`、`altZh`、`altEn` |
+| `PUT charity/programs/{id}/images/{imageId}` | — | body `{altZh, altEn}` | 新端點 |
+| `charity/records` | 主圖寬高原本就有（`imageWidth`／`imageHeight`） | `imageAlt` | `images[]` 多 `imageWidth`、`imageHeight`、`altZh`、`altEn` |
+| `PUT charity/records/{id}/images/{imageId}` | — | body `{altZh, altEn}` | 新端點 |
+| `seo/settings`（GET／PUT） | `ogImageAltZh`、`ogImageAltEn`（`ogImageWidth`／`ogImageHeight` 原本就有） | 請求頂層 `ogImageAltZh`、`ogImageAltEn`（**整份取代：沒送＝清空**；英文需該俱樂部已有英文名稱列，否則有值時 400） | 清除快取含 `club` 公開端點 |
+| `admin/clubs`（詳情） | `ogImageWidth`、`ogImageHeight` | — | Alt 在 SEO 設定編輯 |
+
+**公開端點（`/api/v1/{club}/…`）新增欄位**
+
+| 端點 | 新增欄位 |
+|---|---|
+| `GET teams` | `heroWidth`、`heroHeight`、`heroAlt` |
+| `GET players`、`players/{slug}` | `photoWidth`、`photoHeight`、`photoAlt`（肖像未同意為 `null`） |
+| `GET staff` | `photoWidth`、`photoHeight`、`photoAlt`（同上） |
+| `GET stats/players` | 每筆 `photoWidth`、`photoHeight`、`photoAlt`（同肖像規則） |
+| `GET programs`、`programs/{slug}` | `coverWidth`、`coverHeight`、`coverAlt`；`partners[]` 多 `logoDarkWidth`、`logoDarkHeight`、`logoLightWidth`、`logoLightHeight`、`logoAlt` |
+| `GET partner-stores`、`partner-stores/{slug}` | `imageWidth`、`imageHeight`、`imageAlt` |
+| `GET calendar/events`（`sourceType=custom`） | `coverWidth`、`coverHeight`、`coverAlt` |
+| `GET /api/v1/member/draws` | `coverWidth`、`coverHeight`、`coverAlt` |
+| `GET comic/characters` | `imageWidth`、`imageHeight`、`imageAlt` |
+| `GET comic/episodes`、`episodes/latest` | `coverWidth`、`coverHeight`、`coverAlt` |
+| `GET comic/episodes/{no}` | `coverWidth`、`coverHeight`、`coverAlt`；`pages[]` 多 `alt`（`width`／`height` 原本就有） |
+| `GET fan-events`、`fan-events/{slug}`（`event`） | `coverWidth`、`coverHeight`（`coverAlt` 已有）；`images[]` 多 `alt` |
+| `GET partners` | `logoDarkWidth`、`logoDarkHeight`、`logoLightWidth`、`logoLightHeight`、`logoAlt` |
+| `GET sponsors` | 同 `partners`；`activations[].images[]` 多 `alt` |
+| `GET shop/products` | 每筆 `imageWidth`、`imageHeight`、`imageAlt`（第一張圖） |
+| `GET shop/products/{slug}` | `images[]` 多 `alt`（`width`／`height` 原本就有） |
+| `GET shop/cart`（及購物車變更回應）`items[]` | `imageWidth`、`imageHeight`、`imageAlt` |
+| `GET charity/programs` | `coverWidth`、`coverHeight`、`coverAlt` |
+| `GET charity/programs/{slug}` | `coverWidth`、`coverHeight`、`coverAlt`；`charity` 多 `logoWidth`、`logoHeight`、`logoAlt`；`images[]` 多 `imageWidth`、`imageHeight`、`alt`；`partners[]`／`sponsors[]` 多 `logoDarkWidth`、`logoDarkHeight`、`logoLightWidth`、`logoLightHeight`、`logoAlt` |
+| `GET charity/records` | `imageAlt`（`imageWidth`／`imageHeight` 原本就有）、`charityLogoWidth`、`charityLogoHeight`、`charityLogoAlt`；`images[]` 多 `imageWidth`、`imageHeight`、`alt` |
+| `GET charity/impact`（`charities[]`） | `logoWidth`、`logoHeight`、`logoAlt` |
+| `GET seo/settings` | `ogImageAltZh`、`ogImageAltEn`（與其他雙語欄位一樣兩個都給，前台依語系取） |
+| `GET /api/v1/clubs`、`clubs/{club}` | `ogImageWidth`、`ogImageHeight`、`ogImageAlt` |
+
+**不含**：搜尋結果 `imageUrl`（各來源縮圖彙整，不輸出寬高與 Alt）；慈善獨立庫（`CharityPlatform/`）未盤點未動。
+
+**驗收**：`Tcrfc.Api.Tests/ImageFieldGroupTests.cs`（11 項，對真實 Azurite）：寬高寫回、逐語系 Alt 讀寫與過長 400、公開 DTO 依語系輸出與英文空白回退、移除圖片後寬高清空、子表 `PUT` Alt（含 404、400）、肖像未同意 fail-closed。

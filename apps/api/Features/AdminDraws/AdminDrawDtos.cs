@@ -13,6 +13,9 @@ public sealed record AdminDrawLocaleContent
 
     /// <summary>注意事項。</summary>
     public string? Notes { get; init; }
+
+    /// <summary>封面圖片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>member_draws_i18n.cover_alt</c>。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 public sealed record AdminDrawContentInput
@@ -91,6 +94,8 @@ public sealed record AdminDrawDetailDto
     public string? CoverKey { get; init; }
     public string? CoverUrl { get; init; }
     public string? CoverThumbUrl { get; init; }
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public string? InternalNote { get; init; }
     public required AdminDrawLocaleContent Zh { get; init; }
     public AdminDrawLocaleContent? En { get; init; }

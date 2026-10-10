@@ -21,6 +21,10 @@ public partial class Team
 
     public string? HeroKey { get; set; }
 
+    public int? HeroWidth { get; set; }
+
+    public int? HeroHeight { get; set; }
+
     public string? TeamColor { get; set; }
 
     public int SortOrder { get; set; }

@@ -5,6 +5,9 @@ public sealed record AdminPlayerLocaleContent
 {
     public required string Name { get; init; }
     public string? Bio { get; init; }
+
+    /// <summary>照片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>players_i18n.photo_alt</c>。</summary>
+    public string? PhotoAlt { get; init; }
 }
 
 public sealed record AdminPlayerContentInput
@@ -34,6 +37,8 @@ public sealed record AdminPlayerListItemDto
     public string? PhotoKey { get; init; }
     public string? PhotoUrl { get; init; }
     public string? PhotoThumbUrl { get; init; }
+    public int? PhotoWidth { get; init; }
+    public int? PhotoHeight { get; init; }
 
     /// <summary>肖像同意狀態（S1-7a）：<c>not_consented</c>／<c>consented</c>／
     /// <c>consented_by_guardian</c>。後台一律看得到真實值與 <see cref="PhotoKey"/>——
@@ -62,6 +67,8 @@ public sealed record AdminPlayerDetailDto
     public string? PhotoKey { get; init; }
     public string? PhotoUrl { get; init; }
     public string? PhotoThumbUrl { get; init; }
+    public int? PhotoWidth { get; init; }
+    public int? PhotoHeight { get; init; }
     public required string PortraitConsentStatus { get; init; }
     public required AdminPlayerLocaleContent Zh { get; init; }
     public AdminPlayerLocaleContent? En { get; init; }

@@ -164,6 +164,16 @@ public static class AdminFanEventsEndpoints
         }).WithName("AdminAddFanEventImages").Produces<AdminFanEventDetailDto>(StatusCodes.Status201Created)
           .Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status404NotFound).DisableAntiforgery();
 
+        group.MapPut("/{id:guid}/images/{imageId:guid}", async (
+            string club, Guid id, Guid imageId, UpdateImageAltRequest request, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminFanEventsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, Update, cancellationToken);
+            var result = await repository.UpdateImageAltAsync(scope, id, imageId, request, cancellationToken);
+            return result is null ? Results.NotFound() : Results.Ok(result);
+        }).WithName("AdminUpdateFanEventImageAlt").Produces<AdminFanEventDetailDto>().Produces(StatusCodes.Status400BadRequest)
+          .Produces(StatusCodes.Status404NotFound);
+
         group.MapDelete("/{id:guid}/images/{imageId:guid}", async (
             string club, Guid id, Guid imageId, HttpContext httpContext, IAdminClubAuthorizer authorizer, AdminFanEventsRepository repository,
             IImageStorageService images, IDocumentStorageService documents, CancellationToken cancellationToken) =>

@@ -400,20 +400,45 @@
 
 **已完整（寬高＋Alt 俱全）**：`articles.cover_key`（本批）、`articles.og_image_key`、`pages.og_image_key`、`banners.image_key`、`milestones.image_key`、`ad_slots.fallback_image_key`、`ad_creatives.image_key`、`push_messages.image_key`。
 
-**仍有缺口（本批未動）**：
+**I 批收尾（2026-10-09，S0-7h）——其餘圖片欄位組一次補齊**：下表為補完的 **63 個欄位**（主表寬高 32 欄、側表 Alt 15 欄、多圖子表並排 Alt 12 欄、子表寬高 4 欄；遷移 EF `ClubImageFieldGroupExpand`、`db/migrations/20261009_image-field-group_1-expand.sql`，展開型、冪等、🔴 **必須先 migrate 再 deploy**，E-289）。
 
-| 缺什麼 | 欄位 |
-|---|---|
-| **寬高＋Alt 都缺**（23 個） | `teams.hero_key`、`players.photo_key`、`staff.photo_key`、`programs.cover_key`、`comic_characters.image_key`、`comic_episodes.cover_key`、`fan_events.cover_key`、`partner_stores.image_key`、`member_draws.cover_key`、`calendar_custom_events.cover_key`、`product_images.image_key`、`charities.logo_key`、`charity_programs.cover_key`、`charity_program_images.image_key`、`impact_record_images.image_key`；標誌／圖示類：`partners.logo_dark_key`／`logo_light_key`、`sponsors.logo_dark_key`／`logo_light_key`、`clubs.logo_light_key`／`logo_dark_key`／`favicon_key`、`app_layout_items.icon_key` |
-| **有寬高、缺 Alt**（6 個） | `press_resources.cover_key`、`sponsor_activation_images.image_key`、`comic_pages.image_key`、`fan_event_images.image_key`、`impact_records.image_key`、`clubs.og_image_key` |
+| 圖片欄位 | 寬高（主表） | Alt |
+|---|---|---|
+| `teams.hero_key` | `hero_width`／`hero_height` | `teams_i18n.hero_alt` |
+| `players.photo_key` | `photo_width`／`photo_height` | `players_i18n.photo_alt` |
+| `staff.photo_key` | `photo_width`／`photo_height` | `staff_i18n.photo_alt` |
+| `programs.cover_key` | `cover_width`／`cover_height` | `programs_i18n.cover_alt` |
+| `comic_characters.image_key` | `image_width`／`image_height` | `comic_characters_i18n.image_alt` |
+| `comic_episodes.cover_key` | `cover_width`／`cover_height` | `comic_episodes_i18n.cover_alt` |
+| `fan_events.cover_key` | `cover_width`／`cover_height`（Alt 2026-10-07 已補） | `fan_events_i18n.cover_alt`（既有） |
+| `partner_stores.image_key` | `image_width`／`image_height` | `partner_stores_i18n.image_alt` |
+| `member_draws.cover_key` | `cover_width`／`cover_height` | `member_draws_i18n.cover_alt` |
+| `calendar_custom_events.cover_key` | `cover_width`／`cover_height` | `calendar_custom_events_i18n.cover_alt` |
+| `charities.logo_key` | `logo_width`／`logo_height` | `charities_i18n.logo_alt` |
+| `charity_programs.cover_key` | `cover_width`／`cover_height` | `charity_programs_i18n.cover_alt` |
+| `impact_records.image_key` | （早已有） | `impact_records_i18n.image_alt` |
+| `partners.logo_dark_key`／`logo_light_key` | `logo_dark_width`／`_height`、`logo_light_width`／`_height` | `partners_i18n.logo_alt`（深淺同一標誌，**共用一欄**） |
+| `sponsors.logo_dark_key`／`logo_light_key` | 同上 | `sponsors_i18n.logo_alt`（共用） |
+| `clubs.og_image_key` | （早已有） | `clubs_i18n.og_image_alt` |
+| **多圖子表（無側表）** | | **並排 `image_alt_zh`／`image_alt_en`** |
+| `product_images.image_key` | （早已有 `width`／`height`） | `image_alt_zh`／`image_alt_en` |
+| `charity_program_images.image_key` | **新增** `image_width`／`image_height` | `image_alt_zh`／`image_alt_en` |
+| `impact_record_images.image_key` | **新增** `image_width`／`image_height` | `image_alt_zh`／`image_alt_en` |
+| `sponsor_activation_images.image_key` | （早已有） | `image_alt_zh`／`image_alt_en` |
+| `comic_pages.image_key` | （早已有） | `image_alt_zh`／`image_alt_en` |
+| `fan_event_images.image_key` | （早已有） | `image_alt_zh`／`image_alt_en` |
 
-合計：**23 個圖片欄位缺寬高、29 個缺 Alt**（前者全部也缺 Alt；H 批補 `venues` 後的數字）。
+**本批刻意沒補的**：
+- `clubs.logo_*`／`favicon_key`：2026-10-06 已移出（後台不提供標誌、Favicon 設定，由前台靜態資產定義，見 `club-brand-drop` 遷移）。
+- `app_layout_items.icon_key`：**不是上傳圖片**，是 App 端內建圖示的「圖示代碼」（`nvarchar(48)`，後台欄位名「圖示代碼」），沒有物件鍵、沒有寬高、不是圖片欄位組，原盤點把它誤列為圖片。
+- 慈善獨立庫（`db/charity-schema.sql`、`docs/16`）：**本批不動**，另行盤點（見 STATUS `S0-7h`）。
+- 搜尋結果（`SearchResultItemDto.imageUrl`）只是各來源縮圖的彙整，不輸出寬高與 Alt。
 
-**補之前必須先決定的三件事（執行層無法代為決定）：**
+**三個執行層決定（本批已定）**：
 
-1. **裝飾性或標誌類圖片要不要 Alt**：`favicon`、App 圖示、合作夥伴／贊助商標誌的替代文字多半就是名稱本身（已在側表 `name`）。規劃書圖片通則寫「每個圖片欄位……雙語 Alt」，未區分；若要全部都有 Alt 欄位，標誌類可以直接沿用名稱當前台 alt 而不另開欄位——**這是規格解讀，需要主 session／客戶確認後再動欄位**。
-2. **補欄位 ≠ 補完**：每個缺口都要同時接上該模組的後台上傳流程（寫回寬高）、DTO、前台輸出，否則新欄位只是永遠為空的假象。`articles` 這一輪是示範：上傳流程已回傳 `UploadedImageInfo.Width/Height`，多數模組的 `ImageFieldUpdate` 也已帶著寬高，只是沒有欄位可寫。
-3. **既有資料列的寬高回填**：已上傳的圖片沒有寬高紀錄；新欄位預設 `NULL`，前台無寬高時不輸出寬高屬性（不阻斷）。要不要寫一次性回填腳本（讀 Blob 取實際尺寸）屬於維運決定。
+1. **標誌／圖示類也補 Alt 欄位**（規劃書 §4.0 未區分類別，不自行豁免）。前台在 Alt 為空時可回退成名稱，那是前台的事；API 只回「當前語系、英文空白回退繁中」的值，沒有圖片時 Alt 與寬高一律 `null`。深／淺色兩版 Logo 是同一個標誌，Alt **共用一欄**、寬高各一組。
+2. **多圖子表的 Alt 用並排 `image_alt_zh`／`image_alt_en`，不另建側表**（6 張子表為單純圖集，每列一張圖，建 6 張側表只為各存兩個字串是過度設計；與 `ad_creatives.alt_text`（依語系分列、一語系一列）不同，沒有現成可比照的子表範例）。上傳端點本身不接 Alt：先上傳、再用 `PUT .../images/{imageId}`（漫畫為 `.../pages/{pageId}`）補，請求 `{ "altZh": string?, "altEn": string? }`，各 ≤200 字、空白存 `null`。
+3. **既有資料列不回填**：新欄位一律 `NULL`，前台無寬高就不輸出 `width`／`height` 屬性、無 Alt 就回退名稱；不寫 Blob 回掃腳本（維運決定，需要時再做）。換圖或移除圖片時寬高同步更新／清空。
 
 ---
 
@@ -425,4 +450,5 @@
 | v1.1 | 2026-09-21 | 新增 §9：S0-6c 灌種子資料時從實際 JSON 內容發現的落差（`Match.match_no` 真的缺；`intcup` 分類、學院教練隊別歸屬為資料缺口非欄位缺漏） |
 | v1.3 | 2026-10-02 | §11 `articles` 封面欄位組兩筆已補（S0-7h，migration `AlignSchemaG1`）；新增 §12 圖片欄位組全表重掃 |
 | v1.4 | 2026-10-02 | §12 `venues` 照片欄位組已補（H 批 I5，migration `AlignSchemaI1`）：24→23、30→29 |
+| v1.5 | 2026-10-09 | §12 圖片欄位組全部補齊（S0-7h 收尾，migration `ClubImageFieldGroupExpand`）：63 個欄位、6 張多圖子表改並排 `image_alt_zh`／`image_alt_en`；`app_layout_items.icon_key` 更正為非圖片 |
 | v1.2 | 2026-09-21 | §9 `Match.match_no` 落差已解決：規格異動同步鏈跑完（規劃書 v3.12、`docs/12`／`12a`／`12b`、`db/club-schema.sql`），欄位補上 |

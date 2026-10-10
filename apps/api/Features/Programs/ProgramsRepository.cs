@@ -17,10 +17,11 @@ public sealed class ProgramsRepository(
     private const string CacheEntity = "programs";
 
     private sealed record ProgramRow(
-        Guid Id, string Slug, string? ProgramType, int? AgeMin, int? AgeMax, string? CoverKey, bool HasOpenSession);
-    private sealed record ProgramI18nRow(string Locale, string? Name, string? Intro, string? Content, string? Audience);
+        Guid Id, string Slug, string? ProgramType, int? AgeMin, int? AgeMax, string? CoverKey, int? CoverWidth, int? CoverHeight, bool HasOpenSession);
+    private sealed record ProgramI18nRow(string Locale, string? Name, string? Intro, string? Content, string? Audience, string? CoverAlt);
     private sealed record StaffRow(Guid Id, string? Name);
-    private sealed record PartnerRow(Guid Id, string Slug, string? Name, string? LogoDarkKey, string? LogoLightKey, string? WebsiteUrl);
+    private sealed record PartnerRow(Guid Id, string Slug, string? Name, string? LogoDarkKey, string? LogoLightKey, string? WebsiteUrl,
+        int? LogoDarkWidth, int? LogoDarkHeight, int? LogoLightWidth, int? LogoLightHeight, string? LogoAlt);
     // ⚠️ date 欄位一律 DateTime?（不是 DateOnly?）：Dapper 對 positional record 的建構子具現化要求型別逐一相符，見 docs/18 E-20；Map 時再轉 DateOnly。
     private sealed record SessionRow(
         Guid Id, DateTime? StartOn, DateTime? EndOn, string? WeeklySchedule, int? Capacity, int EnrolledCount,
@@ -50,7 +51,7 @@ public sealed class ProgramsRepository(
 
                 const string listSql = """
                     SELECT p.id AS Id, p.slug AS Slug, p.program_type AS ProgramType,
-                           p.age_min AS AgeMin, p.age_max AS AgeMax, p.cover_key AS CoverKey,
+                           p.age_min AS AgeMin, p.age_max AS AgeMax, p.cover_key AS CoverKey, p.cover_width AS CoverWidth, p.cover_height AS CoverHeight,
                            CAST(CASE WHEN EXISTS (
                                SELECT 1 FROM sessions s WHERE s.program_id = p.id AND s.status IN (N'開放', N'候補')
                            ) THEN 1 ELSE 0 END AS bit) AS HasOpenSession
@@ -85,6 +86,9 @@ public sealed class ProgramsRepository(
                         AgeMax = r.AgeMax,
                         CoverKey = r.CoverKey,
                         CoverUrl = imageUrlResolver.Resolve(r.CoverKey),
+                        CoverWidth = r.CoverKey is null ? null : r.CoverWidth,
+                        CoverHeight = r.CoverKey is null ? null : r.CoverHeight,
+                        CoverAlt = r.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
                         Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
                         IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
                         Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
@@ -107,7 +111,7 @@ public sealed class ProgramsRepository(
 
                 const string programSql = """
                     SELECT id AS Id, slug AS Slug, program_type AS ProgramType,
-                           age_min AS AgeMin, age_max AS AgeMax, cover_key AS CoverKey,
+                           age_min AS AgeMin, age_max AS AgeMax, cover_key AS CoverKey, cover_width AS CoverWidth, cover_height AS CoverHeight,
                            CAST(0 AS bit) AS HasOpenSession
                     FROM programs
                     WHERE club_id = @ClubId AND slug = @Slug AND status = 'published'
@@ -147,7 +151,13 @@ public sealed class ProgramsRepository(
                                (SELECT name FROM partners_i18n WHERE partner_id = pt.id AND locale = @DefaultLocale)
                            ) AS Name,
                            pt.logo_dark_key AS LogoDarkKey, pt.logo_light_key AS LogoLightKey,
-                           pt.website_url AS WebsiteUrl
+                           pt.website_url AS WebsiteUrl,
+                           pt.logo_dark_width AS LogoDarkWidth, pt.logo_dark_height AS LogoDarkHeight,
+                           pt.logo_light_width AS LogoLightWidth, pt.logo_light_height AS LogoLightHeight,
+                           COALESCE(
+                               (SELECT NULLIF(logo_alt, N'') FROM partners_i18n WHERE partner_id = pt.id AND locale = @Locale),
+                               (SELECT logo_alt FROM partners_i18n WHERE partner_id = pt.id AND locale = @DefaultLocale)
+                           ) AS LogoAlt
                     FROM program_partners pp
                     JOIN partners pt ON pt.id = pp.partner_id
                     WHERE pp.program_id = @ProgramId
@@ -188,6 +198,9 @@ public sealed class ProgramsRepository(
                     AgeMax = program.AgeMax,
                     CoverKey = program.CoverKey,
                     CoverUrl = imageUrlResolver.Resolve(program.CoverKey),
+                    CoverWidth = program.CoverKey is null ? null : program.CoverWidth,
+                    CoverHeight = program.CoverKey is null ? null : program.CoverHeight,
+                    CoverAlt = program.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
                     Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
                     IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
                     Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
@@ -198,6 +211,9 @@ public sealed class ProgramsRepository(
                         Id = p.Id, Slug = p.Slug, Name = p.Name, LogoDarkKey = p.LogoDarkKey, LogoLightKey = p.LogoLightKey,
                         LogoDarkUrl = imageUrlResolver.Resolve(p.LogoDarkKey), LogoLightUrl = imageUrlResolver.Resolve(p.LogoLightKey),
                         WebsiteUrl = p.WebsiteUrl,
+                        LogoDarkWidth = p.LogoDarkKey is null ? null : p.LogoDarkWidth, LogoDarkHeight = p.LogoDarkKey is null ? null : p.LogoDarkHeight,
+                        LogoLightWidth = p.LogoLightKey is null ? null : p.LogoLightWidth, LogoLightHeight = p.LogoLightKey is null ? null : p.LogoLightHeight,
+                        LogoAlt = p.LogoDarkKey is null && p.LogoLightKey is null ? null : p.LogoAlt,
                     }).ToList(),
                     Sessions = sessions.Select(s => new ProgramSessionDto
                     {
@@ -359,7 +375,7 @@ public sealed class ProgramsRepository(
         }
 
         const string sql = """
-            SELECT program_id AS ProgramId, locale AS Locale, name AS Name, intro AS Intro, content AS Content, audience AS Audience
+            SELECT program_id AS ProgramId, locale AS Locale, name AS Name, intro AS Intro, content AS Content, audience AS Audience, cover_alt AS CoverAlt
             FROM programs_i18n
             WHERE program_id IN @ProgramIds AND locale IN @Locales
             """;
@@ -367,11 +383,11 @@ public sealed class ProgramsRepository(
             ? new[] { dbLocale }
             : new[] { dbLocale, RequestLocale.DefaultDbLocale };
 
-        var rows = await connection.QueryAsync<(Guid ProgramId, string Locale, string? Name, string? Intro, string? Content, string? Audience)>(
+        var rows = await connection.QueryAsync<(Guid ProgramId, string Locale, string? Name, string? Intro, string? Content, string? Audience, string? CoverAlt)>(
             new CommandDefinition(sql, new { ProgramIds = programIds, Locales = locales }, cancellationToken: cancellationToken));
 
         return rows.GroupBy(r => r.ProgramId).ToDictionary(
             g => g.Key,
-            g => g.ToDictionary(r => r.Locale, r => new ProgramI18nRow(r.Locale, r.Name, r.Intro, r.Content, r.Audience)));
+            g => g.ToDictionary(r => r.Locale, r => new ProgramI18nRow(r.Locale, r.Name, r.Intro, r.Content, r.Audience, r.CoverAlt)));
     }
 }

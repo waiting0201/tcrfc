@@ -9,6 +9,8 @@ public partial class StaffI18n
 
     public string Locale { get; set; } = null!;
 
+    public string? PhotoAlt { get; set; }
+
     public string? Name { get; set; }
 
     public string? Title { get; set; }

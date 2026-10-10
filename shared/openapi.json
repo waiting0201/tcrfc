@@ -8289,6 +8289,48 @@
               "null",
               "string"
             ]
+          },
+          "logoDarkWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoDarkHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoLightWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoLightHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -8341,6 +8383,30 @@
             "type": "string"
           },
           "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverAlt": {
             "type": [
               "null",
               "string"
@@ -8443,6 +8509,30 @@
             "type": "boolean"
           },
           "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverAlt": {
             "type": [
               "null",
               "string"
@@ -8598,6 +8688,30 @@
               "string"
             ]
           },
+          "ogImageWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ogImageHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ogImageAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "schemaEligible": {
             "type": "boolean"
           }
@@ -8654,6 +8768,30 @@
               "string"
             ]
           },
+          "imageWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "playerId": {
             "type": [
               "null",
@@ -8686,6 +8824,30 @@
             ]
           },
           "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverAlt": {
             "type": [
               "null",
               "string"
@@ -8750,6 +8912,30 @@
             ]
           },
           "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverAlt": {
             "type": [
               "null",
               "string"
@@ -8824,6 +9010,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "alt": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9057,6 +9249,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "alt": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -9135,6 +9333,24 @@
               "null",
               "string"
             ]
+          },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "coverAlt": {
             "type": [
@@ -9411,6 +9627,30 @@
               "string"
             ]
           },
+          "charityLogoWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "charityLogoHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "charityLogoAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "donationContent": {
             "type": [
               "null",
@@ -9452,6 +9692,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "imageAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "images": {
             "type": "array",
@@ -9940,6 +10186,30 @@
             "type": "boolean"
           },
           "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverAlt": {
             "type": [
               "null",
               "string"
@@ -12158,6 +12428,48 @@
               "string"
             ]
           },
+          "logoDarkWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoDarkHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoLightWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoLightHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "charityPrograms": {
             "type": "array",
             "items": {
@@ -12282,6 +12594,30 @@
             ]
           },
           "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "imageWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageAlt": {
             "type": [
               "null",
               "string"
@@ -12480,6 +12816,30 @@
               "string"
             ]
           },
+          "photoWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "photoHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "photoAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "schemaEligible": {
             "type": "boolean"
           }
@@ -12530,6 +12890,30 @@
             ]
           },
           "photoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photoWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "photoHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "photoAlt": {
             "type": [
               "null",
               "string"
@@ -12745,6 +13129,30 @@
               "string"
             ]
           },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "name": {
             "type": [
               "null",
@@ -12844,6 +13252,30 @@
               "string"
             ]
           },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "name": {
             "type": [
               "null",
@@ -12906,6 +13338,48 @@
             ]
           },
           "websiteUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "logoDarkWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoDarkHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoLightWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoLightHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoAlt": {
             "type": [
               "null",
               "string"
@@ -13339,6 +13813,30 @@
               "null",
               "string"
             ]
+          },
+          "coverWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "coverAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -13459,6 +13957,30 @@
               "null",
               "string"
             ]
+          },
+          "imageWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "alt": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -13484,6 +14006,30 @@
             ]
           },
           "logoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "logoWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoAlt": {
             "type": [
               "null",
               "string"
@@ -13919,6 +14465,18 @@
               "string"
             ],
             "format": "int32"
+          },
+          "ogImageAltZh": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ogImageAltEn": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -14699,6 +15257,30 @@
               "string"
             ]
           },
+          "imageWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "listPrice": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -14894,6 +15476,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "alt": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -15526,6 +16114,30 @@
               "string"
             ]
           },
+          "imageWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "imageAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "priceMin": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -15727,6 +16339,12 @@
               "string"
             ],
             "format": "int32"
+          },
+          "alt": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -15785,6 +16403,48 @@
             ]
           },
           "logoLightUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "logoDarkWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoDarkHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoLightWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoLightHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "logoAlt": {
             "type": [
               "null",
               "string"
@@ -15971,6 +16631,30 @@
             "type": "boolean"
           },
           "photoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photoWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "photoHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "photoAlt": {
             "type": [
               "null",
               "string"
@@ -16314,6 +16998,30 @@
             ]
           },
           "heroUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "heroWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "heroHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "heroAlt": {
             "type": [
               "null",
               "string"

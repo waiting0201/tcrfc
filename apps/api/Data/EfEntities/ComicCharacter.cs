@@ -15,6 +15,10 @@ public partial class ComicCharacter
 
     public string? ImageKey { get; set; }
 
+    public int? ImageWidth { get; set; }
+
+    public int? ImageHeight { get; set; }
+
     public int SortOrder { get; set; }
 
     public DateTime CreatedAt { get; set; }

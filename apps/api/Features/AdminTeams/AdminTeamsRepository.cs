@@ -37,6 +37,8 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
                 t.AgeBand,
                 t.TeamColor,
                 t.HeroKey,
+                t.HeroWidth,
+                t.HeroHeight,
                 t.SortOrder,
                 t.UpdatedAt,
                 NameZh = t.TeamsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
@@ -55,6 +57,8 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
             HeroKey = r.HeroKey,
             HeroUrl = imageUrls.Resolve(r.HeroKey),
             HeroThumbUrl = imageUrls.ResolveThumbnail(r.HeroKey),
+            HeroWidth = r.HeroKey is null ? null : r.HeroWidth,
+            HeroHeight = r.HeroKey is null ? null : r.HeroHeight,
             SortOrder = r.SortOrder,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
@@ -116,7 +120,7 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     /// 比照 <c>AdminArticlesEndpoints</c> 的模式），不是資料庫自動產生後才知道。
     /// </summary>
     public async Task<AdminTeamDetailDto> CreateAsync(
-        AdminClubScope scope, TeamRowScope rowScope, Guid teamId, CreateAdminTeamRequest request, string? heroKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid teamId, CreateAdminTeamRequest request, string? heroKey, int? heroWidth, int? heroHeight, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateCode(request.Code);
         ValidateType(request.Type);
@@ -151,6 +155,8 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
             AgeBand = request.AgeBand,
             TeamColor = request.TeamColor,
             HeroKey = heroKey,
+            HeroWidth = heroKey is null ? null : heroWidth,
+            HeroHeight = heroKey is null ? null : heroHeight,
             SortOrder = request.SortOrder,
             CreatedAt = now,
             UpdatedAt = now,
@@ -220,6 +226,8 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
         if (heroUpdate.Change)
         {
             team.HeroKey = heroUpdate.NewKey;
+            team.HeroWidth = heroUpdate.NewKey is null ? null : heroUpdate.Width;
+            team.HeroHeight = heroUpdate.NewKey is null ? null : heroUpdate.Height;
         }
 
         AddOrReplaceI18n(team, RequestLocale.DefaultDbLocale, request.Content.Zh);
@@ -273,6 +281,7 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
 
         existing.Name = content.Name;
         existing.Intro = content.Intro;
+        existing.HeroAlt = string.IsNullOrWhiteSpace(content.HeroAlt) ? null : content.HeroAlt.Trim();
     }
 
     private static void ValidateCode(string code)
@@ -309,6 +318,16 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
         {
             throw new AdminTeamValidationException("中文名稱為必填欄位。", FieldKey.Bi("name", "zh"));
         }
+
+        if ((content.Zh.HeroAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminTeamValidationException("主視覺圖片替代文字（中文）不可超過 200 字。", FieldKey.Bi("heroAlt", "zh"));
+        }
+
+        if ((content.En?.HeroAlt?.Trim().Length ?? 0) > 200)
+        {
+            throw new AdminTeamValidationException("主視覺圖片替代文字（英文）不可超過 200 字。", FieldKey.Bi("heroAlt", "en"));
+        }
     }
 
     private AdminTeamDetailDto ToDetailDto(Team team)
@@ -327,9 +346,11 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
             HeroKey = team.HeroKey,
             HeroUrl = imageUrls.Resolve(team.HeroKey),
             HeroThumbUrl = imageUrls.ResolveThumbnail(team.HeroKey),
+            HeroWidth = team.HeroKey is null ? null : team.HeroWidth,
+            HeroHeight = team.HeroKey is null ? null : team.HeroHeight,
             SortOrder = team.SortOrder,
-            Zh = new AdminTeamLocaleContent { Name = zh?.Name ?? team.Code, Intro = zh?.Intro },
-            En = en is null ? null : new AdminTeamLocaleContent { Name = en.Name ?? "", Intro = en.Intro },
+            Zh = new AdminTeamLocaleContent { Name = zh?.Name ?? team.Code, Intro = zh?.Intro, HeroAlt = zh?.HeroAlt },
+            En = en is null ? null : new AdminTeamLocaleContent { Name = en.Name ?? "", Intro = en.Intro, HeroAlt = en.HeroAlt },
             CreatedAt = team.CreatedAt,
             UpdatedAt = team.UpdatedAt,
         };

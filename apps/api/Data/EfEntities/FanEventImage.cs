@@ -13,6 +13,10 @@ public partial class FanEventImage
 
     public string ImageKey { get; set; } = null!;
 
+    public string? ImageAltZh { get; set; }
+
+    public string? ImageAltEn { get; set; }
+
     public int? ImageWidth { get; set; }
 
     public int? ImageHeight { get; set; }

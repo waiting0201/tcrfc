@@ -39,6 +39,13 @@ public sealed record TeamDto
     /// </summary>
     public string? HeroUrl { get; init; }
 
+    /// <summary>主視覺圖片寬高（像素，主檔縮小後的尺寸；前台據此輸出 width／height 避免 CLS）。沒有圖片或舊資料未記錄時為 <c>null</c>。</summary>
+    public int? HeroWidth { get; init; }
+    public int? HeroHeight { get; init; }
+
+    /// <summary>主視覺圖片替代文字（當前語系，英文空白回退繁中）；沒有圖片時為 <c>null</c>。</summary>
+    public string? HeroAlt { get; init; }
+
     /// <summary>GEO-05（S1-12c／S1-12f）：這支球隊的資料是否足以輸出 SportsTeam 結構化資料
     /// （<see cref="SchemaType.SportsTeam"/> 必填欄位——隊名、網址——齊全）。判斷條件
     /// 單一來源見 <see cref="SchemaRequiredFields"/>，這裡不重新判斷一次（E-39）。🔴 v3.20：標誌由前台靜態資產輸出，不再是資料庫必填欄位。</summary>

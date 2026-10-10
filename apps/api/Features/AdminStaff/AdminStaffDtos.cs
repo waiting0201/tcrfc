@@ -6,6 +6,9 @@ public sealed record AdminStaffLocaleContent
     public required string Name { get; init; }
     public string? Title { get; init; }
     public string? Bio { get; init; }
+
+    /// <summary>照片替代文字（§4.0 圖片欄位組，逐語系）。對應 <c>staff_i18n.photo_alt</c>。</summary>
+    public string? PhotoAlt { get; init; }
 }
 
 public sealed record AdminStaffContentInput
@@ -42,6 +45,8 @@ public sealed record AdminStaffListItemDto
     public string? PhotoKey { get; init; }
     public string? PhotoUrl { get; init; }
     public string? PhotoThumbUrl { get; init; }
+    public int? PhotoWidth { get; init; }
+    public int? PhotoHeight { get; init; }
 
     /// <summary>肖像同意狀態（S1-7a），同 <c>AdminPlayerListItemDto.PortraitConsentStatus</c>。</summary>
     public required string PortraitConsentStatus { get; init; }
@@ -60,6 +65,8 @@ public sealed record AdminStaffDetailDto
     public string? PhotoKey { get; init; }
     public string? PhotoUrl { get; init; }
     public string? PhotoThumbUrl { get; init; }
+    public int? PhotoWidth { get; init; }
+    public int? PhotoHeight { get; init; }
     public required string PortraitConsentStatus { get; init; }
     public required AdminStaffLocaleContent Zh { get; init; }
     public AdminStaffLocaleContent? En { get; init; }

@@ -17,6 +17,10 @@ public partial class Staff
 
     public string? PhotoKey { get; set; }
 
+    public int? PhotoWidth { get; set; }
+
+    public int? PhotoHeight { get; set; }
+
     /// <summary>肖像同意狀態（S1-8／S1-7a），同 <c>Player.PortraitConsentStatus</c>——三態、
     /// fail-closed 預設 not_consented，公開端點依此擋 <see cref="PhotoKey"/>。</summary>
     public string PortraitConsentStatus { get; set; } = null!;

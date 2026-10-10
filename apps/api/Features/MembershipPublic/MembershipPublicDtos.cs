@@ -74,6 +74,11 @@ public sealed record PartnerStorePublicDto
     public string? MapUrl { get; init; }
     public string? WebsiteUrl { get; init; }
     public string? ImageUrl { get; init; }
+
+    /// <summary>圖片寬高（像素）與替代文字（當前語系，英文空白回退繁中）；沒有圖片時三者皆 <c>null</c>。</summary>
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
+    public string? ImageAlt { get; init; }
     /// <summary>true＝兩隊共同的店家（<c>club_id</c> 為空）。</summary>
     public required bool IsShared { get; init; }
 }

@@ -900,7 +900,7 @@ flowchart LR
        - `i18n.fallback_mode`（單一值 `show_default`／`hide`）／`i18n.date_format`（逐語系樣式，如 `YYYY/MM/DD`）／`i18n.number_format`（逐語系範例，如 `1,234.56`）（`setting_group='i18n'`）；
        - `edm.enabled`／`edm.provider`／`edm.list_id`／`edm.sender_email`（單一值）、`edm.api_key_encrypted`（**Data Protection 密文，只寫不讀**）（`setting_group='edm'`）。
     ④ **權限碼 15 個**（`site.menu.*`／`site.global.*`／`site.locale.*`／`site.string.*`／`site.venue.*`／`site.edm.*`，見 [`12b`](12b-database-tables.md) §7.4「H 批」）：permissions 260 → **275**、role_permissions 782 → **799**（系統管理員 15 ＋ 翻譯人員 2）。**已建好的庫只能靠 migration 取得**（`db/prod/club-reference-data.sql` 與種子是新建庫用的同一份定義，id 為同一組決定性 UUID）。
-    ⑤ **刻意沒有的**：不建「翻譯狀態」表（總覽由各內容側表即時計算，「完成」＝該語系側表列存在且主要文字欄位非空）；不為標誌／Favicon 補寬高與 Alt（`docs/12d` §12 同一個既有落差）；不新增語系（`RequestLocale` 只認 `en`，見 `apps/api/README.md` H 批待決 2）。
+    ⑤ **刻意沒有的**：不建「翻譯狀態」表（總覽由各內容側表即時計算，「完成」＝該語系側表列存在且主要文字欄位非空）；不為標誌／Favicon 補寬高與 Alt（`docs/12d` §12 同一個既有落差；✅ 2026-10-09 已補，見第 52 點）；不新增語系（`RequestLocale` 只認 `en`，見 `apps/api/README.md` H 批待決 2）。
 
 51. 🔴 **（稽核 D 類，2026-10-06）雙語缺口：五個前台可見文字欄位搬進 `*_i18n` 側表**——全域規定 4 的補做，不是新增規格。
     ① `standings.team_name` → **新表** `standings_i18n(standing_id, locale, team_name)`；② `achievements.competition_name`／`placing`
@@ -914,6 +914,8 @@ flowchart LR
     🔴 **不得再用「主表放中文、側表放英文」的混合寫法**（`matches.opponent` 是 2026-09 前的既有先例，不擴大）：這五處一律 `zh-Hant` 列為準、`en` 列可缺。
     ⚠️ **反例記錄**：2026-09-22 曾以「規劃書與 ERD 查無雙語標記」為由裁決這三張不建側表，是把「規劃書沒逐表重申」誤讀成「不需要」（同 `docs/12c` §5 第 8 點）。
     **聯賽簡稱不在此列**：`site.league_short_name` 本來就是逐語系設定（`settings_i18n`），結構無缺口；缺的是資料——磐石 `en`／`zh-Hant` 皆無簡稱值（企業甲級聯賽沒有通用簡稱），藍鯨 `zh-Hant`＝「木蘭聯賽」、`en`＝「Mulan League」（種子 `en_backfill_seed.py`）。磐石簡稱待客戶提供，後台「網站設定」可填，不需要改綱要。
+
+52. 🔴 **（S0-7h 收尾，2026-10-09）圖片欄位組全表補齊**——**表數不變**，63 個可為空欄位（遷移 `ClubImageFieldGroupExpand`，展開型，🔴 先 migrate 再 deploy）：寬高 `<名稱>_width`／`_height` 在主表、Alt `<名稱>_alt` 在 `_i18n` 側表；**多圖子表（無側表）用並排 `image_alt_zh`／`image_alt_en`**；深淺色兩版 Logo（`partners`／`sponsors`）寬高各一組、Alt 共用一欄；標誌類也補（規劃書未區分）；既有列不回填維持 `NULL`。`app_layout_items.icon_key` 是**圖示代碼不是圖片**，不在此列。逐表明細見 [`12b`](12b-database-tables.md)「圖片欄位組補齊」、[`12c`](12c-i18n-tables.md) §3.13、[`12d`](12d-field-audit.md) §12。
 
 ---
 
