@@ -24,7 +24,22 @@ const assets = computed(() => getClubAssets(club.value))
 // 不直接呼叫 backendApiBase()——那支函式只在伺服器端可用，這裡的請求要同時支援 SSR 與
 // client-side（例如切換俱樂部後的 client-only 導覽）。個別 ID 未設定（後台尚未填寫）時
 // 對應腳本整段不輸出，不送出空字串當參數——那樣仍會建立分析工作階段，只是收不到有意義的資料。
-const { data: seoSettings } = await useFetch(() => `/api/backend/${club.value}/seo/settings`)
+interface PublicSeoSettings {
+  ga4MeasurementId?: string | null
+  gtmContainerId?: string | null
+  metaPixelId?: string | null
+  lineTagId?: string | null
+  titleTemplateZh?: string | null
+  titleTemplateEn?: string | null
+  defaultDescriptionZh?: string | null
+  defaultDescriptionEn?: string | null
+  ogImageUrl?: string | null
+  ogImageWidth?: number | null
+  ogImageHeight?: number | null
+  ogImageAltZh?: string | null
+  ogImageAltEn?: string | null
+}
+const { data: seoSettings } = await useFetch<PublicSeoSettings>(() => `/api/backend/${club.value}/seo/settings`)
 
 // E-1：後台填的追蹤碼是「會被拼進腳本與網址」的字串，前台輸出前再以白名單格式驗證一次（後端也驗，這是第二道）。
 // 不符格式就整段不輸出；網址參數另以 encodeURIComponent，腳本內嵌值以 JSON.stringify 輸出成字串字面值，
