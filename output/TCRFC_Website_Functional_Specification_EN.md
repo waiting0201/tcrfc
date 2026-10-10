@@ -1,9 +1,15 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.24
-> **Date**: 2026-08-14 (v3.24 revision: 2026-10-08)
+> **Document version**: v3.25
+> **Date**: 2026-08-14 (v3.25 revision: 2026-10-09)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.24*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.25*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.25 revision summary — registrations and enquiries keep a privacy-consent record; charity-programme detail pages show only in-period partners and sponsors; featured pinning is counted per club**
+> **All three are rule clarifications to existing features; no page or module is added.**
+> ① **Registrations and enquiries keep a privacy-consent record**: every submission that carries a privacy-consent checkbox (programme and camp registrations, trial registrations, the seven forms, deck downloads) stores, at submit time, the consent time and the version of the privacy policy consented to; both are visible in the admin registration and enquiry detail. The privacy policy carries a version number maintained in I Global settings. Landing points: 3.5, 3.10, 4.4 P3/P4, 4.7 G2, 4.9 I, 5.1 `Registration` / `Enquiry`, chapter 8 personal data.
+> ② **Charity-programme detail pages show only partners and sponsors within their period**: a partner shows when its collaboration period covers today, a sponsor when its contract period does; an unset start or end counts as ongoing, matching the 9.1 partner list. Landing points: 3.9 (9.1), 3.11 (11.2 and the content-linking rules).
+> ③ **The "max 3" featured news pins are counted per club**: Taichung Rock and Taichung Blue Whale each have up to 3, and neither uses the other's slots. Landing points: 3.7, 4.2 B2.
 
 > **v3.24 revision summary — admin module H is named "Search & Sharing Settings"**
 > **No functional change.** Admin module H is named "Search & Sharing Settings", matching what it manages (page titles, descriptions and share images, search-engine indexing rules, sitemap, structured data, `llms.txt`, redirects). Its code and functional scope are unchanged. Landing points: 1 system scope, 4.0 public-to-admin mapping, 4.8 H, the module tree.
@@ -431,7 +437,7 @@ Eight module pages: technical & tactical analysis, physical conditioning, game r
 | 5.4 | Specialist Training | Six specialisms (goalkeeping / forwards / defenders / midfielders / speed & conditioning / advanced), each with objectives, target audience, registration |
 | 5.5 | School & Community | School partnership packages, community programmes, coach education; includes a **partner school list** and enquiry form |
 
-**Registration flow (public site)**: choose program → choose session → enter student details (multiple students supported) → parent / emergency contact → health declaration and consent → submit → registration number issued → email / SMS confirmation → (optional) online payment or bank transfer instructions.
+**Registration flow (public site)**: choose program → choose session → enter student details (multiple students supported) → parent / emergency contact → health declaration and privacy consent (required checkbox; the consent time and policy version are stored on submit) → submit → registration number issued → email / SMS confirmation → (optional) online payment or bank transfer instructions.
 
 ---
 
@@ -471,7 +477,7 @@ A **unified newsroom** segmented into eight categories:
 **Public-site functionality**:
 - List page: category tabs, tag filter, year/month filter, keyword search, infinite scroll or pagination
 - Detail page: cover image, publish date, author, body (images / video / pull quotes / galleries), tags, social sharing, related-article recommendations
-- Featured pinning (max 3) and a popular-articles sidebar
+- Featured pinning (max 3, **counted per club**) and a popular-articles sidebar
 
 ---
 
@@ -544,7 +550,7 @@ A **unified newsroom** segmented into eight categories:
 
 | No. | Page | Public-site functionality |
 |---|---|---|
-| 9.1 | Our Partners | Grouped by type: strategic / international / training / education / brand. Logo wall + partner detail (nature of collaboration, period, link) |
+| 9.1 | Our Partners | Grouped by type: strategic / international / training / education / brand. Logo wall + partner detail (nature of collaboration, period, link). **Only partners whose collaboration period covers today are listed** (an unset start or end counts as ongoing) |
 | 9.2 | Our Sponsors | Current sponsors by tier (title / official / supporting), sponsorship stories (case articles), sponsorship activation records |
 | 9.3 | Become a Partner | Six value arguments: why partner, audience analysis (**data visualisation**: followers, reach, student numbers), brand exposure, social impact, intermediary influence, international reach |
 | 9.4 | Sponsorship Opportunities | **Nine sponsorship package cards**: club / academy / team / camp / international programme / manga content / merchandise / fan club / stadium naming. Each covers what it includes, the rights schedule, who it suits, and an enquiry CTA |
@@ -572,7 +578,7 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 **Shared mechanisms**:
 - Bot protection (reCAPTCHA / Turnstile), required-field validation, file upload (CV / video link)
 - On submission: auto-reply to the sender + notification to the relevant team + record written to the admin enquiry inbox
-- Personal-data consent checkbox (with privacy policy link) and stated retention period
+- Personal-data consent checkbox (with privacy policy link) and stated retention period; **on submit the system stores the consent time and the version of the privacy policy consented to**, visible in the admin enquiry detail (see 4.7 G2)
 
 **Supporting pages**:
 - **Location & Map**: multi-venue list (training base, home ground, academy pitches) + embedded map + travel directions + navigation links
@@ -587,7 +593,7 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 | No. | Page | Public-site functionality |
 |---|---|---|
 | 11.1 | Our Commitment | Philosophy and focus areas (youth support, rural football, disadvantaged families, charity matches); content fields are predefined by the page template |
-| 11.2 | Charity Programs | **Program list** (cover, name, beneficiaries, period, status: ongoing / completed); detail pages cover the programme's origin, **recipient charity name**, **what was donated**, delivery narrative, **event photo gallery**, and related coverage |
+| 11.2 | Charity Programs | **Program list** (cover, name, beneficiaries, period, status: ongoing / completed); detail pages cover the programme's origin, **recipient charity name**, **what was donated**, delivery narrative, **event photo gallery**, related coverage, and **partners and sponsors** (shown only when their collaboration or contract period covers today; an unset start or end counts as ongoing; the same rule as the 9.1 partner list) |
 | 11.3 | Impact Stories | **Timeline / card list**; every record presents three core data points: **① charity organisation name ② what was donated ③ event photography**, plus date, location, and a short description; filterable by year |
 | 11.4 | Our Impact | Cumulative statistics: number of partner charities, total donation instances, areas served; presented as a **logo wall / list of organisations** with representative imagery. Monetary figures are hidden by default; visibility is decided per item in the admin |
 | CTA | Get Involved | Two participation routes: **corporate charity partnership** (routes to 10.5) / **fan donation** (links out to the Charity Donation Platform, see below) |
@@ -611,7 +617,7 @@ This site has three responsibilities and no more:
 **Content cross-linking**:
 - Shares the news library with **7.7 Community**: timely reporting of charity activity is published in 7.7, while the Charity section presents programmes and impact records in structured, long-lived form. The two cross-link rather than duplicating content.
 - Cross-linked with **5.5 School & Community**: rural and school football outreach is both a programme and a charitable activity, so it appears in both places.
-- Charity programmes can be tagged with sponsoring partners (linked to E1/E2) so that partner pages can show "charity programmes we've supported".
+- Charity programmes can be tagged with sponsoring partners (linked to E1/E2) so that partner pages can show "charity programmes we've supported"; the programme detail page shows only partners and sponsors within their period.
 
 ---
 
@@ -927,7 +933,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 │   └── F2 Fan Club events (member lists live in module K)
 ├── G. Forms & Enquiries
 │   ├── G1 Form Designer
-│   ├── G2 Inbox (7 form types + deck downloads + donation enquiries)
+│   ├── G2 Inbox (7 form types + deck downloads)
 │   └── G3 Newsletter Subscribers
 ├── H. Search & Sharing Settings
 ├── I. Site Settings (languages / contact info / venues / external services)
@@ -1081,7 +1087,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 #### B2 News & Stories
 - Article CRUD, categories (mapping to 7.1–7.8), tags, core-value tags
 - Cover image, summary, block-based body, relationships (player / team / match / program / partner)
-- Scheduled publishing, featured pinning (max 3), view counts
+- Scheduled publishing, featured pinning (max 3, **counted per club**: Rock and Blue Whale each have up to 3), view counts
 - Bulk actions: recategorise, bulk publish / unpublish
 
 #### B3 Home layout
@@ -1161,7 +1167,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 #### P3 Registrations
 - Registration list: filters (program, session, status, date, **member or not**), keyword search, and a **"member" column** (added in v2.5; `Registration.member_id` is nullable — non-members may still register)
-- Registration detail: student details, parent contact, health declaration, notes
+- Registration detail: student details, parent contact, health declaration, notes, **privacy-consent time and the policy version consented to** (read-only)
 - Status workflow: `Pending → Confirmed → Paid → Completed / Cancelled / Waitlisted`
   - Payment is handled **offline** (imported transfer records or on-site collection, then marked by staff). **Course fees do not go through shop checkout** — the v2.6 payment scope covers physical merchandise only; **the Mobile App does not take course fees either**, its LINE Pay flow being limited to membership, see the app specification, section 3.9
 - Actions: confirm / cancel, move to another session, add to waitlist, add notes, send templated notification emails
@@ -1169,7 +1175,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Capacity control: automatic closure when full, waitlist promotion alerts
 
 #### P4 Trial Sessions
-- Backs the trial information in 3.3, 4.7, and 6.3: date, venue, target group, capacity, registration deadline, registrant management
+- Backs the trial information in 3.3, 4.7, and 6.3: date, venue, target group, capacity, registration deadline, registrant management (the registrant detail is the same as P3, including the privacy-consent time and policy version)
 
 ---
 
@@ -1223,7 +1229,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Per form: notification recipients (multiple allowed), auto-reply content (zh / en), CAPTCHA toggle, post-submission redirect
 
 #### G2 Enquiry Inbox
-- A unified inbox with tabs by form type (10.1–10.7 + deck downloads + **donation enquiries**)
+- A unified inbox with tabs by form type (10.1–10.7 + deck downloads)
 - Fields: source form, name, contact details, message summary, source page, UTM source, submission time
 - Status workflow: `New → In progress → Replied → Closed / Invalid`
 - Assignee, internal notes, tags
@@ -1268,7 +1274,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
   - **Social platforms**: Instagram [`@tcr_fc_2024`](https://www.instagram.com/tcr_fc_2024), Facebook [`TCRFC2024`](https://www.facebook.com/TCRFC2024), YouTube [`@TCRFC-2024`](https://www.youtube.com/@TCRFC-2024)
   - **Taichung Blue Whale official website** URL (for the 06 entry point). ⚠️ **From v3.0 the Blue Whale site is built by this system** on its own domain, so this holds the new domain; the existing [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/) is 301-redirected once the new site is live
   - EDM platform configuration
-- **Global settings**: cookie policy, privacy policy, **membership terms**, maintenance-mode toggle
+- **Global settings**: cookie policy, privacy policy (**with a version number, updated on every revision**; the "terms version consented to" stored on registrations and enquiries is the version number in force at submit time), **membership terms**, maintenance-mode toggle
 
 ---
 
@@ -1547,7 +1553,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `Milestone` | Milestone | — |
 | `Program` | Course / camp / specialist training | Session, Staff, Venue, Partner |
 | `Session` | Session / intake | Program, Venue, Registration |
-| `Registration` | Registration. **v2.5 adds a nullable `member_id`** — non-members may still register | Session, Contact, Member |
+| `Registration` | Registration (shared by programmes, camps and trials). **v2.5 adds a nullable `member_id`** — non-members may still register. **v3.25 adds `privacy_consented_at` (consent time) and `privacy_policy_version` (the privacy-policy version consented to)**, written by the system on submit and read-only in the admin; this applies to every registration submitted through the main-site API, including the Mobile App | Session, Contact, Member |
 | `Trial` | Trial session | Team, Venue, Registration |
 | `Partner` | Partner: name (zh/en), logo (**dark and light variants**), type, country, partnership content and dates, website link, display order, whether shown in the footer / homepage | Article, Program |
 | `Sponsor` | Sponsor: name (zh/en), logo (both variants), **tier** (title / official / supporting), contract dates, sponsorship content, contact, expiry reminder, display order | SponsorPackage, Article, Advertiser |
@@ -1563,7 +1569,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `StoreInvoice` | **E-invoice**: number, issued at, **carrier / tax ID / donation code**, issue result and retries, voiding and credit-note status. **Made out to the club**, on a different invoice track from the Association's charity invoices | Order |
 | `ComicEpisode` / `ComicCharacter` | Manga episode / character | Player (inspiration) |
 | `FanEvent` | Fan event | Member |
-| `Enquiry` | Form submission (7 form types + deck downloads + donation enquiries) | Form, Assignee |
+| `Enquiry` | Form submission (7 form types + deck downloads). **v3.25 adds `privacy_consented_at` (consent time; always set for forms that carry a privacy-consent checkbox) and `privacy_policy_version` (the privacy-policy version consented to), written by the system on submit and read-only in the admin** | Form, Assignee |
 | `Venue` | Venue. **v2.5 adds `lat` / `lng`**, for the app's venue navigation and course locations | Program, Match, Trial |
 | `PressResource` | Press & media resource (press releases / brand identity packs / high-resolution images), backing 7.8 | Page (7.8) |
 | `Faq` / `FaqCategory` | FAQ / topic category | Page (embed location) |
@@ -1761,7 +1767,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Compatibility | Latest two versions of Chrome / Safari / Edge / Firefox; iOS 15+, Android 10+ |
 | Accessibility | WCAG 2.1 AA |
 | Security | Forced HTTPS, admin 2FA (capability retained; no setup entry in the interface for now), CSRF / XSS / SQL injection protection, upload type and size limits, optional admin IP allowlist; **member system**: password hashing, session timeout, lockout after failed sign-ins, brute-force protection; **shop**: checkout redirected to the payment provider's hosted page or SDK, **no card data stored**, payment callbacks signature-verified and **idempotent**, order-lookup tokens non-derivable and time-limited, dual authorisation for refunds and exports, **the runtime calling the payment API must have a fixed egress IP registered in the LINE Pay merchant portal** |
-| Personal data | Registrations, enquiries, **member data** (including LINE link identifiers), and **order recipient data** stored encrypted, with a retention policy and a data-subject deletion process; **minors' data requires guardian consent**. **Transaction records and invoices carry a statutory retention duty that takes precedence over deletion requests**: on account deletion an order keeps only the legally required fields and the rest is cleared |
+| Personal data | Registrations, enquiries (**storing the privacy-consent time and the terms version consented to**), **member data** (including LINE link identifiers), and **order recipient data** stored encrypted, with a retention policy and a data-subject deletion process; **minors' data requires guardian consent**. **Transaction records and invoices carry a statutory retention duty that takes precedence over deletion requests**: on account deletion an order keeps only the legally required fields and the rest is cleared |
 | Availability | 99.5% uptime target; daily backups retained off-site for 30 days |
 | Extensibility | Content types must be extensible (new age groups / seasons / program types / languages without code changes); **adding a third club must require only a new `Club` record and its authorisations, never a change to the table structure** (the `club_id` dimension and `AdminUserClub` are designed for exactly this); **the shop's payment provider, invoice provider, and shipping methods must be swappable — no provider's specifics may be hard-wired into the order flow** |
 | Monitoring | Error tracking (Sentry-class), uptime monitoring, alerts on form submission failures; **the shop additionally needs alerts on payment failure rates, failed payment callbacks, and negative stock** |

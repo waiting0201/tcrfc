@@ -141,7 +141,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | | Honours and milestones | Titles and notable records |
 | **Programmes** | Courses and camps | Regular courses and short camps |
 | | Intakes and sessions | Dates and places available |
-| | Registrations | Intake, review, exports |
+| | Registrations | Intake, review, exports; each entry shows the privacy-consent time and policy version |
 | | Trial sessions | Trial dates and sign-ups |
 | **Business** | Partners | The B2B partner wall |
 | | Sponsors and packages | Tiers and entitlements |
@@ -152,7 +152,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | **Culture** | Comic | Characters, episodes, reading settings |
 | | Supporters' club events | Event scheduling (the roster lives in module K) |
 | **Enquiries** | Form designer | Viewing form fields; setting notifications, auto-replies and CAPTCHA |
-| | Inbox | Seven form types plus proposal downloads and donation enquiries |
+| | Inbox | Seven form types plus proposal downloads; each entry shows the privacy-consent time and policy version |
 | | Newsletter list | Subscriptions and unsubscribes |
 | **Search & sharing settings** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** |
 | **Site settings** | — | Languages, contact details, venues, external services (the site menus and footer links are fixed by the site templates and are not adjusted in the admin) |

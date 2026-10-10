@@ -22,15 +22,15 @@
 - **C-2** 聯絡 Email、社群連結、各部門窗口、頁尾簡介後台可編輯（`settings` key，種子已補）；Organization JSON-LD 補 email／telephone／sameAs。**C-4** 部分（Hero 文案改讀 Banner）；**C-7** 部分（主要場地讀場地 API；合作學校表無資料來源）。
 - **D** 雙語：三張新側表＋兩個側表欄位（`db/migrations/20261006_d-bilingual-gaps_*`、EF migration），後台六畫面補英文欄位，前台積分榜／提案帶 `lang`。
 - 部署順序：`DBilingualGapsExpand` 可隨新版 API；`ClubBrandDropContract`、`DBilingualGapsContract` 為收縮，**新版 API 上線驗證後**經 `production-db` 核准關卡套用（建議另開 PR）。本機 `tcrfc_club` 已套用三支。API 測試 1514／1514。**全部未實機驗收**。
-- 仍待：B-5（多語系設定）、B-17（捐助洽詢入口）、B-19（介面字串）、C-5（fallback 寫死內容，屬過渡設計）、C-6（商店固定文案）、F 類；另 `homeTeamCodes` 未接（首頁近期賽事為寫死結構）、合作學校資料來源、職員分組英文名稱待對照 `docs/06`、積分榜公開 DTO 補 `isFallbackLocale`、榮譽對話框改逐欄錯誤。
+- 仍待：B-5（多語系設定）、B-17（捐助洽詢分頁拿掉，已拍板、待實作）、B-19（介面字串）、C-5（fallback 寫死內容，屬過渡設計）、C-6（商店固定文案）、F 類；另 `homeTeamCodes` 未接（首頁近期賽事為寫死結構）、合作學校資料來源、職員分組英文名稱待對照 `docs/06`、積分榜公開 DTO 補 `isFallbackLocale`、榮譽對話框改逐欄錯誤。
 
 **2026-10-07 第四輪修正（殘項收尾）**：
 - **B-19** ✅：規劃書 I4 定義為「按鈕、表單標籤、提示訊息、錯誤訊息」的雙語對照，不要求全站字串代號化；七類表單共用送出訊息改讀 `useUiStrings().t()`（新增 `form.error_generic`／`form.captcha_required`／`form.captcha_failed`，後台未建立時沿用原文）。
 - **C-6** ✅ 檢查後不需修改：配送三方式與發票四類型為規格固定值（主站 §8.3），「主場賽事日」兩俱樂部同一條規格；收款方與發票抬頭已依 `collectingSubjectName` 動態顯示。
-- **B-17**：提案下載經 `Features/Proposals` 寫入 `form_code='proposal_download'`，收件匣分頁有資料，**非重複** ✅；捐助洽詢 ❓ **待使用者決定**（規劃書只在 G2 分頁清單與 `Enquiry` 型別各提一次，無前台入口與欄位）。
+- **B-17**：提案下載經 `Features/Proposals` 寫入 `form_code='proposal_download'`，收件匣分頁有資料，**非重複** ✅；捐助洽詢 ✅ **使用者 2026-10-09 拍板：整個拿掉**（規劃書 v3.25 已刪 G2 分頁與 `Enquiry` 涵蓋，記錄在 `docs/15`），**待實作**：移除 `donation_enquiry` 的程式、種子與測試。
 - **B-5**：規劃書 G-01 已固定繁中／英文、回退繁中，後台側欄已隱藏「多語系」→ 建議以「規格已固定、不接」結案。**C-5**：過渡設計，待客戶內容到位、後台建立第一筆後再移除寫死版。
 - 零星項 ✅：首頁近期賽事接 `homeTeamCodes`；職員分組英文名登錄 `docs/06`（初稿待確認）；榮譽對話框逐欄錯誤；積分榜 `StandingRowDto.isFallbackLocale`（後端＋前台）。
-- **F 類**：轉址正規化（有／無結尾斜線視為同一網址）＋儲存時迴圈偵測 ✅；賽程多隊賽事重複列與計數 ✅（`MatchesRepository`、`CalendarRepository` 的 `COUNT(DISTINCT)`）；廣告備援連結放行 `tcrfc://` ✅（App 規劃書 §2.3、§7）；球迷活動與媒體封面雙語 Alt ✅（`cover_alt`，展開遷移 `ClubCoverAltExpand`）；慈善計畫詳情夥伴／贊助商不濾期間 ❓ **待決**（規劃書無明文；公開夥伴列表已濾期間，只有此處不一致）；報名隱私同意留存 ❓ **待決**（規劃書未要求留存）。
+- **F 類**：轉址正規化（有／無結尾斜線視為同一網址）＋儲存時迴圈偵測 ✅；賽程多隊賽事重複列與計數 ✅（`MatchesRepository`、`CalendarRepository` 的 `COUNT(DISTINCT)`）；廣告備援連結放行 `tcrfc://` ✅（App 規劃書 §2.3、§7）；球迷活動與媒體封面雙語 Alt ✅（`cover_alt`，展開遷移 `ClubCoverAltExpand`）；慈善計畫詳情夥伴／贊助商只顯示期間內者 ✅ **已拍板（2026-10-09，規劃書 v3.25 3.11 11.2），待實作**；報名隱私同意留存 ✅ **已拍板（同日，v3.25 5.1 `Registration`／`Enquiry`，App v3.18 連動），待實作**（新增 `privacy_consented_at`、`privacy_policy_version`）。
 - 同批順帶：`ad_creatives.click_url` 改用同一套連結規則（原本 `tcrfc://` 開頭即不驗）；球員數據 `PlayerSeasonStatDto.isFallbackLocale`；後台球迷活動與媒體專區補「圖片說明」輸入、前台封面 alt 改讀 `coverAlt`。
 - API 測試 1562／1562；後台與前台 lint、build 通過。**全部未實機驗收**。
 

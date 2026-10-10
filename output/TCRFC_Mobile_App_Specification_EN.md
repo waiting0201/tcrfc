@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.17
-> **Date**: 2026-09-04 (v3.17 revision: 2026-10-08)
+> **Document version**: v3.18
+> **Date**: 2026-09-04 (v3.18 revision: 2026-10-09)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.18 revision summary — App programme bookings keep the same privacy-consent record**
+> **No new functionality.** The App's programme and camp bookings reuse the main site's `Registration`; main-site specification v3.25 requires every registration that carries a privacy-consent checkbox to store the consent time and the privacy-policy version consented to. The App booking form carries the same required checkbox, and the main-site API writes the record on submit. Landing points: 3.9, the section 9 API table, the section 10 changes to main-site types.
 
 > **v3.17 revision summary — aligned with the main site's admin data-scope authorisation**
 > **No new functionality.** Admin data-scope authorisation stops at club level (main-site specification v3.23: `AdminUserClub`, `AdminRole.scope_mode`). Landing points: the §8 data-scope note, §11 permissions and roles, §16 dependencies on the main site, and the v3.0 revision summary.
@@ -668,6 +671,7 @@ Only three small items were moved out of scope in website v2.0, and only two of 
 | Session states: open / full / waitlist / closed, with the front end showing "Book now / Join waitlist / Closed" | Website P2 |
 | **Payment is offline** (bank transfer or in person, marked by admin staff) | Website P3 |
 | Booking fields: student details, parent contact, health declaration, notes | Website P3 |
+| Privacy-consent checkbox (required); on submit the main-site API stores the consent time and the privacy-policy version consented to, and the App only sends the checkbox result | Website 3.5, 5.1 `Registration` |
 | **Program sessions do not enter the calendar** | Website data-consistency principle |
 
 **Two boundaries**:
@@ -1342,7 +1346,7 @@ This is the project's first API specification. It sits here rather than in a fou
 | News | List / single | Anonymous | Category, **club** filtering, and pagination |
 | Partner stores | List / single | Anonymous | Includes coordinates; **distance is computed on the device** |
 | Programs and sessions | List / single | Anonymous | Includes live places and status |
-| Program booking | Create | Anonymous or member | Writes `member_id` when signed in |
+| Program booking | Create | Anonymous or member | Writes `member_id` when signed in; the request must carry the privacy-consent checkbox and the server writes the consent time and policy version |
 | My bookings | List | Member | |
 | Partners and sponsors | List | Anonymous | |
 | FAQ | List | Anonymous | |
@@ -1470,7 +1474,7 @@ This is the project's first API specification. It sits here rather than in a fou
 |---|---|---|---|
 | `PartnerStore` | `lat`, `lng` | Nearby-store distance sorting and map | 3.8 |
 | `Venue` | `lat`, `lng` | Fixture venue navigation, course locations | 3.2, 3.9 |
-| `Registration` | `member_id` (**nullable**) | My bookings, form pre-filling | 3.9 |
+| `Registration` | `member_id` (**nullable**); `privacy_consented_at`, `privacy_policy_version` (main site v3.25, written by the server on submit) | My bookings, form pre-filling; privacy-consent record | 3.9 |
 | `Match` | `opponent_en`, `venue_en`, `competition`, `status` | English display; front-end attributes promoted to formal fields | 3.2 |
 | `Member` | `registration source` gains an `App` value | Identification in admin K1 | 4.1 |
 | `Sponsor` / `Partner` | High-resolution assets (@2x / @3x), dark-mode logo variant, in-app ordering, **`club_id`** | Logo rendering in the app, **sectioned by club** | 3.11 |

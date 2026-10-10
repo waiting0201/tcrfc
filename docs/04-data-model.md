@@ -25,7 +25,7 @@
 | `Milestone` | 里程碑 | — |
 | `Program` | 課程／營隊／專項 | Session、Staff、Venue、Partner |
 | `Session` | 梯次／場次 | Program、Venue、Registration |
-| `Registration` | 報名。**v2.5 新增 `member_id`（可為空）**——非會員仍可報名 | Session、Contact、Member |
+| `Registration` | 報名（課程、營隊、試訓共用）。**v2.5 新增 `member_id`（可為空）**——非會員仍可報名。**v3.25 新增 `privacy_consented_at`、`privacy_policy_version`**（送出時由系統寫入，後台唯讀） | Session、Contact、Member |
 | `Trial` | 試訓場次 | Team、Venue、Registration |
 | `Partner` | 合作夥伴：名稱（中／英）、Logo（深底／淺底兩版）、類型、國家、合作內容與期間、官網連結、排序、是否於 Footer／首頁曝光 | Article、Program |
 | `Sponsor` | 贊助商：名稱（中／英）、Logo（兩版）、**等級**（主贊助／官方／支持）、合約期間、贊助內容、聯絡窗口、到期提醒、排序 | SponsorPackage、Article、**Advertiser** |
@@ -41,7 +41,7 @@
 | `StoreInvoice` | **電子發票**：號碼、載具／統編／捐贈碼、開立結果與重試、作廢與折讓狀態。**抬頭為俱樂部**，與協會發票不同字軌 | Order |
 | `ComicEpisode` / `ComicCharacter` | 漫畫集數／角色 | Player（原型） |
 | `FanEvent` | 球迷活動 | Member |
-| `Enquiry` | 表單詢問（7 類表單 + 提案下載 + 捐助洽詢） | Form、Assignee |
+| `Enquiry` | 表單詢問（7 類表單 + 提案下載）。**v3.25 新增 `privacy_consented_at`、`privacy_policy_version`**（同上） | Form、Assignee |
 | `Venue` | 場地。**v2.5 新增 `lat` / `lng`**（App 場地導航與課程地點） | Program、Match、Trial |
 | `PressResource` | 媒體資源（新聞稿／品牌識別包／高解析圖），對應 7.8 | Page（7.8） |
 | `Faq` / `FaqCategory` | 常見問題／主題分類 | Page（嵌入位置） |

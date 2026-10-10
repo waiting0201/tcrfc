@@ -12,6 +12,8 @@
 
 ## 速查
 
+- 🔵 **三項規則（使用者 2026-10-09 拍板，主站 v3.25）**：① **報名與詢問必須留存隱私同意紀錄**——`Registration`（課程、營隊、試訓）與 `Enquiry`（七類表單、提案下載）各加 `privacy_consented_at` 與 `privacy_policy_version`，**由伺服器於送出時寫入，不信任客戶端傳值**，後台唯讀；App 報名走同一支主站 API，同樣適用。② **慈善計畫詳情頁的夥伴與贊助商只顯示期間內者**（合作／合約期間涵蓋今日，未填起訖視為進行中），與 9.1 夥伴列表同一濾法。③ **新聞置頂精選「限 3」逐俱樂部計算**（磐石、藍鯨各 3），**發布／排程只能從 `draft`／`scheduled` 出發**（後者為實作約定，規劃書未寫）。
+
 - 🔴 **正式 VM 的容器只由 CD 管：compose 專案目錄是 runner 的 checkout 目錄，映像檔標籤一律每個映像檔各自一個 `TAG_*`**（2026-10-02，`docs/20` §4a）。
   ① **不要在 VM 上手動 `docker compose up -d`**，尤其不要從 `/home/runner/tcrfc-src`（首次 CD 成功後即退役）：專案目錄不同＝設定 hash 不同＝八個容器全部重建一次，且 proxy 會掛到舊 Caddyfile；
   確要手動，在 checkout 目錄用 `--env-file /opt/tcrfc/.env` 並**自己帶齊五個 `TAG_*`**（照 `deploy-state.env`），否則標籤退回 `.env` 的 `IMAGE_TAG=master`，等於把已部署的 SHA 版本換成浮動標籤。
