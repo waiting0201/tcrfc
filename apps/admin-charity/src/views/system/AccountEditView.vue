@@ -2,7 +2,7 @@
 /**
  * 帳號新增／編輯。僅系統管理員可進入。慈善後台沒有俱樂部維度，所以只有基本資料與角色。
  * 版面依 docs/21 §3.3a 與 docs/22 §3.10：主欄一張卡、右側欄兩張卡；沒有雙語欄位所以沒有語言分頁。
- * 右側欄第二張卡是「帳號狀態」（停用／重設等帳號層級操作），對應其他頁的「發布設定」。
+ * 右側欄第二張卡是「帳號狀態」（停用、重設密碼等帳號層級操作；重設兩階段驗證只在列表頁），對應其他頁的「發布設定」。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -20,7 +20,6 @@ import {
   createAdminAccount,
   getAdminAccount,
   resetAdminAccountPassword,
-  resetAdminAccountTwoFactor,
   setAdminAccountStatus,
   updateAdminAccount,
 } from '@/api/adminAccounts'
@@ -174,24 +173,6 @@ async function resetPassword() {
     ElMessage.error(error instanceof AdminApiError ? error.detail : '重設失敗，請稍後再試')
   }
 }
-
-async function resetTotp() {
-  try {
-    await ElMessageBox.confirm('確定要重設這個帳號的兩階段驗證設定嗎？重設後下次登入需要重新設定。', '確認重設', {
-      confirmButtonText: '重設',
-      cancelButtonText: '取消',
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
-  try {
-    await resetAdminAccountTwoFactor(accountId.value!)
-    ElMessage.success('已重設兩階段驗證設定')
-  } catch (error) {
-    ElMessage.error(error instanceof AdminApiError ? error.detail : '重設失敗，請稍後再試')
-  }
-}
 </script>
 
 <template>
@@ -254,7 +235,6 @@ async function resetTotp() {
               <div class="account-edit__actions">
                 <el-button @click="toggleStatus">{{ accountStatus === 'active' ? '停用帳號' : '啟用帳號' }}</el-button>
                 <el-button @click="resetPassword">重設密碼</el-button>
-                <el-button @click="resetTotp">重設兩階段驗證</el-button>
               </div>
             </FormSection>
           </el-card>
