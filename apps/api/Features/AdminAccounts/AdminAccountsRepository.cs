@@ -252,29 +252,6 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         return true;
     }
 
-    /// <summary>系統管理員代為重設 2FA（例如驗證器裝置遺失）。清空既有密鑰與確認時間，
-    /// 帳號回到「尚未完成 2FA 設定」狀態——下次登入會被 <see cref="Security.AdminClubAuthorizer"/>／
-    /// <see cref="Security.AdminSystemAuthorizer"/> 擋在俱樂部範圍與系統管理端點之外，
-    /// 直到重新走一次 <c>/auth/2fa/setup</c>＋<c>/auth/2fa/confirm</c>。同樣撤銷既有工作階段。</summary>
-    public async Task<bool?> ResetTwoFactorAsync(Guid id, Guid? operatorId, CancellationToken cancellationToken)
-    {
-        var user = await dbContext.AdminUsers.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
-        if (user is null)
-        {
-            return null;
-        }
-
-        user.TwoFactorEnabled = false;
-        user.TwoFactorSecretEncrypted = null;
-        user.TwoFactorConfirmedAt = null;
-        user.UpdatedAt = DateTime.UtcNow;
-        user.UpdatedBy = operatorId;
-
-        await RevokeAllRefreshTokensAsync(user.Id, cancellationToken);
-        await dbContext.SaveChangesAsync(cancellationToken);
-        return true;
-    }
-
     // ───────────────────────────── 寫入：俱樂部授權（J4） ─────────────────────────────
 
     public async Task<IReadOnlyList<AdminAccountClubGrantDto>?> ListClubGrantsAsync(Guid adminUserId, CancellationToken cancellationToken)

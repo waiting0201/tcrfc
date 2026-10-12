@@ -274,42 +274,6 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
-    public async Task 重設兩階段驗證_清空既有設定()
-    {
-        using var adminClient = await CreateSuperAdminClientAsync();
-        var username = $"test.resettotp.{Guid.NewGuid():N}@tcrfc.test";
-
-        try
-        {
-            var created = await CreateAccountAsync(adminClient, username, "InitialPassword-123", []);
-
-            // 直接在資料庫種一組已完成的 2FA 設定，模擬「這個帳號原本已經設好 2FA」。
-            await using (var connection = new SqlConnection(RequireConnectionString()))
-            {
-                await connection.OpenAsync();
-                await using var command = connection.CreateCommand();
-                command.CommandText = """
-                    UPDATE admin_users
-                    SET two_factor_enabled = 1, two_factor_secret_encrypted = N'placeholder', two_factor_confirmed_at = SYSUTCDATETIME()
-                    WHERE id = @Id
-                    """;
-                command.Parameters.AddWithValue("@Id", created.Id);
-                await command.ExecuteNonQueryAsync();
-            }
-
-            var resetResponse = await adminClient.PostAsync($"/api/v1/admin/accounts/{created.Id}/reset-totp", null);
-            Assert.Equal(HttpStatusCode.NoContent, resetResponse.StatusCode);
-
-            var detail = await adminClient.GetFromJsonAsync<AdminAccountDetailDto>($"/api/v1/admin/accounts/{created.Id}", TestJson.Options);
-            Assert.False(detail!.TwoFactorEnabled);
-        }
-        finally
-        {
-            await DeleteAccountByUsernameAsync(username);
-        }
-    }
-
-    [Fact]
     public async Task 俱樂部授權_新增後立即生效_撤銷後立即失效()
     {
         using var adminClient = await CreateSuperAdminClientAsync();

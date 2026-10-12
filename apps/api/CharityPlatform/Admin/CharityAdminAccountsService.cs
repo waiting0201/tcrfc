@@ -198,28 +198,6 @@ public sealed class CharityAdminAccountsService(CharityDbContext db, CharityAudi
         return true;
     }
 
-    /// <summary>管理員代為重設兩階段驗證（例如驗證器裝置遺失）。</summary>
-    public async Task<bool?> ResetTwoFactorAsync(CharityAdminScope scope, Guid id, string? sourceIp, CancellationToken ct)
-    {
-        var user = await db.AdminUsers.FirstOrDefaultAsync(u => u.Id == id, ct);
-        if (user is null)
-        {
-            return null;
-        }
-
-        user.TwoFactorEnabled = false;
-        user.TwoFactorSecretEncrypted = null;
-        user.TwoFactorConfirmedAt = null;
-        user.UpdatedAt = DateTime.UtcNow;
-        user.UpdatedBy = scope.Identity.AdminUserId;
-
-        await RevokeAllRefreshTokensAsync(user.Id, ct);
-        audit.Stage(scope, CharityAuditActions.AdminAccountResetTotp, CharityAuditTargets.AdminAccount, user.Id,
-            "管理員代為重設兩階段驗證", null, sourceIp);
-        await db.SaveChangesAsync(ct);
-        return true;
-    }
-
     // ───────────────────────────── 內部工具 ─────────────────────────────
 
     private async Task RevokeAllRefreshTokensAsync(Guid adminUserId, CancellationToken ct)

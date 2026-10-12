@@ -115,7 +115,6 @@ public static class CharityAuditActions
     public const string AdminAccountUpdate = "admin_account.update";
     public const string AdminAccountStatus = "admin_account.status";
     public const string AdminAccountResetPassword = "admin_account.reset_password";
-    public const string AdminAccountResetTotp = "admin_account.reset_totp";
     public const string AdminRoleCreate = "admin_role.create";
     public const string AdminRoleUpdate = "admin_role.update";
     public const string AdminRoleDelete = "admin_role.delete";
@@ -156,7 +155,6 @@ public static class CharityAuditActions
         [AdminAccountUpdate] = "更新後台帳號",
         [AdminAccountStatus] = "啟用或停用後台帳號",
         [AdminAccountResetPassword] = "重設後台帳號密碼",
-        [AdminAccountResetTotp] = "重設後台帳號兩階段驗證",
         [AdminRoleCreate] = "建立角色",
         [AdminRoleUpdate] = "更新角色",
         [AdminRoleDelete] = "刪除角色",

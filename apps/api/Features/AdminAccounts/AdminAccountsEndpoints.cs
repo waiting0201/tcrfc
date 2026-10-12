@@ -119,20 +119,6 @@ public static class AdminAccountsEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
-        group.MapPost("/{id:guid}/reset-totp", async (
-            Guid id, HttpContext httpContext,
-            IAdminSystemAuthorizer authorizer, AdminAccountsRepository repository, CancellationToken cancellationToken) =>
-        {
-            var scope = await authorizer.AuthorizeAsync(httpContext, PermissionUpdate, cancellationToken);
-            var result = await repository.ResetTwoFactorAsync(id, scope.Identity.AdminUserId, cancellationToken);
-            return result is null ? Results.NotFound() : Results.NoContent();
-        })
-        .WithName("AdminResetAccountTwoFactor")
-        .Produces(StatusCodes.Status204NoContent)
-        .Produces(StatusCodes.Status401Unauthorized)
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status404NotFound);
-
         // ── J4：這個帳號的俱樂部授權（admin_user_clubs）───────────────────────────
         group.MapGet("/{id:guid}/club-grants", async (
             Guid id, HttpContext httpContext, IAdminSystemAuthorizer authorizer,

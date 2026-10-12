@@ -79,8 +79,8 @@ public sealed record CreateAdminAccountRequest
     public string? Locale { get; init; }
 }
 
-/// <summary>更新帳號基本資料與角色指派。⛔ 不含密碼／狀態／2FA——那三項各自是獨立端點
-/// （重設密碼、停用／啟用、重設 2FA），理由見 apps/api/README.md「為什麼分開」。</summary>
+/// <summary>更新帳號基本資料與角色指派。⛔ 不含密碼／狀態——那兩項各自是獨立端點
+/// （重設密碼、停用／啟用），理由見 apps/api/README.md「為什麼分開」。</summary>
 public sealed record UpdateAdminAccountRequest
 {
     public required string DisplayName { get; init; }

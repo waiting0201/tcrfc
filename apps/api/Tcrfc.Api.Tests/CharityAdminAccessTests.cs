@@ -259,19 +259,6 @@ public sealed class CharityAdminAccessTests(CharityApiFixture fx) : IAsyncLifeti
     }
 
     [Fact]
-    public async Task 重設兩階段驗證_清空密鑰並撤銷工作階段()
-    {
-        using var sys = await SysAsync();
-        var account = await CreateAccountAsync(sys);
-        await fx.ExecuteAsync("UPDATE admin_users SET two_factor_enabled = 1, two_factor_secret_encrypted = N'x', two_factor_confirmed_at = SYSUTCDATETIME() WHERE id = @i", ("@i", account.Id));
-
-        Assert.Equal(HttpStatusCode.NoContent, (await PostAsync(sys, $"{Accounts}/{account.Id}/reset-totp", new { })).StatusCode);
-        Assert.False(await fx.ScalarAsync<bool>("SELECT two_factor_enabled FROM admin_users WHERE id = @i", ("@i", account.Id)));
-        Assert.Null(await fx.ScalarAsync<string>("SELECT two_factor_secret_encrypted FROM admin_users WHERE id = @i", ("@i", account.Id)));
-        Assert.Equal(HttpStatusCode.NotFound, (await PostAsync(sys, $"{Accounts}/{Guid.NewGuid()}/reset-totp", new { })).StatusCode);
-    }
-
-    [Fact]
     public async Task 不能讓最後一位啟用中的系統管理員被停用或降級_包含自己()
     {
         // 暫時停用其他所有啟用中的系統管理員，讓測試用的這位成為唯一一位（結束後原樣還原）。

@@ -68,6 +68,3 @@ export const setAdminAccountStatus = (id: string, status: 'active' | 'disabled')
 
 export const resetAdminAccountPassword = (id: string, newPassword: string) =>
   apiRequest<void>(`${ROOT}/${id}/reset-password`, { method: 'POST', body: { newPassword } })
-
-export const resetAdminAccountTwoFactor = (id: string) =>
-  apiRequest<void>(`${ROOT}/${id}/reset-totp`, { method: 'POST' })

@@ -122,10 +122,6 @@ export function resetAdminAccountPassword(id: string, newPassword: string): Prom
   return apiRequest<void>(`/api/v1/admin/accounts/${id}/reset-password`, { method: 'POST', body: { newPassword } })
 }
 
-export function resetAdminAccountTwoFactor(id: string): Promise<void> {
-  return apiRequest<void>(`/api/v1/admin/accounts/${id}/reset-totp`, { method: 'POST' })
-}
-
 export function listAccountClubGrants(id: string): Promise<AdminAccountClubGrantDto[]> {
   return apiRequest<AdminAccountClubGrantDto[]>(`/api/v1/admin/accounts/${id}/club-grants`)
 }

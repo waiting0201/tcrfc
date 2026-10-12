@@ -553,7 +553,7 @@ set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
 ### 本輪沒做的部分（誠實列出，不假裝做完）
 
 1. ✅ **已補上（S1-3 續作，2026-09-24）**：`Features/AdminAccounts`（J1 帳號 CRUD、停用／啟用、
-   重設密碼、重設 2FA）與掛在帳號底下的 J4 俱樂部授權（`admin_user_clubs` 新增／撤銷）已實作，
+   重設密碼；**不提供管理員代為重設他人 2FA**，2026-10-12 使用者裁決移除）與掛在帳號底下的 J4 俱樂部授權（`admin_user_clubs` 新增／撤銷）已實作，
    見下方「S1-3 續作：J1／J2／J4 端點」整節。
 2. ✅ **已補上（S1-3 續作，2026-09-24）**：`Features/AdminRoles`（J2 角色 CRUD、權限碼字典、
    角色權限指派）已實作，見下方新增整節。
@@ -639,7 +639,6 @@ J1／J2／J4（`Club` 主檔與 `admin_user_clubs` 授權）是**全域端點**�
 | PUT | `/api/v1/admin/accounts/{id}` | `system.account.update` |
 | POST | `/api/v1/admin/accounts/{id}/status` | `system.account.update` |
 | POST | `/api/v1/admin/accounts/{id}/reset-password` | `system.account.update` |
-| POST | `/api/v1/admin/accounts/{id}/reset-totp` | `system.account.update` |
 
 **J4（掛在帳號底下）：`AdminUserClub` 授權**（同一個 `Features/AdminAccounts/`）
 
@@ -5361,7 +5360,7 @@ dotnet run --no-launch-profile   # 明確不用 launchSettings，全靠上面的
 > 本機產生物放一起），至少要先用 `git check-ignore -v <路徑>` 確認真的被排除、且是用
 > `apps/**/` 這種任意深度萬用字元（`docs/18-work-errors.md` `E-27` 記過 `apps/*/` 單層
 > 萬用字元擋不到子目錄的坑），**金鑰檔案本身不得出現在 `git status` 裡**。這個環境變數是
-> **選用**，不設也能跑（本機開發沒有它一樣能起服務，只是每次重啟都要重設 2FA，見上方
+> **選用**，不設也能跑（本機開發沒有它一樣能起服務，只是每次重啟，已綁定的 2FA 密鑰都會因金鑰環遺失而無法解密、該帳號無法登入；系統不提供管理員代為重設，需以資料庫操作清除該帳號的 `two_factor_enabled`／`two_factor_secret_encrypted`／`two_factor_confirmed_at` 後重新綁定，見上方
 > 「怎麼跑」開頭「連線字串等機密一律用環境變數」的既有慣例——這個變數的值不是機密，是
 > 一個檔案系統路徑，不需要額外保護）。
 
@@ -5501,7 +5500,7 @@ compose 網路裡）。
 | `AZURE_BLOB_CONTAINER_IMAGES` | 選填（S0-8） | 圖片物件儲存的容器名稱，預設 `images` |
 | `AZURE_BLOB_PUBLIC_BASE_URL` | 選填（2026-10-01） | **公開網址基底**，如 `https://img-stg.tcrfc.tw`（Cloudflare CDN 子網域）。圖片／影片／documents 三個公開解析器改組 `{base}/{容器}/{key}`（key 逐段 URL 編碼、base 尾斜線自動處理）；**上傳與刪除仍走 `AZURE_BLOB_CONNECTION_STRING`**，`proposals` 私有容器不受影響。未設定＝回退 `BlobContainerClient.Uri`（本機 Azurite 不變）。須為絕對 https URL（`Development` 放行 http），不得含帳密／query／fragment，格式錯誤**啟動即失敗**。實作 `Common/PublicBlobUrl.cs`，測試 `PublicBlobBaseUrlTests`。正式環境寫在 VM 的 `club.env`，**不要**寫進 compose 的 `environment:`（會以空字串覆蓋 env_file） |
 | `JWT_SIGNING_KEY_CLUB` | 🔴🔴🔴 S1 起必填 | 後台存取權杖的簽章金鑰，**至少 32 字元，缺值或太短在啟動期直接失敗**（`Program.cs` 於 `builder.Build()` 前呼叫 `AdminTokenService.ValidateSigningKeyConfigured`，E-79 修正——原本只有第一個請求才檢查，行程起得來但每支端點 500）。鍵名不是本輪新發明，`deploy/dev/club.env`／`docs/20-cicd.md` §7.2 早就預留。⚠️ **上線前暫用網址與正式期建議用不同值**（`docs/14-invariants.md` 既有規則） |
-| `DATA_PROTECTION_KEYS_PATH` | 🔴🔴🔴 S1 起正式環境必填 | 2FA 密鑰加密金鑰環的持久化路徑。**非 Production 沒設定不會讓服務無法啟動**（本機開發沒有也能跑，只是每次重啟都要重設 2FA）；🔵 **`Production` 缺值、空白、目錄不存在或不可寫（實際寫入探測檔）一律啟動失敗**（2026-10-01，E-109，`Common/DataProtectionKeyRing.cs`，測試 `DataProtectionKeyRingTests`）。正式環境沒持久化＝容器重建後 2FA 等已加密資料永久無法解密，見 `Security/TwoFactorSecretProtector.cs` 檔頭 |
+| `DATA_PROTECTION_KEYS_PATH` | 🔴🔴🔴 S1 起正式環境必填 | 2FA 密鑰加密金鑰環的持久化路徑。**非 Production 沒設定不會讓服務無法啟動**（本機開發沒有也能跑，只是每次重啟，已綁定的 2FA 都會失效，需以資料庫操作清除後重新綁定）；🔵 **`Production` 缺值、空白、目錄不存在或不可寫（實際寫入探測檔）一律啟動失敗**（2026-10-01，E-109，`Common/DataProtectionKeyRing.cs`，測試 `DataProtectionKeyRingTests`）。正式環境沒持久化＝容器重建後 2FA 等已加密資料永久無法解密，見 `Security/TwoFactorSecretProtector.cs` 檔頭 |
 
 ⛔ **S0-8 之後仍完全不碰 LINE Pay**——這個鍵名雖然已經在 `docker-compose.yml` 的
 `api` 服務與 `deploy/dev/{club,charity}.env` 裡預留，但本檔的程式碼**沒有讀取它**，留給接下來實作商店金流的
@@ -5544,7 +5543,6 @@ session 使用。**Blob 已在 S0-8 接上，JWT 已在 S1 接上**，見下方�
 | 🔒🔴 `PUT /api/v1/admin/accounts/{id}` | 同上＋`system.account.update`。更新基本資料與角色指派 | — |
 | 🔒🔴 `POST /api/v1/admin/accounts/{id}/status` | 同上＋`system.account.update`。啟用／停用，停用立即撤銷既有更新權杖 | — |
 | 🔒🔴 `POST /api/v1/admin/accounts/{id}/reset-password` | 同上＋`system.account.update`。代為重設密碼，撤銷既有更新權杖 | — |
-| 🔒🔴 `POST /api/v1/admin/accounts/{id}/reset-totp` | 同上＋`system.account.update`。代為重設 2FA，撤銷既有更新權杖 | — |
 | 🔒🔴 `GET /api/v1/admin/accounts/{id}/club-grants` | 同上＋`system.club_grant.view`。這個帳號的俱樂部授權（J4） | — |
 | 🔒🔴 `POST /api/v1/admin/accounts/{id}/club-grants` | 同上＋`system.club_grant.update`。新增或重新啟用授權，立即生效 | — |
 | 🔒🔴 `DELETE /api/v1/admin/accounts/{id}/club-grants/{clubId}` | 同上＋`system.club_grant.update`。撤銷授權，立即生效 | — |
@@ -10237,7 +10235,6 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 | `PUT /accounts/{id}` | 同上 | 基本資料＋整份取代角色；不含密碼／狀態／2FA |
 | `POST /accounts/{id}/status` `{status}` | 同上 | `active`／`disabled`；停用立即撤銷全部更新權杖 |
 | `POST /accounts/{id}/reset-password` `{newPassword}` | 同上 | 204；`mustChangePassword=true`（僅提示）、清鎖定、撤銷工作階段 |
-| `POST /accounts/{id}/reset-totp` | 同上 | 204；清空 2FA 密鑰、撤銷工作階段 |
 | `GET /roles/permissions` | `n7.admin_role.view` | 權限碼字典 |
 | `GET /roles`、`GET /roles/{id}` | 同上 | 列表含 `assignedAccountCount`；詳情含權限指派 |
 | `POST /roles` | `n7.admin_role.manage` | 201。`code` 只能小寫英數底線；建立者永遠 `isSystem=false` |
@@ -10245,7 +10242,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 | `DELETE /roles/{id}` | 同上 | 204；系統角色 403、仍有帳號 409 |
 | `PUT /roles/{id}/permissions` | 同上 | 整份取代**非 `sysadmin_only`** 的指派；`sysadmin_only` 與未知碼 400（訊息只報筆數，不列權限碼） |
 
-**四個權限碼全為 `sysadmin_only`**（種子 `EXTRA_PERMISSIONS`、`db/prod/charity-reference-data.sql`、migration `AddAdminAccessPermissions` 三處同一組 UUID）。守則：帳號名稱是一般字串（可中文，前後去空白、≤64、不得含空白、全域唯一）；密碼下限 `AdminAuthService.MinPasswordLength`（6）、不得與帳號相同、雜湊走 `PasswordHasher`（Argon2id，與登入同一個）；**不得停用或降級最後一位啟用中的系統管理員（含自己，409）**；沒有刪除帳號端點。稽核動作 `admin_account.create／update／status／reset_password／reset_totp`、`admin_role.create／update／delete／permissions`，與變更同一次 `SaveChanges`，摘要只含筆數與布林，不含密碼與權限碼。
+**四個權限碼全為 `sysadmin_only`**（種子 `EXTRA_PERMISSIONS`、`db/prod/charity-reference-data.sql`、migration `AddAdminAccessPermissions` 三處同一組 UUID）。守則：帳號名稱是一般字串（可中文，前後去空白、≤64、不得含空白、全域唯一）；密碼下限 `AdminAuthService.MinPasswordLength`（6）、不得與帳號相同、雜湊走 `PasswordHasher`（Argon2id，與登入同一個）；**不得停用或降級最後一位啟用中的系統管理員（含自己，409）**；沒有刪除帳號端點。稽核動作 `admin_account.create／update／status／reset_password`、`admin_role.create／update／delete／permissions`，與變更同一次 `SaveChanges`，摘要只含筆數與布林，不含密碼與權限碼。
 
 **與主站形狀的差異**（慈善沒有的維度）：(1) 沒有 `/club-grants`、`/team-grants` 六支端點；(2) 帳號回應的 `primaryClubId`／`locale` 恆為 `null`、`clubGrants`／`teamGrants` 恆為 `[]`，請求裡的這兩欄接受但忽略；(3) 角色回應 `scopeMode` 恆為 `all_clubs`、`sortOrder` 取 `seq`、權限字典 `isClubScoped` 恆為 `false`，建立／更新角色的 `scopeMode` 可省略（忽略）；(4) `role_permissions.scope_type` 在慈善庫可為 `NULL`（種子即如此），回應補成 `all`，輸入沿用主站值域。測試：`CharityAdminAccessTests`（17 項）；測試角色代碼 `ctrole_*`，`CharityApiFixture.CleanupAsync` 清除並把被測試帳號寫入的 `admin_roles.created_by／updated_by` 設回 `NULL`。不在 App 契約內，`shared/scripts/gen-all.sh` 不必跑。
 

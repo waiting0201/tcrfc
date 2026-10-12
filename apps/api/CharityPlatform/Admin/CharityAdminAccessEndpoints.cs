@@ -71,14 +71,6 @@ public static class CharityAdminAccessEndpoints
             var result = await service.ResetPasswordAsync(scope, id, request.NewPassword, ClientIpResolver.Resolve(http), ct);
             return result is null ? Results.NotFound() : Results.NoContent();
         }).WithName("CharityAdminResetAccountPassword").Produces(StatusCodes.Status204NoContent);
-
-        group.MapPost("/{id:guid}/reset-totp", async (
-            Guid id, HttpContext http, ICharityAdminAuthorizer authorizer, CharityAdminAccountsService service, CancellationToken ct) =>
-        {
-            var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.AdminAccountManage, ct);
-            var result = await service.ResetTwoFactorAsync(scope, id, ClientIpResolver.Resolve(http), ct);
-            return result is null ? Results.NotFound() : Results.NoContent();
-        }).WithName("CharityAdminResetAccountTwoFactor").Produces(StatusCodes.Status204NoContent);
     }
 
     private static void MapRoles(RouteGroupBuilder group)

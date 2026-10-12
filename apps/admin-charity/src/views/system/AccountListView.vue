@@ -11,7 +11,6 @@ import MobileCardList from '@/components/MobileCardList.vue'
 import {
   listAdminAccounts,
   resetAdminAccountPassword,
-  resetAdminAccountTwoFactor,
   setAdminAccountStatus,
   type AdminAccountListItem,
 } from '@/api/adminAccounts'
@@ -121,29 +120,9 @@ async function resetPassword(row: AdminAccountListItem) {
   }
 }
 
-async function resetTotp(row: AdminAccountListItem) {
-  try {
-    await ElMessageBox.confirm(
-      `確定要重設帳號「${row.username}」的兩階段驗證設定嗎？重設後，該帳號下次登入時需要重新設定兩階段驗證。`,
-      '確認重設',
-      { confirmButtonText: '重設', cancelButtonText: '取消', type: 'warning' },
-    )
-  } catch {
-    return
-  }
-  try {
-    await resetAdminAccountTwoFactor(row.id)
-    ElMessage.success('已重設兩階段驗證設定')
-    await load()
-  } catch (error) {
-    ElMessage.error(error instanceof AdminApiError ? error.detail : '重設失敗，請稍後再試')
-  }
-}
-
 function onCommand(command: string, row: AdminAccountListItem) {
   if (command === 'status') void toggleStatus(row)
   else if (command === 'password') void resetPassword(row)
-  else if (command === 'totp') void resetTotp(row)
 }
 </script>
 
@@ -195,7 +174,6 @@ function onCommand(command: string, row: AdminAccountListItem) {
                 <el-dropdown-menu>
                   <el-dropdown-item command="status">{{ row.status === 'active' ? '停用帳號' : '啟用帳號' }}</el-dropdown-item>
                   <el-dropdown-item command="password">重設密碼</el-dropdown-item>
-                  <el-dropdown-item command="totp">重設兩階段驗證</el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -219,7 +197,6 @@ function onCommand(command: string, row: AdminAccountListItem) {
             <el-button size="small" text type="primary" @click="router.push(`/system/accounts/${item.id}/edit`)">編輯</el-button>
             <el-button size="small" text @click="toggleStatus(item)">{{ item.status === 'active' ? '停用帳號' : '啟用帳號' }}</el-button>
             <el-button size="small" text @click="resetPassword(item)">重設密碼</el-button>
-            <el-button size="small" text @click="resetTotp(item)">重設兩階段驗證</el-button>
           </div>
         </template>
       </MobileCardList>
