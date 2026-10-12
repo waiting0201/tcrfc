@@ -4,7 +4,7 @@
 > **主辦與收款主體是台灣足球策略發展協會，不是台中磐石足球俱樂部**。
 > 本檔與 [`12-database-schema.md`](12-database-schema.md) **平行且互不包含**——主站綱要明文不含這裡的任何一張表。
 >
-> 來源：[`../output/TCRFC_慈善捐款平台功能規劃書.md`](../output/TCRFC_慈善捐款平台功能規劃書.md)（**v2.6，共 810 行**）。
+> 來源：[`../output/TCRFC_慈善捐款平台功能規劃書.md`](../output/TCRFC_慈善捐款平台功能規劃書.md)（**v2.7，共 813 行**）。
 > 功能看 [`10-charity-donation-site.md`](10-charity-donation-site.md)；部署與快取看 [`17-deployment.md`](17-deployment.md)。
 > 本檔是導航層，不得新增規劃書沒有的規格。
 >

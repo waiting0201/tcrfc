@@ -313,7 +313,7 @@ async function togglePublish() {
             <el-card shadow="never" header="發布設定">
               <FormSection v-if="isEdit && canPublish" title="上下架">
                 <el-tag :type="existing?.status === 'published' ? 'success' : 'info'" class="project-edit__status-tag">
-                  {{ existing?.status === 'published' ? '目前已上架，前台看得到' : '目前未上架，前台看不到' }}
+                  <span v-if="existing?.status === 'published'" aria-hidden="true">✓ </span>{{ existing?.status === 'published' ? '目前已上架，前台看得到' : '目前未上架，前台看不到' }}
                 </el-tag>
                 <el-button @click="togglePublish">{{ existing?.status === 'published' ? '下架' : '上架' }}</el-button>
               </FormSection>

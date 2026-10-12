@@ -1,8 +1,11 @@
 # 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v2.6
-> **Date**: 2026-09-03 (v2.6 revision: 2026-10-12)
+> **Document version**: v2.7
+> **Date**: 2026-09-03 (v2.7 revision: 2026-10-12)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v2.7 revision summary — contrast thresholds stated explicitly**
+> **No change of scope.** The contrast clause in §3.7 now states 4.5:1 for text and 3:1 for form-control boundaries and focus outlines, and requires that status is never conveyed by colour alone. This platform's visuals always use the association's brand assets and never reuse TCRFC brand colours. Where: §3.7.
 
 > **v2.6 revision summary — system administrator is an account-level status; the full-rights role is named "All-module manager"**
 > **No change of scope.** In line with website specification v3.26: system administrator status is switched on in this platform's account management and grants every permission without role evaluation; items restricted to system administrators (refund execution, payment and invoicing credentials, audit logs, account and role management) cannot be obtained through any role. The full-rights role in §10 is named "**All-module manager**"; it excludes those items and may see donor personal data in full. Where: §10.
@@ -342,7 +345,7 @@ Every send is written to `EmailLog` (the existing main-site type).
 
 - Scanning is 100% mobile, so mobile-first; touch targets no smaller than 44×44 px
 - Form fields need labels and the correct `inputmode` (numeric keypad for amounts, email keypad for email)
-- Contrast meets WCAG AA; small text uses the safe magenta `#D61E83`
+- Contrast meets WCAG AA: at least 4.5:1 for text against its background and 3:1 for form-control boundaries and focus outlines; status must never be conveyed by colour alone and always carries an icon or text
 - Every image carries `alt` plus `width` and `height`
 
 ---

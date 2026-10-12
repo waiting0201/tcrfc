@@ -4,8 +4,8 @@
  * 方法論——依 docs/18 E-31／E-31 升級的教訓：驗算清單不是由產出者自己挑，是從 token 定義做
  * 完整笛卡兒積；反例與豁免組合也全部列出，不是只列「會過的」。
  *
- * 本腳本只驗**後台**（--charity-admin-*）色票——本專案（apps/admin-charity）只出後台頁面，
- * 前台（--charity-*，無 -admin- 字首）token 屬於 apps/web-charity 的範圍，不在這裡驗。
+ * 本腳本同時把關**後台**（--charity-admin-*，比對 charity-admin-theme.css）與**前台**
+ * （--charity-*，比對 apps/web-charity/app/assets/css/charity.css，第 8 節）兩套色票。
  *
  * E-31 升級版的要求（docs/18）：腳本要能回答「有沒有任何一組色票組合是它沒驗到的」——所有
  * 前景 token × 所有背景 token 展開成完整矩陣，逐一落在「通過」／「明文豁免」／「反例釘住」
@@ -27,6 +27,7 @@ import { dirname, resolve } from 'node:path'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const THEME_CSS = resolve(HERE, '../src/styles/charity-admin-theme.css')
+const WEB_CSS = resolve(HERE, '../../web-charity/app/assets/css/charity.css')
 
 function luminance(hex) {
   const ch = [1, 3, 5]
@@ -46,44 +47,45 @@ const AA_UI = 3.0
 // ── 色票定義（來源：docs/22-charity-ui.md §1.6.2／§1.6.3／§1.7）───────────────
 
 const BACKGROUNDS = {
-  '--charity-admin-bg-page': '#F3F4F7',
+  '--charity-admin-bg-page': '#F2F5F1',
   '--charity-admin-bg-surface': '#FFFFFF',
-  '--charity-admin-bg-surface-2': '#E8EAEE',
+  '--charity-admin-bg-surface-2': '#EAEEE8',
+  '--charity-admin-primary-tint': '#E3F1E9',
 }
 
 const TEXTS = {
-  '--charity-admin-text-primary': '#21242C',
-  '--charity-admin-text-secondary': '#505662',
-  '--charity-admin-text-tertiary': '#636874',
+  '--charity-admin-text-primary': '#1F2A24',
+  '--charity-admin-text-secondary': '#47554C',
+  '--charity-admin-text-tertiary': '#58665D',
 }
 
 const BORDERS_CARTESIAN = {
-  '--charity-admin-border-input': '#778090',
+  '--charity-admin-border-input': '#74857A',
 }
 
 const EXEMPT = {
   '--charity-admin-text-disabled': {
-    hex: '#A0A4AB',
+    hex: '#A0A8A2',
     reason: 'WCAG 對 disabled 狀態元件豁免對比度要求，不用於傳達資訊（docs/22 §1.7.2）',
   },
   '--charity-admin-border': {
-    hex: '#D0D4DC',
+    hex: '#CBD5CC',
     reason: '純裝飾性邊界（卡片、分隔線），不是唯一的邊界辨識手段，旁邊還有背景色階差異（docs/22 §1.7.3 明文豁免）',
   },
 }
 
 const PRIMARY = {
-  '--charity-admin-primary': '#21242C',
-  '--charity-admin-primary-hover': '#343A46',
-  '--charity-admin-primary-active': '#111317',
+  '--charity-admin-primary': '#1F6B4A',
+  '--charity-admin-primary-hover': '#17573C',
+  '--charity-admin-primary-active': '#104630',
 }
 
 const BORDERS = {
-  '--charity-admin-border-input': '#778090',
+  '--charity-admin-border-input': '#74857A',
 }
 
 const SEMANTIC = {
-  success: { text: '#206F41', bg: '#E9F7EF' },
+  success: { text: '#0F7A55', bg: '#E0F4EC' },
   danger: { text: '#9B3027', bg: '#FBEBE9' },
   warning: { text: '#8C5B07', bg: '#FDF4D8' },
   info: { text: '#25527E', bg: '#EBF2FA' },
@@ -119,10 +121,37 @@ for (const [bgName, bgHex] of Object.entries(BACKGROUNDS)) {
   PAIRS.push([`danger 文字兼表單邊框 on ${bgName}`, SEMANTIC.danger.text, bgHex, AA_UI])
 }
 
+// ── 前台（--charity-*）色票：只做計算驗證，不比對 CSS（前台 CSS 屬 apps/web-charity）──
+// 來源：docs/22 §1.6.1／§1.7.1／§1.7.3／§1.7.4。納入此腳本，讓前後台兩套色票由同一支腳本把關。
+const F_BG = {
+  'F-page': '#F7F5EE',
+  'F-surface': '#FFFFFF',
+  'F-surface-2': '#F0EEE3',
+  'F-primary-tint': '#E8F3EC',
+}
+const F_TEXT = { 'F-text-primary': '#2C2621', 'F-text-secondary': '#5E554B', 'F-text-tertiary': '#6C6358', 'F-accent-text': '#9A5B00' }
+const F_PRIMARY = { 'F-primary': '#1F6B4A', 'F-primary-hover': '#17573C', 'F-primary-active': '#104630' }
+const F_ACCENT = { 'F-accent': '#F2A93B', 'F-accent-hover': '#E69A22', 'F-accent-active': '#D98F1A' }
+const F_BORDER_INPUT = { 'F-border-input': '#8A7F6B' }
+const INK = '#2C2621'
+for (const [tn, th] of Object.entries(F_TEXT))
+  for (const [bn, bh] of Object.entries(F_BG)) PAIRS.push([`${tn} on ${bn}`, th, bh, AA_TEXT])
+for (const [pn, ph] of Object.entries(F_PRIMARY)) {
+  PAIRS.push([`白字 on ${pn}`, '#FFFFFF', ph, AA_TEXT])
+  for (const [bn, bh] of Object.entries(F_BG)) PAIRS.push([`${pn} on ${bn}（focus 外框）`, ph, bh, AA_UI])
+}
+for (const [an, ah] of Object.entries(F_ACCENT)) PAIRS.push([`墨色字 on ${an}`, INK, ah, AA_TEXT])
+for (const [bn, bh] of Object.entries(F_BG))
+  for (const [kn, kh] of Object.entries(F_BORDER_INPUT)) PAIRS.push([`${kn} on ${bn}`, kh, bh, AA_UI])
+for (const [name, { text }] of Object.entries(SEMANTIC))
+  for (const [bn, bh] of Object.entries(F_BG)) PAIRS.push([`${name} 文字 on ${bn}`, text, bh, AA_TEXT])
+// 晨光金為填色（非文字）：「確認捐款」按鈕需與相鄰底色可區分——記錄對 page 的比值，供 §1.7 說明（不設門檻，靠墨色字與形狀辨識）
+
 const COUNTER_EXAMPLES = [
-  // docs/22 §1.7.3：後台 border-input 初版 #788191 對 surface-2 只過 3:1 一點點（餘裕僅 0.26），
-  // 依同一套反推法重新推導到 #778090，把這個「勉強過」的舊值釘住，避免有人不小心改回去
-  ['（迴歸記錄）border-input 若用初版 #788191 on surface-2（過但餘裕僅 0.26，已改用 #778090）', '#788191', '#E8EAEE', [3.2, 3.3]],
+  // docs/22 §1.7.3：border-input 若退回較淺的 #8A9A90 會在 surface-2 掉到 3:1 以下，把這個失敗值釘住
+  ['（迴歸記錄）border-input 若用 #8A9A90 on surface-2（不及 3:1，已改用 #74857A）', '#8A9A90', '#EAEEE8', [2.4, 2.6]],
+  // docs/22 §1.6.1：晨光金不得承載白字（白字 on #F2A93B 約 2.0），金色上只能放墨色字
+  ['（限制釘住）白字 on 晨光金 #F2A93B（不可用，金底一律墨色字）', '#FFFFFF', '#F2A93B', [1.9, 2.1]],
 ]
 
 // ── 檢查 ────────────────────────────────────────────────────────────────
@@ -207,11 +236,14 @@ for (const [label, fg, bg, expected] of COUNTER_EXAMPLES) {
 
 lines.push('')
 lines.push('【7】規格（docs/22 §1.6／§1.7）vs 實作（charity-admin-theme.css）')
+const SPEC_ONLY = process.argv.includes('--spec-only')
 let css
+if (SPEC_ONLY) lines.push('    （--spec-only：略過 CSS 比對）')
 try {
+  if (SPEC_ONLY) throw new Error('skip')
   css = readFileSync(THEME_CSS, 'utf8')
 } catch {
-  failures.push(`讀不到 ${THEME_CSS}`)
+  if (!SPEC_ONLY) failures.push(`讀不到 ${THEME_CSS}`)
   css = null
 }
 
@@ -235,6 +267,59 @@ if (css) {
     const ok = actual === expected.toUpperCase()
     if (!ok) failures.push(`${token}：charity-admin-theme.css 是 ${actual}，docs/22 §1.6／§1.7 是 ${expected}`)
     lines.push(`    ${ok ? '✓' : '✗'} ${token.padEnd(28)} ${actual}`)
+  }
+}
+
+lines.push('')
+lines.push('【8】規格（docs/22 §1.6.1／§1.6.3）vs 實作（apps/web-charity charity.css）')
+{
+  let webCss = null
+  if (SPEC_ONLY) lines.push('    （--spec-only：略過 CSS 比對）')
+  else {
+    try {
+      webCss = readFileSync(WEB_CSS, 'utf8')
+    } catch {
+      failures.push(`讀不到 ${WEB_CSS}`)
+    }
+  }
+  if (webCss) {
+    const strip = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k.replace(/^F-/, '--charity-'), v]))
+    const FRONT_TOKENS = {
+      '--charity-bg-page': F_BG['F-page'],
+      '--charity-bg-surface': F_BG['F-surface'],
+      '--charity-bg-surface-2': F_BG['F-surface-2'],
+      '--charity-primary-tint': F_BG['F-primary-tint'],
+      ...strip(F_TEXT),
+      ...strip(F_PRIMARY),
+      ...strip(F_ACCENT),
+      ...strip(F_BORDER_INPUT),
+      '--charity-text-disabled': '#ABA6A0',
+      '--charity-border': '#DAD5C6',
+      ...Object.fromEntries(
+        Object.entries(SEMANTIC).flatMap(([name, { text, bg }]) => [
+          [`--charity-${name}-text`, text],
+          [`--charity-${name}-bg`, bg],
+        ]),
+      ),
+    }
+    for (const [token, expected] of Object.entries(FRONT_TOKENS)) {
+      const m = webCss.match(new RegExp(`(?:^|[\\s;{])${token}\\s*:\\s*(#[0-9a-fA-F]{6})`, 'm'))
+      if (!m) {
+        failures.push(`charity.css 找不到 ${token} 的定義`)
+        lines.push(`    ✗ ${token.padEnd(28)} 未定義`)
+        continue
+      }
+      const actual = m[1].toUpperCase()
+      const ok = actual === expected.toUpperCase()
+      if (!ok) failures.push(`${token}：web-charity charity.css 是 ${actual}，docs/22 §1.6.1／§1.6.3 是 ${expected}`)
+      lines.push(`    ${ok ? '✓' : '✗'} ${token.padEnd(28)} ${actual}`)
+      checkedCount++
+    }
+    // 晨光金鐵律：.btn-accent 不得放白字
+    const accentBlock = webCss.match(/\.btn-accent\s*\{[^}]*\}/)
+    const okInk = !!accentBlock && /color:\s*var\(--charity-text-primary\)/.test(accentBlock[0])
+    if (!okInk) failures.push('charity.css 的 .btn-accent 字色必須是 var(--charity-text-primary)（晨光金不得承載白字）')
+    lines.push(`    ${okInk ? '✓' : '✗'} .btn-accent 字色為墨色 --charity-text-primary`)
   }
 }
 

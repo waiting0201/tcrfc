@@ -1,42 +1,44 @@
 /**
- * 慈善後台 design tokens（docs/22-charity-ui.md §1.6.2／§1.7，冷中性淺色）。
+ * 慈善後台 design tokens（docs/22-charity-ui.md §1.6.2／§1.6.3／§1.7，綠灰底＋球場綠）。
  *
- * ⛔ 不得沿用 apps/admin 的品牌桃紅／深色四層色階——慈善的收款與主辦主體是台灣足球策略
- * 發展協會，是另一個法人，兩套系統長得一模一樣會製造真實的法人混淆風險（docs/22 §1.1）。
- * 操作主色刻意用「墨色」（跟主文字同一個顏色），不是另一個色相——任何色相的強調色都有
- * 被誤讀成「這是暫定的品牌色」的風險，等協會品牌資產到位，只需要替換這一個 token。
+ * 配色決策：球場綠是「慈善捐款平台」的使命色（足球場、在地扎根、公益），不是協會法人識別色。
+ * 不得沿用磐石的桃紅或藍鯨的天藍——慈善的收款與主辦主體是台灣足球策略發展協會，是另一個法人，
+ * 兩套系統長得一模一樣會製造真實的法人混淆風險（docs/22 §1.1）。
+ * 後台不使用晨光金（金色只屬於前台「確認捐款」鈕，docs/22 §1.4）。
+ * 協會品牌資產到位後，只需替換 primary 三態與 primary-tint 這四個 token。
  *
  * 淺色系統不需要 docs/21 那套四層色階模擬海拔（overlay 另外調亮）的工程——box-shadow
- * 在淺色底下本來就清楚可辨，這裡只有 3 層背景（page／surface／surface-2），對話框與
- * 下拉選單直接用 surface + 陰影，不需要更亮的第 4 層（docs/22 §1.5）。
+ * 在淺色底下本來就清楚可辨，這裡只有 3 層背景（page／surface／surface-2）加一個選取態底
+ * （primary-tint），對話框與下拉選單直接用 surface + 陰影（docs/22 §1.5）。
  *
  * ⚠️ 色值一律逐字抄自 docs/22-charity-ui.md §1.6／§1.7／§5，改動前先跑
  * scripts/check-contrast.mjs——每一組都已用 WCAG 相對亮度公式驗過對比度笛卡兒積。
  */
 :root {
   /* ── 三層背景（§1.6.2，冷中性 H≈220°） ─────────────────────────────── */
-  --charity-admin-bg-page: #f3f4f7;
+  --charity-admin-bg-page: #f2f5f1;
   --charity-admin-bg-surface: #ffffff;
-  --charity-admin-bg-surface-2: #e8eaee;
+  --charity-admin-bg-surface-2: #eaeee8;
+  --charity-admin-primary-tint: #e3f1e9; /* 側欄選取態、表格選中列、目前分頁底（§1.6.2） */
 
   /* ── 文字階層（§1.6.2） ────────────────────────────────────────────── */
-  --charity-admin-text-primary: #21242c;
-  --charity-admin-text-secondary: #505662;
-  --charity-admin-text-tertiary: #636874;
-  --charity-admin-text-disabled: #a0a4ab; /* 豁免 AA，不用於傳達資訊 */
+  --charity-admin-text-primary: #1f2a24;
+  --charity-admin-text-secondary: #47554c;
+  --charity-admin-text-tertiary: #58665d;
+  --charity-admin-text-disabled: #a0a8a2; /* 豁免 AA，不用於傳達資訊 */
 
   /* ── 邊框（§1.6.2／§1.7.3） ────────────────────────────────────────── */
-  --charity-admin-border: #d0d4dc; /* 純裝飾性邊界，明文豁免 3:1（旁邊有背景色階差異輔助） */
-  --charity-admin-border-input: #778090; /* 表單元件邊框，對三層背景全過 3:1 */
+  --charity-admin-border: #cbd5cc; /* 純裝飾性邊界，明文豁免 3:1（旁邊有背景色階差異輔助） */
+  --charity-admin-border-input: #74857a; /* 表單元件邊框，對三層背景全過 3:1 */
 
-  /* ── 操作主色：墨色，刻意與 text-primary 同值（§1.6.2 說明） ──────────── */
-  --charity-admin-primary: #21242c;
-  --charity-admin-primary-hover: #343a46;
-  --charity-admin-primary-active: #111317;
+  /* ── 操作主色：球場綠（§1.6.2）：主要按鈕底（白字）、連結、focus 外框、側欄 accent bar ── */
+  --charity-admin-primary: #1f6b4a;
+  --charity-admin-primary-hover: #17573c;
+  --charity-admin-primary-active: #104630;
 
   /* ── 語意色：前後台共用同一組值（§1.6.3），不分暖冷 ───────────────────── */
-  --charity-success-text: #206f41;
-  --charity-success-bg: #e9f7ef;
+  --charity-success-text: #0f7a55;
+  --charity-success-bg: #e0f4ec;
   --charity-danger-text: #9b3027;
   --charity-danger-bg: #fbebe9;
   --charity-warning-text: #8c5b07;
@@ -85,8 +87,12 @@
   --el-border-color-lighter: var(--charity-admin-border);
   --el-border-color-extra-light: var(--charity-admin-border);
   --el-color-primary: var(--charity-admin-primary);
-  --el-color-primary-light-3: var(--charity-admin-primary-hover);
   --el-color-primary-dark-2: var(--charity-admin-primary-active);
+  --el-color-primary-light-3: var(--charity-admin-primary);
+  --el-color-primary-light-5: var(--charity-admin-primary);
+  --el-color-primary-light-7: var(--charity-admin-primary-tint);
+  --el-color-primary-light-8: var(--charity-admin-primary-tint);
+  --el-color-primary-light-9: var(--charity-admin-primary-tint);
   --el-color-success: var(--charity-success-text);
   --el-color-danger: var(--charity-danger-text);
   --el-color-warning: var(--charity-warning-text);
@@ -174,8 +180,12 @@ body {
   color: var(--charity-admin-text-secondary) !important;
 }
 
+.charity-tag__check {
+  font-weight: 700;
+}
+
 .el-table {
-  --el-table-current-row-bg-color: var(--charity-admin-bg-surface-2);
+  --el-table-current-row-bg-color: var(--charity-admin-primary-tint);
   --el-table-row-hover-bg-color: var(--charity-admin-bg-surface-2);
 }
 

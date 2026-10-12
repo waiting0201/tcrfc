@@ -50,13 +50,13 @@ function handleSelect(path: string) {
 }
 
 .app-sidebar__menu {
-  /* 選中態用左側 accent bar＋色階，不用大面積填色塊（docs/22 §3.3 沿用 docs/21 §1.3 的理由：
-     長時間停留在同一模組時，大面積填色比一條 accent bar 更容易造成視覺疲勞，與飽和度高低無關） */
+  /* 選中態＝淡綠底 primary-tint ＋ 左側 3px 球場綠 bar ＋ 粗體，三重訊號；hover 用 surface-2，
+     兩者可區分（docs/22 §3.3／§3.4）。不用實心綠色塊。 */
   --el-menu-bg-color: var(--charity-admin-bg-surface);
   --el-menu-text-color: var(--charity-admin-text-secondary);
   --el-menu-hover-bg-color: var(--charity-admin-bg-surface-2);
   --el-menu-hover-text-color: var(--charity-admin-text-primary);
-  --el-menu-active-color: var(--charity-admin-primary);
+  --el-menu-active-color: var(--charity-admin-text-primary);
   border-right: none;
   height: 100%;
 }
@@ -66,8 +66,8 @@ function handleSelect(path: string) {
 }
 
 .app-sidebar__menu :deep(.el-menu-item.is-active) {
-  background-color: var(--charity-admin-bg-surface-2);
-  color: var(--charity-admin-primary);
+  background-color: var(--charity-admin-primary-tint);
+  color: var(--charity-admin-text-primary);
   font-weight: 600;
   box-shadow: inset 3px 0 0 0 var(--charity-admin-primary);
 }

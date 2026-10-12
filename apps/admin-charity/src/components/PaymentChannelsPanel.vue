@@ -131,7 +131,7 @@ async function doSwitch() {
         <li v-for="row in c.environments" :key="row.environment" class="channels__env">
           <div class="channels__env-head">
             <strong>{{ row.label || envLabel(row.environment) }}</strong>
-            <el-tag v-if="row.environment === c.activeEnvironment" size="small" type="success">使用中</el-tag>
+            <el-tag v-if="row.environment === c.activeEnvironment" size="small" type="success"><span aria-hidden="true">✓ </span>使用中</el-tag>
           </div>
           <dl class="channels__facts">
             <div>

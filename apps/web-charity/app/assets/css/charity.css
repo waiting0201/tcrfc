@@ -1,44 +1,56 @@
 /*
  * apps/web-charity/app/assets/css/charity.css
  * 慈善捐款平台前台視覺唯一來源。Design tokens 與色票數字逐一對應
- * docs/22-charity-ui.md §1.6.1（前台 --charity-* 暖中性）與 §1.6.3（語意色，前後台共用）。
- * 對比度驗算結果見該文件 §1.7，本檔不重新驗算，只落地既有定案的數字。
+ * docs/22-charity-ui.md §1.6.1（前台 --charity-*，暖米底＋球場綠＋晨光金）與 §1.6.3（語意色，前後台共用）。
+ * 對比度驗算結果見該文件 §1.7，本檔不重新驗算，只落地既有定案的數字；
+ * apps/admin-charity/scripts/check-contrast.mjs 會比對本檔與 docs/22，不一致即失敗。
  *
- * 不使用 Tailwind／CSS-in-JS，純 CSS custom properties + 一般選擇器，與 apps/web 的紀律 1
- * 精神一致（雖然本專案沒有跨站換膚需求，但「顏色只從變數流出」仍是好的維護習慣）。
+ * 配色決策：球場綠是「慈善捐款平台」的使命色（足球場、在地扎根、公益），不是協會法人識別色，
+ * 不得沿用磐石的桃紅或藍鯨的天藍（docs/22 §1.1）。晨光金只用在「確認捐款」送出按鈕，
+ * 金色上只放墨色字、不放白字；其餘按鈕一律球場綠（docs/22 §1.6.1）。
+ * 協會品牌資產到位後，替換 primary 三態、primary-tint 與 accent 系列即可。
+ *
+ * 不使用 Tailwind／CSS-in-JS，純 CSS custom properties + 一般選擇器；顏色只從變數流出。
  */
 
 :root {
   /* 背景 */
-  --charity-bg-page: #F9F7F6;
+  --charity-bg-page: #F7F5EE;
   --charity-bg-surface: #FFFFFF;
-  --charity-bg-surface-2: #F0EDEA;
+  --charity-bg-surface-2: #F0EEE3;
+  --charity-primary-tint: #E8F3EC; /* 淡綠底：項目卡片、捐款徵信區的區塊底 */
 
   /* 文字 */
   --charity-text-primary: #2C2621;
-  --charity-text-secondary: #625950;
-  --charity-text-tertiary: #726961;
+  --charity-text-secondary: #5E554B;
+  --charity-text-tertiary: #6C6358;
   --charity-text-disabled: #ABA6A0;
 
   /* 邊框 */
-  --charity-border: #DED9D3;
-  --charity-border-input: #8C8073;
+  --charity-border: #DAD5C6;
+  --charity-border-input: #8A7F6B;
 
-  /* 操作主色（墨色，刻意不用有色相的強調色，見 docs/22 §1.6.1 說明） */
-  --charity-primary: #2C2621;
-  --charity-primary-hover: #463D34;
-  --charity-primary-active: #171411;
+  /* 操作主色（球場綠）：主要按鈕底（白字）、連結、金額選項卡選中態、focus 外框 */
+  --charity-primary: #1F6B4A;
+  --charity-primary-hover: #17573C;
+  --charity-primary-active: #104630;
 
-  /* 語意色：文字色與實心底同一個 token（淺色系統下兩者都能過 AA，見 docs/22 §1.7.7） */
-  --charity-success: #206F41;
-  --charity-success-bg: #E9F7EF;
-  --charity-danger: #9B3027;
+  /* 晨光金：只用於「確認捐款」送出鈕底，字色一律 --charity-text-primary（墨色），不得放白字 */
+  --charity-accent: #F2A93B;
+  --charity-accent-hover: #E69A22;
+  --charity-accent-active: #D98F1A;
+  --charity-accent-text: #9A5B00; /* 金色系小字；不得用 --charity-accent 當文字色 */
+
+  /* 語意色（前後台共用，docs/22 §1.6.3） */
+  --charity-success-text: #0F7A55;
+  --charity-success-bg: #E0F4EC;
+  --charity-danger-text: #9B3027;
   --charity-danger-bg: #FBEBE9;
-  --charity-warning: #8C5B07;
+  --charity-warning-text: #8C5B07;
   --charity-warning-bg: #FDF4D8;
-  --charity-info: #25527E;
+  --charity-info-text: #25527E;
   --charity-info-bg: #EBF2FA;
-  --charity-refund: #7556A1;
+  --charity-refund-text: #7556A1;
   --charity-refund-bg: #F2EFF5;
 
   /* 密度與間距（docs/21 §2.1 沿用，與配色無關的度量系統） */
@@ -56,7 +68,7 @@
   --radius-pill: 999px;
 
   --shadow-card: 0 1px 2px rgba(44, 38, 33, 0.06), 0 4px 12px rgba(44, 38, 33, 0.06);
-  --shadow-focus: 0 0 0 3px rgba(44, 38, 33, 0.25);
+  --shadow-focus: 0 0 0 3px rgba(31, 107, 74, 0.3);
 
   color-scheme: light;
 }
@@ -203,8 +215,53 @@ textarea {
 }
 
 .btn-primary:disabled {
-  background: var(--charity-text-disabled);
+  background: var(--charity-bg-surface-2);
+  color: var(--charity-text-disabled);
   cursor: not-allowed;
+}
+
+/* 晨光金：全站唯一的金色按鈕＝「確認捐款」送出鈕（docs/22 §2.5）。墨色字，絕不放白字。 */
+.btn-accent {
+  background: var(--charity-accent);
+  color: var(--charity-text-primary);
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: var(--charity-accent-hover);
+}
+
+.btn-accent:active:not(:disabled) {
+  background: var(--charity-accent-active);
+  transform: translateY(1px);
+}
+
+.btn-accent:disabled {
+  background: var(--charity-bg-surface-2);
+  color: var(--charity-text-disabled);
+  cursor: not-allowed;
+}
+
+/* 送出中：維持金色，文字由元件改成「處理中…」，前方加載入圖示，不可重複點擊 */
+.btn-accent[aria-busy='true']:disabled {
+  background: var(--charity-accent);
+  color: var(--charity-text-primary);
+  cursor: progress;
+}
+
+.btn-accent[aria-busy='true']::before {
+  content: '';
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-accent[aria-busy='true']::before {
+    animation: none;
+  }
 }
 
 .btn-secondary {
@@ -243,7 +300,7 @@ textarea {
 
 .field-required::after {
   content: ' *';
-  color: var(--charity-danger);
+  color: var(--charity-danger-text);
 }
 
 .field-hint {
@@ -269,14 +326,14 @@ textarea {
 
 /* 錯誤狀態：邊框變 2px 危險色（形狀改變，不只是變色）＋ 文字說明，見 docs/22 §1.8 */
 .field-input[aria-invalid='true'] {
-  border: 2px solid var(--charity-danger);
+  border: 2px solid var(--charity-danger-text);
 }
 
 .field-error {
   display: flex;
   align-items: flex-start;
   gap: var(--sp-1);
-  color: var(--charity-danger);
+  color: var(--charity-danger-text);
   font-size: 0.875rem;
   margin-top: var(--sp-1);
 }
@@ -314,7 +371,7 @@ textarea {
 }
 
 .checkbox-row.is-invalid {
-  outline: 2px solid var(--charity-danger);
+  outline: 2px solid var(--charity-danger-text);
   outline-offset: 4px;
   border-radius: 4px;
 }
@@ -363,27 +420,27 @@ textarea {
 
 .tag-success {
   background: var(--charity-success-bg);
-  color: var(--charity-success);
+  color: var(--charity-success-text);
 }
 
 .tag-danger {
   background: var(--charity-danger-bg);
-  color: var(--charity-danger);
+  color: var(--charity-danger-text);
 }
 
 .tag-warning {
   background: var(--charity-warning-bg);
-  color: var(--charity-warning);
+  color: var(--charity-warning-text);
 }
 
 .tag-info {
   background: var(--charity-info-bg);
-  color: var(--charity-info);
+  color: var(--charity-info-text);
 }
 
 .tag-refund {
   background: var(--charity-refund-bg);
-  color: var(--charity-refund);
+  color: var(--charity-refund-text);
 }
 
 .tag-neutral {
@@ -474,24 +531,24 @@ textarea {
 
 .result-icon-success {
   background: var(--charity-success-bg);
-  color: var(--charity-success);
+  color: var(--charity-success-text);
 }
 
 .result-icon-warning {
   background: var(--charity-warning-bg);
-  color: var(--charity-warning);
+  color: var(--charity-warning-text);
 }
 
 .result-icon-info {
   background: var(--charity-info-bg);
-  color: var(--charity-info);
+  color: var(--charity-info-text);
 }
 
 .spinner {
   width: 40px;
   height: 40px;
   border: 4px solid var(--charity-bg-surface-2);
-  border-top-color: var(--charity-info);
+  border-top-color: var(--charity-info-text);
   border-radius: 50%;
   margin: 0 auto var(--sp-4);
   animation: spin 0.9s linear infinite;
@@ -603,7 +660,7 @@ textarea {
 }
 
 .form-error-banner {
-  border: 2px solid var(--charity-danger);
+  border: 2px solid var(--charity-danger-text);
   border-radius: var(--radius-card);
   padding: var(--sp-3) var(--sp-4);
   margin-bottom: var(--sp-4);

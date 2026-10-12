@@ -468,7 +468,7 @@ async function onSubmit() {
         <span class="icon" aria-hidden="true">⚠</span> {{ formError }}
       </div>
 
-      <button type="submit" class="btn btn-primary btn-block" :disabled="submitting" :aria-busy="submitting">{{ submitLabel }}</button>
+      <button type="submit" class="btn btn-accent btn-block" :disabled="submitting" :aria-busy="submitting">{{ submitLabel }}</button>
     </form>
   </section>
 </template>

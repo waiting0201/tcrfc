@@ -21,7 +21,7 @@ useHead(() => ({ title: `${tr.value.terms.heading} | ${tr.value.associationName}
     <section class="section">
       <h1>{{ tr.terms.heading }}</h1>
 
-      <div class="card" style="border-color: var(--charity-danger);">
+      <div class="card" style="border-color: var(--charity-danger-text);">
         <h2 style="margin-bottom: var(--sp-2);">{{ tr.terms.noRefundHeading }}</h2>
         <p v-if="noticeText" style="font-weight: 700; margin-bottom: 0; white-space: pre-line;">{{ noticeText }}</p>
         <p v-else class="text-secondary" style="margin-bottom: 0;">{{ tr.terms.empty }}</p>
