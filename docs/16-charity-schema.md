@@ -4,7 +4,7 @@
 > **主辦與收款主體是台灣足球策略發展協會，不是台中磐石足球俱樂部**。
 > 本檔與 [`12-database-schema.md`](12-database-schema.md) **平行且互不包含**——主站綱要明文不含這裡的任何一張表。
 >
-> 來源：[`../output/TCRFC_慈善捐款平台功能規劃書.md`](../output/TCRFC_慈善捐款平台功能規劃書.md)（**v2.5，共 806 行**）。
+> 來源：[`../output/TCRFC_慈善捐款平台功能規劃書.md`](../output/TCRFC_慈善捐款平台功能規劃書.md)（**v2.6，共 810 行**）。
 > 功能看 [`10-charity-donation-site.md`](10-charity-donation-site.md)；部署與快取看 [`17-deployment.md`](17-deployment.md)。
 > 本檔是導航層，不得新增規劃書沒有的規格。
 >
@@ -426,7 +426,7 @@ erDiagram
 | **分潤百分比設定** | 直接改變應付金額 |
 | **含個資的明細匯出** | 須額外授權**並記錄用途備註**（`AuditLog.purpose_note`） |
 
-**受限資料**：捐款人姓名／Email／身分證字號／地址——**僅系統管理員與客服／行政可完整檢視**，其餘角色見遮罩值。
+**受限資料**：捐款人姓名／Email／身分證字號／地址——**僅全模組管理角色（與系統管理員帳號）與客服／行政可完整檢視**，其餘角色見遮罩值。
 遮罩一律在 **API 層**回傳遮罩後的值（如 `a***@gmail.com`），**不是前端隱藏**。
 
 ---
@@ -540,7 +540,7 @@ erDiagram
 | **退款連動** | 金流退款成功後才改本站狀態：憑證當期（台灣時間單數月起的雙月期）內作廢、跨期折讓；憑證作廢失敗不影響退款，進異常佇列 `invoice_void_pending`。**回饋金沖回（§8.5）屬 N4 結算（CH-4）**，本輪只把狀態改成 `refunded` |
 | **退款串行化** | 沒有「退款中」這個捐款單狀態（`CHECK` 約束沒有），只靠最後的條件式更新擋不住並發退款——兩個請求會各打一次金流退款。同一筆捐款的退款用**交易層級的 `sp_getapplock`**（`LockTimeout = 0`）包住「讀取檢查 → 金流退款 → 更新與稽核 → 提交」，拿不到鎖回 `409`。實測：沒有鎖 6 個並發請求打了 6 次金流退款，有鎖 1 次 |
 | **個資加密** | `national_id_encrypted`／`carrier_id_encrypted`／`two_factor_secret_encrypted` 用 ASP.NET Core Data Protection，三個用途字串互相隔離。🔴 **金鑰環遺失 ＝ 已加密的身分證字號永久無法解密**（捐款人不登入，沒有管道補填），正式環境務必持久化金鑰環（`DATA_PROTECTION_KEYS_PATH`）或改接 Key Vault |
-| **權限碼** | 沿用種子的 23 個；**新增 `n3.donation.recheck_payment`**（異常佇列的「重新確認付款結果」，系統管理員與客服／行政）。種子裡檢視者的 `scope_type = 'masked'` 不解讀——個資預設遮罩、`reveal` 才看明文是同一件事 |
+| **權限碼** | 沿用種子的 23 個；**新增 `n3.donation.recheck_payment`**（異常佇列的「重新確認付款結果」，全模組管理與客服／行政）。種子裡檢視者的 `scope_type = 'masked'` 不解讀——個資預設遮罩、`reveal` 才看明文是同一件事 |
 | **稽核** | 規劃書三類操作（退款、分潤設定、含個資匯出）＋個資明文檢視、店家 QR 網址重產、重寄感謝信、重開憑證、重新確認付款。稽核與被稽核的變更在同一次 `SaveChanges` 提交；`AuditLogger` 只有 `Stage`，沒有更新與刪除的方法 |
 
 ---
@@ -556,7 +556,7 @@ erDiagram
 | **一筆捐款只進一份結算單** | 對「店家」與「項目」各一份（兩個不同對象的撥付，規劃書 §8.1），但對同一類對象**最多進一份**（含草稿）。產生結算單的排除查詢讓「重按一次」天然冪等；產生／重算／確認／刪除草稿共用 `sp_getapplock` 串行化。同一對象的期間與既有結算單重疊時略過並說明 |
 | **分潤為 0 的捐款** | 不進結算單（沒有應付金額可寫）。無店家歸屬的捐款只進「項目」結算 |
 | **已付款後退款的沖回** | 下一次為該對象產生（或重算草稿）結算單時自動納入負項，**同一筆只沖回一次**。⚠️ 負項合計大於本期正項時，應付金額為負數——照常產生、允許登記付款（代表對象退款給協會）；要不要改為遞延，列為待裁決 |
-| **「已付款」與「執行結算」的權限分離** | 新增權限碼 `n4.settlement.mark_paid`（受限、非 sysadmin_only）。種子只有系統管理員持有 N4 的 `execute`／`mark_paid`——規劃書九個角色裡沒有財務，要落實「核對的人」與「登記付款的人」不同，需客戶決定指派 |
+| **「已付款」與「執行結算」的權限分離** | 新增權限碼 `n4.settlement.mark_paid`（受限、非 sysadmin_only）。種子只有全模組管理角色持有 N4 的 `execute`／`mark_paid`——規劃書九個角色裡沒有財務，要落實「核對的人」與「登記付款的人」不同，需客戶決定指派 |
 | **對帳的比對規則** | 比對鍵是金流交易識別碼。本站側＝當天（台灣日期）付款成立且狀態 `paid` 或 `refunded` 的捐款（當天付款後來退款的不誤判為本站有金流無）；金流側剩下的若本站有同識別碼，差異連到該捐款單。`site_only` 的 `gateway_transaction_id` 留空（依 DDL 約定，本站的識別碼可由 `donation_id` 查到）。`(run_on, source)` 唯一，重跑同一天更新同一批次：新差異新增、既有保留、已一致的待處理差異自動標記已處理（附註，`resolved_by` 為空） |
 | **取不到金流明細** | 記成該日 `failed` 的批次（已有成功批次不覆蓋）並對外回 503，**絕不拿空清單去比對**（那會把當天所有捐款判成差異）。排程 30 分鐘後才重試 |
 | **差異處理狀態** | `pending`／`resolved` 兩值（沿用種子）；處理必須寫說明（2–255 字）、只能處理一次、**差異記錄不刪除** |
@@ -565,6 +565,6 @@ erDiagram
 | **N5 憑證操作** | 作廢限**開立當期**（雙月期，跨期請折讓）；尚未開立的憑證作廢不呼叫加值中心；折讓限已開立、全額。手動填入外部號碼會寄出「憑證通知」信。**列表與 CSV 不含個資**（捐贈收據申報若需要捐款人身分證字號，須另走含個資授權，列為待裁決） |
 | **N6 報表口徑** | 期間依**付款時間**（轉換率的母體例外，依**建單時間**）；預設只計 `paid`，可切 `refunded`／`all`；「已結算」＝進了已確認或已付款的結算單。全部報表（含逐筆明細）不含捐款人個資。**不輸出「目標達成率」**（規劃書 §7.2 與 §1.2／§6.2 自相矛盾，見 [`16a`](16a-charity-field-audit.md) §0） |
 | **N7 環境切換** | 作用中環境存在 `settings`（`payment.active_environment.{channel_type}`），沒設定時依執行環境推定；切到正式前該環境必須已有憑證（電子發票另需字軌）。電子發票開立讀的字軌依作用中環境。金流憑證用專屬 Data Protection 用途（`Tcrfc.Charity.PaymentChannelCredential.v1`）加密、只寫不讀。假實作的環境防線（`CharityFakeGuard`）不因切到測試而放寬 |
-| **新增的權限碼** | `n4.settlement.mark_paid`（受限）、`n7.audit_log.view`（受限、`sysadmin_only`）、`n3.donation.hide_credit`（系統管理員、客服／行政）。以 EF migration `AddCh4Ch5Permissions` 補進既有的庫（冪等），新建庫由種子產生器的 `EXTRA_PERMISSIONS` 與 `db/prod/charity-reference-data.sql` 取得。**2026-10-03 再加四個後台帳號與角色管理權限碼**：`n7.admin_account.view`／`.manage`、`n7.admin_role.view`／`.manage`，**全部 `sysadmin_only`、受限**，只掛給 `system_admin` 角色（比照主站 `system.account.*`／`system.role.*`；`module_code=N`、`submodule_code=N7`），migration `AddAdminAccessPermissions`（冪等，同一組決定性 UUID）。本庫 `admin_roles` 無 `scope_mode`／`sort_order`、`permissions` 無 `is_club_scoped`：API 回應補固定值以維持與主站相同的 JSON 形狀（`scopeMode` 恆為 `all_clubs`、`sortOrder` 取 `seq`、`isClubScoped` 恆為 `false`） |
+| **新增的權限碼** | `n4.settlement.mark_paid`（受限）、`n7.audit_log.view`（受限、`sysadmin_only`）、`n3.donation.hide_credit`（全模組管理、客服／行政）。以 EF migration `AddCh4Ch5Permissions` 補進既有的庫（冪等），新建庫由種子產生器的 `EXTRA_PERMISSIONS` 與 `db/prod/charity-reference-data.sql` 取得。**2026-10-03 再加四個後台帳號與角色管理權限碼**：`n7.admin_account.view`／`.manage`、`n7.admin_role.view`／`.manage`，**全部 `sysadmin_only`、受限**，只掛給 `system_admin` 角色（比照主站 `system.account.*`／`system.role.*`；`module_code=N`、`submodule_code=N7`），migration `AddAdminAccessPermissions`（冪等，同一組決定性 UUID）。本庫 `admin_roles` 無 `scope_mode`／`sort_order`、`permissions` 無 `is_club_scoped`：API 回應補固定值以維持與主站相同的 JSON 形狀（`scopeMode` 恆為 `all_clubs`、`sortOrder` 取 `seq`、`isClubScoped` 恆為 `false`） |
 | **稽核動作** | 新增：店家批次匯入、徵信名單顯示調整、結算（產生／重算／確認／登記付款／刪除草稿）、對帳（手動／處理差異）、憑證（填入號碼／作廢／折讓／匯出）、站台設定、系統信樣板、金流憑證與環境切換、項目內文編輯。動作代碼與中文標籤在 `CharityAuditActions.Labels`（稽核查詢畫面用） |
 | **徵信名單與成果回顧** | 見 §4.1。成果回顧只輸出項目建立當下的快照（計畫名稱、公益團體名稱、參照碼），不即時查主站（§1 第 2 條）；導回主站的網址是 N7 設定的 `clubSiteUrl`（俱樂部官網網址），不自己組路徑 |

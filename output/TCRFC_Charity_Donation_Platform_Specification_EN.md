@@ -1,8 +1,11 @@
 # 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v2.5
-> **Date**: 2026-09-03 (v2.5 revision: 2026-09-18)
+> **Document version**: v2.6
+> **Date**: 2026-09-03 (v2.6 revision: 2026-10-12)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v2.6 revision summary — system administrator is an account-level status; the full-rights role is named "All-module manager"**
+> **No change of scope.** In line with website specification v3.26: system administrator status is switched on in this platform's account management and grants every permission without role evaluation; items restricted to system administrators (refund execution, payment and invoicing credentials, audit logs, account and role management) cannot be obtained through any role. The full-rights role in §10 is named "**All-module manager**"; it excludes those items and may see donor personal data in full. Where: §10.
 
 > **v2.5 revision summary — uploaded images are always saved as resized derivatives**
 > **No change of scope.** This platform's admin images also follow the **upload rule** in website specification **v3.9 §4.0**:
@@ -690,7 +693,7 @@ The nine roles from main specification §6 gain one more column:
 
 | Role | Charity donations |
 |---|---|
-| System administrator | ✔ Full |
+| All-module manager | ✔ Full, **excluding items restricted to system administrators** (refund execution, payment and invoicing credentials, audit logs, account and role management) |
 | Content editor | Project content and site copy (**no share settings, no donation records**) |
 | Football / team management | — |
 | Academy / programme management | — |
@@ -702,7 +705,8 @@ The nine roles from main specification §6 gain one more column:
 
 **Additional rules**:
 
-- **Donor personal data (name / email / national ID / address) is restricted**: only system administrators and customer service / admin see it in full; everyone else sees it masked
+- **System administrator is an account-level status, not a role**: switched on in account management, it holds every permission, including the items the all-module manager above does not have
+- **Donor personal data (name / email / national ID / address) is restricted**: only system administrators, the all-module manager and customer service / admin see it in full; everyone else sees it masked
 - **Refunds** and **share percentage settings** require separate authorisation, and every action is written to the audit log
 - Exporting detail containing personal data requires separate authorisation and a stated purpose
 - Marking a settlement "paid" should be separated from executing the transfer, so no one approves their own work (the client may adjust this to their actual staffing)

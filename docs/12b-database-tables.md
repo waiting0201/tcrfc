@@ -259,7 +259,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 | `code` | `name_zh` | `name_en` | `scope_mode` | 備註 |
 |---|---|---|---|---|
-| `system_admin` | 系統管理員 | System Administrator | `all_clubs` | 全模組全權限 |
+| `system_admin` | 全模組管理 | All-Module Manager | `all_clubs` | 全部模組、全部權限，**不含 `sysadmin_only` 項目**（2026-10-12 由「系統管理員」改名：「系統管理員」只指帳號上的 `is_super_admin` 開關，角色代碼不變） |
 | `content_editor` | 內容編輯 | Content Editor | `all_clubs` | 送審→發布流程中具發布權 |
 | `team_competition` | 競技／球隊管理 | Team & Competition Manager | `all_clubs` | |
 | `academy_program` | 學院／課程管理 | Academy & Program Manager | `all_clubs` | 賽事權限限 `scope_type = academy_only` |
@@ -311,9 +311,9 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 公關／媒體 | 表單詢問 **媒體類詢問** | `enquiry.media.view`、`enquiry.media.update`（只看 `form_code = media_enquiry`） |
 | 客服／行政 | 表單詢問 **✔全** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（**不含** `enquiry.inbox.export`，比照 P3 匯出不給客服／行政的既有保守預設） |
 | 合作球隊管理 | 表單詢問 **自家** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（`scope_type = own_clubs`，不含匯出） |
-| 系統管理員 | SEO／設定 **✔全** | `seo.setting.view/update`（全站 SEO 預設、追蹤碼、robots.txt 自訂規則）、`seo.redirect.*`（含 `import`）、`seo.report.view`（孤立頁面偵測）、`seo.llms.view/update`（`GEO-01` `llms.txt` 維護，S1-12a）、`seo.crawler.view/update`（`GEO-02` AI 爬蟲授權，S1-12b）、`seo.schema.view`（`GEO-05` 結構化資料完整性檢查，S1-12c）——**六組皆 `sysadmin_only`** |
+| 全模組管理 | SEO／設定 **✔全** | `seo.setting.view/update`（全站 SEO 預設、追蹤碼、robots.txt 自訂規則）、`seo.redirect.*`（含 `import`）、`seo.report.view`（孤立頁面偵測）、`seo.llms.view/update`（`GEO-01` `llms.txt` 維護，S1-12a）、`seo.crawler.view/update`（`GEO-02` AI 爬蟲授權，S1-12b）、`seo.schema.view`（`GEO-05` 結構化資料完整性檢查，S1-12c）——**六組皆 `sysadmin_only`** |
 | 內容編輯 | SEO／設定 **單頁 SEO** | 不新增權限碼——`content.page.update`／`content.article.update` 既有請求已擴充 `canonicalPath`／`isNoindex`／`isExcludedFromSitemap`／`seoKeywords` 四個欄位，跟隨既有內容編輯權限，不是獨立的 SEO 權限碼 |
-| 系統管理員 | 網站設定 **✔全**（S1-12d 新增） | `site.fact.view/update`（成立年份、主場與場地、所屬聯賽、梯隊組成、聯絡方式、**台中藍鯨官網網址**——`GEO-03`／`GEO-04`／主站規劃書 §3.6）——**`sysadmin_only`** |
+| 全模組管理 | 網站設定 **✔全**（S1-12d 新增） | `site.fact.view/update`（成立年份、主場與場地、所屬聯賽、梯隊組成、聯絡方式、**台中藍鯨官網網址**——`GEO-03`／`GEO-04`／主站規劃書 §3.6）——**`sysadmin_only`** |
 | 商務／贊助 | 商業／贊助 **✔全**（E1a 新增） | `business.partner.*`（E1 夥伴）、`business.sponsor.*`（E2 贊助商與贊助活動）、`business.sponsor_package.*`（E2 贊助方案）、`business.proposal.*`（E3 提案與檔案）、`business.lead.view`／`update`（E3 Lead 名單）、**`business.lead.export`（`is_restricted`）** |
 | 內容編輯／公關媒體／檢視者 | 商業／贊助 **唯讀**（E1a 新增） | 只給 `business.partner.view`／`sponsor.view`／`sponsor_package.view`／`proposal.view`。🔴 **不給 `business.lead.*`**：Lead 含公司、姓名、Email，矩陣「唯讀」講的是夥伴與贊助內容，最小授權原則不外推到個資 |
 | 合作球隊管理 | 商業／贊助 **自家夥伴與贊助**（E1a 新增） | 夥伴／贊助商／方案／提案 全動作＋`business.lead.view`／`update`（`own_clubs`）；**不含 Lead 匯出** |
@@ -322,7 +322,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 競技／球隊管理 | 球隊／賽事 **✔全**（C5，E1a 新增） | `team.achievement.*`（榮譽）、`team.milestone.*`（里程碑）。學院／課程管理：**只有 `team.achievement.*` 且 `scope_type = academy_only`**（榮譽有 `team_id`，列級授權生效）；`team.milestone.*` 不給（里程碑沒有球隊維度，無從判斷「學院梯隊」，理由同 C4 積分榜）。其餘角色唯讀 |
 | 客服／行政 | 會員 **✔ 檢視／處理**（K1–K4，B1 新增，取代上一格的概念性寫法） | `member.account.view／create／update`、`member.pii.reveal`（解除遮罩）、`member.export`（`is_restricted`，K1 名單與續會名單）、`member.membership.view／create／update`（開通、調整、批次到期）、`member.plan.view`（**不含**方案新增編輯刪除）、`member.setting.view`、`member.jersey.view／create／update`、`member.jersey.export`（`is_restricted`）、`member.store.*`、`member.benefit.*`。**不含** `member.account.merge`（`sysadmin_only`） |
 | 合作球隊管理 | 會員 **僅自家會籍，`Member` 主檔遮罩**（B1 新增） | 只給 `member.account.view`、`member.membership.view`、`member.plan.view`、`member.jersey.view`（`own_clubs`），**不含** `member.pii.reveal`／任何處理與匯出。K4 特約店家與權益不給 |
-| 系統管理員 | 會員（B1 新增） | 全部 `member.*`，含 `member.account.merge`（合併重複帳號，不可逆，`sysadmin_only`）。`member.setting.update`（會員編號規則）、`member.plan.create／update／delete` 目前也只有系統管理員 |
+| 全模組管理 | 會員（B1 新增） | 全部 `member.*`，含 `member.account.merge`（合併重複帳號，不可逆，`sysadmin_only`）。`member.setting.update`（會員編號規則）、`member.plan.create／update／delete` 目前也只有系統管理員 |
 | 公關／媒體 | 會員 **K5 公布稿交接**（C 批畫面回報後修正，2026-09-30） | `member.draw.view`（**遮罩版**抽獎活動與名單）＋`member.draw.announce`（產生公布稿草稿）。🔴 原本只給 `announce`，但抽獎清單與詳情都要 `view`，公關／媒體打不開任何活動、無從撰寫公布稿；補 `view` **不洩漏個資**——姓名、收件人資料一律遮罩，完整值需 `member.pii.reveal`（公關／媒體沒有）。**仍不給** `member.draw.create／update／export` 與任何會員模組權限（規劃書 §6：只取得遮罩版名單） |
 | 客服／行政 | 詢問 **G3 電子報**（D 批新增） | `form.newsletter.view`／`update`（新增、退訂、同步 EDM）。**不含** `form.newsletter.export`（`is_restricted`，僅系統管理員，比照會員名單匯出）。檢視者不給（含 Email 個資）；合作球隊管理 `view`／`update`（`own_clubs`） |
 | 商務／贊助 | 商業 **E4–E6 廣告 ✔全**（D 批新增） | `ad.advertiser.*`、`ad.slot.*`、`ad.campaign.view／create／update／delete／review／pause`、**`ad.contract.view／update`（`is_restricted`，合約金額）**、`ad.report.view`、**`ad.report.export`（`is_restricted`）**。**不含** `ad.maintenance.run`（`sysadmin_only`）。⚠️ 規劃書 §11 寫「財務 檢視合約金額」，但本專案十個角色沒有財務角色（見 §7.2），合約金額目前只有商務／贊助與系統管理員 |
@@ -330,8 +330,8 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 內容編輯 | 行動 App **M2 內容編排**（D 批新增） | `app.layout.view`／`update`（首頁區塊開關與排序、快捷入口、「更多」分頁、公告條、深連結對照） |
 | 公關／媒體 | 行動 App **M3 推播（需覆核）**（D 批新增） | `app.push.view`／`create`（建立、預覽、試送、送審）。🔴 **`app.push.approve`（覆核、重送、自動推播規則）為 `sysadmin_only`，且核可者不得是建立者本人**（雙人覆核，規劃書 §11 補充規則 2） |
 | 客服／行政 | 行動 App **M4 檢視（遮罩）**（D 批新增） | 只有 `app.device.view`。完整值 `app.device.reveal`（`is_restricted`＋`sysadmin_only`）、失效權杖清理 `app.device.update`（`sysadmin_only`）。檢視者 `app.release.view`、`app.layout.view`、`app.push.view`、`app.device.view`、`app.config.view`、`app.diagnostic.view` |
-| 系統管理員 | 行動 App **M1／M5**（D 批新增） | `app.release.update`（版本、更新門檻、維護模式）、`app.config.update`（功能開關）、`app.credential.view`／`update`（憑證列管，`is_restricted`）、`app.diagnostic.update`——**全部 `sysadmin_only`**（規劃書 §11：誤設最低支援版本會讓全體使用者無法使用；合作球隊管理無權限） |
-| 系統管理員 | **J3 帳號活動概況**（D 批） | `system.audit.view`（早已存在，`sysadmin_only`）。🔴 **只回帳號目前狀態與登入異常提醒**，沒有操作稽核記錄與登入歷程（§13.1，見 `docs/12` §12 第 46 點） |
+| 全模組管理 | 行動 App **M1／M5**（D 批新增） | `app.release.update`（版本、更新門檻、維護模式）、`app.config.update`（功能開關）、`app.credential.view`／`update`（憑證列管，`is_restricted`）、`app.diagnostic.update`——**全部 `sysadmin_only`**（規劃書 §11：誤設最低支援版本會讓全體使用者無法使用；合作球隊管理無權限） |
+| 全模組管理 | **J3 帳號活動概況**（D 批） | `system.audit.view`（早已存在，`sysadmin_only`）。🔴 **只回帳號目前狀態與登入異常提醒**，沒有操作稽核記錄與登入歷程（§13.1，見 `docs/12` §12 第 46 點） |
 | 內容編輯／競技／商務／檢視者 | 課程／報名 **唯讀**（P4，B1 新增） | `program.trial.view`、`program.trial_registration.view`。學院／課程管理 ✔全（`program.trial.*`、`program.trial_registration.view／create／update／export`）；客服／行政「報名處理」＝場次唯讀＋`program.trial_registration.view／update`；合作球隊管理 ✔自家（不含匯出）；公關／媒體「—」 |
 | 所有持有 `calendar.view` 的角色 | 行事曆（L3／L4，B1 新增） | `calendar.setting.view`、`calendar.subscription.view`、`calendar.export`（行事曆是公開資料，不設 `is_restricted`）。`calendar.setting.update` 給內容編輯／公關媒體／合作球隊管理（比照自建事件）；**賽事類型（`event_types`）兩隊共用，寫入一律只有系統管理員**。賽事改期用來源模組的 `team.match.update`＋球隊列級授權，自建活動改期用 `calendar.custom_event.update`，整季 CSV 匯入用 `team.match.create` |
 
@@ -450,21 +450,21 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 | 表 | 欄位 | 級 | 完整值可見角色 | 出處 |
 |---|---|---|---|---|
-| `Member` | `email`、`phone`、`birth_on` | 🔒 | 系統管理員、客服／行政 | 行 1320 |
+| `Member` | `email`、`phone`、`birth_on` | 🔒 | 系統管理員、全模組管理、客服／行政 | 行 1320 |
 | 🔴 **`Registration`** | **`health_declaration`**（健康聲明） | **🔐 建議** | ⚠️ **待法務確認** | 行 373、1087 |
 | `Member` | `line_user_id_encrypted` | 🔐 | 系統管理員 | 行 1282 |
-| `Member` | `guardian_name`（監護人姓名，2026-10-05） | 🔒 | 系統管理員、客服／行政（同 `Member.email`，`member.pii.reveal`）；刪帳號時清除 | 主站「會員資料安全要求」、App §4.5 |
-| `JerseyIssue` | `recipient_name`、`address` | 🔒 | 系統管理員、客服／行政、出貨角色 | K3 |
-| `Order` | `recipient_name`、`recipient_phone`、`recipient_address` | 🔒 ⚖️ | 系統管理員、客服／行政、出貨角色 | 行 1327 |
+| `Member` | `guardian_name`（監護人姓名，2026-10-05） | 🔒 | 系統管理員、全模組管理、客服／行政（同 `Member.email`，`member.pii.reveal`）；刪帳號時清除 | 主站「會員資料安全要求」、App §4.5 |
+| `JerseyIssue` | `recipient_name`、`address` | 🔒 | 系統管理員、全模組管理、客服／行政、出貨角色 | K3 |
+| `Order` | `recipient_name`、`recipient_phone`、`recipient_address` | 🔒 ⚖️ | 系統管理員、全模組管理、客服／行政、出貨角色 | 行 1327 |
 | `OrderItem`／`StoreInvoice` | 全表 | ⚖️ | — | 稅法保存，年限待確認第 28 點 |
 | `StoreInvoice` | `carrier_id_encrypted` | 🔐 | 系統管理員 | S6 |
-| `ProductVariant` | `cost` | 🔒 | 系統管理員、商務／贊助（**C1 權限碼 `shop.cost.view`／`shop.cost.update`，is_restricted**；檢視者連規格與售價都看不到，`shop.variant.view`） | S1 |
+| `ProductVariant` | `cost` | 🔒 | 系統管理員、全模組管理、商務／贊助（**C1 權限碼 `shop.cost.view`／`shop.cost.update`，is_restricted**；檢視者連規格與售價都看不到，`shop.variant.view`） | S1 |
 | `PaymentChannel` | `credential_encrypted` | 🔐 | **僅系統管理員** | S6 |
-| `DrawRoster` | `name_snapshot` | 🔒 | 系統管理員、客服／行政（公關只拿遮罩版） | 行 1322 |
+| `DrawRoster` | `name_snapshot` | 🔒 | 系統管理員、全模組管理、客服／行政（公關只拿遮罩版） | 行 1322 |
 | `DrawRoster` | `withholding_data_encrypted` | 🔐 ⚖️ | **僅系統管理員**，達扣繳門檻才蒐集 | 行 1142–1155 |
-| `Membership` | `tier`、`membership_end_on` | 🔒 | 系統管理員、客服／行政、**合作球隊管理（僅自家 `club_id`）** | K1 |
+| `Membership` | `tier`、`membership_end_on` | 🔒 | 系統管理員、全模組管理、客服／行政、**合作球隊管理（僅自家 `club_id`）** | K1 |
 | `Registration`／`Enquiry`／`EnquiryAnswer` | 姓名、電話、Email、生日 | 🔒 | 依模組權限 | 行 1320 |
-| `NewsletterSubscriber` | `email` | 🔒 | 系統管理員、公關／媒體 | G3 |
+| `NewsletterSubscriber` | `email` | 🔒 | 系統管理員、全模組管理、公關／媒體 | G3 |
 | `AdminUser` | `password_hash`、`two_factor_secret_encrypted` | 🔐 | **不可讀取，僅比對** | J |
 | `AdminUser` | `email` | 🔒 | **不作登入鍵**，僅通知用 | 本檔決定 |
 

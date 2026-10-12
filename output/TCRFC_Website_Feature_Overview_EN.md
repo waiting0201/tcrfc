@@ -191,14 +191,14 @@ The admin is organised by role, so **each person sees only what they need**. Six
 
 | Role | Responsible for | Typically held by |
 |---|---|---|
-| **System administrator** | Everything, including accounts, payment settings and refunds | One or two people, no more |
+| **System administrator** | Everything, including accounts, payment settings and refunds (switched on in the account settings, not chosen as a role) | One or two people, no more |
 | **Content and press** | News, pages, FAQ, media assets, product copy | The marketing or content contact |
 | **Teams and programmes** | Teams, players, fixtures, results, course intakes, registrations | Coaching staff or administration |
 | **Commercial / sponsorship** | Partners, sponsorship packages, advertising | The commercial contact |
 | **Support / administration** | Members, memberships, orders, dispatch, returns, registrations | The day-to-day operational core |
 | **Partner club manager** | Blue Whale's own content, teams, memberships and orders | Blue Whale's own maintainers |
 
-Two further roles are available if the division of work calls for them: **translator** (English fields only, cannot alter the Chinese original) and **viewer** (read-only, cannot see amounts).
+Three further roles are available if the division of work calls for them: **all-module manager** (can manage every module, but accounts, payment settings, refunds and similar remain with system administrators), **translator** (English fields only, cannot alter the Chinese original) and **viewer** (read-only, cannot see amounts).
 
 **Three safeguards**:
 

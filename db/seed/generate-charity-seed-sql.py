@@ -176,7 +176,7 @@ IF NOT EXISTS (SELECT 1 FROM locales WHERE code = N'en')
 #    命名沿用「看得懂在講什麼」原則，不是規格明文規定的字面。
 # ============================================================================
 ROLES = [
-    ("system_admin", "系統管理員", "System Administrator", True),
+    ("system_admin", "全模組管理", "All-Module Manager", True),
     ("content_editor", "內容編輯", "Content Editor", True),
     ("team_competition", "競技／球隊管理", "Team & Competition Manager", True),
     ("academy_program", "學院／課程管理", "Academy & Program Manager", True),

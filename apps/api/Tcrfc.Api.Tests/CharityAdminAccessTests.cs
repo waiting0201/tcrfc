@@ -86,7 +86,7 @@ public sealed class CharityAdminAccessTests(CharityApiFixture fx) : IAsyncLifeti
     }
 
     [Fact]
-    public async Task 四個帳號角色權限碼全為sysadmin_only_且種子只掛給系統管理員角色()
+    public async Task 四個帳號角色權限碼全為sysadmin_only_且種子只掛給全模組管理角色()
     {
         using var sys = await SysAsync();
         var permissions = await ReadAsync<List<CharityAdminPermissionDto>>(await sys.GetAsync($"{Roles}/permissions"));
@@ -412,7 +412,7 @@ public sealed class CharityAdminAccessTests(CharityApiFixture fx) : IAsyncLifeti
     }
 
     [Fact]
-    public async Task 取代系統管理員角色權限_不動到sysadmin_only的既有指派()
+    public async Task 取代全模組管理角色權限_不動到sysadmin_only的既有指派()
     {
         using var sys = await SysAsync();
         var admin = (await ReadAsync<List<CharityAdminRoleListItemDto>>(await sys.GetAsync(Roles))).Single(r => r.Code == "system_admin");

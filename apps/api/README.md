@@ -1706,7 +1706,7 @@ C2／C3 明文用「狀態」表達球員離隊（現役／離隊／外借／海
 
 | 角色 | 權限 |
 |---|---|
-| 系統管理員 | ✔ 全（`[p[0] for p in PERMISSIONS]` 自動涵蓋） |
+| 全模組管理 | ✔ 全（`[p[0] for p in PERMISSIONS]` 自動涵蓋） |
 | 競技／球隊管理（`team_competition`） | ✔ 全（`view`／`create`／`update` 三碼皆給） |
 | 內容編輯／商務／贊助／公關／媒體／檢視者 | 唯讀（只給 `.view`） |
 | 合作球隊管理（`partner_club_manager`） | ✔ 全，`scope_type=own_clubs`（僅自家俱樂部，靠 `AdminClubAuthorizer` 既有機制強制） |
@@ -2115,7 +2115,7 @@ dotnet ef migrations has-pending-model-changes --context ClubDbContext
 
 | 角色 | `team.match.*` | `team.standing.*` |
 |---|---|---|
-| 系統管理員 | ✔ 全（`scope_type=all`） | ✔ 全 |
+| 全模組管理 | ✔ 全（`scope_type=all`） | ✔ 全 |
 | 競技／球隊管理 | ✔ 全（`all`） | ✔ 全 |
 | 商務／贊助、公關／媒體、檢視者 | 唯讀（`all`） | 唯讀 |
 | 合作球隊管理 | ✔ 自家全權限（`own_clubs`） | ✔ 自家全權限 |
@@ -2801,7 +2801,7 @@ migration: 20260925031444_AlignSchemaS19Programs
 新增 10 個權限碼：`program.item.view/create/update`、`program.session.view/create/update`、
 `program.registration.view/create/update/export`（`export` 是 `is_restricted=1`）。`module_code=P`、
 `domain=program`（獨立於 `team` 之外，矩陣把「球隊／賽事」與「課程／報名」列為兩個獨立欄位）。
-依主站規劃書 §6 矩陣「課程／報名」欄逐列展開：系統管理員 ✔全；內容編輯／競技球隊管理／商務贊助／
+依主站規劃書 §6 矩陣「課程／報名」欄逐列展開：全模組管理 ✔全；內容編輯／競技球隊管理／商務贊助／
 檢視者 唯讀；**學院／課程管理 ✔全（含匯出）**；**客服／行政「報名處理」→ 只給
 `program.registration.view/update`**（不給課程項目／梯次的建立編輯權，也不給匯出）；公關／媒體
 矩陣是「—」，不指派；合作球隊管理 ✔自家課程（`own_clubs`，不含匯出，比照既有保守預設）；
@@ -2997,7 +2997,7 @@ docs/12-database-schema.md §12 第 37／38 點。
 （G2，`export` 是 `is_restricted=1`，僅系統管理員）、`enquiry.course.view/update`、
 `enquiry.partnership.view/update`、`enquiry.media.view/update`（G2 的三個類別限定分組）。
 
-依主站規劃書 §6 矩陣「表單詢問」欄逐列指派：系統管理員 ✔全；內容編輯／競技球隊管理／翻譯人員
+依主站規劃書 §6 矩陣「表單詢問」欄逐列指派：全模組管理 ✔全；內容編輯／競技球隊管理／翻譯人員
 「—」，不指派；**學院／課程管理 → `enquiry.course.*`**（矩陣「課程類詢問」）；
 **商務／贊助 → `enquiry.partnership.*`**（矩陣「合作／贊助類詢問」）；
 **公關／媒體 → `enquiry.media.*`**（矩陣「媒體類詢問」）；**客服／行政 → `form.*` ＋
@@ -3483,7 +3483,7 @@ DML 轉態。完整說明另見 `docs/12-database-schema.md` §12 第 39 點。
 新增 10 個權限碼：`program.item.view/create/update`、`program.session.view/create/update`、
 `program.registration.view/create/update/export`（`export` 是 `is_restricted=1`）。`module_code=P`、
 `domain=program`（獨立於 `team` 之外，矩陣把「球隊／賽事」與「課程／報名」列為兩個獨立欄位）。
-依主站規劃書 §6 矩陣「課程／報名」欄逐列展開：系統管理員 ✔全；內容編輯／競技球隊管理／商務贊助／
+依主站規劃書 §6 矩陣「課程／報名」欄逐列展開：全模組管理 ✔全；內容編輯／競技球隊管理／商務贊助／
 檢視者 唯讀；**學院／課程管理 ✔全（含匯出）**；**客服／行政「報名處理」→ 只給
 `program.registration.view/update`**（不給課程項目／梯次的建立編輯權，也不給匯出）；公關／媒體
 矩陣是「—」，不指派；合作球隊管理 ✔自家課程（`own_clubs`，不含匯出，比照既有保守預設）；
@@ -3679,7 +3679,7 @@ docs/12-database-schema.md §12 第 37／38 點。
 （G2，`export` 是 `is_restricted=1`，僅系統管理員）、`enquiry.course.view/update`、
 `enquiry.partnership.view/update`、`enquiry.media.view/update`（G2 的三個類別限定分組）。
 
-依主站規劃書 §6 矩陣「表單詢問」欄逐列指派：系統管理員 ✔全；內容編輯／競技球隊管理／翻譯人員
+依主站規劃書 §6 矩陣「表單詢問」欄逐列指派：全模組管理 ✔全；內容編輯／競技球隊管理／翻譯人員
 「—」，不指派；**學院／課程管理 → `enquiry.course.*`**（矩陣「課程類詢問」）；
 **商務／贊助 → `enquiry.partnership.*`**（矩陣「合作／贊助類詢問」）；
 **公關／媒體 → `enquiry.media.*`**（矩陣「媒體類詢問」）；**客服／行政 → `form.*` ＋
@@ -4165,7 +4165,7 @@ DML 轉態。完整說明另見 `docs/12-database-schema.md` §12 第 39 點。
 
 | 角色 | 矩陣格 | 權限碼 |
 |---|---|---|
-| 系統管理員 | ✔全 | 全部 5 碼（`PERMISSIONS` 清單自動展開） |
+| 全模組管理 | ✔全 | 全部 5 碼（`PERMISSIONS` 清單自動展開） |
 | 內容編輯／公關媒體 | 自建事件 | `calendar.view`＋`calendar.custom_event.*` 全給 |
 | 競技／球隊管理 | 賽事事件 | 只給 `calendar.view`——這一格對應的是既有 `team.match.*`（C4），不是本模組權限碼 |
 | 學院／課程管理 | 梯隊賽事 | 只給 `calendar.view`——理由同上，`team.match.*` 已是 `academy_only` |
@@ -4353,7 +4353,7 @@ No changes have been made to the model since the last migration.
 
 ### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，`role_permissions` 已種入）
 
-| 權限碼 | 用途 | 系統管理員 | 商務／贊助 | 內容編輯 | 公關／媒體 | 競技／球隊 | 學院／課程 | 檢視者 | 合作球隊管理（僅自家） |
+| 權限碼 | 用途 | 全模組管理 | 商務／贊助 | 內容編輯 | 公關／媒體 | 競技／球隊 | 學院／課程 | 檢視者 | 合作球隊管理（僅自家） |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | `business.partner.*`（view／create／update／delete） | E1 夥伴 | 全 | 全 | 唯讀 | 唯讀 | — | — | 唯讀 | 全 |
 | `business.sponsor.*` | E2 贊助商＋贊助活動 | 全 | 全 | 唯讀 | 唯讀 | — | — | 唯讀 | 全 |
@@ -4619,7 +4619,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 ### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，`role_permissions` 已種入，共 39 碼）
 
-| 權限碼 | 用途 | 系統管理員 | 客服／行政 | 學院／課程 | 內容／競技／商務／檢視者 | 公關／媒體 | 合作球隊管理（僅自家） |
+| 權限碼 | 用途 | 全模組管理 | 客服／行政 | 學院／課程 | 內容／競技／商務／檢視者 | 公關／媒體 | 合作球隊管理（僅自家） |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|
 | `program.trial.view／create／update／delete` | P4 場次 | 全 | 唯讀 | 全 | 唯讀 | — | 全 |
 | `program.trial_registration.view／create／update` | P4 報名名單 | 全 | 檢視＋處理（無建立） | 全 | 唯讀 | — | 全 |
@@ -4943,7 +4943,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 ### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，`role_permissions` 已種入，共 50 碼）
 
-| 權限碼 | 用途 | 系統管理員 | 內容編輯 | 商務／贊助 | 公關／媒體 | 客服／行政 | 檢視者 | 合作球隊管理（僅自家） |
+| 權限碼 | 用途 | 全模組管理 | 內容編輯 | 商務／贊助 | 公關／媒體 | 客服／行政 | 檢視者 | 合作球隊管理（僅自家） |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | `culture.comic.view／create／update／delete` | F1 漫畫（**藍鯨不設，端點回 403**） | 全 | 全 | — | 全 | — | 唯讀 | —（藍鯨不設漫畫） |
 | `culture.fan_event.view／create／update／delete` | F2 球迷會活動與報名 | 全 | 全 | — | 全 | — | 唯讀 | 全 |
@@ -9052,7 +9052,7 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 
 ### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，共 38 碼）
 
-| 權限碼 | 用途 | 系統管理員 | 內容編輯 | 商務／贊助 | 公關／媒體 | 客服／行政 | 檢視者 | 合作球隊管理 |
+| 權限碼 | 用途 | 全模組管理 | 內容編輯 | 商務／贊助 | 公關／媒體 | 客服／行政 | 檢視者 | 合作球隊管理 |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | `form.newsletter.view／update` | G3 名單檢視、新增、退訂、同步 EDM | 全 | — | — | — | 全 | — | 全（僅自家） |
 | `form.newsletter.export`（🔴 受限） | G3 匯出 CSV | ✔ | — | — | — | — | — | — |
@@ -10642,4 +10642,10 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 **移除捐助洽詢**：`FormCatalog` 八種；`GET/POST /forms/donation_enquiry` 回 404；種子、`db/prod/club-reference-data.sql`（forms 16、form_fields 106）已重產；收縮遷移 `db/migrations/20261010_donation-enquiry-drop_2-contract.sql`＝EF `DonationEnquiryDropContract`（只刪資料、不改結構，新版 API 上線後才套用）。全部表單鎖欄位後，測試改用 `Fixtures/UnlockedTestForm` 臨時建不在目錄的表單。
 
 **驗收**：`Tcrfc.Api.Tests/PrivacyConsentTests.cs`（9 項）；全套 1577 項通過 1572。失敗 5 項：1 項是本次漏改（表單數 9→8，已修）；其餘 4 項（`DevAcceptanceSeedTests` 球衣額度、`AdminDrawsTests` 三項）判定為本機庫驗收資料污染，與本次無關（球衣：`jersey-single@example.com` 於 2026-10-08 有一筆手動登記的 `jersey_issues`；抽獎：合格會員 6 人而測試預期 4——`M900003` 驗收中被升為球迷會員、`M900132` 是 `b1-activate` 測試殘留）。
+
+## 角色 `system_admin` 顯示名稱改為「全模組管理」（2026-10-12）
+
+- 角色代碼 `system_admin` 不變，只改 `name_zh`／`name_en`：「系統管理員／System Administrator」→「全模組管理／All-Module Manager」。原因：帳號上的 `is_super_admin` 開關才是「系統管理員」（全權、含 `sysadmin_only`），同名角色拿不到 `sysadmin_only` 權限，名稱重疊會讓人誤以為掛了角色就是系統管理員。「系統管理員」一詞之後只指帳號開關。
+- 來源已同步：`db/seed/generate-club-seed-sql.py`、`generate-charity-seed-sql.py`、`db/prod/*-reference-data.sql`（`generate-prod-reference-sql.py --check` 一致）、`charity-fixtures.json`（三份，`emit-charity-fixtures.py` 重產）。
+- 既有庫：兩支冪等資料遷移 `RenameSystemAdminRoleDisplayName`（主站 `20261012014007`、慈善 `20261012014033`），只 UPDATE `code = 'system_admin'` 那列；Down 還原舊名。純資料更新，無結構變更，不需 expand／contract 分階段。
 

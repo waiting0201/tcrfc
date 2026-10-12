@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.18
-> **Date**: 2026-09-04 (v3.18 revision: 2026-10-09)
+> **Document version**: v3.19
+> **Date**: 2026-09-04 (v3.19 revision: 2026-10-12)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.19 revision summary — system administrator is an account-level status; the full-rights role is named "All-module manager"**
+> **No new functionality; permission scope unchanged.** In line with website specification v3.26: system administrator is an account-level status holding every permission; items restricted to system administrators (M1 releases and forced updates, M3 push approval, M4 full token values, M5 credentials, advertising maintenance jobs) cannot be obtained through any role. The full-rights role in §11 is named "**All-module manager**" and excludes those items. Where: §11.
 
 > **v3.18 revision summary — App programme bookings keep the same privacy-consent record**
 > **No new functionality.** The App's programme and camp bookings reuse the main site's `Registration`; main-site specification v3.25 requires every registration that carries a privacy-consent checkbox to store the consent time and the privacy-policy version consented to. The App booking form carries the same required checkbox, and the main-site API writes the record on submit. Landing points: 3.9, the section 9 API table, the section 10 changes to main-site types.
@@ -1543,7 +1546,7 @@ The website's nine roles carry over, with two new columns — **Mobile App** and
 
 | Role | Mobile App (M) | Advertising (E4–E6) | **Data scope** |
 |---|---|---|---|
-| System administrator | Full | Full | All clubs |
+| All-module manager | Full ※ | Full ※ | All clubs |
 | Content editor | M2 composition | — | All clubs |
 | Football / team manager | — | — | All clubs |
 | Academy / programs manager | — | — | All clubs |
@@ -1553,6 +1556,8 @@ The website's nine roles carry over, with two new columns — **Mobile App** and
 | Finance | — | Contract amounts (read) | All clubs |
 | Viewer | Read-only | Read-only (no amounts) | All clubs |
 | **Partner-club manager** (v2.0) | **—** | **—** | **One authorised `Club` only** |
+
+※ **Excluding items restricted to system administrators** (M1 releases and forced updates, M3 push approval, M4 full token values, M5 credentials, advertising maintenance jobs). **System administrator is an account-level status, not a role** (see website specification 4.10 J1) and holds every permission.
 
 **What the partner-club manager role covers** (for Blue Whale):
 

@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.25
-> **Date**: 2026-08-14 (v3.25 revision: 2026-10-09)
+> **Document version**: v3.26
+> **Date**: 2026-08-14 (v3.26 revision: 2026-10-12)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.25*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.26*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.26 revision summary — system administrator is an account-level status; the full-rights role is named "All-module manager"**
+> **No feature is added and permission scope is unchanged.** System administrator status is switched on for an account in J1 Accounts; it grants every club, every module and every permission without role evaluation. Items marked "system administrators only" in this specification can be used only with this status and cannot be obtained through any role. The full-rights role in the Chapter 6 matrix is named "**All-module manager**": all clubs and all modules, excluding items restricted to system administrators. Wherever this specification states that system administrators and support/administration may see personal data in full, the all-module manager may as well. Where: 4.10 J1, 4.13 S shop personal data, Chapter 6 matrix and additional rules.
 
 > **v3.25 revision summary — registrations and enquiries keep a privacy-consent record; charity-programme detail pages show only in-period partners and sponsors; featured pinning is counted per club**
 > **All three are rule clarifications to existing features; no page or module is added.**
@@ -1282,13 +1285,14 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 **J1 Accounts**
 - Create / disable accounts, password policy
+- **System administrator is an account-level status, not a role**: switched on in the account settings, it grants every club, every module and every permission without role evaluation; items marked "system administrators only" can be used only with this status
 - **Changing the password is optional**: sign-in does **not** force a first-login password change (production included); account holders may change the password themselves on the account security page
 - **The admin interface does not offer a two-factor authentication (2FA) setup entry for now**: the account security page shows no option to enable 2FA; the system keeps the 2FA capability so it can be opened up later; **an account that has already enabled 2FA must still enter the verification code at sign-in**
 - **New in v3.0**: set an account's **default club** `primary_club_id` (the site switcher's initial value)
 
 **J2 Roles and permissions**
 - Role creation with per-feature permission checkboxes (see section 6)
-- **New in v3.0**: a role's **data scope mode** `scope_mode` — `all_clubs` (cross-club, e.g. system administrator) or `own_clubs` (authorised clubs only)
+- **New in v3.0**: a role's **data scope mode** `scope_mode` — `all_clubs` (cross-club, e.g. all-module manager) or `own_clubs` (authorised clubs only)
 
 **J3 Audit and backups**
 - **Audit log**: who changed what, when (create / update / delete / publish), retained for ≥ 12 months
@@ -1516,7 +1520,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Not in this module**: discount-code and member-price settings (not built this time), payment-method settings (LINE Pay only)
 
 > **Payments and personal data**: payment always completes on **LINE Pay's** side; **this site renders no card fields and stores no card data** (global premise). Callbacks must be signature-verified and idempotent, and orders whose `Confirm` fails or times out are cancelled with stock released.
-> Orders contain the **recipient's name, phone number, and address** and are **treated as member personal data**: full values are visible only to system administrators, support/administration, and fulfilment roles; other roles see masked values, and exports require separate authorisation and are audited.
+> Orders contain the **recipient's name, phone number, and address** and are **treated as member personal data**: full values are visible only to system administrators, the all-module manager, support/administration, and fulfilment roles; other roles see masked values, and exports require separate authorisation and are audited.
 > **Transaction records and invoices are retained under tax law** (the retention period is an open item in section 10), and that duty **is not extinguished by a data-subject deletion request** — on account deletion an order keeps only the legally required fields and the rest of the personal data is cleared, mirroring the `DrawRoster` approach.
 > **Fully separate from the Charity Donation Platform**: it has **its own admin and its own database**. Both use LINE Pay, but the collecting entity, **merchant account**, credentials, invoice track, and statements are all separate. **Wrong credentials mean money reaching the wrong legal entity**, so S6 must label this module's collecting entity as Taichung Rock FC.
 >
@@ -1670,7 +1674,7 @@ Under a multi-club architecture every table must answer "which club does this be
 
 | Role | **Data scope** | Content | FAQ | Charity | Teams / Matches | Programs / Registrations | Schedule | Members | Business / Sponsors | Shop | Advertising | Mobile App | Enquiries | SEO / Settings | System |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| System administrator | **All clubs** | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full |
+| All-module manager | **All clubs** | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full ※ | ✔ Full | ✔ Full ※ | ✔ Full ※ | ✔ Full ※ | ✔ Full | ✔ Full ※ | — |
 | Content editor | Authorised clubs | ✔ Edit / publish | ✔ Full | ✔ Edit | Read-only | Read-only | Custom events | — | Read-only | S1 copy / imagery | — | — | M2 composition | Per-page SEO | — |
 | Football / team manager | Authorised clubs | Draft | Relevant topics | — | ✔ Full | Read-only | Match events | — | — | — | — | — | — | — | — |
 | Academy / programs manager | Authorised clubs | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | — | — | — | Program enquiries | — | — | — | — |
@@ -1698,17 +1702,18 @@ Under a multi-club architecture every table must answer "which club does this be
 - **It need not have any users in the first phase**: if Blue Whale's content is maintained by the existing team under their own accounts, no partner-club account is needed. **But data scope still has to be built** — `club_id` reaches roughly 40 tables and every admin list query has to decide whether to filter, which is foundation work. **Define the role now, assign nobody to it — it does not block launch.**
 
 **Additional rules**:
+- **System administrators are not in this matrix**: system administrator is an account-level status (see 4.10 J1) holding every permission, including the System column and every item below marked as restricted to system administrators. ※ The all-module manager holds every permission in that column **except items restricted to system administrators** (merging member accounts, shop refund execution and credentials, advertising maintenance jobs, App releases and push approval, and the SEO / settings submodules restricted to system administrators).
 - **App releases and forced updates (M1) are restricted to system administrators** — a wrong minimum supported version locks every user out.
 - **Push sending (M3) requires two-person approval**: PR/media may draft and preview; a system administrator must approve the send. Push is an irreversible, audience-wide action.
 - **Push tokens and device identifiers (M4) count as personal data**; only system administrators see full values, other roles see masked ones.
 - **Advertising contract amounts** are visible only to commercial/sponsorship and finance; advertising report exports must be written to the audit log (who, when, which flight, stated purpose), mirroring the member-list export rule.
-- **Order recipient data (name / phone / address) is treated as member personal data**: full values are visible only to system administrators, support/administration, and fulfilment roles; other roles see masked values, and order exports require separate authorisation and are audited.
+- **Order recipient data (name / phone / address) is treated as member personal data**: full values are visible only to system administrators, the all-module manager, support/administration, and fulfilment roles; other roles see masked values, and order exports require separate authorisation and are audited.
 - **Refund execution (S5) and shop credentials (S6: LINE Pay and invoicing) are restricted to system administrators** — a refund is an irreversible movement of money, leaked credentials amount to losing the shop, and a wrong merchant account sends money to the wrong legal entity. Commercial/sponsorship may work on products and reports but **gains no access to order personal data and no refund rights**.
-- **Member module (K) permissions are not widened by the Mobile App or the shop**: still restricted to system administrators and support/administration.
+- **Member module (K) permissions are not widened by the Mobile App or the shop**: still restricted to system administrators, the all-module manager and support/administration.
 - Content editing follows a **submit-for-review → publish** workflow; only designated roles may publish.
-- **Member personal data (email / phone / date of birth / minors' details) is restricted**: only system administrators and support/administration staff see it in full; other roles see masked values (e.g. `a***@gmail.com`).
+- **Member personal data (email / phone / date of birth / minors' details) is restricted**: only system administrators, the all-module manager and support/administration staff see it in full; other roles see masked values (e.g. `a***@gmail.com`).
 - **Exporting** member lists requires separate authorisation, and every export is written to the audit log (who, when, how many records, stated purpose).
-- **Draw rosters (K5) are treated as member personal data**: building and locking a roster is limited to system administrators and support/administration staff, and the restricted winners export requires separate authorisation and is audited. Communications staff writing the announcement receive **the masked roster only**, and gain no access to the member module by doing so.
+- **Draw rosters (K5) are treated as member personal data**: building and locking a roster is limited to system administrators, the all-module manager and support/administration staff, and the restricted winners export requires separate authorisation and is audited. Communications staff writing the announcement receive **the masked roster only**, and gain no access to the member module by doing so.
 - ※ The translator role may edit `en` fields only, and may not modify the Chinese source or publication status.
 - **Calendar permissions follow the source module**: which events a user can edit on the calendar depends on their permissions over the underlying match data (e.g. an academy manager may reschedule their own squad's fixtures but not the first team's). **This limit is carried by the role's academy-squad scope (`team.type = academy`)** and enforced at the data-access layer.
 

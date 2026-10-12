@@ -4,8 +4,8 @@
   "roles": [
     [
       "system_admin",
-      "系統管理員",
-      "System Administrator",
+      "全模組管理",
+      "All-Module Manager",
       true
     ],
     [

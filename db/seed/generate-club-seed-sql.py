@@ -853,7 +853,7 @@ END
 
 ROLES = [
     # (code, name_zh, name_en, scope_mode)
-    ("system_admin", "系統管理員", "System Administrator", "all_clubs"),
+    ("system_admin", "全模組管理", "All-Module Manager", "all_clubs"),
     ("content_editor", "內容編輯", "Content Editor", "all_clubs"),
     ("team_competition", "競技／球隊管理", "Team & Competition Manager", "all_clubs"),
     ("academy_program", "學院／課程管理", "Academy & Program Manager", "all_clubs"),

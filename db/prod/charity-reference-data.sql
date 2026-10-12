@@ -39,7 +39,7 @@ BEGIN
   BEGIN TRANSACTION;
   SET @id = N'18164663-3778-54db-8667-af62d8a5079b';
   INSERT INTO admin_roles (id, code, name_zh, name_en, is_system)
-  VALUES (@id, N'system_admin', N'系統管理員', N'System Administrator', 1);
+  VALUES (@id, N'system_admin', N'全模組管理', N'All-Module Manager', 1);
   COMMIT TRANSACTION;
 END
 GO
