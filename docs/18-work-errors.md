@@ -3121,3 +3121,17 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：改任何平台的配色時，用舊色值與色名（例：`D61E83`、`桃紅`、`magenta`）grep 該平台的中英兩版規劃書，以及 `docs/` 與 `apps/` 對應目錄。
 - **修正**：慈善規劃書 v2.7 §3.7 改成只寫對比門檻（文字 4.5:1、元件邊界與焦點外框 3:1、不只靠顏色），不綁定色值；中英兩版與 PDF 已同步。
 - **防呆**：無。
+
+### E-318 介面新增方法後，`object : MemberRemote by DelegatingMember(...)` 沒被重新編譯，執行期 `AbstractMethodError`；`:app:clean` 清不掉，因為 Gradle build cache 把壞的編譯結果又還原回來（2026-10-12，Android AP-4 收尾）
+- **錯在哪**：給 `MemberRemote` 加了球衣三個方法後，`./gradlew assembleDevDebug` 與單元測試全綠，但 `AppContainer` 裡以 `by` 委派產生的匿名類別（`AppContainer$memberRemote$1`）沒有帶到新方法，打開球衣畫面就 `AbstractMethodError: abstract method MemberRemote.jerseys`。`./gradlew :app:clean connectedDevDebugAndroidTest` 再跑一次仍然一樣——build cache 依輸入雜湊把第一次壞掉的輸出原樣還原。
+- **根因（可改掉的行為）**：只信「編譯通過＋單元測試全綠」，沒有在改了介面後真的開畫面走一遍；以為 `:app:clean` 就等於乾淨重編，沒想到 build cache 是另一層。單元測試不經過 `AppContainer`，所以看不到這個匿名類別。
+- **下次怎麼避免**：改了 `TcrfcRemote`／`MemberRemote` 這類被 `by` 委派的介面後，一律跑冒煙測試（`connectedDevDebugAndroidTest`）；冒煙測試出現 `AbstractMethodError` 時，先 `./gradlew :app:clean connectedDevDebugAndroidTest --no-build-cache --rerun-tasks`，再判斷是不是真的程式問題。
+- **修正**：以 `--no-build-cache --rerun-tasks` 重編，19 項冒煙測試全過；程式本身沒有問題。
+- **防呆**：✅ 既有的冒煙測試就是防線（E-163／E-190 同一套機制，這次在「新增球衣畫面」那一案抓到）。不另加機制。
+
+### E-319 新冒煙測試把「剛點完就讀值」與「占位字當靜態文字」寫進斷言，第一次跑就紅（2026-10-12，iOS AP-3／AP-4 收尾）
+- **錯在哪**：新增三項 XCUITest 時，① 球衣表單以 `staticTexts["領用人姓名"]` 當「表單已出現」的依據，但該欄位預設帶入會員姓名，占位字只在欄位為空時才存在；② 靜音時段開關點下去後立刻 `XCTAssertEqual(toggle.value, "1")`，值更新有延遲，同一支測試在完整冒煙裡紅、單獨跑卻綠（不穩定）；③ `DatePicker` 的標籤在 XCUITest 裡不是 `staticText`；④ 沒有把會寫進 UserDefaults 的開關在測試啟動時明確覆蓋，模擬器上一輪留下的「開」讓這一輪點完變成關（根因其實是這條，②只是症狀）。產品程式沒有問題，全是測試寫法。
+- **根因（可改掉的行為）**：照寫別的畫面的斷言樣板，沒有先想「這個元素在預設帶入資料後還在不在」「狀態值是同步還是非同步更新」；也沒有在單獨跑通後再跑整套確認穩定。
+- **下次怎麼避免**：表單出現的依據用「一定存在的輸入欄位」而不是占位字或標題；任何讀取 `value`／`isSelected` 的斷言一律用 `expectation(for:evaluatedWith:)` 等它，不立刻比；測試會點的任何偏好開關，啟動時都用 `-<key> <值>` 覆蓋（偏好會撐過模擬器重啟）；新增冒煙測試要整套 `./scripts/smoke.sh` 連跑到全綠一次才算數。
+- **修正**：改用尺寸欄位當表單依據並另斷言領用人預設值；開關值改用 expectation 等待；DatePicker 改用 `app.datePickers`；啟動參數 `-tcrfc.quiet.enabled NO` 覆蓋持久化偏好。
+- **防呆**：✅ `./scripts/smoke.sh` 整套重跑（本次就是它抓到）；寫法規則已寫進此條，不另加機制。

@@ -599,7 +599,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | 第三批契約已採用 | `competitions`（賽事系列晶片含**沒有賽事的系列**，選到時顯示「這項賽事的賽程尚未公布」）、`schedule/{id}`（`tcrfc://match/{id}` 找不到時改打它，俱樂部不明時依序試）、`MatchDto.clubCode`／`competitionCode`／`TeamDto.clubCode`（拿掉自行標註）、`isFallbackLocale`（英文介面下標「（Chinese only）」＝fallback 繁中並標示，涵蓋新聞、FAQ、球員、賽事）、`image-derivatives.json`（客戶端不再手抄命名規則，`ImageUrls` 讀契約並有契約範例測試）、`enums.json`（`MatchDto.status` 為 null 視為 scheduled、未知值＝UNKNOWN 不當機、非 `first_team` 視為學院）、標頭 `X-Device-Install-Id`（所有請求，取代查詢參數）、layout `moreItems.webUrl`／`isExternal`（商店、慈善外開；**慈善外開前顯示「收受者是台灣足球策略發展協會，不是俱樂部」**）與 `sponsorshipInquiryWebUrl`。賽程仍一次載整季（`from`／`to`／`competition` 篩選未用，客戶端本機篩） |
 | 開賽提醒 | **本機排程通知**（`AlarmManager.setAndAllowWhileIdle`，不精確、不需精確鬧鐘權限；不需 FCM）。開賽前 2 小時、依追蹤的球隊、延賽／取消／沒有確切開賽時間不排、最近 60 天內最多 40 場（`ReminderPlanner`，純函式）；開賽時刻優先用 `MatchDto.kickoffAt`。賽程更新、追蹤改變、開關切換、重開機（`BOOT_COMPLETED`）、回前景（權限可能在系統設定被改）都會重排；點通知走 `tcrfc://match/{id}`。🔴 **設定值預設開**（規劃書 §6.2「賽事提醒」預設列為開，2026-10-05 更正，與 iOS 一致），**但沒有系統通知權限就不排**。權限三態：已允許／**尚未詢問**（從沒請求過）／被拒絕（請求過仍未允許）。引導第 3 步先說明用途，按「開啟提醒」才請求（Android 13+ 的 `POST_NOTIFICATIONS`）；按「稍後再說」或略過＝不請求，設定頁顯示「尚未詢問」，**打開開關或按「開啟通知」時才先說明再請求**；被拒絕時只顯示狀態與前往系統設定的捷徑，**不反覆請求**。**FCM 推播、靜音時段、分類開關（皆屬推播）仍未做，介面隔開** |
 | 廣告版位 | `AdSlot`（`home_top`／`home_mid`／`schedule_list`／`news_list`；學院與課程畫面不放）。🔴 **判定是純函式 `ViewabilityEngine`，單元測試逐案跑 `shared/ad-viewability-cases.json`（曝光 18＋點擊 4 案全過）**；Compose 只負責 `visibleRatio`（`onGloballyPositioned` 只寫 state，200ms 迴圈取樣，`boundsInWindow` 已扣祖先裁切），行程生命週期 RESUMED 為前景；備援素材不啟動量測、圖片解碼成功才啟動；`presentationId` 每次裝載新產生；事件 `occurredAt`＝**單調時鐘推算＋最近一次伺服器時間為錨**（改裝置牆鐘無影響，測試證明）；點擊 5 秒內去重並先顯示離開提示（`tcrfc://` 直接走深連結）；**輪播每 6 秒換一則**；`sessionImpressionCap` 於 session 內計數，**達上限即停止輪播與量測**；`ads_enabled` 旗標**沒給視為開、明確為 false 才不佔位**；設定有「為什麼看到廣告」；**重新啟動時 inflight 事件一律回 pending**（單調時鐘已重置，伺服器端去重使重送安全）；所有請求都帶 `X-Device-Install-Id`（上述各項 2026-10-05 與 iOS §11i 對齊）。事件佇列（SQLite `ad_event_queue`，常數取自 `cache-policy.json`）：30 秒／50 筆／進背景送出、單批 ≤200 帶 `batchId`、inflight 60 秒回 pending、2000 筆或 48 小時 FIFO 丟棄並記丟棄數；payload 無 member_id、IP、座標、廣告識別碼（測試守著） |
-| 課程報名 | 課程列表／詳情／報名表／我的報名。**梯次與名額不快取**；梯次狀態（資料庫中文字面）決定「立即報名／額滿候補／已截止」；報名是**單次 POST、不自動重試**；已登入帶 Bearer（寫入 `member_id`），**權杖被拒（401）就改匿名送**，非會員照常可報名。**自動帶入**：會員姓名／手機／Email 帶進**家長聯絡欄位**，學員姓名留空（另有「我本人報名」鈕）；不建立家長與學員的帳號關聯。🔴 **不顯示、不送 `healthDeclaration`**（可能構成《個資法》§6 特種個資，B-9 未解；`ProgramRegistrationPolicy.collectsHealthDeclaration = false`，與 iOS 一致）。**只照後端驗證**：學員姓名必填、電話與 Email 至少一項；**家長欄位不強制**，不自行擴大蒐集範圍。繳費為線下作業、App 內不收課程費；不寫入行事曆。試訓（`trials`）共用機制但本輪未接 |
+| 課程報名 | 課程列表／詳情／報名表／我的報名。**梯次與名額不快取**；梯次狀態（資料庫中文字面）決定「立即報名／額滿候補／已截止」；報名是**單次 POST、不自動重試**；已登入帶 Bearer（寫入 `member_id`），**權杖被拒（401）就改匿名送**，非會員照常可報名。**自動帶入**：會員姓名／手機／Email 帶進**家長聯絡欄位**，學員姓名留空（另有「我本人報名」鈕）；不建立家長與學員的帳號關聯。🔴 **不顯示、不送 `healthDeclaration`**（可能構成《個資法》§6 特種個資，B-9 未解；`ProgramRegistrationPolicy.collectsHealthDeclaration = false`，與 iOS 一致）。**只照後端驗證**：學員姓名必填、電話與 Email 至少一項；**家長欄位不強制**，不自行擴大蒐集範圍。繳費為線下作業、App 內不收課程費；不寫入行事曆。試訓（`trials`）共用機制但本輪未接（✅ 2026-10-12 已接，見 §11e-5） |
 
 **Android 在 AP-3 第二輪與 AP-4 發現的缺口**：
 
@@ -610,7 +610,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | C3 | ✅ **2026-10-05 已補**（見 §11j）。原缺口：`GET /app/ads/{slotCode}` 的 `deviceInstallId` 在 `openapi.json` 仍是查詢參數；客戶端已改送標頭 `X-Device-Install-Id`，頻次上限是否改讀標頭請後端確認 |
 | C4 | ✅ **2026-10-05 已補**（見 §11j）。原缺口：沒有「預先下載當日檔期素材」的契約（§2.4）；本輪未做預載 |
 | C5 | ✅ **2026-10-05 已補**（見 §11j）。原缺口：廣告素材的圖片尺寸規則：`AppAdItemDto` 只有 `imageUrl`／`imageWidth`／`imageHeight`，沒說是否也有衍生檔（客戶端不經衍生檔規則，直接取 `imageUrl`） |
-| C6 | 通知中心（§3.13）與推播偏好都依賴推播傳輸，未做；本機提醒沒有「靜音時段」 |
+| C6 | 通知中心（§3.13）與推播偏好都依賴推播傳輸，未做；本機提醒沒有「靜音時段」。✅ 2026-10-12：通知中心（讀 `/app/notifications`，FCM 仍未做）與本機靜音時段已做，見 §11e-5；推播偏好的後端缺口見該節 G2／G3 |
 
 ## 11h. 第四批契約補強（2026-10-05，`backend-engineer`；Android 缺口 B1–B4、iOS B8–B10、A8、時間語意）
 
@@ -651,12 +651,12 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 |---|---|
 | 開賽提醒 | 本機排程通知（`UNUserNotificationCenter` 日曆觸發，**不需 APNs、不需 Push Notifications capability**）。規則同 Android：開賽前 2 小時、依追蹤球隊、延賽／取消／已完賽／無確切開賽時間不排、最近 60 天內最多 40 場（`ReminderPlanner`，純函式，測試涵蓋）、觸發時間已過不排。開賽時刻優先用 `MatchDto.kickoffAt`（UTC），舊資料才由 `matchOn`＋`kickoff`（台北）換算。賽程更新、追蹤改變、開關切換、語系切換、授權狀態改變都會重排（`ReminderCoordinator`，debounce 0.4 秒）；點通知走 `tcrfc://match/{id}`（`userInfo` 只放深連結，內容沒有個資）。引導新增**第 3 步**：先說明用途、使用者按了才請求系統權限（§14.3）；設定 → 通知可開關，權限被拒時顯示狀態與前往系統設定的捷徑、不反覆彈窗 |
 | ⚠️ 提醒預設值 | **預設開**（規劃書 §6.2「賽事提醒」預設列為開），Android 暫定預設關。差別只在「使用者按了引導『稍後』或略過」時：iOS 的開關是開、但**沒有系統權限就不會排**，設定頁顯示「尚未詢問」並在使用者打開開關時才先說明再請求。請對齊另一端，或由你決定改規劃書 |
-| 不做 | 靜音時段、分類開關、每隊獨立推播開關、通知中心——都屬推播（缺口 C6）。`PushTransport` 介面已隔開（`NoopPushTransport`），之後接 APNs 只需換實作 |
+| 不做 | 靜音時段、分類開關、每隊獨立推播開關、通知中心——都屬推播（缺口 C6；✅ 2026-10-12 通知中心與本機靜音設定已做，分類開關與每隊推播開關仍未做，見 §11k）。`PushTransport` 介面已隔開（`NoopPushTransport`），之後接 APNs 只需換實作 |
 | 廣告版位 | `home_top`／`home_mid`／`schedule_list`／`news_list`（首頁兩處依 `/app/layout` 的 `ad_home_top`／`ad_home_mid` 位置；學院與課程畫面不放）；固定高度 112pt、永不空白（失敗時本機備援磚、不計曝光）、`ads_enabled` 關閉時不佔位（旗標沒給視為開）。標示「廣告」（取自回應 `disclosureLabel`）。外連先顯示離開提示；`tcrfc://` 直接走深連結；設定有「為什麼看到廣告」。**輪播**每 6 秒換一則（執行層決定），每則各自 `presentationId`；`sessionImpressionCap` 於本次使用內計數，達上限停止輪播與量測 |
 | 曝光量測 | `ImpressionMeter`（純函式，逐案跑 `shared/ad-viewability-cases.json`：曝光 18＋點擊 4 全過）。UIKit `AdSlotUIView`：`CADisplayLink`、**5Hz、`.common` mode**；矩形＝`convert(bounds, to: nil)` ∩ 視窗 ∩ 每個 `clipsToBounds`／`UIScrollView` 祖先，再扣分頁列；有彈窗／全螢幕畫面蓋住時保守視為不可見；`inactive`（來電橫幅、控制中心）與背景立即歸零。前景判定用 `UIApplication.applicationState` |
 | 事件佇列 | SQLite `ad_event_queue`，**常數取自 `cache-policy.json` 的 `adEventQueue`**（30 秒／50 筆／進背景、單批 ≤200 帶 `batchId`、inflight 60 秒回 pending、2000 筆或 48 小時 FIFO 丟棄並記丟棄數）。重新啟動時 inflight 一律回 pending（單調時鐘已重置；伺服器端以 `presentationId`／5 秒窗口去重，重送安全）。`occurredAt`＝**單調時鐘推算＋最近一次伺服器 `Date` 為錨**（`ServerClock.eventTime`，測試證明改裝置牆鐘無影響）。payload 沒有 `member_id`、IP、座標、廣告識別碼（測試掃 JSON）。丟棄計數目前只存本機，M5 診斷回報屬後續 |
 | 裝置識別標頭 | 與 Android 一致：**所有請求**都帶 `X-Device-Install-Id`（後端對不需要的端點接受但忽略）；網址不放裝置識別 |
-| 課程報名 | 列表／詳情／報名表／我的報名。**梯次與名額不快取**（離線只顯示「無法取得」）；梯次狀態（資料庫中文字面）→ 立即報名／額滿候補／已截止；報名是**單次 POST、不自動重試**；已登入帶 Bearer（寫入 `member_id`，權杖被拒就改匿名送），非會員照常可報名；**會員姓名／手機／Email 帶進家長聯絡欄位，學員姓名留空**，另有「我本人報名」；不建立家長與學員的帳號關聯；繳費為線下作業；不寫入行事曆。**試訓（`trials`）本輪不接 UI**（與 Android 一致，API 與預覽資料已備好）。深連結 `tcrfc://program/{slug}` 改為 App 內課程詳情（俱樂部不明時依序試）。「我的報名」因缺口 C1 逐一抓課程詳情反查（N＋1） |
+| 課程報名 | 列表／詳情／報名表／我的報名。**梯次與名額不快取**（離線只顯示「無法取得」）；梯次狀態（資料庫中文字面）→ 立即報名／額滿候補／已截止；報名是**單次 POST、不自動重試**；已登入帶 Bearer（寫入 `member_id`，權杖被拒就改匿名送），非會員照常可報名；**會員姓名／手機／Email 帶進家長聯絡欄位，學員姓名留空**，另有「我本人報名」；不建立家長與學員的帳號關聯；繳費為線下作業；不寫入行事曆。**試訓（`trials`）本輪不接 UI**（與 Android 一致，API 與預覽資料已備好）。（✅ 2026-10-12 已接，見 §11k）深連結 `tcrfc://program/{slug}` 改為 App 內課程詳情（俱樂部不明時依序試）。「我的報名」因缺口 C1 逐一抓課程詳情反查（N＋1） |
 | 🔴 健康聲明 | **App 不顯示、不送 `healthDeclaration`**（`ProgramRegistrationPolicy.collectsHealthDeclaration = false`）：可能構成《個資法》§6 特種個資，B-9 未解、文案待法務；後端欄位是選填，所以不影響送出。**請 Android 對齊**（若 Android 已顯示，請先關掉或說明） |
 | 家長欄位 | 後端只驗「姓名必填、電話與 Email 至少一項」；**家長欄位不強制**（規劃書沒給年齡門檻，不自行擴大蒐集範圍）。與 Android 是否一致請確認 |
 | 第四批契約（iOS） | ✅ 註冊 `birthOn` 必填；未滿 18 歲帶 `guardianConsent { consented, guardianName, relationship: parent｜legal_guardian }`，`consentTextVersion` 不帶，說明文案放標明「（同意說明文案待法務定稿）」的佔位；✅ `ClubDto.shortName`（無則退回全名，`ClubDisplay.name` 一處，E-185 收尾）；✅ `GET /member/draws`（唯讀、不快取、逐俱樂部、只顯示個人 `isEligible` 布林、附「同時具備兩隊會籍者可分別參加」、結果連往最新消息）；✅ `MemberCardDto.serverTime` 為最後同步時間（缺才退回 `Date` 標頭）；✅ `MatchDto.kickoffAt`；✅ `isFallbackLocale` 補到夥伴、贊助、課程、特約店家；店家座標 null＝未確認。✅ 未翻譯標示英文一律 **「Chinese only」**（兩端統一；中文介面不會出現） |
@@ -670,6 +670,38 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | E3 | 廣告「預載當日檔期素材」沒有契約（C4）；沒有 App 端判斷「這個版位屬於兒童向畫面」的欄位，目前靠 App 不在課程／學院畫面放版位 |
 | E4 | 會籍方案與權益對照表尚無 `isFallbackLocale`（B8 剩餘部分） |
 | E5 | `MemberRegistrationDto` 沒有繳費狀態以外的欄位也沒有課程摘要（C1）；規劃書 §3.9 要列「課程、梯次、時間、地點」，目前靠反查 |
+
+### 11k. iOS AP-3／AP-4 收尾（2026-10-12）
+
+> 範圍：不需外部服務的剩餘項目——試訓報名、通知中心、球衣登記、靜音時段。APNs、LINE 登入、Universal Link、地圖金鑰、App 內付款一律不做。程式在 `mobile/ios`（私有 repo，僅本機 commit，未 push）。單元測試 **202 項全綠**（收尾前 181 項，本輪新增 `Ap34ClosingTests` 21 項），冒煙測試 `./scripts/smoke.sh` **20 項**（本輪新增 3 項：試訓報名流程、球衣登記流程、通知中心＋靜音時段）。與 Android §11e-5 的對齊情形見表（靜音時段已於同日拍板對齊）。
+
+| 項目 | 狀態與執行層決定 |
+|---|---|
+| **試訓報名** | `GET /api/v1/{club}/trials`、`POST /api/v1/{club}/trials/{trialId}/registrations`。入口與 Android 相同：放在「課程與營隊」列表下方的「試訓場次」區塊（規劃書 §3.9 只說「試訓共用 Registration、不另設流程」，**沒指定入口位置**）。逐俱樂部載入、沒有場次的俱樂部不列；**場次與名額不快取**。動作依 `statusCode`，再用後端算好的 `isSignupOpen`／`acceptsWaitlist` 收斂（`TrialAction`）：`open`＋可報名＝立即報名、`full`／`waitlist`＋接受候補＝額滿候補，其餘（`ended`、已過截止、未知代碼）＝已截止；客戶端不自己比日期。報名表 `TrialRegistrationFormView`：會員姓名／手機／Email 帶進家長聯絡欄位與聯絡方式、學員姓名留空、「我本人報名」（帶姓名與生日、清家長欄位）、隱私同意必勾（連結開所屬俱樂部官網隱私權政策頁）、**不顯示不送 `healthDeclaration`**、單次 POST 不自動重試、已登入帶 Bearer（401 改匿名送）。試訓專屬驗證**照後端 `TrialsRepository`**：姓名必填、電話與 Email 至少一項、**有填生日且未滿 18 歲 → 家長姓名與電話必填**（沒填生日不判斷，交給後端）。送出後顯示報名編號與狀態（`statusCode`）。「我的報名」的試訓列早已支援（第五批 C1） |
+| **通知中心** | `GET /api/v1/app/notifications?lang=`（`X-Device-Install-Id` 由 `APIClient` 全域標頭帶）。入口：「更多」固定一列（不受版面編排 `moreItems` 控制，插在「設定」前）＋ 設定 → 通知頂端。每次進入 `force` 重新取；**失敗而本機有值＝沿用並顯示離線提示**（規劃書 §3.13「離線可讀」），沒有本機值才顯示「無法取得」。快取 key `notifications`（`CacheKey`，政策檔沒有這一項，走「每次重新驗證、離線沿用」的既有預設）。**90 天保留**：後端已限 90 天，客戶端離線讀舊資料時再套一次（`NotificationInboxLogic.visible`，新到舊、時間讀不出來的排最後）。點訊息：`deepLink` 能被 `DeepLinkParser` 解析才可點，走與系統開網址／點系統通知**同一條路**（`TabRouter.openLink` → `RootTabBarController.handle(url:)`），不新增路由；解析不了的連結不開。**推播傳輸**：`PushTransport` 介面＋`NoopPushTransport` 假實作維持不變，APNs 接上時只換實作 |
+| **球衣登記** | `GET /api/v1/member/jerseys`、`POST /api/v1/{club}/member/jerseys`、`PUT /api/v1/{club}/member/jerseys/{id}`。入口在會員中心連結列（登入後）。**逐份會籍分組**（兩隊球衣是兩件，規劃書 §3.5）：俱樂部、球季、「已登記 x／可登記 y 件」；只有 `canRegister` 顯示「登記球衣」；只有 `editable`（後端「待處理」）顯示「修改」，已處理的顯示「無法再修改，請聯繫客服」；狀態與領取方式文字取後端標籤（已依語系）；**不快取**；新增（POST）**不自動重試**（重送會多登一件）。表單照後端 `ValidateJersey`：領用人姓名必填（≤64，預設帶會員姓名）、尺寸必填（≤16，**自由輸入**，後端去空白轉大寫，沒有尺寸清單）、領取方式 `ship`／`pickup`，**選寄送才要電話（≤32）與地址（≤500）**，到場領取不顯示也不送收件資訊。需已驗證 Email（後端 `requireVerifiedEmail`，錯誤訊息照後端） |
+| **靜音時段** | 規劃書 §3.13「可設定每日免打擾時段」、§6.4「建議預設 22:00–08:00」。**預設開啟、約束本機開賽提醒（順延到時段結束，順延後已開賽就不提醒），2026-10-12 使用者拍板**（`QuietHoursSettings`，UserDefaults）：設定 → 通知 → 「每日靜音時段」開關＋開始／結束時間（裝置當地時間、可跨午夜、起訖相同＝沒有時段）。後端沒有靜音欄位（Q-1），推播的靜音待後端。既有安裝的偏好處理見 Q-2 |
+
+**iOS 與 Android（§11e-5）在本輪的對照**：
+
+| 項目 | iOS | Android |
+|---|---|---|
+| 靜音時段是否約束本機開賽提醒 | **約束**（2026-10-12 使用者拍板）：落入時段的提醒順延到時段結束，順延後已不早於開賽就不提醒（`QuietHoursSettings.deferOutOfQuiet`、`ReminderPlanner.plan(quiet:)`，純函式有測試）；改設定會重排 | 約束，落入時段的提醒順延到時段結束（一致） |
+| 靜音開關預設 | **開**（22:00–08:00，使用者拍板） | 開（一致） |
+| 其餘（試訓入口位置、動作判定、未滿 18 歲家長必填、通知中心 90 天與離線、球衣驗證與不重試） | 一致 | 一致 |
+
+**iOS 在本輪發現的缺口與待確認**（不在 `apps/api` 與規劃書補規格）：
+
+| # | 缺口／待確認 |
+|---|---|
+| Q-1 | **靜音時段沒有後端存放處**：`RegisterAppDeviceRequest` 只有 `platform／osVersion／appVersion／locale／pushToken／pushPermission`，訂閱端點只有 `topicType／topicValue／isFollowing／isPushEnabled`——沒有靜音時段欄位（Android G2 同）。推播由 APNs 直接顯示、客戶端攔不住，**靜音必須由伺服器依裝置當地時間過濾**，要先改規劃書 §6.4／資料模型再做 |
+| Q-2 | ✅ **已定案（2026-10-12 使用者拍板）**：靜音時段**約束本機排程的開賽提醒**，落入時段順延到時段結束，順延後已開賽就不提醒（與 Android 一致）。設定頁說明已移除「開賽提醒不受影響」。**既有安裝的偏好**（與 Android 相同，不做遷移）：偏好鍵只在使用者改動時才寫入，所以**從沒動過靜音設定的既有安裝直接得到新預設（開、22:00–08:00）**，明確關掉過的人維持關。推播（APNs）的靜音仍待 Q-1 |
+| Q-3 | ✅ **已定案（2026-10-12 使用者拍板）**：開關**預設開啟**（22:00–08:00），兩端一致 |
+| Q-4 | **試訓隱私同意文案**：規劃書 §3.9 的隱私同意只寫課程報名（v3.18），**試訓沒有專屬文案**。iOS 暫以課程文案改寫（把「課程安全作業」換成「本次試訓報名」，`trials.form.privacy_consent`），文案待法務定稿（同 `programs.form.privacy_consent`） |
+| Q-5 | 分類開關（賽事提醒／賽果／新聞／會籍與球衣）屬推播偏好且無後端欄位（Android G3 同），本輪不做；本機開賽提醒的單一開關維持 |
+| Q-6 | 通知中心**沒有已讀／未讀與分頁列徽章**——規劃書 §3.13 只寫「列出已收到的推播，保留 90 天，離線可讀」，後端也沒有已讀端點，**沒有發明**；`GET /app/notifications` 沒有分頁，後端上限 200 筆，客戶端全顯示。`POST /app/push/{id}/opened`（送達統計的「開啟數」）因沒有 APNs 推播而**未接**（Android G1 同） |
+| Q-7 | `shared/enums.json` **沒有球衣狀態與領取方式的代碼表**（Android G4 同）：iOS 只用 `editable` 與後端標籤，狀態色用 `status == "pending"` 判斷（後端字面值 `pending／shipped／received`，來自後端程式碼而非契約）；若要依狀態分流需契約補代碼 |
+| Q-8 | 試訓場次沒有深連結（`shared/deeplinks.json` 無 `trial`，Android G6 同）；`teamCode` 篩選與 `venueLat／venueLng` 未用；試訓的 `healthDeclaration` 與課程一致不蒐集（B-9，Android G7 同） |
 
 ## 11j. 第五批契約補強（2026-10-05，`backend-engineer`；Android C1–C5、D1、D2）
 
@@ -717,6 +749,30 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 **iOS AP-4 缺口狀態**：E1（狀態代碼）✅、E2（廣告圖衍生檔）✅、E3 預載 ✅（兒童向版位判斷欄位仍無，維持靠 App 不放版位）、E4（方案 `isFallbackLocale`）✅、E5（我的報名摘要）✅。**新缺口**：F1 `portraitConsented` 不含 App 涵蓋範圍（§16.2 第 14 項）；F2 `news-body-blocks.json` 的真實來源是官網解析器，後端不驗證區塊型別，App 遇到契約外型別只能提示到官網閱讀。
 
 **Android 冒煙測試（E-163／E-190 的防呆機制，2026-10-05）**：`app/src/androidTest/.../SmokeTest.kt`（Compose UI Test＋`ActivityScenario`，`./gradlew connectedDevDebugAndroidTest`）以 dev flavor 預覽資料在模擬器走過引導三步、五個分頁、賽事詳情、新聞全文（全區塊）、會員卡（`captureToImage` 斷言 QR 非空白）、課程、店家、設定、抽獎資訊、我的報名，首頁廣告版位在並行載入情境，以及 Intent 深連結（match／player／news／store／program／schedule／無法辨識）。**AP-7 的 Android CI 必須跑這組**（Linux runner 用模擬器動作，如 `reactivecircus/android-emulator-runner`）；iOS 端對應的是同類 UI 冒煙測試（E-186／E-189）。第一次執行就抓到冷啟動深連結閃退（E-190）。
+
+### 11e-5. Android AP-4 收尾（2026-10-12）
+
+> 範圍：不需外部服務的 AP-4 剩餘項目——試訓報名、通知中心、靜音時段，並核對廣告預載與球衣登記。FCM、LINE 登入、App Links、Google Maps、App 內付款一律不做。程式在 `mobile/android`（私有 repo，僅本機 commit）。單元測試每個 flavor **187 項全綠**，冒煙測試（`connectedDevDebugAndroidTest`，Pixel 8 API 35 模擬器）**19 項全綠**，新畫面都已加進 `SmokeTest`。
+
+| 項目 | 狀態與執行層決定 |
+|---|---|
+| **廣告預載** | ✅ **早已完成，`STATUS.md` AP-4 列「廣告預載未做」是過時敘述**：`ads/AdPrefetchRepository`、`AppContainer.prefetchAds()`（啟動與回前景、距上次 6 小時才抓、過 `validUntil` 整份清除）、`AdPrefetchTest`／`OfflineAdsTest` 已在 §11e-4 C4 記錄，本輪沒有改動 |
+| **試訓報名** | `GET /api/v1/{club}/trials`、`POST /api/v1/{club}/trials/{trialId}/registrations`。入口放在「課程報名」列表上方（與「我的報名」並列，規劃書 §3.9 只說「試訓共用 Registration、不另設流程」，**沒指定入口位置**）。逐俱樂部載入、依日期排序；**場次與名額不快取**（與課程梯次同）。動作依 `statusCode`＋後端算好的 `isSignupOpen`／`acceptsWaitlist`：`open`＋可報名＝立即報名、`full`／`waitlist`＋接受候補＝額滿候補、其餘（含 `ended`、已過截止）＝已截止、**未知代碼不給入口**；客戶端不自己比日期。報名表與課程**同一個元件**（`RegistrationFormScreen`）：登入會員帶入姓名／手機／Email 到家長欄位、「我本人報名」鈕、隱私同意必勾、**不顯示不送 `healthDeclaration`**、單次 POST 不自動重試、權杖被拒（401）改匿名送。試訓專屬規則（照後端 `SubmitTrialRegistrationRequest`）：生日有填就必須是 `yyyy-MM-dd` 且不在未來，**未滿 18 歲須填家長／監護人姓名與電話**（沒填生日客戶端不判斷，交給後端）。「我的報名」的試訓列早已顯示（§11e-4 C1） |
+| **通知中心** | `GET /api/v1/app/notifications?lang=`（`X-Device-Install-Id` 由攔截器帶）。入口在「更多」。每次進入以 `force` 重新取，**失敗或離線沿用本機快取並顯示「顯示的是先前儲存的內容」**（規劃書 §3.13「離線可讀」）；政策檔沒有這一項，走 `CachedLoader` 對未列項目的預設（每行程驗證一次、離線沿用）。**90 天保留**：後端已限 90 天，客戶端另套一次（`NotificationInbox`，離線關機三個月再開不會讀到過期訊息），時間讀不出來或標題內文皆空的列丟棄。點訊息有 `deepLink` 就丟進既有的 `pendingDeepLinks` 通道，**不新增路由**。**推播傳輸**：`PushTransport` 介面＋`UnavailablePushTransport` 假實作（永遠沒有權杖，`pushTokenStatus` 因此維持 `none`），FCM 接上時只換實作 |
+| **靜音時段** | 規劃書 §3.13「可設定每日免打擾時段」、§6.4「建議預設 22:00–08:00」。**只約束本機排程的開賽提醒**（推播還沒接）。設定頁「靜音時段」：開關＋開始／結束時間（系統時間選擇器，**以裝置當地時間**、可跨午夜、起訖相同＝沒有時段）。落在時段內的提醒**順延到時段結束**，順延後已不早於開賽就不提醒（`QuietHours.deferOutOfQuiet`，純函式、有測試；`ReminderPlanner` 接受 `quiet`／`zone` 參數，預設關閉所以既有行為不變）。改設定會重排。✅ **已定案（2026-10-12 使用者拍板，App 規劃書 v3.20 §6.4）**：① 開關預設**開**；② 靜音時段約束本機開賽提醒，落入時段**順延**到時段結束、順延後已開賽則不提醒。iOS 已對齊（§11k） |
+| **球衣登記** | **核對結果：Android 先前沒做**（只有 DTO），本輪補上。`GET /api/v1/member/jerseys`（逐會籍分組：方案含幾件、已登記幾件、`canRegister`）、`POST /api/v1/{club}/member/jerseys`、`PUT /api/v1/{club}/member/jerseys/{id}`。入口在會員中心選單。**逐會籍分別登記**（兩隊球衣是兩件，規劃書 §3.5）；只有 `editable`（後端「待處理」）可修改，已處理的顯示「無法再修改，請聯繫客服」；狀態與領取方式文字取後端標籤（已依語系）；**不快取**；登記與修改都**不自動重試**。表單照後端驗證：領用人姓名必填（≤64）、尺寸必填（≤16，**自由輸入**——後端會去空白轉大寫，沒有尺寸清單）、領取方式 `ship`／`pickup`，**選寄送才要電話（≤32）與地址（≤500）**，到場領取不送收件資訊（不多蒐集）。領用人預設帶會員姓名、電話帶會員電話。需已驗證 Email（後端 `requireVerifiedEmail`，錯誤訊息照後端） |
+
+**Android 在本輪發現的缺口與待確認**（不在 `apps/api` 與規劃書補規格）：
+
+| # | 缺口 |
+|---|---|
+| G1 | **FCM 推播傳輸未做**（需 Firebase 專案與 `google-services.json`）：通知中心目前顯示的是後台已發出的訊息，不是「這支手機收到過的推播」；`POST /app/push/{id}/opened` 也因此沒接 |
+| G2 | **靜音時段與分類開關沒有後端存放處**：`app_devices`／`GET｜PUT /app/devices/{id}/subscriptions` 只有 `topicType`＝`team`／`news_category`／`club` 與 `isFollowing`／`isPushEnabled`，**沒有靜音時段欄位、沒有「賽事／賽果／新聞／會籍與球衣」分類開關**。本輪靜音時段只存在本機。推播接上後，系統通知由 FCM 直接顯示、客戶端攔不住，所以**靜音必須由伺服器依裝置當地時間過濾**——需要後端先加欄位（至少起訖時間與時區），這要先改規劃書 §6.4／資料模型再做，**沒有自行發明** |
+| G3 | 規劃書 §3.13／§6.4 的**分類開關**（賽事提醒／賽果／新聞／會籍與球衣）本輪沒做：它們全屬推播偏好，且沒有後端欄位（同 G2）；本機開賽提醒的單一開關維持 |
+| G4 | `shared/enums.json` **沒有球衣狀態與領取方式的代碼表**：客戶端用 `editable` 布林與後端標籤，不依賴狀態字面值；若之後要依狀態分流（例如「已寄出」顯示物流）需契約補代碼 |
+| G5 | 通知中心**沒有已讀／未讀**——規劃書 §3.13 只寫「列出已收到的推播，保留 90 天，離線可讀」，後端也沒有已讀端點，**沒有發明**；`GET /app/notifications` 沒有分頁，上限 200 筆（後端 `Take(200)`），客戶端全顯示 |
+| G6 | 試訓場次沒有深連結（`shared/deeplinks.json` 無 `trial`），通知若要直達試訓需契約補；`teamCode` 篩選端點支援但畫面沒用（兩隊的場次一起列）；`venueLat`／`venueLng` 未用 |
+| G7 | 試訓報名的 `healthDeclaration` 與課程一致**不蒐集**（B-9 未解）；若試訓需要健康聲明（運動傷害風險），要先由規劃書／法務決定 |
 
 ## 12. 本檔不決定的事
 

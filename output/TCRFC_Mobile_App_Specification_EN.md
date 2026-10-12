@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.19
-> **Date**: 2026-09-04 (v3.19 revision: 2026-10-12)
+> **Document version**: v3.20
+> **Date**: 2026-09-04 (v3.20 revision: 2026-10-12)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.20 revision summary — quiet hours default to on and also govern locally scheduled kickoff reminders**
+> The quiet-hours switch is on by default with a default window of 22:00–08:00 (device local time, may span midnight); quiet hours also govern the match-day kickoff reminders (local notifications scheduled by the App on the device): a reminder falling inside the window is deferred to the end of the window, and if the match has already kicked off by then, no reminder is shown. Where: 3.2 match-day bundle, 3.13, 6.4.
 
 > **v3.19 revision summary — system administrator is an account-level status; the full-rights role is named "All-module manager"**
 > **No new functionality; permission scope unchanged.** In line with website specification v3.26: system administrator is an account-level status holding every permission; items restricted to system administrators (M1 releases and forced updates, M3 push approval, M4 full token values, M5 credentials, advertising maintenance jobs) cannot be obtained through any role. The full-rights role in §11 is named "**All-module manager**" and excludes those items. Where: §11.
@@ -530,7 +533,7 @@ Adding U18 or U10 later requires only a new record in admin C1, with no app rele
 |---|---|
 | **Add to system calendar** | A single fixture, or the whole season at once. Written to the device's native calendar, not an in-app calendar |
 | **Venue navigation** | Opens system maps using the `Venue` coordinates. Falls back to an address search where coordinates are absent |
-| **Kick-off reminder** | Push two hours before kick-off, segmented by the **squads the user follows**. Can be turned off in settings |
+| **Kick-off reminder** | A local notification two hours before kick-off, scheduled by the App on the device, segmented by the **squads the user follows**. Can be turned off in settings; **governed by quiet hours** (6.4) |
 
 **Time handling**:
 - **A match's date and kick-off time** are recorded in **Taipei local time** (Taiwan time, no daylight saving); all other time data (announcement publishing, notification sending, order and membership timestamps, etc.) is recorded in Coordinated Universal Time (UTC).
@@ -766,7 +769,7 @@ Where a sponsorship contract includes "N app placements", the correct approach i
 | Notification centre | An in-app inbox listing received pushes, retained 90 days, readable offline |
 | Category toggles | Fixture reminders / results / news / membership and jersey, each independently switchable |
 | Squad subscriptions | Subscribe to the squads of interest; fixture reminders are segmented accordingly |
-| Quiet hours | A daily do-not-disturb window |
+| Quiet hours | A daily do-not-disturb window; the switch is on by default (6.4) |
 | Permission denied | The notification settings screen must explain the state clearly and offer a shortcut into system settings |
 
 **This is the app's notification centre, not the website's** — the website still has no on-site messaging or notification preferences, and that rule is unchanged.
@@ -1026,7 +1029,8 @@ Three dimensions only, with **behavioural targeting deliberately excluded**:
 | Category toggles | Independently switchable (fixtures / results / news / membership and jersey) |
 | Followed squads | Multiple selection, the same data as S23. **Users who skipped onboarding are treated as following everything** |
 | **Follow without push** | Push can be disabled per followed squad (`is_following` and `is_push_enabled` are separate) |
-| Quiet hours | A daily do-not-disturb window, 22:00–08:00 suggested as the default |
+| Quiet hours | A daily do-not-disturb window. **The switch is on by default, with a default window of 22:00–08:00**, in device local time and may span midnight |
+| **Quiet hours govern local reminders** | Quiet hours **also govern the match-day kickoff reminders the App schedules locally**: a reminder falling inside the window is deferred to the end of the window; if the match has already kicked off by then, no reminder is shown |
 | Permission denied | The app must show the state and offer a shortcut to system settings, and **must not nag with repeated prompts** |
 | All off | Users may disable all push; **membership expiry reminders still arrive by the existing system email** (important notices must never depend on push alone) |
 

@@ -10,6 +10,7 @@
  *
  * 用法：node scripts/check-en-pages.mjs [BASE_URL=http://127.0.0.1:3000] [--all]
  *   預設只掃「頁面檔含 enReady: true」的路由；--all 掃全部靜態路由（找哪些頁還沒翻）。
+ *   --verbose 逐筆列出被歸為「已知待確認」的片段（人名、待確認專名、假 API 測試資料；分類表見 PENDING）。
  *   動態路由（含 [param]）略過，另以實際網址手動抽查。
  *
  * 容許的中文：`lang="zh-Hant"` 元素（備援提示的中文那行、語言切換器的「繁中」）、<script>／<style>／JSON-LD 不看、
@@ -26,6 +27,7 @@ const args = process.argv.slice(2)
 const ALL = args.includes('--all')
 // 藍鯨站（NUXT_PUBLIC_CLUB=bw）看 `enReadyBw` 旗標：node scripts/check-en-pages.mjs http://127.0.0.1:PORT --bw
 const FLAG = args.includes('--bw') ? 'enReadyBw' : 'enReady'
+const VERBOSE = args.includes('--verbose')
 const BASE = (args.find((a) => a.startsWith('http')) || 'http://127.0.0.1:3000').replace(/\/$/, '')
 
 function walk(dir) {
@@ -63,6 +65,22 @@ function visibleText(html) {
 // 其餘（人名、藍鯨中文名、輪播指示器）不在此豁免，掃到就是待處理或待確認事項。
 const KNOWN_ZH = [/隱私權政策/, /健康聲明|健康狀況/, /崇平路/, /^台中市.{2,12}[路街].*號$/]
 
+// 「已知待確認」分類（2026-10-12）：這些中文不是漏翻，而是缺英文來源、等客戶／法務確認，**不得自行翻譯定案**
+// （STATUS S2-13、docs/06 §1.1）。命中者另行計數、不使 exit 1；每個分類都附原因，報告只剩真正的缺口。
+// 不放寬到「任何中文」：只認下列明確樣式，新出現的中文仍會被當成殘留。
+const PENDING = [
+  { key: '測試資料', why: '假 API（dev-fixture-api）的測試資料，非正式內容', re: /測試|^測$|示範|球迷見面會/ },
+  { key: '待確認專名', why: '機構／隊名／學校名，S2-13 待客戶確認英文，保留中文', re: /潭秀|台中磐石盃|嶺東高中|台中足球學校|運動 ?i ?台灣|小藍鯨社區|女子足球協會/ },
+  // 英文句中夾 2–4 字中文人名（「周宇杰 joins …」「楊朝景 Midfielder (MF)」）：句子本身已是英文，只缺人名英文來源（不音譯）。
+  {
+    key: '人名／專名嵌入英文句',
+    why: '球員、教練、校名的英文姓名缺來源，S2-13 待客戶提供，不音譯',
+    test: (t) => (t.match(/[A-Za-z]{3,}/g) || []).length >= 1 && (t.match(/[぀-ヿ㐀-䶿一-鿿]+/g) || []).every((r) => r.length <= 12),
+  },
+]
+const classify = (t) => PENDING.find((p) => (p.re ? p.re.test(t) : p.test(t)))
+const pendingTotals = new Map()
+
 const routes = []
 for (const f of walk(PAGES)) {
   const src = readFileSync(f, 'utf8')
@@ -89,7 +107,15 @@ for (const { route, ready } of routes) {
   }
   const text = visibleText(html)
   // 語系切換器的「繁中」按鈕文字本身就該是繁中（讓英文使用者找得到回去的路），不算殘留。
-  const hits = text.split(/\n|\s{2,}/).map((t) => t.trim()).filter((t) => t !== '繁中' && CJK.test(t) && !KNOWN_ZH.some((re) => re.test(t)))
+  const rawHits = text.split(/\n|\s{2,}/).map((t) => t.trim()).filter((t) => t !== '繁中' && CJK.test(t) && !KNOWN_ZH.some((re) => re.test(t)))
+  const hits = []
+  for (const h of rawHits) {
+    const c = classify(h)
+    if (c) {
+      pendingTotals.set(c.key, (pendingTotals.get(c.key) ?? 0) + 1)
+      if (VERBOSE) console.log(`     [已知待確認：${c.key}] ${h.slice(0, 60)}`)
+    } else hits.push(h)
+  }
   if (hits.length) {
     bad++
     console.log(`✗  ${route}${ready ? '' : '  (尚未宣告 enReady)'}  殘留 ${hits.length} 段`)
@@ -98,5 +124,9 @@ for (const { route, ready } of routes) {
     console.log(`✓  ${route}${ready ? '' : '  (未宣告 enReady，但已無中文)'}`)
   }
 }
-console.log(`\n${routes.length} 頁，${bad} 頁有中文殘留。`)
+console.log(`\n${routes.length} 頁，${bad} 頁有未分類的中文殘留。`)
+if (pendingTotals.size) {
+  console.log('已知待確認（不計入失敗；--verbose 逐筆列出）：')
+  for (const [k, n] of pendingTotals) console.log(`  ${k}：${n} 段 — ${PENDING.find((p) => p.key === k).why}`)
+}
 process.exit(bad ? 1 : 0)

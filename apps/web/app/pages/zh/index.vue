@@ -203,6 +203,7 @@ interface HomeMatch {
   opponent: string | null
   venue: string | null
   competitionName: string | null
+  competitionTag?: string | null
   status: string | null
   homeAway: string | null
   scoreHome: number | null
@@ -271,15 +272,19 @@ function clubScore(m: HomeMatch): number | null {
 function opponentScore(m: HomeMatch): number | null {
   return m.homeAway === 'AWAY' ? m.scoreHome : m.scoreAway
 }
+// 英文版：API 的賽事名稱只有中文，改用賽事類型的英文標籤（與行事曆頁一致）；中文版照舊顯示賽事名稱。
+function compName(m: HomeMatch): string {
+  return isEn.value ? (m.competitionName ? compTagLabelEn(m.competitionTag ?? null) : '') : (m.competitionName ?? '')
+}
 function resultMetaLine(m: HomeMatch): string {
-  return [m.competitionName ?? '', m.matchOn.replaceAll('-', '/')].filter(Boolean).join(' · ')
+  return [compName(m), m.matchOn.replaceAll('-', '/')].filter(Boolean).join(' · ')
 }
 function fixtureMetaLine(m: HomeMatch): string {
   const [, mo, d] = m.matchOn.split('-')
   const wd = matchWeekday(m.matchOn).zh
   const haLabel = m.homeAway === 'AWAY' ? tx('客場', 'Away') : m.homeAway === 'HOME' ? tx('主場', 'Home') : ''
   const dateLabel = isEn.value ? `${Number(mo)}/${Number(d)} (${matchWeekday(m.matchOn).en})` : `${Number(mo)}/${Number(d)}（${wd}）`
-  return [m.competitionName ?? '', dateLabel, haLabel].filter(Boolean).join(' · ')
+  return [compName(m), dateLabel, haLabel].filter(Boolean).join(' · ')
 }
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000

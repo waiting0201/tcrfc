@@ -1119,7 +1119,7 @@ useClubEventSchema(clubEvents, {
             <template v-if="isEn">Subscribe to {{ feedScopeLabel }} in your calendar app: </template>
             <template v-else>訂閱{{ feedScopeLabel }}行事曆：</template>
             <a v-if="feedWebcalUrl" :href="feedWebcalUrl" data-feed-webcal><span class="en">webcal://</span> {{ tx('一鍵訂閱', 'one-tap subscribe') }}</a>
-            <template v-if="feedWebcalUrl"> ・ </template>
+            <template v-if="feedWebcalUrl">{{ isEn ? " · " : " ・ " }}</template>
             <a :href="feedHttpsUrl" data-feed-https>{{ tx('https 連結', 'https link') }}<span class="en"> (.ics)</span></a>
           </p>
         </div>
