@@ -37,6 +37,7 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
 
 - **應用層守門仍保留**：`Common/JsonColumn.cs` 只收物件或陣列、不符回 400（日常中文訊息）——API 回 400 比資料庫約束錯誤（500）友善。自由文字包成 `{"text":"…"}`（營業時間、新聞內文）。
 - **新聞內文 `articles_i18n.body`**：後台送純文字，寫入時包成 `{"text":"…"}`（物件／陣列原樣保存，為區塊編輯器保留），讀取（後台詳情、公開單篇 `bodyJson`）一律還原成原文字，對外契約不變、前端不用改（`JsonColumn.NormalizeTextOrStructured`／`UnwrapText`；`ArticleBodyJsonColumnTests`）。
+- **約束命名與欄位順序（2026-10-13，`E-322`）**：新增 migration 若用 `AddColumn(defaultValue)` 或 `migrationBuilder.Sql` 加預設值／欄位 CHECK，最後呼叫 `SystemNamedConstraintRenamer.Rename(migrationBuilder)`（`Data/SystemNamedConstraintRenamer.cs`），DDL 同步寫 `CONSTRAINT DF_<表>_<欄>`／`CK_<表>_<欄>` 並把新欄位寫在該表最後；規則見 `docs/14`「約束命名」「欄位順序」。migration `NameSystemConstraints`（主站、慈善各一）已把既有系統命名約束改成規則名稱。
 - **新增 JSON 欄位**：DDL 宣告（`nvarchar(max) NULL CONSTRAINT CK_… CHECK (ISJSON…)`）、EF 模型的 `HasCheckConstraint`（`Data/ClubDbContextJsonChecks.cs`／`CharityPlatform/Data/CharityDbContextCustomizations.cs`）、冪等 migration 三處同改；`deploy/schema-drift-check.sh` 會比對。
 
 ---

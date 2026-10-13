@@ -20,8 +20,13 @@
 #                      用來發現「本機庫落後」——db/seed/setup-club-db.sh 遇到已有資料表會略過 DDL，
 #                      DDL 後來改了本機卻沒重建，兩邊就分岔。對本機現有庫只做 SELECT（唯讀）。
 #
+#   --compare-snapshots A.txt B.txt   不連任何資料庫：直接比對兩份 deploy/schema-snapshot.sql 的輸出檔（嚴格模式、零容忍）。
+#                       用途：拿正式庫的唯讀快照檔（deploy/prod-schema-snapshot.sh 產出）和本機庫、DDL 建的庫或模擬正式庫的快照比。
+#                       標籤用 --a-label／--b-label 指定（預設用檔名）。結束碼 0 一致、1 有差異、2 快照是空的／用法錯。
+#
 # 用法：
 #   deploy/schema-drift-check.sh [--mode ddl-vs-ef|local-vs-ddl] [--target club|charity|all] [--keep] [--dry-run]
+#   deploy/schema-drift-check.sh --compare-snapshots A.txt B.txt [--a-label 標籤] [--b-label 標籤]
 #   --target   預設 all。
 #   --keep     跑完保留 tcrfc_drift_* 庫（除錯用）；預設一律丟掉。
 #   --dry-run  只做前置檢查（檔案、工具、容器）並印出會做什麼，不建庫、不連線寫入。
@@ -51,17 +56,25 @@ SCRATCH_DBS=(tcrfc_drift_club_ddl tcrfc_drift_club_ef tcrfc_drift_charity_ddl tc
 # ⛔ 唯一允許被「讀」的既有庫（local-vs-ddl 模式；只跑 SELECT）
 READONLY_DBS=(tcrfc_club tcrfc_charity)
 
-MODE="ddl-vs-ef"; TARGET="all"; KEEP=0; DRY=0
+MODE="ddl-vs-ef"; TARGET="all"; KEEP=0; DRY=0; CMP_A=""; CMP_B=""; A_LABEL=""; B_LABEL=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --compare-snapshots) CMP_A="${2:-}"; CMP_B="${3:-}"; shift 3 || { echo "--compare-snapshots 需要兩個檔案" >&2; exit 2; } ;;
+    --a-label) A_LABEL="${2:-}"; shift 2 ;;
+    --b-label) B_LABEL="${2:-}"; shift 2 ;;
     --mode) MODE="${2:-}"; shift 2 ;;
     --target) TARGET="${2:-}"; shift 2 ;;
     --keep) KEEP=1; shift ;;
     --dry-run) DRY=1; shift ;;
-    -h|--help) sed -n '1,45p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help) sed -n '1,50p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "不認得的參數：$1（見 --help）" >&2; exit 2 ;;
   esac
 done
+if [[ -n "${CMP_A}" || -n "${CMP_B}" ]]; then
+  [[ -f "${CMP_A}" && -f "${CMP_B}" ]] || { echo "--compare-snapshots：找不到檔案（${CMP_A}、${CMP_B}）" >&2; exit 2; }
+  command -v python3 >/dev/null || { echo "找不到 python3" >&2; exit 2; }
+  exec python3 -I "${SCRIPT_DIR}/schema-diff.py" --a-label "${A_LABEL:-${CMP_A##*/}}" --b-label "${B_LABEL:-${CMP_B##*/}}" --mode strict "${CMP_A}" "${CMP_B}"
+fi
 [[ "${MODE}" == "ddl-vs-ef" || "${MODE}" == "local-vs-ddl" ]] || { echo "--mode 只接受 ddl-vs-ef 或 local-vs-ddl" >&2; exit 2; }
 [[ "${TARGET}" == "club" || "${TARGET}" == "charity" || "${TARGET}" == "all" ]] || { echo "--target 只接受 club、charity、all" >&2; exit 2; }
 

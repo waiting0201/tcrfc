@@ -20,6 +20,11 @@
 #                                                 先 DROP（若存在）再 CREATE tcrfc_club，取得一個全新的
 #                                                 資料庫再灌 DDL。一鍵版（另外呼叫種子腳本）見
 #                                                 db/seed/setup-club-db.sh。
+#   deploy/local-ddl.sh --apply-charity-db [--recreate]
+#                                                 同上，對象是 tcrfc_charity（慈善庫）。
+#
+# 🔴 2026-10-13（E-322）：DDL 灌好的新庫會同時建 __EFMigrationsHistory 並把全部 migration 標記為已套用
+#（與 deploy/prod-db-init.sh 步驟 3 相同），所以建庫後 `dotnet ef migrations list` 沒有 Pending。
 #
 # ──────────────────────────────────────────────────────────────────────────────
 # 🔴 安全模型：目標容器可設定，但目標資料庫名稱寫死白名單
@@ -56,6 +61,8 @@ ALLOWED_DATABASES=("tcrfc_club" "tcrfc_charity")
 # 網站庫名稱——--apply-club-db 模式（含 --recreate 的 DROP）只作用在這個名字，
 # 與 db/seed/setup-club-db.sh、db/seed/apply-seed.sh 的寫死名稱是同一個。
 readonly CLUB_DATABASE_NAME="tcrfc_club"
+# 慈善庫名稱——--apply-charity-db 模式（含 --recreate 的 DROP）只作用在這個名字。
+readonly CHARITY_DATABASE_NAME="tcrfc_charity"
 
 assert_allowed_database() {
   local db="$1"
@@ -73,6 +80,8 @@ MODE="${1:-}"
 APPLY=0
 APPLY_CLUB_DB=0
 RECREATE_CLUB_DB=0
+APPLY_CHARITY_DB=0
+RECREATE_CHARITY_DB=0
 case "${MODE}" in
   --apply)
     APPLY=1
@@ -83,10 +92,16 @@ case "${MODE}" in
       RECREATE_CLUB_DB=1
     fi
     ;;
+  --apply-charity-db)
+    APPLY_CHARITY_DB=1
+    if [[ "${2:-}" == "--recreate" ]]; then
+      RECREATE_CHARITY_DB=1
+    fi
+    ;;
   "")
     ;;
   *)
-    echo "不認得的參數：${MODE}（合法值：--apply、--apply-club-db [--recreate]，或不帶參數）" >&2
+    echo "不認得的參數：${MODE}（合法值：--apply、--apply-club-db [--recreate]、--apply-charity-db [--recreate]，或不帶參數）" >&2
     exit 1
     ;;
 esac
@@ -116,7 +131,7 @@ echo "==> 複製 db/charity-schema.sql（原樣，不轉換）"
 copy_ddl "${SRC_DIR}/charity-schema.sql" "${OUT_DIR}/charity-schema.local.sql"
 echo "    → ${OUT_DIR}/charity-schema.local.sql"
 
-if [[ "${APPLY}" -eq 0 && "${APPLY_CLUB_DB}" -eq 0 ]]; then
+if [[ "${APPLY}" -eq 0 && "${APPLY_CLUB_DB}" -eq 0 && "${APPLY_CHARITY_DB}" -eq 0 ]]; then
   echo
   echo "只產生檔案，未執行。要灌進本機資料庫，加 --apply；" \
        "要建立／灌網站庫，加 --apply-club-db（見檔頭「用法」）。"
@@ -128,6 +143,10 @@ if [[ "${APPLY_CLUB_DB}" -eq 1 ]]; then
   echo "==> --apply-club-db：即將操作的目標"
   echo "    容器（docker container name）：${LOCAL_MSSQL_CONTAINER}"
   echo "    資料庫（僅這一個）：${CLUB_DATABASE_NAME}$( [[ "${RECREATE_CLUB_DB}" -eq 1 ]] && echo '（--recreate：先 DROP 再 CREATE）' )"
+elif [[ "${APPLY_CHARITY_DB}" -eq 1 ]]; then
+  echo "==> --apply-charity-db：即將操作的目標"
+  echo "    容器（docker container name）：${LOCAL_MSSQL_CONTAINER}"
+  echo "    資料庫（僅這一個）：${CHARITY_DATABASE_NAME}$( [[ "${RECREATE_CHARITY_DB}" -eq 1 ]] && echo '（--recreate：先 DROP 再 CREATE）' )"
 else
   echo "==> --apply：即將操作的目標"
   echo "    容器（docker container name）：${LOCAL_MSSQL_CONTAINER}"
@@ -147,6 +166,35 @@ fi
 
 : "${MSSQL_DEV_SA_PASSWORD:?請設定 MSSQL_DEV_SA_PASSWORD（須與 '${LOCAL_MSSQL_CONTAINER}' 容器的 SA 密碼一致，見 .env）}"
 
+# 🔴 2026-10-13（E-322）：DDL 建好的新庫要連同 __EFMigrationsHistory 一起建（全部 migration 標記為已套用），
+# 做法與 deploy/prod-db-init.sh 步驟 3 相同——DDL 已是最新結構（含約束命名與欄位順序），不該再讓 `dotnet ef database update`
+# 把 migration 重跑一遍（重跑只會用 AddColumn 把欄位加到表尾、用自動命名的預設值，弄壞「本機＝正式庫」的結構一致性）。
+# ${1}=資料庫 ${2}=migration 目錄 ${3}=ModelSnapshot.cs。已有歷史表就略過（冪等）。
+mark_migrations_applied() {
+  local db="$1" mig_dir="$2" snapshot="$3" version ids hist
+  assert_allowed_database "${db}"
+  version="$(grep -oE 'HasAnnotation\("ProductVersion", "[^"]+"\)' "${snapshot}" | head -n 1 | sed -E 's/.*"ProductVersion", "([^"]+)".*/\1/')"
+  ids="$(grep -hoE '\[Migration\("[0-9]{14}_[A-Za-z0-9_]+"\)\]' "${mig_dir}"/*.Designer.cs | sed -E 's/^\[Migration\("(.*)"\)\]$/\1/' | sort -u)"
+  if [[ -z "${version}" || -z "${ids}" ]]; then
+    echo "找不到 ProductVersion 或 migration 清單（${snapshot}、${mig_dir}）" >&2
+    exit 1
+  fi
+  hist="$(mktemp)"
+  {
+    echo "IF OBJECT_ID(N'__EFMigrationsHistory') IS NULL"
+    echo "BEGIN"
+    echo "CREATE TABLE [__EFMigrationsHistory] ([MigrationId] nvarchar(150) NOT NULL, [ProductVersion] nvarchar(32) NOT NULL, CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId]));"
+    while IFS= read -r id; do
+      printf "INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion]) VALUES (N'%s', N'%s');\n" "${id}" "${version}"
+    done <<<"${ids}"
+    echo "END"
+  } >"${hist}"
+  docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
+    -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" -b < "${hist}"
+  rm -f "${hist}"
+  echo "    已標記 $(printf '%s\n' "${ids}" | grep -c .) 支 migration 為已套用（ProductVersion ${version}）：${db}"
+}
+
 run_sqlcmd() {
   local db="$1" sql_file="$2"
   assert_allowed_database "${db}"
@@ -158,52 +206,64 @@ run_sqlcmd() {
   docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
     -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" \
     < "${sql_file}"
+  if [[ "${db}" == "tcrfc_club" ]]; then
+    mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/Data/Migrations" "${REPO_ROOT}/apps/api/Data/Migrations/ClubDbContextModelSnapshot.cs"
+  else
+    mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/CharityPlatform/Data/Migrations" "${REPO_ROOT}/apps/api/CharityPlatform/Data/Migrations/CharityDbContextModelSnapshot.cs"
+  fi
 }
 
-apply_club_db() {
-  assert_allowed_database "${CLUB_DATABASE_NAME}"
+apply_one_db() { # ${1}=資料庫（白名單內）${2}=本機 DDL 檔 ${3}=是否 --recreate(0|1)
+  local db="$1" ddl="$2" recreate="$3" needs_ddl=0 table_count
+  assert_allowed_database "${db}"
 
-  if [[ "${RECREATE_CLUB_DB}" -eq 1 ]]; then
+  if [[ "${recreate}" -eq 1 ]]; then
     echo "    --recreate：先 DROP（若存在）再 CREATE，取得全新的資料庫"
     # ALTER ... SET SINGLE_USER WITH ROLLBACK IMMEDIATE：踢掉任何還連著這個庫的既有連線
     # （例如上一輪 dotnet test 沒乾淨結束留下的連線），避免 DROP DATABASE 卡住或失敗。
-    # 這一整條指令只點名 CLUB_DATABASE_NAME 這一個資料庫，assert_allowed_database 已先擋過
+    # 這一整條指令只點名 ${db} 這一個資料庫，assert_allowed_database 已先擋過
     # 這個變數不可能是白名單以外的名字。
     docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
       -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
-      -Q "IF DB_ID('${CLUB_DATABASE_NAME}') IS NOT NULL BEGIN ALTER DATABASE [${CLUB_DATABASE_NAME}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [${CLUB_DATABASE_NAME}]; END; CREATE DATABASE [${CLUB_DATABASE_NAME}];"
-    NEEDS_DDL=1
+      -Q "IF DB_ID('${db}') IS NOT NULL BEGIN ALTER DATABASE [${db}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [${db}]; END; CREATE DATABASE [${db}];"
+    needs_ddl=1
   else
-    echo "    建庫（若不存在）：${CLUB_DATABASE_NAME}"
+    echo "    建庫（若不存在）：${db}"
     docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
       -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
-      -Q "IF DB_ID('${CLUB_DATABASE_NAME}') IS NULL CREATE DATABASE [${CLUB_DATABASE_NAME}];"
+      -Q "IF DB_ID('${db}') IS NULL CREATE DATABASE [${db}];"
 
     # CREATE TABLE 不是冪等的——已經建過表的資料庫再灌一次 DDL 會直接失敗。用資料表數量判斷
     # 這次是不是全新的資料庫，不是全新的就略過 DDL（呼叫端要重灌表結構，請加 --recreate）。
-    local table_count
     table_count="$(docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
-      -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${CLUB_DATABASE_NAME}" -h -1 -W \
+      -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" -h -1 -W \
       -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.tables;" | tr -d '[:space:]')"
 
     if [[ "${table_count}" == "0" ]]; then
-      NEEDS_DDL=1
+      needs_ddl=1
     else
-      NEEDS_DDL=0
       echo "    資料庫已存在且已有 ${table_count} 張表，略過 DDL。要重建表結構請加 --recreate。"
     fi
   fi
 
-  if [[ "${NEEDS_DDL}" -eq 1 ]]; then
-    echo "    套用 DDL：${OUT_DIR}/club-schema.local.sql"
+  if [[ "${needs_ddl}" -eq 1 ]]; then
+    echo "    套用 DDL：${ddl}"
+    # -b：DDL 出錯就中止（不要在半套結構上繼續標記 migration 為已套用）；-I：QUOTED_IDENTIFIER ON（篩選索引／計算欄位需要）
     docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
-      -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${CLUB_DATABASE_NAME}" \
-      < "${OUT_DIR}/club-schema.local.sql"
+      -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" -b -I \
+      < "${ddl}"
+    if [[ "${db}" == "${CLUB_DATABASE_NAME}" ]]; then
+      mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/Data/Migrations" "${REPO_ROOT}/apps/api/Data/Migrations/ClubDbContextModelSnapshot.cs"
+    else
+      mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/CharityPlatform/Data/Migrations" "${REPO_ROOT}/apps/api/CharityPlatform/Data/Migrations/CharityDbContextModelSnapshot.cs"
+    fi
   fi
 }
 
 if [[ "${APPLY_CLUB_DB}" -eq 1 ]]; then
-  apply_club_db
+  apply_one_db "${CLUB_DATABASE_NAME}" "${OUT_DIR}/club-schema.local.sql" "${RECREATE_CLUB_DB}"
+elif [[ "${APPLY_CHARITY_DB}" -eq 1 ]]; then
+  apply_one_db "${CHARITY_DATABASE_NAME}" "${OUT_DIR}/charity-schema.local.sql" "${RECREATE_CHARITY_DB}"
 else
   run_sqlcmd "tcrfc_club" "${OUT_DIR}/club-schema.local.sql"
   run_sqlcmd "tcrfc_charity" "${OUT_DIR}/charity-schema.local.sql"

@@ -50,6 +50,12 @@
    11. 輸出結構：本檔先依 4.0–4.13 分模組建表（僅含欄位與主鍵／叢集鍵／
        CHECK），再統一建唯一鍵、統一建索引、統一建外鍵，最後 CREATE VIEW。
 
+   🔴 約束命名與欄位順序（2026-10-13，docs/14「約束命名」「欄位順序」、docs/18 E-322）：
+      - 每個 DEFAULT／CHECK 都寫 CONSTRAINT <名稱>：欄位層級預設值 DF_<表>_<欄>、欄位層級 CHECK CK_<表>_<欄>，
+        表層級／跨欄 CHECK 手動具名（CK_<表>_<說明>）。不得留匿名（SQL Server 會產生帶隨機碼的 DF__…／CK__…）。
+      - 欄位宣告順序＝正式庫的實際欄序（歷史 migration 把新欄加在表尾）。以後新增欄位一律寫在該表「最後一欄」，
+        不得插在中間；DDL 改欄序＝正式庫要重建表，不做。deploy/schema-drift-check.sh 會抓。
+
    —— 定序（COLLATE）提醒 ——
    🔴 本檔刻意不在任何欄位或資料庫層級寫死 COLLATE。定序在建庫時一次決定、
       建庫後不可改（docs/17-deployment.md §8 列為未決項）。建庫時另下
@@ -119,21 +125,21 @@ GO
 CREATE TABLE locales (
   code            nvarchar(10)     NOT NULL,
   name            nvarchar(64)     NOT NULL,
-  is_default      bit              NOT NULL DEFAULT 0,
+  is_default      bit              NOT NULL CONSTRAINT DF_locales_is_default DEFAULT 0,
   fallback_code   nvarchar(10)     NULL,
-  is_enabled      bit              NOT NULL DEFAULT 1,
-  sort_order      int              NOT NULL DEFAULT 0,
+  is_enabled      bit              NOT NULL CONSTRAINT DF_locales_is_enabled DEFAULT 1,
+  sort_order      int              NOT NULL CONSTRAINT DF_locales_sort_order DEFAULT 0,
   CONSTRAINT PK_locales PRIMARY KEY CLUSTERED (code)
 );
 
 -- 介面字串鍵（按鈕、標籤、提示、錯誤訊息）與所屬分組。
 CREATE TABLE ui_strings (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_ui_strings_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   string_key      nvarchar(128)    NOT NULL,
   string_group    nvarchar(64)     NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_ui_strings_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_ui_strings_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_ui_strings PRIMARY KEY NONCLUSTERED (id),
@@ -153,7 +159,7 @@ CREATE TABLE value_tag_links (
   entity_type     nvarchar(32)     NOT NULL,
   entity_id       uniqueidentifier NOT NULL,
   value_tag       nvarchar(32)     NOT NULL
-                    CHECK (value_tag IN
+                    CONSTRAINT CK_value_tag_links_value_tag CHECK (value_tag IN
                       ('players_first','excellence','global_pathways','community','integrity')),
   CONSTRAINT PK_value_tag_links PRIMARY KEY CLUSTERED (entity_type, entity_id, value_tag)
 );
@@ -161,14 +167,14 @@ CREATE TABLE value_tag_links (
 -- 全域設定鍵值（含商店設定、聯絡資訊、社群連結、政策頁、維護模式）。
 -- 唯一鍵 (club_id, setting_key)。setting_value 供非語系設定值；文案類設定另見 settings_i18n。
 CREATE TABLE settings (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_settings_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   setting_key     nvarchar(128)    NOT NULL,
   setting_value   nvarchar(max)    NULL,
   setting_group   nvarchar(32)     NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_settings_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_settings_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_settings PRIMARY KEY NONCLUSTERED (id),
@@ -185,12 +191,12 @@ CREATE TABLE settings_i18n (
 
 -- 系統信樣板。
 CREATE TABLE email_templates (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_email_templates_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   template_code   nvarchar(32)     NOT NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_email_templates_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_email_templates_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_email_templates PRIMARY KEY NONCLUSTERED (id),
@@ -209,7 +215,7 @@ CREATE TABLE email_templates_i18n (
 -- 系統信寄送紀錄（功能單元，不是操作日誌）。type 值域 9 個（會員 5＋商店 4，
 -- docs/12 §4.0 僅稱值域數量未逐一列出字面值，本表不加 CHECK 以免杜撰值域）。
 CREATE TABLE email_logs (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_email_logs_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   email_template_id uniqueidentifier NULL,
@@ -218,8 +224,8 @@ CREATE TABLE email_logs (
   member_id         uniqueidentifier NULL,
   send_status       nvarchar(20)     NOT NULL,
   sent_at           datetime2(3)     NULL,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_email_logs_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_email_logs_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_email_logs PRIMARY KEY NONCLUSTERED (id),
@@ -236,21 +242,21 @@ CREATE TABLE email_logs (
 -- 不影響頁面本身在站內是否可瀏覽。og_image_key／_width／_height：OG 圖片覆寫（驗收退回後補做，
 -- 2026-09-25），圖片欄位組比照既有通則，alt 走 pages_i18n（見下）。
 CREATE TABLE pages (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_pages_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   slug            nvarchar(160)    NOT NULL,
-  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published','scheduled')),
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_pages_status DEFAULT 'draft'
+                    CONSTRAINT CK_pages_status CHECK (status IN ('draft','published','scheduled')),
   published_at    datetime2(3)     NULL,
   canonical_path  nvarchar(500)    NULL,
-  is_noindex      bit              NOT NULL DEFAULT 0,
-  is_excluded_from_sitemap bit     NOT NULL DEFAULT 0,
+  is_noindex      bit              NOT NULL CONSTRAINT DF_pages_is_noindex DEFAULT 0,
+  is_excluded_from_sitemap bit     NOT NULL CONSTRAINT DF_pages_is_excluded_from_sitemap DEFAULT 0,
   og_image_key    nvarchar(500)    NULL,
   og_image_width  int              NULL,
   og_image_height int              NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_pages_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_pages_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_pages PRIMARY KEY NONCLUSTERED (id),
@@ -274,32 +280,32 @@ CREATE TABLE pages_i18n (
 -- 依 docs/12c §1 第 3 條「主表已放的欄位優先」不建 page_blocks_i18n。
 -- ⚠️ docs/12 §4.1（PageBlock 列）截至本次同步仍標 🌐，未隨本檔更新——不在本輪 i18n 裁決範圍內，留待下一輪同步。
 CREATE TABLE page_blocks (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_page_blocks_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   page_id         uniqueidentifier NOT NULL,
   block_type      nvarchar(32)     NOT NULL,
-  content         nvarchar(max) NULL CONSTRAINT CK_page_blocks_content_json CHECK (ISJSON(content, OBJECT) = 1),
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_page_blocks_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_page_blocks_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_page_blocks_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  content         nvarchar(max) NULL CONSTRAINT CK_page_blocks_content_json CHECK (ISJSON(content, OBJECT) = 1),
   CONSTRAINT PK_page_blocks PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_page_blocks_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
 -- 頁面版本歷程與還原點、預覽分享 token。由 Page 推導，不帶 club_id。
 CREATE TABLE page_versions (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_page_versions_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   page_id         uniqueidentifier NOT NULL,
   version_no      int              NOT NULL,
-  snapshot        nvarchar(max) NULL CONSTRAINT CK_page_versions_snapshot_json CHECK (ISJSON(snapshot, OBJECT) = 1),
   preview_token   nvarchar(64)     NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_page_versions_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_page_versions_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  snapshot        nvarchar(max) NULL CONSTRAINT CK_page_versions_snapshot_json CHECK (ISJSON(snapshot, OBJECT) = 1),
   CONSTRAINT PK_page_versions PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_page_versions_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -311,29 +317,29 @@ CREATE TABLE page_versions (
 -- cover_width／cover_height（S0-7h，2026-10-02）：封面圖片欄位組補齊寬高（存主檔縮小後的尺寸，
 -- 前台必帶寬高以避免 CLS）；封面替代文字在 articles_i18n.cover_alt。
 CREATE TABLE articles (
-  id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                  uniqueidentifier NOT NULL CONSTRAINT DF_articles_id DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   club_id             uniqueidentifier NULL,
   slug                nvarchar(160)    NOT NULL,
   article_category_id uniqueidentifier NOT NULL,
   cover_key           nvarchar(500)    NULL,
-  cover_width         int              NULL,
-  cover_height        int              NULL,
-  is_featured         bit              NOT NULL DEFAULT 0,
-  view_count          int              NOT NULL DEFAULT 0,
-  status              nvarchar(16)     NOT NULL DEFAULT 'draft'
-                        CHECK (status IN ('draft','published','scheduled')),
+  is_featured         bit              NOT NULL CONSTRAINT DF_articles_is_featured DEFAULT 0,
+  view_count          int              NOT NULL CONSTRAINT DF_articles_view_count DEFAULT 0,
+  status              nvarchar(16)     NOT NULL CONSTRAINT DF_articles_status DEFAULT 'draft'
+                        CONSTRAINT CK_articles_status CHECK (status IN ('draft','published','scheduled')),
   published_at        datetime2(3)     NULL,
   canonical_path      nvarchar(500)    NULL,
-  is_noindex          bit              NOT NULL DEFAULT 0,
-  is_excluded_from_sitemap bit         NOT NULL DEFAULT 0,
+  is_noindex          bit              NOT NULL CONSTRAINT DF_articles_is_noindex DEFAULT 0,
+  is_excluded_from_sitemap bit         NOT NULL CONSTRAINT DF_articles_is_excluded_from_sitemap DEFAULT 0,
   og_image_key        nvarchar(500)    NULL,
   og_image_width      int              NULL,
   og_image_height     int              NULL,
-  created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at          datetime2(3)     NOT NULL CONSTRAINT DF_articles_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at          datetime2(3)     NOT NULL CONSTRAINT DF_articles_updated_at DEFAULT SYSUTCDATETIME(),
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
+  cover_width         int              NULL,
+  cover_height        int              NULL,
   CONSTRAINT PK_articles PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_articles_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -345,23 +351,23 @@ CREATE TABLE articles_i18n (
   locale          nvarchar(10)     NOT NULL,
   title           nvarchar(200)    NULL,
   summary         nvarchar(max)    NULL,
-  body            nvarchar(max) NULL CONSTRAINT CK_articles_i18n_body_json CHECK (ISJSON(body, OBJECT) = 1 OR ISJSON(body, ARRAY) = 1),
   seo_title       nvarchar(200)    NULL,
   seo_description nvarchar(300)    NULL,
   seo_keywords    nvarchar(200)    NULL,
   og_image_alt    nvarchar(200)    NULL,
   cover_alt       nvarchar(200)    NULL,
+  body            nvarchar(max) NULL CONSTRAINT CK_articles_i18n_body_json CHECK (ISJSON(body, OBJECT) = 1 OR ISJSON(body, ARRAY) = 1),
   CONSTRAINT PK_articles_i18n PRIMARY KEY CLUSTERED (article_id, locale)
 );
 
 -- 7.1–7.8 八分類。刻意不帶 club_id（分類是內容主題，不是俱樂部維度）。
 CREATE TABLE article_categories (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_article_categories_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   code            nvarchar(32)     NOT NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_article_categories_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_article_categories_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_article_categories_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_article_categories PRIMARY KEY NONCLUSTERED (id),
@@ -377,11 +383,11 @@ CREATE TABLE article_categories_i18n (
 
 -- 標籤。刻意不帶 club_id，同 article_categories。
 CREATE TABLE tags (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_tags_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   slug            nvarchar(160)    NOT NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_tags_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_tags_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_tags PRIMARY KEY NONCLUSTERED (id),
@@ -415,7 +421,7 @@ CREATE TABLE article_relations (
 -- 不補 published_at，後台不提供排程選項，CHECK 允許 'scheduled' 卻沒有欄位記錄排定時間會製造
 -- 「看起來支援排程、實際上不可能」的假象，故收斂 CHECK 與後台能力一致。
 CREATE TABLE press_resources (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_press_resources_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NULL,
   slug            nvarchar(160)    NOT NULL,
@@ -427,12 +433,12 @@ CREATE TABLE press_resources (
   cover_width     int              NULL,
   cover_height    int              NULL,
   published_on    date             NULL,
-  download_count  int              NOT NULL DEFAULT 0,
-  sort_order      int              NOT NULL DEFAULT 0,
-  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published')),
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  download_count  int              NOT NULL CONSTRAINT DF_press_resources_download_count DEFAULT 0,
+  sort_order      int              NOT NULL CONSTRAINT DF_press_resources_sort_order DEFAULT 0,
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_press_resources_status DEFAULT 'draft'
+                    CONSTRAINT CK_press_resources_status CHECK (status IN ('draft','published')),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_press_resources_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_press_resources_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_press_resources PRIMARY KEY NONCLUSTERED (id),
@@ -459,24 +465,24 @@ CREATE TABLE press_resources_i18n (
 -- ⚠️ 影片檔本身不經過「上傳即縮圖」流程（該流程只處理圖片）；影片的格式、檔案大小上限與是否轉碼，
 -- 規劃書未明訂，開發前需裁決（見 docs/12 §12 新增踩雷點）。
 CREATE TABLE banners (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_banners_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
-  media_type      nvarchar(10)     NOT NULL DEFAULT 'image'
-                    CHECK (media_type IN ('image','video')),
+  media_type      nvarchar(10)     NOT NULL CONSTRAINT DF_banners_media_type DEFAULT 'image'
+                    CONSTRAINT CK_banners_media_type CHECK (media_type IN ('image','video')),
   image_key       nvarchar(500)    NOT NULL,
   image_width     int              NULL,
   image_height    int              NULL,
   video_key       nvarchar(500)    NULL,
   start_at        datetime2(3)     NULL,
   end_at          datetime2(3)     NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
+  sort_order      int              NOT NULL CONSTRAINT DF_banners_sort_order DEFAULT 0,
   -- v3.14：新增或上傳後為草稿，發布後依 start_at／end_at（上架期間）自動顯示與下架——
   -- 這是查詢時的區間過濾，不是排程轉態，刻意不加 'scheduled'（docs/12 §12 第 35 點、docs/14）
-  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published')),
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_banners_status DEFAULT 'draft'
+                    CONSTRAINT CK_banners_status CHECK (status IN ('draft','published')),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_banners_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_banners_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_banners PRIMARY KEY NONCLUSTERED (id),
@@ -505,15 +511,15 @@ CREATE TABLE banners_i18n (
 -- 皆為自動查詢（依 sort_order／最新時間）或固定文案，規劃書無「指定某一筆」的字面要求，
 -- 故不加欄位——featured_banner_id 之外不再需要其他精選指定欄位。
 CREATE TABLE home_sections (
-  id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                  uniqueidentifier NOT NULL CONSTRAINT DF_home_sections_id DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   club_id             uniqueidentifier NOT NULL,
   section_code        nvarchar(32)     NOT NULL,
-  is_enabled          bit              NOT NULL DEFAULT 1,
-  sort_order          int              NOT NULL DEFAULT 0,
+  is_enabled          bit              NOT NULL CONSTRAINT DF_home_sections_is_enabled DEFAULT 1,
+  sort_order          int              NOT NULL CONSTRAINT DF_home_sections_sort_order DEFAULT 0,
   featured_banner_id  uniqueidentifier NULL,
-  created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at          datetime2(3)     NOT NULL CONSTRAINT DF_home_sections_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at          datetime2(3)     NOT NULL CONSTRAINT DF_home_sections_updated_at DEFAULT SYSUTCDATETIME(),
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
   CONSTRAINT PK_home_sections PRIMARY KEY NONCLUSTERED (id),
@@ -523,18 +529,18 @@ CREATE TABLE home_sections (
 -- 常見問題；👍／👎 計數。
 -- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE faqs (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_faqs_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NULL,
   slug              nvarchar(160)    NOT NULL,
-  view_count        int              NOT NULL DEFAULT 0,
-  helpful_count     int              NOT NULL DEFAULT 0,
-  unhelpful_count   int              NOT NULL DEFAULT 0,
-  sort_order        int              NOT NULL DEFAULT 0,
-  status            nvarchar(16)     NOT NULL DEFAULT 'draft'
-                      CHECK (status IN ('draft','published')),
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  view_count        int              NOT NULL CONSTRAINT DF_faqs_view_count DEFAULT 0,
+  helpful_count     int              NOT NULL CONSTRAINT DF_faqs_helpful_count DEFAULT 0,
+  unhelpful_count   int              NOT NULL CONSTRAINT DF_faqs_unhelpful_count DEFAULT 0,
+  sort_order        int              NOT NULL CONSTRAINT DF_faqs_sort_order DEFAULT 0,
+  status            nvarchar(16)     NOT NULL CONSTRAINT DF_faqs_status DEFAULT 'draft'
+                      CONSTRAINT CK_faqs_status CHECK (status IN ('draft','published')),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_faqs_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_faqs_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_faqs PRIMARY KEY NONCLUSTERED (id),
@@ -555,13 +561,13 @@ CREATE TABLE faqs_i18n (
 -- 湊「停用」，但刪除會經 faq_category_links 的 ON DELETE CASCADE 解除關聯、不可逆（見 docs/14
 -- S1-6 段落）。改為真正的軟停用欄位：停用後分類從導覽消失，但題目與既有關聯不受影響、可重新啟用。
 CREATE TABLE faq_categories (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_faq_categories_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   slug            nvarchar(160)    NOT NULL,
-  is_enabled      bit              NOT NULL DEFAULT 1,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_enabled      bit              NOT NULL CONSTRAINT DF_faq_categories_is_enabled DEFAULT 1,
+  sort_order      int              NOT NULL CONSTRAINT DF_faq_categories_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_faq_categories_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_faq_categories_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_faq_categories PRIMARY KEY NONCLUSTERED (id),
@@ -591,12 +597,12 @@ CREATE TABLE faq_category_links (
 -- 不帶 club_id：掛載點是站台結構性代號，兩站共用同一套頁面骨架（docs/14「藍鯨＝主站同一套網站」），
 -- 是否命中則看該俱樂部實際有沒有對應頁面（例如藍鯨無「學院招生」單元，該掛載點不會被用到）。
 CREATE TABLE faq_embed_slots (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_faq_embed_slots_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   code            nvarchar(64)     NOT NULL,
   name            nvarchar(64)     NOT NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_faq_embed_slots_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_faq_embed_slots_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_faq_embed_slots PRIMARY KEY NONCLUSTERED (id),
@@ -608,20 +614,20 @@ CREATE TABLE faq_embed_slots (
 CREATE TABLE faq_embed_slot_links (
   faq_id            uniqueidentifier NOT NULL,
   faq_embed_slot_id uniqueidentifier NOT NULL,
-  sort_order        int              NOT NULL DEFAULT 0,
+  sort_order        int              NOT NULL CONSTRAINT DF_faq_embed_slot_links_sort_order DEFAULT 0,
   CONSTRAINT PK_faq_embed_slot_links PRIMARY KEY CLUSTERED (faq_id, faq_embed_slot_id)
 );
 
 -- 零結果搜尋關鍵字與次數（成效統計，不是搜尋日誌）。
 CREATE TABLE faq_search_misses (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_faq_search_misses_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   keyword           nvarchar(200)    NOT NULL,
-  hit_count         int              NOT NULL DEFAULT 1,
+  hit_count         int              NOT NULL CONSTRAINT DF_faq_search_misses_hit_count DEFAULT 1,
   last_searched_at  datetime2(3)     NULL,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_faq_search_misses_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_faq_search_misses_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_faq_search_misses PRIMARY KEY NONCLUSTERED (id),
@@ -630,14 +636,14 @@ CREATE TABLE faq_search_misses (
 
 -- 301 對照。唯一鍵 (club_id, from_path)——兩站都會有 /zh/about/。
 CREATE TABLE redirects (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_redirects_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   from_path       nvarchar(500)    NOT NULL,
   to_path         nvarchar(500)    NOT NULL,
-  is_active       bit              NOT NULL DEFAULT 1,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_active       bit              NOT NULL CONSTRAINT DF_redirects_is_active DEFAULT 1,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_redirects_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_redirects_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_redirects PRIMARY KEY NONCLUSTERED (id),
@@ -651,17 +657,17 @@ CREATE TABLE redirects (
 -- 賽事系列（v3.0 新增）：代號、類型、所屬球季、排序、啟用狀態；名稱與主辦單位走 competitions_i18n（見檔頭 (b)）。
 -- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE competitions (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_competitions_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   season_id       uniqueidentifier NOT NULL,
   code            nvarchar(16)     NOT NULL,
   comp_type       nvarchar(32)     NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published')),
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_competitions_sort_order DEFAULT 0,
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_competitions_status DEFAULT 'draft'
+                    CONSTRAINT CK_competitions_status CHECK (status IN ('draft','published')),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_competitions_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_competitions_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_competitions PRIMARY KEY NONCLUSTERED (id),
@@ -681,14 +687,14 @@ CREATE TABLE competitions_i18n (
 -- ✅ 已確認（2026-09-22）：docs/12 曾標🌐，但規劃書與 ERD 全文查無任何文字型欄位（docs/12c §3.2／§5 第 4 點），
 -- 不建 seasons_i18n；docs/12 §4.2 已同步拿掉 🌐。
 CREATE TABLE seasons (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_seasons_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   code            nvarchar(16)     NOT NULL,
   start_on        date             NOT NULL,
   end_on          date             NOT NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_seasons_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_seasons_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_seasons PRIMARY KEY NONCLUSTERED (id),
@@ -697,22 +703,22 @@ CREATE TABLE seasons (
 
 -- 球隊。code 全站唯一（行事曆訂閱網址與 /schedule/d1/ 的識別鍵，已在外流通，不得改複合鍵）。
 CREATE TABLE teams (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_teams_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   code            nvarchar(8)      NOT NULL,
-  type            nvarchar(16)     NOT NULL CHECK (type IN ('first_team','academy')),
-  gender          nvarchar(16)     NOT NULL CHECK (gender IN ('men','women','mixed')),
+  type            nvarchar(16)     NOT NULL CONSTRAINT CK_teams_type CHECK (type IN ('first_team','academy')),
+  gender          nvarchar(16)     NOT NULL CONSTRAINT CK_teams_gender CHECK (gender IN ('men','women','mixed')),
   age_band        nvarchar(16)     NULL,
   hero_key        nvarchar(500)    NULL,
-  hero_width      int              NULL,
-  hero_height     int              NULL,
   team_color      nvarchar(16)     NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_teams_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_teams_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_teams_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  hero_width      int              NULL,
+  hero_height     int              NULL,
   CONSTRAINT PK_teams PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_teams_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -737,13 +743,10 @@ CREATE TABLE teams_i18n (
 -- nvarchar(20) 裝不下——這不是規格取捨，是單純的欄寬計算錯誤，S1-7a 落地時寫入即噴
 -- 「String or binary data would be truncated」被測試抓到，見 apps/api/README.md 本節說明。
 CREATE TABLE players (
-  id                       uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                       uniqueidentifier NOT NULL CONSTRAINT DF_players_id DEFAULT NEWID(),
   row_seq                  bigint IDENTITY(1,1) NOT NULL,
   club_id                  uniqueidentifier NOT NULL,
   team_id                  uniqueidentifier NOT NULL,
-  -- 網址代稱（2026-10-05）：App 規劃書 §2.3 深連結 tcrfc://player/{slug} 對應 /zh/club/first-team/player/{slug}。
-  -- [a-z0-9-]，唯一鍵 (club_id, slug)（弱讀法，見下方 UQ_players_club_slug）。
-  slug                     nvarchar(160)    NOT NULL,
   shirt_no                 int              NULL,
   position                 nvarchar(32)     NULL,
   birth_on                 date             NULL,
@@ -754,14 +757,17 @@ CREATE TABLE players (
   joined_on                date             NULL,
   status                   nvarchar(16)     NULL,
   photo_key                nvarchar(500)    NULL,
-  photo_width              int              NULL,
-  photo_height             int              NULL,
-  portrait_consent_status  nvarchar(32)     NOT NULL DEFAULT 'not_consented'
-                             CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
-  created_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  portrait_consent_status  nvarchar(32)     NOT NULL CONSTRAINT DF_players_portrait_consent_status DEFAULT 'not_consented'
+                             CONSTRAINT CK_players_portrait_consent_status CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
+  created_at               datetime2(3)     NOT NULL CONSTRAINT DF_players_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at               datetime2(3)     NOT NULL CONSTRAINT DF_players_updated_at DEFAULT SYSUTCDATETIME(),
   created_by               uniqueidentifier NULL,
   updated_by               uniqueidentifier NULL,
+  -- 網址代稱（2026-10-05）：App 規劃書 §2.3 深連結 tcrfc://player/{slug} 對應 /zh/club/first-team/player/{slug}。
+  -- [a-z0-9-]，唯一鍵 (club_id, slug)（弱讀法，見下方 UQ_players_club_slug）。
+  slug                     nvarchar(160)    NOT NULL,
+  photo_width              int              NULL,
+  photo_height             int              NULL,
   CONSTRAINT PK_players PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_players_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -777,17 +783,17 @@ CREATE TABLE players_i18n (
 
 -- 逐季數據。由 Player 推導，不帶 club_id。唯一鍵 (player_id, season_id)。
 CREATE TABLE player_season_stats (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_player_season_stats_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   player_id       uniqueidentifier NOT NULL,
   season_id       uniqueidentifier NOT NULL,
-  appearances     int              NOT NULL DEFAULT 0,
-  goals           int              NOT NULL DEFAULT 0,
-  assists         int              NOT NULL DEFAULT 0,
-  yellow_cards    int              NOT NULL DEFAULT 0,
-  red_cards       int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  appearances     int              NOT NULL CONSTRAINT DF_player_season_stats_appearances DEFAULT 0,
+  goals           int              NOT NULL CONSTRAINT DF_player_season_stats_goals DEFAULT 0,
+  assists         int              NOT NULL CONSTRAINT DF_player_season_stats_assists DEFAULT 0,
+  yellow_cards    int              NOT NULL CONSTRAINT DF_player_season_stats_yellow_cards DEFAULT 0,
+  red_cards       int              NOT NULL CONSTRAINT DF_player_season_stats_red_cards DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_player_season_stats_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_player_season_stats_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_player_season_stats PRIMARY KEY NONCLUSTERED (id),
@@ -798,20 +804,20 @@ CREATE TABLE player_season_stats (
 -- portrait_consent_status（S1-8 新增）：同 players——藍鯨規劃書行 314 把 Player／Staff 並列為
 -- 「一線隊與青年隊名單（須有肖像同意）」，教練與團隊成員一併受管制，見上方 players 表註解。
 CREATE TABLE staff (
-  id                       uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                       uniqueidentifier NOT NULL CONSTRAINT DF_staff_id DEFAULT NEWID(),
   row_seq                  bigint IDENTITY(1,1) NOT NULL,
   club_id                  uniqueidentifier NULL,
   staff_group              nvarchar(32)     NULL,
   licence                  nvarchar(64)     NULL,
   photo_key                nvarchar(500)    NULL,
-  photo_width              int              NULL,
-  photo_height             int              NULL,
-  portrait_consent_status  nvarchar(32)     NOT NULL DEFAULT 'not_consented'
-                             CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
-  created_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  portrait_consent_status  nvarchar(32)     NOT NULL CONSTRAINT DF_staff_portrait_consent_status DEFAULT 'not_consented'
+                             CONSTRAINT CK_staff_portrait_consent_status CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
+  created_at               datetime2(3)     NOT NULL CONSTRAINT DF_staff_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at               datetime2(3)     NOT NULL CONSTRAINT DF_staff_updated_at DEFAULT SYSUTCDATETIME(),
   created_by               uniqueidentifier NULL,
   updated_by               uniqueidentifier NULL,
+  photo_width              int              NULL,
+  photo_height             int              NULL,
   CONSTRAINT PK_staff PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_staff_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -843,7 +849,7 @@ CREATE TABLE staff_teams (
 -- 但「status='postponed' 時 original_match_on 不得為空」這條規劃書未要求，是否必填交後台 C4 表單驗證
 -- （docs/12 §12 第 31、35 點）。
 CREATE TABLE matches (
-  id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                  uniqueidentifier NOT NULL CONSTRAINT DF_matches_id DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   club_id             uniqueidentifier NOT NULL,
   season_id           uniqueidentifier NOT NULL,
@@ -861,8 +867,8 @@ CREATE TABLE matches (
   match_no            int              NULL,
   original_match_on   date             NULL,
   original_kickoff    nvarchar(8)      NULL,
-  created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at          datetime2(3)     NOT NULL CONSTRAINT DF_matches_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at          datetime2(3)     NOT NULL CONSTRAINT DF_matches_updated_at DEFAULT SYSUTCDATETIME(),
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
   CONSTRAINT PK_matches PRIMARY KEY NONCLUSTERED (id),
@@ -889,14 +895,14 @@ CREATE TABLE match_teams (
 
 -- 進球（球員、時間、類型）。
 CREATE TABLE match_goals (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_match_goals_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   match_id        uniqueidentifier NOT NULL,
   player_id       uniqueidentifier NOT NULL,
   minute          int              NULL,
   goal_type       nvarchar(32)     NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_match_goals_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_match_goals_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_match_goals PRIMARY KEY NONCLUSTERED (id),
@@ -905,14 +911,14 @@ CREATE TABLE match_goals (
 
 -- 黃紅牌。
 CREATE TABLE match_cards (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_match_cards_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   match_id        uniqueidentifier NOT NULL,
   player_id       uniqueidentifier NOT NULL,
   card_type       nvarchar(16)     NULL,
   minute          int              NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_match_cards_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_match_cards_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_match_cards PRIMARY KEY NONCLUSTERED (id),
@@ -921,13 +927,13 @@ CREATE TABLE match_cards (
 
 -- 先發與替補名單。
 CREATE TABLE match_lineups (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_match_lineups_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   match_id        uniqueidentifier NOT NULL,
   player_id       uniqueidentifier NOT NULL,
-  is_starter      bit              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_starter      bit              NOT NULL CONSTRAINT DF_match_lineups_is_starter DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_match_lineups_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_match_lineups_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_match_lineups PRIMARY KEY NONCLUSTERED (id),
@@ -939,15 +945,15 @@ CREATE TABLE match_lineups (
 -- 當時只問「規劃書有沒有寫雙語」，漏了全域規定 4（所有前台可見內容型別皆須 zh／en 雙欄位）與 matches.opponent 的先例：
 -- 對手隊名前台 /en/ 會直接顯示，英文版不能出現中文隊名。docs/12 §4.2、docs/12c §3.2。
 CREATE TABLE standings (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_standings_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   season_id       uniqueidentifier NOT NULL,
   rank            int              NULL,
   played          int              NULL,
   points          int              NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_standings_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_standings_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_standings PRIMARY KEY NONCLUSTERED (id),
@@ -964,14 +970,14 @@ CREATE TABLE standings_i18n (
 -- 榮譽（年份、賽事、名次、隊伍）。
 -- 🔄 2026-10-06（稽核 D 類）：competition_name／placing 移入 achievements_i18n（理由同 standings）。
 CREATE TABLE achievements (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_achievements_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   season_id         uniqueidentifier NOT NULL,
   team_id           uniqueidentifier NOT NULL,
   year              int              NULL,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_achievements_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_achievements_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_achievements PRIMARY KEY NONCLUSTERED (id),
@@ -988,19 +994,19 @@ CREATE TABLE achievements_i18n (
 
 -- 里程碑時間軸。
 CREATE TABLE milestones (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_milestones_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   happened_on     date             NOT NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
+  sort_order      int              NOT NULL CONSTRAINT DF_milestones_sort_order DEFAULT 0,
   -- E1-a（2026-09-30）：規劃書 C5（行 1098）「里程碑：日期、標題、描述、圖片、是否顯示於時間軸」——
   -- 原本缺圖片欄位組與顯示旗標。圖片替代文字在 milestones_i18n.image_alt。
   image_key       nvarchar(500)    NULL,
   image_width     int              NULL,
   image_height    int              NULL,
   is_visible      bit              NOT NULL CONSTRAINT DF_milestones_is_visible DEFAULT 1,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_milestones_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_milestones_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_milestones PRIMARY KEY NONCLUSTERED (id),
@@ -1023,7 +1029,7 @@ CREATE TABLE milestones_i18n (
 -- 課程／營隊／專項項目：類型、對象、年齡區間、區塊內容。
 -- 🔄 2026-10-06（稽核 D 類）：audience（對象的文字描述，自由文字）移入 programs_i18n；年齡區間 age_min／age_max 是數字，留主表。
 CREATE TABLE programs (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_programs_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   slug            nvarchar(160)    NOT NULL,
@@ -1032,12 +1038,12 @@ CREATE TABLE programs (
   age_max         int              NULL,
   status          nvarchar(16)     NULL,
   cover_key       nvarchar(500)    NULL,
-  cover_width     int              NULL,
-  cover_height    int              NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_programs_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_programs_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  cover_width     int              NULL,
+  cover_height    int              NULL,
   CONSTRAINT PK_programs PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_programs_row_seq UNIQUE CLUSTERED (row_seq),
   -- S1-9：欄位本身早就存在但從未被 CHECK 約束過（docs/12 §12 第 35 點）。status 比照一般內容
@@ -1054,8 +1060,8 @@ CREATE TABLE programs_i18n (
   name            nvarchar(128)    NULL,
   intro           nvarchar(max)    NULL,
   audience        nvarchar(64)     NULL,
-  content         nvarchar(max) NULL CONSTRAINT CK_programs_i18n_content_json CHECK (ISJSON(content, OBJECT) = 1 OR ISJSON(content, ARRAY) = 1),
   cover_alt       nvarchar(200)    NULL,
+  content         nvarchar(max) NULL CONSTRAINT CK_programs_i18n_content_json CHECK (ISJSON(content, OBJECT) = 1 OR ISJSON(content, ARRAY) = 1),
   CONSTRAINT PK_programs_i18n PRIMARY KEY CLUSTERED (program_id, locale)
 );
 
@@ -1077,26 +1083,26 @@ CREATE TABLE program_partners (
 -- ✅ 已確認（2026-09-22）：docs/12 曾標🌐，但規劃書與 ERD 全文查無任何文字型欄位（docs/12c §3.3／§5 第 4 點），
 -- 不建 sessions_i18n；docs/12 §4.3 已同步拿掉 🌐。
 CREATE TABLE sessions (
-  id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                  uniqueidentifier NOT NULL CONSTRAINT DF_sessions_id DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   club_id             uniqueidentifier NOT NULL,
   program_id          uniqueidentifier NOT NULL,
   venue_id            uniqueidentifier NULL,
   start_on            date             NULL,
   end_on              date             NULL,
-  weekly_schedule     nvarchar(max) NULL CONSTRAINT CK_sessions_weekly_schedule_json CHECK (ISJSON(weekly_schedule, OBJECT) = 1 OR ISJSON(weekly_schedule, ARRAY) = 1),
   capacity            int              NULL,
-  enrolled_count      int              NOT NULL DEFAULT 0,
+  enrolled_count      int              NOT NULL CONSTRAINT DF_sessions_enrolled_count DEFAULT 0,
   price               int              NULL,
   early_bird_price    int              NULL,
   early_bird_until    date             NULL,
   signup_opens_at     datetime2(3)     NULL,
   signup_closes_at    datetime2(3)     NULL,
   status              nvarchar(16)     NULL,
-  created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at          datetime2(3)     NOT NULL CONSTRAINT DF_sessions_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at          datetime2(3)     NOT NULL CONSTRAINT DF_sessions_updated_at DEFAULT SYSUTCDATETIME(),
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
+  weekly_schedule     nvarchar(max) NULL CONSTRAINT CK_sessions_weekly_schedule_json CHECK (ISJSON(weekly_schedule, OBJECT) = 1 OR ISJSON(weekly_schedule, ARRAY) = 1),
   CONSTRAINT PK_sessions PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_sessions_row_seq UNIQUE CLUSTERED (row_seq),
   -- S1-9：欄位早就存在但從未被 CHECK 約束過（docs/12 §12 第 35 點）。狀態值直接沿用規劃書 P2
@@ -1107,7 +1113,7 @@ CREATE TABLE sessions (
 
 -- 報名。member_id 可為空（非會員可報名）；繳費線下。同時服務 session 與 trial，兩外鍵恰有一個非空。
 CREATE TABLE registrations (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_registrations_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   registration_no       nvarchar(32)     NOT NULL,
   club_id               uniqueidentifier NOT NULL,
@@ -1122,16 +1128,16 @@ CREATE TABLE registrations (
   guardian_phone        nvarchar(32)     NULL,
   health_declaration     nvarchar(max)   NULL,
   note                  nvarchar(max)    NULL,
+  status                nvarchar(16)     NOT NULL CONSTRAINT DF_registrations_status DEFAULT N'待確認'
+                          CONSTRAINT CK_registrations_status CHECK (status IN (N'待確認',N'已確認',N'已繳費',N'完成',N'取消',N'候補')),
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_registrations_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_registrations_updated_at DEFAULT SYSUTCDATETIME(),
+  created_by            uniqueidentifier NULL,
+  updated_by            uniqueidentifier NULL,
   -- v3.25（2026-10-09）：隱私同意留存。有勾選隱私同意才寫；由伺服器於送出當下以 UTC 現在時間與當時俱樂部設定的政策版本寫入，
   -- 不信任客戶端；後台唯讀；舊資料不回填（NULL＝當時未留存）。展開遷移 db/migrations/20261010_privacy-consent_1-expand.sql。
   privacy_consented_at   datetime2(3)    NULL,
   privacy_policy_version nvarchar(50)    NULL,
-  status                nvarchar(16)     NOT NULL DEFAULT N'待確認'
-                          CHECK (status IN (N'待確認',N'已確認',N'已繳費',N'完成',N'取消',N'候補')),
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by            uniqueidentifier NULL,
-  updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_registrations PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_registrations_row_seq UNIQUE CLUSTERED (row_seq),
   CONSTRAINT CK_registrations_session_or_trial CHECK (
@@ -1143,7 +1149,7 @@ CREATE TABLE registrations (
 -- B1（2026-09-30，S2-4）：加 status／enrolled_count（名額控管，比照 sessions）與 trials_i18n（對象 audience，
 -- 規劃書 P4「日期、地點、對象、名額、報名截止」的「對象」是文字，需雙語，見 docs/12c §4）。
 CREATE TABLE trials (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_trials_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   team_id           uniqueidentifier NULL,
@@ -1151,11 +1157,11 @@ CREATE TABLE trials (
   trial_on          date             NOT NULL,
   capacity          int              NULL,
   deadline_on       date             NULL,
-  sync_to_calendar  bit              NOT NULL DEFAULT 0,
-  enrolled_count    int              NOT NULL DEFAULT 0,
-  status            nvarchar(16)     NOT NULL DEFAULT N'開放',
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sync_to_calendar  bit              NOT NULL CONSTRAINT DF_trials_sync_to_calendar DEFAULT 0,
+  enrolled_count    int              NOT NULL CONSTRAINT DF_trials_enrolled_count DEFAULT 0,
+  status            nvarchar(16)     NOT NULL CONSTRAINT DF_trials_status DEFAULT N'開放',
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_trials_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_trials_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_trials PRIMARY KEY NONCLUSTERED (id),
@@ -1178,7 +1184,7 @@ CREATE TABLE trials_i18n (
 
 -- 合作夥伴（B2B Logo 牆）：Logo 深底／淺底兩版、類型、國家、合作內容與期間、官網、排序、曝光位置。
 CREATE TABLE partners (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_partners_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   slug            nvarchar(160)    NOT NULL,
@@ -1186,20 +1192,20 @@ CREATE TABLE partners (
   country         nvarchar(32)     NULL,
   logo_dark_key   nvarchar(500)    NULL,
   logo_light_key  nvarchar(500)    NULL,
+  start_on        date             NULL,
+  end_on          date             NULL,
+  website_url     nvarchar(500)    NULL,
+  show_in_footer  bit              NOT NULL CONSTRAINT DF_partners_show_in_footer DEFAULT 0,
+  show_on_home    bit              NOT NULL CONSTRAINT DF_partners_show_on_home DEFAULT 0,
+  sort_order      int              NOT NULL CONSTRAINT DF_partners_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_partners_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_partners_updated_at DEFAULT SYSUTCDATETIME(),
+  created_by      uniqueidentifier NULL,
+  updated_by      uniqueidentifier NULL,
   logo_dark_width    int              NULL,
   logo_dark_height   int              NULL,
   logo_light_width   int              NULL,
   logo_light_height  int              NULL,
-  start_on        date             NULL,
-  end_on          date             NULL,
-  website_url     nvarchar(500)    NULL,
-  show_in_footer  bit              NOT NULL DEFAULT 0,
-  show_on_home    bit              NOT NULL DEFAULT 0,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by      uniqueidentifier NULL,
-  updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_partners PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_partners_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1216,29 +1222,29 @@ CREATE TABLE partners_i18n (
 
 -- 贊助商：Logo 兩版、等級、合約期間、贊助內容、聯絡窗口、到期提醒、排序。
 CREATE TABLE sponsors (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_sponsors_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   slug              nvarchar(160)    NOT NULL,
   tier              nvarchar(32)     NULL
-                      CHECK (tier IN (N'主贊助',N'官方贊助',N'支持夥伴')),
+                      CONSTRAINT CK_sponsors_tier CHECK (tier IN (N'主贊助',N'官方贊助',N'支持夥伴')),
   logo_dark_key     nvarchar(500)    NULL,
   logo_light_key    nvarchar(500)    NULL,
-  logo_dark_width    int              NULL,
-  logo_dark_height   int              NULL,
-  logo_light_width   int              NULL,
-  logo_light_height  int              NULL,
   contract_start_on date             NULL,
   contract_end_on   date             NULL,
   contact_name      nvarchar(64)     NULL,
   contact_phone     nvarchar(32)     NULL,
   contact_email     nvarchar(255)    NULL,
   expiry_alert_on   date             NULL,
-  sort_order        int              NOT NULL DEFAULT 0,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order        int              NOT NULL CONSTRAINT DF_sponsors_sort_order DEFAULT 0,
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_sponsors_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_sponsors_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
+  logo_dark_width    int              NULL,
+  logo_dark_height   int              NULL,
+  logo_light_width   int              NULL,
+  logo_light_height  int              NULL,
   CONSTRAINT PK_sponsors PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_sponsors_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1255,18 +1261,18 @@ CREATE TABLE sponsors_i18n (
 -- 贊助方案（9 種）：內容、權益清單、適合對象、價格區間（可設不公開）、上下架。
 -- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE sponsor_packages (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_sponsor_packages_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   slug              nvarchar(160)    NOT NULL,
   price_min         int              NULL,
   price_max         int              NULL,
-  is_price_public   bit              NOT NULL DEFAULT 1,
-  sort_order        int              NOT NULL DEFAULT 0,
-  status            nvarchar(16)     NOT NULL DEFAULT 'draft'
-                      CHECK (status IN ('draft','published')),
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_price_public   bit              NOT NULL CONSTRAINT DF_sponsor_packages_is_price_public DEFAULT 1,
+  sort_order        int              NOT NULL CONSTRAINT DF_sponsor_packages_sort_order DEFAULT 0,
+  status            nvarchar(16)     NOT NULL CONSTRAINT DF_sponsor_packages_status DEFAULT 'draft'
+                      CONSTRAINT CK_sponsor_packages_status CHECK (status IN ('draft','published')),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_sponsor_packages_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_sponsor_packages_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_sponsor_packages PRIMARY KEY NONCLUSTERED (id),
@@ -1294,15 +1300,15 @@ CREATE TABLE sponsor_package_links (
 -- 🔄 2026-10-06（稽核 D 類）：title 移入 proposals_i18n。2026-09-22 的「title 為單一欄位、多語由 proposal_files 承載」裁決作廢——
 -- proposal_files 管的是 PDF 檔案語系，管不到標題；前台 /en/ 下載頁會顯示標題。
 CREATE TABLE proposals (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_proposals_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
-  version_no      int              NOT NULL DEFAULT 1,
+  version_no      int              NOT NULL CONSTRAINT DF_proposals_version_no DEFAULT 1,
   -- E1-a（2026-09-30）：收斂為 draft／published（理由同 press_resources：不提供排程）。published＝前台
   -- 「取得下載連結」流程可用；draft 不可下載。原為可為空且無約束。
   status          nvarchar(16)     NOT NULL CONSTRAINT DF_proposals_status DEFAULT 'draft',
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_proposals_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_proposals_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_proposals PRIMARY KEY NONCLUSTERED (id),
@@ -1319,15 +1325,15 @@ CREATE TABLE proposals_i18n (
 
 -- (proposal_id, locale, file_key, version) 之形狀（docs/12 §4.4）；version_no 對應 ERD 未逐欄畫出但文字明列的欄位。
 CREATE TABLE proposal_files (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_proposal_files_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   proposal_id     uniqueidentifier NOT NULL,
   locale          nvarchar(10)     NOT NULL,
   file_key        nvarchar(500)    NOT NULL,
   file_bytes      int              NULL,
-  version_no      int              NOT NULL DEFAULT 1,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  version_no      int              NOT NULL CONSTRAINT DF_proposal_files_version_no DEFAULT 1,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_proposal_files_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_proposal_files_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_proposal_files PRIMARY KEY NONCLUSTERED (id),
@@ -1337,14 +1343,14 @@ CREATE TABLE proposal_files (
 -- 贊助活動（Activations）：規劃書 E2（行 1134）「活動名稱、日期、圖集、成效摘要」，對應前台 9.2「贊助活動紀錄」。
 -- E1-a（2026-09-30）新增——docs/12d「B 類：型別總表沒有但功能在後台章節」的既有先例（docs/12 §14.3）。
 CREATE TABLE sponsor_activations (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_sponsor_activations_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   sponsor_id      uniqueidentifier NOT NULL,
   happened_on     date             NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_sponsor_activations_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_sponsor_activations_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_sponsor_activations_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_sponsor_activations PRIMARY KEY NONCLUSTERED (id),
@@ -1361,19 +1367,19 @@ CREATE TABLE sponsor_activations_i18n (
 
 -- 圖集（一列一組圖片欄位：物件鍵、寬、高、排序）。
 CREATE TABLE sponsor_activation_images (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_sponsor_activation_images_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   sponsor_activation_id uniqueidentifier NOT NULL,
   image_key             nvarchar(500)    NOT NULL,
   image_width           int              NULL,
   image_height          int              NULL,
-  image_alt_zh          nvarchar(200)    NULL,
-  image_alt_en          nvarchar(200)    NULL,
-  sort_order            int              NOT NULL DEFAULT 0,
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order            int              NOT NULL CONSTRAINT DF_sponsor_activation_images_sort_order DEFAULT 0,
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_sponsor_activation_images_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_sponsor_activation_images_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
+  image_alt_zh          nvarchar(200)    NULL,
+  image_alt_en          nvarchar(200)    NULL,
   CONSTRAINT PK_sponsor_activation_images PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_sponsor_activation_images_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1384,7 +1390,7 @@ CREATE TABLE sponsor_activation_images (
 CREATE TABLE sponsor_articles (
   sponsor_id      uniqueidentifier NOT NULL,
   article_id      uniqueidentifier NOT NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
+  sort_order      int              NOT NULL CONSTRAINT DF_sponsor_articles_sort_order DEFAULT 0,
   CONSTRAINT PK_sponsor_articles PRIMARY KEY CLUSTERED (sponsor_id, article_id)
 );
 
@@ -1394,18 +1400,18 @@ CREATE TABLE sponsor_articles (
 
 -- 漫畫角色。player_id 可為空（可對應真實球員為原型）。
 CREATE TABLE comic_characters (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_comic_characters_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   player_id       uniqueidentifier NULL,
   image_key       nvarchar(500)    NULL,
-  image_width     int              NULL,
-  image_height    int              NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_comic_characters_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_comic_characters_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_comic_characters_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  image_width     int              NULL,
+  image_height    int              NULL,
   CONSTRAINT PK_comic_characters PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_comic_characters_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1421,23 +1427,23 @@ CREATE TABLE comic_characters_i18n (
 
 -- 集數、閱讀數。is_latest 為系統自動判定，不是人工勾選。
 CREATE TABLE comic_episodes (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_comic_episodes_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   episode_no      int              NOT NULL,
   cover_key       nvarchar(500)    NULL,
-  cover_width     int              NULL,
-  cover_height    int              NULL,
   published_on    date             NULL,
   -- C1（2026-09-30）：收斂為 draft／published、NOT NULL DEFAULT 'draft'（同 press_resources）；is_latest 由後台在每次異動後重算。
-  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_comic_episodes_status DEFAULT 'draft'
                     CONSTRAINT CK_comic_episodes_status CHECK (status IN ('draft','published')),
-  is_latest       bit              NOT NULL DEFAULT 0,
-  view_count      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_latest       bit              NOT NULL CONSTRAINT DF_comic_episodes_is_latest DEFAULT 0,
+  view_count      int              NOT NULL CONSTRAINT DF_comic_episodes_view_count DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_comic_episodes_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_comic_episodes_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  cover_width     int              NULL,
+  cover_height    int              NULL,
   CONSTRAINT PK_comic_episodes PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_comic_episodes_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1452,45 +1458,45 @@ CREATE TABLE comic_episodes_i18n (
 
 -- 內頁 (episode_id, sort_order, image_key)。由 comic_episode 推導，不帶 club_id。
 CREATE TABLE comic_pages (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_comic_pages_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   comic_episode_id  uniqueidentifier NOT NULL,
   image_key         nvarchar(500)    NOT NULL,
   image_width       int              NULL,
   image_height      int              NULL,
-  image_alt_zh      nvarchar(200)    NULL,
-  image_alt_en      nvarchar(200)    NULL,
-  sort_order        int              NOT NULL DEFAULT 0,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order        int              NOT NULL CONSTRAINT DF_comic_pages_sort_order DEFAULT 0,
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_comic_pages_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_comic_pages_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
+  image_alt_zh      nvarchar(200)    NULL,
+  image_alt_en      nvarchar(200)    NULL,
   CONSTRAINT PK_comic_pages PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_comic_pages_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
 -- 球迷會活動。
 CREATE TABLE fan_events (
-  id                      uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                      uniqueidentifier NOT NULL CONSTRAINT DF_fan_events_id DEFAULT NEWID(),
   row_seq                 bigint IDENTITY(1,1) NOT NULL,
   club_id                 uniqueidentifier NOT NULL,
   slug                    nvarchar(160)    NOT NULL,
   starts_at               datetime2(3)     NULL,
   capacity                int              NULL,
-  is_paid_members_only    bit              NOT NULL DEFAULT 0,
+  is_paid_members_only    bit              NOT NULL CONSTRAINT DF_fan_events_is_paid_members_only DEFAULT 0,
   -- C1（2026-09-30，F2 球迷活動 CRUD）：封面、結束時間、報名截止、場地、上下架。
   cover_key               nvarchar(500)    NULL,
-  cover_width             int              NULL,
-  cover_height            int              NULL,
   ends_at                 datetime2(3)     NULL,
   registration_deadline_at datetime2(3)    NULL,
   venue_id                uniqueidentifier NULL,
-  status                  nvarchar(16)     NOT NULL DEFAULT 'draft'
+  status                  nvarchar(16)     NOT NULL CONSTRAINT DF_fan_events_status DEFAULT 'draft'
                             CONSTRAINT CK_fan_events_status CHECK (status IN ('draft','published')),
-  created_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at              datetime2(3)     NOT NULL CONSTRAINT DF_fan_events_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at              datetime2(3)     NOT NULL CONSTRAINT DF_fan_events_updated_at DEFAULT SYSUTCDATETIME(),
   created_by              uniqueidentifier NULL,
   updated_by              uniqueidentifier NULL,
+  cover_width             int              NULL,
+  cover_height            int              NULL,
   CONSTRAINT PK_fan_events PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_fan_events_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1508,19 +1514,19 @@ CREATE TABLE fan_events_i18n (
 
 -- 活動回顧圖集（一列一組圖片欄位：物件鍵、寬、高、排序）。由 fan_events 推導，不帶 club_id。
 CREATE TABLE fan_event_images (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_fan_event_images_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   fan_event_id    uniqueidentifier NOT NULL,
   image_key       nvarchar(500)    NOT NULL,
   image_width     int              NULL,
   image_height    int              NULL,
-  image_alt_zh    nvarchar(200)    NULL,
-  image_alt_en    nvarchar(200)    NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_fan_event_images_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_fan_event_images_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_fan_event_images_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  image_alt_zh    nvarchar(200)    NULL,
+  image_alt_en    nvarchar(200)    NULL,
   CONSTRAINT PK_fan_event_images PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_fan_event_images_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1529,26 +1535,26 @@ CREATE TABLE fan_event_images (
 CREATE TABLE fan_event_articles (
   fan_event_id    uniqueidentifier NOT NULL,
   article_id      uniqueidentifier NOT NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
+  sort_order      int              NOT NULL CONSTRAINT DF_fan_event_articles_sort_order DEFAULT 0,
   CONSTRAINT PK_fan_event_articles PRIMARY KEY CLUSTERED (fan_event_id, article_id)
 );
 
 -- 活動報名，member_id 可為空（非會員報名時記 applicant_name／phone／email）。
 -- status：registered 已報名／waitlist 候補／cancelled 已取消／attended 已到場；registered＋attended 佔名額。
 CREATE TABLE fan_event_registrations (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_fan_event_registrations_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   fan_event_id    uniqueidentifier NOT NULL,
   member_id       uniqueidentifier NULL,
-  status          nvarchar(16)     NOT NULL DEFAULT 'registered'
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_fan_event_registrations_status DEFAULT 'registered'
                     CONSTRAINT CK_fan_event_registrations_status CHECK (status IN ('registered','waitlist','cancelled','attended')),
   applicant_name  nvarchar(64)     NULL,
   phone           nvarchar(32)     NULL,
   email           nvarchar(255)    NULL,
   note            nvarchar(500)    NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_fan_event_registrations_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_fan_event_registrations_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_fan_event_registrations PRIMARY KEY NONCLUSTERED (id),
@@ -1561,15 +1567,15 @@ CREATE TABLE fan_event_registrations (
 
 -- 表單定義（7 類 ＋ 提案下載，共 8 種；v3.25 起不再有捐助洽詢 donation_enquiry）：通知信收件者、CAPTCHA 開關、送出後導向。
 CREATE TABLE forms (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_forms_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   form_code         nvarchar(32)     NOT NULL,
   notify_emails     nvarchar(500)    NULL,
-  captcha_enabled   bit              NOT NULL DEFAULT 1,
+  captcha_enabled   bit              NOT NULL CONSTRAINT DF_forms_captcha_enabled DEFAULT 1,
   redirect_path     nvarchar(500)    NULL,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_forms_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_forms_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_forms PRIMARY KEY NONCLUSTERED (id),
@@ -1591,20 +1597,20 @@ CREATE TABLE forms_i18n (
 -- 這是「canonical」值：公開送出端點驗證與 enquiry_answers.value 儲存都比對這個陣列，不因語系而變；
 -- field_type 不是 select／multiselect 時維持 NULL。
 CREATE TABLE form_fields (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_form_fields_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   form_id           uniqueidentifier NOT NULL,
   field_key         nvarchar(64)     NOT NULL,
   field_type        nvarchar(32)     NOT NULL,
-  is_required       bit              NOT NULL DEFAULT 0,
+  is_required       bit              NOT NULL CONSTRAINT DF_form_fields_is_required DEFAULT 0,
   validation_rule   nvarchar(255)    NULL,
   options_json      nvarchar(1000)   NULL,
   -- is_summary（S1-10 補做，審查回饋）：G2 收件匣「內容摘要」欄的來源鍵，同一張表單最多一個欄位
   -- 可標記為 1（應用層強制，見 AdminFormsRepository），沒有合適敘述性文字欄位的表單維持全 0。
-  is_summary        bit              NOT NULL DEFAULT 0,
-  sort_order        int              NOT NULL DEFAULT 0,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_summary        bit              NOT NULL CONSTRAINT DF_form_fields_is_summary DEFAULT 0,
+  sort_order        int              NOT NULL CONSTRAINT DF_form_fields_sort_order DEFAULT 0,
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_form_fields_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_form_fields_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_form_fields PRIMARY KEY NONCLUSTERED (id),
@@ -1630,7 +1636,7 @@ CREATE TABLE form_fields_i18n (
 
 -- 收件：來源頁、UTM、狀態、指派、備註、標籤。涵蓋 7 類表單 ＋ 提案下載。
 CREATE TABLE enquiries (
-  id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                        uniqueidentifier NOT NULL CONSTRAINT DF_enquiries_id DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
   club_id                   uniqueidentifier NOT NULL,
   form_id                   uniqueidentifier NOT NULL,
@@ -1644,13 +1650,13 @@ CREATE TABLE enquiries (
   status                    nvarchar(16)     NULL,
   internal_note             nvarchar(max)    NULL,
   tags                      nvarchar(255)    NULL,
+  created_at                datetime2(3)     NOT NULL CONSTRAINT DF_enquiries_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                datetime2(3)     NOT NULL CONSTRAINT DF_enquiries_updated_at DEFAULT SYSUTCDATETIME(),
+  created_by                uniqueidentifier NULL,
+  updated_by                uniqueidentifier NULL,
   -- v3.25（2026-10-09）：隱私同意留存，語意同 registrations.privacy_consented_at（帶同意勾選欄位的表單必有值）。
   privacy_consented_at      datetime2(3)     NULL,
   privacy_policy_version    nvarchar(50)     NULL,
-  created_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by                uniqueidentifier NULL,
-  updated_by                uniqueidentifier NULL,
   CONSTRAINT PK_enquiries PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_enquiries_row_seq UNIQUE CLUSTERED (row_seq),
   -- S1-10：對應規劃書 G2（行 1165）「新進 → 處理中 → 已回覆 → 已結案 / 無效」五個狀態值，
@@ -1670,16 +1676,16 @@ CREATE TABLE enquiry_answers (
 -- D 批（G3，2026-09-30）：status 收斂為 NOT NULL DEFAULT 'subscribed'＋值域約束（subscribed／unsubscribed）；
 -- 新增 unsubscribed_at（退訂時間，退訂同意須可舉證，見 docs/12 §12 第 46 點）。
 CREATE TABLE newsletter_subscribers (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_newsletter_subscribers_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   email           nvarchar(255)    NOT NULL,
   source          nvarchar(64)     NULL,
-  status          nvarchar(16)     NOT NULL DEFAULT 'subscribed' CHECK (status IN ('subscribed','unsubscribed')),
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_newsletter_subscribers_status DEFAULT 'subscribed' CONSTRAINT CK_newsletter_subscribers_status CHECK (status IN ('subscribed','unsubscribed')),
   subscribed_at   datetime2(3)     NULL,
   unsubscribed_at datetime2(3)     NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_newsletter_subscribers_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_newsletter_subscribers_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_newsletter_subscribers PRIMARY KEY NONCLUSTERED (id),
@@ -1694,18 +1700,18 @@ CREATE TABLE newsletter_subscribers (
 -- I5（2026-10-02）：照片補齊圖片欄位組（規劃書 v3.5 §4.0「物件鍵、寬、高、雙語 Alt」）：photo_width／photo_height
 -- 存主檔縮小後的尺寸（前台必帶寬高以避免 CLS），替代文字在 venues_i18n.photo_alt。三欄皆可為空，既有資料列維持 NULL。
 CREATE TABLE venues (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_venues_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   lat             decimal(9,6)     NULL,
   lng             decimal(9,6)     NULL,
   photo_key       nvarchar(500)    NULL,
-  photo_width     int              NULL,
-  photo_height    int              NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_venues_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_venues_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_venues_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  photo_width     int              NULL,
+  photo_height    int              NULL,
   CONSTRAINT PK_venues PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_venues_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1729,7 +1735,7 @@ CREATE TABLE venues_i18n (
 -- 只保留 og_image_key／寬高（全站預設 OG 圖，H 模組）。遷移見 db/migrations/20261006_club-brand-drop_2-contract.sql。刪除 RESTRICT——有任何帶 club_id 的資料就不得刪。
 -- 名稱與簡介走 clubs_i18n（見檔頭 (a)(b)），規劃書「簡介（中／英）」落點是 clubs_i18n.description。
 CREATE TABLE clubs (
-  id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                        uniqueidentifier NOT NULL CONSTRAINT DF_clubs_id DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
   code                      nvarchar(16)     NOT NULL,
   domain                    nvarchar(128)    NOT NULL,
@@ -1740,12 +1746,12 @@ CREATE TABLE clubs (
   og_image_height           int              NULL,
   invoice_title             nvarchar(64)     NULL,
   tax_id                    nvarchar(16)     NULL,
-  is_collecting_subject     bit              NOT NULL DEFAULT 1,
-  default_locale            nvarchar(10)     NOT NULL DEFAULT N'zh-Hant',
-  sort_order                int              NOT NULL DEFAULT 0,
+  is_collecting_subject     bit              NOT NULL CONSTRAINT DF_clubs_is_collecting_subject DEFAULT 1,
+  default_locale            nvarchar(10)     NOT NULL CONSTRAINT DF_clubs_default_locale DEFAULT N'zh-Hant',
+  sort_order                int              NOT NULL CONSTRAINT DF_clubs_sort_order DEFAULT 0,
   status                    nvarchar(16)     NULL,
-  created_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at                datetime2(3)     NOT NULL CONSTRAINT DF_clubs_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                datetime2(3)     NOT NULL CONSTRAINT DF_clubs_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                uniqueidentifier NULL,
   updated_by                uniqueidentifier NULL,
   CONSTRAINT PK_clubs PRIMARY KEY NONCLUSTERED (id),
@@ -1757,35 +1763,35 @@ CREATE TABLE clubs_i18n (
   club_id         uniqueidentifier NOT NULL,
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(64)     NOT NULL,
+  description     nvarchar(max)    NULL,
   -- 簡稱（2026-10-05）：磐石中文「台中磐石」英文「Taichung Rock FC」、藍鯨中文「台中藍鯨」；藍鯨英文一律 NULL（B-5：客戶尚未指定英文全名）。
   short_name      nvarchar(32)     NULL,
-  description     nvarchar(max)    NULL,
   og_image_alt    nvarchar(200)    NULL,
   CONSTRAINT PK_clubs_i18n PRIMARY KEY CLUSTERED (club_id, locale)
 );
 
 -- 後台帳號。username 是唯一登入識別，不是 Email；primary_club_id 只是站台切換器預設值，不是資料範圍。
 CREATE TABLE admin_users (
-  id                              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                              uniqueidentifier NOT NULL CONSTRAINT DF_admin_users_id DEFAULT NEWID(),
   row_seq                         bigint IDENTITY(1,1) NOT NULL,
   username                        nvarchar(64)     NOT NULL,
   primary_club_id                 uniqueidentifier NULL,
   password_hash                   nvarchar(255)    NOT NULL,
-  must_change_password            bit              NOT NULL DEFAULT 0,
+  must_change_password            bit              NOT NULL CONSTRAINT DF_admin_users_must_change_password DEFAULT 0,
   password_changed_at             datetime2(3)     NULL,
   display_name                    nvarchar(64)     NOT NULL,
   email                            nvarchar(255)   NULL,
-  status                          nvarchar(16)     NOT NULL DEFAULT 'active',
-  is_super_admin                  bit              NOT NULL DEFAULT 0,
-  two_factor_enabled              bit              NOT NULL DEFAULT 0,
+  status                          nvarchar(16)     NOT NULL CONSTRAINT DF_admin_users_status DEFAULT 'active',
+  is_super_admin                  bit              NOT NULL CONSTRAINT DF_admin_users_is_super_admin DEFAULT 0,
+  two_factor_enabled              bit              NOT NULL CONSTRAINT DF_admin_users_two_factor_enabled DEFAULT 0,
   two_factor_secret_encrypted     nvarchar(255)    NULL,
   two_factor_confirmed_at         datetime2(3)     NULL,
-  failed_attempt_count            int              NOT NULL DEFAULT 0,
+  failed_attempt_count            int              NOT NULL CONSTRAINT DF_admin_users_failed_attempt_count DEFAULT 0,
   locked_until                    datetime2(3)     NULL,
   last_login_at                   datetime2(3)     NULL,
   locale                          nvarchar(10)     NULL,
-  created_at                      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at                      datetime2(3)     NOT NULL CONSTRAINT DF_admin_users_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                      datetime2(3)     NOT NULL CONSTRAINT DF_admin_users_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                      uniqueidentifier NULL,
   updated_by                      uniqueidentifier NULL,
   CONSTRAINT PK_admin_users PRIMARY KEY NONCLUSTERED (id),
@@ -1794,17 +1800,17 @@ CREATE TABLE admin_users (
 
 -- 角色。scope_mode 決定「對誰做」是否受 admin_user_clubs 範圍限制。九個角色是 is_system=1 的種子資料。
 CREATE TABLE admin_roles (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_admin_roles_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   code            nvarchar(64)     NOT NULL,
   name_zh         nvarchar(64)     NOT NULL,
   name_en         nvarchar(64)     NULL,
-  scope_mode      nvarchar(16)     NOT NULL DEFAULT 'all_clubs'
-                    CHECK (scope_mode IN ('all_clubs','own_clubs')),
-  is_system       bit              NOT NULL DEFAULT 0,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  scope_mode      nvarchar(16)     NOT NULL CONSTRAINT DF_admin_roles_scope_mode DEFAULT 'all_clubs'
+                    CONSTRAINT CK_admin_roles_scope_mode CHECK (scope_mode IN ('all_clubs','own_clubs')),
+  is_system       bit              NOT NULL CONSTRAINT DF_admin_roles_is_system DEFAULT 0,
+  sort_order      int              NOT NULL CONSTRAINT DF_admin_roles_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_admin_roles_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_admin_roles_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_admin_roles PRIMARY KEY NONCLUSTERED (id),
@@ -1825,27 +1831,27 @@ CREATE TABLE admin_user_clubs (
   granted_on      date             NOT NULL,
   expires_on      date             NULL,
   granted_by      uniqueidentifier NULL,
-  is_active       bit              NOT NULL DEFAULT 1,
+  is_active       bit              NOT NULL CONSTRAINT DF_admin_user_clubs_is_active DEFAULT 1,
   CONSTRAINT PK_admin_user_clubs PRIMARY KEY CLUSTERED (admin_user_id, club_id)
 );
 
 -- 權限碼字典。後台專用表，比照 admin_roles 用並排 name_zh／name_en，不走 i18n 側表。
 CREATE TABLE permissions (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_permissions_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   code              nvarchar(96)     NOT NULL,
   module_code       nvarchar(4)      NOT NULL,
   submodule_code    nvarchar(8)      NULL,
   domain            nvarchar(32)     NULL,
   action            nvarchar(16)     NULL,
-  is_club_scoped    bit              NOT NULL DEFAULT 0,
-  is_restricted     bit              NOT NULL DEFAULT 0,
-  sysadmin_only     bit              NOT NULL DEFAULT 0,
+  is_club_scoped    bit              NOT NULL CONSTRAINT DF_permissions_is_club_scoped DEFAULT 0,
+  is_restricted     bit              NOT NULL CONSTRAINT DF_permissions_is_restricted DEFAULT 0,
+  sysadmin_only     bit              NOT NULL CONSTRAINT DF_permissions_sysadmin_only DEFAULT 0,
   name_zh           nvarchar(64)     NOT NULL,
   name_en           nvarchar(64)     NULL,
-  sort_order        int              NOT NULL DEFAULT 0,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order        int              NOT NULL CONSTRAINT DF_permissions_sort_order DEFAULT 0,
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_permissions_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_permissions_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_permissions PRIMARY KEY NONCLUSTERED (id),
@@ -1856,7 +1862,7 @@ CREATE TABLE permissions (
 CREATE TABLE role_permissions (
   admin_role_id   uniqueidentifier NOT NULL,
   permission_id   uniqueidentifier NOT NULL,
-  scope_type      nvarchar(32)     NOT NULL DEFAULT 'all'
+  scope_type      nvarchar(32)     NOT NULL CONSTRAINT DF_role_permissions_scope_type DEFAULT 'all'
                     CONSTRAINT CK_role_permissions_scope_type CHECK (scope_type IN
                       ('all','academy_only','masked','translate_only','own_clubs')),
   CONSTRAINT PK_role_permissions PRIMARY KEY CLUSTERED (admin_role_id, permission_id)
@@ -1870,11 +1876,11 @@ CREATE TABLE role_permissions (
 -- 的登入位置紀錄，docs/12 §13.1「不能回答」清單裡正好列著「來源 IP」。真的要做裝置綁定或異常
 -- 偵測時再加回來（屆時要有讀取端才說得上是功能，不是紀錄）。
 CREATE TABLE admin_refresh_tokens (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_admin_refresh_tokens_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   admin_user_id     uniqueidentifier NOT NULL,
   token_hash        nvarchar(128)    NOT NULL,
-  issued_at         datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  issued_at         datetime2(3)     NOT NULL CONSTRAINT DF_admin_refresh_tokens_issued_at DEFAULT SYSUTCDATETIME(),
   expires_at        datetime2(3)     NOT NULL,
   revoked_at        datetime2(3)     NULL,
   replaced_by_id    uniqueidentifier NULL,
@@ -1890,7 +1896,7 @@ CREATE TABLE admin_refresh_tokens (
 -- 會員帳號：會員編號、姓名、註冊來源、LINE 綁定識別碼（加密）、Email／電話／生日（受限）。
 -- 刻意不加 club_id——Email 是登入鍵、LINE 綁定 1:1，個資法上的當事人是「人」不是「會籍」。
 CREATE TABLE members (
-  id                          uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                          uniqueidentifier NOT NULL CONSTRAINT DF_members_id DEFAULT NEWID(),
   row_seq                     bigint IDENTITY(1,1) NOT NULL,
   member_no                   nvarchar(32)     NOT NULL,
   name                        nvarchar(64)     NOT NULL,
@@ -1900,23 +1906,27 @@ CREATE TABLE members (
   birth_on                    date             NULL,
   line_user_id_encrypted      nvarchar(255)    NULL,
   signup_source                nvarchar(16)    NOT NULL
-                                 CHECK (signup_source IN ('web','line','admin','app')),
-  status                      nvarchar(16)     NOT NULL DEFAULT 'active'
-                                 CHECK (status IN ('active','suspended','deleted')),
+                                 CONSTRAINT CK_members_signup_source CHECK (signup_source IN ('web','line','admin','app')),
+  status                      nvarchar(16)     NOT NULL CONSTRAINT DF_members_status DEFAULT 'active'
+                                 CONSTRAINT CK_members_status CHECK (status IN ('active','suspended','deleted')),
   -- B1（2026-09-30，S2-5）K1 名單要求的欄位：Email 驗證時間（NULL＝未驗證，K1 的「未驗證」狀態由此推得，
   -- 不另設 status 值）、最後登入（取代「登入紀錄」表，同 admin_users.last_login_at）、內部備註、語系偏好、
   -- 合併帳號時的去向（不建日誌表，合併紀錄以被合併帳號留下的這一欄為準）。
   email_verified_at           datetime2(3)     NULL,
   last_login_at               datetime2(3)     NULL,
   internal_note               nvarchar(max)    NULL,
-  locale                      nvarchar(10)     NULL CHECK (locale IN (N'zh-Hant',N'en')),
+  locale                      nvarchar(10)     NULL CONSTRAINT CK_members_locale CHECK (locale IN (N'zh-Hant',N'en')),
   merged_into_member_id       uniqueidentifier NULL,
   -- E 批（2026-10-01，S2-11 會員前台）：登入失敗次數限制（規劃書 §3.14「登入失敗次數限制」，同 admin_users 的鎖定機制）；
   -- line_user_id_hash 是 LINE userId 的 SHA-256（line_user_id_encrypted 是 Data Protection 加密、每次密文不同，無法拿來查找，
   -- LINE 一鍵登入必須能「用 LINE userId 找到會員」）。password_hash 以 '!' 開頭＝尚未設定密碼（LINE 註冊者），不可用密碼登入。
-  failed_attempt_count        int              NOT NULL DEFAULT 0,
+  failed_attempt_count        int              NOT NULL CONSTRAINT DF_members_failed_attempt_count DEFAULT 0,
   locked_until                datetime2(3)     NULL,
   line_user_id_hash           char(64)         NULL,
+  created_at                  datetime2(3)     NOT NULL CONSTRAINT DF_members_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                  datetime2(3)     NOT NULL CONSTRAINT DF_members_updated_at DEFAULT SYSUTCDATETIME(),
+  created_by                  uniqueidentifier NULL,
+  updated_by                  uniqueidentifier NULL,
   -- 監護人同意（2026-10-05，主站規劃書「會員資料安全要求」、App 規劃書 §4.5「未滿 18 歲須經監護人同意方得註冊」）：
   -- 同意時間為伺服器時間；guardian_name 屬受限個資（docs/12b §8，🔒，刪帳號時清除）；guardian_consent_version 為同意文案版本
   -- （文案本身待法務 B-9）。四欄：成年註冊全空，未成年註冊前三欄必填（CK_members_guardian_consent）。
@@ -1924,10 +1934,6 @@ CREATE TABLE members (
   guardian_name               nvarchar(64)     NULL,
   guardian_relationship       nvarchar(16)     NULL CONSTRAINT CK_members_guardian_relationship CHECK (guardian_relationship IN ('parent','legal_guardian')),
   guardian_consent_version    nvarchar(32)     NULL,
-  created_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by                  uniqueidentifier NULL,
-  updated_by                  uniqueidentifier NULL,
   CONSTRAINT PK_members PRIMARY KEY NONCLUSTERED (id),
   -- 刪帳號會清掉 guardian_name 而保留同意時間與關係（個資清除優先、同意事實保留），所以只要求「有同意時間 → 有關係」，不要求姓名永遠存在。
   CONSTRAINT CK_members_guardian_consent CHECK (guardian_consented_at IS NOT NULL OR (guardian_name IS NULL AND guardian_relationship IS NULL AND guardian_consent_version IS NULL)),
@@ -1936,13 +1942,13 @@ CREATE TABLE members (
 
 -- 會籍（v3.0 新增）：member_id × club_id × season_id、層級、起訖、狀態。一人每俱樂部一份。
 CREATE TABLE memberships (
-  id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                        uniqueidentifier NOT NULL CONSTRAINT DF_memberships_id DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
   member_id                 uniqueidentifier NOT NULL,
   club_id                   uniqueidentifier NOT NULL,
   season_id                 uniqueidentifier NOT NULL,
   tier                      nvarchar(16)     NOT NULL
-                              CHECK (tier IN ('registered','fan_club')),
+                              CONSTRAINT CK_memberships_tier CHECK (tier IN ('registered','fan_club')),
   membership_start_on       date             NULL,
   membership_end_on         date             NULL,
   -- B1（2026-09-30，S2-5）：status 值域收斂為 pending（升級申請待確認）／active／expired／cancelled，
@@ -1950,12 +1956,12 @@ CREATE TABLE memberships (
   -- 「方案」欄的落點（目前方案；歷次付款仍各自記在 membership_payments.membership_plan_id）。
   -- last_adjust_reason／last_adjusted_at：K2「手動調整層級（含異動原因紀錄）」——不建日誌表，只留最近一次。
   membership_plan_id        uniqueidentifier NULL,
-  status                    nvarchar(16)     NOT NULL DEFAULT 'active'
-                              CHECK (status IN ('pending','active','expired','cancelled')),
+  status                    nvarchar(16)     NOT NULL CONSTRAINT DF_memberships_status DEFAULT 'active'
+                              CONSTRAINT CK_memberships_status CHECK (status IN ('pending','active','expired','cancelled')),
   last_adjust_reason        nvarchar(255)    NULL,
   last_adjusted_at          datetime2(3)     NULL,
-  created_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at                datetime2(3)     NOT NULL CONSTRAINT DF_memberships_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                datetime2(3)     NOT NULL CONSTRAINT DF_memberships_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                uniqueidentifier NULL,
   updated_by                uniqueidentifier NULL,
   CONSTRAINT PK_memberships PRIMARY KEY NONCLUSTERED (id),
@@ -1964,19 +1970,19 @@ CREATE TABLE memberships (
 
 -- 電子會員卡，一張一列；membership_id 必填——每份會籍一張卡。
 CREATE TABLE member_cards (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_member_cards_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   membership_id     uniqueidentifier NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   holder_name       nvarchar(64)     NOT NULL,
   token             nvarchar(64)     NOT NULL,
   -- B1（2026-09-30）：status 值域 active／revoked；revoked_at 供「重新產生 QR」與停用會籍時撤銷。
-  status            nvarchar(16)     NOT NULL DEFAULT 'active' CHECK (status IN ('active','revoked')),
-  reissue_count     int              NOT NULL DEFAULT 0,
+  status            nvarchar(16)     NOT NULL CONSTRAINT DF_member_cards_status DEFAULT 'active' CONSTRAINT CK_member_cards_status CHECK (status IN ('active','revoked')),
+  reissue_count     int              NOT NULL CONSTRAINT DF_member_cards_reissue_count DEFAULT 0,
   issued_at         datetime2(3)     NULL,
   revoked_at        datetime2(3)     NULL,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_member_cards_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_member_cards_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_member_cards PRIMARY KEY NONCLUSTERED (id),
@@ -1987,21 +1993,21 @@ CREATE TABLE member_cards (
 -- code 為 docs/12b §11.1 唯一鍵 (club_id, season_id, code) 直接指名的欄位，ERD 主表屬性未逐一畫出，本檔據此補上。
 -- 🔄 2026-10-06（稽核 D 類）：季中計價規則 mid_season_rule 是給人看的規則說明文字，移入 membership_plans_i18n。
 CREATE TABLE membership_plans (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_membership_plans_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   season_id         uniqueidentifier NOT NULL,
   code              nvarchar(32)     NOT NULL,
   fee               int              NOT NULL,
-  card_quota        int              NOT NULL DEFAULT 1,
-  jersey_quota      int              NOT NULL DEFAULT 0,
-  sort_order        int              NOT NULL DEFAULT 0,
+  card_quota        int              NOT NULL CONSTRAINT DF_membership_plans_card_quota DEFAULT 1,
+  jersey_quota      int              NOT NULL CONSTRAINT DF_membership_plans_jersey_quota DEFAULT 0,
+  sort_order        int              NOT NULL CONSTRAINT DF_membership_plans_sort_order DEFAULT 0,
   -- B1（2026-09-30）：規劃書 K2 方案設定「期間起訖」「上下架」的落點。status 值域 draft（下架）／published（上架）。
   starts_on         date             NULL,
   ends_on           date             NULL,
-  status            nvarchar(16)     NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  status            nvarchar(16)     NOT NULL CONSTRAINT DF_membership_plans_status DEFAULT 'draft' CONSTRAINT CK_membership_plans_status CHECK (status IN ('draft','published')),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_membership_plans_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_membership_plans_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_membership_plans PRIMARY KEY NONCLUSTERED (id),
@@ -2019,7 +2025,7 @@ CREATE TABLE membership_plans_i18n (
 
 -- 會籍付款與開通：方式、金額、日期、經辦人、開通起訖；collecting_club_id 供代收代付分帳。
 CREATE TABLE membership_payments (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_membership_payments_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   membership_id         uniqueidentifier NOT NULL,
   club_id               uniqueidentifier NOT NULL,
@@ -2034,8 +2040,8 @@ CREATE TABLE membership_payments (
   activated_end_on      date             NULL,
   -- E 批：由付款訂單開通時記下來源訂單；篩選唯一索引確保「一張訂單最多一筆付款紀錄」（冪等開通的資料庫層保險，App 規劃書 §9.7）。
   membership_order_id   uniqueidentifier NULL,
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_membership_payments_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_membership_payments_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_membership_payments PRIMARY KEY NONCLUSTERED (id),
@@ -2046,12 +2052,12 @@ CREATE TABLE membership_payments (
 -- 不是 §13.1 排除的日誌表）。token_hash 存 SHA-256，原始權杖不落地；replaced_by_id 串成輪替鏈，舊權杖被重放時整批撤銷。
 -- is_persistent＝「記住我」（影響 Cookie 與到期天數）。🔴 App 的更新權杖仍掛在 app_devices（App 規劃書 §10.1，一裝置一鏈），不使用本表。
 CREATE TABLE member_refresh_tokens (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_member_refresh_tokens_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   member_id         uniqueidentifier NOT NULL,
   token_hash        nvarchar(128)    NOT NULL,
-  is_persistent     bit              NOT NULL DEFAULT 0,
-  issued_at         datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_persistent     bit              NOT NULL CONSTRAINT DF_member_refresh_tokens_is_persistent DEFAULT 0,
+  issued_at         datetime2(3)     NOT NULL CONSTRAINT DF_member_refresh_tokens_issued_at DEFAULT SYSUTCDATETIME(),
   expires_at        datetime2(3)     NOT NULL,
   revoked_at        datetime2(3)     NULL,
   replaced_by_id    uniqueidentifier NULL,
@@ -2067,7 +2073,7 @@ CREATE TABLE member_refresh_tokens (
 -- paid 已付款／activated 已開通／expired 已逾時／activation_failed 開通失敗（已收款但開通異常，須告警並人工處理）／cancelled 已取消／refunded 已退款（僅後台人工發起）。
 -- 🔴 與站內商店訂單（orders）完全分開：會籍不走商店結帳（主站 §3.14「會籍的網頁站內結帳仍不做」）。
 CREATE TABLE membership_orders (
-  id                      uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                      uniqueidentifier NOT NULL CONSTRAINT DF_membership_orders_id DEFAULT NEWID(),
   row_seq                 bigint IDENTITY(1,1) NOT NULL,
   order_no                nvarchar(32)     NOT NULL,
   member_id               uniqueidentifier NOT NULL,
@@ -2076,7 +2082,7 @@ CREATE TABLE membership_orders (
   membership_plan_id      uniqueidentifier NOT NULL,
   idempotency_key         nvarchar(64)     NOT NULL,
   amount                  int              NOT NULL,
-  status                  nvarchar(24)     NOT NULL DEFAULT 'created'
+  status                  nvarchar(24)     NOT NULL CONSTRAINT DF_membership_orders_status DEFAULT 'created'
                             CONSTRAINT CK_membership_orders_status CHECK (status IN
                               ('created','pending_payment','paid','activated','expired','activation_failed','cancelled','refunded')),
   payment_method          nvarchar(16)     NULL CONSTRAINT CK_membership_orders_payment_method CHECK (payment_method IS NULL OR payment_method IN ('linepay')),
@@ -2088,25 +2094,25 @@ CREATE TABLE membership_orders (
   activation_source       nvarchar(16)     NULL CONSTRAINT CK_membership_orders_activation_source CHECK (activation_source IS NULL OR activation_source IN ('payment','internal','admin')),
   membership_id           uniqueidentifier NULL,
   failure_reason          nvarchar(255)    NULL,
-  created_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at              datetime2(3)     NOT NULL CONSTRAINT DF_membership_orders_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at              datetime2(3)     NOT NULL CONSTRAINT DF_membership_orders_updated_at DEFAULT SYSUTCDATETIME(),
   CONSTRAINT PK_membership_orders PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_membership_orders_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
 -- 權益對照條目（由父表 membership_plans 推導）：分組、排序。不帶 club_id。
 CREATE TABLE membership_benefits (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_membership_benefits_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   membership_plan_id    uniqueidentifier NOT NULL,
   -- B1（2026-09-30）：benefit_group 值域 member_card／store_discount／jersey／event（規劃書 K4 分組
   -- 「會員卡／店家折扣／球衣／活動」）；status 為上下架（draft／published）。
   benefit_group         nvarchar(64)     NOT NULL
-                          CHECK (benefit_group IN ('member_card','store_discount','jersey','event')),
-  sort_order            int              NOT NULL DEFAULT 0,
-  status                nvarchar(16)     NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+                          CONSTRAINT CK_membership_benefits_benefit_group CHECK (benefit_group IN ('member_card','store_discount','jersey','event')),
+  sort_order            int              NOT NULL CONSTRAINT DF_membership_benefits_sort_order DEFAULT 0,
+  status                nvarchar(16)     NOT NULL CONSTRAINT DF_membership_benefits_status DEFAULT 'draft' CONSTRAINT CK_membership_benefits_status CHECK (status IN ('draft','published')),
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_membership_benefits_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_membership_benefits_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_membership_benefits PRIMARY KEY NONCLUSTERED (id),
@@ -2128,7 +2134,7 @@ CREATE TABLE membership_benefits_i18n (
 
 -- 球衣發放，一件一列：領用人姓名、尺寸、配送方式、地址、狀態。
 CREATE TABLE jersey_issues (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_jersey_issues_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   member_id         uniqueidentifier NOT NULL,
@@ -2138,14 +2144,14 @@ CREATE TABLE jersey_issues (
   -- B1（2026-09-30，S2-5 K3）：membership_id 記錄這件球衣是哪份會籍的權益（家庭方案依 jersey_quota 逐件登記）；
   -- delivery_method 值域 ship（寄送）／pickup（到場領取）；status 值域 pending／shipped／received；
   -- received_on 為領取日期。
-  delivery_method   nvarchar(32)     NULL CHECK (delivery_method IN ('ship','pickup')),
+  delivery_method   nvarchar(32)     NULL CONSTRAINT CK_jersey_issues_delivery_method CHECK (delivery_method IN ('ship','pickup')),
   address           nvarchar(500)    NULL,
-  status            nvarchar(16)     NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','shipped','received')),
+  status            nvarchar(16)     NOT NULL CONSTRAINT DF_jersey_issues_status DEFAULT 'pending' CONSTRAINT CK_jersey_issues_status CHECK (status IN ('pending','shipped','received')),
   shipped_on        date             NULL,
   received_on       date             NULL,
   membership_id     uniqueidentifier NULL,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_jersey_issues_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_jersey_issues_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_jersey_issues PRIMARY KEY NONCLUSTERED (id),
@@ -2154,13 +2160,11 @@ CREATE TABLE jersey_issues (
 
 -- 特約店家（適用範圍可設單一俱樂部或兩隊共同）：類別、地址、營業時間、優惠內容、適用層級、合作起訖。無金流無分潤。
 CREATE TABLE partner_stores (
-  id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                  uniqueidentifier NOT NULL CONSTRAINT DF_partner_stores_id DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   club_id             uniqueidentifier NULL,
   slug                nvarchar(160)    NOT NULL,
   image_key           nvarchar(500)    NULL,
-  image_width         int              NULL,
-  image_height        int              NULL,
   category            nvarchar(32)     NULL,
   -- B1（2026-09-30，S2-5 K4）：address 存中文地址（座標定位與既有決定不變）；英文地址在 partner_stores_i18n.address。
   -- region（縣市／地區，供 8.4 地區篩選）、map_url（地圖連結）為規劃書 K4 欄位「地圖連結」「地區篩選項目」的落點。
@@ -2169,18 +2173,20 @@ CREATE TABLE partner_stores (
   lat                 decimal(9,6)     NULL,
   lng                 decimal(9,6)     NULL,
   phone               nvarchar(32)     NULL,
-  business_hours      nvarchar(max) NULL CONSTRAINT CK_partner_stores_business_hours_json CHECK (ISJSON(business_hours, OBJECT) = 1),
   map_url             nvarchar(500)    NULL,
   website_url         nvarchar(500)    NULL,
-  applicable_tier     nvarchar(16)     NOT NULL DEFAULT 'all' CHECK (applicable_tier IN ('all','fan_club')),
+  applicable_tier     nvarchar(16)     NOT NULL CONSTRAINT DF_partner_stores_applicable_tier DEFAULT 'all' CONSTRAINT CK_partner_stores_applicable_tier CHECK (applicable_tier IN ('all','fan_club')),
   start_on            date             NULL,
   end_on              date             NULL,
-  sort_order          int              NOT NULL DEFAULT 0,
-  status              nvarchar(16)     NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
-  created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order          int              NOT NULL CONSTRAINT DF_partner_stores_sort_order DEFAULT 0,
+  status              nvarchar(16)     NOT NULL CONSTRAINT DF_partner_stores_status DEFAULT 'draft' CONSTRAINT CK_partner_stores_status CHECK (status IN ('draft','published')),
+  created_at          datetime2(3)     NOT NULL CONSTRAINT DF_partner_stores_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at          datetime2(3)     NOT NULL CONSTRAINT DF_partner_stores_updated_at DEFAULT SYSUTCDATETIME(),
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
+  image_width         int              NULL,
+  image_height        int              NULL,
+  business_hours      nvarchar(max) NULL CONSTRAINT CK_partner_stores_business_hours_json CHECK (ISJSON(business_hours, OBJECT) = 1),
   CONSTRAINT PK_partner_stores PRIMARY KEY NONCLUSTERED (id),
   -- 座標（2026-10-05）：NULL＝未確認（App 不顯示、不計距離）；有值必須兩個都有、在範圍內、且不是 (0,0) 這類替代值。
   CONSTRAINT CK_partner_stores_coords CHECK (
@@ -2202,7 +2208,7 @@ CREATE TABLE partner_stores_i18n (
 
 -- 抽獎活動：snapshot_at、開獎時間、領獎期限、狀態、roster_version、total_count、roster_hash。各俱樂部各自舉辦。
 CREATE TABLE member_draws (
-  id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                        uniqueidentifier NOT NULL CONSTRAINT DF_member_draws_id DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
   club_id                   uniqueidentifier NOT NULL,
   draw_code                 nvarchar(32)     NOT NULL,
@@ -2210,23 +2216,23 @@ CREATE TABLE member_draws (
   drawn_at                  datetime2(3)     NULL,
   draw_occasion             nvarchar(32)     NULL,
   claim_deadline_on         date             NULL,
-  status                    nvarchar(16)     NOT NULL DEFAULT 'draft'
-                              CHECK (status IN
+  status                    nvarchar(16)     NOT NULL CONSTRAINT DF_member_draws_status DEFAULT 'draft'
+                              CONSTRAINT CK_member_draws_status CHECK (status IN
                                 ('draft','roster_locked','drawn','announced','closed','voided')),
-  roster_version            int              NOT NULL DEFAULT 1,
+  roster_version            int              NOT NULL CONSTRAINT DF_member_draws_roster_version DEFAULT 1,
   total_count               int              NULL,
   roster_hash               nvarchar(64)     NULL,
   announcement_article_id   uniqueidentifier NULL,
   locked_by                 uniqueidentifier NULL,
   locked_at                 datetime2(3)     NULL,
   cover_key                 nvarchar(500)    NULL,
-  cover_width               int              NULL,
-  cover_height              int              NULL,
   internal_note             nvarchar(max)    NULL,
-  created_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at                datetime2(3)     NOT NULL CONSTRAINT DF_member_draws_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                datetime2(3)     NOT NULL CONSTRAINT DF_member_draws_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                uniqueidentifier NULL,
   updated_by                uniqueidentifier NULL,
+  cover_width               int              NULL,
+  cover_height              int              NULL,
   CONSTRAINT PK_member_draws PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_member_draws_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -2246,18 +2252,18 @@ CREATE TABLE member_draws_i18n (
 -- C1（K5）：roster_version 標明所屬名單版本（作廢重產時舊版保留，唯一鍵含版本）；is_backup 備取；
 -- recipient_*／claimed_at／shipped_at 供獎品發放（比照 K3）。
 CREATE TABLE draw_rosters (
-  id                              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                              uniqueidentifier NOT NULL CONSTRAINT DF_draw_rosters_id DEFAULT NEWID(),
   row_seq                         bigint IDENTITY(1,1) NOT NULL,
   club_id                         uniqueidentifier NOT NULL,
   member_draw_id                  uniqueidentifier NOT NULL,
-  roster_version                  int              NOT NULL DEFAULT 1,
+  roster_version                  int              NOT NULL CONSTRAINT DF_draw_rosters_roster_version DEFAULT 1,
   serial_no                       int              NOT NULL,
   member_no_snapshot               nvarchar(32)    NOT NULL,
   name_snapshot                    nvarchar(64)    NULL,
-  tier_snapshot                     nvarchar(16)   NULL CHECK (tier_snapshot IN ('registered','fan_club')),
+  tier_snapshot                     nvarchar(16)   NULL CONSTRAINT CK_draw_rosters_tier_snapshot CHECK (tier_snapshot IN ('registered','fan_club')),
   membership_end_on_snapshot         date          NULL,
-  is_winner                        bit              NOT NULL DEFAULT 0,
-  is_backup                        bit              NOT NULL DEFAULT 0,
+  is_winner                        bit              NOT NULL CONSTRAINT DF_draw_rosters_is_winner DEFAULT 0,
+  is_backup                        bit              NOT NULL CONSTRAINT DF_draw_rosters_is_backup DEFAULT 0,
   prize_name                       nvarchar(128)    NULL,
   claim_method                     nvarchar(32)     NULL
                                      CONSTRAINT CK_draw_rosters_claim_method CHECK (claim_method IS NULL OR claim_method IN ('ship','pickup')),
@@ -2270,8 +2276,8 @@ CREATE TABLE draw_rosters (
   shipped_at                       datetime2(3)     NULL,
   withholding_data_encrypted        nvarchar(255)   NULL,
   note                              nvarchar(max)   NULL,
-  created_at                       datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                       datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at                       datetime2(3)     NOT NULL CONSTRAINT DF_draw_rosters_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                       datetime2(3)     NOT NULL CONSTRAINT DF_draw_rosters_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                       uniqueidentifier NULL,
   updated_by                       uniqueidentifier NULL,
   CONSTRAINT PK_draw_rosters PRIMARY KEY NONCLUSTERED (id),
@@ -2280,7 +2286,7 @@ CREATE TABLE draw_rosters (
 
 -- 名單版本歷程（K5）：每次產生名單一列；作廢重產時舊版標記作廢原因與時間，不刪除。由 member_draws 推導，不帶 club_id。
 CREATE TABLE draw_roster_versions (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_draw_roster_versions_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   member_draw_id    uniqueidentifier NOT NULL,
   roster_version    int              NOT NULL,
@@ -2288,12 +2294,12 @@ CREATE TABLE draw_roster_versions (
   total_count       int              NOT NULL,
   roster_hash       nvarchar(64)     NOT NULL,
   generated_by      uniqueidentifier NULL,
-  generated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  generated_at      datetime2(3)     NOT NULL CONSTRAINT DF_draw_roster_versions_generated_at DEFAULT SYSUTCDATETIME(),
   voided_at         datetime2(3)     NULL,
   voided_by         uniqueidentifier NULL,
   void_reason       nvarchar(255)    NULL,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_draw_roster_versions_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_draw_roster_versions_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_draw_roster_versions PRIMARY KEY NONCLUSTERED (id),
@@ -2307,27 +2313,27 @@ CREATE TABLE draw_roster_versions (
 
 -- L2 自建事件——行事曆唯一的自有資料：雙語標題、全天／多日、場地、封面、CTA、前台可見性。
 CREATE TABLE calendar_custom_events (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_calendar_custom_events_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   event_type_id   uniqueidentifier NULL,
   venue_id        uniqueidentifier NULL,
   starts_at       datetime2(3)     NOT NULL,
   ends_at         datetime2(3)     NULL,
-  is_all_day      bit              NOT NULL DEFAULT 0,
+  is_all_day      bit              NOT NULL CONSTRAINT DF_calendar_custom_events_is_all_day DEFAULT 0,
   repeat_rule     nvarchar(32)     NULL,
   -- S1-11 新增：重複規則的結束日期（規劃書 L2「可設定結束日期與例外日期」，原本只有例外日期表
   -- calendar_event_exceptions，沒有承接結束日期的欄位）。repeat_rule 為 NULL 時本欄無意義。
   repeat_until    date             NULL,
-  is_public       bit              NOT NULL DEFAULT 1,
+  is_public       bit              NOT NULL CONSTRAINT DF_calendar_custom_events_is_public DEFAULT 1,
   cover_key       nvarchar(500)    NULL,
-  cover_width     int              NULL,
-  cover_height    int              NULL,
   cta_url         nvarchar(500)    NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_calendar_custom_events_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_calendar_custom_events_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  cover_width     int              NULL,
+  cover_height    int              NULL,
   CONSTRAINT PK_calendar_custom_events PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_calendar_custom_events_row_seq UNIQUE CLUSTERED (row_seq),
   -- S1-11：規劃書只給「每週／每兩週／每月」三種頻率的中文敘述，沒有給代碼，本輪定案這三個英文
@@ -2361,15 +2367,15 @@ CREATE TABLE calendar_event_exceptions (
 
 -- 賽事／活動類型：圖示、色彩、顯示規則、是否公開。不帶 club_id。
 CREATE TABLE event_types (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_event_types_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   code            nvarchar(32)     NOT NULL,
   colour          nvarchar(16)     NULL,
   icon            nvarchar(64)     NULL,
-  is_public       bit              NOT NULL DEFAULT 1,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_public       bit              NOT NULL CONSTRAINT DF_event_types_is_public DEFAULT 1,
+  sort_order      int              NOT NULL CONSTRAINT DF_event_types_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_event_types_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_event_types_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_event_types PRIMARY KEY NONCLUSTERED (id),
@@ -2386,15 +2392,15 @@ CREATE TABLE event_types_i18n (
 -- L3 隊別分類設定（B1，2026-09-30，S2-6）：分類項目由 C1 球隊帶入，這裡只存前台顯示上的覆寫——
 -- 顯示名稱（側表）、排序、代表色、是否公開。三者皆可為空＝沿用 teams 本身的值（team_color／sort_order／公開）。
 CREATE TABLE calendar_team_settings (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_calendar_team_settings_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   team_id         uniqueidentifier NOT NULL,
   colour          nvarchar(16)     NULL,
   sort_order      int              NULL,
-  is_public       bit              NOT NULL DEFAULT 1,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_public       bit              NOT NULL CONSTRAINT DF_calendar_team_settings_is_public DEFAULT 1,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_calendar_team_settings_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_calendar_team_settings_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_calendar_team_settings PRIMARY KEY NONCLUSTERED (id),
@@ -2427,15 +2433,15 @@ CREATE TABLE calendar_feed_fetches (
 -- 商品分類，含品牌敘事區塊。
 -- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE collections (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_collections_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   slug            nvarchar(160)    NOT NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published')),
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_collections_sort_order DEFAULT 0,
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_collections_status DEFAULT 'draft'
+                    CONSTRAINT CK_collections_status CHECK (status IN ('draft','published')),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_collections_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_collections_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_collections PRIMARY KEY NONCLUSTERED (id),
@@ -2453,23 +2459,23 @@ CREATE TABLE collections_i18n (
 -- 商品：分類、標籤、敘事、尺碼表、狀態（含缺貨自動判定）、排序、SEO。無會員價欄位。
 -- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE products (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_products_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   slug            nvarchar(160)    NOT NULL,
   collection_id   uniqueidentifier NULL,
-  is_new_arrival  bit              NOT NULL DEFAULT 0,
-  size_chart      nvarchar(max) NULL CONSTRAINT CK_products_size_chart_json CHECK (ISJSON(size_chart, OBJECT) = 1 OR ISJSON(size_chart, ARRAY) = 1),
-  sort_order      int              NOT NULL DEFAULT 0,
-  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published')),
+  is_new_arrival  bit              NOT NULL CONSTRAINT DF_products_is_new_arrival DEFAULT 0,
+  sort_order      int              NOT NULL CONSTRAINT DF_products_sort_order DEFAULT 0,
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_products_status DEFAULT 'draft'
+                    CONSTRAINT CK_products_status CHECK (status IN ('draft','published')),
   -- C1（S1）：缺貨時的呈現——show_unavailable 顯示但不可購買／hide 自動隱藏。
-  out_of_stock_behavior nvarchar(16) NOT NULL DEFAULT 'show_unavailable'
+  out_of_stock_behavior nvarchar(16) NOT NULL CONSTRAINT DF_products_out_of_stock_behavior DEFAULT 'show_unavailable'
                     CONSTRAINT CK_products_oos CHECK (out_of_stock_behavior IN ('show_unavailable','hide')),
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_products_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_products_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  size_chart      nvarchar(max) NULL CONSTRAINT CK_products_size_chart_json CHECK (ISJSON(size_chart, OBJECT) = 1 OR ISJSON(size_chart, ARRAY) = 1),
   CONSTRAINT PK_products PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_products_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -2487,26 +2493,26 @@ CREATE TABLE products_i18n (
 
 -- 圖集 (product_id, sort_order, image_key)。由 Product 推導，不帶 club_id。
 CREATE TABLE product_images (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_product_images_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   product_id      uniqueidentifier NOT NULL,
   image_key       nvarchar(500)    NOT NULL,
   width           int              NULL,
   height          int              NULL,
-  image_alt_zh    nvarchar(200)    NULL,
-  image_alt_en    nvarchar(200)    NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_product_images_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_product_images_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_product_images_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  image_alt_zh    nvarchar(200)    NULL,
+  image_alt_en    nvarchar(200)    NULL,
   CONSTRAINT PK_product_images PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_product_images_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
 -- SKU：尺寸／顏色、貨號（維持全站唯一）、售價、促銷價、成本（受限）、庫存量、預留量。
 CREATE TABLE product_variants (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_product_variants_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   product_id      uniqueidentifier NOT NULL,
@@ -2516,16 +2522,16 @@ CREATE TABLE product_variants (
   price           int              NOT NULL,
   sale_price      int              NULL,
   cost            int              NULL,
-  stock_qty       int              NOT NULL DEFAULT 0,
-  reserved_qty    int              NOT NULL DEFAULT 0,
+  stock_qty       int              NOT NULL CONSTRAINT DF_product_variants_stock_qty DEFAULT 0,
+  reserved_qty    int              NOT NULL CONSTRAINT DF_product_variants_reserved_qty DEFAULT 0,
   -- C1（S1／S2）：active 販售中／inactive 停售；低庫存門檻（空＝用俱樂部設定）；排序。
   -- stock_qty 只透過庫存異動（inventory_movements）改動；可售量＝stock_qty－reserved_qty。
-  status          nvarchar(16)     NOT NULL DEFAULT 'active'
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_product_variants_status DEFAULT 'active'
                     CONSTRAINT CK_product_variants_status CHECK (status IN ('active','inactive')),
   low_stock_threshold int          NULL,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_product_variants_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_product_variants_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_product_variants_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_product_variants PRIMARY KEY NONCLUSTERED (id),
@@ -2535,7 +2541,7 @@ CREATE TABLE product_variants (
 
 -- 庫存異動：類型、數量、原因、經辦人、時間、關聯訂單。功能單元，不是日誌。
 CREATE TABLE inventory_movements (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_inventory_movements_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   club_id               uniqueidentifier NOT NULL,
   product_variant_id    uniqueidentifier NOT NULL,
@@ -2551,9 +2557,9 @@ CREATE TABLE inventory_movements (
   reserved_after        int              NULL,
   reason                nvarchar(255)    NULL,
   handled_by            uniqueidentifier NULL,
-  occurred_at           datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  occurred_at           datetime2(3)     NOT NULL CONSTRAINT DF_inventory_movements_occurred_at DEFAULT SYSUTCDATETIME(),
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_inventory_movements_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_inventory_movements_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_inventory_movements PRIMARY KEY NONCLUSTERED (id),
@@ -2562,13 +2568,13 @@ CREATE TABLE inventory_movements (
 
 -- 購物車：member_id（可空）或 anonymous_token；登入後合併。不得跨俱樂部混買，切換站台即切換購物車。
 CREATE TABLE carts (
-  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                uniqueidentifier NOT NULL CONSTRAINT DF_carts_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   club_id           uniqueidentifier NOT NULL,
   member_id         uniqueidentifier NULL,
   anonymous_token   nvarchar(64)     NULL,
-  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at        datetime2(3)     NOT NULL CONSTRAINT DF_carts_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_carts_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_carts PRIMARY KEY NONCLUSTERED (id),
@@ -2578,14 +2584,14 @@ CREATE TABLE carts (
 CREATE TABLE cart_items (
   cart_id             uniqueidentifier NOT NULL,
   product_variant_id  uniqueidentifier NOT NULL,
-  quantity            int              NOT NULL DEFAULT 1,
+  quantity            int              NOT NULL CONSTRAINT DF_cart_items_quantity DEFAULT 1,
   CONSTRAINT PK_cart_items PRIMARY KEY CLUSTERED (cart_id, product_variant_id)
 );
 
 -- 訂單：訂單編號（維持全站唯一，加前綴）、member_id 可為空、收件人資料（受限）、金額、
 -- LINE Pay 交易編號與付款狀態、出貨狀態、查詢 token、is_manual。selling_club_id（受益方）＋ collecting_club_id（收款法人）。
 CREATE TABLE orders (
-  id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                        uniqueidentifier NOT NULL CONSTRAINT DF_orders_id DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
   order_no                  nvarchar(32)     NOT NULL,
   club_id                   uniqueidentifier NOT NULL,
@@ -2597,25 +2603,25 @@ CREATE TABLE orders (
   recipient_phone            nvarchar(32)    NULL,
   recipient_address           nvarchar(500)  NULL,
   subtotal                  int              NOT NULL,
-  shipping_fee               int             NOT NULL DEFAULT 0,
+  shipping_fee               int             NOT NULL CONSTRAINT DF_orders_shipping_fee DEFAULT 0,
   total                     int              NOT NULL,
   linepay_transaction_id      nvarchar(64)   NULL,
-  payment_status             nvarchar(16)    NOT NULL DEFAULT 'pending'
-                               CHECK (payment_status IN ('pending','paid','failed','expired','refunded')),
-  order_status               nvarchar(16)    NOT NULL DEFAULT N'待付款'
-                               CHECK (order_status IN
+  payment_status             nvarchar(16)    NOT NULL CONSTRAINT DF_orders_payment_status DEFAULT 'pending'
+                               CONSTRAINT CK_orders_payment_status CHECK (payment_status IN ('pending','paid','failed','expired','refunded')),
+  order_status               nvarchar(16)    NOT NULL CONSTRAINT DF_orders_order_status DEFAULT N'待付款'
+                               CONSTRAINT CK_orders_order_status CHECK (order_status IN
                                  (N'待付款',N'已付款',N'備貨中',N'已出貨',N'已完成',N'已取消',N'退貨處理中',N'已退款')),
   delivery_method             nvarchar(16)   NULL
-                               CHECK (delivery_method IN ('home_delivery','cvs_pickup','onsite_pickup')),
-  is_manual                  bit             NOT NULL DEFAULT 0,
+                               CONSTRAINT CK_orders_delivery_method CHECK (delivery_method IN ('home_delivery','cvs_pickup','onsite_pickup')),
+  is_manual                  bit             NOT NULL CONSTRAINT DF_orders_is_manual DEFAULT 0,
   paid_at                    datetime2(3)    NULL,
   -- C1（S3）：付款方式（onsite＝現場收款）、顧客備註、內部註記、代收代付分帳旗標（人工標記，不是狀態機）、
   -- 完成／取消時間與取消原因。
-  payment_method             nvarchar(16)    NOT NULL DEFAULT 'linepay'
+  payment_method             nvarchar(16)    NOT NULL CONSTRAINT DF_orders_payment_method DEFAULT 'linepay'
                                CONSTRAINT CK_orders_payment_method CHECK (payment_method IN ('linepay','onsite')),
   customer_note              nvarchar(500)   NULL,
   internal_note              nvarchar(max)   NULL,
-  settlement_status          nvarchar(16)    NOT NULL DEFAULT 'pending'
+  settlement_status          nvarchar(16)    NOT NULL CONSTRAINT DF_orders_settlement_status DEFAULT 'pending'
                                CONSTRAINT CK_orders_settlement_status CHECK (settlement_status IN ('pending','settled')),
   settled_on                 date            NULL,
   settlement_note            nvarchar(500)   NULL,
@@ -2629,8 +2635,8 @@ CREATE TABLE orders (
   idempotency_key            nvarchar(64)    NULL,
   request_fingerprint        char(64)        NULL,
   payment_url                nvarchar(500)   NULL,
-  created_at                 datetime2(3)    NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                 datetime2(3)    NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at                 datetime2(3)    NOT NULL CONSTRAINT DF_orders_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                 datetime2(3)    NOT NULL CONSTRAINT DF_orders_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                 uniqueidentifier NULL,
   updated_by                 uniqueidentifier NULL,
   CONSTRAINT PK_orders PRIMARY KEY NONCLUSTERED (id),
@@ -2639,7 +2645,7 @@ CREATE TABLE orders (
 
 -- 訂單品項：SKU 快照（值複製），club_id 值複製自 Order，絕對不可為空。讀取不得回頭 join 取名稱與價格。
 CREATE TABLE order_items (
-  id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                        uniqueidentifier NOT NULL CONSTRAINT DF_order_items_id DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
   club_id                   uniqueidentifier NOT NULL,
   order_id                  uniqueidentifier NOT NULL,
@@ -2650,8 +2656,8 @@ CREATE TABLE order_items (
   unit_price_snapshot         int            NOT NULL,
   quantity                  int              NOT NULL,
   line_total                 int             NOT NULL,
-  created_at                 datetime2(3)    NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at                 datetime2(3)    NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at                 datetime2(3)    NOT NULL CONSTRAINT DF_order_items_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at                 datetime2(3)    NOT NULL CONSTRAINT DF_order_items_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                 uniqueidentifier NULL,
   updated_by                 uniqueidentifier NULL,
   CONSTRAINT PK_order_items PRIMARY KEY NONCLUSTERED (id),
@@ -2660,7 +2666,7 @@ CREATE TABLE order_items (
 
 -- 出貨：物流方式、單號（CSV 回填，不串物流商 API）、時間、超商門市代碼、自取領取狀態。
 CREATE TABLE shipments (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_shipments_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   club_id               uniqueidentifier NOT NULL,
   order_id              uniqueidentifier NOT NULL,
@@ -2674,8 +2680,8 @@ CREATE TABLE shipments (
                           CONSTRAINT CK_shipments_pickup_status CHECK (pickup_status IS NULL OR pickup_status IN ('waiting','picked_up')),
   pickup_deadline_on    date             NULL,
   arrival_notified_at   datetime2(3)     NULL,
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_shipments_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_shipments_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_shipments PRIMARY KEY NONCLUSTERED (id),
@@ -2684,27 +2690,27 @@ CREATE TABLE shipments (
 
 -- 退貨退款申請：原因、狀態、退款金額與方式。
 CREATE TABLE refund_requests (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_refund_requests_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   order_id        uniqueidentifier NOT NULL,
   reason          nvarchar(255)    NULL,
   -- C1（S5）：requested 申請中／approved 已核准／received 已驗收退回品／processing 退款處理中（防重複執行）／
   -- refunded 已退款／rejected 已駁回。
-  status          nvarchar(16)     NOT NULL DEFAULT 'requested'
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_refund_requests_status DEFAULT 'requested'
                     CONSTRAINT CK_refund_requests_status CHECK (status IN ('requested','approved','received','processing','refunded','rejected')),
   refund_amount   int              NULL,
   refund_method   nvarchar(32)     NULL,
   approved_by     uniqueidentifier NULL,
   refunded_at     datetime2(3)     NULL,
-  needs_return    bit              NOT NULL DEFAULT 1,
+  needs_return    bit              NOT NULL CONSTRAINT DF_refund_requests_needs_return DEFAULT 1,
   received_at     datetime2(3)     NULL,
   received_by     uniqueidentifier NULL,
   review_note     nvarchar(500)    NULL,
   refunded_by     uniqueidentifier NULL,
   refund_reference nvarchar(64)    NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_refund_requests_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_refund_requests_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_refund_requests PRIMARY KEY NONCLUSTERED (id),
@@ -2721,7 +2727,7 @@ CREATE TABLE refund_request_items (
 
 -- 電子發票：號碼、開立時間、載具／統編／捐贈碼三選一、開立結果與重試、作廢與折讓。club_id 值複製自 Order。
 CREATE TABLE store_invoices (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_store_invoices_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   club_id               uniqueidentifier NOT NULL,
   order_id              uniqueidentifier NOT NULL,
@@ -2733,13 +2739,13 @@ CREATE TABLE store_invoices (
   carrier_id_encrypted   nvarchar(500)   NULL,
   tax_id                nvarchar(16)     NULL,
   donation_code         nvarchar(16)     NULL,
-  issue_status          nvarchar(16)     NOT NULL DEFAULT 'pending'
-                          CHECK (issue_status IN ('pending','issued','failed')),
-  retry_count           int              NOT NULL DEFAULT 0,
-  void_status           nvarchar(16)     NOT NULL DEFAULT 'none'
-                          CHECK (void_status IN ('none','voided','allowance')),
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  issue_status          nvarchar(16)     NOT NULL CONSTRAINT DF_store_invoices_issue_status DEFAULT 'pending'
+                          CONSTRAINT CK_store_invoices_issue_status CHECK (issue_status IN ('pending','issued','failed')),
+  retry_count           int              NOT NULL CONSTRAINT DF_store_invoices_retry_count DEFAULT 0,
+  void_status           nvarchar(16)     NOT NULL CONSTRAINT DF_store_invoices_void_status DEFAULT 'none'
+                          CONSTRAINT CK_store_invoices_void_status CHECK (void_status IN ('none','voided','allowance')),
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_store_invoices_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_store_invoices_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_store_invoices PRIMARY KEY NONCLUSTERED (id),
@@ -2748,14 +2754,14 @@ CREATE TABLE store_invoices (
 
 -- 捐贈碼名單（S6 維護）。全系統共用，不帶 club_id。
 CREATE TABLE invoice_donation_codes (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_invoice_donation_codes_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   code            nvarchar(16)     NOT NULL,
   org_name        nvarchar(128)    NOT NULL,
-  is_active       bit              NOT NULL DEFAULT 1,
-  sort_order      int              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_active       bit              NOT NULL CONSTRAINT DF_invoice_donation_codes_is_active DEFAULT 1,
+  sort_order      int              NOT NULL CONSTRAINT DF_invoice_donation_codes_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_invoice_donation_codes_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_invoice_donation_codes_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_invoice_donation_codes PRIMARY KEY NONCLUSTERED (id),
@@ -2765,16 +2771,16 @@ CREATE TABLE invoice_donation_codes (
 -- 金流與發票憑證：owner_club_id（非 club_id）、channel_type、environment、憑證（加密）、字軌、輪替時間。
 -- 主站只會有俱樂部一列；協會憑證在慈善獨立庫，三方 LINE Pay 商店號一律不得共用。
 CREATE TABLE payment_channels (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_payment_channels_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   owner_club_id         uniqueidentifier NOT NULL,
-  channel_type          nvarchar(16)     NOT NULL CHECK (channel_type IN ('linepay','einvoice')),
-  environment           nvarchar(16)     NOT NULL CHECK (environment IN ('sandbox','production')),
+  channel_type          nvarchar(16)     NOT NULL CONSTRAINT CK_payment_channels_channel_type CHECK (channel_type IN ('linepay','einvoice')),
+  environment           nvarchar(16)     NOT NULL CONSTRAINT CK_payment_channels_environment CHECK (environment IN ('sandbox','production')),
   credential_encrypted   nvarchar(500)   NOT NULL,
   invoice_prefix        nvarchar(16)     NULL,
   rotated_at            datetime2(3)     NULL,
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_payment_channels_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_payment_channels_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_payment_channels PRIMARY KEY NONCLUSTERED (id),
@@ -2787,20 +2793,20 @@ CREATE TABLE payment_channels (
 
 -- 受贈公益團體：名稱、簡介、Logo、官網。
 CREATE TABLE charities (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_charities_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NULL,
   slug            nvarchar(160)    NOT NULL,
   logo_key        nvarchar(500)    NULL,
-  logo_width      int              NULL,
-  logo_height     int              NULL,
   website_url     nvarchar(500)    NULL,
   contact_name    nvarchar(64)     NULL,
   contact_phone   nvarchar(32)     NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_charities_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_charities_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  logo_width      int              NULL,
+  logo_height     int              NULL,
   CONSTRAINT PK_charities PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_charities_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -2819,26 +2825,26 @@ CREATE TABLE charities_i18n (
 -- ⚠️ 這是主站主檔（見上方落款）；慈善獨立庫的 charity_program_refs 是唯讀快照且本來就沒有
 -- status 欄位，不受影響（db/charity-schema.sql）。
 CREATE TABLE charity_programs (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_charity_programs_id DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NULL,
   slug            nvarchar(160)    NOT NULL,
   charity_id      uniqueidentifier NOT NULL,
   start_on        date             NULL,
   end_on          date             NULL,
-  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published')),
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_charity_programs_status DEFAULT 'draft'
+                    CONSTRAINT CK_charity_programs_status CHECK (status IN ('draft','published')),
   cover_key       nvarchar(500)    NULL,
-  cover_width     int              NULL,
-  cover_height    int              NULL,
   -- E1-a（2026-09-30）：規劃書 B5「顯示控制：於慈善單元內的排序與置頂」。is_pinned 的置頂項目排最前，
   -- 其餘依 sort_order（小者在前）再依日期。
-  sort_order      int              NOT NULL DEFAULT 0,
-  is_pinned       bit              NOT NULL DEFAULT 0,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order      int              NOT NULL CONSTRAINT DF_charity_programs_sort_order DEFAULT 0,
+  is_pinned       bit              NOT NULL CONSTRAINT DF_charity_programs_is_pinned DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_charity_programs_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_charity_programs_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  cover_width     int              NULL,
+  cover_height    int              NULL,
   CONSTRAINT PK_charity_programs PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_charity_programs_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -2848,34 +2854,34 @@ CREATE TABLE charity_programs_i18n (
   locale               nvarchar(10)   NOT NULL,
   name                 nvarchar(128)  NULL,
   target_audience        nvarchar(200) NULL,
-  content                 nvarchar(max) NULL CONSTRAINT CK_charity_programs_i18n_content_json CHECK (ISJSON(content, OBJECT) = 1 OR ISJSON(content, ARRAY) = 1),
   donation_content          nvarchar(max) NULL,
   cover_alt          nvarchar(200)    NULL,
+  content                 nvarchar(max) NULL CONSTRAINT CK_charity_programs_i18n_content_json CHECK (ISJSON(content, OBJECT) = 1 OR ISJSON(content, ARRAY) = 1),
   CONSTRAINT PK_charity_programs_i18n PRIMARY KEY CLUSTERED (charity_program_id, locale)
 );
 
 -- 圖集（§3.11「活動圖片藝廊」）(charity_program_id, image_key, sort_order)。
 CREATE TABLE charity_program_images (
-  id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                  uniqueidentifier NOT NULL CONSTRAINT DF_charity_program_images_id DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   charity_program_id  uniqueidentifier NOT NULL,
   image_key           nvarchar(500)    NOT NULL,
+  sort_order          int              NOT NULL CONSTRAINT DF_charity_program_images_sort_order DEFAULT 0,
+  created_at          datetime2(3)     NOT NULL CONSTRAINT DF_charity_program_images_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at          datetime2(3)     NOT NULL CONSTRAINT DF_charity_program_images_updated_at DEFAULT SYSUTCDATETIME(),
+  created_by          uniqueidentifier NULL,
+  updated_by          uniqueidentifier NULL,
   image_width         int              NULL,
   image_height        int              NULL,
   image_alt_zh        nvarchar(200)    NULL,
   image_alt_en        nvarchar(200)    NULL,
-  sort_order          int              NOT NULL DEFAULT 0,
-  created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by          uniqueidentifier NULL,
-  updated_by          uniqueidentifier NULL,
   CONSTRAINT PK_charity_program_images PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_charity_program_images_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
 -- 慈善事蹟紀錄。三項核心資料必填：公益團體名稱（經 charity_id 取得）、捐助內容、活動圖片。
 CREATE TABLE impact_records (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_impact_records_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   club_id               uniqueidentifier NULL,
   charity_program_id    uniqueidentifier NULL,
@@ -2885,10 +2891,10 @@ CREATE TABLE impact_records (
   image_height          int              NULL,
   happened_on           date             NULL,
   -- E1-a（2026-09-30）：同 charity_programs（規劃書 B5「顯示控制」）。
-  sort_order            int              NOT NULL DEFAULT 0,
-  is_pinned             bit              NOT NULL DEFAULT 0,
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order            int              NOT NULL CONSTRAINT DF_impact_records_sort_order DEFAULT 0,
+  is_pinned             bit              NOT NULL CONSTRAINT DF_impact_records_is_pinned DEFAULT 0,
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_impact_records_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_impact_records_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_impact_records PRIMARY KEY NONCLUSTERED (id),
@@ -2908,26 +2914,26 @@ CREATE TABLE impact_records_i18n (
 
 -- 圖集（S0-3d 新增，行 1025「活動圖片（可多張）」的子表承接）。
 CREATE TABLE impact_record_images (
-  id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                  uniqueidentifier NOT NULL CONSTRAINT DF_impact_record_images_id DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
   impact_record_id    uniqueidentifier NOT NULL,
   image_key           nvarchar(500)    NOT NULL,
+  sort_order          int              NOT NULL CONSTRAINT DF_impact_record_images_sort_order DEFAULT 0,
+  created_at          datetime2(3)     NOT NULL CONSTRAINT DF_impact_record_images_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at          datetime2(3)     NOT NULL CONSTRAINT DF_impact_record_images_updated_at DEFAULT SYSUTCDATETIME(),
+  created_by          uniqueidentifier NULL,
+  updated_by          uniqueidentifier NULL,
   image_width         int              NULL,
   image_height        int              NULL,
   image_alt_zh        nvarchar(200)    NULL,
   image_alt_en        nvarchar(200)    NULL,
-  sort_order          int              NOT NULL DEFAULT 0,
-  created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by          uniqueidentifier NULL,
-  updated_by          uniqueidentifier NULL,
   CONSTRAINT PK_impact_record_images PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_impact_record_images_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
 -- 影響力統計項目（金額類預設不公開）。
 CREATE TABLE impact_metrics (
-  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                    uniqueidentifier NOT NULL CONSTRAINT DF_impact_metrics_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   club_id               uniqueidentifier NULL,
   -- E1-a（2026-09-30）：改為可為空。規劃書 B5「影響力數據：可自訂統計項目（名稱、單位、數值、是否公開）」
@@ -2935,10 +2941,10 @@ CREATE TABLE impact_metrics (
   charity_program_id    uniqueidentifier NULL,
   metric_key            nvarchar(64)     NOT NULL,
   metric_value          int              NULL,
-  is_public             bit              NOT NULL DEFAULT 0,
-  sort_order            int              NOT NULL DEFAULT 0,
-  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_public             bit              NOT NULL CONSTRAINT DF_impact_metrics_is_public DEFAULT 0,
+  sort_order            int              NOT NULL CONSTRAINT DF_impact_metrics_sort_order DEFAULT 0,
+  created_at            datetime2(3)     NOT NULL CONSTRAINT DF_impact_metrics_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_impact_metrics_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_impact_metrics PRIMARY KEY NONCLUSTERED (id),
@@ -2971,7 +2977,7 @@ CREATE TABLE charity_program_sponsors (
 CREATE TABLE charity_program_articles (
   charity_program_id uniqueidentifier NOT NULL,
   article_id         uniqueidentifier NOT NULL,
-  sort_order         int              NOT NULL DEFAULT 0,
+  sort_order         int              NOT NULL CONSTRAINT DF_charity_program_articles_sort_order DEFAULT 0,
   CONSTRAINT PK_charity_program_articles PRIMARY KEY CLUSTERED (charity_program_id, article_id)
 );
 
@@ -2992,10 +2998,10 @@ CREATE TABLE charity_program_articles (
 
 -- 廣告版位（App 規劃書 §7.2）。長期資產。slot_code 唯一。兒童向畫面（學院、課程）不建版位。
 CREATE TABLE ad_slots (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_ad_slots_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   slot_code              nvarchar(64)     NOT NULL,
-  surface                nvarchar(8)      NOT NULL DEFAULT 'app' CHECK (surface IN ('app','web')),
+  surface                nvarchar(8)      NOT NULL CONSTRAINT DF_ad_slots_surface DEFAULT 'app' CONSTRAINT CK_ad_slots_surface CHECK (surface IN ('app','web')),
   screen_code            nvarchar(16)     NULL,
   block_order            int              NULL,
   aspect_ratio           nvarchar(16)     NULL,
@@ -3003,16 +3009,16 @@ CREATE TABLE ad_slots (
   min_height             int              NULL,
   max_file_kb            int              NULL,
   allowed_formats        nvarchar(64)     NULL,
-  allow_video            bit              NOT NULL DEFAULT 0,
+  allow_video            bit              NOT NULL CONSTRAINT DF_ad_slots_allow_video DEFAULT 0,
   session_impression_cap int              NULL,
-  rotation_cap           int              NOT NULL DEFAULT 1 CHECK (rotation_cap BETWEEN 1 AND 10),
+  rotation_cap           int              NOT NULL CONSTRAINT DF_ad_slots_rotation_cap DEFAULT 1 CONSTRAINT CK_ad_slots_rotation_cap CHECK (rotation_cap BETWEEN 1 AND 10),
   fallback_image_key     nvarchar(500)    NULL,
   fallback_image_width   int              NULL,
   fallback_image_height  int              NULL,
   fallback_link          nvarchar(500)    NULL,
-  is_active              bit              NOT NULL DEFAULT 1,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_active              bit              NOT NULL CONSTRAINT DF_ad_slots_is_active DEFAULT 1,
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_ad_slots_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_ad_slots_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_ad_slots PRIMARY KEY NONCLUSTERED (id),
@@ -3029,7 +3035,7 @@ CREATE TABLE ad_slots_i18n (
 
 -- 廣告主（§7.3）。sponsor_id 可為空，指向既有贊助商，只用來避免重複維護聯絡窗口，不是合併兩者。
 CREATE TABLE advertisers (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_advertisers_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   tax_id                 nvarchar(16)     NULL,
   contact_name           nvarchar(100)    NULL,
@@ -3039,9 +3045,9 @@ CREATE TABLE advertisers (
   cooperation_start_on   date             NULL,
   cooperation_end_on     date             NULL,
   sponsor_id             uniqueidentifier NULL,
-  status                 nvarchar(16)     NOT NULL DEFAULT 'negotiating' CHECK (status IN ('negotiating','active','ended')),
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  status                 nvarchar(16)     NOT NULL CONSTRAINT DF_advertisers_status DEFAULT 'negotiating' CONSTRAINT CK_advertisers_status CHECK (status IN ('negotiating','active','ended')),
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_advertisers_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_advertisers_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_advertisers PRIMARY KEY NONCLUSTERED (id),
@@ -3060,31 +3066,31 @@ CREATE TABLE advertisers_i18n (
 -- 「素材未通過審核的檔期不得進入 running」由應用層強制。delivered_today／delivered_on 供 pacing；
 -- delivered_total 是本檔補的累計（「目標 vs 已達成」不必每次加總日聚合）。
 CREATE TABLE ad_campaigns (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_ad_campaigns_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   advertiser_id          uniqueidentifier NOT NULL,
   slot_id                uniqueidentifier NOT NULL,
   name                   nvarchar(160)    NOT NULL,
   starts_at              datetime2(3)     NOT NULL,
   ends_at                datetime2(3)     NOT NULL,
-  weight                 int              NOT NULL DEFAULT 1 CHECK (weight BETWEEN 1 AND 100),
+  weight                 int              NOT NULL CONSTRAINT DF_ad_campaigns_weight DEFAULT 1 CONSTRAINT CK_ad_campaigns_weight CHECK (weight BETWEEN 1 AND 100),
   daily_impression_cap   int              NULL,
   per_device_daily_cap   int              NULL,
-  goal_type              nvarchar(16)     NOT NULL DEFAULT 'traffic' CHECK (goal_type IN ('guaranteed','traffic')),
+  goal_type              nvarchar(16)     NOT NULL CONSTRAINT DF_ad_campaigns_goal_type DEFAULT 'traffic' CONSTRAINT CK_ad_campaigns_goal_type CHECK (goal_type IN ('guaranteed','traffic')),
   goal_impressions       int              NULL,
-  delivered_today        int              NOT NULL DEFAULT 0,
+  delivered_today        int              NOT NULL CONSTRAINT DF_ad_campaigns_delivered_today DEFAULT 0,
   delivered_on           date             NULL,
-  delivered_total        int              NOT NULL DEFAULT 0,
+  delivered_total        int              NOT NULL CONSTRAINT DF_ad_campaigns_delivered_total DEFAULT 0,
   contract_amount        int              NULL,
-  is_amount_hidden       bit              NOT NULL DEFAULT 1,
-  status                 nvarchar(16)     NOT NULL DEFAULT 'draft'
-                           CHECK (status IN ('draft','pending_review','scheduled','running','paused','ended','closed','voided')),
+  is_amount_hidden       bit              NOT NULL CONSTRAINT DF_ad_campaigns_is_amount_hidden DEFAULT 1,
+  status                 nvarchar(16)     NOT NULL CONSTRAINT DF_ad_campaigns_status DEFAULT 'draft'
+                           CONSTRAINT CK_ad_campaigns_status CHECK (status IN ('draft','pending_review','scheduled','running','paused','ended','closed','voided')),
   paused_from            nvarchar(16)     NULL,
   pause_reason           nvarchar(255)    NULL,
   reviewed_by            uniqueidentifier NULL,
   reviewed_at            datetime2(3)     NULL,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_ad_campaigns_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_ad_campaigns_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_ad_campaigns PRIMARY KEY NONCLUSTERED (id),
@@ -3095,7 +3101,7 @@ CREATE TABLE ad_campaigns (
 -- 廣告素材（§8.8）。依語系分別上傳（locale 存 zh-Hant／en）；圖或影片（影片需海報圖）；
 -- 審核狀態 pending／approved／rejected；is_paused 供單一素材緊急暫停。
 CREATE TABLE ad_creatives (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_ad_creatives_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   campaign_id            uniqueidentifier NOT NULL,
   locale                 nvarchar(10)     NOT NULL,
@@ -3107,16 +3113,16 @@ CREATE TABLE ad_creatives (
   title                  nvarchar(160)    NULL,
   cta_text               nvarchar(60)     NULL,
   click_url              nvarchar(500)    NULL,
-  theme                  nvarchar(8)      NOT NULL DEFAULT 'both' CHECK (theme IN ('light','dark','both')),
+  theme                  nvarchar(8)      NOT NULL CONSTRAINT DF_ad_creatives_theme DEFAULT 'both' CONSTRAINT CK_ad_creatives_theme CHECK (theme IN ('light','dark','both')),
   variant_tag            nvarchar(8)      NULL,
-  review_status          nvarchar(16)     NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending','approved','rejected')),
+  review_status          nvarchar(16)     NOT NULL CONSTRAINT DF_ad_creatives_review_status DEFAULT 'pending' CONSTRAINT CK_ad_creatives_review_status CHECK (review_status IN ('pending','approved','rejected')),
   reject_reason          nvarchar(255)    NULL,
   reviewed_by            uniqueidentifier NULL,
   reviewed_at            datetime2(3)     NULL,
-  is_paused              bit              NOT NULL DEFAULT 0,
-  sort_order             int              NOT NULL DEFAULT 0,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_paused              bit              NOT NULL CONSTRAINT DF_ad_creatives_is_paused DEFAULT 0,
+  sort_order             int              NOT NULL CONSTRAINT DF_ad_creatives_sort_order DEFAULT 0,
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_ad_creatives_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_ad_creatives_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_ad_creatives PRIMARY KEY NONCLUSTERED (id),
@@ -3128,12 +3134,12 @@ CREATE TABLE ad_creatives (
 -- 唯一鍵擋伺服器端去重（§9.6）。aggregated_at 由每日聚合作業標記。
 CREATE TABLE ad_events (
   id                     bigint IDENTITY(1,1) NOT NULL,
-  event_type             nvarchar(12)     NOT NULL CHECK (event_type IN ('impression','click')),
+  event_type             nvarchar(12)     NOT NULL CONSTRAINT CK_ad_events_event_type CHECK (event_type IN ('impression','click')),
   creative_id            uniqueidentifier NOT NULL,
   campaign_id            uniqueidentifier NOT NULL,
   slot_id                uniqueidentifier NOT NULL,
   occurred_at            datetime2(3)     NOT NULL,
-  received_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  received_at            datetime2(3)     NOT NULL CONSTRAINT DF_ad_events_received_at DEFAULT SYSUTCDATETIME(),
   device_install_id      nvarchar(64)     NOT NULL,
   platform               nvarchar(8)      NULL,
   app_version            nvarchar(32)     NULL,
@@ -3153,9 +3159,9 @@ CREATE TABLE ad_daily_stats (
   slot_id                uniqueidentifier NOT NULL,
   platform               nvarchar(8)      NOT NULL,
   locale                 nvarchar(10)     NOT NULL,
-  impressions            int              NOT NULL DEFAULT 0,
-  clicks                 int              NOT NULL DEFAULT 0,
-  unique_devices         int              NOT NULL DEFAULT 0,
+  impressions            int              NOT NULL CONSTRAINT DF_ad_daily_stats_impressions DEFAULT 0,
+  clicks                 int              NOT NULL CONSTRAINT DF_ad_daily_stats_clicks DEFAULT 0,
+  unique_devices         int              NOT NULL CONSTRAINT DF_ad_daily_stats_unique_devices DEFAULT 0,
   CONSTRAINT PK_ad_daily_stats PRIMARY KEY CLUSTERED (stat_date, campaign_id, creative_id, slot_id, platform, locale)
 );
 
@@ -3163,21 +3169,21 @@ CREATE TABLE ad_daily_stats (
 -- 推播權杖加密儲存（Data Protection），push_token_hash 只供去重與失效清理比對。
 -- 更新權杖四欄（雜湊、到期、上次輪替、撤銷）由會員登入（AP-3）使用，M4 不讀寫。
 CREATE TABLE app_devices (
-  id                          uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                          uniqueidentifier NOT NULL CONSTRAINT DF_app_devices_id DEFAULT NEWID(),
   row_seq                     bigint IDENTITY(1,1) NOT NULL,
   device_install_id           nvarchar(64)     NOT NULL,
-  platform                    nvarchar(8)      NOT NULL CHECK (platform IN ('ios','android')),
+  platform                    nvarchar(8)      NOT NULL CONSTRAINT CK_app_devices_platform CHECK (platform IN ('ios','android')),
   os_version                  nvarchar(32)     NULL,
   app_version                 nvarchar(32)     NULL,
   locale                      nvarchar(10)     NULL,
   push_token_encrypted        nvarchar(2048)   NULL,
   push_token_hash             char(64)         NULL,
-  push_token_status           nvarchar(12)     NOT NULL DEFAULT 'none' CHECK (push_token_status IN ('none','valid','invalid')),
-  push_permission             nvarchar(16)     NOT NULL DEFAULT 'not_determined'
-                                CHECK (push_permission IN ('not_determined','granted','denied','provisional')),
+  push_token_status           nvarchar(12)     NOT NULL CONSTRAINT DF_app_devices_push_token_status DEFAULT 'none' CONSTRAINT CK_app_devices_push_token_status CHECK (push_token_status IN ('none','valid','invalid')),
+  push_permission             nvarchar(16)     NOT NULL CONSTRAINT DF_app_devices_push_permission DEFAULT 'not_determined'
+                                CONSTRAINT CK_app_devices_push_permission CHECK (push_permission IN ('not_determined','granted','denied','provisional')),
   member_id                   uniqueidentifier NULL,
-  first_seen_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  last_active_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  first_seen_at               datetime2(3)     NOT NULL CONSTRAINT DF_app_devices_first_seen_at DEFAULT SYSUTCDATETIME(),
+  last_active_at              datetime2(3)     NOT NULL CONSTRAINT DF_app_devices_last_active_at DEFAULT SYSUTCDATETIME(),
   refresh_token_hash          char(64)         NULL,
   refresh_token_expires_at    datetime2(3)     NULL,
   refresh_token_rotated_at    datetime2(3)     NULL,
@@ -3189,16 +3195,16 @@ CREATE TABLE app_devices (
 -- 追蹤與推播訂閱（§10.1）。topic_type：team（值＝球隊代碼）／news_category（值＝分類代碼）／club（值＝俱樂部代碼）。
 -- 以 device_id 關聯裝置（規劃書欄位 device_install_id 的內部外鍵形式）。is_following 與 is_push_enabled 分離。
 CREATE TABLE push_topic_subscriptions (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_push_topic_subscriptions_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   device_id              uniqueidentifier NOT NULL,
   member_id              uniqueidentifier NULL,
-  topic_type             nvarchar(16)     NOT NULL CHECK (topic_type IN ('team','news_category','club')),
+  topic_type             nvarchar(16)     NOT NULL CONSTRAINT CK_push_topic_subscriptions_topic_type CHECK (topic_type IN ('team','news_category','club')),
   topic_value            nvarchar(64)     NOT NULL,
-  is_following           bit              NOT NULL DEFAULT 1,
-  is_push_enabled        bit              NOT NULL DEFAULT 1,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_following           bit              NOT NULL CONSTRAINT DF_push_topic_subscriptions_is_following DEFAULT 1,
+  is_push_enabled        bit              NOT NULL CONSTRAINT DF_push_topic_subscriptions_is_push_enabled DEFAULT 1,
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_push_topic_subscriptions_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_push_topic_subscriptions_updated_at DEFAULT SYSUTCDATETIME(),
   CONSTRAINT PK_push_topic_subscriptions PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_push_topic_subscriptions_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -3208,34 +3214,34 @@ CREATE TABLE push_topic_subscriptions (
 -- 分眾三維度（§6.3）：會籍層級、追蹤球隊、俱樂部歸屬；語系由裝置決定。不做行為定向。
 -- send_cursor：分批送出時已處理到的 app_devices.row_seq，失敗重送從游標續送（避免不記錄個人層級投遞紀錄卻重複送）。
 CREATE TABLE push_messages (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_push_messages_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
-  kind                   nvarchar(16)     NOT NULL DEFAULT 'announcement' CHECK (kind IN ('announcement','news','match')),
+  kind                   nvarchar(16)     NOT NULL CONSTRAINT DF_push_messages_kind DEFAULT 'announcement' CONSTRAINT CK_push_messages_kind CHECK (kind IN ('announcement','news','match')),
   image_key              nvarchar(500)    NULL,
   image_width            int              NULL,
   image_height           int              NULL,
   deep_link              nvarchar(500)    NULL,
-  audience_tier          nvarchar(16)     NOT NULL DEFAULT 'all' CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
+  audience_tier          nvarchar(16)     NOT NULL CONSTRAINT DF_push_messages_audience_tier DEFAULT 'all' CONSTRAINT CK_push_messages_audience_tier CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
   audience_club_id       uniqueidentifier NULL,
-  audience_team_codes    nvarchar(max) NULL CONSTRAINT CK_push_messages_audience_team_codes_json CHECK (ISJSON(audience_team_codes, ARRAY) = 1),
   scheduled_at           datetime2(3)     NULL,
-  status                 nvarchar(16)     NOT NULL DEFAULT 'draft'
-                           CHECK (status IN ('draft','pending_review','scheduled','sending','sent','partial','failed','cancelled')),
+  status                 nvarchar(16)     NOT NULL CONSTRAINT DF_push_messages_status DEFAULT 'draft'
+                           CONSTRAINT CK_push_messages_status CHECK (status IN ('draft','pending_review','scheduled','sending','sent','partial','failed','cancelled')),
   reject_note            nvarchar(255)    NULL,
   reviewed_by            uniqueidentifier NULL,
   reviewed_at            datetime2(3)     NULL,
   sent_at                datetime2(3)     NULL,
   audience_estimate      int              NULL,
-  sent_count             int              NOT NULL DEFAULT 0,
-  delivered_count        int              NOT NULL DEFAULT 0,
-  failed_count           int              NOT NULL DEFAULT 0,
-  opened_count           int              NOT NULL DEFAULT 0,
-  send_cursor            bigint           NOT NULL DEFAULT 0,
+  sent_count             int              NOT NULL CONSTRAINT DF_push_messages_sent_count DEFAULT 0,
+  delivered_count        int              NOT NULL CONSTRAINT DF_push_messages_delivered_count DEFAULT 0,
+  failed_count           int              NOT NULL CONSTRAINT DF_push_messages_failed_count DEFAULT 0,
+  opened_count           int              NOT NULL CONSTRAINT DF_push_messages_opened_count DEFAULT 0,
+  send_cursor            bigint           NOT NULL CONSTRAINT DF_push_messages_send_cursor DEFAULT 0,
   failure_message        nvarchar(255)    NULL,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_push_messages_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_push_messages_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
+  audience_team_codes    nvarchar(max) NULL CONSTRAINT CK_push_messages_audience_team_codes_json CHECK (ISJSON(audience_team_codes, ARRAY) = 1),
   CONSTRAINT PK_push_messages PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_push_messages_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -3255,26 +3261,26 @@ CREATE TABLE push_message_stats (
   push_message_id uniqueidentifier NOT NULL,
   platform        nvarchar(8)      NOT NULL,
   locale          nvarchar(10)     NOT NULL,
-  sent            int              NOT NULL DEFAULT 0,
-  delivered       int              NOT NULL DEFAULT 0,
-  opened          int              NOT NULL DEFAULT 0,
+  sent            int              NOT NULL CONSTRAINT DF_push_message_stats_sent DEFAULT 0,
+  delivered       int              NOT NULL CONSTRAINT DF_push_message_stats_delivered DEFAULT 0,
+  opened          int              NOT NULL CONSTRAINT DF_push_message_stats_opened DEFAULT 0,
   CONSTRAINT PK_push_message_stats PRIMARY KEY CLUSTERED (push_message_id, platform, locale)
 );
 
 -- App 版本（§8.1）。is_min_supported：低於此版本啟動時強制更新；is_recommended：低於此版本建議更新（可略過）。
 -- 每個平台各至多一筆為 true（應用層強制，不加篩選唯一索引）。
 CREATE TABLE app_releases (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_app_releases_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
-  platform               nvarchar(8)      NOT NULL CHECK (platform IN ('ios','android')),
+  platform               nvarchar(8)      NOT NULL CONSTRAINT CK_app_releases_platform CHECK (platform IN ('ios','android')),
   version                nvarchar(32)     NOT NULL,
   build_number           nvarchar(32)     NULL,
   released_on            date             NULL,
-  status                 nvarchar(16)     NOT NULL DEFAULT 'testing' CHECK (status IN ('testing','live','withdrawn')),
-  is_min_supported       bit              NOT NULL DEFAULT 0,
-  is_recommended         bit              NOT NULL DEFAULT 0,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  status                 nvarchar(16)     NOT NULL CONSTRAINT DF_app_releases_status DEFAULT 'testing' CONSTRAINT CK_app_releases_status CHECK (status IN ('testing','live','withdrawn')),
+  is_min_supported       bit              NOT NULL CONSTRAINT DF_app_releases_is_min_supported DEFAULT 0,
+  is_recommended         bit              NOT NULL CONSTRAINT DF_app_releases_is_recommended DEFAULT 0,
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_releases_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_releases_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_app_releases PRIMARY KEY NONCLUSTERED (id),
@@ -3292,22 +3298,22 @@ CREATE TABLE app_releases_i18n (
 
 -- App 端診斷與錯誤回報（§10.1，M5 的收件處）。🔴 不得存個資：不記 member_id、完整 IP、定位座標。保存 90 天。
 CREATE TABLE app_diagnostic_reports (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_app_diagnostic_reports_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   device_install_id      nvarchar(64)     NULL,
-  platform               nvarchar(8)      NOT NULL CHECK (platform IN ('ios','android')),
+  platform               nvarchar(8)      NOT NULL CONSTRAINT CK_app_diagnostic_reports_platform CHECK (platform IN ('ios','android')),
   app_version            nvarchar(32)     NOT NULL,
   build_number           nvarchar(32)     NULL,
   os_version             nvarchar(32)     NULL,
   occurred_at            datetime2(3)     NOT NULL,
   report_type            nvarchar(16)     NOT NULL
-                           CHECK (report_type IN ('crash','abnormal_exit','api_error','startup_time','user_report')),
+                           CONSTRAINT CK_app_diagnostic_reports_report_type CHECK (report_type IN ('crash','abnormal_exit','api_error','startup_time','user_report')),
   metric_value           int              NULL,
   summary                nvarchar(500)    NULL,
   detail                 nvarchar(max)    NULL,
-  status                 nvarchar(16)     NOT NULL DEFAULT 'new' CHECK (status IN ('new','reviewing','resolved','ignored')),
-  received_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  status                 nvarchar(16)     NOT NULL CONSTRAINT DF_app_diagnostic_reports_status DEFAULT 'new' CONSTRAINT CK_app_diagnostic_reports_status CHECK (status IN ('new','reviewing','resolved','ignored')),
+  received_at            datetime2(3)     NOT NULL CONSTRAINT DF_app_diagnostic_reports_received_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_diagnostic_reports_updated_at DEFAULT SYSUTCDATETIME(),
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_app_diagnostic_reports PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_app_diagnostic_reports_row_seq UNIQUE CLUSTERED (row_seq)
@@ -3315,16 +3321,16 @@ CREATE TABLE app_diagnostic_reports (
 
 -- 深連結對照表（§2.3、§8.2）：App 畫面 ↔ 官網網址，供推播與廣告素材選用。
 CREATE TABLE app_deep_links (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_app_deep_links_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   code                   nvarchar(48)     NOT NULL,
   app_link               nvarchar(200)    NOT NULL,
   web_url                nvarchar(500)    NULL,
-  requires_login         bit              NOT NULL DEFAULT 0,
-  is_active              bit              NOT NULL DEFAULT 1,
-  sort_order             int              NOT NULL DEFAULT 0,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  requires_login         bit              NOT NULL CONSTRAINT DF_app_deep_links_requires_login DEFAULT 0,
+  is_active              bit              NOT NULL CONSTRAINT DF_app_deep_links_is_active DEFAULT 1,
+  sort_order             int              NOT NULL CONSTRAINT DF_app_deep_links_sort_order DEFAULT 0,
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_deep_links_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_deep_links_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_app_deep_links PRIMARY KEY NONCLUSTERED (id),
@@ -3340,16 +3346,16 @@ CREATE TABLE app_deep_links_i18n (
 
 -- 首頁區塊／快捷入口／「更多」分頁項目的開關與排序（§8.2）。home_section 為 §3.1 的九個固定區塊（不可新增刪除，只開關排序）。
 CREATE TABLE app_layout_items (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_app_layout_items_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
-  kind                   nvarchar(16)     NOT NULL CHECK (kind IN ('home_section','quick_entry','more_item')),
+  kind                   nvarchar(16)     NOT NULL CONSTRAINT CK_app_layout_items_kind CHECK (kind IN ('home_section','quick_entry','more_item')),
   item_key               nvarchar(48)     NOT NULL,
   deep_link_id           uniqueidentifier NULL,
   icon_key               nvarchar(48)     NULL,
-  sort_order             int              NOT NULL DEFAULT 0,
-  is_enabled             bit              NOT NULL DEFAULT 1,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  sort_order             int              NOT NULL CONSTRAINT DF_app_layout_items_sort_order DEFAULT 0,
+  is_enabled             bit              NOT NULL CONSTRAINT DF_app_layout_items_is_enabled DEFAULT 1,
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_layout_items_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_layout_items_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_app_layout_items PRIMARY KEY NONCLUSTERED (id),
@@ -3365,16 +3371,16 @@ CREATE TABLE app_layout_items_i18n (
 
 -- App 專屬公告條（§8.2）：文案（中英）、連結、顯示期間、目標對象。
 CREATE TABLE app_announcements (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_app_announcements_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   link_url               nvarchar(500)    NULL,
   starts_at              datetime2(3)     NULL,
   ends_at                datetime2(3)     NULL,
-  audience_tier          nvarchar(16)     NOT NULL DEFAULT 'all' CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
+  audience_tier          nvarchar(16)     NOT NULL CONSTRAINT DF_app_announcements_audience_tier DEFAULT 'all' CONSTRAINT CK_app_announcements_audience_tier CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
   audience_club_id       uniqueidentifier NULL,
-  is_enabled             bit              NOT NULL DEFAULT 1,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  is_enabled             bit              NOT NULL CONSTRAINT DF_app_announcements_is_enabled DEFAULT 1,
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_announcements_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_announcements_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_app_announcements PRIMARY KEY NONCLUSTERED (id),
@@ -3391,15 +3397,15 @@ CREATE TABLE app_announcements_i18n (
 -- App 端功能開關（§8.5、docs/19 §7）。命名 {模組}_{功能} 小寫蛇形（ads_enabled、map_enabled…）。
 -- string_value：三態旗標的值（目前只有 payment_mode：off／external／inapp，docs/19 §10），布林旗標為空。
 CREATE TABLE app_feature_flags (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_app_feature_flags_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   flag_key               nvarchar(64)     NOT NULL,
-  is_enabled             bit              NOT NULL DEFAULT 0,
+  is_enabled             bit              NOT NULL CONSTRAINT DF_app_feature_flags_is_enabled DEFAULT 0,
   string_value           nvarchar(32)     NULL,
-  platform               nvarchar(8)      NOT NULL DEFAULT 'all' CHECK (platform IN ('all','ios','android')),
+  platform               nvarchar(8)      NOT NULL CONSTRAINT DF_app_feature_flags_platform DEFAULT 'all' CONSTRAINT CK_app_feature_flags_platform CHECK (platform IN ('all','ios','android')),
   description            nvarchar(255)    NULL,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_feature_flags_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_feature_flags_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_app_feature_flags PRIMARY KEY NONCLUSTERED (id),
@@ -3409,10 +3415,10 @@ CREATE TABLE app_feature_flags (
 -- 金鑰與憑證列管（§8.5）。🔴 只存「列管資訊」（種類、代號、日期），絕不存金鑰本身（金鑰在 Key Vault／環境變數）。
 -- 部分金鑰沒有到期日，告警以 rotation_period_days 為基準；到期或屆期前 60 天告警。
 CREATE TABLE app_credentials (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_app_credentials_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   kind                   nvarchar(32)     NOT NULL
-                           CHECK (kind IN ('apns_key','fcm_credential','apple_developer_program','google_play_account','maps_api_key','other')),
+                           CONSTRAINT CK_app_credentials_kind CHECK (kind IN ('apns_key','fcm_credential','apple_developer_program','google_play_account','maps_api_key','other')),
   label                  nvarchar(120)    NOT NULL,
   external_ref           nvarchar(200)    NULL,
   created_on             date             NOT NULL,
@@ -3420,8 +3426,8 @@ CREATE TABLE app_credentials (
   expires_on             date             NULL,
   rotation_period_days   int              NULL,
   note                   nvarchar(500)    NULL,
-  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_credentials_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_credentials_updated_at DEFAULT SYSUTCDATETIME(),
   created_by             uniqueidentifier NULL,
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_app_credentials PRIMARY KEY NONCLUSTERED (id),
@@ -3431,12 +3437,12 @@ CREATE TABLE app_credentials (
 -- App 全域設定（json 值，只存不查）：maintenance.ios／maintenance.android／maintenance.all（維護模式）、
 -- push.rules（自動推播規則：賽事提醒提前時數、到期提醒天數）。
 CREATE TABLE app_settings (
-  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  id                     uniqueidentifier NOT NULL CONSTRAINT DF_app_settings_id DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   setting_key            nvarchar(64)     NOT NULL,
-  setting_value          nvarchar(max) NULL CONSTRAINT CK_app_settings_setting_value_json CHECK (ISJSON(setting_value, OBJECT) = 1 OR ISJSON(setting_value, ARRAY) = 1),
-  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_settings_updated_at DEFAULT SYSUTCDATETIME(),
   updated_by             uniqueidentifier NULL,
+  setting_value          nvarchar(max) NULL CONSTRAINT CK_app_settings_setting_value_json CHECK (ISJSON(setting_value, OBJECT) = 1 OR ISJSON(setting_value, ARRAY) = 1),
   CONSTRAINT PK_app_settings PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_app_settings_row_seq UNIQUE CLUSTERED (row_seq)
 );

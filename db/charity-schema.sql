@@ -89,6 +89,12 @@
        Alt 走 i18n 側表。
 
    ----------------------------------------------------------------------------
+   🔴 約束命名與欄位順序（2026-10-13，docs/14「約束命名」「欄位順序」、docs/18 E-322）：
+      - 每個 DEFAULT／CHECK 都寫 CONSTRAINT <名稱>：欄位層級預設值 DF_<表>_<欄>、欄位層級 CHECK CK_<表>_<欄>，
+        表層級／跨欄 CHECK 手動具名（CK_<表>_<說明>）。不得留匿名（SQL Server 會產生帶隨機碼的 DF__…／CK__…）。
+      - 欄位宣告順序＝正式庫的實際欄序（歷史 migration 把新欄加在表尾）。以後新增欄位一律寫在該表「最後一欄」，
+        不得插在中間；DDL 改欄序＝正式庫要重建表，不做。deploy/schema-drift-check.sh 會抓。
+
    定序（COLLATE）：本檔刻意不寫 COLLATE 子句。定序在建庫時決定，且
    🔴 建庫後不可改，必須一次定對（見 docs/17-deployment.md §6 型別對照）。
    建庫時請與主站資料庫的定序決策一併確認（雖為不同庫，比對規則不一致會在
@@ -124,9 +130,9 @@ CREATE TABLE locales (
     code            nvarchar(10)    NOT NULL,
     name_zh         nvarchar(50)    NOT NULL,
     name_en         nvarchar(50)    NULL,
-    is_default      bit             NOT NULL DEFAULT (0),
+    is_default      bit             NOT NULL CONSTRAINT DF_locales_is_default DEFAULT (0),
     fallback_locale nvarchar(10)    NULL,
-    sort_order      int             NOT NULL DEFAULT (0),
+    sort_order      int             NOT NULL CONSTRAINT DF_locales_sort_order DEFAULT (0),
     CONSTRAINT PK_locales PRIMARY KEY CLUSTERED (code)
 );
 
@@ -136,23 +142,23 @@ CREATE TABLE locales (
 -- 站同形」，見 docs/12b §7.6）。
 CREATE TABLE admin_users (
     seq                          bigint IDENTITY(1,1) NOT NULL,
-    id                           uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                           uniqueidentifier NOT NULL CONSTRAINT DF_admin_users_id DEFAULT NEWID(),
     username                     nvarchar(191)    NOT NULL,
     email                        nvarchar(255)    NULL,
     display_name                 nvarchar(100)    NOT NULL,
     password_hash                nvarchar(255)    NOT NULL,
-    must_change_password         bit              NOT NULL DEFAULT (0),
+    must_change_password         bit              NOT NULL CONSTRAINT DF_admin_users_must_change_password DEFAULT (0),
     password_changed_at          datetime2(3)     NULL,
-    two_factor_enabled           bit              NOT NULL DEFAULT (0),
+    two_factor_enabled           bit              NOT NULL CONSTRAINT DF_admin_users_two_factor_enabled DEFAULT (0),
     two_factor_secret_encrypted  nvarchar(255)    NULL,           -- 🔐 加密欄位
     two_factor_confirmed_at      datetime2(3)     NULL,
-    failed_attempt_count         int              NOT NULL DEFAULT (0),
+    failed_attempt_count         int              NOT NULL CONSTRAINT DF_admin_users_failed_attempt_count DEFAULT (0),
     locked_until                 datetime2(3)     NULL,
     last_login_at                datetime2(3)     NULL,
-    is_super_admin               bit              NOT NULL DEFAULT (0),
-    status                       nvarchar(16)     NOT NULL DEFAULT ('active'),  -- active／disabled
-    created_at                   datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-    updated_at                   datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    is_super_admin               bit              NOT NULL CONSTRAINT DF_admin_users_is_super_admin DEFAULT (0),
+    status                       nvarchar(16)     NOT NULL CONSTRAINT DF_admin_users_status DEFAULT ('active'),  -- active／disabled
+    created_at                   datetime2(3)     NOT NULL CONSTRAINT DF_admin_users_created_at DEFAULT (SYSUTCDATETIME()),
+    updated_at                   datetime2(3)     NOT NULL CONSTRAINT DF_admin_users_updated_at DEFAULT (SYSUTCDATETIME()),
     created_by                   uniqueidentifier NULL,           -- 自參照 → admin_users.id
     updated_by                   uniqueidentifier NULL,           -- 自參照 → admin_users.id
     CONSTRAINT PK_admin_users PRIMARY KEY NONCLUSTERED (id),
@@ -165,13 +171,13 @@ CREATE TABLE admin_users (
 -- 這個維度，此欄位刻意不建。
 CREATE TABLE admin_roles (
     seq         bigint IDENTITY(1,1) NOT NULL,
-    id          uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id          uniqueidentifier NOT NULL CONSTRAINT DF_admin_roles_id DEFAULT NEWID(),
     code        nvarchar(64)     NOT NULL,
     name_zh     nvarchar(50)     NOT NULL,
     name_en     nvarchar(50)     NULL,
-    is_system   bit              NOT NULL DEFAULT (0),
-    created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-    updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    is_system   bit              NOT NULL CONSTRAINT DF_admin_roles_is_system DEFAULT (0),
+    created_at  datetime2(3)     NOT NULL CONSTRAINT DF_admin_roles_created_at DEFAULT (SYSUTCDATETIME()),
+    updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_admin_roles_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_admin_roles PRIMARY KEY NONCLUSTERED (id),
@@ -195,10 +201,10 @@ CREATE TABLE admin_user_roles (
 -- 規劃書 §10 只寫「帳號與權限」，沒有寫更新權杖這個實作機制，列為待裁決（docs/16 §10）。
 CREATE TABLE admin_refresh_tokens (
     seq             bigint IDENTITY(1,1) NOT NULL,
-    id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id              uniqueidentifier NOT NULL CONSTRAINT DF_admin_refresh_tokens_id DEFAULT NEWID(),
     admin_user_id   uniqueidentifier NOT NULL,
     token_hash      nvarchar(128)    NOT NULL,
-    issued_at       datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    issued_at       datetime2(3)     NOT NULL CONSTRAINT DF_admin_refresh_tokens_issued_at DEFAULT (SYSUTCDATETIME()),
     expires_at      datetime2(3)     NOT NULL,
     revoked_at      datetime2(3)     NULL,
     replaced_by_id  uniqueidentifier NULL,       -- 自參照 → admin_refresh_tokens.id
@@ -219,18 +225,18 @@ CREATE TABLE admin_refresh_tokens (
 -- N1–N7 實際權限碼盤點後再定，已在回報列出。
 CREATE TABLE permissions (
     seq             bigint IDENTITY(1,1) NOT NULL,
-    id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id              uniqueidentifier NOT NULL CONSTRAINT DF_permissions_id DEFAULT NEWID(),
     code            nvarchar(100)    NOT NULL,
-    module_code     nvarchar(8)      NOT NULL DEFAULT ('N'),  -- 本庫僅一個模組，固定為 N
+    module_code     nvarchar(8)      NOT NULL CONSTRAINT DF_permissions_module_code DEFAULT ('N'),  -- 本庫僅一個模組，固定為 N
     submodule_code  nvarchar(8)      NOT NULL,                -- N1–N7
     domain          nvarchar(32)     NULL,                    -- ⚠️ 值域未定，見上方註解與回報
     action          nvarchar(16)     NOT NULL,
     name_zh         nvarchar(100)    NOT NULL,
     name_en         nvarchar(100)    NULL,
-    is_restricted   bit              NOT NULL DEFAULT (0),   -- 退款／分潤設定／個資明細匯出等須額外授權
-    sysadmin_only   bit              NOT NULL DEFAULT (0),
-    created_at      datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-    updated_at      datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    is_restricted   bit              NOT NULL CONSTRAINT DF_permissions_is_restricted DEFAULT (0),   -- 退款／分潤設定／個資明細匯出等須額外授權
+    sysadmin_only   bit              NOT NULL CONSTRAINT DF_permissions_sysadmin_only DEFAULT (0),
+    created_at      datetime2(3)     NOT NULL CONSTRAINT DF_permissions_created_at DEFAULT (SYSUTCDATETIME()),
+    updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_permissions_updated_at DEFAULT (SYSUTCDATETIME()),
     created_by      uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
     updated_by      uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_permissions PRIMARY KEY NONCLUSTERED (id),
@@ -263,17 +269,17 @@ CREATE TABLE role_permissions (
 -- 每日對帳批次（規劃書 §4.5 行 402–406：每日與 LINE Pay 交易明細比對）。
 -- 🔴「對帳結果保留供稽核」——本表與 reconciliation_discrepancies 不得清除。
 CREATE TABLE reconciliation_runs (
-    id                      uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                      uniqueidentifier NOT NULL CONSTRAINT DF_reconciliation_runs_id DEFAULT NEWID(),
     row_seq                 bigint IDENTITY(1,1) NOT NULL,
     run_on                  date             NOT NULL,
-    source                  nvarchar(32)     NOT NULL DEFAULT ('linepay'),
-    compared_count          int              NOT NULL DEFAULT 0,
-    matched_count           int              NOT NULL DEFAULT 0,
-    discrepancy_count       int              NOT NULL DEFAULT 0,
-    ran_at                  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    source                  nvarchar(32)     NOT NULL CONSTRAINT DF_reconciliation_runs_source DEFAULT ('linepay'),
+    compared_count          int              NOT NULL CONSTRAINT DF_reconciliation_runs_compared_count DEFAULT 0,
+    matched_count           int              NOT NULL CONSTRAINT DF_reconciliation_runs_matched_count DEFAULT 0,
+    discrepancy_count       int              NOT NULL CONSTRAINT DF_reconciliation_runs_discrepancy_count DEFAULT 0,
+    ran_at                  datetime2(3)     NOT NULL CONSTRAINT DF_reconciliation_runs_ran_at DEFAULT (SYSUTCDATETIME()),
     status                  nvarchar(16)     NOT NULL,
-    created_at              datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-    updated_at              datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    created_at              datetime2(3)     NOT NULL CONSTRAINT DF_reconciliation_runs_created_at DEFAULT (SYSUTCDATETIME()),
+    updated_at              datetime2(3)     NOT NULL CONSTRAINT DF_reconciliation_runs_updated_at DEFAULT (SYSUTCDATETIME()),
     created_by              uniqueidentifier NULL,
     updated_by              uniqueidentifier NULL,
     CONSTRAINT PK_reconciliation_runs PRIMARY KEY NONCLUSTERED (id),
@@ -283,7 +289,7 @@ CREATE TABLE reconciliation_runs (
 
 -- 對帳差異明細。三種類型對應規劃書字面：本站有金流無／金流有本站無／金額不符。
 CREATE TABLE reconciliation_discrepancies (
-    id                      uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                      uniqueidentifier NOT NULL CONSTRAINT DF_reconciliation_discrepancies_id DEFAULT NEWID(),
     row_seq                 bigint IDENTITY(1,1) NOT NULL,
     reconciliation_run_id   uniqueidentifier NOT NULL,
     discrepancy_type        nvarchar(24)     NOT NULL,
@@ -291,11 +297,11 @@ CREATE TABLE reconciliation_discrepancies (
     gateway_transaction_id  nvarchar(64)     NULL,       -- 本站有金流無時為空
     site_amount             int              NULL,
     gateway_amount          int              NULL,
-    resolution_status       nvarchar(16)     NOT NULL DEFAULT ('pending'),
+    resolution_status       nvarchar(16)     NOT NULL CONSTRAINT DF_reconciliation_discrepancies_resolution_status DEFAULT ('pending'),
     resolved_by             uniqueidentifier NULL,
     resolve_note            nvarchar(255)    NULL,
-    created_at              datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-    updated_at              datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    created_at              datetime2(3)     NOT NULL CONSTRAINT DF_reconciliation_discrepancies_created_at DEFAULT (SYSUTCDATETIME()),
+    updated_at              datetime2(3)     NOT NULL CONSTRAINT DF_reconciliation_discrepancies_updated_at DEFAULT (SYSUTCDATETIME()),
     created_by              uniqueidentifier NULL,
     updated_by              uniqueidentifier NULL,
     CONSTRAINT PK_reconciliation_discrepancies PRIMARY KEY NONCLUSTERED (id),
@@ -313,13 +319,13 @@ CREATE TABLE reconciliation_discrepancies (
 --    （對帳單、捐贈收據）上印出的名稱，那是法遵不允許的行為。
 CREATE TABLE charity_refs (
     seq         bigint IDENTITY(1,1) NOT NULL,
-    id          uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id          uniqueidentifier NOT NULL CONSTRAINT DF_charity_refs_id DEFAULT NEWID(),
     ref_code    nvarchar(32)     NOT NULL,
     name        nvarchar(128)    NOT NULL,
-    imported_at datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    imported_at datetime2(3)     NOT NULL CONSTRAINT DF_charity_refs_imported_at DEFAULT (SYSUTCDATETIME()),
     source      nvarchar(32)     NULL,
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_charity_refs_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_charity_refs_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_charity_refs PRIMARY KEY NONCLUSTERED (id),
@@ -329,13 +335,13 @@ CREATE TABLE charity_refs (
 -- 同上警語——唯讀複本，DonationProject 不得外鍵指向本表。
 CREATE TABLE charity_program_refs (
     seq             bigint IDENTITY(1,1) NOT NULL,
-    id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id              uniqueidentifier NOT NULL CONSTRAINT DF_charity_program_refs_id DEFAULT NEWID(),
     ref_code        nvarchar(32)     NOT NULL,
     charity_ref_id  uniqueidentifier NOT NULL,
     name            nvarchar(128)    NOT NULL,
-    imported_at     datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    imported_at     datetime2(3)     NOT NULL CONSTRAINT DF_charity_program_refs_imported_at DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_charity_program_refs_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_charity_program_refs_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_charity_program_refs PRIMARY KEY NONCLUSTERED (id),
@@ -351,21 +357,21 @@ CREATE TABLE charity_program_refs (
 -- 紀錄、不建外鍵。
 CREATE TABLE donation_stores (
     seq               bigint IDENTITY(1,1) NOT NULL,
-    id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                uniqueidentifier NOT NULL CONSTRAINT DF_donation_stores_id DEFAULT NEWID(),
     store_slug        nvarchar(160)    NOT NULL,   -- 系統產生、全站唯一、不可由編號推導
     category          nvarchar(32)     NULL,
     address           nvarchar(500)    NULL,
     contact_name      nvarchar(64)     NULL,
     contact_phone     nvarchar(32)     NULL,
-    store_share_pct   decimal(5,2)     NOT NULL DEFAULT (0),
+    store_share_pct   decimal(5,2)     NOT NULL CONSTRAINT DF_donation_stores_store_share_pct DEFAULT (0),
     logo_key          nvarchar(500)    NULL,
     logo_width        int              NULL,
     logo_height       int              NULL,
     start_on          date             NULL,
     end_on            date             NULL,
-    status            nvarchar(16)     NOT NULL DEFAULT ('active'),  -- active(合作中)／inactive(已停止)
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    status            nvarchar(16)     NOT NULL CONSTRAINT DF_donation_stores_status DEFAULT ('active'),  -- active(合作中)／inactive(已停止)
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_stores_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_stores_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_donation_stores PRIMARY KEY NONCLUSTERED (id),
@@ -379,11 +385,11 @@ CREATE TABLE donation_stores (
 -- 不設回饋品——前台不呈現募款進度，項目也不得附回饋品。
 CREATE TABLE donation_projects (
     seq                           bigint IDENTITY(1,1) NOT NULL,
-    id                            uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                            uniqueidentifier NOT NULL CONSTRAINT DF_donation_projects_id DEFAULT NEWID(),
     project_slug                  nvarchar(160)    NOT NULL,
     min_amount                    int              NULL,
     max_amount                    int              NULL,
-    project_share_pct             decimal(5,2)     NOT NULL DEFAULT (0),
+    project_share_pct             decimal(5,2)     NOT NULL CONSTRAINT DF_donation_projects_project_share_pct DEFAULT (0),
     invoice_mode                  nvarchar(20)     NOT NULL,   -- b2c_invoice／donation_receipt
     -- 📸 以下四欄是主站 Charity／CharityProgram 的值複製快照，不是外鍵：
     charity_ref_code              nvarchar(32)     NULL,
@@ -393,10 +399,10 @@ CREATE TABLE donation_projects (
     cover_key                     nvarchar(500)    NULL,
     cover_width                   int              NULL,
     cover_height                  int              NULL,
-    sort_order                    int              NOT NULL DEFAULT (0),
-    status                        nvarchar(16)     NOT NULL DEFAULT ('draft'),  -- draft／published（上下架）
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    sort_order                    int              NOT NULL CONSTRAINT DF_donation_projects_sort_order DEFAULT (0),
+    status                        nvarchar(16)     NOT NULL CONSTRAINT DF_donation_projects_status DEFAULT ('draft'),  -- draft／published（上下架）
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_projects_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_projects_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_donation_projects PRIMARY KEY NONCLUSTERED (id),
@@ -413,12 +419,12 @@ CREATE TABLE donation_projects (
 -- 金額選項卡 (donation_project_id, amount, sort_order)
 CREATE TABLE donation_amount_options (
     seq                 bigint IDENTITY(1,1) NOT NULL,
-    id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                  uniqueidentifier NOT NULL CONSTRAINT DF_donation_amount_options_id DEFAULT NEWID(),
     donation_project_id uniqueidentifier NOT NULL,
     amount              int              NOT NULL,
-    sort_order          int              NOT NULL DEFAULT (0),
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    sort_order          int              NOT NULL CONSTRAINT DF_donation_amount_options_sort_order DEFAULT (0),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_amount_options_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_amount_options_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_donation_amount_options PRIMARY KEY NONCLUSTERED (id),
@@ -431,29 +437,29 @@ CREATE TABLE donation_amount_options (
 -- （paid）當下的快照，事後改設定不追溯。
 CREATE TABLE donations (
     seq                         bigint IDENTITY(1,1) NOT NULL,
-    id                          uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                          uniqueidentifier NOT NULL CONSTRAINT DF_donations_id DEFAULT NEWID(),
     order_no                    nvarchar(32)     NOT NULL,
     donation_project_id         uniqueidentifier NOT NULL,
     donation_store_id           uniqueidentifier NULL,       -- 可為空：非掃碼進入
     amount                      int              NOT NULL,
-    status                      nvarchar(16)     NOT NULL DEFAULT ('created'),
-    created_at                  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    status                      nvarchar(16)     NOT NULL CONSTRAINT DF_donations_status DEFAULT ('created'),
+    created_at                  datetime2(3)     NOT NULL CONSTRAINT DF_donations_created_at DEFAULT (SYSUTCDATETIME()),
     paid_at                     datetime2(3)     NULL,
     donor_name                  nvarchar(64)     NOT NULL,
     donor_email                 nvarchar(255)    NOT NULL,
-    is_anonymous                bit              NOT NULL DEFAULT (0),
-    is_credit_hidden            bit              NOT NULL DEFAULT (0),   -- 後台逐筆隱藏於徵信名單（規劃書 §3.6／§6.3，CH-5 新增）
-    store_share_pct_snapshot    decimal(5,2)     NOT NULL DEFAULT (0),
-    project_share_pct_snapshot  decimal(5,2)     NOT NULL DEFAULT (0),
-    store_amount                int              NOT NULL DEFAULT (0),
-    project_amount               int              NOT NULL DEFAULT (0),
-    association_amount          int              NOT NULL DEFAULT (0),
+    is_anonymous                bit              NOT NULL CONSTRAINT DF_donations_is_anonymous DEFAULT (0),
+    store_share_pct_snapshot    decimal(5,2)     NOT NULL CONSTRAINT DF_donations_store_share_pct_snapshot DEFAULT (0),
+    project_share_pct_snapshot  decimal(5,2)     NOT NULL CONSTRAINT DF_donations_project_share_pct_snapshot DEFAULT (0),
+    store_amount                int              NOT NULL CONSTRAINT DF_donations_store_amount DEFAULT (0),
+    project_amount               int              NOT NULL CONSTRAINT DF_donations_project_amount DEFAULT (0),
+    association_amount          int              NOT NULL CONSTRAINT DF_donations_association_amount DEFAULT (0),
     invoice_mode                nvarchar(20)     NOT NULL,   -- 建單時自 DonationProject 快照
     refund_reason                nvarchar(255)    NULL,
     refunded_by                 uniqueidentifier NULL,       -- → admin_users.id
-        updated_at                   datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        updated_at                   datetime2(3)     NOT NULL CONSTRAINT DF_donations_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by                   uniqueidentifier NULL,       -- → admin_users.id，系統自動產生的列為空
         updated_by                   uniqueidentifier NULL,       -- → admin_users.id
+    is_credit_hidden            bit              NOT NULL CONSTRAINT DF_donations_is_credit_hidden DEFAULT (0),   -- 後台逐筆隱藏於徵信名單（規劃書 §3.6／§6.3，CH-5 新增）
     CONSTRAINT PK_donations PRIMARY KEY NONCLUSTERED (id),
     CONSTRAINT UQ_donations_seq UNIQUE CLUSTERED (seq),
     CONSTRAINT CK_donations_status CHECK (status IN ('created', 'pending', 'paid', 'failed', 'expired', 'refunded')),
@@ -473,18 +479,18 @@ CREATE TABLE donations (
 --    requested_at／confirmed_at 兩個時間欄位推得的技術判斷，非規格明文。
 CREATE TABLE donation_payments (
     seq            bigint IDENTITY(1,1) NOT NULL,
-    id             uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id             uniqueidentifier NOT NULL CONSTRAINT DF_donation_payments_id DEFAULT NEWID(),
     donation_id    uniqueidentifier NOT NULL,
     transaction_id nvarchar(64)     NULL,       -- 金流端交易識別碼
     requested_at   datetime2(3)     NULL,
     confirmed_at   datetime2(3)     NULL,
     amount         int              NOT NULL,
     status         nvarchar(16)     NOT NULL,
-    raw_response   nvarchar(max) NULL CONSTRAINT CK_donation_payments_raw_response_json CHECK (ISJSON(raw_response, OBJECT) = 1 OR ISJSON(raw_response, ARRAY) = 1),       -- 只存不查
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_payments_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_payments_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
+    raw_response   nvarchar(max) NULL CONSTRAINT CK_donation_payments_raw_response_json CHECK (ISJSON(raw_response, OBJECT) = 1 OR ISJSON(raw_response, ARRAY) = 1),       -- 只存不查
     CONSTRAINT PK_donation_payments PRIMARY KEY NONCLUSTERED (id),
     CONSTRAINT UQ_donation_payments_seq UNIQUE CLUSTERED (seq),
     CONSTRAINT CK_donation_payments_status CHECK (status IN ('requested', 'confirmed', 'failed', 'cancelled'))
@@ -496,7 +502,7 @@ CREATE TABLE donation_payments (
 -- 範圍內使用。
 CREATE TABLE donation_invoices (
     seq                     bigint IDENTITY(1,1) NOT NULL,
-    id                      uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                      uniqueidentifier NOT NULL CONSTRAINT DF_donation_invoices_id DEFAULT NEWID(),
     donation_id             uniqueidentifier NOT NULL,
     invoice_type            nvarchar(20)     NOT NULL,   -- b2c_invoice／donation_receipt
     invoice_no              nvarchar(32)     NULL,       -- 已開立者唯一，未開立為空（見篩選唯一索引）
@@ -508,13 +514,13 @@ CREATE TABLE donation_invoices (
     receipt_address         nvarchar(500)    NULL,
     invoice_title            nvarchar(128)    NULL,       -- 統編模式必填（行 433）
     receipt_title            nvarchar(128)    NULL,       -- 預設帶入捐款人姓名，可修改（行 439）
-    is_annual_summary        bit              NOT NULL DEFAULT 0,  -- 單筆／年度彙總（行 442）
-    issue_status            nvarchar(16)     NOT NULL DEFAULT ('pending'),
-    void_status              nvarchar(16)     NOT NULL DEFAULT ('none'),
+    is_annual_summary        bit              NOT NULL CONSTRAINT DF_donation_invoices_is_annual_summary DEFAULT 0,  -- 單筆／年度彙總（行 442）
+    issue_status            nvarchar(16)     NOT NULL CONSTRAINT DF_donation_invoices_issue_status DEFAULT ('pending'),
+    void_status              nvarchar(16)     NOT NULL CONSTRAINT DF_donation_invoices_void_status DEFAULT ('none'),
     void_reason              nvarchar(255)    NULL,       -- 作廢／折讓原因（行 455）
     voided_by                uniqueidentifier NULL,       -- 經辦人（行 455）
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_invoices_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_donation_invoices_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_donation_invoices PRIMARY KEY NONCLUSTERED (id),
@@ -529,20 +535,20 @@ CREATE TABLE donation_invoices (
 -- donation_projects.id），無法用單一外鍵表達，刻意不建 FK。
 CREATE TABLE settlements (
     seq              bigint IDENTITY(1,1) NOT NULL,
-    id               uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id               uniqueidentifier NOT NULL CONSTRAINT DF_settlements_id DEFAULT NEWID(),
     period_start     date             NOT NULL,
     period_end       date             NOT NULL,
     payee_type       nvarchar(16)     NOT NULL,   -- store／project
     payee_id         uniqueidentifier NOT NULL,   -- 多型參照，不建外鍵
-    donation_count   int              NOT NULL DEFAULT (0),
-    donation_total   int              NOT NULL DEFAULT (0),
-    payable_amount   int              NOT NULL DEFAULT (0),
-    status           nvarchar(16)     NOT NULL DEFAULT ('pending'),  -- pending(待結算)／settled(已結算)／paid(已付款)
+    donation_count   int              NOT NULL CONSTRAINT DF_settlements_donation_count DEFAULT (0),
+    donation_total   int              NOT NULL CONSTRAINT DF_settlements_donation_total DEFAULT (0),
+    payable_amount   int              NOT NULL CONSTRAINT DF_settlements_payable_amount DEFAULT (0),
+    status           nvarchar(16)     NOT NULL CONSTRAINT DF_settlements_status DEFAULT ('pending'),  -- pending(待結算)／settled(已結算)／paid(已付款)
     remitted_on      date             NULL,
     remit_method             nvarchar(32)     NULL,       -- 匯款方式（行 529「日期、方式與備註」）
     remit_note       nvarchar(255)    NULL,
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_settlements_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_settlements_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_settlements PRIMARY KEY NONCLUSTERED (id),
@@ -555,14 +561,14 @@ CREATE TABLE settlements (
 -- 結算明細：逐筆捐款的分潤金額，含退款沖回的負項（is_clawback = true）。
 CREATE TABLE settlement_lines (
     seq            bigint IDENTITY(1,1) NOT NULL,
-    id             uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id             uniqueidentifier NOT NULL CONSTRAINT DF_settlement_lines_id DEFAULT NEWID(),
     settlement_id  uniqueidentifier NOT NULL,
     donation_id    uniqueidentifier NOT NULL,
     share_amount   int              NOT NULL,
-    is_clawback    bit              NOT NULL DEFAULT (0),
+    is_clawback    bit              NOT NULL CONSTRAINT DF_settlement_lines_is_clawback DEFAULT (0),
     clawback_reason          nvarchar(255)    NULL,       -- 沖回原因（行 622「明列沖回原因」）
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_settlement_lines_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_settlement_lines_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_settlement_lines PRIMARY KEY NONCLUSTERED (id),
@@ -577,9 +583,9 @@ CREATE TABLE settlement_lines (
 -- 含個資的明細匯出三類操作須留稽核軌跡，是勸募法遵要求（規劃書 §11.2）。
 CREATE TABLE audit_logs (
     seq             bigint IDENTITY(1,1) NOT NULL,
-    id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id              uniqueidentifier NOT NULL CONSTRAINT DF_audit_logs_id DEFAULT NEWID(),
     admin_user_id   uniqueidentifier NOT NULL,
-    occurred_at     datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    occurred_at     datetime2(3)     NOT NULL CONSTRAINT DF_audit_logs_occurred_at DEFAULT (SYSUTCDATETIME()),
     action          nvarchar(32)     NOT NULL,
     target_type     nvarchar(32)     NOT NULL,
     target_id       uniqueidentifier NULL,       -- 多型參照，不建外鍵
@@ -600,11 +606,11 @@ CREATE TABLE audit_logs (
 -- 介面字串鍵與所屬分組。
 CREATE TABLE ui_strings (
     seq         bigint IDENTITY(1,1) NOT NULL,
-    id          uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id          uniqueidentifier NOT NULL CONSTRAINT DF_ui_strings_id DEFAULT NEWID(),
     string_key  nvarchar(191)    NOT NULL,
     group_name  nvarchar(64)     NULL,
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_ui_strings_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_ui_strings_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_ui_strings PRIMARY KEY NONCLUSTERED (id),
@@ -629,11 +635,11 @@ CREATE TABLE ui_string_translations (
 -- value 供非文案類（如金額上下限的數值）直接存放。
 CREATE TABLE settings (
     seq          bigint IDENTITY(1,1) NOT NULL,
-    id           uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id           uniqueidentifier NOT NULL CONSTRAINT DF_settings_id DEFAULT NEWID(),
     setting_key  nvarchar(191)    NOT NULL,
     value        nvarchar(max)    NULL,
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_settings_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_settings_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_settings PRIMARY KEY NONCLUSTERED (id),
@@ -643,11 +649,11 @@ CREATE TABLE settings (
 -- 系統信樣板（四封：捐款感謝信／發票收據通知／開立失敗通知／退款通知）。
 CREATE TABLE email_templates (
     seq        bigint IDENTITY(1,1) NOT NULL,
-    id         uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id         uniqueidentifier NOT NULL CONSTRAINT DF_email_templates_id DEFAULT NEWID(),
     code       nvarchar(64)     NOT NULL,   -- donation_thanks／invoice_issued／invoice_failed／refund_notice
-    is_active  bit              NOT NULL DEFAULT (1),
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    is_active  bit              NOT NULL CONSTRAINT DF_email_templates_is_active DEFAULT (1),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_email_templates_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_email_templates_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_email_templates PRIMARY KEY NONCLUSTERED (id),
@@ -661,14 +667,14 @@ CREATE TABLE email_templates (
 -- 未逐欄列舉，屬合理的工程判斷而非規格新增業務規則，仍在回報中列出供確認。
 CREATE TABLE email_logs (
     seq                bigint IDENTITY(1,1) NOT NULL,
-    id                 uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                 uniqueidentifier NOT NULL CONSTRAINT DF_email_logs_id DEFAULT NEWID(),
     email_template_id  uniqueidentifier NULL,
     type               nvarchar(32)     NOT NULL,
     recipient_email    nvarchar(255)    NOT NULL,
-    sent_at            datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-    status             nvarchar(16)     NOT NULL DEFAULT ('sent'),   -- sent／failed
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    sent_at            datetime2(3)     NOT NULL CONSTRAINT DF_email_logs_sent_at DEFAULT (SYSUTCDATETIME()),
+    status             nvarchar(16)     NOT NULL CONSTRAINT DF_email_logs_status DEFAULT ('sent'),   -- sent／failed
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_email_logs_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_email_logs_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_email_logs PRIMARY KEY NONCLUSTERED (id),
@@ -685,14 +691,14 @@ CREATE TABLE email_logs (
 -- 類推而來，docs/16 未明文列出本表的唯一鍵，屬工程判斷，已在回報列出。
 CREATE TABLE payment_channels (
     seq                   bigint IDENTITY(1,1) NOT NULL,
-    id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+    id                    uniqueidentifier NOT NULL CONSTRAINT DF_payment_channels_id DEFAULT NEWID(),
     channel_type          nvarchar(20)     NOT NULL,   -- line_pay／einvoice
     environment           nvarchar(16)     NOT NULL,   -- sandbox／production
     credential_encrypted  nvarchar(500)    NOT NULL,   -- 🔐 加密欄位
     invoice_prefix        nvarchar(16)     NULL,
     rotated_at            datetime2(3)     NULL,
-        created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
-        updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+        created_at  datetime2(3)     NOT NULL CONSTRAINT DF_payment_channels_created_at DEFAULT (SYSUTCDATETIME()),
+        updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_payment_channels_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_payment_channels PRIMARY KEY NONCLUSTERED (id),
@@ -721,9 +727,9 @@ CREATE TABLE donation_projects_i18n (
     locale              nvarchar(10)     NOT NULL,
     name                nvarchar(128)    NOT NULL,
     one_liner           nvarchar(255)    NULL,
-    description         nvarchar(max) NULL CONSTRAINT CK_donation_projects_i18n_description_json CHECK (ISJSON(description, OBJECT) = 1 OR ISJSON(description, ARRAY) = 1),      -- 說明內文，區塊編輯器內容，只存不查
     fund_usage          nvarchar(max)    NULL,       -- 款項用途
     cover_alt           nvarchar(255)    NULL,
+    description         nvarchar(max) NULL CONSTRAINT CK_donation_projects_i18n_description_json CHECK (ISJSON(description, OBJECT) = 1 OR ISJSON(description, ARRAY) = 1),      -- 說明內文，區塊編輯器內容，只存不查
     CONSTRAINT PK_donation_projects_i18n PRIMARY KEY CLUSTERED (donation_project_id, locale)
 );
 

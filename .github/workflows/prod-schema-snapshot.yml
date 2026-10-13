@@ -1,0 +1,76 @@
+# .github/workflows/prod-schema-snapshot.yml — 正式庫（Azure SQL）結構快照：唯讀，產出 artifact 供本機比對
+#
+# 對應 docs/20-cicd.md §5「prod-schema-snapshot.yml」。目的：直接讀正式庫「真實的結構」，抽成與
+# deploy/schema-snapshot.sql 同格式的文字快照，下載回本機後用 deploy/prod-schema-compare.sh（→ schema-diff.py）
+# 與「今天的 DDL 新建的庫」或本機庫比對，證明本機與正式庫結構一致。
+#
+# 只有 workflow_dispatch 觸發（不被 push／PR 觸發）。輸入：target（club／charity／both）。
+# 單一 job、跑在 VM（self-hosted，因為只有 VM 讀得到 /opt/tcrfc/secrets 的連線字串、也只有 VM 的出口 IP 在 Azure SQL 防火牆內）。
+#
+# 唯讀：只執行 deploy/schema-snapshot.sql（SELECT sys.*／INFORMATION_SCHEMA），包在 BEGIN TRANSACTION … ROLLBACK；
+# 腳本執行前先靜態檢查該檔不含任何寫入類關鍵字（deploy/prod-schema-snapshot.sh 檔頭有完整的唯讀保證清單）。
+# 產物只有結構名稱與定義，不含資料、不含連線字串；發佈前掃描不得含主機名、帳號、密碼、IP。
+#
+# 🔴 防護鏈（docs/20 §4，逐條對照在 §5「prod-schema-snapshot.yml」）：
+#   第 0 條（repo 設定 Fork pull request workflows 需核准）在 GitHub 設定、不在本檔；
+#   第 1 條：self-hosted 只出現在本 workflow 唯一的 job，本檔只被 workflow_dispatch 觸發，沒有 pull_request／pull_request_target；
+#   第 2 條：job 參照 environment: production（Deployment branches 僅 master）；job 的 if 另外判斷 repo 與 ref（只有 master）；
+#   第 3 條：能觸發 workflow_dispatch 的只有對 repo 有寫入權限的人（目前只有 Tim）；
+#   第 4 條：runner 服務帳號只在 docker 群組，不是 root（VM 既有設定，本檔不改）。
+#   另：permissions 只有 contents: read；所有輸入經 env 傳入並在腳本內驗證格式，不內插進 shell 字串；persist-credentials: false。
+#
+# 為什麼沒有 Required reviewers 關卡、也不與 cd-production 共用 concurrency：見 docs/20 §5「prod-schema-snapshot.yml」的取捨。
+# 簡述：唯讀＋交易回滾＋master-only，風險等同 db-migrate.yml 的 pending job（同樣是 production 環境、無 reviewers、連正式庫唯讀）；
+# 共用 cd-production 群組會讓排隊中的部署被「較新的待執行 run」取代，唯讀快照不值得冒這個險。
+
+name: Prod Schema Snapshot
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 要抽快照的資料庫（club＝主站與藍鯨共用的 tcrfc_club；charity＝慈善平台獨立庫 tcrfc_charity）
+        required: true
+        type: choice
+        options:
+          - club
+          - charity
+          - both
+        default: both
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    name: 抽正式庫結構快照（唯讀）
+    if: github.repository == 'waiting0201/tcrfc' && github.ref == 'refs/heads/master'
+    runs-on: [self-hosted, tcrfc-vm]
+    # self-hosted 的 job 一律掛在 production（Deployment branches 僅 master）；本 job 唯讀，所以不需要核准。
+    environment: production
+    permissions:
+      contents: read
+    concurrency:
+      group: prod-schema-snapshot
+      cancel-in-progress: false
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: 抽快照（唯讀；機密只在 VM 本機，不印主機名）
+        env:
+          PSS_TARGET: ${{ inputs.target }}
+          PSS_OUT_DIR: ${{ runner.temp }}/prod-schema-snapshot
+        run: /bin/bash deploy/prod-schema-snapshot.sh "${PSS_TARGET}" "${PSS_OUT_DIR}"
+
+      # 公開 repo 的 artifact 任何登入 GitHub 的人都能下載：內容只有結構名稱與定義（與 db/*.sql 同等級），保留期壓到 3 天。
+      - name: 上傳快照（保留 3 天）
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-schema-snapshot
+          path: ${{ runner.temp }}/prod-schema-snapshot
+          if-no-files-found: error
+          retention-days: 3
+          include-hidden-files: false

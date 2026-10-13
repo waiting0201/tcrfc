@@ -29,6 +29,8 @@
 
 ### 🔵 例外：驗收用的內容種子匯入（2026-10-03，使用者決定）
 
+> **改了內容種子之後，manifest 要走本機演練 `record-manifest` 重錄**，可照做的指令見 [`docs/20`](../../docs/20-cicd.md) §5「本機演練匯入並 `record-manifest`」。種子不得使用產生當下的浮動值（`date.today()` 等），見 `docs/14` 種子規則 ④-3。
+
 上面「種子資料絕不能灌進正式庫」的**帳號與假個資**界線不變。使用者另決定把**內容**部分匯入正式庫做前後台串接驗收、驗收完清除：由 [`generate-prod-content-sql.py`](generate-prod-content-sql.py) 篩出 `db/prod/*-content-seed.sql`，以 [`deploy/prod-seed-import.sh`](../../deploy/prod-seed-import.sh) 匯入／清除。區段歸類（匯入／參照／帳號／假個資）與限制見 [`docs/20`](../../docs/20-cicd.md) §5「正式庫的內容種子匯入與清除」。新增種子區段時要在該腳本的 `*_SECTIONS` 表態，否則產生器失敗。
 
 ### ✅ 灌（系統運作必需，皆取自規劃書的固定項目）
@@ -100,7 +102,7 @@ B-5 已於 2026-10-05 拍板：藍鯨英文簡稱 `Taichung Blue Whale`、全名
 - **刻意保留中文（en 欄位留 NULL 或句內原樣保留，前台逐欄位回退）**：沒有英文來源的選手與教練人名（有資料庫英文列者用其羅馬拼音）、學校（五權國中、惠文高中）、公益機構（台中惠明盲校）、公司名夥伴（17 家）、活動名「夏洛特的下午茶」、場地地址與交通說明（含公車業者、管理單位）、`site.contact_hours`（測試值）、`clubs_i18n.description`。
 - **待客戶確認的寫法**：`Sport i Taiwan 2.0 sports hotspot`（運動 i 台灣 2.0 運動熱區）、Pick-up Adult Football Matches（野團）、`Taichung Blue Whale Football School`、賽程場地的地名拼音（Kaohsiung Nanzih、Qingpu、Meilun Junior High School、Ming Chuan University）、教育部體育署／國立臺灣體育運動大學的英文名、教練經歷中的賽事名（Chinese Taipei women's national team、East Asian Cup 等）、2022 里程碑「疫情有成舉辦首場頂級足球開門賽」原文語意不明（採字面譯）。
 - **品牌外洩**：藍鯨英文內容不含 Taichung Rock／TCRFC／Academy（詞表見 `apps/web/scripts/check-club-brand-leak.mjs`），產生的 SQL 已 grep 驗證。
-- **正式庫內容種子與 manifest**：重產 `club-content-seed.sql` 後，`club-content-manifest.tsv` 的 sha256 與各 `*_i18n` 筆數以腳本精準更新（斷言舊值）：articles_i18n +3、banners_i18n +1、calendar_custom_events_i18n +3、competitions_i18n +2、faqs_i18n +10、matches_i18n +21、milestones_i18n +12、pages_i18n +4（2026-10-07 固定頁改版後：pages 22／page_blocks 33／page_versions 22／pages_i18n 44；manifest 以計算值更新，尚未經本機演練 record-manifest 核對）、partner_stores_i18n +1、partners_i18n +8、programs_i18n +12、settings_i18n +6、venues_i18n +2。
+- **正式庫內容種子與 manifest**：重產 `club-content-seed.sql` 後，`club-content-manifest.tsv` 的 sha256 與各 `*_i18n` 筆數以腳本精準更新（斷言舊值）：articles_i18n +3、banners_i18n +1、calendar_custom_events_i18n +3、competitions_i18n +2、faqs_i18n +10、matches_i18n +21、milestones_i18n +12、pages_i18n +4（2026-10-07 固定頁改版後：pages 22／page_blocks 33／page_versions 22／pages_i18n 44；manifest 已於 2026-10-13 經本機演練 record-manifest 重錄核對）、partner_stores_i18n +1、partners_i18n +8、programs_i18n +12、settings_i18n +6、venues_i18n +2。
 - **藍鯨 25/26 木蘭 21 場（2026-10-07）**：`generate-club-seed-sql.py` §13 加 `emit_bw_matches("matches-2025-26-mulan.json", "league")`（來源 [`content/blue-whale/data/matches-2025-26-mulan.json`](../../content/blue-whale/data/matches-2025-26-mulan.json)，官方行事曆）、§11 的 `seasons.json` 補 `2025-26`。藍鯨 `matches` 21→42、`matches_i18n`／`match_teams` 同步、`seasons` 2→3。競賽沿用 `mulan` 那一列（唯一鍵 `(club_id, code)`，不依球季另建，`competitions` 不變）；`status=played`、比分 NULL；**場地只連太原**（`venue_id` 其餘為 NULL，西屯足球場等寫在 `matches_i18n.venue` 原文，因 §13 在 §24 建西屯之前執行）；**`venue_address_zh`、`calendar_home_tag` 無對應欄位，不匯入**。開幕戰採行事曆版本（見 `calendar.md` §3）。這批屬 `IMPORT` 區段，`db/prod/club-content-seed.sql` 與 manifest 已重產／重錄。
   - ✅ **`import` 的 sqlcmd 13 `Invalid cursor state` 已修（2026-10-07，E-295）**：`deploy/prod-seed-import.sh import` 讀到區段 61 的批次時 sqlcmd 13 會吐 `SqlState 24000`、交易靜默回滾、結束碼 0；**在正式 VM（x86）同樣發生，不是模擬問題**。現在 `import` 以 `SET NOCOUNT ON` 包一層再 `:r` 種子（種子檔與 manifest 不變），並在執行後立刻查匯入標記。**本機演練不必再手動改用 `mssql-tools18`**，整個流程完全走腳本即可。
 - **API 測試**：`AppContractBatch4Tests`（俱樂部簡稱）、`AppContractBatch5Tests`（後台簡稱讀寫）、`LocalizationFallbackTests`（俱樂部名稱）原本把「藍鯨沒有英文」當前提，已改為新定案值斷言；回退行為改經後台 `PUT /admin/clubs/{id}`（`en = null` 即刪列）自建並於 `finally` 還原。⚠️ 後台 PUT 的 `en = null` 會**刪掉英文列**，測試改動藍鯨時必須把原英文內容帶回。
@@ -130,6 +132,7 @@ B-5 已於 2026-10-05 拍板：藍鯨英文簡稱 `Taichung Blue Whale`、全名
 | [`backoffice_seed.py`](backoffice_seed.py) | 🔴 **2026-09-30 新增**：後台已完成模組的種子資料定義與 T-SQL 產生（頁面、輪播、FAQ、課程與梯次、積分榜、自建事件、新聞標籤、301 轉址、SEO／llms.txt／AI 爬蟲設定）。由 `generate-club-seed-sql.py` 尾端 `import` 呼叫，**不是獨立執行的腳本**；真實內容與測試值的界線見下方「後台模組種子（2026-09-30）」 |
 | [`apply-seed.sh`](apply-seed.sh) | 呼叫上面那支腳本，再用 `sqlcmd` 把產生的 SQL 灌進本機 SQL Server（既有 `sqlserver` 容器）；容器名稱可用 `LOCAL_MSSQL_CONTAINER` 環境變數覆寫，**目標資料庫寫死只認 `tcrfc_club`**（原 `SEED_TARGET_DATABASE` 切換用途已於 2026-09-30 移除，殘留該變數且值不同會直接拒絕執行） |
 | [`setup-club-db.sh`](setup-club-db.sh) | 一鍵建立／重建本機網站庫 `tcrfc_club`（串接 `deploy/local-ddl.sh --apply-club-db` ＋本檔的 `apply-seed.sh`；前身是 `setup-test-db.sh`），見下方「本機網站庫與整合測試」一節 |
+| [`setup-charity-db.sh`](setup-charity-db.sh) | 一鍵建立／重建本機慈善庫 `tcrfc_charity`（串接 `deploy/local-ddl.sh --apply-charity-db [--recreate]` ＋ `apply-charity-seed.sh`；建庫時一併寫 `__EFMigrationsHistory`，`E-322`） |
 | [`generate-charity-seed-sql.py`](generate-charity-seed-sql.py) | 產生 `tcrfc_charity` 冪等的 T-SQL。**資料直接寫在腳本內**（不像 club 腳本讀外部 JSON）——因為這批資料**從一開始就是虛構測試資料**，不是需要另外隔離的真人個資，見下方一節的說明 |
 | [`apply-charity-seed.sh`](apply-charity-seed.sh) | 呼叫上面那支腳本，灌進 `tcrfc_charity`；目標資料庫寫死只認 `tcrfc_charity`，與 `apply-seed.sh` 的白名單分開維護 |
 | `.generated/`（**不進版控**） | 兩支產生器的輸出（`club-seed.local.sql`／`charity-seed.local.sql`），隨時可重新產生，見 [`.gitignore`](../../.gitignore) |
@@ -212,6 +215,7 @@ set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
    灌入原樣的 `club-schema.sql`（2026-10-13 起不再有 `json→nvarchar(max)` 轉換，DDL 本身就是 `nvarchar(max)` ＋ ISJSON CHECK）。`CREATE TABLE` 不是冪等的，所以資料庫
    已存在且已有資料表時**預設略過 DDL**（只重灌種子），要重灌表結構才需要加 `--recreate`。
    ⚠️ **略過 DDL 的代價是本機結構可能落後 `db/club-schema.sql`**（DDL 改了、或收縮型 migration 還沒套）。用 `./deploy/schema-drift-check.sh --mode local-vs-ddl` 體檢（唯讀），有差異再 `--recreate`（`docs/20` §3「schema-drift」）。
+   🔴 **2026-10-13（`E-322`）**：建（或重建）庫時會**同時建立 `__EFMigrationsHistory` 並把全部 migration 標記為已套用**（同 `deploy/prod-db-init.sh` 步驟 3），所以 `dotnet ef migrations list` 沒有 Pending，也不會再讓 `dotnet ef database update` 重跑 migration；DDL 的約束命名與欄位順序＝正式庫（`docs/14`「約束命名」「欄位順序」），重建後用 `./deploy/schema-drift-check.sh --mode local-vs-ddl` 驗證應為零差異。
 2. `db/seed/apply-seed.sh`——灌種子，含全部 `ADMIN_USERS` 測試帳號
    （見 `apps/api/README.md`「種子測試帳號」）。
 

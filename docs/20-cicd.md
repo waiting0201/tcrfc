@@ -47,6 +47,7 @@
 | 手動（`workflow_dispatch`） | `deploy.yml` | **五個映像檔全部重建並推送**（不看變動範圍）。首次部署、映像檔遺失或要強制重建時用（2026-10-02 加，E-112）。映像檔標籤只有 `:master` 與 git SHA，**沒有 `:latest`**——`IMAGE_TAG` 預設 `master` | hosted |
 | `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ **`shared/` 契約漂移檢查**（`shared-contract` job，AP-8，見 §3；後台前端若日後有型別產生器再加另一個漂移檢查）＋ **正式庫種子一致性檢查**（`prod-seed` job，`E-157`，見 §3）＋ **資料庫結構一致性檢查**（`schema-drift` job，`E-321`，DDL vs EF 模型，見 §3） | 一律 hosted |
 | 手動 | `db-migrate.yml` | 套用 EF Core migration，需 `production-db` 環境核准 | self-hosted |
+| 手動 | `prod-schema-snapshot.yml` ✅ | **唯讀**抽正式庫（`tcrfc_club`／`tcrfc_charity`）的結構快照，artifact 下載回本機與 DDL／本機庫比對（§5「`prod-schema-snapshot.yml`」）。無核准關卡、不寫資料庫 | self-hosted |
 | 手動 | `rollback.yml` ✅ | 輸入 SHA，把正式 VM 退回那一版（映像檔標籤；不重建、不 migrate），§6 | self-hosted |
 
 **不建 staging 分支／環境。** 理由：
@@ -74,7 +75,7 @@
 | 事件 | 只用 `pull_request`，**絕不用 `pull_request_target`**（後者會把 workflow 檔本身的權限用在 fork 的程式碼上，是最常見的公開 repo CI 漏洞） |
 | 權限 | `ci.yml` 頂層宣告 `permissions: contents: read`，不給 `packages: write`、不給部署相關權限 |
 | Secrets | fork 觸發的 `pull_request` run **本來就拿不到 repo secrets**（GitHub 內建行為）；本檔再加一道——`ci.yml` 全程不 `push` 映像檔、不觸碰 `production`／`production-db` 這兩個 Environment，即使不小心加了 secret 進 workflow 也用不到 |
-| Runner | fork PR **一律 `runs-on: ubuntu-latest`**（hosted）。`self-hosted` 這個 label 只出現在 `deploy.yml`／`db-migrate.yml`／`rollback.yml`，這三個都不被 `pull_request` 觸發 |
+| Runner | fork PR **一律 `runs-on: ubuntu-latest`**（hosted）。`self-hosted` 這個 label 只出現在 `deploy.yml`／`db-migrate.yml`／`rollback.yml`／`prod-schema-snapshot.yml`，這四個都不被 `pull_request` 觸發 |
 | 資源濫用防線 | Repo 設定把「Fork pull request workflows」改成 **Require approval for all outside collaborators**（比 GitHub 預設的「僅首次貢獻者」更嚴）——本專案目前沒有外部協作者，這條純粹防呆 |
 | 分支保護 | 建議 `master` 開 **Require pull request before merging**。目前是單人開發，非強制，但**觸及 `apps/api/Migrations/**` 或 `deploy/**` 的變更建議一律走 PR**，讓變更留下 diff 紀錄——這比擋 push 本身更重要 |
 
@@ -181,9 +182,9 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 | 觸發 | `paths-filter` 的 `schema` 輸出：`db/club-schema.sql`、`db/charity-schema.sql`、`apps/api/Data/**`、`apps/api/CharityPlatform/Data/**`、`Tcrfc.Api.csproj`、`dotnet-tools.json`、`deploy/schema-*` 任一有變動 |
 | 跑在哪 | `ubuntu-latest`（**GitHub-hosted**）；`permissions: contents: read`；**不使用 secrets、不碰 self-hosted**（§4）。SQL Server 服務容器用 **`2025-latest`**（與 Azure SQL 引擎行為較接近；2026-10-13 起 DDL 不含原生 `json`，`api` job 的 2022 也灌同一份原樣 DDL） |
 | 基準怎麼來 | **不能「從空庫跑全部 migration」**：`InitialBaseline` 的 `Up()`／`Down()` 是空的（庫本來就是 DDL 建的），跑完是空庫。改為：**A 庫＝DDL 原樣建庫**（＝正式庫 `prod-db-init.sh init` 第 1 步的結果；migration 一律視為已套用，與 init 一致）；**B 庫＝EF 模型**（`dotnet ef dbcontext script` 的 create script，不連線產生）。兩庫各抽一份正規化快照後 diff |
-| 涵蓋 | 主站（`ClubDbContext` ↔ `db/club-schema.sql`）與慈善（`CharityDbContext` ↔ `db/charity-schema.sql`）。快照內容：表、欄位（型別／可空／identity／計算欄位）、預設值、主鍵、唯一鍵與索引（含唯一性、叢集、篩選條件、含入欄位、遞減）、外鍵（欄位對應／參照／刪除與更新動作）、CHECK、索引／約束／外鍵**名稱**、視圖、不預期的觸發程序／預存程序／函式／序列 |
+| 涵蓋 | 主站（`ClubDbContext` ↔ `db/club-schema.sql`）與慈善（`CharityDbContext` ↔ `db/charity-schema.sql`）。快照內容：表、欄位（型別／可空／identity／計算欄位）、預設值、主鍵、唯一鍵與索引（含唯一性、叢集、篩選條件、含入欄位、遞減）、外鍵（欄位對應／參照／刪除與更新動作／受信任）、CHECK（含啟用／受信任狀態）、索引／約束／外鍵／**預設值與 CHECK 的名稱（2026-10-13 起系統自動命名也比，不再豁免）**、**欄位順序**（`COLORDER`）、索引選項（fill factor、padding、鎖定、壓縮…）、表選項、視圖（含本體）、資料庫定序與 ANSI 設定（`DB\|`）、不預期的觸發程序／預存程序／函式／序列／結構描述／延伸屬性；平台相關的環境資訊（相容性層級、RCSI、引擎版本、scoped 設定）列在 `ENV\|`，只印出、不計差異 |
 | 失敗時 | 輸出差異清單（改變／只在 DDL／只在 EF，依類別分組）。**DDL 與 EF 模型＋migration 兩邊一起改**（[`14`](14-invariants.md)）；要判斷哪邊對，以 DDL／`docs/12` 為準（§5 migration 注意事項 2） |
-| 本機執行 | `set -a; source .env; set +a; ./deploy/schema-drift-check.sh`（≈17 秒；只建四個 `tcrfc_drift_*` 一次性庫，跑完丟掉）。`--target club|charity`、`--keep`、`--dry-run` |
+| 本機執行 | `set -a; source .env; set +a; ./deploy/schema-drift-check.sh`（≈17 秒；只建四個 `tcrfc_drift_*` 一次性庫，跑完丟掉）。`--target club|charity`、`--keep`、`--dry-run`。**任意兩份快照**：`./deploy/schema-drift-check.sh --compare-snapshots A.txt B.txt [--a-label …] [--b-label …]`（不連資料庫，嚴格模式零容忍；快照檔由 `deploy/schema-snapshot.sql` 抽出，正式庫的唯讀快照由 `deploy/prod-schema-snapshot.sh` 產出） |
 | 擋不住什麼 | 見下方「正規化／排除／單向容忍」 |
 
 **正規化（兩邊同一套，差異只會來自真的結構不同）**
@@ -191,13 +192,16 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 - ~~`json` ≡ `nvarchar(max)`~~ **已移除（2026-10-13）**：資料庫不再使用原生 `json` 型別，快照照實輸出型別、不做 json／nvarchar 等價正規化。**反向防呆**：`db/*.sql` 出現 `json` 型別欄位，`schema-drift-check.sh` 在建庫前就以結束碼 1 失敗並說明改法（`local-ddl.sh` 亦拒絕）。JSON 內容欄位的 12 個具名 CHECK（`CK_<表>_<欄>_json`）由 EF 模型描述（`Data/ClubDbContextJsonChecks.cs`、`CharityPlatform/Data/CharityDbContextCustomizations.cs`），所以「DDL 有、EF 沒有」或「名稱／定義不同」會被這道檢查抓到（不屬「單向容忍」）。
 - **唯一約束 ≡ 唯一索引**：DDL 多用 `ALTER TABLE … ADD CONSTRAINT … UNIQUE`，EF 的 `HasIndex().IsUnique()` 只能建唯一索引；儲存結構與查詢行為相同。取捨：看不出「約束 vs 索引」（影響只在手寫 migration 用 `DROP CONSTRAINT` 還是 `DROP INDEX`，§5 注意事項 2 已要求先查系統檢視）。
 - **預設值／CHECK 定義**：去空白與方括號、轉小寫；`N'x'`→`'x'`、`convert(bit,X)`→`X`、`(1)`→`1`、最外層成對括號反覆去除。不碰運算子與欄位名，真的不同的定義仍會報。
-- **系統自動命名**的約束（`CK__表__欄__8碼十六進位`）名稱每個庫都不同，不比名稱，**結構照比**。
+- ~~**系統自動命名**的約束不比名稱~~ **已取消（2026-10-13，`E-322`）**：DEFAULT／CHECK／索引／外鍵名稱一律比對。約束命名規則見 [`14`](14-invariants.md)「約束命名」，migration `NameSystemConstraints` 已把正式庫形狀與本機形狀的系統命名約束改成規則名稱。
+- **欄位順序嚴格比對**（`same-origin`／`strict`）：DDL 欄序＝正式庫實際欄序（規則見 `14`「欄位順序」）；差異以「第 N 欄起不同」摘要顯示。
 
 **排除清單（EF 本來就不描述的「整個物件類別」；每次執行都印出被排除的行數，不悄悄吞掉）**
 
 | 類別 | 為什麼排除 | 誰來守 |
 |---|---|---|
-| 視圖（`VIEW`／`VIEWCOL`，目前只有 `calendar_events`） | EF 只能把視圖當 keyless entity 對映（`ToView`），不會建立視圖本體 | `local-vs-ddl` 模式（本機庫 vs DDL）、`prod-db-init.sh verify` 的視圖數 |
+| 視圖（`VIEW`／`VIEWCOL`／`VIEWDEF`，目前只有 `calendar_events`） | EF 只能把視圖當 keyless entity 對映（`ToView`），不會建立視圖本體 | `local-vs-ddl` 模式（本機庫 vs DDL，含視圖本體）、`--compare-snapshots`、`prod-db-init.sh verify` 的視圖數 |
+| 預設值約束名稱（`NAME\|DEFAULT`，`ddl-vs-ef` 限定） | EF 的 create script 一律不命名預設值（產生 `DF__表__欄__隨機碼`），也沒有 API 可命名 | `local-vs-ddl`、`--compare-snapshots`（零容忍）與 migration `NameSystemConstraints` |
+| 欄位順序（`COLORDER`，`ddl-vs-ef` 限定） | EF 依實體屬性順序建欄，不保證等於 DDL／正式庫欄序 | 同上；規則見 `14`「欄位順序」 |
 
 **單向容忍（只在 DDL 有、EF 側沒有的 `CHECK`／`CHECK 名稱`／`預設值`，不算差異，但印出數量）**：EF 模型多半不描述它們（慈善 context 沒有任何 `HasCheckConstraint`；許多 `bit`／字串欄位沒宣告 `HasDefaultValue`，EF 寫入一律明確帶值，不依賴資料庫預設）。**反方向（EF 有、DDL 沒有）與「兩邊都有但值不同」（預設值）照報**——那才是「程式以為有、資料庫沒有」。目前主站 97 個 CHECK／109 個預設值、慈善 29／28 屬此類。
 
@@ -206,6 +210,8 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 **`local-vs-ddl` 模式（發現本機落後）**：`deploy/schema-drift-check.sh --mode local-vs-ddl [--target club|charity]` 把本機 `tcrfc_club`／`tcrfc_charity` 與「原樣 DDL 新建的庫」比（對本機現有庫**只 SELECT `sys.*`**）。**為什麼需要**：`db/seed/setup-club-db.sh`（不帶 `--recreate`）遇到已有資料表會**略過 DDL**，之後只靠 `dotnet ef database update`；DDL 改了而本機沒重建、或 migration 還沒套（例如展開—收縮的收縮型遷移，正式庫也是「先 deploy 後 migrate」），本機結構就落後 DDL，開發與測試是在舊結構上跑。這個模式不在 CI（CI 的庫都是新建的），是本機的體檢工具；看到差異時，`setup-club-db.sh --recreate` 可重建（會清掉本機資料，種子會重灌）。
 
 **安全模型**（比照 `deploy/local-ddl.sh`）：會寫的庫寫死只有 `tcrfc_drift_club_ddl`／`_club_ef`／`_charity_ddl`／`_charity_ef` 四個；唯一讀的既有庫是 `tcrfc_club`／`tcrfc_charity`（只 SELECT）；目標容器由 `LOCAL_MSSQL_CONTAINER` 指定（預設 `sqlserver`），SA 密碼走 `docker exec -e SQLCMDPASSWORD`，不進命令列。
+
+**嚴格化（2026-10-13，`E-322`；使用者要求本機與正式庫「用 Schema Compare 比也不能有差異」）**：`same-origin`（別名 `strict`）零容忍，沒有任何排除或單向容忍；快照輸出格式（每行 `類別|…`，與排序無關）：`TABLE`、`TBLOPT`、`COL`（含 `coll=`）、`COLORDER`、`DEFAULT`＋`NAME|DEFAULT`、`PK`／`IDX`（含 `opts=`）＋`NAME|PK`／`NAME|IDX`、`FK`（含 `trusted=`）＋`NAME|FK`、`CK`＋`NAME|CK`＋`CKSTATE`、`STAT`、`VIEW`／`VIEWCOL`／`VIEWDEF`、`OTHER`、`SCHEMA`、`EXTPROP`、`DB|`（嚴格）、`ENV|`（只列出）。**無法也不該對齊的（只出現在 `ENV|`）**：資料庫相容性層級（本機 SQL Server 2022 容器上限 160，Azure SQL 與 2025 為 170）、`READ_COMMITTED_SNAPSHOT`／快照隔離（Azure SQL 預設開、本機容器預設關；改本機會改變測試的鎖定行為，不動）、ADR／Query Store／TDE／復原模型（平台管理）、`database_scoped_configurations` 清單（隨引擎版本而異）、服務層級。資料庫使用者／角色／權限、防火牆規則不在 DDL，也不在快照範圍。
 
 **驗收（2026-10-13，`E-321`）**：本機 2022 與 SQL Server 2025（原生 `json`）容器上，主站 4802／慈善 835 項結構事實「DDL ＝ EF」皆一致；暫時改 `db/club-schema.sql`（`pages.slug` 長度 160→150、拿掉一個唯一索引的篩選條件、刪一個索引）三種真實錯誤形狀，檢查變紅且差異清單逐項點名，復原後變綠；`actionlint` 通過。
 
@@ -251,7 +257,7 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 |---|---|---|
 | **0** | 🔴 **Repo 設定 → Actions → Fork pull request workflows 設為「Require approval for all outside collaborators」** | **這是唯一真正擋住它的控制項，其餘三條都建立在它之上。** ⚠️ **不要以為「我們的 workflow 沒給 fork 用 self-hosted」就安全**——fork PR 跑的是**該 fork 版本的 workflow 檔**，惡意 fork 可以自己加上 `runs-on: self-hosted`。GitHub 公開 repo 的預設只擋「首次貢獻者」，**要手動改成 all outside collaborators** |
 | 1 | **self-hosted 這個 label 只出現在被 `push`／`workflow_dispatch` 觸發的 job**，絕不出現在 `pull_request` 觸發的 job | 減少誤觸面，讓正常流程不依賴核准。⚠️ **這條本身擋不住惡意 fork**（見第 0 條），它防的是自己人改錯 |
-| 2 | 部署／遷移／回滾三個 workflow 都用 `environment: production`（或 `production-db`），Environment 設 **Deployment branches：僅 `master`** | 擋的是**機密外洩**不是程式碼執行——Environment 的分支限制讓非 `master` 的 run 拿不到該環境的 secrets。⚠️ **不參照 Environment 的 job 仍可能跑在 runner 上**，那一層靠第 0 條 |
+| 2 | 部署／遷移／回滾／正式庫結構快照四個 workflow 都用 `environment: production`（或 `production-db`），Environment 設 **Deployment branches：僅 `master`** | 擋的是**機密外洩**不是程式碼執行——Environment 的分支限制讓非 `master` 的 run 拿不到該環境的 secrets。⚠️ **不參照 Environment 的 job 仍可能跑在 runner 上**，那一層靠第 0 條 |
 | 3 | 能推到 `master` 的只有受邀協作者（目前只有 Tim）——**push 到 master 本身就是既有的信任邊界**，self-hosted runner 沒有新增風險面，只是把「誰能讓程式碼跑在 VM 上」的判準從「有沒有 SSH 私鑰」換成「能不能推 master」，後者本來就等於「是不是專案維護者」 | 公開 repo 只開放 fork＋PR，不代表任何人都能推 `master` |
 | 4 | self-hosted runner 的服務帳號**只加入 `docker` 群組**，不給 sudo／不跑在 root（`docker` 群組本身等同主機控制權，這是刻意接受的範圍——它就是拿來管 compose 的） | 出事時的爆炸半徑限制在「能操作這台 VM 的容器」，跟原本設計的職責一致 |
 
@@ -517,6 +523,41 @@ cd ~/seed-import-src            # 或 repo 根目錄
 ./deploy/prod-seed-import.sh clean club && ./deploy/prod-seed-import.sh clean charity
 ```
 
+**本機演練匯入並 `record-manifest`（改了內容種子之後必做；2026-10-13 實跑通過）**：改 `db/seed/*.py` 後重產 `db/prod/*-content-seed.sql`，manifest 的 sha256 與各表筆數必須由「一次性演練庫」匯入後錄下，不可手算。演練庫名一律以 `tcrfc_rehearsal_` 開頭，用完 `DROP`；**絕不寫入 `tcrfc_club`／`tcrfc_charity`**。
+
+```bash
+# 0. 重產並確認 diff 只有預期的區段（出現依日期浮動的列＝違反 docs/14 種子規則 ④-3，先修產生器）
+python3 db/seed/generate-prod-content-sql.py && python3 db/seed/generate-prod-content-sql.py --check
+git diff --stat db/prod
+
+# 1. 臨時設定檔（放 scratchpad、權限 600、用完刪）。SA 密碼取自 repo 根目錄 .env 的 MSSQL_DEV_SA_PASSWORD，不要 echo
+SEC=/path/to/scratch/sec; mkdir -m 700 -p "$SEC"
+PW="$(grep '^MSSQL_DEV_SA_PASSWORD=' .env | cut -d= -f2-)"
+( umask 077
+  printf "CLUB_SQL_CONNECTION_STRING='Server=tcp:host.docker.internal,1433;Initial Catalog=tcrfc_rehearsal_club;User ID=sa;Password=%s;'\n" "$PW" > "$SEC/club.env"
+  # compose env 三個網域都要有（import 也會讀 CHARITY_DOMAIN，即使只匯 club）
+  printf 'TCRFC_DOMAIN=rehearsal-tcrfc.example.test\nBW_DOMAIN=rehearsal-bw.example.test\nCHARITY_DOMAIN=rehearsal-charity.example.test\n' > "$SEC/compose.env" )
+
+# 2. 建空的演練庫（本機 sqlserver 容器；密碼走容器環境變數，不進命令列）
+docker exec -e SQLCMDPASSWORD="$PW" sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -Q "CREATE DATABASE tcrfc_rehearsal_club"
+
+# 3. init → preflight → import → record-manifest → verify。兩個 confirm 提示由管線餵字串
+export PRODINIT_REHEARSAL=1 PRODINIT_TRUST_CERT=1 PRODINIT_EXPECT_DB_CLUB=tcrfc_rehearsal_club \
+       TCRFC_SECRETS_DIR="$SEC" TCRFC_COMPOSE_ENV="$SEC/compose.env"
+echo "INIT tcrfc_rehearsal_club"   | ./deploy/prod-db-init.sh init club          # 用工作樹的 db/club-schema.sql
+./deploy/prod-seed-import.sh preflight club
+echo "IMPORT tcrfc_rehearsal_club" | ./deploy/prod-seed-import.sh import club    # manifest 過期時，這步最後的 verify 會列出「不符」，屬預期
+./deploy/prod-seed-import.sh record-manifest club                                 # 寫入 db/prod/club-content-manifest.tsv
+./deploy/prod-seed-import.sh verify club                                          # 必須「全部驗證通過」
+
+# 4. 收尾：看 manifest 差異只有預期的表、刪演練庫與臨時檔
+git diff db/prod/club-content-manifest.tsv
+docker exec -e SQLCMDPASSWORD="$PW" sqlserver /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -Q "ALTER DATABASE tcrfc_rehearsal_club SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE tcrfc_rehearsal_club"
+rm -rf "$SEC"
+```
+
+慈善庫同理（`init charity`／`PRODINIT_EXPECT_DB_CHARITY=tcrfc_rehearsal_charity`、`secrets/charity.env` 用 `CHARITY_SQL_CONNECTION_STRING`）。`import` 的 `docker run` 是 amd64 映像檔，Apple Silicon 會印 platform 警告，可忽略。這段同時驗證了 `prod-db-init.sh` 的 init／verify 在 `source deploy/lib/sqlcmd-guard.sh` 之後正常。
+
 ⚠️ 匯入內容含真人姓名（球員、教練，來源 JSON 已在版控）與【測試】標示資料；測試站目前無帳密、僅 `noindex`，驗收完請盡快 `clean`。
 
 ### 🔵 `db-migrate.yml` 實作（2026-10-02，`deployment-engineer`）
@@ -563,6 +604,88 @@ cd ~/seed-import-src            # 或 repo 根目錄
 
 **上線後第一次驗證**：先跑 `dry_run=true`、`target=both`——**預期兩個庫「待套用 0 支」**（正式庫已由 `prod-db-init.sh` 寫入全部 migration：club 21 筆、charity 2 筆），summary 顯示「沒有待套用的 migration」、不出現核准關卡。這同時驗證了 runner 能讀 env 檔、容器能連庫、歷史表解析正常。
 
+### 🔵 `prod-schema-snapshot.yml`：正式庫結構快照（唯讀）（2026-10-13，`deployment-engineer`）
+
+> 檔案：[`.github/workflows/prod-schema-snapshot.yml`](../.github/workflows/prod-schema-snapshot.yml)、[`deploy/prod-schema-snapshot.sh`](../deploy/prod-schema-snapshot.sh)（VM 上抽快照）、
+> [`deploy/prod-schema-compare.sh`](../deploy/prod-schema-compare.sh)（本機比對入口）、[`deploy/test-prod-schema-snapshot.sh`](../deploy/test-prod-schema-snapshot.sh)（假 docker，80 項斷言，`/bin/bash` 3.2）。
+
+**為什麼要有**：`schema-drift`（§3）證明的是「DDL ＝ EF 模型」，`local-vs-ddl` 證明「本機 ＝ DDL」；但「**正式庫現在的真實結構**」一直沒有被讀過——正式庫由 `prod-db-init.sh` 灌 DDL 後，又經過數支 `db-migrate.yml` 套用的 migration，其間任何一步（含 E-295 的半套用）都可能讓它與 DDL 悄悄分岔。要說「本機與正式庫結構完全一樣」，必須直接讀正式庫。
+
+**怎麼運作**
+
+```
+workflow_dispatch（target＝club／charity／both）→ job「snapshot」（VM、environment: production、master only）
+  deploy/prod-schema-snapshot.sh：讀 /opt/tcrfc/secrets/*.env 的連線字串（與 db-migrate.sh pending 相同讀法）
+    → 靜態檢查 schema-snapshot.sql 唯讀 → sqlcmd 13 容器執行（BEGIN TRAN … ROLLBACK）→ 濾輸出 → 發佈前掃描 → <target>.snapshot.txt
+  upload-artifact「prod-schema-snapshot」（保留 3 天）：club.snapshot.txt／charity.snapshot.txt／MANIFEST.txt／SHA256SUMS
+本機：gh run download → deploy/prod-schema-compare.sh <club|charity> <快照檔> [--against ddl|local] → schema-diff.py --mode same-origin
+```
+
+**唯讀保證（五層，疊起來因為任何一層單獨都不夠）**
+
+| 層 | 做法 |
+|---|---|
+| 1 | 只執行 `deploy/schema-snapshot.sql`，路徑寫死、沒有參數可換；該檔本身只有 `SELECT sys.*`／資料庫屬性 |
+| 2 | 執行前靜態檢查（去註解後，以**詞**比對，`update_referential_action_desc` 不誤判）：不得含 `INSERT UPDATE DELETE MERGE DROP ALTER CREATE TRUNCATE EXEC EXECUTE INTO GRANT REVOKE DENY BACKUP RESTORE DBCC KILL SHUTDOWN BULK OPENROWSET OPENQUERY OPENDATASOURCE WAITFOR USE RECONFIGURE`、`xp_`／`sp_` 呼叫；必須有 `SELECT`。**這表示 `deploy/schema-snapshot.sql` 日後新增查詢時也不得用這些詞**（要讀的東西都是 `sys.*` 的 SELECT，用不到） |
+| 3 | 連線層級：`SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED`（讀目錄檢視不取共用鎖）、`SET LOCK_TIMEOUT 10000`（被擋超過 10 秒就失敗，不卡住別人）、`SET DEADLOCK_PRIORITY LOW` |
+| 4 | 整段包在 `BEGIN TRANSACTION … ROLLBACK TRANSACTION`：即使第 2 層被繞過、檔案被塞進寫入，交易層仍回滾 |
+| 5 | 防呆沿用 `db-migrate.sh`：正式模式只連 `*.database.windows.net`、資料庫名必須等於目標（`club`→`tcrfc_club`）；演練覆寫（`DBM_REHEARSAL`／`DBM_TRUST_CERT`／`DBM_EXPECT_DB_*`）只能一起用且拒絕連 Azure SQL |
+
+> 🟡 **建議（使用者決定，本次沒有做、也不由 agent 做）**：目前用的是 `club.env`／`charity.env` 裡既有的連線字串（高權限）。更穩的做法是**在兩個庫各建一個只授予 `VIEW DEFINITION` 的資料庫使用者**（`CREATE USER … WITH PASSWORD`、`GRANT VIEW DEFINITION`），新增 `/opt/tcrfc/secrets/*-readonly.env`，腳本改讀它——這樣唯讀由資料庫權限保證，而不是靠腳本自律。Azure SQL 沒有可免建帳號的唯讀登入；`ApplicationIntent=ReadOnly` 只在有 read scale-out 的層級才導向唯讀副本（Basic 層會落在主要副本），不是保證，所以沒採用。
+> 建法要碰雲端資源與機密，屬 §0 的「動到外部或不可逆的事」，需要使用者同意後再做。
+
+**防護鏈（§4）逐條對照**
+
+| §4 條目 | 本 workflow 怎麼符合 |
+|---|---|
+| **0**（repo 設定 Fork PR workflows 需核准） | 在 GitHub 設定，不在檔案裡；本 workflow **不增加也不減少**這條的依賴（與 `deploy.yml` 等同一地基）。**第一次觸發前請確認已設定** |
+| 1（self-hosted 只出現在 `push`／`workflow_dispatch`） | 本檔唯一的觸發是 `workflow_dispatch`；沒有 `pull_request`／`pull_request_target`；self-hosted 只出現在唯一的 job |
+| 2（Environment ＋ Deployment branches 僅 master） | job 參照 `environment: production`（Deployment branches 僅 master，無 reviewers，與 `db-migrate.yml` 的 `pending` 相同）；另在 job 的 `if` 判斷 `github.repository == 'waiting0201/tcrfc'` 與 `github.ref == 'refs/heads/master'` |
+| 3（能推 master／觸發的只有受邀協作者） | `workflow_dispatch` 只有對 repo 有寫入權限者能按；快照腳本隨 master 一起被審查 |
+| 4（runner 服務帳號只在 `docker` 群組） | 不新增任何權限；腳本只用 `docker run`（與 `db-migrate.sh` 相同） |
+| 其他 | `permissions: contents: read`（頂層與 job）；輸入只有 `target`，經 `env` 傳入並在腳本內驗證格式，不內插進 shell；`persist-credentials: false`；actions 用與其他 workflow 相同的 `@v4` |
+
+**要不要核准關卡？——不要（取捨）**
+
+- **不設 Required reviewers**：它只讀結構、不寫資料庫，交易層會回滾；風險等同 `db-migrate.yml` 的 `pending` job（同樣是 `production` 環境、無 reviewers、連正式庫唯讀）。若為它再加一個有 reviewers 的環境，單人專案等於自己核准自己，只增加摩擦。
+- **為什麼仍掛 `production`**：§4 第 2 條——self-hosted job 一律掛在 Deployment branches 僅 master 的環境，避免有人在別的分支改 workflow 後把 job 派到 VM。
+- **不與 `cd-production` 共用 concurrency**：GitHub 的 concurrency 群組「至多一個執行中＋一個等待中」，新的等待中 run 會**取代**舊的等待中 run。若快照加入 `cd-production`，一次快照可能擠掉排隊中的部署。快照是唯讀＋`READ UNCOMMITTED`，與部署／migration 同時跑不會互相阻塞；代價是若正好撞上 migration 的 `apply`，快照可能抓到一半的結構——**請不要在 `db-migrate.yml` 跑 `apply` 期間觸發**，且快照的 `taken_at_utc` 與 `git_sha` 都寫在 `MANIFEST.txt`。自己的群組 `prod-schema-snapshot` 只防止兩次快照疊在一起。
+
+**資料外洩評估（公開 repo：Actions log 與 artifact 任何登入 GitHub 的人都看得到）**
+
+- 快照只含**結構名稱與定義**（表、欄位、型別、索引、外鍵、CHECK、預設值），與公開在 repo 的 `db/*.sql` 同等級；**不含資料**。額外洩漏的只有「正式庫與 DDL 的差異」本身（例如缺哪個索引）——這是低敏感度資訊，且保留期壓到 **3 天**。
+- **不含連線字串**。發佈前掃描：每一行必須是 `類別|…` 格式；不得含主機全名／短名、帳號、密碼、`*.database.windows.net`、`Server=`／`Password=`／`User Id=`、IP 位址——命中就刪輸出並失敗（不上傳，內容不印出）。
+- **主機名不寫進任何輸出**：log、summary、MANIFEST 只出現資料庫名（`tcrfc_club`／`tcrfc_charity`）；sqlcmd 失敗時的錯誤輸出先經遮蔽（主機全名／短名／帳號／密碼／IP 換成 `***`）才印。job summary 只放行數、各類別計數與 SHA-256，**不貼快照內容**。
+- ⚠️ 若日後 `schema-snapshot.sql` 加入「資料庫層級屬性」（服務層級、定序、相容性層級…）：服務層級（例如 Basic）會出現在 artifact 裡。這屬於低敏感度，但請知悉；有疑慮就把該類別在腳本的發佈前掃描裡排除。
+
+**sqlcmd 13 的兩個陷阱（本機演練實測出來的）**
+
+1. **`-y 0` 與 `-h -1`／`-W` 互斥**（回 `header value must be…`／`value must be greater than…`）。要取消 256 字元截斷（CHECK／索引定義很長）就只能 `-y 0`，標題底線與空行事後濾掉（與 `schema-drift-check.sh` 一致）。
+2. 🔴 **`-y 0` 會在少數行尾多吐一個 NUL（`\0`）**（tcrfc_club 4763 行中約 1–2 行，位置不固定；mssql-tools18 沒有）。若沒濾掉，`schema-diff.py` 會把那行當成另一行而誤報差異（演練時就看到 `CK|app_releases|…` 這類假差異）。腳本只接受「NUL 緊接換行」的純行尾填充並剔除，NUL 出現在行中間就拒絕輸出（可能被截斷）。剔除後與 mssql-tools18 的輸出**逐行相同**（4763／4763）。
+
+**怎麼用（使用者與下載比對）**
+
+```bash
+# 1. 觸發（GitHub → Actions → Prod Schema Snapshot → Run workflow，或）
+gh workflow run prod-schema-snapshot.yml --ref master -f target=both
+gh run list --workflow prod-schema-snapshot.yml -L 1        # 取 run id，等它變綠
+gh run view <run-id>                                         # summary 上有各庫行數與 SHA-256
+
+# 2. 下載（artifact 是外部資料：放進全新的空目錄）
+D="$(mktemp -d)"; gh run download <run-id> -n prod-schema-snapshot -D "$D"
+(cd "$D" && shasum -a 256 -c SHA256SUMS)                     # 並與 job summary 上的 SHA-256 對照
+
+# 3. 比對（本機 sqlserver 容器要在跑；MSSQL_DEV_SA_PASSWORD 從 .env 載入，不要印出）
+set -a; source .env; set +a
+deploy/prod-schema-compare.sh club    "$D/club.snapshot.txt"    --against ddl     # 正式庫 vs 今天的 DDL 新建的庫
+deploy/prod-schema-compare.sh charity "$D/charity.snapshot.txt" --against ddl
+deploy/prod-schema-compare.sh club    "$D/club.snapshot.txt"    --against local   # 正式庫 vs 本機 tcrfc_club（只讀）
+```
+
+結束碼：0 一致｜1 有結構差異（逐項列出）｜2 環境／快照檔問題。`--against ddl` 只會寫 `tcrfc_prodcmp_club`／`tcrfc_prodcmp_charity` 兩個一次性庫（用完丟掉）；`--against local` 對 `tcrfc_club`／`tcrfc_charity` 只 SELECT。比對本體是 `deploy/schema-diff.py --mode same-origin`（正式庫與 DDL 同源，不排除任何東西）。
+
+**本機演練（2026-10-13）**：`DBM_REHEARSAL=1 DBM_TRUST_CERT=1`、真實 `mssql-tools`（sqlcmd 13）容器、本機 `sqlserver`（SQL Server 2022）的 `tcrfc_club`／`tcrfc_charity`（唯讀）：主站 4763／慈善 839 行快照產出、無錯誤；`prod-schema-compare.sh` 對「DDL 新建的庫」與「本機庫」兩種比對皆**一致**。`/bin/bash deploy/test-prod-schema-snapshot.sh` 80 項通過（唯讀靜態檢查 15 種拒絕＋1 種放行、庫名／主機／覆寫防呆、輸入驗證、七種壞輸出與外洩、sqlcmd 13 輸出形狀）；對「掃描」做變異測試會讓 10 項變紅。`shellcheck -x`、`actionlint` 通過。**未實測**：對真實 Azure SQL 與真實 VM、GitHub 上的 environment／artifact 流程——第一次觸發請先確認 `production` 環境存在且 Deployment branches 僅 master、第 0 條已設定。
+
 ### 🔴 migration 注意事項（`AlignIndexesWithDdl2` 起生效）
 
 1. **正式庫是 DDL 建的，不是 migration 長出來的**（`prod-db-init.sh` 把全部 migration 寫進歷史表）。**之後每支新 migration 的 `Up()` 都必須在「DDL 建的庫」上正確執行**——驗收要用這個形狀：`db/*.sql` 原樣建庫 → 手寫歷史表（除新 migration 外全部）→ `dotnet ef database update`（做法見 `AlignIndexesWithDdl2` 的驗收段）。只在 EF 模型建的庫上通過不算數。
@@ -570,6 +693,8 @@ cd ~/seed-import-src            # 或 repo 根目錄
 3. **CHECK 約束不要用名稱**（見上「CHECK 名稱」影響評估）：要拆舊 CHECK 就用 `sys.check_constraints`（`parent_object_id`＋`parent_column_id` 或 `definition`）動態查出名稱再 `DROP`；要 `AlterColumn` 的欄位先查有沒有 CHECK 依賴它。
 4. **寫入 JSON 內容欄位的程式一律只寫物件或陣列**（`docs/14`，`E-111`）；新增 JSON 欄位要在 `Common/JsonColumn.cs` 的守門之下，並在 `JsonColumnTests` 補測；**欄位型別一律 `nvarchar(max)` ＋ 具名 CHECK，DDL／EF 模型 `HasCheckConstraint`／冪等 migration 三處同改**（本檔「json 型別」一節）。
 5. ✅ **`db-migrate.yml` 已實作（2026-10-02，見上節）**。正式庫之後要套用新 migration 走這條：手動觸發 → `pending` 唯讀比對 → `production-db` 核准 → `apply`。`AlignIndexesWithDdl2` 在正式庫的實際效果＝補上 `IX_form_fields_i18n_locale`、`IX_sponsor_activations_i18n_locale`（若 DDL 是補上前建的庫），其餘無操作，所以**不套用也不影響執行**，不是阻塞；**正式庫已於 2026-10-02 初始化，歷史表已含該筆（21 筆），第一次 `db-migrate` 預期待套用為零**。
+
+6. 🔴 **新增預設值／欄位 CHECK 的 migration 必須具名**（2026-10-13，`E-322`）：`AddColumn(defaultValue)` 不會命名預設值，產生 `DF__表__欄__隨機碼`，各環境名稱不同。migration 最後呼叫 `SystemNamedConstraintRenamer.Rename(migrationBuilder)`（以 `sys.*` 查詢、冪等；衝突即 THROW 點名），DDL 同步寫 `CONSTRAINT DF_<表>_<欄>`，**新欄位寫在該表最後**。規則見 [`14`](14-invariants.md)「約束命名」「欄位順序」。`NameSystemConstraints`（主站 `20261013034701`、慈善 `20261013034731`）套到正式庫時：單一交易內對主站 525＋67、慈善 108 個約束 `sp_rename`（資料表只取結構描述鎖、不掃資料，瞬間完成；輸出會有數百行 `Caution: Changing any part of an object name…` 訊息，是 `sp_rename` 的資訊訊息而非錯誤，`sqlcmd_log_has_error` 不會誤判）。
 
 ### 🔴 新增 migration 的驗收：一定要跑一次「Probe」確認基準沒有偏移（`docs/18-work-errors.md` E-45）
 
@@ -754,6 +879,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 
 | [`.github/workflows/db-migrate.yml`](../.github/workflows/db-migrate.yml)、[`deploy/db-migrate.sh`](../deploy/db-migrate.sh) | §5「`db-migrate.yml` 實作」 | ✅ 2026-10-02：預覽 → VM 唯讀比對 → `production-db` 核准 → 套用 |
 | [`deploy/test-db-migrate.sh`](../deploy/test-db-migrate.sh) | 同上 | ✅ 以假 docker 在 `/bin/bash` 3.2 跑 88 項斷言；另以本機 SQL Server 2022 ＋真實 sqlcmd 容器演練過 |
+| [`.github/workflows/prod-schema-snapshot.yml`](../.github/workflows/prod-schema-snapshot.yml)、[`deploy/prod-schema-snapshot.sh`](../deploy/prod-schema-snapshot.sh)、[`deploy/prod-schema-compare.sh`](../deploy/prod-schema-compare.sh)、[`deploy/test-prod-schema-snapshot.sh`](../deploy/test-prod-schema-snapshot.sh) | §5「`prod-schema-snapshot.yml`」 | ✅ 2026-10-13：正式庫結構快照（唯讀）＋本機比對入口；本機演練與 80 項假 docker 測試通過，**尚未在 GitHub／正式 VM 觸發** |
 
 **尚未建立**：無（`rollback.yml`、`db-migrate.yml` 均已建立）。
 

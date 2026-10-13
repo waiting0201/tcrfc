@@ -7748,6 +7748,48 @@ END
 GO
 
 DECLARE @id uniqueidentifier;
+SELECT @id = id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-c';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'aefe1615-76c8-5fb6-8d1c-cd04f750bc03';
+  INSERT INTO charities (id, club_id, slug, website_url, contact_name, contact_phone)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-org-c', N'https://example.com/test-org-c', N'【測試】聯絡窗口', N'04-0000-0000');
+  INSERT INTO charities_i18n (charity_id, locale, name, intro) VALUES (@id, N'zh-Hant', N'【測試】示範公益團體丙', N'【測試】示範用：偏鄉學校足球社團的支持單位。');
+  INSERT INTO charities_i18n (charity_id, locale, name) VALUES (@id, N'en', N'Test Charity C');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-d';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'dad9fc4a-c829-565a-a780-c88c8a3546aa';
+  INSERT INTO charities (id, club_id, slug, website_url, contact_name, contact_phone)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-org-d', N'https://example.com/test-org-d', N'【測試】聯絡窗口', N'04-0000-0000');
+  INSERT INTO charities_i18n (charity_id, locale, name, intro) VALUES (@id, N'zh-Hant', N'【測試】示範公益團體丁', N'【測試】示範用：在地社福單位，協助弱勢家庭孩童參與運動。');
+
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-e';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'b709607f-82e1-55b4-94eb-85b58a9a2b93';
+  INSERT INTO charities (id, club_id, slug, website_url, contact_name, contact_phone)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-org-e', N'https://example.com/test-org-e', N'【測試】聯絡窗口', N'04-0000-0000');
+  INSERT INTO charities_i18n (charity_id, locale, name, intro) VALUES (@id, N'zh-Hant', N'【測試】示範公益團體戊', N'【測試】示範用：公益義賽的合作受贈團體。');
+  INSERT INTO charities_i18n (charity_id, locale, name) VALUES (@id, N'en', N'Test Charity E');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
 SELECT @id = id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-a';
 IF @id IS NULL
 BEGIN
@@ -7792,6 +7834,51 @@ BEGIN
 END
 GO
 
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-d';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'cb90b143-c296-5716-b97c-49ac3a354ac5';
+  INSERT INTO charity_programs (id, club_id, slug, charity_id, start_on, end_on, status, sort_order, is_pinned)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-charity-program-d', (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-c'), N'2026-01-15', NULL, N'published', 3, 0);
+  INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, content, donation_content)
+  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫：偏鄉學校足球社團', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
+  INSERT INTO charity_programs_i18n (charity_program_id, locale, name) VALUES (@id, N'en', N'Test Charity Program D');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-e';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'4c48cca0-7efc-5c72-a6e6-7207c5f98ce8';
+  INSERT INTO charity_programs (id, club_id, slug, charity_id, start_on, end_on, status, sort_order, is_pinned)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-charity-program-e', (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-d'), N'2025-07-01', N'2025-08-31', N'published', 4, 0);
+  INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, content, donation_content)
+  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫：弱勢家庭孩童足球營', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
+
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-f';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'9134cc92-ea88-53e9-9771-7ddbc55fc0cb';
+  INSERT INTO charity_programs (id, club_id, slug, charity_id, start_on, end_on, status, sort_order, is_pinned)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-charity-program-f', (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-e'), N'2024-11-01', N'2024-12-31', N'published', 5, 0);
+  INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, content, donation_content)
+  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫：年度公益義賽', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
+  INSERT INTO charity_programs_i18n (charity_program_id, locale, name) VALUES (@id, N'en', N'Test Charity Program F');
+  COMMIT TRANSACTION;
+END
+GO
+
 INSERT INTO charity_program_partners (charity_program_id, partner_id)
 SELECT p.id, x.id FROM charity_programs p CROSS JOIN partners x
 WHERE p.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND p.slug = N'test-charity-program-a' AND x.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND x.slug = N'test-partner-strategic'
@@ -7826,11 +7913,47 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS (SELECT 1 FROM impact_records_i18n WHERE locale = N'zh-Hant' AND donation_content = N'【測試】球門 2 座、角錐 60 個（示範數字）')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO impact_records (id, club_id, charity_program_id, charity_id, happened_on, sort_order)
+  VALUES (N'4ef18349-7862-50b8-9569-6a6dbe99c3cc', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-d'),
+          (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-c'), N'2026-03-18', 0);
+  INSERT INTO impact_records_i18n (impact_record_id, locale, donation_content, location, brief_description)
+  VALUES (N'4ef18349-7862-50b8-9569-6a6dbe99c3cc', N'zh-Hant', N'【測試】球門 2 座、角錐 60 個（示範數字）', N'【測試】示範地點：苗栗縣', N'【測試】示範簡述：教練團到校指導兩個下午。');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM impact_records_i18n WHERE locale = N'zh-Hant' AND donation_content = N'【測試】足球營名額 30 名、球鞋 30 雙（示範數字）')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO impact_records (id, club_id, charity_program_id, charity_id, happened_on, sort_order)
+  VALUES (N'86244877-b85f-54be-8302-8011d105eb89', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-e'),
+          (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-d'), N'2025-08-09', 0);
+  INSERT INTO impact_records_i18n (impact_record_id, locale, donation_content, location, brief_description)
+  VALUES (N'86244877-b85f-54be-8302-8011d105eb89', N'zh-Hant', N'【測試】足球營名額 30 名、球鞋 30 雙（示範數字）', N'【測試】示範地點：台中市', N'【測試】示範簡述：暑期五天足球營。');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM impact_records_i18n WHERE locale = N'zh-Hant' AND donation_content = N'【測試】義賽門票收入捐贈（示範，金額不公開）')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO impact_records (id, club_id, charity_program_id, charity_id, happened_on, sort_order)
+  VALUES (N'c2960909-49ea-5b4d-b1a5-30fdde210cda', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-f'),
+          (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-e'), N'2024-12-14', 0);
+  INSERT INTO impact_records_i18n (impact_record_id, locale, donation_content, location, brief_description)
+  VALUES (N'c2960909-49ea-5b4d-b1a5-30fdde210cda', N'zh-Hant', N'【測試】義賽門票收入捐贈（示範，金額不公開）', N'【測試】示範地點：台中市', NULL);
+  COMMIT TRANSACTION;
+END
+GO
+
 IF NOT EXISTS (SELECT 1 FROM impact_metrics_i18n WHERE locale = N'zh-Hant' AND name = N'【測試】合作公益團體數')
 BEGIN
   BEGIN TRANSACTION;
   INSERT INTO impact_metrics (id, club_id, charity_program_id, metric_key, metric_value, is_public, sort_order)
-  VALUES (N'e5782434-9440-58b2-a9dd-5a837210a4e4', (SELECT id FROM clubs WHERE code = N'tcrfc'), NULL, N'seed-groups', 2, 1, 0);
+  VALUES (N'e5782434-9440-58b2-a9dd-5a837210a4e4', (SELECT id FROM clubs WHERE code = N'tcrfc'), NULL, N'seed-groups', 5, 1, 0);
   INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit) VALUES (N'e5782434-9440-58b2-a9dd-5a837210a4e4', N'zh-Hant', N'【測試】合作公益團體數', N'個');
   COMMIT TRANSACTION;
 END
@@ -7852,6 +7975,36 @@ BEGIN
   INSERT INTO impact_metrics (id, club_id, charity_program_id, metric_key, metric_value, is_public, sort_order)
   VALUES (N'f3c6657b-c052-5c08-966b-55b16ca8e7a4', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-a'), N'seed-amount', 123456, 0, 0);
   INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit) VALUES (N'f3c6657b-c052-5c08-966b-55b16ca8e7a4', N'zh-Hant', N'【測試】累計捐助金額（不公開）', N'元');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM impact_metrics_i18n WHERE locale = N'zh-Hant' AND name = N'【測試】累計受惠學童')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO impact_metrics (id, club_id, charity_program_id, metric_key, metric_value, is_public, sort_order)
+  VALUES (N'b48a04f8-8cc3-5ff2-862f-3de49d8e7aff', (SELECT id FROM clubs WHERE code = N'tcrfc'), NULL, N'seed-kids', 320, 1, 0);
+  INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit) VALUES (N'b48a04f8-8cc3-5ff2-862f-3de49d8e7aff', N'zh-Hant', N'【測試】累計受惠學童', N'人');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM impact_metrics_i18n WHERE locale = N'zh-Hant' AND name = N'【測試】合作偏鄉學校')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO impact_metrics (id, club_id, charity_program_id, metric_key, metric_value, is_public, sort_order)
+  VALUES (N'0f9fcae1-d4d9-59d9-baaa-a809fd3050fb', (SELECT id FROM clubs WHERE code = N'tcrfc'), NULL, N'seed-schools', 6, 1, 0);
+  INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit) VALUES (N'0f9fcae1-d4d9-59d9-baaa-a809fd3050fb', N'zh-Hant', N'【測試】合作偏鄉學校', N'所');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM impact_metrics_i18n WHERE locale = N'zh-Hant' AND name = N'【測試】足球營總天數')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO impact_metrics (id, club_id, charity_program_id, metric_key, metric_value, is_public, sort_order)
+  VALUES (N'268d5699-2e89-5424-bae9-ae72c25baaf1', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM charity_programs WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-charity-program-e'), N'seed-camp-days', 5, 1, 0);
+  INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit) VALUES (N'268d5699-2e89-5424-bae9-ae72c25baaf1', N'zh-Hant', N'【測試】足球營總天數', N'天');
   COMMIT TRANSACTION;
 END
 GO
@@ -9771,7 +9924,7 @@ BEGIN
   BEGIN TRANSACTION;
   INSERT INTO ad_campaigns (id, advertiser_id, slot_id, name, starts_at, ends_at, weight, goal_type, goal_impressions, delivered_total, contract_amount, is_amount_hidden, status)
   VALUES (N'db15a997-1f96-5f2b-9282-1906014a62be', N'10729898-d78a-5d3b-99dc-b057e528043d', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'【測試】已結束的曝光保證檔期',
-          DATEADD(day, -16, SYSUTCDATETIME()), DATEADD(day, -2, SYSUTCDATETIME()), 3, N'guaranteed', 5000, 4674, 30000, 1, N'ended');
+          '2026-09-22T00:00:00', '2026-10-06T00:00:00', 3, N'guaranteed', 5000, 4674, 30000, 1, N'ended');
   INSERT INTO ad_creatives (id, campaign_id, locale, alt_text, title, cta_text, click_url, theme, review_status)
   VALUES (N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'zh-Hant', N'【測試】素材替代文字', N'【測試】廣告標題', N'了解更多', N'https://example.com/ad', N'both', N'approved');
   INSERT INTO ad_daily_stats (stat_date, campaign_id, creative_id, slot_id, platform, locale, impressions, clicks, unique_devices) VALUES
