@@ -485,7 +485,7 @@ erDiagram
 
 | 議題 | 本庫的落點 |
 |---|---|
-| **JSON 欄位** | 只有 `DonationPayment.raw_response` 一處，**只存不查**，用原生 `json` 型別 |
+| **JSON 欄位** | 只有 `DonationPayment.raw_response` 一處，**只存不查**，`nvarchar(max)` ＋ 具名 CHECK `CK_donation_payments_raw_response_json`（`ISJSON`，物件或陣列；2026-10-13 起不使用原生 `json` 型別，`docs/17` §6 第 2 項）。另有 `donation_projects_i18n.description`（說明內文，同樣處理，`CK_donation_projects_i18n_description_json`） |
 | **NULL 語意** | 本庫**沒有可為空的租戶維度**，`slug` 類一律單欄唯一，不需要複合鍵也不需要路由優先順序 |
 | 陣列欄位 | 無 |
 | `CalendarEvent` | 無 |

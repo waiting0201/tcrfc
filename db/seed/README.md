@@ -209,7 +209,7 @@ set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
 這支腳本只是把既有兩支腳本串起來，沒有另外寫一份建庫或灌種子的邏輯：
 
 1. `deploy/local-ddl.sh --apply-club-db [--recreate]`——建立（或重建）`tcrfc_club`，
-   灌入轉換過 `json→nvarchar(max)` 的 `club-schema.sql`。`CREATE TABLE` 不是冪等的，所以資料庫
+   灌入原樣的 `club-schema.sql`（2026-10-13 起不再有 `json→nvarchar(max)` 轉換，DDL 本身就是 `nvarchar(max)` ＋ ISJSON CHECK）。`CREATE TABLE` 不是冪等的，所以資料庫
    已存在且已有資料表時**預設略過 DDL**（只重灌種子），要重灌表結構才需要加 `--recreate`。
    ⚠️ **略過 DDL 的代價是本機結構可能落後 `db/club-schema.sql`**（DDL 改了、或收縮型 migration 還沒套）。用 `./deploy/schema-drift-check.sh --mode local-vs-ddl` 體檢（唯讀），有差異再 `--recreate`（`docs/20` §3「schema-drift」）。
 2. `db/seed/apply-seed.sh`——灌種子，含全部 `ADMIN_USERS` 測試帳號

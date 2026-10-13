@@ -33,7 +33,8 @@
     5. 雙語走 <entity>_i18n 側表，複合主鍵 (<entity>_id, locale)；三個例外
        （快照表／AdminRole・Permission／UiString 機制）不走側表；另有若干
        表經核對 ERD 與規劃書後判定無側表欄位可列，詳見表格上方註記。
-    6. json 欄位一律 Azure SQL 原生 json 型別，只存不查。
+    6. JSON 內容欄位一律 nvarchar(max) ＋ 具名 CHECK（CK_<表>_<欄>_json，ISJSON(欄, OBJECT|ARRAY) = 1），
+       只存不查；🔴 不使用原生 json 型別（2026-10-13 使用者決定，docs/17 §6 第 2 項、docs/14）。
     7. calendar_events 是一般 VIEW（UNION ALL），不得嘗試 indexed view /
        WITH SCHEMABINDING（SQL Server 禁止 indexed view 含 UNION）。
     8. 本庫沒有任何日誌表（AuditLog／LoginLog／ExportLog／OperationLog）。
@@ -86,7 +87,7 @@
          應用層加密。**這是本檔唯一卡在法務事項、無法由 docs/12 系列
          自行收斂的問題**（(e) 的 `trials`／`form_fields` 是產品範圍
          待確認，性質不同），不屬於本輪 i18n 側表裁決範圍。
-     (d) ✅ 已確認：page_blocks 的 content 放在主表（json），docs/12c
+     (d) ✅ 已確認：page_blocks 的 content 放在主表（JSON 內容），docs/12c
          §3.1 的側表草案與主表重複，依 docs/12c §1 第 3 條「主表已放的
          欄位優先尊重主表」不建 page_blocks_i18n。無殘留疑義。
      (e) seasons／standings／achievements／sessions／proposals：
@@ -277,7 +278,7 @@ CREATE TABLE page_blocks (
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   page_id         uniqueidentifier NOT NULL,
   block_type      nvarchar(32)     NOT NULL,
-  content         json             NULL,
+  content         nvarchar(max) NULL CONSTRAINT CK_page_blocks_content_json CHECK (ISJSON(content, OBJECT) = 1),
   sort_order      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -293,7 +294,7 @@ CREATE TABLE page_versions (
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   page_id         uniqueidentifier NOT NULL,
   version_no      int              NOT NULL,
-  snapshot        json             NULL,
+  snapshot        nvarchar(max) NULL CONSTRAINT CK_page_versions_snapshot_json CHECK (ISJSON(snapshot, OBJECT) = 1),
   preview_token   nvarchar(64)     NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -344,7 +345,7 @@ CREATE TABLE articles_i18n (
   locale          nvarchar(10)     NOT NULL,
   title           nvarchar(200)    NULL,
   summary         nvarchar(max)    NULL,
-  body            json             NULL,
+  body            nvarchar(max) NULL CONSTRAINT CK_articles_i18n_body_json CHECK (ISJSON(body, OBJECT) = 1 OR ISJSON(body, ARRAY) = 1),
   seo_title       nvarchar(200)    NULL,
   seo_description nvarchar(300)    NULL,
   seo_keywords    nvarchar(200)    NULL,
@@ -1053,7 +1054,7 @@ CREATE TABLE programs_i18n (
   name            nvarchar(128)    NULL,
   intro           nvarchar(max)    NULL,
   audience        nvarchar(64)     NULL,
-  content         json             NULL,
+  content         nvarchar(max) NULL CONSTRAINT CK_programs_i18n_content_json CHECK (ISJSON(content, OBJECT) = 1 OR ISJSON(content, ARRAY) = 1),
   cover_alt       nvarchar(200)    NULL,
   CONSTRAINT PK_programs_i18n PRIMARY KEY CLUSTERED (program_id, locale)
 );
@@ -1083,7 +1084,7 @@ CREATE TABLE sessions (
   venue_id            uniqueidentifier NULL,
   start_on            date             NULL,
   end_on              date             NULL,
-  weekly_schedule     json             NULL,
+  weekly_schedule     nvarchar(max) NULL CONSTRAINT CK_sessions_weekly_schedule_json CHECK (ISJSON(weekly_schedule, OBJECT) = 1 OR ISJSON(weekly_schedule, ARRAY) = 1),
   capacity            int              NULL,
   enrolled_count      int              NOT NULL DEFAULT 0,
   price               int              NULL,
@@ -2168,7 +2169,7 @@ CREATE TABLE partner_stores (
   lat                 decimal(9,6)     NULL,
   lng                 decimal(9,6)     NULL,
   phone               nvarchar(32)     NULL,
-  business_hours      json             NULL,
+  business_hours      nvarchar(max) NULL CONSTRAINT CK_partner_stores_business_hours_json CHECK (ISJSON(business_hours, OBJECT) = 1),
   map_url             nvarchar(500)    NULL,
   website_url         nvarchar(500)    NULL,
   applicable_tier     nvarchar(16)     NOT NULL DEFAULT 'all' CHECK (applicable_tier IN ('all','fan_club')),
@@ -2458,7 +2459,7 @@ CREATE TABLE products (
   slug            nvarchar(160)    NOT NULL,
   collection_id   uniqueidentifier NULL,
   is_new_arrival  bit              NOT NULL DEFAULT 0,
-  size_chart      json             NULL,
+  size_chart      nvarchar(max) NULL CONSTRAINT CK_products_size_chart_json CHECK (ISJSON(size_chart, OBJECT) = 1 OR ISJSON(size_chart, ARRAY) = 1),
   sort_order      int              NOT NULL DEFAULT 0,
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
                     CHECK (status IN ('draft','published')),
@@ -2847,7 +2848,7 @@ CREATE TABLE charity_programs_i18n (
   locale               nvarchar(10)   NOT NULL,
   name                 nvarchar(128)  NULL,
   target_audience        nvarchar(200) NULL,
-  content                 json         NULL,
+  content                 nvarchar(max) NULL CONSTRAINT CK_charity_programs_i18n_content_json CHECK (ISJSON(content, OBJECT) = 1 OR ISJSON(content, ARRAY) = 1),
   donation_content          nvarchar(max) NULL,
   cover_alt          nvarchar(200)    NULL,
   CONSTRAINT PK_charity_programs_i18n PRIMARY KEY CLUSTERED (charity_program_id, locale)
@@ -3216,7 +3217,7 @@ CREATE TABLE push_messages (
   deep_link              nvarchar(500)    NULL,
   audience_tier          nvarchar(16)     NOT NULL DEFAULT 'all' CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
   audience_club_id       uniqueidentifier NULL,
-  audience_team_codes    json             NULL,
+  audience_team_codes    nvarchar(max) NULL CONSTRAINT CK_push_messages_audience_team_codes_json CHECK (ISJSON(audience_team_codes, ARRAY) = 1),
   scheduled_at           datetime2(3)     NULL,
   status                 nvarchar(16)     NOT NULL DEFAULT 'draft'
                            CHECK (status IN ('draft','pending_review','scheduled','sending','sent','partial','failed','cancelled')),
@@ -3433,7 +3434,7 @@ CREATE TABLE app_settings (
   id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq                bigint IDENTITY(1,1) NOT NULL,
   setting_key            nvarchar(64)     NOT NULL,
-  setting_value          json             NULL,
+  setting_value          nvarchar(max) NULL CONSTRAINT CK_app_settings_setting_value_json CHECK (ISJSON(setting_value, OBJECT) = 1 OR ISJSON(setting_value, ARRAY) = 1),
   updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_by             uniqueidentifier NULL,
   CONSTRAINT PK_app_settings PRIMARY KEY NONCLUSTERED (id),

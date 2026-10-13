@@ -3,10 +3,11 @@ using System.Text.Json;
 namespace Tcrfc.Api.Common;
 
 /// <summary>
-/// 寫入資料庫 <c>json</c> 欄位前的共同檢查（docs/14 不變量、docs/18 E-111）。
-/// 正式環境（Azure SQL）的 json 欄位是<b>原生 json 型別</b>，只接受 JSON <b>物件或陣列</b>；
-/// 字串、數字、<c>true</c>／<c>false</c>、<c>null</c> 字面值都會被資料庫拒絕（Msg 13609）。
-/// 本機與測試用的 <c>nvarchar(max)</c> 什麼都收，所以只靠「是合法 JSON」的檢查會在正式環境才爆成 500。
+/// 寫入資料庫 JSON 內容欄位前的共同檢查（docs/14 不變量、docs/18 E-111）。
+/// 2026-10-13 起這些欄位是 <c>nvarchar(max)</c> ＋ 具名 CHECK <c>CK_&lt;表&gt;_&lt;欄&gt;_json</c>（<c>ISJSON(欄, OBJECT|ARRAY) = 1</c>），
+/// 不再使用原生 json 型別；資料庫層因此只接受 JSON <b>物件或陣列</b>（字串、數字、<c>true</c>／<c>false</c>、<c>null</c> 字面值、空字串都違反 CHECK）。
+/// 這裡的檢查<b>保留</b>：在應用層先擋成 400（日常中文訊息），比讓資料庫約束錯誤變成 500 友善；
+/// 「是合法 JSON」不等於「根是物件或陣列」，兩者要分開驗（E-111 的根因之一）。
 /// </summary>
 public static class JsonColumn
 {

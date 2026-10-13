@@ -78,9 +78,10 @@
    7. national_id_encrypted（身分證字號）必須是加密欄位，存密文字串，不存
       明碼；carrier_id_encrypted、two_factor_secret_encrypted、
       credential_encrypted 比照辦理。
-   8. JSON 用原生 json 型別，只有 DonationPayment.raw_response 與
-      donation_projects_i18n.description（說明內文，區塊編輯器內容）兩處，
-      只存不查。
+   8. JSON 內容欄位用 nvarchar(max) ＋ 具名 CHECK（CK_<表>_<欄>_json，ISJSON），
+      只有 DonationPayment.raw_response 與 donation_projects_i18n.description
+      （說明內文，區塊編輯器內容）兩處，只存不查；🔴 不使用原生 json 型別
+      （2026-10-13 使用者決定，docs/17 §6 第 2 項）。
    9. 索引、唯一鍵與外鍵刪除行為照 docs/16 §6。DonationInvoice.invoice_no
       是「已開立者唯一、未開立為空」，用篩選唯一索引
       （WHERE invoice_no IS NOT NULL）。
@@ -479,7 +480,7 @@ CREATE TABLE donation_payments (
     confirmed_at   datetime2(3)     NULL,
     amount         int              NOT NULL,
     status         nvarchar(16)     NOT NULL,
-    raw_response   json             NULL,       -- 只存不查
+    raw_response   nvarchar(max) NULL CONSTRAINT CK_donation_payments_raw_response_json CHECK (ISJSON(raw_response, OBJECT) = 1 OR ISJSON(raw_response, ARRAY) = 1),       -- 只存不查
         created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
         updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
@@ -720,7 +721,7 @@ CREATE TABLE donation_projects_i18n (
     locale              nvarchar(10)     NOT NULL,
     name                nvarchar(128)    NOT NULL,
     one_liner           nvarchar(255)    NULL,
-    description         json             NULL,      -- 說明內文，區塊編輯器內容，只存不查
+    description         nvarchar(max) NULL CONSTRAINT CK_donation_projects_i18n_description_json CHECK (ISJSON(description, OBJECT) = 1 OR ISJSON(description, ARRAY) = 1),      -- 說明內文，區塊編輯器內容，只存不查
     fund_usage          nvarchar(max)    NULL,       -- 款項用途
     cover_alt           nvarchar(255)    NULL,
     CONSTRAINT PK_donation_projects_i18n PRIMARY KEY CLUSTERED (donation_project_id, locale)

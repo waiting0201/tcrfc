@@ -1,28 +1,17 @@
 #!/usr/bin/env bash
-# deploy/local-ddl.sh — 產生 db/*.sql 的「本機 SQL Server 2022 相容版」，不改動原始檔
+# deploy/local-ddl.sh — 把 db/*.sql 原樣灌進本機 SQL Server（建庫＋建表），不改動原始檔
 #
-# 為什麼需要這支腳本：
-#   db/club-schema.sql、db/charity-schema.sql 用的是 Azure SQL 原生 `json` 型別
-#   （docs/12-database-schema.md §1.4 第 2 件、docs/17-deployment.md §6）。
-#   本機開發用的是一般 SQL Server 2022 容器，**SQL Server 2022 沒有原生 json 型別**，
-#   直接執行原始 .sql 會建表失敗。
+# 這支腳本做什麼：把 db/*.sql 原樣複製到 deploy/dev/.local-ddl-output/*.local.sql，並（--apply 系列）灌進本機 SQL Server。
 #
-#   這支腳本只轉換「本機要用的副本」，絕不改動版控裡的原始 db/*.sql
-#   ——那兩份檔案的真實來源是 docs/12 系列文件，不能被本機環境的限制牽著走
-#   （CLAUDE.md 全域規定第 2 條：docs/ 不得引入規劃書沒有的規格；本檔比照，不得讓「本機能跑」
-#   反過來改變交付物的綱要）。
+# 🔴 2026-10-13 起不再做任何型別轉換：使用者決定資料庫不使用 Azure SQL 原生 `json` 型別，JSON 內容欄位一律
+#   nvarchar(max) ＋ 具名 CHECK（ISJSON）。DDL 本來就是本機 2022 與 Azure SQL 都吃得下的版本，
+#   不再有「本機副本」與「正式 DDL」的差異（舊版曾把 12 個 json 欄位轉成 nvarchar(max)，導致本機與正式永遠不一致，
+#   是 docs/18 E-111 的根因）。保留 *.local.sql 這個輸出路徑只是為了不動既有呼叫端（setup-club-db.sh、ci.yml 等）。
 #
-# 轉換規則：只把「欄位型別是 json」換成 nvarchar(max)，不動其他任何字元。
-#   比對規則刻意寫成「前面是空白字元、後面是空白字元＋NULL」，而不是單純比對 "json" 這個詞——
-#   這份 DDL 裡還有很多註解也寫到「json」（例如「json 欄位一律 Azure SQL 原生 json 型別」），
-#   這些不是欄位型別宣告，不能被誤換。已實測：club-schema.sql 精準命中 10 處、
-#   charity-schema.sql 精準命中 2 處欄位宣告，註解行一處都沒被動到。
-#
-# ⚠️ 轉換後的 nvarchar(max) 什麼都收，原生 json 只收物件／陣列——驗證 json 寫入行為請用
-#    apps/api/scripts/native-json-test.sh（SQL Server 2025 原生 json 容器＋原樣 DDL，docs/18 E-111）。
+# 防呆：db/*.sql 若又出現 `json` 型別的欄位宣告，直接拒絕執行（見 reject_native_json）。
 #
 # 用法：
-#   deploy/local-ddl.sh                          只產生轉換後的 SQL，印出結果路徑
+#   deploy/local-ddl.sh                          只複製出 SQL（原樣），印出結果路徑
 #   deploy/local-ddl.sh --apply                  產生後，額外對本機 SQL Server instance 執行 sqlcmd
 #                                                 建庫＋建表（tcrfc_club、tcrfc_charity 兩個）
 #   deploy/local-ddl.sh --apply-club-db          只建立／灌 tcrfc_club（網站庫），資料庫已存在且已有
@@ -104,27 +93,28 @@ esac
 
 mkdir -p "${OUT_DIR}"
 
-# 只把「欄位型別是 json」換成 nvarchar(max)：比對「前面一個空白字元、json、後面一個以上空白字元、NULL」。
-# 用 sed -E（跨 macOS／Linux 皆可，不依賴 GNU-only 的 \b）。
-convert() {
-  local src="$1" dst="$2"
-  sed -E 's/([[:space:]])json([[:space:]]+NULL)/\1nvarchar(max)\2/g' "${src}" > "${dst}"
+# 🔴 不得再出現原生 json 型別的欄位宣告（欄位名稱＋空白＋json＋空白＋NULL/NOT NULL）。註解裡的「json」字樣不算。
+reject_native_json() {
+  local src="$1"
+  if grep -nE '^[[:space:]]+[a-z_0-9]+[[:space:]]+json([[:space:]]|,|$)' "${src}" >&2; then
+    echo "拒絕執行：${src} 含原生 json 型別欄位（上列）。2026-10-13 起 JSON 內容欄位一律 nvarchar(max) ＋ 具名 CHECK（ISJSON）——見 docs/14、docs/17 §6 第 2 項。" >&2
+    exit 1
+  fi
 }
 
-echo "==> 轉換 db/club-schema.sql"
-convert "${SRC_DIR}/club-schema.sql" "${OUT_DIR}/club-schema.local.sql"
-CLUB_CHANGED=$(diff "${SRC_DIR}/club-schema.sql" "${OUT_DIR}/club-schema.local.sql" | grep -c '^>' || true)
-echo "    共替換 ${CLUB_CHANGED} 處欄位型別 → ${OUT_DIR}/club-schema.local.sql"
+copy_ddl() {
+  local src="$1" dst="$2"
+  reject_native_json "${src}"
+  cp "${src}" "${dst}"
+}
 
-echo "==> 轉換 db/charity-schema.sql"
-convert "${SRC_DIR}/charity-schema.sql" "${OUT_DIR}/charity-schema.local.sql"
-CHARITY_CHANGED=$(diff "${SRC_DIR}/charity-schema.sql" "${OUT_DIR}/charity-schema.local.sql" | grep -c '^>' || true)
-echo "    共替換 ${CHARITY_CHANGED} 處欄位型別 → ${OUT_DIR}/charity-schema.local.sql"
+echo "==> 複製 db/club-schema.sql（原樣，不轉換）"
+copy_ddl "${SRC_DIR}/club-schema.sql" "${OUT_DIR}/club-schema.local.sql"
+echo "    → ${OUT_DIR}/club-schema.local.sql"
 
-echo
-echo "==> 原始檔完全未變動（只讀，未寫入）："
-echo "    ${SRC_DIR}/club-schema.sql"
-echo "    ${SRC_DIR}/charity-schema.sql"
+echo "==> 複製 db/charity-schema.sql（原樣，不轉換）"
+copy_ddl "${SRC_DIR}/charity-schema.sql" "${OUT_DIR}/charity-schema.local.sql"
+echo "    → ${OUT_DIR}/charity-schema.local.sql"
 
 if [[ "${APPLY}" -eq 0 && "${APPLY_CLUB_DB}" -eq 0 ]]; then
   echo

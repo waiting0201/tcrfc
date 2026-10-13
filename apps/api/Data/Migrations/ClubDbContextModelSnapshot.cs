@@ -2181,7 +2181,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_settings_row_seq"));
 
-                    b.ToTable("app_settings", (string)null);
+                    b.ToTable("app_settings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_app_settings_setting_value_json", "ISJSON(setting_value, OBJECT) = 1 OR ISJSON(setting_value, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Article", b =>
@@ -2482,7 +2485,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.HasIndex(new[] { "Locale" }, "IX_articles_i18n_locale");
 
-                    b.ToTable("articles_i18n", (string)null);
+                    b.ToTable("articles_i18n", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_articles_i18n_body_json", "ISJSON(body, OBJECT) = 1 OR ISJSON(body, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Banner", b =>
@@ -3441,7 +3447,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.HasIndex(new[] { "Locale" }, "IX_charity_programs_i18n_locale");
 
-                    b.ToTable("charity_programs_i18n", (string)null);
+                    b.ToTable("charity_programs_i18n", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_charity_programs_i18n_content_json", "ISJSON(content, OBJECT) = 1 OR ISJSON(content, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Club", b =>
@@ -8547,7 +8556,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_page_blocks_row_seq"));
 
-                    b.ToTable("page_blocks", (string)null);
+                    b.ToTable("page_blocks", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_page_blocks_content_json", "ISJSON(content, OBJECT) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PageVersion", b =>
@@ -8613,7 +8625,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_page_versions_row_seq"));
 
-                    b.ToTable("page_versions", (string)null);
+                    b.ToTable("page_versions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_page_versions_snapshot_json", "ISJSON(snapshot, OBJECT) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PagesI18n", b =>
@@ -8923,7 +8938,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_partner_stores_row_seq"));
 
-                    b.ToTable("partner_stores", (string)null);
+                    b.ToTable("partner_stores", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_partner_stores_business_hours_json", "ISJSON(business_hours, OBJECT) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PartnerStoresI18n", b =>
@@ -9664,7 +9682,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_products_row_seq"));
 
-                    b.ToTable("products", (string)null);
+                    b.ToTable("products", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_products_size_chart_json", "ISJSON(size_chart, OBJECT) = 1 OR ISJSON(size_chart, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.ProductImage", b =>
@@ -9942,7 +9963,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.HasIndex(new[] { "Locale" }, "IX_programs_i18n_locale");
 
-                    b.ToTable("programs_i18n", (string)null);
+                    b.ToTable("programs_i18n", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_programs_i18n_content_json", "ISJSON(content, OBJECT) = 1 OR ISJSON(content, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Proposal", b =>
@@ -10261,7 +10285,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_push_messages_row_seq"));
 
-                    b.ToTable("push_messages", (string)null);
+                    b.ToTable("push_messages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_push_messages_audience_team_codes_json", "ISJSON(audience_team_codes, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessageStat", b =>
@@ -10956,7 +10983,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_sessions_row_seq"));
 
-                    b.ToTable("sessions", (string)null);
+                    b.ToTable("sessions", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_sessions_weekly_schedule_json", "ISJSON(weekly_schedule, OBJECT) = 1 OR ISJSON(weekly_schedule, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Setting", b =>

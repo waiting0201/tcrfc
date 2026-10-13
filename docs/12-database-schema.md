@@ -113,7 +113,7 @@
 | `decimal(5,2)` | 百分比，`0.00`–`100.00` | **`decimal(5,2)`**。**只有分潤百分比用**，金額不用 |
 | `bool` | 真／假 | **`bit`** |
 | `date` / `datetime` | 日期／時間戳。`datetime` 一律存 **UTC**，前台依 `Asia/Taipei` 呈現。**唯一例外：賽事的 `match_on`＋`kickoff`（含 `original_*`）存台北當地時間**（App 規劃書 v3.14 §3.2，見 §12 第 31 點） | **`date`** / **`datetime2(3)`**。⚠️ SQL Server 沒有 `timestamptz`，時區語意由應用層保證（EF Core 設 `DateTimeKind.Utc` convention） |
-| `json` | 結構化但不需查詢的資料（區塊內容） | **原生 `json` 型別**（Azure SQL 已 GA，二進位儲存），不用 `nvarchar(max)`。**設計紀律仍是「只存不查」**，見 §1.4。🔴 **原生 `json` 只收物件或陣列，寫入純量（字串、數字、`true`、`null`）會被資料庫拒絕**（`docs/18` `E-111`）；自由文字欄位要存進 `json` 欄位時包成物件（例如 `partner_stores.business_hours` 存 `{"text":"…"}`） |
+| `json` | 結構化但不需查詢的資料（區塊內容） | **`nvarchar(max)` ＋ 具名 CHECK**（`CK_<表>_<欄>_json`，`ISJSON(欄, OBJECT|ARRAY) = 1`）。🔴 **2026-10-13 起不使用原生 `json` 型別**（使用者決定，`docs/17` §6 第 2 項）。**設計紀律仍是「只存不查」**，見 §1.4。CHECK 讓資料庫層只收物件或陣列（純量、空字串、非 JSON 都被拒，`docs/18` `E-111`）；自由文字欄位要存進 JSON 欄位時包成物件（例如 `partner_stores.business_hours` 存 `{"text":"…"}`） |
 | `enum(a,b,c)` | 有限值域 | **`nvarchar` ＋ CHECK 約束**（不用查表、不用數字碼）——值域演進最容易，且後台介面要顯示日常中文（[`06`](06-conventions.md)） |
 | `slug` | `string(160)`，`[a-z0-9-]`，**全站唯一或表內唯一**（逐表註明） | |
 
@@ -165,7 +165,7 @@
 | # | 議題 | 本檔的技術中立寫法 | **Azure SQL 定案** |
 |---|---|---|---|
 | 1 | **陣列欄位** | 一律以關聯表表達：`team_codes[]` → `CalendarEventTeam`；`value_tags[]` → `ValueTagLink`；FAQ 複選分類 → `FaqCategoryLink` | **維持關聯表。** SQL Server 無陣列型別，且 `ValueTagLink` 是多型關聯、要能反查「哪些內容掛了這個標籤」，關聯表本來就是對的形狀 |
-| 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub` 承載 | **用原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**「只存不查」維持為設計紀律**，原生型別只是保留逃生口。<br>🔴 **本機用 SQL Server 2022 容器驗證 DDL 時要先把 `json` 換成 `nvarchar(max)`**——原生 `json` 型別只在 Azure SQL Database 與 SQL Server 2025 有，2022 會報 `Msg 2715 Cannot find data type json`。**這是驗證環境的限制，不是 DDL 寫錯** |
+| 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub` 承載 | **用 `nvarchar(max)` ＋ 具名 `ISJSON` CHECK，不用原生 `json` 型別**（🔴 2026-10-13 使用者改判，`docs/17` §6 第 2 項）。**「只存不查」維持為設計紀律**。原生 `json` 的好處（二進位儲存、JSON 索引）用不到，卻讓本機 2022（沒有該型別）與 Azure SQL 永遠不一致（`docs/18` `E-111`）；現在本機、CI、正式庫是同一份 DDL。~~原決定：用原生 `json`；本機驗證要先轉 `nvarchar(max)`~~ 已作廢 |
 | 3 | **`CalendarEvent` 的實作形式** | 定義為**視圖**（`source_type` + `source_id` UNION）。若效能不足，改為**索引表**並以來源模組的寫入觸發同步 | **第一期用一般 VIEW。** 🔴 **SQL Server 的 indexed view 明文禁止 `UNION`／`UNION ALL`**，所以**沒有 materialized view 這條升級路**——不要去試。效能不足時直接走索引表 ＋ 寫入時同步，或先由 Redis 吸收 |
 | 4 | **全文檢索**（G-02 站內搜尋） | 綱要不含任何搜尋索引表，搜尋屬應用層 | **第一期用跨表 `LIKE` 比對**，不建搜尋索引表、不預先加索引（資料量在數百至數千列，掃描可接受）。升級路徑是 **Azure SQL 內建全文檢索**（有中文斷詞），**不需要外掛 Meilisearch／Typesense**。✅ H 批（2026-10-02）已做到 G-02 的分類篩選（`type`＋`facets`）與高亮所需資料（`tokens`＋`snippet`，高亮由前端做），見 `apps/api/README.md`「H 批」§4；不做的是繁中斷詞與相關度排序 |
 | **5** | **可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意** | 技術中立寫法：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」 | **採弱讀法，`UNIQUE (club_id, slug)` 就夠**——SQL Server 的唯一索引**把 NULL 當成相等**，複合唯一鍵本身已擋掉兩筆 `(NULL, 'about')`。**不加篩選唯一索引、不加觸發器**；「哪一筆對應這個網址」由路由的優先順序解決，見下 |

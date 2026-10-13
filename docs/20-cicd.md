@@ -179,7 +179,7 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 | 項目 | 內容 |
 |---|---|
 | 觸發 | `paths-filter` 的 `schema` 輸出：`db/club-schema.sql`、`db/charity-schema.sql`、`apps/api/Data/**`、`apps/api/CharityPlatform/Data/**`、`Tcrfc.Api.csproj`、`dotnet-tools.json`、`deploy/schema-*` 任一有變動 |
-| 跑在哪 | `ubuntu-latest`（**GitHub-hosted**）；`permissions: contents: read`；**不使用 secrets、不碰 self-hosted**（§4）。SQL Server 服務容器用 **`2025-latest`**（有原生 `json`，DDL 才能**原樣**建庫；`api` job 用 2022 所以得轉 `nvarchar(max)`） |
+| 跑在哪 | `ubuntu-latest`（**GitHub-hosted**）；`permissions: contents: read`；**不使用 secrets、不碰 self-hosted**（§4）。SQL Server 服務容器用 **`2025-latest`**（與 Azure SQL 引擎行為較接近；2026-10-13 起 DDL 不含原生 `json`，`api` job 的 2022 也灌同一份原樣 DDL） |
 | 基準怎麼來 | **不能「從空庫跑全部 migration」**：`InitialBaseline` 的 `Up()`／`Down()` 是空的（庫本來就是 DDL 建的），跑完是空庫。改為：**A 庫＝DDL 原樣建庫**（＝正式庫 `prod-db-init.sh init` 第 1 步的結果；migration 一律視為已套用，與 init 一致）；**B 庫＝EF 模型**（`dotnet ef dbcontext script` 的 create script，不連線產生）。兩庫各抽一份正規化快照後 diff |
 | 涵蓋 | 主站（`ClubDbContext` ↔ `db/club-schema.sql`）與慈善（`CharityDbContext` ↔ `db/charity-schema.sql`）。快照內容：表、欄位（型別／可空／identity／計算欄位）、預設值、主鍵、唯一鍵與索引（含唯一性、叢集、篩選條件、含入欄位、遞減）、外鍵（欄位對應／參照／刪除與更新動作）、CHECK、索引／約束／外鍵**名稱**、視圖、不預期的觸發程序／預存程序／函式／序列 |
 | 失敗時 | 輸出差異清單（改變／只在 DDL／只在 EF，依類別分組）。**DDL 與 EF 模型＋migration 兩邊一起改**（[`14`](14-invariants.md)）；要判斷哪邊對，以 DDL／`docs/12` 為準（§5 migration 注意事項 2） |
@@ -188,7 +188,7 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 
 **正規化（兩邊同一套，差異只會來自真的結構不同）**
 
-- **`json` ≡ `nvarchar(max)`**：EF 模型把這些欄位描述成 `nvarchar(max)`；本機 2022 沒有原生 `json`（`local-ddl.sh` 同一條規則轉換）。有原生 `json` 的伺服器（CI 的 2025）DDL 原樣建庫，快照仍視兩者等價。**取捨：看不出「`json` 還是 `nvarchar`」**——原生 json 只收物件／陣列的守門由 `native-json-test.sh` 與 `JsonColumnTests` 負責（`E-111`）。
+- ~~`json` ≡ `nvarchar(max)`~~ **已移除（2026-10-13）**：資料庫不再使用原生 `json` 型別，快照照實輸出型別、不做 json／nvarchar 等價正規化。**反向防呆**：`db/*.sql` 出現 `json` 型別欄位，`schema-drift-check.sh` 在建庫前就以結束碼 1 失敗並說明改法（`local-ddl.sh` 亦拒絕）。JSON 內容欄位的 12 個具名 CHECK（`CK_<表>_<欄>_json`）由 EF 模型描述（`Data/ClubDbContextJsonChecks.cs`、`CharityPlatform/Data/CharityDbContextCustomizations.cs`），所以「DDL 有、EF 沒有」或「名稱／定義不同」會被這道檢查抓到（不屬「單向容忍」）。
 - **唯一約束 ≡ 唯一索引**：DDL 多用 `ALTER TABLE … ADD CONSTRAINT … UNIQUE`，EF 的 `HasIndex().IsUnique()` 只能建唯一索引；儲存結構與查詢行為相同。取捨：看不出「約束 vs 索引」（影響只在手寫 migration 用 `DROP CONSTRAINT` 還是 `DROP INDEX`，§5 注意事項 2 已要求先查系統檢視）。
 - **預設值／CHECK 定義**：去空白與方括號、轉小寫；`N'x'`→`'x'`、`convert(bit,X)`→`X`、`(1)`→`1`、最外層成對括號反覆去除。不碰運算子與欄位名，真的不同的定義仍會報。
 - **系統自動命名**的約束（`CK__表__欄__8碼十六進位`）名稱每個庫都不同，不比名稱，**結構照比**。
@@ -410,7 +410,7 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 
 **順序（`init <club|charity>`，每個庫各跑一次、互不讀對方的設定檔）**
 
-1. **建表**：`db/club-schema.sql`／`db/charity-schema.sql` **原樣**（含 Azure SQL 原生 `json` 型別，不做 `nvarchar(max)` 轉換——那是 `deploy/local-ddl.sh` 給本機 SQL Server 2022 的副本）。
+1. **建表**：`db/club-schema.sql`／`db/charity-schema.sql` **原樣**（2026-10-13 起 DDL 不含原生 `json` 型別，JSON 欄位是 `nvarchar(max)` ＋ 具名 `ISJSON` CHECK，本機 2022 與 Azure SQL 是同一份；`local-ddl.sh` 只是原樣複製）。
 2. **參照資料**：`db/prod/club-reference-data.sql`／`charity-reference-data.sql`（由 `db/seed/generate-prod-reference-sql.py` 自原種子產生器篩出，**不是**種子資料；清單與界線見 [`db/seed/README.md`](../db/seed/README.md)「正式庫的參照資料」）。
 3. **`__EFMigrationsHistory`**：自 `apps/api/**/Migrations/*.Designer.cs` 的 `[Migration("…")]` 取出全部 ID 寫入，`ProductVersion` 取自 `ModelSnapshot`（目前 `10.0.0`，與 `Microsoft.EntityFrameworkCore` 套件版本一致）。🔴 **這一步放最後，因為它就是「初始化完成」的標記**：有歷史表＝已完成（`init` 與 `wipe-partial` 都拒絕再動）；沒有歷史表但有物件＝中途失敗的半成品，只能用 `wipe-partial` 清掉重來。
 4. **驗證**：資料表／外鍵／視圖數（**自 DDL 去註解後計數**，不寫死：目前主站 **189／482／1**、慈善 **30／67／0**；STATUS S0-6b 當時的 144／380 與 29／65 已隨後來新增的表過期）、歷史筆數（主站 21、慈善 2；自 `Designer.cs` 動態計數，不寫死）、參照資料各表筆數（讀 SQL 檔頭的 `-- MANIFEST` 行）、中文編碼、沒有測試帳號、`clubs.domain` 不是佔位值。
@@ -433,9 +433,34 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 - **對首次初始化的影響**：沒有。差異都不影響「標記為已套用」，也不影響目前的查詢行為；但第 1、2 項會讓**下一支碰到這些索引的 migration** 與正式庫不一致，建議由系統分析師裁決「以哪邊為準」後補一支對齊的 migration（比照 `AlignIndexesWithDdl`）。
 - **migration 裡沒有任何參照資料的 `INSERT`**（只有舊資料的 `UPDATE ... SET status`），所以「標記為已套用」不會漏掉該有的資料。
 
-**json 型別（正式庫用原樣 DDL 的原生 `json`，本機 2022 與預設整合測試是 `nvarchar(max)`）——✅ 2026-10-01 已裁決並修正：選項 A（改程式，保留 `docs/17` §6 第 2 項原生 `json`）**
+**json 型別——🔴 2026-10-13 使用者改判：不使用原生 `json`，一律 `nvarchar(max)` ＋ 具名 CHECK（取代下方 2026-10-01 的選項 A）**
 
-`deploy/local-ddl.sh` 的轉換只動 12 個欄位型別（主站 10：`page_blocks.content`、`page_versions.snapshot`、`articles_i18n.body`、`programs_i18n.content`、`sessions.weekly_schedule`、`partner_stores.business_hours`、`products.size_chart`、`charity_programs_i18n.content`、`push_messages.audience_team_codes`、`app_settings.setting_value`；慈善 2：`donation_payments.raw_response`、`donation_projects_i18n.description`）。原生 `json` **只接受 JSON 物件或陣列**（實測：`"abc"`、`123`、`true`、`null`、一般文字、`""` 全部被拒，`Msg 13609`；`[]`、`{...}`、`[1,2]` 可），`nvarchar(max)` 什麼都收，所以本機與測試看不到這類錯誤（`docs/18` `E-111`）。
+**決定**：資料庫不使用 Azure SQL 原生 `json` 型別（`docs/17` §6 第 2 項已改寫）。設計紀律是「只存不查」，原生型別的好處用不到；本機 SQL Server 2022 沒有該型別，造成「本機 `nvarchar(max)`、正式原生 `json`」永遠不一致，曾引發 `E-111`。**現行做法**：12 個欄位（主站 10、慈善 2）宣告為 `nvarchar(max) NULL CONSTRAINT CK_<表>_<欄>_json CHECK (ISJSON(欄, OBJECT|ARRAY) = 1)`，NULL 照樣通過。
+
+| 表.欄 | 允許的根節點 | 依據 |
+|---|---|---|
+| `page_blocks.content` | 物件 | 區塊內容（`PageBlockContentProcessor` 要求 `JsonObject`）；本機 33 筆皆物件 |
+| `page_versions.snapshot` | 物件 | 程式組出的頁面快照 |
+| `partner_stores.business_hours` | 物件 | `{"text":"…"}`（`JsonColumn.WrapText`） |
+| `push_messages.audience_team_codes` | 陣列 | 球隊代碼清單（`PushAudienceSpec.ParseTeamCodes` 反序列化為 `List<string>`） |
+| `articles_i18n.body` | 物件或陣列 | 純文字包成物件；區塊編輯器可為陣列（`NormalizeTextOrStructured`） |
+| `programs_i18n.content`、`sessions.weekly_schedule`、`products.size_chart`、`charity_programs_i18n.content` | 物件或陣列 | 輸入驗證 `IsObjectOrArray` 本來就兩者皆收；本機 `charity_programs_i18n.content` 有 6 筆陣列 |
+| `app_settings.setting_value` | 物件或陣列 | 通用鍵值表；現行寫入端皆物件，不限死以免日後設定值為陣列時要改約束 |
+| 慈善 `donation_payments.raw_response`、`donation_projects_i18n.description` | 物件或陣列 | 金流回應（`CoerceToObject`）；說明內文（`IsObjectOrArray`） |
+
+- **套用既有庫**：migration `JsonColumnsNvarcharWithCheck`（主站 `20261013024348`、慈善 `20261013024400`，各自 `ClubDbContext`／`CharityDbContext`），**冪等、先查後做、兩種庫都正確**：正式庫（DDL 建、原生 `json`）→ 新增暫存欄 `<欄>__nv nvarchar(max) NULL`、`CONVERT(nvarchar(max), 舊欄)` 複製、刪舊欄、`sp_rename` 改名（12 欄在 DDL 皆為可空、無索引／約束依附），再加 CHECK。🔴 **不能直接 `ALTER COLUMN … nvarchar(max)`**：SQL Server 不允許 json→nvarchar 的隱含轉換（`Msg 257`，2026-10-13 在 SQL Server 2025 以 `db-migrate.sh apply` 演練時抓到；單看 EF 產出的 SQL 與本機 2022 都看不出來）。代價：欄位在表中的順序移到最後（EF 與 schema-drift 都不看欄序），轉換時資料表在交易內被鎖，12 張表都很小；本機 2022／今天 DDL 新建的庫 → 型別已是 `nvarchar`，只補缺的 CHECK，已存在就全跳過。
+- **既有資料不合規時的策略（明確選定）**：**先用 `IF EXISTS … THROW 50001` 點名「哪張表哪個欄位」並中止整支 migration，不 `WITH NOCHECK`、不默默刪改資料**。理由：`WITH NOCHECK` 會留下不受信任的約束（`is_not_trusted = 1`），髒資料永遠留著、之後更新該列又被擋；默默刪改是改使用者資料；失敗是安全的（EF 每支 migration 一個交易，整支回滾）。原生 `json` 本來就只收物件或陣列，所以只有「限物件／限陣列」的 4 欄可能撞到另一種根節點；遇到時由人判斷怎麼修資料後重跑。
+- **Down**：只移除 CHECK（若存在）；欄位型別不改回 `json`（本機 2022 沒有該型別，且決定就是不再使用）。
+- 🔴 **EF 冪等腳本把整支 migration 放進同一個批次**，所以對欄位呼叫 `ISJSON` 的陳述式包成 `EXEC(N'…')`，到執行時才編譯（`ALTER COLUMN` 之後欄位型別才變）。
+- ⚠️ `ISJSON(欄, 型別)` 需要資料庫**相容性層級 ≥ 160**（SQL Server 2022 起；本機 2022 的 `tcrfc_club` 實測可用）。Azure SQL 新建庫通常為 160 以上，但**建庫後請 `SELECT compatibility_level FROM sys.databases` 確認**；低於 160 時 CHECK 會建立失敗。
+- **應用層守門保留**：`Common/JsonColumn.cs`（只收物件或陣列、不符回 400，比資料庫約束錯誤 500 友善）。
+- **驗收（2026-10-13）**：SQL Server 2025（原生 `json`，模擬正式庫）以 `git show 6fdd62d:db/*-schema.sql` 原樣建庫＋手寫歷史表（主站前 21 支、慈善前 2 支）＋原生 json 欄位已有資料 → 以 `deploy/db-migrate.sh generate/pending/apply`（rehearsal，sqlcmd 13 ＋ NOCOUNT 包裝）套到最新；另驗 `dotnet ef database update`、本機 2022 `database update`、`schema-drift-check.sh` 兩模式、「模擬正式庫快照 vs 今天 DDL 新建庫快照」逐項一致（**不再靠 json≡nvarchar 正規化過關**）。數字見 `STATUS.md` §9 同日列。
+
+---
+
+**（以下為 2026-10-01 的歷史紀錄，選項 A「保留原生 json、改程式守門」；已被上方 2026-10-13 的決定取代，保留是為了說明 `JsonColumn` 為何存在）**
+
+當時的背景：原生 `json` **只接受 JSON 物件或陣列**（實測：`"abc"`、`123`、`true`、`null`、一般文字、`""` 全部被拒，`Msg 13609`；`[]`、`{...}`、`[1,2]` 可），`nvarchar(max)` 什麼都收，所以本機與測試看不到這類錯誤（`docs/18` `E-111`）。
 
 - **前一輪演練**（SQL Server 2025 容器＋原樣 DDL＋整套測試）：1,016／1,019 通過，3 項失敗——2 項是營業時間寫成 JSON 字串純量（`partner_stores.business_hours`，特約店家建立回 500）、1 項是 `MembershipOrderTests` 依賴本機被手動改過的種子列（見下）。`prod-db-init.sh` 全流程、整份開發種子、`/readyz`、後台登入、`Microsoft.Data.SqlClient 7.1.0` 讀寫 json 欄位都正常。
 - **修正內容**（12 個欄位逐一盤點，寫入端全部確認）：
@@ -444,9 +469,8 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
   - **輸入驗證改成「必須是物件或陣列」並回 400**（中文訊息，不含「JSON」字樣）：`AdminInput.OptionalJson`（慈善項目 `charity_programs_i18n.content` 等）、`AdminProgramsRepository.ValidateContentJson`（課程 `programs_i18n.content` 與梯次 `sessions.weekly_schedule`）、`AdminShopProductsRepository.SerializeSizeChart`（`products.size_chart`）、`CharityProjectsAdminService.JsonText`（`donation_projects_i18n.description`）。
   - **已確認本來就安全**：`page_blocks.content`（`PageBlockContentProcessor` 要求 `JsonObject`）、`page_versions.snapshot`（程式組出物件）、`push_messages.audience_team_codes`（陣列）、`app_settings.setting_value`（`StoredMaintenance`／推播規則皆為物件）、`donation_payments.raw_response`（物件；另對金流回應加 `CoerceToObject` 保險，未來接真實金流不會因回應形狀中斷付款確認）。
   - **新聞內文 `articles_i18n.body`（比照營業時間，對外契約不變）**：後台目前送的是純文字（`apps/admin` 新聞編輯畫面是文字框），**寫入時純文字用 `JsonColumn.NormalizeTextOrStructured` 包成 `{"text":"…"}`（空白→`NULL`），已是物件或陣列的輸入原樣保存**（為日後區塊編輯器保留）；**讀取一律 `UnwrapText` 還原**：後台詳情（`AdminArticlesRepository.ToDetailDto`）、公開單篇端點（`ArticlesRepository`，`bodyJson` 欄位，App 共用同一端點）。其餘讀 `body` 的地方只有 `AdminSeoReportRepository` 的孤兒頁連結掃描（子字串比對，`WrapText` 用寬鬆編碼不把中文與 `&` 轉義，不受影響）；RSS／`llms.txt`／Schema 目前不讀內文。`apps/web` 目前**沒有任何頁面讀新聞 `bodyJson`**（grep 無命中），`apps/admin` 不用改。`ArticleBodyJsonColumnTests` 鎖定：純文字→資料庫為物件→後台與公開端點讀回原文字、物件輸入原樣、清空→`NULL`。
-- **可重跑的原生 json 測試**：[`apps/api/scripts/native-json-test.sh`](../apps/api/scripts/native-json-test.sh)（`up`／`test`／`reset`／`down`，獨立容器與埠 14335，用**原樣 DDL**＋既有種子腳本；見 `apps/api/README.md`「原生 json 測試」）。`JsonColumnTests` 在 2022 與 2025 上行為一致。結果（2026-10-01，含新聞內文包裝後）：**2025 原生 json 1,046 項全綠；2022 本機 1,046 項全綠**（修正前同一套測試在 2025 上 1,016／1,019）。
-- **CI 要不要改用 2025 映像檔（評估，未改 CI）**：**建議改**。`ci.yml` 的 `api` job 目前接一個用完即丟的 SQL Server 2022 容器、灌 `deploy/local-ddl.sh` 轉換後的 DDL；正式環境是原生 `json`，只要 CI 不跑原生 json，E-111 這一類錯就會重演。做法最小：把 `api` job 的映像檔換成 `mcr.microsoft.com/mssql/server:2025-latest`、**灌原樣 `db/*.sql`（不經 `local-ddl.sh`）**；本機實測 2025 容器相容性層級 160／170 都能建 `json` 欄位。代價：映像檔較大（拉取多約 30 秒）、2025 的行為若與 Azure SQL 有細微差異要另外留意（Azure SQL 才是最終真相）。若暫不改，至少把 `native-json-test.sh` 納入發版前檢查。**這是 `deployment-engineer` 的事，本輪未動。**
-- ⚠️ 仍無法在本機驗證的前提：Azure SQL **資料庫相容性層級**（本機 2025 在 160 與 170 都通過，Azure 若停在更低層級才有差異）。建庫後請 `SELECT compatibility_level FROM sys.databases` 確認。
+- ~~可重跑的原生 json 測試 `apps/api/scripts/native-json-test.sh`、CI 改接 2025 的建議~~ **2026-10-13 作廢並移除**：資料庫不再使用原生 json，本機 2022、CI、正式庫是同一份 DDL，不需要另起原生 json 容器；`JsonColumnTests` 驗證應用層守門。當時結果：2025 原生 json 1,046 項全綠、2022 本機 1,046 項全綠。
+- ⚠️ Azure SQL **資料庫相容性層級**：現在影響的是 `ISJSON(欄, 型別)` 約束（需 ≥ 160，見上），建庫後請 `SELECT compatibility_level FROM sys.databases` 確認。
 - ⚪ **`MembershipOrderTests.已付款但開通出錯…`（與 json 無關，已修）**：原本斷言種子的 tcrfc `single` 方案 `ends_on IS NULL`，那是既有開發庫被手動改過的結果（新建庫是 `2027-05-02`），在任何新建庫上必失敗。改成**測試自己準備狀態**：先快照方案原本的 `ends_on`、改成過去日期觸發開通失敗、`finally` 原樣還原。
 
 ### 🔵 正式庫的內容種子匯入與清除（2026-10-03，`deployment-engineer`；使用者決定）
@@ -474,7 +498,7 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 1. 標記放延伸屬性而非資料表（不影響 `verify` 的表數核對）；擁有權是**表層級**——匯入前擁有的表必須全空，所以匯入後表內每一列都算這次匯入的。
 2. 驗收期間在這些表**手動新增的內容會一起被刪**（`clean` 會先列出筆數與匯入時不同的表）；子資料（`*_i18n`、賽事紀錄、圖片關聯）由外鍵 CASCADE 一併刪除。
 3. 若**擁有的表以外**的資料仍參照這些列（例如前台真有人填的試訓報名參照了匯入的試訓場次），`clean` 整個中止、不刪任何東西，並指出是哪個外鍵；先處理那些資料再清（已於演練驗證）。
-4. 本機演練（SQL Server 2022 轉換版 DDL 與 2025 原生 `json`＋原樣 DDL 各一次）：init→import→verify→clean→verify、重複匯入被拒、被外鍵擋住時回滾，皆通過。
+4. 本機演練（當時 SQL Server 2022 轉換版 DDL 與 2025 原生 `json`＋原樣 DDL 各一次；2026-10-13 起已無轉換版）：init→import→verify→clean→verify、重複匯入被拒、被外鍵擋住時回滾，皆通過。
 5. 匯入走資料庫直寫，**不經 API 的 write-invalidate**：Redis 內快取的空列表要等 TTL 或手動清（`docker exec` 進 redis 容器用其環境變數 `redis-cli -a "$REDIS_PASSWORD" FLUSHALL`，密碼不經過命令列）；Cloudflare 若快取了前台 HTML 另清（`cd-purge-cache.sh` 的做法）。
 
 **sqlcmd 13 的陷阱與防呆（2026-10-07，`E-295`）**：`import` 不直接把種子交給 sqlcmd，而是產生 `SET NOCOUNT ON; GO; :r /work/content/<種子>` 的包裝檔。原因：映像檔 `mcr.microsoft.com/mssql-tools`（sqlcmd 13.1，**MCR 沒有獨立的 `mssql-tools18` 映像檔**）處理「INSERT 影響 0 列＋`UPDATE … FROM`」批次的 `(N rows affected)` 訊息時會報 `SqlState 24000 Invalid cursor state`、中斷連線、交易回滾，**結束碼卻是 0**（在 VM x86 與本機皆重現）；NOCOUNT 是連線層級設定，不改寫入內容，`db/prod/*.sql` 與 manifest 不變。防呆有兩層：`run_sql_file`（`prod-db-init.sh`，init／import／clean 共用）除結束碼外還掃輸出，出現 `Msg N, Level 11–25`、`SqlState`、`Sqlcmd:` 一律失敗；`import` 之後**立刻查匯入標記**，不存在就以非 0 結束並說明「匯入已回滾」，不再印「完成」。成功時 sqlcmd 輸出只剩 1 行是正常的（NOCOUNT 關掉了 rows affected）。
@@ -544,7 +568,7 @@ cd ~/seed-import-src            # 或 repo 根目錄
 1. **正式庫是 DDL 建的，不是 migration 長出來的**（`prod-db-init.sh` 把全部 migration 寫進歷史表）。**之後每支新 migration 的 `Up()` 都必須在「DDL 建的庫」上正確執行**——驗收要用這個形狀：`db/*.sql` 原樣建庫 → 手寫歷史表（除新 migration 外全部）→ `dotnet ef database update`（做法見 `AlignIndexesWithDdl2` 的驗收段）。只在 EF 模型建的庫上通過不算數。
 2. **索引與約束的名稱與型態以 DDL 為準**：DDL 的唯一鍵多半是**約束**（`ALTER TABLE … ADD CONSTRAINT … UNIQUE`），`DROP INDEX` 對它無效，要用 `DROP CONSTRAINT`；寫成「先查 `sys.indexes`／`sys.key_constraints` 再決定」最穩。
 3. **CHECK 約束不要用名稱**（見上「CHECK 名稱」影響評估）：要拆舊 CHECK 就用 `sys.check_constraints`（`parent_object_id`＋`parent_column_id` 或 `definition`）動態查出名稱再 `DROP`；要 `AlterColumn` 的欄位先查有沒有 CHECK 依賴它。
-4. **寫入 json 欄位的程式一律只寫物件或陣列**（`docs/14`，`E-111`）；新增 json 欄位要在 `Common/JsonColumn.cs` 的守門之下，並在 `JsonColumnTests` 補測。
+4. **寫入 JSON 內容欄位的程式一律只寫物件或陣列**（`docs/14`，`E-111`）；新增 JSON 欄位要在 `Common/JsonColumn.cs` 的守門之下，並在 `JsonColumnTests` 補測；**欄位型別一律 `nvarchar(max)` ＋ 具名 CHECK，DDL／EF 模型 `HasCheckConstraint`／冪等 migration 三處同改**（本檔「json 型別」一節）。
 5. ✅ **`db-migrate.yml` 已實作（2026-10-02，見上節）**。正式庫之後要套用新 migration 走這條：手動觸發 → `pending` 唯讀比對 → `production-db` 核准 → `apply`。`AlignIndexesWithDdl2` 在正式庫的實際效果＝補上 `IX_form_fields_i18n_locale`、`IX_sponsor_activations_i18n_locale`（若 DDL 是補上前建的庫），其餘無操作，所以**不套用也不影響執行**，不是阻塞；**正式庫已於 2026-10-02 初始化，歷史表已含該筆（21 筆），第一次 `db-migrate` 預期待套用為零**。
 
 ### 🔴 新增 migration 的驗收：一定要跑一次「Probe」確認基準沒有偏移（`docs/18-work-errors.md` E-45）

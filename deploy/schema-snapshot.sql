@@ -6,11 +6,10 @@
    由 deploy/schema-drift-check.sh 對兩個庫各抽一份後 sort 再 diff。
 
    正規化規則（兩邊用同一份腳本，差異只會來自真的結構不同）：
-     - 型別：json 與 nvarchar(max) 視為等價，一律寫成 nvarchar(max)。
-       原因：Azure SQL／SQL Server 2025 才有原生 json；EF 模型把這些欄位描述成 nvarchar(max)，
-       本機 SQL Server 2022 的 DDL 副本也被 deploy/local-ddl.sh 換成 nvarchar(max)。
-       取捨：此檢查看不出「json 還是 nvarchar」的差別（原生 json 的物件／陣列守門另由
-       apps/api/scripts/native-json-test.sh 與 JsonColumnTests 負責，docs/18 E-111）。
+     - 型別：照實輸出，不做任何等價正規化。2026-10-13 起資料庫不使用原生 json 型別（JSON 內容欄位是
+       nvarchar(max) ＋ 具名 ISJSON CHECK），所以 json 與 nvarchar 不再有「視為等價」的理由；
+       DDL 或資料庫又出現 json 欄位時，它會以 `json` 型別出現在快照裡並與 EF 模型（nvarchar(max)）形成差異，
+       另外 deploy/schema-drift-check.sh 會先於建庫直接拒絕。
      - 預設值／CHECK／計算欄位定義：去掉所有空白與最外層括號、轉小寫、拿掉方括號
        （[col] 與 col 視為相同），讓 EF 與手寫 DDL 的排版差異不算差異。
      - 唯一約束（ALTER TABLE ADD CONSTRAINT … UNIQUE）與唯一索引（CREATE UNIQUE INDEX）視為等價（都歸 IDX|）：
@@ -37,7 +36,6 @@ UNION ALL
 /* ---- COLUMN：型別、可空、identity、計算欄位 ---- */
 SELECT CONCAT('COL|', t.name, '|', c.name, '|',
     CASE
-      WHEN ty.name IN ('json') THEN 'nvarchar(max)'
       WHEN ty.name IN ('nvarchar','nchar') THEN CONCAT(ty.name, '(', CASE WHEN c.max_length = -1 THEN 'max' ELSE CAST(c.max_length/2 AS varchar(10)) END, ')')
       WHEN ty.name IN ('varchar','char','varbinary','binary') THEN CONCAT(ty.name, '(', CASE WHEN c.max_length = -1 THEN 'max' ELSE CAST(c.max_length AS varchar(10)) END, ')')
       WHEN ty.name IN ('decimal','numeric') THEN CONCAT(ty.name, '(', c.precision, ',', c.scale, ')')

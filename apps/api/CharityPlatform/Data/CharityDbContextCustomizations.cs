@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
+using Tcrfc.Api.CharityPlatform.Data.Entities;
 
 namespace Tcrfc.Api.CharityPlatform.Data;
 
@@ -24,5 +25,19 @@ public partial class CharityDbContext
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
         configurationBuilder.Conventions.Remove(typeof(ForeignKeyIndexConvention));
+    }
+
+    /// <summary>
+    /// JSON 內容欄位的具名 CHECK（2026-10-13 使用者決定：資料庫不使用原生 <c>json</c> 型別，一律 <c>nvarchar(max)</c> ＋
+    /// <c>CK_&lt;表&gt;_&lt;欄&gt;_json CHECK (ISJSON(...))</c>；docs/17 §6 第 2 項）。模型描述它們，是為了讓
+    /// <c>deploy/schema-drift-check.sh</c> 比對「DDL 的 CHECK」與「EF 認為存在的 CHECK」；名稱與定義和 <c>db/charity-schema.sql</c> 一致，
+    /// 對應 migration <c>JsonColumnsNvarcharWithCheck</c>。新增 JSON 內容欄位時 DDL、這裡、migration 三處一起改。
+    /// </summary>
+    partial void OnModelCreatingPartial(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<DonationPayment>().ToTable(t => t.HasCheckConstraint("CK_donation_payments_raw_response_json",
+            "ISJSON(raw_response, OBJECT) = 1 OR ISJSON(raw_response, ARRAY) = 1"));
+        modelBuilder.Entity<DonationProjectsI18n>().ToTable(t => t.HasCheckConstraint("CK_donation_projects_i18n_description_json",
+            "ISJSON(description, OBJECT) = 1 OR ISJSON(description, ARRAY) = 1"));
     }
 }

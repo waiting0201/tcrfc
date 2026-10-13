@@ -117,18 +117,18 @@ drop_scratch() { local db="$1"; assert_scratch_db "${db}"
 create_scratch() { local db="$1"; assert_scratch_db "${db}"; drop_scratch "${db}"
   sql_exec master -Q "CREATE DATABASE [${db}];" >/dev/null; }
 
-has_native_json() { [[ "$(sql_exec master -h -1 -W -Q "SET NOCOUNT ON; SELECT CASE WHEN TYPE_ID('json') IS NULL THEN 0 ELSE 1 END;" | tr -d '[:space:]')" == "1" ]]; }
-
-# 取得「這個 SQL Server 吃得下的 DDL」：有原生 json（Azure SQL／SQL Server 2025）就原樣；
-# 沒有（2022）就套 local-ddl.sh 同一條規則（只換 NULL 前的 json 欄位型別）。快照會把兩者正規化為同一種，見 schema-snapshot.sql。
-JSON_NATIVE=0; has_native_json && JSON_NATIVE=1
-echo "    原生 json 型別：$([[ ${JSON_NATIVE} -eq 1 ]] && echo '有（DDL 原樣建庫）' || echo '無（DDL 以 local-ddl.sh 同一條規則轉 json→nvarchar(max)；快照視兩者等價）')"
-ddl_for() { # ddl_for <club|charity> → 檔案路徑
-  local src="${REPO_ROOT}/db/$1-schema.sql" dst="${WORK}/$1-schema.sql"
-  if [[ ${JSON_NATIVE} -eq 1 ]]; then cp "${src}" "${dst}"
-  else sed -E 's/([[:space:]])json([[:space:]]+NULL)/\1nvarchar(max)\2/g' "${src}" > "${dst}"; fi
-  echo "${dst}"
+# 🔴 DDL 不得使用原生 json 型別（2026-10-13 使用者決定：JSON 內容欄位一律 nvarchar(max) ＋ 具名 ISJSON CHECK；docs/14、docs/17 §6 第 2 項）。
+# 這道檢查不需要連線，放在建庫之前：DDL 又出現 json 欄位就直接失敗（結束碼 1）並說明怎麼改。
+reject_native_json() { # reject_native_json <club|charity>
+  local src="${REPO_ROOT}/db/$1-schema.sql"
+  if grep -nE '^[[:space:]]+[a-z_0-9]+[[:space:]]+json([[:space:]]|,|$)' "${src}"; then
+    echo "🔴 schema-drift-check 失敗：${src} 含原生 json 型別欄位（上列）。" >&2
+    echo "   2026-10-13 起資料庫不使用原生 json：欄位宣告為 nvarchar(max) NULL CONSTRAINT CK_<表>_<欄>_json CHECK (ISJSON(<欄>, OBJECT|ARRAY) = 1)，" >&2
+    echo "   同時在 EF 模型（ClubDbContextJsonChecks／CharityDbContextCustomizations）與 migration 補同名 CHECK（docs/14、docs/20 §5）。" >&2
+    exit 1
+  fi
 }
+ddl_for() { echo "${REPO_ROOT}/db/$1-schema.sql"; } # DDL 原樣建庫（不再有 json→nvarchar 的轉換副本）
 
 snapshot() { # snapshot <db> <輸出檔>
   local db="$1" out="$2"; assert_readable_db "${db}"
@@ -157,6 +157,7 @@ ef_script() { # ef_script <club|charity> <輸出檔>：dotnet ef dbcontext scrip
 
 rc=0
 for which in "${targets[@]}"; do
+  reject_native_json "${which}"
   a_db="tcrfc_drift_${which}_ddl"
   echo
   echo "════════ ${which} ════════"

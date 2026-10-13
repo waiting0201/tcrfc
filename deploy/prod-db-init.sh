@@ -26,7 +26,7 @@
 # 🔴 只給本機演練用的覆寫（必須同時設 PRODINIT_REHEARSAL=1；目標主機若是 *.database.windows.net 一律拒絕）：
 #   PRODINIT_REHEARSAL=1  PRODINIT_TRUST_CERT=1（sqlcmd -C，本機容器是自簽憑證）
 #   PRODINIT_EXPECT_DB_CLUB／PRODINIT_EXPECT_DB_CHARITY（演練庫名）
-#   PRODINIT_DDL_DIR（含 club-schema.sql／charity-schema.sql 的目錄；本機 SQL Server 2022 沒有 json 型別，演練時放轉換過的副本）
+#   PRODINIT_DDL_DIR（含 club-schema.sql／charity-schema.sql 的目錄；演練時可放修改過的副本；2026-10-13 起 DDL 不含原生 json 型別，不需轉換）
 #
 # 安全模型：
 #   - 連線資訊從 env 檔解析後以環境變數（SQLCMD*）傳進容器：`docker run -e NAME` 不帶值，密碼不會出現在 ps／命令列／輸出。

@@ -958,7 +958,10 @@ namespace Tcrfc.Api.CharityPlatform.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "Seq" }, "UQ_donation_payments_seq"));
 
-                    b.ToTable("donation_payments", (string)null);
+                    b.ToTable("donation_payments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_donation_payments_raw_response_json", "ISJSON(raw_response, OBJECT) = 1 OR ISJSON(raw_response, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.CharityPlatform.Data.Entities.DonationProject", b =>
@@ -1121,7 +1124,10 @@ namespace Tcrfc.Api.CharityPlatform.Data.Migrations
 
                     b.HasIndex(new[] { "Locale" }, "IX_donation_projects_i18n_locale");
 
-                    b.ToTable("donation_projects_i18n", (string)null);
+                    b.ToTable("donation_projects_i18n", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_donation_projects_i18n_description_json", "ISJSON(description, OBJECT) = 1 OR ISJSON(description, ARRAY) = 1");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.CharityPlatform.Data.Entities.DonationStore", b =>

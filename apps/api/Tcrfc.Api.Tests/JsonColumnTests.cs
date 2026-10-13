@@ -9,9 +9,8 @@ using Xunit;
 namespace Tcrfc.Api.Tests;
 
 /// <summary>
-/// 寫入 json 欄位的守門測試（docs/18 E-111）。正式環境的 json 是原生型別，只收物件或陣列；
-/// 本機 SQL Server 2022 的 nvarchar(max) 什麼都收，所以「純量被擋成 400」必須在應用層驗證，
-/// 這組測試在 2022 與 2025（apps/api/scripts/native-json-test.sh）上都能跑、行為一致。
+/// 寫入 JSON 內容欄位的守門測試（docs/18 E-111）。2026-10-13 起欄位是 nvarchar(max) ＋ 具名 ISJSON CHECK（不再用原生 json 型別），
+/// 資料庫層也只收物件或陣列；應用層仍先擋成 400（比資料庫約束錯誤 500 友善），這組測試驗證應用層守門。
 /// </summary>
 public sealed class JsonColumnTests
 {

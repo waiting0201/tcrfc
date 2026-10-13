@@ -87,7 +87,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `MembershipPayment` | 手動開通時寫入：`club_id`＝**受益俱樂部**（目前操作的俱樂部）、`collecting_club_id`＝**收款主體俱樂部**（`clubs.is_collecting_subject = 1`，代收代付）；`method`：`linepay`／`onsite`；`handled_by`＝經辦人 |
 | `MembershipBenefit` | **不帶 `club_id`**，靠父表方案；`benefit_group`：`member_card`／`store_discount`／`jersey`／`event`；`status`：`draft`／`published`；側表 `name`／`description`／`group_label`（由分組代碼自動帶入雙語）／`free_value`／`paid_value` |
 | `JerseyIssue` | `membership_id`（可空，舊資料）；`status`：`pending`／`shipped`／`received`；`delivery_method`：`ship`（寄送，須有電話與地址）／`pickup`（到場領取，不能標「已寄出」）；件數不得超過方案 `jersey_quota` |
-| `PartnerStore` | **座標（2026-10-05）：`lat`／`lng` 要嘛都空（＝未確認，App 地圖不顯示、不計距離）、要嘛都有且在範圍內（緯度 -90–90、經度 -180–180）；`(0, 0)` 這類替代值一律不允許（`CK_partner_stores_coords`＋後台驗證）**。`club_id` 可為空＝兩隊共同（**只有系統管理員能編輯**）；`applicable_tier`：`all`／`fan_club`；`status`：`draft`／`published`；`address` 存中文地址、`partner_stores_i18n.address` 只存英文；`business_hours` 是 `json` 欄位，後台把自由文字存成 **JSON 物件 `{"text":"…"}`**（⛔ 不是字串純量——原生 `json` 型別只收物件與陣列，`docs/18` `E-111`；讀取端相容舊的字串純量，對外 API 仍是純文字）；`lat`／`lng` 成對、人工確認後儲存（不做即時 geocoding） |
+| `PartnerStore` | **座標（2026-10-05）：`lat`／`lng` 要嘛都空（＝未確認，App 地圖不顯示、不計距離）、要嘛都有且在範圍內（緯度 -90–90、經度 -180–180）；`(0, 0)` 這類替代值一律不允許（`CK_partner_stores_coords`＋後台驗證）**。`club_id` 可為空＝兩隊共同（**只有系統管理員能編輯**）；`applicable_tier`：`all`／`fan_club`；`status`：`draft`／`published`；`address` 存中文地址、`partner_stores_i18n.address` 只存英文；`business_hours` 是 JSON 內容欄位（`nvarchar(max)` ＋ `CK_partner_stores_business_hours_json`，只收物件），後台把自由文字存成 **JSON 物件 `{"text":"…"}`**（⛔ 不是字串純量——CHECK 只收物件與陣列，`docs/18` `E-111`；讀取端相容舊的字串純量，對外 API 仍是純文字）；`lat`／`lng` 成對、人工確認後儲存（不做即時 geocoding） |
 | `Trial`（P4） | `status`：`開放`／`額滿`／`候補`／`已結束`；`enrolled_count` 由報名狀態原子調整（待確認／已確認／已繳費／完成佔名額，取消與候補不佔）；達 `capacity` 時「開放」單向轉「額滿」 |
 | `CalendarTeamSetting`（L3） | `team_id` UNIQUE；`colour`／`sort_order` 空＝沿用 `teams.team_color`／`teams.sort_order`；`is_public = 0` 的隊別不出現在前台選單，其訂閱 feed 回 404 |
 
@@ -678,7 +678,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 > **不是新規格**：欄位都是規劃書 §10.1 列出的，加上 M2／M3／M5 功能需要的附屬表（標「補」）。
 > DDL 在 `db/club-schema.sql` 的 **4.13**；EF 實體與 migration `AlignSchemaD1`。**全部不加 `club_id`**（兩隊共用一個 App，見 `docs/12` §12 第 46 點）。
 > 通則同 [§6](#6-關鍵資料表明細)：`id` 非叢集主鍵＋`row_seq` 叢集鍵（`ad_events` 是 `bigint IDENTITY` 叢集主鍵、`ad_daily_stats`／`push_message_stats`／`*_i18n` 是複合主鍵）；
-> 金額 `int` 元；雙語走 `*_i18n`（`zh-Hant` 必存、`en` 可缺）；json 欄位在 Azure SQL 為原生 `json`（本機 SQL Server 2022 轉 `nvarchar(max)`，見 `deploy/local-ddl.sh`）；時間戳一律 UTC。
+> 金額 `int` 元；雙語走 `*_i18n`（`zh-Hant` 必存、`en` 可缺）；JSON 內容欄位一律 `nvarchar(max)` ＋ 具名 CHECK `CK_<表>_<欄>_json`（`ISJSON`；2026-10-13 起不使用原生 `json` 型別，`docs/17` §6 第 2 項）；時間戳一律 UTC。
 
 ### 16.1 廣告（E4–E6）
 
