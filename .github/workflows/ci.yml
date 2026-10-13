@@ -44,6 +44,7 @@ jobs:
       shared: ${{ steps.filter.outputs.shared }}
       compose_env: ${{ steps.filter.outputs.compose_env }}
       prod_seed: ${{ steps.filter.outputs.prod_seed }}
+      schema: ${{ steps.filter.outputs.schema }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -85,6 +86,16 @@ jobs:
               - 'db/prod/**'
               - 'content/blue-whale/data/**'
               - 'site/src/data/**'
+            schema:
+              - 'db/club-schema.sql'
+              - 'db/charity-schema.sql'
+              - 'apps/api/Data/**'
+              - 'apps/api/CharityPlatform/Data/**'
+              - 'apps/api/Tcrfc.Api.csproj'
+              - 'apps/api/.config/dotnet-tools.json'
+              - 'deploy/schema-drift-check.sh'
+              - 'deploy/schema-snapshot.sql'
+              - 'deploy/schema-diff.py'
             shared:
               - 'shared/**'
               - 'apps/api/**'
@@ -397,3 +408,68 @@ jobs:
         run: |
           python3 db/seed/generate-prod-reference-sql.py --check \
             || { echo "::error::db/prod/*-reference-data.sql 與開發種子不一致。請在本機執行 python3 db/seed/generate-prod-reference-sql.py 並一併提交（docs/18 E-157）。"; exit 1; }
+
+  # ── 資料庫結構「兩個真實來源」一致性檢查（docs/20 §3「schema-drift」、docs/18 E-321）─────────────────
+  # 結構有兩個真實來源：db/*-schema.sql（正式庫由 prod-db-init.sh 原樣建表，再把全部 migration 標記為已套用）
+  # 與 EF 模型＋migration。`api` job 的 has-pending-model-changes 只比「模型 vs migration snapshot」，
+  # 看不到 DDL；改結構漏改 DDL 或漏寫 migration，正式庫與程式相信的結構就悄悄分岔。
+  # 這一步：A 庫＝DDL 原樣建庫；B 庫＝EF 模型（dotnet ef dbcontext script）；兩庫抽正規化快照後 diff，
+  # 不一致就失敗並印出差異清單。主站與慈善兩個 DbContext 都涵蓋。做法與排除清單見 deploy/schema-drift-check.sh 檔頭。
+  #
+  # SQL Server 用 2025-latest（有原生 json 型別，DDL 才能「原樣」建庫，不必像 api job 那樣轉 nvarchar(max)）。
+  # 🔴 公開 repo 防護鏈（docs/20 §4）：hosted runner、不碰 self-hosted、不使用 secrets、權限只有 contents: read；
+  # SA 密碼只活在這個用完即丟的容器裡。
+  schema-drift:
+    name: 資料庫結構一致性檢查（DDL vs EF 模型）
+    needs: changes
+    if: needs.changes.outputs.schema == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      CI_MSSQL_SA_PASSWORD: 'Ci_Throwaway_Str0ng!24'
+    services:
+      mssql:
+        image: mcr.microsoft.com/mssql/server:2025-latest
+        env:
+          ACCEPT_EULA: 'Y'
+          MSSQL_SA_PASSWORD: 'Ci_Throwaway_Str0ng!24'
+        options: >-
+          --name mssql-ci
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 等待 SQL Server 就緒
+        run: |
+          for i in $(seq 1 45); do
+            if docker exec mssql-ci /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "${CI_MSSQL_SA_PASSWORD}" -C -Q "SELECT 1" >/dev/null 2>&1; then
+              echo "SQL Server 就緒（等待 ${i} 次，每次 2 秒）"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "SQL Server 逾時未就緒" >&2
+          exit 1
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 還原 NuGet 套件快取
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('apps/api/packages.lock.json', 'apps/api/Tcrfc.Api.Tests/packages.lock.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: dotnet restore（--locked-mode，鎖檔漂移直接失敗）
+        run: dotnet restore apps/api/Tcrfc.Api.csproj --locked-mode
+
+      - name: DDL vs EF 模型（deploy/schema-drift-check.sh；只建 tcrfc_drift_* 一次性庫）
+        env:
+          LOCAL_MSSQL_CONTAINER: mssql-ci
+          MSSQL_DEV_SA_PASSWORD: ${{ env.CI_MSSQL_SA_PASSWORD }}
+        run: |
+          ./deploy/schema-drift-check.sh \
+            || { echo "::error::資料庫結構分岔：db/*-schema.sql 與 EF 模型不一致。改結構必須 DDL 與 EF 模型＋migration 兩邊一起改（docs/14、docs/20 §3「schema-drift」）。差異清單見上方輸出。"; exit 1; }

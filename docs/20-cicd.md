@@ -45,7 +45,7 @@
 |---|---|---|---|
 | push → `master` | `deploy.yml` | build（僅變動的應用）→ push ghcr → 部署 → 健康檢查 → 失敗自動回滾 → 清快取（選配） | build 用 hosted；部署用 self-hosted（label `tcrfc-vm`，`environment: production`） |
 | 手動（`workflow_dispatch`） | `deploy.yml` | **五個映像檔全部重建並推送**（不看變動範圍）。首次部署、映像檔遺失或要強制重建時用（2026-10-02 加，E-112）。映像檔標籤只有 `:master` 與 git SHA，**沒有 `:latest`**——`IMAGE_TAG` 預設 `master` | hosted |
-| `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ **`shared/` 契約漂移檢查**（`shared-contract` job，AP-8，見 §3；後台前端若日後有型別產生器再加另一個漂移檢查）＋ **正式庫種子一致性檢查**（`prod-seed` job，`E-157`，見 §3） | 一律 hosted |
+| `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ **`shared/` 契約漂移檢查**（`shared-contract` job，AP-8，見 §3；後台前端若日後有型別產生器再加另一個漂移檢查）＋ **正式庫種子一致性檢查**（`prod-seed` job，`E-157`，見 §3）＋ **資料庫結構一致性檢查**（`schema-drift` job，`E-321`，DDL vs EF 模型，見 §3） | 一律 hosted |
 | 手動 | `db-migrate.yml` | 套用 EF Core migration，需 `production-db` 環境核准 | self-hosted |
 | 手動 | `rollback.yml` ✅ | 輸入 SHA，把正式 VM 退回那一版（映像檔標籤；不重建、不 migrate），§6 | self-hosted |
 
@@ -171,6 +171,43 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 | 為什麼不需要資料庫 | 兩支腳本只是在記憶體內重跑原產生器、與已提交的檔案比對文字；純 Python 標準庫，不連線、不需 `pip install` |
 | 失敗時 | 在本機執行 `python3 db/seed/generate-prod-content-sql.py`（與 `generate-prod-reference-sql.py`），把變更的 `db/prod/*.sql` 一起提交 |
 | 擋不住什麼 | 只守「提交的 `db/prod/*.sql` ＝ 現行種子產生結果」；**不驗證 SQL 能在資料庫執行**（那是 `deploy/prod-seed-import.sh` 演練的事） |
+
+### `schema-drift`：資料庫結構「兩個真實來源」一致性檢查（`E-321`，2026-10-13）
+
+資料庫結構有**兩個真實來源**：`db/club-schema.sql`／`db/charity-schema.sql`（手寫 DDL，正式庫由 `deploy/prod-db-init.sh` 原樣建表，再把**全部** EF migration 寫進 `__EFMigrationsHistory` 標記為已套用、一支都沒執行）與 **EF 模型＋migration**（程式讀寫時相信的結構）。既有的 `has-pending-model-changes`（§5）只比「模型 vs migration snapshot」，**看不到 DDL**：改結構時漏改 DDL，正式庫就沒有新欄位；漏寫 migration，既有庫升級不到——兩邊靜靜分岔，沒有任何東西變紅。`ci.yml` 有獨立 job 把關（實作 [`deploy/schema-drift-check.sh`](../deploy/schema-drift-check.sh)、[`schema-snapshot.sql`](../deploy/schema-snapshot.sql)、[`schema-diff.py`](../deploy/schema-diff.py)）：
+
+| 項目 | 內容 |
+|---|---|
+| 觸發 | `paths-filter` 的 `schema` 輸出：`db/club-schema.sql`、`db/charity-schema.sql`、`apps/api/Data/**`、`apps/api/CharityPlatform/Data/**`、`Tcrfc.Api.csproj`、`dotnet-tools.json`、`deploy/schema-*` 任一有變動 |
+| 跑在哪 | `ubuntu-latest`（**GitHub-hosted**）；`permissions: contents: read`；**不使用 secrets、不碰 self-hosted**（§4）。SQL Server 服務容器用 **`2025-latest`**（有原生 `json`，DDL 才能**原樣**建庫；`api` job 用 2022 所以得轉 `nvarchar(max)`） |
+| 基準怎麼來 | **不能「從空庫跑全部 migration」**：`InitialBaseline` 的 `Up()`／`Down()` 是空的（庫本來就是 DDL 建的），跑完是空庫。改為：**A 庫＝DDL 原樣建庫**（＝正式庫 `prod-db-init.sh init` 第 1 步的結果；migration 一律視為已套用，與 init 一致）；**B 庫＝EF 模型**（`dotnet ef dbcontext script` 的 create script，不連線產生）。兩庫各抽一份正規化快照後 diff |
+| 涵蓋 | 主站（`ClubDbContext` ↔ `db/club-schema.sql`）與慈善（`CharityDbContext` ↔ `db/charity-schema.sql`）。快照內容：表、欄位（型別／可空／identity／計算欄位）、預設值、主鍵、唯一鍵與索引（含唯一性、叢集、篩選條件、含入欄位、遞減）、外鍵（欄位對應／參照／刪除與更新動作）、CHECK、索引／約束／外鍵**名稱**、視圖、不預期的觸發程序／預存程序／函式／序列 |
+| 失敗時 | 輸出差異清單（改變／只在 DDL／只在 EF，依類別分組）。**DDL 與 EF 模型＋migration 兩邊一起改**（[`14`](14-invariants.md)）；要判斷哪邊對，以 DDL／`docs/12` 為準（§5 migration 注意事項 2） |
+| 本機執行 | `set -a; source .env; set +a; ./deploy/schema-drift-check.sh`（≈17 秒；只建四個 `tcrfc_drift_*` 一次性庫，跑完丟掉）。`--target club|charity`、`--keep`、`--dry-run` |
+| 擋不住什麼 | 見下方「正規化／排除／單向容忍」 |
+
+**正規化（兩邊同一套，差異只會來自真的結構不同）**
+
+- **`json` ≡ `nvarchar(max)`**：EF 模型把這些欄位描述成 `nvarchar(max)`；本機 2022 沒有原生 `json`（`local-ddl.sh` 同一條規則轉換）。有原生 `json` 的伺服器（CI 的 2025）DDL 原樣建庫，快照仍視兩者等價。**取捨：看不出「`json` 還是 `nvarchar`」**——原生 json 只收物件／陣列的守門由 `native-json-test.sh` 與 `JsonColumnTests` 負責（`E-111`）。
+- **唯一約束 ≡ 唯一索引**：DDL 多用 `ALTER TABLE … ADD CONSTRAINT … UNIQUE`，EF 的 `HasIndex().IsUnique()` 只能建唯一索引；儲存結構與查詢行為相同。取捨：看不出「約束 vs 索引」（影響只在手寫 migration 用 `DROP CONSTRAINT` 還是 `DROP INDEX`，§5 注意事項 2 已要求先查系統檢視）。
+- **預設值／CHECK 定義**：去空白與方括號、轉小寫；`N'x'`→`'x'`、`convert(bit,X)`→`X`、`(1)`→`1`、最外層成對括號反覆去除。不碰運算子與欄位名，真的不同的定義仍會報。
+- **系統自動命名**的約束（`CK__表__欄__8碼十六進位`）名稱每個庫都不同，不比名稱，**結構照比**。
+
+**排除清單（EF 本來就不描述的「整個物件類別」；每次執行都印出被排除的行數，不悄悄吞掉）**
+
+| 類別 | 為什麼排除 | 誰來守 |
+|---|---|---|
+| 視圖（`VIEW`／`VIEWCOL`，目前只有 `calendar_events`） | EF 只能把視圖當 keyless entity 對映（`ToView`），不會建立視圖本體 | `local-vs-ddl` 模式（本機庫 vs DDL）、`prod-db-init.sh verify` 的視圖數 |
+
+**單向容忍（只在 DDL 有、EF 側沒有的 `CHECK`／`CHECK 名稱`／`預設值`，不算差異，但印出數量）**：EF 模型多半不描述它們（慈善 context 沒有任何 `HasCheckConstraint`；許多 `bit`／字串欄位沒宣告 `HasDefaultValue`，EF 寫入一律明確帶值，不依賴資料庫預設）。**反方向（EF 有、DDL 沒有）與「兩邊都有但值不同」（預設值）照報**——那才是「程式以為有、資料庫沒有」。目前主站 97 個 CHECK／109 個預設值、慈善 29／28 屬此類。
+
+> ⚠️ **已知盲點（不要以為這道檢查什麼都管）**：① 只在 DDL、也不在模型的 `CHECK`／預設值被改動或遺漏，這裡看不出來；② **migration 內以 `migrationBuilder.Sql(…)` 加的物件**（`CHECK`、預設值、索引）若沒進模型，EF 側不會有它，DDL 漏補也不會被發現——寫這類 migration 時 DDL 必須同步，並用 `local-vs-ddl` 驗；③ 不驗證 migration 的 `Up()` 能在 DDL 建的庫上執行（那是 §5「新增 migration 的驗收」＋ `AlignIndexesWithDdl2` 驗收段的事）；④ 不比資料（種子、參照資料）。
+
+**`local-vs-ddl` 模式（發現本機落後）**：`deploy/schema-drift-check.sh --mode local-vs-ddl [--target club|charity]` 把本機 `tcrfc_club`／`tcrfc_charity` 與「原樣 DDL 新建的庫」比（對本機現有庫**只 SELECT `sys.*`**）。**為什麼需要**：`db/seed/setup-club-db.sh`（不帶 `--recreate`）遇到已有資料表會**略過 DDL**，之後只靠 `dotnet ef database update`；DDL 改了而本機沒重建、或 migration 還沒套（例如展開—收縮的收縮型遷移，正式庫也是「先 deploy 後 migrate」），本機結構就落後 DDL，開發與測試是在舊結構上跑。這個模式不在 CI（CI 的庫都是新建的），是本機的體檢工具；看到差異時，`setup-club-db.sh --recreate` 可重建（會清掉本機資料，種子會重灌）。
+
+**安全模型**（比照 `deploy/local-ddl.sh`）：會寫的庫寫死只有 `tcrfc_drift_club_ddl`／`_club_ef`／`_charity_ddl`／`_charity_ef` 四個；唯一讀的既有庫是 `tcrfc_club`／`tcrfc_charity`（只 SELECT）；目標容器由 `LOCAL_MSSQL_CONTAINER` 指定（預設 `sqlserver`），SA 密碼走 `docker exec -e SQLCMDPASSWORD`，不進命令列。
+
+**驗收（2026-10-13，`E-321`）**：本機 2022 與 SQL Server 2025（原生 `json`）容器上，主站 4802／慈善 835 項結構事實「DDL ＝ EF」皆一致；暫時改 `db/club-schema.sql`（`pages.slug` 長度 160→150、拿掉一個唯一索引的篩選條件、刪一個索引）三種真實錯誤形狀，檢查變紅且差異清單逐項點名，復原後變綠；`actionlint` 通過。
 
 ### `compose-env`：compose 的 `NUXT_PUBLIC_*` 覆寫檢查（`E-112` 升級，2026-10-03）
 

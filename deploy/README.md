@@ -14,6 +14,7 @@
 | [`loadtest/`](loadtest/README.md) | **上線前壓測（S0-10，2026-10-02）**：k6 腳本（唯讀、慈善假金流寫入）與操作手冊。**尚未執行**；網域防呆只准 `*.4webdemo.com`／本機，見 [`docs/17`](../docs/17-deployment.md) §6 |
 | [`Caddyfile.dev`](Caddyfile.dev) | 本機開發用，明文 HTTP，`auto_https off` |
 | [`local-ddl.sh`](local-ddl.sh) | 把 `db/*.sql` 轉成本機 SQL Server 2022 相容版本（`json`→`nvarchar(max)`），不改動原始檔 |
+| [`schema-drift-check.sh`](schema-drift-check.sh)、[`schema-snapshot.sql`](schema-snapshot.sql)、[`schema-diff.py`](schema-diff.py) | **資料庫結構「DDL vs EF 模型」一致性檢查（`E-321`，2026-10-13）**：`ci.yml` 的 `schema-drift` job 與本機同一支腳本。預設模式 `ddl-vs-ef`（建四個 `tcrfc_drift_*` 一次性庫，跑完丟掉）；`--mode local-vs-ddl` 則把本機 `tcrfc_club`／`tcrfc_charity`（唯讀）與原樣 DDL 比，發現**本機落後**。用法與排除清單見 [`docs/20`](../docs/20-cicd.md) §3「schema-drift」 |
 | [`dev/club.env.example`](dev/club.env.example)／[`dev/charity.env.example`](dev/charity.env.example) | 本機開發用機密範本，複製成同目錄下拿掉 `.example` 的檔名後使用（該檔名已被 `.gitignore` 排除） |
 
 `../docker-compose.yml`（正式）與 `../docker-compose.dev.yml`（本機開發 override）放在 repo 根目錄，不在這裡——

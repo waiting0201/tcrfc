@@ -31,6 +31,8 @@
   ④ **sqlcmd（Linux 的 `mssql-tools`）不支援 `-f`**，不要加 `-f 65001`；要 `-I`（QUOTED_IDENTIFIER ON）。⑤ **EF 的 `--idempotent` 是每支 migration 一個交易，失敗只回滾那一支**，不是整批全成全敗；Basic 層 PITR 只有 7 天。
   ⑥ 公開 repo 的 Actions log 人人可看：腳本**不得印伺服器主機名稱**（只印資料庫名），密碼不進命令列／log／summary。
 
+- 🔴 **改資料庫結構，`db/*-schema.sql`（DDL）與 EF 模型＋migration 必須在同一次交付一起改**（`docs/18` `E-321`，2026-10-13）。結構有**兩個真實來源**：正式庫由 `prod-db-init.sh` **原樣跑 DDL** 建表再把全部 migration 標記為已套用（一支都沒執行），本機庫與程式則吃 EF 模型／migration。漏改 DDL＝正式庫沒有新欄位；漏寫 migration＝既有庫升級不到。由 CI 的 `schema-drift` job（`deploy/schema-drift-check.sh`，DDL 原樣建庫 vs EF 模型 `dbcontext script`，兩個 context 都涵蓋）把關，**不要用「改排除清單」讓它通過**——排除只准排整個物件類別（目前只有視圖）。已知盲點：只在 DDL 的 `CHECK`／預設值、以 `migrationBuilder.Sql` 加但沒進模型的物件，這道檢查看不出（`docs/20` §3「schema-drift」）。**本機庫是否落後 DDL**用 `./deploy/schema-drift-check.sh --mode local-vs-ddl` 體檢（`setup-club-db.sh` 遇到已有資料表會略過 DDL）。⚠️ **InitialBaseline 的 `Up()`／`Down()` 是空的，「從空庫跑全部 migration」長不出完整庫，不能拿來當比對基準。**
+
 - 🔴 **客戶照片不得被 import 進建置，也不得進映像檔**（2026-10-02 使用者決定，`E-113`）。`apps/web/public/assets/img/`（含未成年學員肖像，不納版控）
   一律寫成 `siteImg('/assets/img/…')`（`apps/web/app/utils/siteImage.ts`），**不得**寫靜態 `src="/assets/img/…"`、`import … from '/assets/img/…'`、
   `new URL('/assets/img/…', import.meta.url)`、CSS `url(/assets/img/…)`——Nuxt 編譯器會把前兩者變成建置期 import，乾淨 checkout 直接 `UNRESOLVED_IMPORT`。
