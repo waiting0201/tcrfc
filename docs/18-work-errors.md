@@ -2962,6 +2962,7 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：餵 sqlcmd 大檔一律 `docker cp` 進容器後用 `-i`，不用 stdin；寫完後掃全庫 nvarchar 欄位找 U+FFFD。`db/prod` 匯入、慈善庫、其他腳本若有 `docker exec -i … < 檔案` 同樣寫法，同類處理。本次已一併改 `apply-charity-seed.sh`（未實跑，範圍限定 `tcrfc_club`）；**仍是 stdin 串流寫法、尚未改**：`db/seed/reset-admin-accounts.sh`（檔小）、`deploy/local-ddl.sh`、`apps/api/scripts/native-json-test.sh`（DDL 多為 ASCII，風險低，但同一類）。
 - **防呆**：✅ `apply-seed.sh` 改為 `docker cp` ＋ `-i`，並在套完後掃全庫 nvarchar 欄位，含 U+FFFD 即 exit 1。其他三支腳本無（待補；第二次再犯就把「大檔餵 sqlcmd」收成共用函式）。
 - **連帶**：`E-293` 記的「種子為何缺失的最初成因未能確定」，此條即為成因：先前某次套用在區段 39 因本條中止，其後區段從未套用；之後本機庫又被測試清理，疊加成 59 項失敗。
+- **殘骸（2026-10-13 清除）**：修正前寫入的亂碼另有三處未被冪等種子覆寫（種子只在列不存在時 INSERT）——`faqs_i18n.answer`（bw `bw-beginners`）、`articles_i18n.title`（`2025-12-07-match-022` 英文標題）、`page_versions.snapshot`（`club/player-development`），由套完後的 U+FFFD 掃描抓到。以種子產生的 SQL 為原值、條件限「目前含 U+FFFD」逐列 UPDATE（`docker cp`＋`-i`），重跑 `apply-seed.sh` 掃描通過。**同類殘骸的修法**：不要整庫重建，對掃描點名的列從 `.generated/club-seed.local.sql` 取原值定點更新。
 
 ### E-297 首頁 LCP 元素（hero 第一張新聞卡）設了 `loading="lazy"`，行動版 LCP 12.4s（2026-10-08，前台效能）
 
