@@ -9,11 +9,11 @@ using Tcrfc.Api.Security;
 namespace Tcrfc.Api.Features.AdminCharity;
 
 /// <summary>
-/// B5「捐款導流設定」與「參與方式設定」（規劃書 §4.2 B5、§3.11「球迷捐款：導向慈善捐款平台」、CH-6）。
+/// B5「捐款導流設定」（規劃書 §4.2 B5、§3.11「球迷捐款：導向慈善捐款平台」、CH-6）。
 /// 沿用既有 <c>settings</c>／<c>settings_i18n</c>（設定群組 <c>charity</c>，鍵命名慣例同 <c>Features/AdminSiteFacts</c>），
 /// 不新增資料表。每個俱樂部各一份（<c>club_id</c> 必填）。
-/// 鍵：<c>charity.donation_url</c>（單值）、<c>charity.donation_cta</c>（逐語系）、<c>charity.corporate_cta</c>（逐語系）、
-/// <c>charity.corporate_url</c>（單值）、<c>charity.fan_cta</c>（逐語系）。
+/// 鍵：<c>charity.donation_url</c>（單值）、<c>charity.donation_cta</c>（逐語系）、<c>charity.fan_cta</c>（逐語系）。
+/// 企業合作 CTA 由前台版型固定導向 10.5，不在此設定（v3.27）；舊資料列由遷移 <c>RemoveCorporateCtaSettings</c> 清除。
 /// 🔴 規劃書 §3.11：慈善捐款平台主辦與收款主體是「台灣足球策略發展協會」，不是俱樂部——設定了捐款平台網址時，
 /// 中文導流文案**必須點明**協會名稱，否則 400（防止使用者誤以為捐款給台中磐石）。
 /// </summary>
@@ -22,10 +22,8 @@ public sealed class AdminCharitySettingsRepository(ClubDbContext dbContext, IQue
     internal const string Group = "charity";
     internal const string KeyDonationUrl = "charity.donation_url";
     internal const string KeyDonationCta = "charity.donation_cta";
-    internal const string KeyCorporateCta = "charity.corporate_cta";
-    internal const string KeyCorporateUrl = "charity.corporate_url";
     internal const string KeyFanCta = "charity.fan_cta";
-    internal static readonly string[] AllKeys = [KeyDonationUrl, KeyDonationCta, KeyCorporateCta, KeyCorporateUrl, KeyFanCta];
+    internal static readonly string[] AllKeys = [KeyDonationUrl, KeyDonationCta, KeyFanCta];
 
     /// <summary>導流文案必須出現的收受者名稱（規劃書 §3.11 明文）。</summary>
     internal const string RequiredReceiverName = "台灣足球策略發展協會";
@@ -61,21 +59,11 @@ public sealed class AdminCharitySettingsRepository(ClubDbContext dbContext, IQue
             }
         }
 
-        var corporateUrl = AdminInput.OptionalText(request.CorporateUrl, "企業合作連結", 500, "corporateUrl");
-        if (corporateUrl is not null && !IsSiteRelativePath(corporateUrl)
-            && !(Uri.TryCreate(corporateUrl, UriKind.Absolute, out var cUri) && cUri.Scheme == Uri.UriSchemeHttps))
-        {
-            throw new AdminValidationException("企業合作連結必須是站內路徑（以 / 開頭）或 https:// 開頭的完整網址。", "corporateUrl");
-        }
-
         var settings = await dbContext.Settings.Include(s => s.SettingsI18ns)
             .Where(s => s.ClubId == scope.ClubId && AllKeys.Contains(s.SettingKey)).ToDictionaryAsync(s => s.SettingKey, cancellationToken);
 
         UpsertValue(settings, KeyDonationUrl, scope.ClubId, donationUrl, operatorId);
-        UpsertValue(settings, KeyCorporateUrl, scope.ClubId, corporateUrl, operatorId);
         UpsertI18n(settings, KeyDonationCta, scope.ClubId, donationCtaZh, AdminInput.OptionalText(request.DonationCta?.En, "捐款按鈕英文文案", 200, "donationCtaEn"), operatorId);
-        UpsertI18n(settings, KeyCorporateCta, scope.ClubId,
-            AdminInput.OptionalText(request.CorporateCta?.Zh, "企業合作按鈕文案", 200, "corporateCtaZh"), AdminInput.OptionalText(request.CorporateCta?.En, "企業合作按鈕英文文案", 200, "corporateCtaEn"), operatorId);
         UpsertI18n(settings, KeyFanCta, scope.ClubId,
             AdminInput.OptionalText(request.FanCta?.Zh, "球迷捐款按鈕文案", 200, "fanCtaZh"), AdminInput.OptionalText(request.FanCta?.En, "球迷捐款按鈕英文文案", 200, "fanCtaEn"), operatorId);
 
@@ -83,8 +71,6 @@ public sealed class AdminCharitySettingsRepository(ClubDbContext dbContext, IQue
         await cache.InvalidateAsync(AdminCharityOrgsRepository.CacheEntity, scope.ClubCode, cancellationToken);
         return await GetAsync(scope, cancellationToken);
     }
-
-    internal static bool IsSiteRelativePath(string value) => value.StartsWith('/') && !value.StartsWith("//", StringComparison.Ordinal);
 
     internal static AdminCharitySettingsDto Build(IReadOnlyCollection<Setting> settings)
     {
@@ -106,8 +92,6 @@ public sealed class AdminCharitySettingsRepository(ClubDbContext dbContext, IQue
         {
             DonationUrl = Find(KeyDonationUrl)?.SettingValue,
             DonationCta = Bilingual(KeyDonationCta),
-            CorporateCta = Bilingual(KeyCorporateCta),
-            CorporateUrl = Find(KeyCorporateUrl)?.SettingValue,
             FanCta = Bilingual(KeyFanCta),
             UpdatedAt = settings.Count == 0 ? null : settings.Max(s => s.UpdatedAt),
         };

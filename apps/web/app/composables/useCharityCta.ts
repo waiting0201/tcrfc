@@ -1,6 +1,7 @@
 // app/composables/useCharityCta.ts — 11 各頁「球迷捐款」CTA 的導流網址與文案（S2-9，CH-6）
 //
-// 對應 apps/api `GET /api/v1/{club}/charity/cta?lang=`（後台 B5「捐款導流與參與方式設定」）。
+// 企業合作 CTA 不在此：11 章「一起參與」固定導向 10.5 合作夥伴與贊助洽詢，文案寫在版型（v3.27）。
+// 對應 apps/api `GET /api/v1/{club}/charity/cta?lang=`（後台 B5「捐款導流設定」）。
 // 🔴 網址與文案來自後台，前台**不寫死**（主站規劃書 §3.11、docs/14 E1a 規則③）。
 // 🔴 設定了捐款網址時後端強制中文文案點明「台灣足球策略發展協會」；前台自己加的固定說明文字也要點明收受者
 // （shared/utils/charity.ts CHARITY_RECIPIENT），不得讓人以為是捐給俱樂部。
@@ -19,7 +20,7 @@ export async function useCharityCta() {
   })
 
   const cta = computed<CharityCta>(() => data.value ?? {
-    donationUrl: null, donationCta: null, fanCta: null, corporateCta: null, corporateUrl: null,
+    donationUrl: null, donationCta: null, fanCta: null,
   })
 
   const donationUrl = computed(() => {
@@ -32,13 +33,5 @@ export async function useCharityCta() {
     ? { href: donationUrl.value, external: true }
     : { href: lp('/zh/charity/#donate'), external: false })
 
-  /** 企業合作的連結：後台設定了 `corporateUrl`（站內路徑或 https）就用，否則回 9.4 贊助方案。 */
-  const corporateLink = computed(() => {
-    const url = cta.value.corporateUrl
-    if (url && /^https:\/\//i.test(url)) return { href: url, external: true }
-    if (url && url.startsWith('/') && !url.startsWith('//')) return { href: lp(url), external: false }
-    return { href: lp('/zh/partners/opportunities/'), external: false }
-  })
-
-  return { cta, donationUrl, donateLink, corporateLink }
+  return { cta, donationUrl, donateLink }
 }

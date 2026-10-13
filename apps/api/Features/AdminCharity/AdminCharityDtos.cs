@@ -333,7 +333,7 @@ public sealed record UpsertAdminImpactMetricRequest
     public required AdminImpactMetricContentInput Content { get; init; }
 }
 
-// ═════════════ 捐款導流與參與方式設定 ═════════════
+// ═════════════ 捐款導流設定 ═════════════
 
 public sealed record AdminCharityBilingualTextDto
 {
@@ -341,7 +341,7 @@ public sealed record AdminCharityBilingualTextDto
     public string? En { get; init; }
 }
 
-/// <summary>捐款導流設定與參與方式設定（規劃書 B5「捐款導流設定」「參與方式設定」，CH-6）。
+/// <summary>捐款導流設定（規劃書 B5「捐款導流設定」，CH-6）。
 /// 整份取代語意：PUT 送什麼就存什麼，未送的欄位視為清空。</summary>
 public sealed record AdminCharitySettingsDto
 {
@@ -351,10 +351,6 @@ public sealed record AdminCharitySettingsDto
     /// <summary>捐款導流按鈕文案。🔴 設定了 <see cref="DonationUrl"/> 時，中文文案必須點明捐款由
     /// 「台灣足球策略發展協會」收受（規劃書 §3.11，不得讓使用者誤以為是捐給台中磐石）。</summary>
     public AdminCharityBilingualTextDto? DonationCta { get; init; }
-
-    /// <summary>「企業合作公益專案」按鈕文案與導向（站內路徑，例如 <c>/zh/join/partnership/</c>，或 https 網址）。</summary>
-    public AdminCharityBilingualTextDto? CorporateCta { get; init; }
-    public string? CorporateUrl { get; init; }
 
     /// <summary>「球迷捐款」按鈕文案，導向固定為 <see cref="DonationUrl"/>。</summary>
     public AdminCharityBilingualTextDto? FanCta { get; init; }

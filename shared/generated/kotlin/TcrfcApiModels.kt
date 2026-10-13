@@ -379,8 +379,6 @@ data class CharityCtaDto(
     val donationUrl: String? = null,
     val donationCta: String? = null,
     val fanCta: String? = null,
-    val corporateCta: String? = null,
-    val corporateUrl: String? = null,
 )
 
 @Serializable

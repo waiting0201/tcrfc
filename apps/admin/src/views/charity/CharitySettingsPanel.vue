@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 捐款導流與參與方式設定（每個俱樂部各一份）。前台不寫死捐款網址，一律讀這裡的設定。
+ * 捐款導流設定（每個俱樂部各一份）。前台不寫死捐款網址，一律讀這裡的設定。
  * 慈善捐款由「台灣足球策略發展協會」收受，所以設了捐款網址時，按鈕文案必須點明協會，避免讓人誤以為捐給球團。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -25,7 +25,6 @@ const ASSOCIATION = '台灣足球策略發展協會'
 const form = reactive({
   donationUrl: '', donationCtaZh: '', donationCtaEn: '',
   fanCtaZh: '', fanCtaEn: '',
-  corporateUrl: '', corporateCtaZh: '', corporateCtaEn: '',
 })
 const baseline = ref('')
 const loading = ref(true)
@@ -47,9 +46,6 @@ async function load() {
     form.donationCtaEn = s.donationCta?.en ?? ''
     form.fanCtaZh = s.fanCta?.zh ?? ''
     form.fanCtaEn = s.fanCta?.en ?? ''
-    form.corporateUrl = s.corporateUrl ?? ''
-    form.corporateCtaZh = s.corporateCta?.zh ?? ''
-    form.corporateCtaEn = s.corporateCta?.en ?? ''
     baseline.value = JSON.stringify(form)
   } catch (error) {
     loadError.value = error instanceof AdminApiError ? error.message : '設定載入失敗，請稍後再試'
@@ -75,10 +71,6 @@ function validate(): Record<string, string> {
     if (!form.donationCtaZh.trim()) errors.donationCtaZh = '設定了捐款網址，就必須填寫中文的捐款按鈕文案'
     else if (!form.donationCtaZh.includes(ASSOCIATION)) errors.donationCtaZh = `捐款按鈕文案必須點明捐款由「${ASSOCIATION}」收受，不能讓人誤以為捐給台中磐石`
   }
-  const corp = form.corporateUrl.trim()
-  if (corp && !(/^https:\/\//i.test(corp) || (corp.startsWith('/') && !corp.startsWith('//')))) {
-    errors.corporateUrl = '企業合作連結必須是以 / 開頭的站內路徑，或以 https:// 開頭的網址'
-  }
   return errors
 }
 
@@ -94,8 +86,6 @@ async function handleSave() {
     await saveCharitySettings(club.value, {
       donationUrl: nullIfBlank(form.donationUrl),
       donationCta: bilingual(form.donationCtaZh, form.donationCtaEn),
-      corporateCta: bilingual(form.corporateCtaZh, form.corporateCtaEn),
-      corporateUrl: nullIfBlank(form.corporateUrl),
       fanCta: bilingual(form.fanCtaZh, form.fanCtaEn),
     })
     baseline.value = JSON.stringify(form)
@@ -125,10 +115,6 @@ async function handleSave() {
             <BilingualShortField field="donationCta" label="捐款按鈕文案" :zh="form.donationCtaZh" :en="form.donationCtaEn" :placeholder="`例如 前往${ASSOCIATION}捐款平台`" @update:zh="(v) => (form.donationCtaZh = v)" @update:en="(v) => (form.donationCtaEn = v)" />
             <BilingualShortField field="fanCta" label="球迷參與文案" :zh="form.fanCtaZh" :en="form.fanCtaEn" @update:zh="(v) => (form.fanCtaZh = v)" @update:en="(v) => (form.fanCtaEn = v)" />
             <p class="settings__hint">中文捐款文案必須包含「{{ ASSOCIATION }}」，因為捐款由協會收受，不是台中磐石。球迷參與按鈕固定導向上面的捐款網址。</p>
-          </el-card>
-          <el-card shadow="never" header="企業合作" class="settings__block">
-            <FormField field="corporateUrl" label="企業合作連結"><el-input v-model="form.corporateUrl" placeholder="/zh/partners/ 或 https://" /></FormField>
-            <BilingualShortField field="corporateCta" label="企業合作文案" :zh="form.corporateCtaZh" :en="form.corporateCtaEn" @update:zh="(v) => (form.corporateCtaZh = v)" @update:en="(v) => (form.corporateCtaEn = v)" />
           </el-card>
         </LangTabsBar>
       </el-form>

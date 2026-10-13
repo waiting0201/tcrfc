@@ -948,21 +948,15 @@ public struct CharityCtaDto: Codable, Equatable, Sendable {
     public var donationUrl: String?
     public var donationCta: String?
     public var fanCta: String?
-    public var corporateCta: String?
-    public var corporateUrl: String?
 
     public init(
         donationUrl: String? = nil,
         donationCta: String? = nil,
-        fanCta: String? = nil,
-        corporateCta: String? = nil,
-        corporateUrl: String? = nil
+        fanCta: String? = nil
     ) {
         self.donationUrl = donationUrl
         self.donationCta = donationCta
         self.fanCta = fanCta
-        self.corporateCta = corporateCta
-        self.corporateUrl = corporateUrl
     }
 }
 

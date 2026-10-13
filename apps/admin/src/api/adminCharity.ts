@@ -372,7 +372,7 @@ export function deleteMetric(club: string, id: string): Promise<void> {
   return apiRequest<void>(`${base(club)}/metrics/${id}`, { method: 'DELETE' })
 }
 
-// ───────────── 捐款導流與參與方式設定 ─────────────
+// ───────────── 捐款導流設定 ─────────────
 
 export interface BilingualTextDto {
   zh?: string | null
@@ -382,8 +382,6 @@ export interface BilingualTextDto {
 export interface CharitySettingsDto {
   donationUrl?: string | null
   donationCta?: BilingualTextDto | null
-  corporateCta?: BilingualTextDto | null
-  corporateUrl?: string | null
   fanCta?: BilingualTextDto | null
   updatedAt?: string | null
 }

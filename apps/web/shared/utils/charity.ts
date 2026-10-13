@@ -18,8 +18,6 @@ export interface CharityCta {
   donationUrl: string | null
   donationCta: string | null
   fanCta: string | null
-  corporateCta: string | null
-  corporateUrl: string | null
 }
 
 export interface PublicCharityOrg {

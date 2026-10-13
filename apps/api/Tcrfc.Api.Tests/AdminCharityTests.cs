@@ -189,19 +189,11 @@ public sealed class AdminCharityTests(AdminWriteApiFixture fixture)
             {
                 donationUrl = "https://charity.example.com/",
             }))).StatusCode);
-            // 企業合作連結：站內路徑可、非 https 外部網址不可
-            Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsync("/api/v1/admin/tcrfc/charity/settings", BizTest.Json(new
-            {
-                corporateUrl = "//evil.example.com",
-            }))).StatusCode);
-
             var ok = await client.PutAsync("/api/v1/admin/tcrfc/charity/settings", BizTest.Json(new
             {
                 donationUrl = "https://charity.example.com/donate",
                 donationCta = new { zh = $"球迷捐款（款項由{Receiver}收受）", en = "Donate" },
                 fanCta = new { zh = "球迷捐款" },
-                corporateCta = new { zh = "企業合作公益專案" },
-                corporateUrl = "/zh/join/",
             }));
             Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
             var saved = await BizTest.ReadAsync<AdminCharitySettingsDto>(ok);

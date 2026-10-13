@@ -445,6 +445,7 @@
 
 | 日期 | 事項 |
 |---|---|
+| 2026-10-13 | **慈善「一起參與」的企業合作 CTA 改由前台版型固定（使用者拍板）**：規劃書主站 v3.27（中英＋PDF）、導航層（`docs/00`／`03`／`06`／`12b`／`15`，行號重算）同步；`apps/api` 拿掉 `charity.corporate_url`／`charity.corporate_cta` 的讀寫與公開 `charity/cta` 欄位，資料遷移 `RemoveCorporateCtaSettings`（刪兩鍵資料列＋權限顯示名改「捐款導流設定」，🔵 正式庫走 `db-migrate.yml`）；後台 B5 刪企業合作卡片；前台 11 首頁企業合作卡固定導向 10.5 `/zh/join/partnership/`；種子、正式參照資料、`shared/` 契約重產。⚠️ **AdminCharity／CharityImpact 整合測試未跑**（本機 Docker 未啟動），遷移未在實際庫執行 |
 | 2026-10-12 | **「系統管理員」只指帳號上的身分，全權角色改名「全模組管理」（使用者拍板）**：規劃書主站 v3.26／慈善 v2.6／App v3.19（中英＋PDF）、主站客戶版（中英＋PDF）、導航層（`docs/03`／`12b`／`14`／`16`、行號重算）同步；種子與正式參照資料改 `system_admin` 的 `name_zh`／`name_en`（代碼不變），兩支資料遷移 `RenameSystemAdminRoleDisplayName`（主站、慈善，🔵 正式庫走 `db-migrate.yml`）；權限範圍不變。測試 1575 項中 4 項失敗為既有（`AdminDrawsTests` 三項、`DevAcceptanceSeedTests` 一項），本機庫未套用遷移 |
 | 2026-10-12 | **後台「代為重設他人兩階段驗證」移除（使用者拍板）**：主站與慈善後台的帳號列表、編輯頁按鈕，`apps/api` 兩支 `reset-totp` 端點、慈善稽核動作碼 `admin_account.reset_totp` 與 2 項測試一併刪除；規劃書本無此操作，記錄於 `docs/15` §1。使用者自助 2FA 與登入驗證碼不變；遺失驗證器的帳號只能以資料庫操作清除 |
 | 2026-10-10 | **`S0-7h` 圖片欄位組前端接線**：後台編輯頁圖片說明欄、SEO 分享圖片說明、多圖子表說明編輯（共用 `ImageAltField`／`GalleryManager`），前台 `<img>` 寬高與 `alt`、OG alt（未實機驗收） |

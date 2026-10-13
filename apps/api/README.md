@@ -4362,7 +4362,7 @@ No changes have been made to the model since the last migration.
 | `business.lead.view`／`update` | E3 Lead 名單（含個資） | 全 | ✔ | — | — | — | — | — | ✔ |
 | `business.lead.export`（🔴 受限） | Lead 名單 CSV | ✔ | ✔ | — | — | — | — | — | — |
 | `charity.content.*` | B5 團體／計畫／事蹟／數據 | 全 | 唯讀 | 全 | 全 | — | — | 唯讀 | — |
-| `charity.setting.view`／`update` | B5 捐款導流與參與方式 | 全 | 唯讀 | ✔ | ✔ | — | — | 唯讀 | — |
+| `charity.setting.view`／`update` | B5 捐款導流 | 全 | 唯讀 | ✔ | ✔ | — | — | 唯讀 | — |
 | `content.press.*` | B6 媒體專區 | 全 | — | 全 | 全 | — | — | 唯讀 | view／create／update |
 | `team.achievement.*` | C5 榮譽（**帶球隊列級授權**） | 全 | 唯讀 | 唯讀 | 唯讀 | 全 | 全（`academy_only`） | 唯讀 | 全 |
 | `team.milestone.*` | C5 里程碑 | 全 | 唯讀 | 唯讀 | 唯讀 | 全 | — | 唯讀 | 全 |
@@ -4478,8 +4478,8 @@ payload：`slug?`、`charityId`（必填，受贈公益團體）、`startOn?`／
 **影響力數據** `/charity/metrics`（純 JSON）：`GET ?programId=`（陣列）／`GET /{id}`／`POST`／`PUT /{id}`／`DELETE /{id}`。
 body：`charityProgramId?`（**可不掛計畫＝全站層級統計項目**）、`value?`（整數）、`isPublic`（**預設 `false`；金額類項目一律預設不公開，要公開必須明確送 `true`**）、`sortOrder`、`content.zh.name`（必填，≤64）／`content.zh.unit?`（單位，≤16，如「人」「場」「元」）、`content.en?`。
 
-**捐款導流與參與方式設定** `/charity/settings`：`GET`／`PUT`（整份取代，未送的欄位＝清空，每個俱樂部各一份）。body／回應：
-`{ donationUrl?, donationCta?: { zh, en }, corporateCta?: { zh, en }, corporateUrl?, fanCta?: { zh, en } }`。驗證：`donationUrl` 必須 **https**；設定了 `donationUrl` 時 **`donationCta.zh` 必填且必須包含「台灣足球策略發展協會」**（規劃書 §3.11：CTA 須點明捐款由協會收受，不得讓人誤以為捐給台中磐石），否則 400；`corporateUrl` 是站內路徑（以 `/` 開頭，不可 `//`）或 https 網址；`fanCta` 導向固定為 `donationUrl`。**前台不得寫死捐款網址，一律讀公開端點 `GET /api/v1/{club}/charity/cta`。**
+**捐款導流設定** `/charity/settings`：`GET`／`PUT`（整份取代，未送的欄位＝清空，每個俱樂部各一份）。body／回應：
+`{ donationUrl?, donationCta?: { zh, en }, fanCta?: { zh, en } }`。驗證：`donationUrl` 必須 **https**；設定了 `donationUrl` 時 **`donationCta.zh` 必填且必須包含「台灣足球策略發展協會」**（規劃書 §3.11：CTA 須點明捐款由協會收受，不得讓人誤以為捐給台中磐石），否則 400；`fanCta` 導向固定為 `donationUrl`。**前台不得寫死捐款網址，一律讀公開端點 `GET /api/v1/{club}/charity/cta`。** 企業合作 CTA（v3.27）不再是設定：由前台版型固定導向 10.5；舊設定鍵 `charity.corporate_cta`／`charity.corporate_url` 由遷移 `RemoveCorporateCtaSettings`（主站 `20261013020000`，純資料、冪等，同時改 `charity.setting.*` 權限顯示名稱）刪除。
 
 ### B6 媒體專區 `/api/v1/admin/{club}/press-resources`（產出前台 7.8）
 
@@ -4525,7 +4525,7 @@ payload：`happenedOn`（必填）、`sortOrder`、`isVisible`（**是否顯示�
 | `GET /api/v1/{club}/charity/programs/{slug}?lang=` | 11.2 詳情 | 計畫緣起（`content`，區塊 JSON 字串）、受贈公益團體 `charity`、`donationContent`、`images` 藝廊、`partners`／`sponsors`（含 Logo）、`articles`（關聯報導，已發布） |
 | `GET /api/v1/{club}/charity/records?program=<slug>&year=&lang=&page=&pageSize=` | 11.3 | 三項核心資料：`charityName`、`donationContent`、`imageUrl`＋`images`；另有 `happenedOn`、`location`、`briefDescription`、`programSlug`／`programName`。`GET …/charity/records/years` 回有事蹟的年份（年份篩選用） |
 | `GET /api/v1/{club}/charity/impact?lang=` | 11.4 | `{ metrics（只含後台標為公開的項目）, charityCount, donationItemCount（事蹟筆數）, regions（服務地區＝事蹟地點）, charities（Logo 牆） }` |
-| `GET /api/v1/{club}/charity/cta?lang=` | 11 各頁 CTA | `{ donationUrl, donationCta, fanCta, corporateCta, corporateUrl }`。**捐款網址與文案來自後台 B5 設定**；沒設定網址時 `donationUrl`／`donationCta`／`fanCta` 皆 `null`（前台不顯示球迷捐款按鈕）。藍鯨一律為空 |
+| `GET /api/v1/{club}/charity/cta?lang=` | 11 各頁 CTA | `{ donationUrl, donationCta, fanCta }`。**捐款網址與文案來自後台 B5 設定**；沒設定網址時 `donationUrl`／`donationCta`／`fanCta` 皆 `null`（前台不顯示球迷捐款按鈕）。藍鯨一律為空 |
 | `GET /api/v1/{club}/press?type=&lang=&page=&pageSize=` | 7.8 | 只列已發布；`type`＝`press_release`／`brand_kit`／`hires_image`（其他值 400）。項目含 `downloadPath`、`fileBytes`、`fileExtension`、`coverUrl` |
 | `GET /api/v1/{club}/press/{slug}/download` | 7.8 | 限流 `public-light-interaction`。**累計下載次數後 302 轉址到檔案**；未發布或找不到 404 |
 | `GET /api/v1/{club}/achievements?team=<隊別代號>&lang=` | 02 榮譽 | `[{ id, year, seasonCode, teamCode, teamName, competitionName, placing }]`，年份新到舊 |

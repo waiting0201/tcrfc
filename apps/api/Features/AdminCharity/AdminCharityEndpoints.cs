@@ -11,7 +11,7 @@ namespace Tcrfc.Api.Features.AdminCharity;
 /// <summary>
 /// B5 慈善與社會影響後台端點（公益團體／慈善計畫／事蹟紀錄／影響力數據／捐款導流設定）。權限碼：
 /// <c>charity.content.view／create／update／delete</c>（四個內容子項共用）、<c>charity.setting.view／update</c>
-/// （導流與參與方式設定）。module=B、submodule=B5、domain=charity。路徑前綴 <c>/api/v1/admin/{club}/charity/</c>。
+/// （捐款導流設定）。module=B、submodule=B5、domain=charity。路徑前綴 <c>/api/v1/admin/{club}/charity/</c>。
 /// 建立與更新含圖片者為 <c>multipart/form-data</c>（<c>payload</c>＋檔案欄位），其餘為純 JSON。
 /// </summary>
 public static class AdminCharityEndpoints

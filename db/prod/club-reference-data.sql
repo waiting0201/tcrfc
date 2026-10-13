@@ -1859,7 +1859,7 @@ BEGIN
   BEGIN TRANSACTION;
   SET @id = N'04a5657e-dfc2-59a8-a59f-28e8932f47cb';
   INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
-  VALUES (@id, N'charity.setting.view', N'B', N'B5', N'charity', N'view', 1, 0, 0, N'檢視捐款導流與參與方式設定', N'View Charity Settings');
+  VALUES (@id, N'charity.setting.view', N'B', N'B5', N'charity', N'view', 1, 0, 0, N'檢視捐款導流設定', N'View Charity Settings');
   COMMIT TRANSACTION;
 END
 GO
@@ -1871,7 +1871,7 @@ BEGIN
   BEGIN TRANSACTION;
   SET @id = N'7a1c1ac9-b2d0-5bdc-b4a8-49244a2f8fea';
   INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
-  VALUES (@id, N'charity.setting.update', N'B', N'B5', N'charity', N'update', 1, 0, 0, N'編輯捐款導流與參與方式設定', N'Update Charity Settings');
+  VALUES (@id, N'charity.setting.update', N'B', N'B5', N'charity', N'update', 1, 0, 0, N'編輯捐款導流設定', N'Update Charity Settings');
   COMMIT TRANSACTION;
 END
 GO

@@ -6,14 +6,13 @@ const { lp, isEn, tx } = useLocale()
 
 // S2-9（CH-6）：球迷捐款導流網址與文案讀後台 B5 設定（`GET /api/backend/{club}/charity/cta`），不寫死。
 // 本站不處理金流、不放金額選項／捐款表單；收受者是台灣足球策略發展協會，不是俱樂部（規劃書 §3.11）。
-const { cta, donationUrl, corporateLink } = await useCharityCta()
+const { cta, donationUrl } = await useCharityCta()
 /** 後台文案只有「提到協會」才採用；沒提到就退回本頁固定文案（固定文案已明示收受者），避免讓人誤以為是捐給俱樂部。 */
 // 英文版：後端 `?lang=en` 逐欄位回退繁中，含中日文字的值一律不用，退回本頁固定英文文案。
 const enOnly = (s: string | null) => (s && !/[\u3400-\u9fff]/.test(s) ? s : null)
 const fanCtaText = computed(() => (isEn.value
   ? (cta.value.fanCta?.includes(CHARITY_RECIPIENT_EN) ? enOnly(cta.value.fanCta) : null)
   : (cta.value.fanCta?.includes(CHARITY_RECIPIENT) ? cta.value.fanCta : null)))
-const corporateCtaText = computed(() => (isEn.value ? enOnly(cta.value.corporateCta) : cta.value.corporateCta))
 const donationCtaText = computed(() => (isEn.value ? enOnly(cta.value.donationCta) : cta.value.donationCta))
 
 useSeoMeta({
@@ -124,10 +123,10 @@ useSeoMeta({
       <p class="section-lede">{{ tx('不論是企業還是球迷，都有合適的參與方式。', 'There is a way for both businesses and fans to take part.') }}</p>
     </div>
     <div class="cta-grid">
-      <a class="cta-card" :href="corporateLink.href" :target="corporateLink.external ? '_blank' : undefined" :rel="corporateLink.external ? 'noopener noreferrer' : undefined">
-        <span class="cta-card__num">9.4</span>
+      <a class="cta-card" :href="lp('/zh/join/partnership/')">
+        <span class="cta-card__num">10.5</span>
         <span class="cta-card__title">{{ tx('企業合作公益專案', 'Corporate charity partnerships') }}</span>
-        <p class="cta-card__desc">{{ corporateCtaText ?? tx('攜手企業推動長期公益方案，詳見合作夥伴的贊助方案頁面。', 'Working with companies on long-term charity programs. See the sponsorship packages in the Partners section.') }}</p>
+        <p class="cta-card__desc">{{ tx('攜手企業推動長期公益方案，填寫合作洽詢表單與商務部聯繫。', 'Work with us on long-term charity programs: fill in the partnership inquiry form and our business team will get in touch.') }}</p>
       </a>
       <a class="cta-card" href="#donate">
         <span class="cta-card__num">01</span>

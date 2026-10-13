@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.26
-> **Date**: 2026-08-14 (v3.26 revision: 2026-10-12)
+> **Document version**: v3.27
+> **Date**: 2026-08-14 (v3.27 revision: 2026-10-13)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.26*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.27*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.27 revision summary — the corporate CTA in the charity section is defined by the public-site template**
+> **No feature is added.** The corporate charity partnership CTA under "Get Involved" in Chapter 11 always routes to 10.5 Partnership & Sponsorship Enquiries; its copy and link are set in the public-site template. Admin B5 configures only the fan-donation referral URL and copy. Where: 3.11, 4.2 B5.
 
 > **v3.26 revision summary — system administrator is an account-level status; the full-rights role is named "All-module manager"**
 > **No feature is added and permission scope is unchanged.** System administrator status is switched on for an account in J1 Accounts; it grants every club, every module and every permission without role evaluation. Items marked "system administrators only" in this specification can be used only with this status and cannot be obtained through any role. The full-rights role in the Chapter 6 matrix is named "**All-module manager**": all clubs and all modules, excluding items restricted to system administrators. Wherever this specification states that system administrators and support/administration may see personal data in full, the all-module manager may as well. Where: 4.10 J1, 4.13 S shop personal data, Chapter 6 matrix and additional rules.
@@ -599,7 +602,7 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 | 11.2 | Charity Programs | **Program list** (cover, name, beneficiaries, period, status: ongoing / completed); detail pages cover the programme's origin, **recipient charity name**, **what was donated**, delivery narrative, **event photo gallery**, related coverage, and **partners and sponsors** (shown only when their collaboration or contract period covers today; an unset start or end counts as ongoing; the same rule as the 9.1 partner list) |
 | 11.3 | Impact Stories | **Timeline / card list**; every record presents three core data points: **① charity organisation name ② what was donated ③ event photography**, plus date, location, and a short description; filterable by year |
 | 11.4 | Our Impact | Cumulative statistics: number of partner charities, total donation instances, areas served; presented as a **logo wall / list of organisations** with representative imagery. Monetary figures are hidden by default; visibility is decided per item in the admin |
-| CTA | Get Involved | Two participation routes: **corporate charity partnership** (routes to 10.5) / **fan donation** (links out to the Charity Donation Platform, see below) |
+| CTA | Get Involved | Two participation routes: **corporate charity partnership** (always routes to 10.5; copy and link are defined in the public-site template) / **fan donation** (links out to the Charity Donation Platform; URL and copy are configured in admin B5, see below) |
 
 #### Fan donation: routing to the Charity Donation Platform
 
@@ -1110,8 +1113,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Impact Record**: three required fields — **charity organisation name**, **what was donated** (free text, e.g. "50 footballs, 100 training bibs" or "N scholarships"), and **event photography** (multiple images); plus date, location, short description, and optionally the parent programme
 - **Charity organisation records**: name, description, logo or representative image, website, contact person, collaboration history; reusable across multiple impact records to avoid re-entry
 - **Impact metrics**: custom statistics (name, unit, value, public visibility); **monetary metrics are private by default**
-- **Donation referral settings**: the Charity Donation Platform URL (**never hard-coded into a template**) and the CTA copy. Donation records, amount options, invoicing and the donor roll are all maintained in that platform's `N` module and are not duplicated here
-- **Get Involved settings**: copy and destinations for **two** CTAs (corporate partnership / fan donation); volunteer signup is out of scope
+- **Donation referral settings**: the Charity Donation Platform URL (**never hard-coded into a template**), the donation button copy and the fan-donation copy in the "Get Involved" block. Donation records, amount options, invoicing and the donor roll are all maintained in that platform's `N` module and are not duplicated here
 - Display control: ordering and pinning within the charity section (**no fixed charity slot on the homepage**; for temporary exposure, use the hero carousel or publish a news article). **The Mobile App carries no charity slot either** — the Charity Donation Platform is run and collected for by the Association, so this club's app must not sell or grant charity-related placements
 
 #### B6 Press & Media

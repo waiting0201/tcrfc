@@ -8248,18 +8248,6 @@
               "null",
               "string"
             ]
-          },
-          "corporateCta": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "corporateUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
           }
         }
       },

@@ -156,6 +156,4 @@ public sealed record CharityCtaDto
     /// <summary>球迷捐款導流文案，已依請求語系回退；中文文案必點明收受者「台灣足球策略發展協會」。</summary>
     public string? DonationCta { get; init; }
     public string? FanCta { get; init; }
-    public string? CorporateCta { get; init; }
-    public string? CorporateUrl { get; init; }
 }

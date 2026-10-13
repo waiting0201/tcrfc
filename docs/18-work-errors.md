@@ -3135,3 +3135,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：表單出現的依據用「一定存在的輸入欄位」而不是占位字或標題；任何讀取 `value`／`isSelected` 的斷言一律用 `expectation(for:evaluatedWith:)` 等它，不立刻比；測試會點的任何偏好開關，啟動時都用 `-<key> <值>` 覆蓋（偏好會撐過模擬器重啟）；新增冒煙測試要整套 `./scripts/smoke.sh` 連跑到全綠一次才算數。
 - **修正**：改用尺寸欄位當表單依據並另斷言領用人預設值；開關值改用 expectation 等待；DatePicker 改用 `app.datePickers`；啟動參數 `-tcrfc.quiet.enabled NO` 覆蓋持久化偏好。
 - **防呆**：✅ `./scripts/smoke.sh` 整套重跑（本次就是它抓到）；寫法規則已寫進此條，不另加機制。
+
+### E-320 用 Python 切字串刪程式區塊，切錯邊界留下多餘括號（2026-10-13，B5 企業合作 CTA 移除，前台 agent）
+- **錯在哪**：刪 `apps/web/app/composables/useCharityCta.ts` 的 `corporateLink` 時，用 Python 以字串搜尋定位起訖，結尾錨點對到另一個 `return {`，留下多餘的括號，檔案一度語法錯誤。
+- **根因（可改掉的行為）**：拿「第一個出現的字串」當區塊邊界，沒先確認錨點在檔內唯一；能用 Edit 工具做精確替換的單一區塊刪除，卻改用腳本。與 E-95／E-123 同屬「臨時 Python 腳本改檔把檔案弄壞」一類。
+- **下次怎麼避免**：刪單一程式區塊用 Edit 工具（`old_string` 必須唯一，不唯一會直接報錯）；腳本只用在多檔機械式替換，且替換前 `assert` 錨點出現次數為 1。
+- **修正**：agent 當場修好，以 eslint 與 typecheck 確認。
+- **防呆**：✅ 改完必跑的 lint／typecheck 當場抓到；腳本錨點唯一性的 `assert` 寫法規則記在此條。

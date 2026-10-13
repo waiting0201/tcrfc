@@ -1085,12 +1085,10 @@ BEGIN
 END
 """)
 
-    emit("-- ── 37b. settings：charity.*（捐款導流與參與方式）。導流網址是 example.com 測試值；文案已依規劃書 §3.11 點明收受者 ──")
+    emit("-- ── 37b. settings：charity.*（捐款導流）。導流網址是 example.com 測試值；文案已依規劃書 §3.11 點明收受者 ──")
     setting_value("tcrfc", "charity.donation_url", "https://charity.example.com/", "charity")
     setting_i18n("tcrfc", "charity.donation_cta", "【測試】球迷捐款（捐款由台灣足球策略發展協會收受）", "【測試】Fan donations (received by the Taiwan Football Strategic Development Association)", "charity")
     setting_i18n("tcrfc", "charity.fan_cta", "【測試】球迷捐款", "【測試】Donate", "charity")
-    setting_i18n("tcrfc", "charity.corporate_cta", "【測試】企業合作公益專案", "【測試】Corporate partnership", "charity")
-    setting_value("tcrfc", "charity.corporate_url", "/zh/join/", "charity")
 
     emit("-- ── 38. press_resources：B6 媒體專區（三類各一，全部 draft＋佔位檔案鍵；【測試】） ──")
     PRESS_TEST = [

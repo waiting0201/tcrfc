@@ -343,7 +343,7 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 LEFT JOIN settings_i18n r ON r.setting_id = s.id AND r.locale = @Locale
                 LEFT JOIN settings_i18n d ON d.setting_id = s.id AND d.locale = @DefaultLocale
                 WHERE s.club_id = @ClubId AND s.setting_key IN
-                  (N'charity.donation_url', N'charity.donation_cta', N'charity.fan_cta', N'charity.corporate_cta', N'charity.corporate_url')
+                  (N'charity.donation_url', N'charity.donation_cta', N'charity.fan_cta')
                 """, P(scope, dbLocale), cancellationToken: ct))).ToDictionary(x => x.SettingKey);
 
             string? Text(string key) => rows.TryGetValue(key, out var r) ? RequestLocale.Pick(r.Local, r.Zh) : null;
@@ -354,8 +354,6 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 // 沒有捐款平台網址就沒有導流，也就不輸出按鈕文案（避免前台顯示一顆沒有去處的按鈕）。
                 DonationCta = url is null ? null : Text("charity.donation_cta"),
                 FanCta = url is null ? null : Text("charity.fan_cta") ?? Text("charity.donation_cta"),
-                CorporateCta = Text("charity.corporate_cta"),
-                CorporateUrl = rows.TryGetValue("charity.corporate_url", out var c) ? c.SettingValue : null,
             };
         }, cancellationToken);
 }

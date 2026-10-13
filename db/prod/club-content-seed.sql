@@ -7856,7 +7856,7 @@ BEGIN
 END
 GO
 
--- ── 37b. settings：charity.*（捐款導流與參與方式）。導流網址是 example.com 測試值；文案已依規劃書 §3.11 點明收受者 ──
+-- ── 37b. settings：charity.*（捐款導流）。導流網址是 example.com 測試值；文案已依規劃書 §3.11 點明收受者 ──
 DECLARE @id uniqueidentifier;
 SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'charity.donation_url';
 IF @id IS NULL
@@ -7941,56 +7941,6 @@ BEGIN
   INSERT INTO settings_i18n (setting_id, locale, value)
   SELECT s.id, N'en', N'【測試】Donate' FROM settings s
   WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'charity.fan_cta';
-  COMMIT TRANSACTION;
-END
-GO
-
-DECLARE @id uniqueidentifier;
-SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'charity.corporate_cta';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'fdd280a8-7bdb-5951-8cad-8cf7a0a6d594';
-  INSERT INTO settings (id, club_id, setting_key, setting_group)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'charity.corporate_cta', N'charity');
-  COMMIT TRANSACTION;
-END
-GO
-
-IF NOT EXISTS (
-  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
-  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'charity.corporate_cta' AND si.locale = N'zh-Hant'
-)
-BEGIN
-  BEGIN TRANSACTION;
-  INSERT INTO settings_i18n (setting_id, locale, value)
-  SELECT s.id, N'zh-Hant', N'【測試】企業合作公益專案' FROM settings s
-  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'charity.corporate_cta';
-  COMMIT TRANSACTION;
-END
-GO
-
-IF NOT EXISTS (
-  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
-  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'charity.corporate_cta' AND si.locale = N'en'
-)
-BEGIN
-  BEGIN TRANSACTION;
-  INSERT INTO settings_i18n (setting_id, locale, value)
-  SELECT s.id, N'en', N'【測試】Corporate partnership' FROM settings s
-  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'charity.corporate_cta';
-  COMMIT TRANSACTION;
-END
-GO
-
-DECLARE @id uniqueidentifier;
-SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'charity.corporate_url';
-IF @id IS NULL
-BEGIN
-  BEGIN TRANSACTION;
-  SET @id = N'ee9fa209-3f55-5b5d-bb31-37c745f3cf05';
-  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'charity.corporate_url', N'/zh/join/', N'charity');
   COMMIT TRANSACTION;
 END
 GO
