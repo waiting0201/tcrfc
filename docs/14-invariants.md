@@ -32,6 +32,7 @@
   ⑥ 公開 repo 的 Actions log 人人可看：腳本**不得印伺服器主機名稱**（只印資料庫名），密碼不進命令列／log／summary。
 
 - 🔴 **改資料庫結構，`db/*-schema.sql`（DDL）與 EF 模型＋migration 必須在同一次交付一起改**（`docs/18` `E-321`，2026-10-13）。結構有**兩個真實來源**：正式庫由 `prod-db-init.sh` **原樣跑 DDL** 建表再把全部 migration 標記為已套用（一支都沒執行），本機庫與程式則吃 EF 模型／migration。漏改 DDL＝正式庫沒有新欄位；漏寫 migration＝既有庫升級不到。由 CI 的 `schema-drift` job（`deploy/schema-drift-check.sh`，DDL 原樣建庫 vs EF 模型 `dbcontext script`，兩個 context 都涵蓋）把關，**不要用「改排除清單」讓它通過**——排除只准排整個物件類別（目前只有視圖）。已知盲點：只在 DDL 的 `CHECK`／預設值、以 `migrationBuilder.Sql` 加但沒進模型的物件，這道檢查看不出（`docs/20` §3「schema-drift」）。**本機庫是否落後 DDL**用 `./deploy/schema-drift-check.sh --mode local-vs-ddl` 體檢（`setup-club-db.sh` 遇到已有資料表會略過 DDL）。⚠️ **InitialBaseline 的 `Up()`／`Down()` 是空的，「從空庫跑全部 migration」長不出完整庫，不能拿來當比對基準。**
+  - **migration 以明確名稱建立約束（`ADD CONSTRAINT [CK_…]`、欄位上的 `CONSTRAINT CK_… CHECK`）且在 DDL 建的庫上會真的執行時，DDL 必須寫同一個名稱**（2026-10-13）。DDL 匿名、migration 具名＝「今天的 DDL 新建的庫」與「套過該 migration 的庫（本機、之後的正式庫）」名稱不同；`schema-drift` 預設模式看不到（EF 不描述 CHECK），只有 `--mode local-vs-ddl` 抓得到。實例：`CK_members_guardian_relationship`、`CK_role_permissions_scope_type` 已補名。舊 migration 裡另有約 40 個具名 CHECK 在 DDL 是匿名，但那些 `Up()` 在 DDL 庫上是無操作（欄位已有 CHECK 就跳過），各環境一致，不需改
 
 - 🔴 **客戶照片不得被 import 進建置，也不得進映像檔**（2026-10-02 使用者決定，`E-113`）。`apps/web/public/assets/img/`（含未成年學員肖像，不納版控）
   一律寫成 `siteImg('/assets/img/…')`（`apps/web/app/utils/siteImage.ts`），**不得**寫靜態 `src="/assets/img/…"`、`import … from '/assets/img/…'`、

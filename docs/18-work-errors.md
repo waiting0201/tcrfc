@@ -3149,4 +3149,5 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：每次發現一種分岔形狀（snapshot 沒進版控、索引慣例差異）就針對「那一種」補單點防呆，沒有回頭問「結構到底有幾個真實來源、每一對之間誰在比對」；`InitialBaseline` 空 `Up()` 讓「跑 migration 驗證結構」這條路走不通，也一直沒有人改用別的基準。
 - **下次怎麼避免**：新增或改動任何「一份事實、多處副本」的東西時，先列出所有來源與每一對的比對機制，缺的那一對就是缺口。改結構時 DDL 與 EF 模型＋migration 同一次交付一起改。
 - **修正**：新增 `deploy/schema-drift-check.sh`（＋`schema-snapshot.sql`、`schema-diff.py`）與 `ci.yml` 的 `schema-drift` job（A＝DDL 原樣建庫，B＝EF 模型 `dbcontext script`，兩個 DbContext 都涵蓋，比對正規化快照）；另有 `--mode local-vs-ddl` 體檢本機庫是否落後。首次實跑的既有差異見 `STATUS.md` 當日記錄。
+- **後續（同日）**：本機套完 migration 後 `--mode local-vs-ddl` 仍有兩個 CHECK 名稱不同——`AddClubShortNameGuardianConsent`／`AdminUserTeamsDropContract` 以明確名稱建約束、DDL 卻是匿名；正式庫（10/02 建）之後由 `db-migrate` 套這兩支也會變具名。已於 `db/club-schema.sql` 補上同名，規則寫入 `docs/14`。
 - **防呆**：✅ CI `schema-drift` job（`docs/20` §3）；已知盲點（只在 DDL 的 CHECK／預設值、`migrationBuilder.Sql` 加的物件、migration `Up()` 本身能否在 DDL 庫上執行）寫在 `docs/20` 與 `docs/14`，未涵蓋。

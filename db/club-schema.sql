@@ -1856,7 +1856,7 @@ CREATE TABLE role_permissions (
   admin_role_id   uniqueidentifier NOT NULL,
   permission_id   uniqueidentifier NOT NULL,
   scope_type      nvarchar(32)     NOT NULL DEFAULT 'all'
-                    CHECK (scope_type IN
+                    CONSTRAINT CK_role_permissions_scope_type CHECK (scope_type IN
                       ('all','academy_only','masked','translate_only','own_clubs')),
   CONSTRAINT PK_role_permissions PRIMARY KEY CLUSTERED (admin_role_id, permission_id)
 );
@@ -1921,7 +1921,7 @@ CREATE TABLE members (
   -- （文案本身待法務 B-9）。四欄：成年註冊全空，未成年註冊前三欄必填（CK_members_guardian_consent）。
   guardian_consented_at       datetime2(3)     NULL,
   guardian_name               nvarchar(64)     NULL,
-  guardian_relationship       nvarchar(16)     NULL CHECK (guardian_relationship IN ('parent','legal_guardian')),
+  guardian_relationship       nvarchar(16)     NULL CONSTRAINT CK_members_guardian_relationship CHECK (guardian_relationship IN ('parent','legal_guardian')),
   guardian_consent_version    nvarchar(32)     NULL,
   created_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
