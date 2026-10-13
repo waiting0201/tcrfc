@@ -45,6 +45,8 @@ set -euo pipefail
 export LC_ALL=C
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=deploy/lib/sqlcmd-guard.sh
+source "${SCRIPT_DIR}/lib/sqlcmd-guard.sh"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SECRETS_DIR="${TCRFC_SECRETS_DIR:-/opt/tcrfc/secrets}"
 MSSQL_TOOLS_IMAGE="${MSSQL_TOOLS_IMAGE:-mcr.microsoft.com/mssql-tools}"
@@ -543,11 +545,15 @@ cmd_apply() {
     say "### ${t}（\`${DB_NAME}\`）：套用 ${PENDING_COUNT} 支"
     log="${WORK_DIR}/apply.${t}.log"
     info "套用 ${t}：sqlcmd -b -I -i idempotent.sql"
-    SQLCMD_DOCKER_EXTRA=(-v "${DBM_SQL_DIR}/${t}:/work:ro")
+    # 🔴 E-295（第二次，2026-10-13）：sqlcmd 13 遇到「(N rows affected)」會在中途報 SqlState 24000 Invalid cursor state、之後的批次全數失敗，
+    # 結束碼卻是 0（2026-10-13 正式庫 8 支只套 3 支）。包一層 SET NOCOUNT ON 再 :r（idempotent.sql 原檔不動、SHA-256 鎖定不變），
+    # 並以「結束碼 0 且輸出沒有錯誤字樣」判斷成敗（lib/sqlcmd-guard.sh）。
+    sqlcmd_nocount_wrapper "${WORK_DIR}/apply-wrapper.${t}.sql" /work/idempotent.sql
+    SQLCMD_DOCKER_EXTRA=(-v "${DBM_SQL_DIR}/${t}:/work:ro" -v "${WORK_DIR}/apply-wrapper.${t}.sql:/wrap/apply.sql:ro")
     # -I：QUOTED_IDENTIFIER ON（有篩選索引／計算欄位的表，預設的 OFF 會讓 DDL 失敗）。
     # 🔴 不要加 -f 65001：Linux 的 mssql-tools sqlcmd 不支援 -f（本機演練實測：「Unknown Option」），預設已是 UTF-8；
     # 檔案的 BOM 由 generate 在產出時移除。
-    if sqlcmd_container -I -i /work/idempotent.sql >"${log}" 2>&1; then
+    if sqlcmd_container -I -i /wrap/apply.sql >"${log}" 2>&1 && ! sqlcmd_log_has_error "${log}"; then
       ok "${t}：sqlcmd 結束碼 0（輸出 $(wc -l <"${log}" | tr -d ' ') 行）"
     else
       SQLCMD_DOCKER_EXTRA=()

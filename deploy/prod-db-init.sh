@@ -176,12 +176,9 @@ sql_scalar() { # ${1}=T-SQL
   printf '%s' "${out}" | tr -d '[:space:]'
 }
 
-# 🔴 sqlcmd 13（mssql-tools 映像檔）遇到部分錯誤會「印出錯誤、結束碼卻是 0」（E-295：SqlState 24000 Invalid cursor state，
-# 連線中斷、交易回滾，結束碼仍 0）。所以除了結束碼，還要掃輸出：Level 11 以上的 Msg（SQL 錯誤）、SqlState（ODBC 錯誤）、
-# `Sqlcmd:` 開頭（sqlcmd 自己的錯誤）一律視為失敗。Level 10 以下是資訊訊息，不算。
-sqlcmd_log_has_error() { # ${1}=輸出檔；有錯誤字樣回傳 0（真）
-  grep -Eq '^(Msg [0-9]+, Level (1[1-9]|2[0-5])|SqlState |Sqlcmd: )' "${1}"
-}
+# 🔴 sqlcmd 13 結束碼不可信（E-295）：錯誤掃描 sqlcmd_log_has_error 收在共用檔（db-migrate.sh 也用）。
+# shellcheck source=deploy/lib/sqlcmd-guard.sh
+source "${SCRIPT_DIR}/lib/sqlcmd-guard.sh"
 
 # 執行 SQL 檔；成功只印結尾摘要，失敗印 sqlcmd 的訊息（不含密碼）。${1}=容器內路徑 ${2}=標題 ${3}=失敗時的補充說明（選填）
 run_sql_file() {
