@@ -1001,6 +1001,9 @@ END
     CHARITIES_TEST = [
         ("test-org-a", "【測試】示範公益團體甲", "Test Charity A", "【測試】這是示範用的公益團體簡介。"),
         ("test-org-b", "【測試】示範公益團體乙", None, "【測試】另一個示範用的公益團體。"),
+        ("test-org-c", "【測試】示範公益團體丙", "Test Charity C", "【測試】示範用：偏鄉學校足球社團的支持單位。"),
+        ("test-org-d", "【測試】示範公益團體丁", None, "【測試】示範用：在地社福單位，協助弱勢家庭孩童參與運動。"),
+        ("test-org-e", "【測試】示範公益團體戊", "Test Charity E", "【測試】示範用：公益義賽的合作受贈團體。"),
     ]
     for slug, zh, en, intro in CHARITIES_TEST:
         cid = new_id("charity", "tcrfc", slug)
@@ -1022,6 +1025,9 @@ END
         ("test-charity-program-a", "test-org-a", "【測試】示範慈善計畫：偏鄉足球捐贈", "Test Charity Program A", "2026-03-01", None, "published", 1, 0),
         ("test-charity-program-b", "test-org-b", "【測試】示範慈善計畫：公益義賽", None, "2025-05-01", "2025-12-31", "published", 0, 1),
         ("test-charity-program-c", "test-org-a", "【測試】示範慈善計畫（草稿）", None, "2026-10-01", None, "draft", 0, 2),
+        ("test-charity-program-d", "test-org-c", "【測試】示範慈善計畫：偏鄉學校足球社團", "Test Charity Program D", "2026-01-15", None, "published", 0, 3),
+        ("test-charity-program-e", "test-org-d", "【測試】示範慈善計畫：弱勢家庭孩童足球營", None, "2025-07-01", "2025-08-31", "published", 0, 4),
+        ("test-charity-program-f", "test-org-e", "【測試】示範慈善計畫：年度公益義賽", "Test Charity Program F", "2024-11-01", "2024-12-31", "published", 0, 5),
     ]
     for slug, org, zh, en, start, end, status, pinned, order in PROGRAMS_TEST:
         pid = new_id("charity_program", "tcrfc", slug)
@@ -1054,6 +1060,9 @@ WHERE p.club_id = {tc} AND p.slug = N'test-charity-program-a' AND x.club_id = {t
     RECORDS_TEST = [  # key, org, program, day, donation, location, brief
         ("a", "test-org-a", "test-charity-program-a", "2026-04-10", "【測試】足球 50 顆、訓練背心 100 件（示範數字）", "【測試】示範地點：南投縣", "【測試】示範簡述。"),
         ("b", "test-org-b", "test-charity-program-b", "2025-11-22", "【測試】獎助學金 5 名（示範數字）", "【測試】示範地點：台中市", None),
+        ("c", "test-org-c", "test-charity-program-d", "2026-03-18", "【測試】球門 2 座、角錐 60 個（示範數字）", "【測試】示範地點：苗栗縣", "【測試】示範簡述：教練團到校指導兩個下午。"),
+        ("d", "test-org-d", "test-charity-program-e", "2025-08-09", "【測試】足球營名額 30 名、球鞋 30 雙（示範數字）", "【測試】示範地點：台中市", "【測試】示範簡述：暑期五天足球營。"),
+        ("e", "test-org-e", "test-charity-program-f", "2024-12-14", "【測試】義賽門票收入捐贈（示範，金額不公開）", "【測試】示範地點：台中市", None),
     ]
     for key, org, prog, day, donation, loc, brief in RECORDS_TEST:
         rid = new_id("impact_record", "tcrfc", key)
@@ -1069,9 +1078,12 @@ END
 """)
 
     METRICS_TEST = [  # key, zh, unit, value, public, program(None=全站)
-        ("groups", "【測試】合作公益團體數", "個", 2, 1, None),
+        ("groups", "【測試】合作公益團體數", "個", 5, 1, None),
         ("items", "【測試】累計捐助項次", "項", 155, 1, None),
         ("amount", "【測試】累計捐助金額（不公開）", "元", 123456, 0, "test-charity-program-a"),
+        ("kids", "【測試】累計受惠學童", "人", 320, 1, None),
+        ("schools", "【測試】合作偏鄉學校", "所", 6, 1, None),
+        ("camp-days", "【測試】足球營總天數", "天", 5, 1, "test-charity-program-e"),
     ]
     for key, zh, unit, value, public, prog in METRICS_TEST:
         mid = new_id("impact_metric", "tcrfc", key)
