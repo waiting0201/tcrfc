@@ -381,9 +381,9 @@ C['zh'] = dict(
     st00=dict(h='第一次打開 App', u='只出現一次，之後可在「更多」裡改', tag='可全部跳過',
               lede='雙隊 App 一開始就要問一件事：<b>你追誰？</b>不知道使用者追誰，首頁就沒辦法決定要顯示'
                    '哪一隊的下一場比賽。但這道問題<b>不能變成門檻</b>——所以兩步都能跳過，跳過就等於全部追蹤。',
-              items=[('1', '先選語言', '預設跟隨手機語言。裝置語言不是繁中或英文時，預設繁中。'),
-                     ('2', '再選追蹤對象', '可以多選、也可以直接選「全部追蹤」。<b>「全部追蹤」是明確選項，不是跳過的副作用。</b>'),
-                     ('3', '最後才問推播', '先說明用途再請求權限，不在啟動時就跳系統視窗。'),
+              items=[('1', '先選追蹤對象', '可以多選、也可以直接選「全部追蹤」。<b>「全部追蹤」是明確選項，不是跳過的副作用。</b>'),
+                     ('2', '再問推播', '先說明用途再請求權限，不在啟動時就跳系統視窗。'),
+                     ('!', '語言跟隨手機', '不用另外選。手機語言不是繁中或英文時，預設繁中；之後可在「設定」裡改。'),
                      ('!', '不設登入牆', '整段引導在未登入狀態就能完成，偏好先存在手機裡，登入後才與帳號同步。'),
                      ('!', '追蹤 ≠ 推播', '追蹤只決定「首頁看什麼」。想在首頁看到藍鯨、又不想被藍鯨推播打擾，是合法的組合。')],
               admin='<b>重要的分寸</b><br>追蹤<b>只影響預設值，不會把其他球隊藏起來</b>——追磐石的人一樣可以在賽程分頁切去看藍鯨。'
@@ -658,7 +658,6 @@ C['zh'] = dict(
         ('lrow',[('加入球隊',None),('學院招生',None),('課程與營隊報名',None),
                  ('費用與退費',None),('球迷會與商品',None)])]),
       ('S23','追蹤設定／首次啟動引導','只出現一次，之後隨時可改。',4,True,[
-        ('bt','語言'),('chips',(['繁體中文','English'],0)),
         ('bt','你想追蹤誰？'),
         ('fld','☑　台中磐石　一線隊'),('fld','☑　台中藍鯨　一線隊'),
         ('fld','☐　台中磐石　學院梯隊'),
@@ -672,7 +671,6 @@ C['zh'] = dict(
 
     # 手機示意內的字串
     ph=dict(
-        onb_lang='語言', onb_zh='繁體中文', onb_en='English',
         onb_q='你想追蹤誰？', onb_a='台中磐石　一線隊', onb_b='台中藍鯨　一線隊',
         onb_c='台中磐石　學院梯隊', onb_all='全部追蹤', onb_skip='先跳過',
         onb_note='之後可以隨時更改',
@@ -775,9 +773,9 @@ C['en'] = dict(
                    'the home screen cannot decide whose next match to show. But the question '
                    '<b>must not become a barrier</b> — so both steps can be skipped, and skipping means '
                    'following everything.',
-              items=[('1', 'Language first', "Defaults to the device language; anything other than Chinese or English defaults to Chinese."),
-                     ('2', 'Then who to follow', 'Multi-select, or simply "follow everything". <b>"Follow everything" is an explicit option, not a side effect of skipping.</b>'),
-                     ('3', 'Push permission last', 'The purpose is explained before the system prompt appears; no permission dialogue on launch.'),
+              items=[('1', 'Who to follow', 'Multi-select, or simply "follow everything". <b>"Follow everything" is an explicit option, not a side effect of skipping.</b>'),
+                     ('2', 'Then push permission', 'The purpose is explained before the system prompt appears; no permission dialogue on launch.'),
+                     ('!', 'Language follows the phone', 'Nothing to choose. Anything other than Chinese or English defaults to Chinese; changeable later in Settings.'),
                      ('!', 'No sign-in wall', 'The whole flow completes while signed out. Preferences are stored on the phone first and synced to the account after sign-in.'),
                      ('!', 'Following is not push', 'Following only decides what the home screen shows. Wanting Blue Whale on your home screen without Blue Whale notifications is a valid combination.')],
               admin='<b>An important limit</b><br>Following <b>changes defaults; it never hides the other club</b> — '
@@ -1078,7 +1076,6 @@ C['en'] = dict(
                  ('Program & camp registration',None),('Fees & refunds',None),
                  ('Fan club & merchandise',None)])]),
       ('S23','Follow settings / onboarding','Shown once, changeable at any time.',4,True,[
-        ('bt','Language'),('chips',(['繁體中文','English'],0)),
         ('bt','Who do you follow?'),
         ('fld','☑　Taichung Rock　First Team'),('fld','☑　Taichung Blue Whale　First Team'),
         ('fld','☐　Taichung Rock　Academy'),
@@ -1095,7 +1092,6 @@ C['en'] = dict(
              'placeholder logos will be used.',
 
     ph=dict(
-        onb_lang='Language', onb_zh='繁體中文', onb_en='English',
         onb_q='Who do you follow?', onb_a='Taichung Rock　First Team',
         onb_b='Taichung Blue Whale　First Team',
         onb_c='Taichung Rock　Academy', onb_all='Follow everything', onb_skip='Skip for now',
@@ -1281,14 +1277,12 @@ def build(c):
 
     # ── 00 首次啟動 ─────────────────────────────────────────────────────────
     sc00 = """
-    <div class="blk"><div class="bh"><span class="kk">1</span><span class="bt">{onb_lang}</span></div>
-      <div class="row"><span class="chip on">{onb_zh}</span><span class="chip">{onb_en}</span></div></div>
-    <div class="blk"><div class="bh"><span class="kk">2</span><span class="bt">{onb_q}</span></div>
+    <div class="blk"><div class="bh"><span class="kk">1</span><span class="bt">{onb_q}</span></div>
       <div class="fld" style="margin-bottom:1.1mm">☑　{onb_a}</div>
       <div class="fld" style="margin-bottom:1.1mm">☑　{onb_b}</div>
       <div class="fld" style="margin-bottom:1.1mm">☐　{onb_c}</div>
       <div class="cta gh">{onb_all}</div></div>
-    <div class="blk pl"><div class="bh"><span class="kk">3</span><span class="bt">{push}</span></div>
+    <div class="blk pl"><div class="bh"><span class="kk">2</span><span class="bt">{push}</span></div>
       <div class="bs">{push_s}</div></div>
     <div class="cta">{next}</div>
     <div class="tiny" style="text-align:center">{onb_skip}　·　{onb_note}</div>

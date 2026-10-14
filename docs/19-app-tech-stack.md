@@ -744,11 +744,11 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | 離線閱讀 | 開啟過的內文即快取（`news_detail`，**30 天**取自契約），啟動時刪除超過 30 天者；**最多保留最近 200 篇**（與 Android 一致的執行層決定）；列表標示「已儲存，可離線閱讀」，設定顯示已儲存篇數 |
 | 方案與權益（B8） | `isFallbackLocale` 已用於英文介面的「Chinese only」標示 |
 | 預覽資料 | 預覽用的假 API 會被多個版位並行呼叫，紀錄陣列以鎖保護（E-189） |
-| 🔴 冒煙測試（XCUITest） | 為什麼：E-186（QR 畫成空白）、E-189（並行呼叫閃退）與 Android 的 E-163 是同一類——**單元測試全綠、打開畫面才壞**，依全域規定 13 升級成機制。`TcrfcAppUITests`（獨立 scheme `TcrfcAppSmoke`，一條指令 `./scripts/smoke.sh`）以預覽資料啟動真的 App：引導三步 → 首頁（四個廣告版位並行載入，E-189 的條件）→ 五個分頁主畫面 → 賽事詳情 → 新聞全文（全區塊預覽）→ 會員卡（**截圖並斷言 QR 區域有深淺像素，E-186**）→ 課程詳情、特約店家、名單、夥伴、FAQ、設定 → 深連結 match／player／news／未知，**含真正的冷啟動深連結**（先 terminate、再由系統開網址叫起，走 `scene(_:willConnectTo:options:)` 的 `urlContexts`，match／news／player／未知各一案）、**App 在背景時被連結帶回前景**、引導未完成時被連結叫起（先完成引導再導向）。Android E-190（冷啟動被深連結叫起閃退）促成這幾案；iOS 實測**沒有重現**該問題，但把冷啟動連結改為**擱到分頁與導覽容器上畫面（`viewDidAppear`）且引導完成後才導向**（`pendingLink`），不依賴 UIKit 對「尚未顯示的導覽容器 push」的容忍度。`connectionOptions.userActivities`（Universal Link）走同一個 `handle(url:)`，但 Associated Domains 尚未設、無法在冒煙測試覆蓋。深連結（App 已在執行）用啟動參數 `-TCRFC_DEBUG_URL`（Debug 才有）直接走 `handle(url:)`，避開 `simctl openurl` 的系統確認框；每次啟動 `-TCRFC_DEBUG_RESET YES` 清登入狀態（Keychain 會撐過重啟）。已用「把 QR 改回 `UIImage(ciImage:)`」實測：冒煙測試會失敗。另補單元測試：預覽假 API 的並行呼叫。**AP-7 的 CI 必須跑這組測試**（連同單元測試） |
+| 🔴 冒煙測試（XCUITest） | 為什麼：E-186（QR 畫成空白）、E-189（並行呼叫閃退）與 Android 的 E-163 是同一類——**單元測試全綠、打開畫面才壞**，依全域規定 13 升級成機制。`TcrfcAppUITests`（獨立 scheme `TcrfcAppSmoke`，一條指令 `./scripts/smoke.sh`）以預覽資料啟動真的 App：引導兩步（追蹤、通知）→ 首頁（四個廣告版位並行載入，E-189 的條件）→ 五個分頁主畫面 → 賽事詳情 → 新聞全文（全區塊預覽）→ 會員卡（**截圖並斷言 QR 區域有深淺像素，E-186**）→ 課程詳情、特約店家、名單、夥伴、FAQ、設定 → 深連結 match／player／news／未知，**含真正的冷啟動深連結**（先 terminate、再由系統開網址叫起，走 `scene(_:willConnectTo:options:)` 的 `urlContexts`，match／news／player／未知各一案）、**App 在背景時被連結帶回前景**、引導未完成時被連結叫起（先完成引導再導向）。Android E-190（冷啟動被深連結叫起閃退）促成這幾案；iOS 實測**沒有重現**該問題，但把冷啟動連結改為**擱到分頁與導覽容器上畫面（`viewDidAppear`）且引導完成後才導向**（`pendingLink`），不依賴 UIKit 對「尚未顯示的導覽容器 push」的容忍度。`connectionOptions.userActivities`（Universal Link）走同一個 `handle(url:)`，但 Associated Domains 尚未設、無法在冒煙測試覆蓋。深連結（App 已在執行）用啟動參數 `-TCRFC_DEBUG_URL`（Debug 才有）直接走 `handle(url:)`，避開 `simctl openurl` 的系統確認框；每次啟動 `-TCRFC_DEBUG_RESET YES` 清登入狀態（Keychain 會撐過重啟）。已用「把 QR 改回 `UIImage(ciImage:)`」實測：冒煙測試會失敗。另補單元測試：預覽假 API 的並行呼叫。**AP-7 的 CI 必須跑這組測試**（連同單元測試） |
 
 **iOS AP-4 缺口狀態**：E1（狀態代碼）✅、E2（廣告圖衍生檔）✅、E3 預載 ✅（兒童向版位判斷欄位仍無，維持靠 App 不放版位）、E4（方案 `isFallbackLocale`）✅、E5（我的報名摘要）✅。**新缺口**：F1 `portraitConsented` 不含 App 涵蓋範圍（§16.2 第 14 項）；F2 `news-body-blocks.json` 的真實來源是官網解析器，後端不驗證區塊型別，App 遇到契約外型別只能提示到官網閱讀。
 
-**Android 冒煙測試（E-163／E-190 的防呆機制，2026-10-05）**：`app/src/androidTest/.../SmokeTest.kt`（Compose UI Test＋`ActivityScenario`，`./gradlew connectedDevDebugAndroidTest`）以 dev flavor 預覽資料在模擬器走過引導三步、五個分頁、賽事詳情、新聞全文（全區塊）、會員卡（`captureToImage` 斷言 QR 非空白）、課程、店家、設定、抽獎資訊、我的報名，首頁廣告版位在並行載入情境，以及 Intent 深連結（match／player／news／store／program／schedule／無法辨識）。**AP-7 的 Android CI 必須跑這組**（Linux runner 用模擬器動作，如 `reactivecircus/android-emulator-runner`）；iOS 端對應的是同類 UI 冒煙測試（E-186／E-189）。第一次執行就抓到冷啟動深連結閃退（E-190）。
+**Android 冒煙測試（E-163／E-190 的防呆機制，2026-10-05）**：`app/src/androidTest/.../SmokeTest.kt`（Compose UI Test＋`ActivityScenario`，`./gradlew connectedDevDebugAndroidTest`）以 dev flavor 預覽資料在模擬器走過引導兩步（追蹤、通知）、五個分頁、賽事詳情、新聞全文（全區塊）、會員卡（`captureToImage` 斷言 QR 非空白）、課程、店家、設定、抽獎資訊、我的報名，首頁廣告版位在並行載入情境，以及 Intent 深連結（match／player／news／store／program／schedule／無法辨識）。**AP-7 的 Android CI 必須跑這組**（Linux runner 用模擬器動作，如 `reactivecircus/android-emulator-runner`）；iOS 端對應的是同類 UI 冒煙測試（E-186／E-189）。第一次執行就抓到冷啟動深連結閃退（E-190）。
 
 ### 11e-5. Android AP-4 收尾（2026-10-12）
 
@@ -773,6 +773,14 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | G5 | 通知中心**沒有已讀／未讀**——規劃書 §3.13 只寫「列出已收到的推播，保留 90 天，離線可讀」，後端也沒有已讀端點，**沒有發明**；`GET /app/notifications` 沒有分頁，上限 200 筆（後端 `Take(200)`），客戶端全顯示 |
 | G6 | 試訓場次沒有深連結（`shared/deeplinks.json` 無 `trial`），通知若要直達試訓需契約補；`teamCode` 篩選端點支援但畫面沒用（兩隊的場次一起列）；`venueLat`／`venueLng` 未用 |
 | G7 | 試訓報名的 `healthDeclaration` 與課程一致**不蒐集**（B-9 未解）；若試訓需要健康聲明（運動傷害風險），要先由規劃書／法務決定 |
+
+### 11l. 引導兩步與四分頁不顯示標題（iOS＋Android，2026-10-14）
+
+| 項目 | 決定 |
+|---|---|
+| **引導兩步** | 依 App 規劃書 v3.21 §2.5／§3.0：引導只剩「追蹤 → 通知」。語系本來就在啟動時決定，不在引導裡：iOS `LocalizationManager`（偏好空＝`.system`，`zh*`→繁中、`en*`→英文、其他→繁中，**解析結果不寫回偏好**）；Android `LanguageResolver.effective`＋`MainActivity.syncLanguage`（非英文＝繁中，`values/` 預設即繁中）。**`zh-Hans` 落在繁中**，符合規劃書「非繁中或英文時預設繁中」。已選過語系的舊使用者偏好照舊有效。設定頁語系切換保留 |
+| **四分頁根畫面不顯示標題**（使用者 2026-10-14 指示，規劃書未規範頁面標題，屬畫面實作） | 首頁、賽程、會員、新聞四個根畫面**整條導覽列收掉**（它們頂端沒有按鈕，只拿標題會留空白列）。iOS：`Navigation.swift` 的 `ScreenHostingController(hidesNavigationBar:)`，`viewWillAppear` 隱藏、`viewWillDisappear` 還原，push 的子畫面照常有標題與返回鍵（返回鍵只剩箭頭，因上層無標題）。Android：`AppRoot.kt` 的 `showTopBar` 對四個目的地不放 `TopAppBar`（`testTag("topBar")`）。**「更多」與所有子畫面不變**。日後四頁若要加頂端按鈕，要改成「只隱藏標題」而不是整條收掉 |
+| 冒煙測試 | iOS 斷言四頁 `navigationBars` 不存在、「更多」存在；Android `assertNoTopBar()`。iOS 單元 203／冒煙 20、Android 單元 374（兩 flavor）／冒煙 19，全綠（2026-10-14） |
 
 ## 12. 本檔不決定的事
 

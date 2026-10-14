@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.20
-> **Date**: 2026-09-04 (v3.20 revision: 2026-10-12)
+> **Document version**: v3.21
+> **Date**: 2026-09-04 (v3.21 revision: 2026-10-14)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.21 revision summary — first-run onboarding has two steps; the language follows the device**
+> First-run onboarding (S23) has two steps: choose who to follow, then explain and request push permission. The app language is taken from the device language (defaulting to Traditional Chinese where it is neither Traditional Chinese nor English) and is not asked during onboarding; users can change it at any time in Settings (S21). Where: 2.5, 3.0.
 
 > **v3.20 revision summary — quiet hours default to on and also govern locally scheduled kickoff reminders**
 > The quiet-hours switch is on by default with a default window of 22:00–08:00 (device local time, may span midnight); quiet hours also govern the match-day kickoff reminders (local notifications scheduled by the App on the device): a reminder falling inside the window is deferred to the end of the window, and if the match has already kicked off by then, no reminder is shown. Where: 3.2 match-day bundle, 3.13, 6.4.
@@ -408,7 +411,7 @@ Five fixed bottom tabs, never more than three levels deep:
 
 The website's bilingual principles carry over unchanged (Traditional Chinese default, English as translation, fall back to Chinese with a marker where untranslated, architecture ready for a third language). Three rules are specific to the app:
 
-1. **On first launch, follow the device language.** Where the device language is neither Traditional Chinese nor English, default to Traditional Chinese. First-run onboarding (S23) asks for **language before follow preferences**.
+1. **On first launch, follow the device language.** Where the device language is neither Traditional Chinese nor English, default to Traditional Chinese. First-run onboarding (S23) **does not ask for a language**; users can change it at any time in Settings (S21).
 2. **Once signed in, follow the account's language preference** (an existing `Member` field). Changing the language in the app writes back to the account.
 3. **Push language follows the language recorded when the device registered** (`AppDevice.lang`); where this differs from the account preference, the account wins.
 
@@ -441,16 +444,15 @@ Each of the website's G-01 to G-12 features, and how the app handles it:
 
 | Step | Content | Skippable |
 |---|---|---|
-| 1 | Choose language (defaults to the device language) | Yes |
-| 2 | **Choose who to follow**: Taichung Rock first team / Taichung Blue Whale first team / Rock academy squads / follow everything | Yes (skipping = follow everything) |
-| 3 | Explain and request push permission | Yes |
+| 1 | **Choose who to follow**: Taichung Rock first team / Taichung Blue Whale first team / Rock academy squads / follow everything | Yes (skipping = follow everything) |
+| 2 | Explain and request push permission | Yes |
 
 **Four rules**:
 
 1. **No sign-in wall.** Onboarding completes while signed out; preferences are stored locally first and synced to the account on sign-in.
 2. **Multi-select, and "follow everything" is an explicit option**, not a side effect of skipping.
 3. **Changeable at any time** from Follow settings in the More tab, which opens the same screen.
-4. **Following is not push.** Step 2 only decides what the home screen shows; whether push is received is controlled separately by step 3 and 6.4. Following Blue Whale with Blue Whale push disabled is a valid combination.
+4. **Following is not push.** Step 1 only decides what the home screen shows; whether push is received is controlled separately by step 2 and 6.4. Following Blue Whale with Blue Whale push disabled is a valid combination.
 
 ### 3.1 Home
 
