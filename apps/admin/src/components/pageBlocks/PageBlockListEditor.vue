@@ -20,8 +20,19 @@ const props = withDefaults(
   defineProps<{
     allowedTypes?: readonly PageBlockType[]
     emptyHint?: string
+    /** 覆寫區塊類型的中文名稱（新聞內文用「段落」「圖集」「影音」）；沒列到的類型沿用 B1 名稱。 */
+    typeLabels?: Partial<Record<PageBlockType, string>>
+    /** 圖片欄位解析度下限，原樣傳給每個區塊編輯器；不傳＝沿用上傳元件預設。 */
+    imageMinWidth?: number
+    imageMinHeight?: number
   }>(),
-  { allowedTypes: () => PAGE_BLOCK_TYPES, emptyHint: '目前還沒有任何內容區塊，從下方選一種類型開始新增。' },
+  {
+    allowedTypes: () => PAGE_BLOCK_TYPES,
+    emptyHint: '目前還沒有任何內容區塊，從下方選一種類型開始新增。',
+    typeLabels: () => ({}),
+    imageMinWidth: undefined,
+    imageMinHeight: undefined,
+  },
 )
 
 const blocks = defineModel<PageBlockState[]>({ required: true })
@@ -30,7 +41,7 @@ const formErrors = useFormErrors()
 const addBlockType = ref<PageBlockType>(props.allowedTypes[0] ?? 'text')
 
 function blockTypeLabel(blockType: string): string {
-  return PAGE_BLOCK_TYPE_LABEL[blockType as PageBlockType] ?? blockType
+  return props.typeLabels[blockType as PageBlockType] ?? PAGE_BLOCK_TYPE_LABEL[blockType as PageBlockType] ?? blockType
 }
 
 function clearBlockErrors() {
@@ -82,13 +93,19 @@ async function removeBlock(index: number) {
         </div>
       </div>
       <FormField :field="`blocks[${index}]`">
-        <PageBlockEditor :block-type="block.blockType" :content="block.content" :block-index="index" />
+        <PageBlockEditor
+          :block-type="block.blockType"
+          :content="block.content"
+          :block-index="index"
+          :image-min-width="imageMinWidth"
+          :image-min-height="imageMinHeight"
+        />
       </FormField>
     </div>
 
     <div class="block-list__add">
       <el-select v-model="addBlockType" style="width: 200px">
-        <el-option v-for="type in allowedTypes" :key="type" :label="PAGE_BLOCK_TYPE_LABEL[type]" :value="type" />
+        <el-option v-for="type in allowedTypes" :key="type" :label="blockTypeLabel(type)" :value="type" />
       </el-select>
       <el-button type="primary" plain @click="addBlock">+ 新增區塊</el-button>
     </div>

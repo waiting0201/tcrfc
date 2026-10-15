@@ -326,6 +326,9 @@ watch(() => article.value?.slug, (slug) => { if (slug) reportView(club, 'news', 
   <img
     class="page-hero__bg"
     :src="cover ? cover.src : newsFallbackMarkSrc(clubKey)"
+    :srcset="cover ? cover.srcset : undefined"
+    sizes="100vw"
+    :style="cover ? { objectPosition: cover.objectPosition } : undefined"
     alt=""
     :width="cover ? (cover.width ?? undefined) : 1600"
     :height="cover ? (cover.height ?? undefined) : 1067"
@@ -369,15 +372,6 @@ watch(() => article.value?.slug, (slug) => { if (slug) reportView(club, 'news', 
         </table>
       </template>
 
-      <template v-if="cover">
-        <h3>{{ tx('圖集', 'Gallery') }}</h3>
-        <div class="article-gallery">
-          <figure>
-            <!-- 主要內容圖：替代文字在這裡（hero 背景是裝飾，alt 留空避免同一張圖念兩次） -->
-            <img :src="cover.src" :alt="cover.alt" loading="lazy" :width="cover.width ?? undefined" :height="cover.height ?? undefined">          </figure>
-        </div>
-      </template>
-
       <template v-if="relatedPlayers.length">
         <h3>{{ tx('相關球員', 'Related players') }}</h3>
         <ul class="article-players">
@@ -403,7 +397,7 @@ watch(() => article.value?.slug, (slug) => { if (slug) reportView(club, 'news', 
         <a v-for="r in related" :key="r.slug" class="news-card clip-card" :href="lp(`/zh/news/${r.slug}/`)" :data-title="newsTitleAttr(r.title)">
           <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(r, clubKey) }]">
             <span class="news-card__tag">{{ relatedCategoryName(r) }}</span>
-            <img v-if="newsCoverImg(r, clubKey)" :src="newsCoverImg(r, clubKey)!.src" :alt="newsCoverImg(r, clubKey)!.alt" loading="lazy" :width="newsCoverImg(r, clubKey)!.width ?? undefined" :height="newsCoverImg(r, clubKey)!.height ?? undefined">
+            <img v-if="newsCoverImg(r, clubKey)" :src="newsCoverImg(r, clubKey)!.src" :alt="newsCoverImg(r, clubKey)!.alt" :style="{ objectPosition: newsCoverImg(r, clubKey)!.objectPosition }" loading="lazy" :width="newsCoverImg(r, clubKey)!.width ?? undefined" :height="newsCoverImg(r, clubKey)!.height ?? undefined">
             <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc('bw')" alt="" loading="lazy" width="64" height="63">
           </div>
           <div class="news-card__body">
@@ -427,9 +421,6 @@ watch(() => article.value?.slug, (slug) => { if (slug) reportView(club, 'news', 
 .match-fields{ width:100%; border-collapse:collapse; font-size:.9rem; }
 .match-fields th, .match-fields td{ text-align:left; padding:.65rem .75rem; border-bottom:1px solid var(--rule); vertical-align:top; }
 .match-fields th{ width:11em; color:var(--muted); font-weight:700; }
-.article-gallery{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; }
-.article-gallery img{ width:100%; aspect-ratio:3/2; object-fit:cover; }
-.article-gallery figcaption{ font-size:.78rem; color:var(--muted); margin-top:.4rem; }
 .article-value-tag{ display:inline-block; margin-right:.5rem; padding:.1rem .55rem; border:1px solid var(--rule); font-size:.78rem; font-weight:700; }
 .article-players{ list-style:none; padding:0; margin:0 0 1.5rem; display:flex; flex-wrap:wrap; gap:.5rem 1.25rem; }
 .article-players a{ font-weight:700; color:var(--brand-aa); }

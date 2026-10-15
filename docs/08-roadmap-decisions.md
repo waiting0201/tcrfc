@@ -1,11 +1,11 @@
 # 08 — 開發階段、已定案前提與待確認事項
 
-> 來源：[`../output/TCRFC_前後台功能規劃書.md`](../output/TCRFC_前後台功能規劃書.md)（**v3.27，共 1906 行**）：
+> 來源：[`../output/TCRFC_前後台功能規劃書.md`](../output/TCRFC_前後台功能規劃書.md)（**v3.28，共 1915 行**）：
 >
 > | 章節 | 行號 |
 > |---|---|
-> | 9. 開發階段與優先順序建議 | 1775–1823 |
-> | 10. 待確認事項 | 1824–1906 |
+> | 9. 開發階段與優先順序建議 | 1784–1832 |
+> | 10. 待確認事項 | 1833–1915 |
 > 慈善捐款平台自有一套 Phase 與待確認事項，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 > 另有里程碑文件：[`../output/TCRFC_開發里程碑_Milestone.html`](../output/TCRFC_開發里程碑_Milestone.html)（英文版 `TCRFC_Development_Milestones_EN.html`）
 

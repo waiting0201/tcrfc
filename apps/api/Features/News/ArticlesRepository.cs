@@ -18,11 +18,11 @@ public sealed class ArticlesRepository(
 
     private sealed record ArticleListRow(
         Guid Id, bool IsShared, string Slug, string CategoryCode, string? CoverKey, int? CoverWidth, int? CoverHeight,
-        bool IsFeatured, DateTime? PublishedAt);
+        decimal? CoverFocalX, decimal? CoverFocalY, bool IsFeatured, DateTime? PublishedAt);
 
     private sealed record ArticleDetailRow(
         Guid Id, bool IsShared, string Slug, string CategoryCode, string? CoverKey, int? CoverWidth, int? CoverHeight,
-        bool IsFeatured, int ViewCount, DateTime? PublishedAt, string? CanonicalPath, bool IsNoindex,
+        decimal? CoverFocalX, decimal? CoverFocalY, bool IsFeatured, int ViewCount, DateTime? PublishedAt, string? CanonicalPath, bool IsNoindex,
         string? OgImageKey, int? OgImageWidth, int? OgImageHeight);
 
     private sealed record ArticleI18nRow(
@@ -84,6 +84,7 @@ public sealed class ArticlesRepository(
                            CASE WHEN a.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
                            a.slug AS Slug, ac.code AS CategoryCode, a.cover_key AS CoverKey,
                            a.cover_width AS CoverWidth, a.cover_height AS CoverHeight,
+                           a.cover_focal_x AS CoverFocalX, a.cover_focal_y AS CoverFocalY,
                            a.is_featured AS IsFeatured, a.published_at AS PublishedAt
                     FROM articles a
                     JOIN article_categories ac ON ac.id = a.article_category_id
@@ -138,6 +139,8 @@ public sealed class ArticlesRepository(
                         CoverUrl = imageUrlResolver.Resolve(r.CoverKey),
                         CoverWidth = r.CoverKey is null ? null : r.CoverWidth,
                         CoverHeight = r.CoverKey is null ? null : r.CoverHeight,
+                        CoverFocalX = r.CoverKey is null ? null : r.CoverFocalX,
+                        CoverFocalY = r.CoverKey is null ? null : r.CoverFocalY,
                         CoverAlt = r.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
                         IsFeatured = r.IsFeatured,
                         PublishedAt = r.PublishedAt,
@@ -179,6 +182,7 @@ public sealed class ArticlesRepository(
                            CASE WHEN a.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
                            a.slug AS Slug, ac.code AS CategoryCode, a.cover_key AS CoverKey,
                            a.cover_width AS CoverWidth, a.cover_height AS CoverHeight,
+                           a.cover_focal_x AS CoverFocalX, a.cover_focal_y AS CoverFocalY,
                            a.is_featured AS IsFeatured, a.view_count AS ViewCount, a.published_at AS PublishedAt,
                            a.canonical_path AS CanonicalPath, a.is_noindex AS IsNoindex,
                            a.og_image_key AS OgImageKey, a.og_image_width AS OgImageWidth, a.og_image_height AS OgImageHeight
@@ -255,6 +259,8 @@ public sealed class ArticlesRepository(
                     CoverUrl = imageUrlResolver.Resolve(article.CoverKey),
                     CoverWidth = article.CoverKey is null ? null : article.CoverWidth,
                     CoverHeight = article.CoverKey is null ? null : article.CoverHeight,
+                    CoverFocalX = article.CoverKey is null ? null : article.CoverFocalX,
+                    CoverFocalY = article.CoverKey is null ? null : article.CoverFocalY,
                     CoverAlt = article.CoverKey is null ? null : coverAlt,
                     IsFeatured = article.IsFeatured,
                     ViewCount = article.ViewCount,

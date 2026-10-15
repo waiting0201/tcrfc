@@ -1649,7 +1649,7 @@ BEGIN
   SET @id = N'38d86750-587e-5e32-8163-a610fa92c9ac';
   INSERT INTO articles (id, club_id, slug, article_category_id, status, published_at)
   VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'2025-12-14-match-020', (SELECT id FROM article_categories WHERE code = N'match'), N'published', N'2025-12-14T00:00:00');
-  INSERT INTO articles_i18n (article_id, locale, title) VALUES (@id, N'zh-Hant', N'企甲聯賽 台灣電力 1-2 台中磐石');
+  INSERT INTO articles_i18n (article_id, locale, title) VALUES (@id, N'zh-Hant', N'乙級聯賽 台中磐石預備隊 1-3 高雄先鋒');
   COMMIT TRANSACTION;
 END
 GO
@@ -1662,7 +1662,7 @@ BEGIN
   SET @id = N'e5e70b1d-d654-572f-a05d-7544f8e79482';
   INSERT INTO articles (id, club_id, slug, article_category_id, status, published_at)
   VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'2025-12-09-match-021', (SELECT id FROM article_categories WHERE code = N'match'), N'published', N'2025-12-09T00:00:00');
-  INSERT INTO articles_i18n (article_id, locale, title) VALUES (@id, N'zh-Hant', N'企甲聯賽 台灣電力 1-2 台中磐石');
+  INSERT INTO articles_i18n (article_id, locale, title) VALUES (@id, N'zh-Hant', N'乙級聯賽 台中磐石預備隊 3-3 陽信北競預備隊');
   COMMIT TRANSACTION;
 END
 GO
@@ -11552,13 +11552,13 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrf
 GO
 
 INSERT INTO articles_i18n (article_id, locale, title)
-SELECT b.id, N'en', N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC'
+SELECT b.id, N'en', N'National Second Division: Taichung Rock FC Reserves 1-3 高雄先鋒'
 FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-14-match-020'
   AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
-    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC' ELSE e.title END
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: Taichung Rock FC Reserves 1-3 高雄先鋒' ELSE e.title END
 FROM articles_i18n e
 JOIN articles b ON b.id = e.article_id
 JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
@@ -11566,13 +11566,13 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrf
 GO
 
 INSERT INTO articles_i18n (article_id, locale, title)
-SELECT b.id, N'en', N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC'
+SELECT b.id, N'en', N'National Second Division: Taichung Rock FC Reserves 3-3 陽信北競 Reserves'
 FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-09-match-021'
   AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
-    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC' ELSE e.title END
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: Taichung Rock FC Reserves 3-3 陽信北競 Reserves' ELSE e.title END
 FROM articles_i18n e
 JOIN articles b ON b.id = e.article_id
 JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'

@@ -10,7 +10,8 @@
  * 用法：node scripts/check-news-body.mjs　　離開碼：任一斷言失敗 → 1；全部通過 → 0。
  */
 import assert from 'node:assert/strict'
-import { parseNewsBody, safeUrl } from '../app/utils/news-body.ts'
+import { parseNewsBody, safeUrl, videoEmbedUrl } from '../app/utils/news-body.ts'
+import { focalObjectPosition } from '../app/utils/siteImage.ts'
 import { isSessionRegistrable, sessionSignupState, statusLabel } from '../app/utils/program-session.ts'
 
 let n = 0
@@ -61,6 +62,55 @@ t('script 標籤只是文字（元件以文字插值輸出）', () => {
   assert.deepEqual(b, [{ kind: 'p', lines: ['<script>alert(1)</script>'] }])
 })
 t('未知區塊型別忽略、非物件項忽略', () => { assert.deepEqual(parseNewsBody('[{"type":"video","url":"https://x"}, 5, null]'), []) })
+
+// ── v3.28：key 圖片、圖集、影音、封面焦點 ──
+const MEDIA = 'https://cdn.example.com/media/'
+t('image 區塊以 mediaBaseUrl + key 組網址，帶 width／height／alt／caption 與 srcset', () => {
+  const [b] = parseNewsBody(JSON.stringify({ blocks: [{ type: 'image', key: 'tcrfc/articles/1/body/0/image.webp', width: 1600, height: 2000, alt: '替代', caption: '說明' }] }), MEDIA)
+  assert.equal(b.kind, 'image')
+  assert.equal(b.src, 'https://cdn.example.com/media/tcrfc/articles/1/body/0/image.webp')
+  assert.equal(b.width, 1600); assert.equal(b.height, 2000)
+  assert.equal(b.alt, '替代'); assert.equal(b.caption, '說明')
+  assert.match(b.srcset, /image-1024w\.webp 1024w|1024w/)
+})
+t('image key：無 mediaBaseUrl、含 .. 、絕對網址、開頭斜線 → 丟棄（無 src 可退）', () => {
+  for (const key of ['a/b.webp', '../x.webp', 'https://evil.com/x.webp', '/abs.webp', 'javascript:x']) {
+    const mb = key === 'a/b.webp' ? undefined : MEDIA
+    assert.deepEqual(parseNewsBody(JSON.stringify([{ type: 'image', key }]), mb), [], key)
+  }
+})
+t('image 舊 src／url 相容；無寬高時不帶 srcset', () => {
+  const [b] = parseNewsBody('[{"type":"image","src":"https://x.com/a.webp"}]', MEDIA)
+  assert.equal(b.src, 'https://x.com/a.webp'); assert.equal(b.width, null); assert.equal(b.srcset, undefined)
+})
+t('gallery：key 與寬高保留，壞項丟棄', () => {
+  const [g] = parseNewsBody(JSON.stringify([{ type: 'gallery', images: [{ key: 'k/1.webp', width: 800, height: 600, alt: 'a' }, { key: '../x' }, { src: '/assets/z.jpg' }] }]), MEDIA)
+  assert.equal(g.images.length, 2)
+  assert.equal(g.images[0].src, 'https://cdn.example.com/media/k/1.webp')
+  assert.equal(g.images[0].height, 600)
+})
+t('video：youtube／vimeo 對應 nocookie／player 網域；videoId 非 [A-Za-z0-9_-] 整塊丟棄', () => {
+  const [y, v] = parseNewsBody(JSON.stringify([
+    { type: 'video', provider: 'youtube', videoId: 'dQw4w9WgXcQ', caption: '片' },
+    { type: 'video', provider: 'vimeo', videoId: '76979871' },
+  ]))
+  assert.equal(y.kind, 'video'); assert.equal(y.src, 'https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ'); assert.equal(y.caption, '片')
+  assert.equal(v.src, 'https://player.vimeo.com/video/76979871')
+  for (const id of ['a/b', 'a b', 'x"onload=1', '../x', '', 'a?b=1', '<script>']) assert.equal(videoEmbedUrl('youtube', id), null, id)
+  assert.equal(videoEmbedUrl('dailymotion', 'abc'), null)
+  assert.deepEqual(parseNewsBody('[{"type":"video","provider":"youtube","videoId":"a/b"}]'), [])
+})
+t('空文字區塊不輸出；舊 {"text"} 與純文字照舊', () => {
+  assert.deepEqual(parseNewsBody('{"blocks":[{"type":"paragraph","text":"  "},{"type":"heading","text":""}]}'), [])
+  assert.deepEqual(parseNewsBody('{"text":"舊"}'), [{ kind: 'p', lines: ['舊'] }])
+})
+t('封面焦點 object-position：缺值＝50% 50%、有值照寫、越界退 50', () => {
+  assert.equal(focalObjectPosition(null, null), '50% 50%')
+  assert.equal(focalObjectPosition(undefined, undefined), '50% 50%')
+  assert.equal(focalObjectPosition(12.5, 80), '12.5% 80%')
+  assert.equal(focalObjectPosition(0, 100), '0% 100%')
+  assert.equal(focalObjectPosition(-1, 101), '50% 50%')
+})
 
 // ── 05 課程梯次狀態 ──
 const now = new Date('2026-10-02T00:00:00Z')

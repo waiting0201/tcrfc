@@ -1,9 +1,16 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.27
-> **Date**: 2026-08-14 (v3.27 revision: 2026-10-13)
+> **Document version**: v3.28
+> **Date**: 2026-08-14 (v3.28 revision: 2026-10-15)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.27*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.28*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.28 revision summary — news covers take a focal point; the news body can hold images and galleries, and galleries keep each photo's original proportions**
+> **An editing enhancement for news; no page or module is added.**
+> ① **News covers take a focal point**: in the admin, the editor clicks the most important spot on the cover preview, and the page-header visual, list cards, the homepage news area and related articles crop around that spot; with no focal point set, the image is centred. The focal point is a display setting only and does not alter the image file; replacing the cover resets it to centre.
+> ② **The news body is edited as blocks and can hold images and galleries**: the body is made of paragraph, subheading, pull-quote, list, single-image (with caption), gallery and video-embed blocks, which can be added, removed and reordered; a gallery holds multiple photos in a set order. Body images follow the "inline images" rule of the 4.0 image-upload rules.
+> ③ **Galleries on the news detail page keep each photo's original proportions**: portrait and landscape photos are shown in full, not cropped to a fixed ratio.
+> Where: 3.7, 4.0 image-upload rules, 4.2 B2, 5.1 `Article`.
 
 > **v3.27 revision summary — the corporate CTA in the charity section is defined by the public-site template**
 > **No feature is added.** The corporate charity partnership CTA under "Get Involved" in Chapter 11 always routes to 10.5 Partnership & Sponsorship Enquiries; its copy and link are set in the public-site template. Admin B5 configures only the fan-donation referral URL and copy. Where: 3.11, 4.2 B5.
@@ -483,6 +490,7 @@ A **unified newsroom** segmented into eight categories:
 **Public-site functionality**:
 - List page: category tabs, tag filter, year/month filter, keyword search, infinite scroll or pagination
 - Detail page: cover image, publish date, author, body (images / video / pull quotes / galleries), tags, social sharing, related-article recommendations
+- The cover is cropped around the focal point set in the admin in the page-header visual, list cards, the homepage news area and related articles (centred when none is set); body images and galleries **keep their original proportions**, with portrait and landscape photos shown in full and never cropped
 - Featured pinning (max 3, **counted per club**) and a popular-articles sidebar
 
 ---
@@ -1047,7 +1055,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > | **Inline images** | For image fields among a page's content fields, the object key and alt text live in that page's `content json` and are **also subject to "saving uploads"** |
 > | **Interface wording** | Per this section's admin design rule, the screen never shows **`WebP` / `blob` / `EXIF` / `srcset`**: next to the upload field it reads "The system automatically resizes your image for the web and removes location data from the photo"; when a file is over the limit it reads "This image file is too large (10 MB limit) — please choose another or compress it first" |
 >
-> **Out of scope for this rule**: a media browser, folders and tags, usage tracking and delete-time warnings, image reuse across records, resumable upload progress, **keeping the uploaded original**, and **manual or focal-point cropping in the admin**.
+> **Out of scope for this rule**: a media browser, folders and tags, usage tracking and delete-time warnings, image reuse across records, resumable upload progress, **keeping the uploaded original**, and **manual cropping in the admin**. A focal-point setting is offered for news covers only (see B2) and does not alter the image file.
 > ⚠️ **Not keeping the original is a deliberate trade-off**: the saving is on the order of 100% or more of storage; the cost is that adding a new size tier later can only be regenerated from the 2560px-long-edge master, with no way back to the original quality. **Before adjusting the tiers, confirm 2560px is enough.**
 > ⚠️ **One image belongs to one record.** To show the same image in two places, upload it twice — a deliberate trade, bought with never having to ask "is anything else still using this?" when deleting a record.
 
@@ -1092,7 +1100,8 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 #### B2 News & Stories
 - Article CRUD, categories (mapping to 7.1–7.8), tags, core-value tags
-- Cover image, summary, block-based body, relationships (player / team / match / program / partner)
+- Cover image (**with a focal point**: click the most important spot on the cover preview and every public-site placement crops around it; centred when unset, and reset to centre when the cover is replaced), summary, relationships (player / team / match / program / partner)
+- **Block-based body**: paragraph, subheading, pull quote, list, single image (with caption), gallery (multiple photos, reorderable) and video embed (YouTube / Vimeo); blocks can be added, removed and reordered. Body images upload on save and follow the 4.0 image-upload rules
 - Scheduled publishing, featured pinning (max 3, **counted per club**: Rock and Blue Whale each have up to 3), view counts
 - Bulk actions: recategorise, bulk publish / unpublish
 
@@ -1549,7 +1558,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `Club` | **Club (new in v3.0)**: code (`TCRFC` / `TCBW`), name and intro (zh/en), OG image, **front-end domain**, website URL, default locale, sort order, status. **Plus the fields needed to issue documents**: invoice title, tax ID, and **`is_payment_subject`**. **This is where the brand name and the invoice title are separated** — only the club flagged as the collecting entity appears in checkout and invoicing | Team, Article, Sponsor, Partner, Membership, Order, AdminUserClub |
 | `Competition` | **Competition series (new in v3.0)**: code, name (zh/en), type (mapping to `Match.competition`'s four values), season, organiser, sort order, status. 🏛 mandatory. **Coexists with `Match.competition` rather than replacing it** — the latter is a coarse enum, the former is a named actual competition (TFPL, Taiwan Mulan Football League, President's Cup…); when both clubs play a same-named cup, **each gets its own record** | Match, Season, Club |
 | `Page` | Static page (with the content fields defined by its template); **the Blue Whale site entry page is also this type**. 🏛 mandatory (both sites will have `about` / `contact` / `privacy`, so the `slug` unique key becomes `(club_id, slug)`) | SEO, languages |
-| `Article` | News and stories | Category, Tag, Player, Team, Match, Program |
+| `Article` | News and stories. The cover image field group also carries a **focal point** (horizontal and vertical percentages; unset = centred); the body is a **block structure** (paragraph, subheading, pull quote, list, image, gallery, video embed), with each body image's field group stored inside the body | Category, Tag, Player, Team, Match, Program |
 | `Team` | Team, carrying the **team code**: `D1` (Taichung Rock First Team) / **`BW1` (Taichung Blue Whale First Team, new in v3.0)** / `U15` / `U14` / `U12`. 🏛 mandatory. **`code` stays globally unique and must not become a "club × code" composite** — it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation. **v3.0 adds `gender`** (`men` / `women` / `mixed`) and **retires `type`'s `women` value** (gender is an attribute of a team, not a kind of team); the "exactly one `first_team` site-wide" constraint becomes "**at most one per club**" | Club, Player, Coach, Match, Season, CalendarEvent |
 | `Player` | Player | Team, Article, Stats, Pathway |
 | `Staff` | Coaches and staff | Team, Program |

@@ -27,6 +27,9 @@ import {
   type CtaBlockContent,
   type FileDownloadBlockContent,
   type GalleryBlockContent,
+  type HeadingBlockContent,
+  type ImageBlockContent,
+  type ListBlockContent,
   type PageBlockContent,
   type PageBlockType,
   type QuoteBlockContent,
@@ -48,8 +51,12 @@ const props = withDefaults(
     /** 可重複項目（藝廊圖片、問答、時間軸、步驟、數據卡、表格的列與欄）是否允許新增／刪除／排序。
      * 固定頁（版型 `allowRowEdit=false`）傳 `false`：列數固定，只能改內容。預設 `true`，課程內容維持原行為。 */
     allowRowEdit?: boolean
+    /** 圖片欄位的解析度下限（未傳＝沿用上傳元件預設 1600×900，B1 頁面管理維持原行為）。
+     * 新聞內文傳寬 800、高 0（高度不限）。 */
+    imageMinWidth?: number
+    imageMinHeight?: number
   }>(),
-  { allowRowEdit: true },
+  { allowRowEdit: true, imageMinWidth: undefined, imageMinHeight: undefined },
 )
 
 const formErrors = useFormErrors()
@@ -78,6 +85,9 @@ const stepsC = computed(() => props.content as StepsBlockContent)
 const statCardsC = computed(() => props.content as StatCardsBlockContent)
 const tableC = computed(() => props.content as TableBlockContent)
 const fileDownloadC = computed(() => props.content as FileDownloadBlockContent)
+const headingC = computed(() => props.content as HeadingBlockContent)
+const listC = computed(() => props.content as ListBlockContent)
+const imageC = computed(() => props.content as ImageBlockContent)
 
 function moveItem<T>(list: T[], index: number, delta: number) {
   const target = index + delta
@@ -94,6 +104,16 @@ function addGalleryImage() {
 }
 function removeGalleryImage(index: number) {
   galleryC.value.images.splice(index, 1)
+  clearBlockErrors()
+}
+
+// 清單（新聞內文）
+function addListItem() {
+  listC.value.items.push(emptyBilingualText())
+  clearBlockErrors()
+}
+function removeListItem(index: number) {
+  listC.value.items.splice(index, 1)
   clearBlockErrors()
 }
 
@@ -181,6 +201,8 @@ function removeTableRow(rowIndex: number) {
           v-model:remove-cover="textImageC.image.cleared"
           :has-existing-image="!!textImageC.image.existingKey"
           :existing-preview-url="textImageC.image.existingPreviewUrl"
+          :min-width="imageMinWidth"
+          :min-height="imageMinHeight"
         />
       </FormField>
       <BilingualShortField
@@ -195,21 +217,94 @@ function removeTableRow(rowIndex: number) {
       />
     </template>
 
+    <!-- 小標（新聞內文） -->
+    <template v-else-if="blockType === 'heading'">
+      <BilingualShortField
+        :field="k('text')"
+        label="小標"
+        :zh="headingC.text.zh"
+        :en="headingC.text.en"
+        required
+        @update:zh="(v) => (headingC.text.zh = v)"
+        @update:en="(v) => (headingC.text.en = v)"
+      />
+    </template>
+
+    <!-- 清單（新聞內文） -->
+    <template v-else-if="blockType === 'list'">
+      <el-form-item label="清單樣式">
+        <el-radio-group v-model="listC.ordered">
+          <el-radio :value="false">圓點項目</el-radio>
+          <el-radio :value="true">編號項目</el-radio>
+        </el-radio-group>
+      </el-form-item>
+      <div v-for="(item, i) in listC.items" :key="i" class="page-block-editor__item-card">
+        <div class="page-block-editor__item-toolbar">
+          <span class="page-block-editor__item-index">第 {{ i + 1 }} 項</span>
+          <div>
+            <el-button size="small" text :disabled="i === 0" @click="moveItem(listC.items, i, -1)">上移</el-button>
+            <el-button size="small" text :disabled="i === listC.items.length - 1" @click="moveItem(listC.items, i, 1)">下移</el-button>
+            <el-button size="small" text type="danger" :disabled="listC.items.length <= 1" @click="removeListItem(i)">刪除</el-button>
+          </div>
+        </div>
+        <BilingualShortField
+          :field="k(`items[${i}]`)"
+          label="內容"
+          :zh="item.zh"
+          :en="item.en"
+          required
+          @update:zh="(v) => (item.zh = v)"
+          @update:en="(v) => (item.en = v)"
+        />
+      </div>
+      <el-button @click="addListItem">+ 新增一項</el-button>
+    </template>
+
+    <!-- 單張圖片（新聞內文） -->
+    <template v-else-if="blockType === 'image'">
+      <FormField :field="k('image')" label="圖片" required>
+        <ImageUploader
+          v-model:file="imageC.image.file"
+          v-model:remove-cover="imageC.image.cleared"
+          :has-existing-image="!!imageC.image.existingKey"
+          :existing-preview-url="imageC.image.existingPreviewUrl"
+          :min-width="imageMinWidth"
+          :min-height="imageMinHeight"
+        />
+      </FormField>
+      <BilingualShortField
+        :field="k('image.alt')"
+        label="圖片替代文字"
+        :zh="imageC.image.altZh"
+        :en="imageC.image.altEn"
+        required
+        placeholder="描述圖片內容，供螢幕閱讀器與搜尋引擎使用"
+        @update:zh="(v) => (imageC.image.altZh = v)"
+        @update:en="(v) => (imageC.image.altEn = v)"
+      />
+      <BilingualShortField
+        :field="k('caption')"
+        label="圖片說明"
+        :zh="imageC.caption.zh"
+        :en="imageC.caption.en"
+        placeholder="選填，顯示在圖片下方"
+        @update:zh="(v) => (imageC.caption.zh = v)"
+        @update:en="(v) => (imageC.caption.en = v)"
+      />
+    </template>
+
     <!-- 圖片藝廊 -->
     <template v-else-if="blockType === 'gallery'">
       <div v-for="(slot, i) in galleryC.images" :key="i" class="page-block-editor__item-card">
         <div class="page-block-editor__item-toolbar">
           <span class="page-block-editor__item-index">第 {{ i + 1 }} 張</span>
-          <el-button
-            v-if="allowRowEdit"
-            size="small"
-            text
-            type="danger"
-            :disabled="galleryC.images.length <= 1"
-            @click="removeGalleryImage(i)"
-          >
-            刪除這張圖片
-          </el-button>
+          <div v-if="allowRowEdit">
+            <el-button size="small" text :disabled="i === 0" @click="moveItem(galleryC.images, i, -1)">上移</el-button>
+            <el-button size="small" text :disabled="i === galleryC.images.length - 1" @click="moveItem(galleryC.images, i, 1)">下移</el-button>
+            <el-button size="small" text type="danger" :disabled="galleryC.images.length <= 1" @click="removeGalleryImage(i)">
+              刪除這張圖片
+            </el-button>
+          </div>
         </div>
         <FormField :field="k(`images[${i}]`)" label="圖片">
           <ImageUploader
@@ -217,6 +312,8 @@ function removeTableRow(rowIndex: number) {
             v-model:remove-cover="slot.cleared"
             :has-existing-image="!!slot.existingKey"
             :existing-preview-url="slot.existingPreviewUrl"
+            :min-width="imageMinWidth"
+            :min-height="imageMinHeight"
           />
         </FormField>
         <BilingualShortField

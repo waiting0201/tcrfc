@@ -10640,3 +10640,42 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 - 來源已同步：`db/seed/generate-club-seed-sql.py`、`generate-charity-seed-sql.py`、`db/prod/*-reference-data.sql`（`generate-prod-reference-sql.py --check` 一致）、`charity-fixtures.json`（三份，`emit-charity-fixtures.py` 重產）。
 - 既有庫：兩支冪等資料遷移 `RenameSystemAdminRoleDisplayName`（主站 `20261012014007`、慈善 `20261012014033`），只 UPDATE `code = 'system_admin'` 那列；Down 還原舊名。純資料更新，無結構變更，不需 expand／contract 分階段。
 
+
+## 新聞封面焦點與內文區塊（主站 v3.28，2026-10-15）
+
+規格：主站規劃書 v3.28（§3.7、§4.0 內文插圖、§4.2 B2、§5.1 Article）。表數不變。
+
+### 封面焦點
+- `articles.cover_focal_x`／`cover_focal_y`（`decimal(5,2) NULL`，百分比）＋具名 CHECK `CK_articles_cover_focal`（兩欄同為 `NULL`＝置中，或同在 0–100）。遷移 EF `ArticleCoverFocal`＝`db/migrations/20261015_article-cover-focal_1-expand.sql`（展開型，🔴 先 migrate 再 deploy）。
+- 後台 payload（`POST/PUT /api/v1/admin/{club}/news[/{id}]`）與 detail：`coverFocalX`／`coverFocalY`（number|null）。**兩者需同為 null 或同在 0–100、最多 2 位小數**，否則 400（欄位鍵 `coverFocalX`）。
+- 規則：payload 一律照存（含「同次上傳新封面＋帶焦點」）；**只有 `removeCover=true`（或最終沒有封面）時強制 `NULL`**。detail／公開 DTO 在沒有封面時回 `null`。
+- 公開 DTO 帶焦點：`ArticleListItemDto`（新聞列表；首頁精選、相關文章同走此 DTO）與 `ArticleDetailDto`。前台 `object-position: {x ?? 50}% {y ?? 50}%`。
+
+### 內文區塊
+- payload 新增 `bodyBlocks: NewsBlockInput[] | null`；detail 新增 `bodyBlocks`（永遠是陣列）。`null`＝不動內文（舊 `content.*.body` 行為不變）；非 `null`＝**整份取代**（空陣列＝清空內文，圖片隨之清理）；非 `null` 時以它為準、`content.*.body` 忽略。
+- 區塊外層**沿用 B1 實際形狀**：`{ "blockType": "...", "content": { ... } }`（輸出一律 `blockType`；輸入也接受別名 `type`，兩者都帶時以 `blockType` 為準）。雙語文字一律 `{zh, en}`（`en` 可 null／省略）。
+
+| `blockType` | `content` |
+|---|---|
+| `text` | `body:{zh,en}`（空行分段） |
+| `heading` | `text:{zh,en}` |
+| `quote` | `text:{zh,en}`、`attribution?:{zh,en}` |
+| `list` | `ordered:boolean`、`items:[{zh,en}]`（1–50 筆） |
+| `image` | `image: IMG`、`caption?:{zh,en}` |
+| `gallery` | `images:[IMG]`（1–30 張） |
+| `video_embed` | `provider:"youtube"｜"vimeo"`、`videoId`（僅 `[A-Za-z0-9_-]`，≤64）、`caption?:{zh,en}` |
+
+IMG（同 B1）：新圖 `{pendingUpload:true, altZh, altEn}`；既有圖 `{key, width, height, altZh, altEn}`（讀取時另附唯讀 `url`／`thumbUrl`，寫入時忽略）。`altZh` 必填。**既有圖的 `key` 必須是這篇文章目前已存的內文圖片，寬高以伺服器記錄為準**（否則 400「圖片已經不存在」）。
+Multipart：`payload`（JSON）、`file`（封面）、`ogImage`、內文圖片 `file:{區塊索引}:image`（image 區塊）／`file:{區塊索引}:images:{i}`（gallery）。物件鍵前綴 `{club}/articles/{articleId}/body/{區塊索引}/{路徑的 ':' 換 '-'}/…`。
+
+**驗證與上限**（自訂，規劃書未給數字）：型別白名單（未知型別 400）；區塊 ≤ 100、內文圖片總數 ≤ 60、單一圖集 ≤ 30；段落 ≤ 20000 字、小標 ≤ 200、引言 ≤ 2000、引言來源 ≤ 200、清單項目 ≤ 500、說明 ≤ 300、替代文字 ≤ 200；中文必填欄位（段落／小標／引言文字／清單項目／altZh）；**內文圖片寬度 ≥ 800px**（以重新編碼後主檔寬度判斷，不足 400 並回收本次上傳；長邊超過 2560px 被等比縮小後的寬度為準）；單檔 ≤ 10 MB（B1 同）。欄位鍵 `bodyBlocks[i].…`。
+
+**儲存（B2）**：API 把雙語清單拆成 zh、en 兩份，各存 `articles_i18n.body`＝`{"blocks":[…]}`，結構、順序、圖片 key 相同：
+`paragraph{text}`／`heading{text}`／`quote{text,cite?}`／`list{ordered,items:[string]}`／`image{key,width,height,alt,caption?}`／`gallery{images:[{key,width,height,alt}]}`／`video{provider,videoId,caption?}`。英文空 → 空字串（`cite`／`caption` 省略，`alt` 為 `null`）；**英文全部沒有任何文字時 `en.body` 存 `NULL`**（前台回退中文）。後台讀取以 zh 為骨架、依索引合併 en（型別對不上的英文區塊略過）；舊 `{"text":"…"}`、純文字或 JSON 字串轉成單一 `text` 區塊；未知形狀視為沒有內文。
+**公開 API**：`ArticleDetailDto.bodyJson` 原樣回傳單語 JSON（image／gallery 帶 `key/width/height/alt`），**不組網址**。
+
+**圖片生命週期**：換圖／移除區塊成功寫入後，不再被引用的內文圖片（主檔＋衍生檔）刪除（fail-open）；失敗（驗證、衝突、404…）時本次上傳全部補償刪除；**刪除文章時刪除全部內文圖**。
+
+**共用元件**：`Features/Uploads/BlockImageSupport.cs`（`BlockImageUploader` 多檔上傳＋補償、`BlockImageFields` 圖片欄位解析）由 B1 `PageBlockContentProcessor`／`AdminPagesRepository` 與新聞 `NewsBodyBlocks` 共用；B1 行為與欄位鍵不變。新聞解析在 `Features/AdminNews/NewsBodyBlocks.cs`，焦點驗證在 `CoverFocalPolicy.cs`。
+
+**測試**：`NewsBodyBlocksTests`（34 項純邏輯：驗證、拆合往返、舊格式、圖片補償與寬度下限、焦點）；`AdminNewsBodyBlocksApiTests`（HTTP＋Azurite 端對端，需要種子測試帳號與 Azurite）。`shared/scripts/gen-news-body-blocks.mjs` 補 `video` 欄位說明。

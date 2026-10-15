@@ -490,50 +490,27 @@ public sealed class AdminPagesRepository(
 
         var result = new List<(string, JsonNode)>();
 
-        for (var i = 0; i < blocks.Count; i++)
+        // 多檔上傳（file:{區塊索引}:{圖片路徑}）與物件鍵前綴規則由 Features/Uploads 的共用元件負責（與新聞內文共用）。
+        var uploader = new BlockImageUploader(imageStorage, files, $"{scope.ClubCode}/pages/{pageId}/blocks");
+        try
         {
-            var blockIndex = i;
-            var block = blocks[i];
-            var content = block.Content.DeepClone();
-
-            async Task<UploadedImageInfo?> ResolveUploadAsync(string imagePath, CancellationToken ct)
+            for (var i = 0; i < blocks.Count; i++)
             {
-                var fieldName = AdminPageRequestForm.FileFieldName(blockIndex, imagePath);
-                var file = files[fieldName];
-                if (file is null)
-                {
-                    return null;
-                }
+                var blockIndex = i;
+                var block = blocks[i];
+                var content = block.Content.DeepClone();
+                var resolver = uploader.ResolverFor(blockIndex);
 
-                if (file.Length == 0)
-                {
-                    throw new EmptyImageException();
-                }
-
-                if (file.Length > ImageUploadOptions.MaxUploadBytes)
-                {
-                    throw new ImageTooLargeException();
-                }
-
-                byte[] rawBytes;
-                using (var buffer = new MemoryStream())
-                {
-                    await file.CopyToAsync(buffer, ct);
-                    rawBytes = buffer.ToArray();
-                }
-
-                // 物件鍵前綴含俱樂部代碼／頁面 id／區塊索引／圖片路徑，確保「一張圖只屬於一筆資料列」
-                // 的精神延伸到「一張圖只屬於一個區塊的一個圖片欄位」。
-                var safePath = imagePath.Replace(':', '-');
-                var objectKeyPrefix = $"{scope.ClubCode}/pages/{pageId}/blocks/{blockIndex}/{safePath}";
-                var uploaded = await imageStorage.UploadAsync(rawBytes, objectKeyPrefix, ct);
-                uploadedKeys.Add(uploaded.Key);
-                return uploaded;
+                await PageBlockContentProcessor.ValidateAndResolveAsync(
+                    blockIndex, block.BlockType, content, (path, ct) => resolver(path, ct), cancellationToken);
+                PageTemplates.ValidateRows(template.Blocks[blockIndex], blockIndex, content);
+                result.Add((block.BlockType, content));
             }
-
-            await PageBlockContentProcessor.ValidateAndResolveAsync(blockIndex, block.BlockType, content, ResolveUploadAsync, cancellationToken);
-            PageTemplates.ValidateRows(template.Blocks[blockIndex], blockIndex, content);
-            result.Add((block.BlockType, content));
+        }
+        finally
+        {
+            // 不論成敗都把已上傳的鍵交回呼叫端：失敗時由 UpdateAsync 的 catch 補償刪除。
+            uploadedKeys.AddRange(uploader.UploadedKeys);
         }
 
         return result;

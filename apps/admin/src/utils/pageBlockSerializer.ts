@@ -14,7 +14,10 @@ import {
   type CtaBlockContent,
   type FileDownloadBlockContent,
   type GalleryBlockContent,
+  type HeadingBlockContent,
+  type ImageBlockContent,
   type ImageSlotState,
+  type ListBlockContent,
   type PageBlockContent,
   type PageBlockState,
   type PageBlockType,
@@ -130,6 +133,15 @@ export function parseBlockContent(blockType: PageBlockType, raw: unknown): PageB
         label: parseBilingual(obj.label),
         fileUrl: typeof obj.fileUrl === 'string' ? obj.fileUrl : '',
       } satisfies FileDownloadBlockContent
+    case 'heading':
+      return { text: parseBilingual(obj.text) } satisfies HeadingBlockContent
+    case 'list':
+      return {
+        ordered: obj.ordered === true,
+        items: parseItemArray(obj.items, parseBilingual),
+      } satisfies ListBlockContent
+    case 'image':
+      return { image: parseImageSlot(obj.image), caption: parseBilingual(obj.caption) } satisfies ImageBlockContent
   }
 }
 
@@ -299,6 +311,25 @@ function serializeBlockContent(block: PageBlockState, blockIndex: number, files:
         fileUrl: requireNonEmpty(c.fileUrl, blockIndex, '檔案網址'),
       }
     }
+    case 'heading': {
+      const c = block.content as HeadingBlockContent
+      return { text: requireBilingual(c.text, blockIndex, '小標') }
+    }
+    case 'list': {
+      const c = block.content as ListBlockContent
+      if (c.items.length === 0) throw new PageBlockValidationError(`第 ${blockIndex + 1} 個區塊（清單）至少需要 1 筆項目。`)
+      return {
+        ordered: c.ordered,
+        items: c.items.map((item, i) => requireBilingual(item, blockIndex, `第 ${i + 1} 筆的內容`)),
+      }
+    }
+    case 'image': {
+      const c = block.content as ImageBlockContent
+      return {
+        image: serializeImageSlot(c.image, blockIndex, 'image', files),
+        caption: serializeOptionalBilingual(c.caption, blockIndex, '圖片說明'),
+      }
+    }
   }
 }
 
@@ -315,4 +346,21 @@ export function serializeBlocksForSubmit(blocks: PageBlockState[]): { blocks: Ad
     content: serializeBlockContent(block, index, files),
   }))
   return { blocks: serialized, files }
+}
+
+/**
+ * 區塊清單裡是否有任何英文內容（雙語文字的 `en`、圖片的 `altEn`）。
+ * 新聞存檔時用來決定要不要保留英文版本（`bodyBlocks` 的英文和標題等欄位一起判斷）。
+ */
+export function blocksHaveEnglish(blocks: PageBlockState[]): boolean {
+  const walk = (value: unknown): boolean => {
+    if (value === null || typeof value !== 'object' || value instanceof File) return false
+    if (Array.isArray(value)) return value.some(walk)
+    for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+      if ((key === 'en' || key === 'altEn') && typeof v === 'string' && v.trim()) return true
+      if (walk(v)) return true
+    }
+    return false
+  }
+  return blocks.some((b) => walk(b.content))
 }

@@ -2208,6 +2208,16 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("club_id");
 
+                    b.Property<decimal?>("CoverFocalX")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("cover_focal_x");
+
+                    b.Property<decimal?>("CoverFocalY")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("cover_focal_y");
+
                     b.Property<int?>("CoverHeight")
                         .HasColumnType("int")
                         .HasColumnName("cover_height");
@@ -2324,7 +2334,10 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasIndex(new[] { "Slug" }, "UQ_articles_slug")
                         .IsUnique();
 
-                    b.ToTable("articles", (string)null);
+                    b.ToTable("articles", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_articles_cover_focal", "([cover_focal_x] IS NULL AND [cover_focal_y] IS NULL) OR ([cover_focal_x] BETWEEN 0 AND 100 AND [cover_focal_y] BETWEEN 0 AND 100)");
+                        });
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.ArticleCategoriesI18n", b =>

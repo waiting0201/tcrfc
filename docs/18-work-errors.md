@@ -3162,3 +3162,17 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **另一個程序失誤**：全套 `dotnet test` 第一次以 `nohup … | tail` 背景啟動後看似立刻結束（輸出為空），實際子行程仍在跑；我又啟動第二輪，兩輪同時打同一個 `tcrfc_club`／`tcrfc_charity`，慈善測試 19 項互相干擾而失敗（單獨跑慈善 299 項全綠、第二輪獨自跑全套 1575 項全綠）。**下次**：啟動全套前先 `ps` 確認沒有殘留的 `dotnet test`／`vstest`；背景任務一律直接重導向到檔案並等待 exit 標記，不用 `| tail` 管線。
 - **防呆**：✅ `schema-drift-check.sh` 兩模式（`ddl-vs-ef`、`local-vs-ddl`）＋ 正式庫唯讀快照比對（`--compare-snapshots`）；`ddl-vs-ef` 因 EF 不命名預設值、不保證欄序，明列排除 `NAME|DEFAULT`、`COLORDER`（`docs/20` §3）。⚠️ **仍擋不住**：未來 migration 用 `AddColumn(defaultValue)` 新增預設值而忘了呼叫 `SystemNamedConstraintRenamer.Rename`——CI 只在「新建庫」比，看不到 migration 長出來的庫；靠 `local-vs-ddl` 與正式庫快照比對事後抓到。若再犯，升級為 CI 的「DDL 建庫（前一版）＋套最新 migration vs DDL」比對。
 - **同次作業發現（種子日期浮動）**：`generate-prod-content-sql.py --check` 曾因 `backoffice_seed.py` 的 `date.today()` 每天都不一致（`ad_daily_stats` 28 列日期隨產生日位移，CI 會隨日期變紅、manifest sha256 天天失效）。已改固定基準日 `date(2026,10,8)`，`seed-ended` 檔期起訖也改由同一基準日推算；規則寫入 `docs/14` 種子規則 ④-3。另：本次演練 `record-manifest` 時發現 `settings` 90→88、`settings_i18n` 75→73 是 `e6682d3`（v3.27 移除 `charity.corporate_cta`／`corporate_url`）當時沒重錄 manifest 的殘留，一併更新。
+
+### E-323 新聞後台停在文字框、前台「圖集」拿封面充數，與規劃書 B2「內文區塊編輯」、§3.7「內文含圖／圖集」不符，到客戶實際編輯才被發現（2026-10-15，使用者回報）
+- **錯在哪**：使用者回報新聞「內文不能放圖片」「圖集只能一張、被裁切」。規劃書 B2 早就寫「內文區塊編輯」、§3.7 詳情頁寫「內文（圖／影音／引言／圖集）」，但後台內文一直是 `el-input textarea`（placeholder 自己寫「以文字框代替正式的富文本編輯器」），前台詳情頁的「圖集」區只把封面再顯示一次並裁成 3:2。B1 頁面管理早已有可重用的區塊編輯器與「儲存才上傳」的內文圖片管線，新聞沒有接上。同次回報的「封面在 Banner 被裁掉」則是規格本身沒有（§4.0 原本把焦點裁切列為不做），已走同步鏈改為 v3.28。
+- **根因（可改掉的行為）**：實作時用「暫代」寫法（文字框、拿封面填圖集）讓畫面先能跑，卻沒有把「暫代」登記成 STATUS 的未完成列；驗收時看「頁面有東西」而不是逐條對照規劃書該頁列出的欄位與區塊。
+- **下次怎麼避免**：程式裡寫了「暫代／先以 X 代替」的 placeholder 或註解，同一次交付必須在 STATUS 開一列未完成；功能驗收清單要從規劃書該節逐項抄出（例如 B2 的每個逗號項目），不是從畫面反推。
+- **修正**：S2-27——後台改用 B1 區塊元件（新增小標／清單／單張圖片型別、圖集可排序）、API 內文拆雙語區塊並沿用 B1 圖片管線、前台內文圖照原比例與瀑布流圖集，刪除重複封面的舊圖集區；封面焦點依 v3.28 新增。
+- **防呆**：無（建議日後以 grep `代替正式|暫代|placeholder` 掃 `apps/` 並對照 STATUS，尚未做成腳本）。
+
+### E-324 新聞內文匯入 SQL 把中文列寫成 `locale = 'zh'`，實際值是 `zh-Hant`，照跑會 0 筆更新而且不報錯（2026-10-15，主 session，C-1）
+- **錯在哪**：產生 `db/migrations/20261015_news-body-import.sql` 時，憑印象寫 `i.locale = 'zh'`；`*_i18n` 的中文 locale 值是 `zh-Hant`（見 `db/prod/club-content-seed.sql`）。`UPDATE … WHERE` 對不上不會報錯，只會印出 0 筆，容易被當成「本機已有內文」。後來為了改標題查種子檔才發現。同次另發現讀取工具遇到擴充區漢字會吃掉文末字元（已寫進 `docs/09` §2）。
+- **根因（可改掉的行為）**：寫資料遷移時，條件值沒有先從 DDL 或種子檔查證，用了自己以為的值；SQL 也沒有「預期筆數」的斷言。
+- **下次怎麼避免**：資料遷移的 WHERE 條件值（locale、代碼、狀態）一律先 grep 種子檔或 DDL 取實際值；可預知筆數的資料遷移要在 PRINT 後與預期比對，不符就 THROW。
+- **修正**：改為 `N'zh-Hant'`，並分開印出 body 與 title 的更新筆數。
+- **防呆**：無（筆數斷言尚未加入；本機套用時看 `body rows` 應為 83）。

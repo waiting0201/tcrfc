@@ -129,7 +129,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 |---|---|---|
 | **Dashboard** | — | Tasks, latest submissions, key figures |
 | **Content** | Pages | Fixed static pages (including the Blue Whale entrance page); the fields to fill in on each page are set in advance, so you only enter content and do not add or delete pages; includes draft, scheduling, Chinese and English versions, revision history with rollback, and preview links that can be shared before publishing |
-| | News & Stories | Writing, scheduled publishing, categories and tags |
+| | News & Stories | Writing (text with photos and photo sets in between), picking the spot on the cover photo to keep in view, scheduled publishing, categories and tags |
 | | Home layout | Order of the home page blocks and the hero |
 | | FAQ | Questions and answers, including reports of failed searches |
 | | Charity & Impact | The descriptive content and impact figures for section 11 |

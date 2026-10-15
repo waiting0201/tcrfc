@@ -15,7 +15,6 @@ namespace Tcrfc.Api.Features.AdminPages;
 internal static class AdminPageRequestForm
 {
     private const string PayloadFieldName = "payload";
-    private const string FilePrefix = "file:";
 
     public static async Task<(T Payload, IFormFileCollection Files)> ReadAsync<T>(
         HttpRequest request, JsonSerializerOptions jsonOptions, CancellationToken cancellationToken)
@@ -49,5 +48,5 @@ internal static class AdminPageRequestForm
 
     /// <summary>依區塊索引與圖片路徑組出多檔命名慣例的欄位名稱，供 <see cref="PageBlockContentProcessor"/>
     /// 的 <c>resolveUpload</c> 委派在 <see cref="IFormFileCollection"/> 裡查找對應檔案時使用。</summary>
-    public static string FileFieldName(int blockIndex, string imagePath) => $"{FilePrefix}{blockIndex}:{imagePath}";
+    public static string FileFieldName(int blockIndex, string imagePath) => Uploads.BlockImageUploader.FileFieldName(blockIndex, imagePath);
 }

@@ -3237,6 +3237,8 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 | 項 | 頁／元件 | 端點 | 狀態 |
 |---|---|---|---|
 | 1 新聞內文 | `news/[slug]/index.vue`＋`components/news/NewsBody.vue`＋`utils/news-body.ts` | `news/{slug}` 的 `bodyJson` | 🟢 純文字（後台目前只送這種）：空行分段、段內換行保留、HTML 字元一律當文字。區塊 JSON（為區塊編輯器保留）只認 `blocks`／陣列＋白名單型別（`p`／`h2`／`h3`／`quote`／`ul`／`ol`／`image`／`gallery`），其餘忽略；圖片網址只放行 http(s) 與站內 `/`。**全程文字插值，不用 `v-html`** |
+
+> **v3.28（新聞封面焦點與內文區塊）**：封面 `coverFocalX/Y` → `newsCoverImg().objectPosition`（`${x??50}% ${y??50}%`，inline style 套在詳情頁頁首、`NewsCard`、首頁 hero 新聞卡與馬賽克、相關文章）；詳情頁頁首補 srcset，重複封面的「圖集」區已刪。內文 `image`／`gallery` 認 `key/width/height/alt/caption`（網址 `mediaBaseUrl + '/' + key`，srcset 走 `derivativeSrcset`，照原比例不裁切，圖集為 CSS columns 瀑布流 3／2／1 欄）；新增 `video`（`youtube`→`youtube-nocookie.com/embed/{id}`、`vimeo`→`player.vimeo.com/video/{id}`，`videoId` 僅 `[A-Za-z0-9_-]`，16:9 lazy iframe）。專案無 CSP，無須補 `frame-src`。驗證：`scripts/check-news-body.mjs`（23 組）。
 | 1 賽事資訊 | 同上 | `news/{slug}` 的 `relations`（`targetType='match'`）＋`schedule` | 🟢 改讀文章自己的關聯賽事，不再用正規表示式拆標題。有關聯才發 `schedule` 請求（`pageSize=100`），找得到才顯示賽事／對戰／比分／賽程連結（`/zh/schedule/#fx-…`）；**沒關聯或找不到就整塊不顯示**。「出賽名單」列已移除（公開 API 沒有出賽名單端點）。示範文字已移除 |
 | 1 社群分享 | 同上 | 無（規劃書 3.7 詳情頁「社群分享」） | 🟢 Facebook／LINE 為官方分享網址（新分頁、`noopener`，不載入第三方腳本）；複製連結用 Clipboard API，失敗顯示手動複製提示 |
 | 2 首頁一線隊橫幅 | `zh/index.vue` | `players?team={一線隊代號}` | 🟢 取 5 位：有肖像者優先（後端已套肖像同意，未同意 `photoUrl=null`），其餘補滿，以隊徽卡呈現。**沒有球員資料整段不顯示**（磐石與藍鯨同一規則）。`check-homepage-fidelity` 明文不涵蓋此區塊，基準不需更新 |

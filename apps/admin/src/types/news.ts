@@ -103,11 +103,8 @@ export interface NewsRelation {
 }
 
 /**
- * 後台新聞編輯頁目前不暴露編輯介面、但 API 會整份取代的欄位（`AdminArticleLocaleContent`
- * 的 `Summary`／`SeoTitle`／`SeoDescription`）。畫面上沒有對應輸入框，讀回來就原封存著、
- * 存檔時原封送回去，避免「畫面沒有這個欄位＝存檔時把它清空」——docs/21 的編輯頁 wireframe
- * 目前只定義了基本資訊／內容／封面圖片／發布設定四段，沒有摘要與 SEO 欄位的畫面規格，
- * 這裡刻意不自行加規格外的輸入框（CLAUDE.md 全域規定 2），只做到「不遺失資料」。
+ * 新聞編輯頁的畫面狀態。`content`（舊的純文字內文）只保留給讀回舊資料用；v3.28 起內文改為區塊清單
+ * （`bodyBlocks`，由 `NewsEditView` 另外持有，不放在這裡，因為含 `File`），存檔一律送 `bodyBlocks`。
  */
 export interface NewsArticle {
   id: string
@@ -125,6 +122,9 @@ export interface NewsArticle {
   coverHeight: number | null
   /** 封面圖片替代文字（S0-7h，逐語系，非必填；影響無障礙）。 */
   coverAlt: Bilingual
+  /** 封面焦點（0–100 百分比，最多 2 位小數）；兩者同為 null＝置中。前台裁切封面時保留這一點。 */
+  coverFocalX: number | null
+  coverFocalY: number | null
   /** 置頂精選（規劃書§3.7、docs/03-admin-spec.md「置頂精選（限 3）」），逐俱樂部最多 3 篇 */
   isFeatured: boolean
   status: ContentStatus

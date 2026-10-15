@@ -234,10 +234,12 @@ public sealed class AdminArticlesRepository(
     /// </summary>
     public async Task<AdminArticleDetailDto> CreateAsync(
         AdminClubScope scope, Guid articleId, CreateArticleRequest request, string? coverKey,
-        int? coverWidth, int? coverHeight, ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
+        int? coverWidth, int? coverHeight, ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken,
+        BlockImageUploader? bodyUploader = null)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
+        CoverFocalPolicy.Validate(request.CoverFocalX, request.CoverFocalY);
 
         var category = await ResolveCategoryAsync(request.CategoryCode, cancellationToken);
 
@@ -259,6 +261,12 @@ public sealed class AdminArticlesRepository(
         var coreValueTags = ValidateCoreValueTags(request.CoreValueTags ?? []);
         var relations = await ValidateRelationsAsync(articleId, scope.ClubId, request.Relations ?? [], cancellationToken);
 
+        // 內文區塊：驗證＋圖片上傳＋拆 zh／en（上傳的物件由呼叫端的 BlockImageUploader 在失敗時補償刪除）。
+        var body = request.BodyBlocks is null
+            ? null
+            : await NewsBodyBlocks.ResolveAsync(request.BodyBlocks, bodyUploader ?? throw new InvalidOperationException("缺少內文圖片上傳元件。"),
+                new Dictionary<string, (int, int)>(), cancellationToken);
+
         var now = DateTime.UtcNow;
         var article = new Article
         {
@@ -271,6 +279,8 @@ public sealed class AdminArticlesRepository(
             CoverKey = coverKey,
             CoverWidth = coverKey is null ? null : coverWidth,
             CoverHeight = coverKey is null ? null : coverHeight,
+            CoverFocalX = coverKey is null ? null : request.CoverFocalX,
+            CoverFocalY = coverKey is null ? null : request.CoverFocalY,
             IsFeatured = request.IsFeatured,
             Status = "draft", // 🔴 一律從草稿開始，狀態轉換是獨立端點（Publish／Schedule），不接受這裡帶入
             PublishedAt = null,
@@ -288,10 +298,13 @@ public sealed class AdminArticlesRepository(
 
         dbContext.Articles.Add(article);
         AddOrReplaceI18n(article, RequestLocale.DefaultDbLocale, request.Content.Zh);
-        if (request.Content.En is not null)
+        var createEn = request.Content.En ?? (body?.EnJson is not null ? new AdminArticleLocaleContent() : null);
+        if (createEn is not null)
         {
-            AddOrReplaceI18n(article, "en", request.Content.En);
+            AddOrReplaceI18n(article, "en", createEn);
         }
+
+        ApplyBody(article, body);
 
         // S1-5 新增：標籤／關聯掛回導覽屬性集合，核心價值標籤直接進 DbSet（沒有導覽屬性可掛，
         // 見 ArticleEntityType 上的說明）。三者跟文章本體、雙語側表在同一次 SaveChanges 交易內
@@ -326,10 +339,12 @@ public sealed class AdminArticlesRepository(
     /// </summary>
     public async Task<AdminArticleDetailDto?> UpdateAsync(
         AdminClubScope scope, Guid id, UpdateArticleRequest request, CoverKeyUpdate coverUpdate,
-        ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
+        ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken,
+        BlockImageUploader? bodyUploader = null)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
+        CoverFocalPolicy.Validate(request.CoverFocalX, request.CoverFocalY);
 
         var article = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
         if (article is null)
@@ -360,6 +375,14 @@ public sealed class AdminArticlesRepository(
 
         ApplyConcurrencyToken(article, request.ExpectedUpdatedAt);
 
+        // 內文圖片：記住「換之前」的主檔鍵（成功寫入後才刪沒被引用的），既有圖片 key 只接受目前已存的那些。
+        var zhRowBefore = article.ArticlesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
+        var previousBodyKeys = NewsBodyBlocks.ExtractImageKeys(zhRowBefore?.Body);
+        var body = request.BodyBlocks is null
+            ? null
+            : await NewsBodyBlocks.ResolveAsync(request.BodyBlocks, bodyUploader ?? throw new InvalidOperationException("缺少內文圖片上傳元件。"),
+                NewsBodyBlocks.KnownImages(zhRowBefore?.Body), cancellationToken);
+
         // 🔴 換圖成功才刪舊物件（規劃書 §4.0）：這裡先記住「換之前」的鍵，等 DB 寫入真的成功
         // 之後才刪除——刪除順序不能提前，否則若後續的並行檢查／SaveChanges 失敗，舊圖已經被
         // 刪掉但資料庫其實還指著它，會變成資料列引用一個不存在的物件鍵。
@@ -382,6 +405,12 @@ public sealed class AdminArticlesRepository(
             article.CoverHeight = coverUpdate.Height;
         }
 
+        // 封面焦點：payload 照存；只有「移除封面」（新值為 null 的變更）時強制清為 NULL。
+        var coverRemoved = coverUpdate.Change && coverUpdate.NewKey is null;
+        var noCover = coverRemoved || effectiveCoverKey is null;
+        article.CoverFocalX = noCover ? null : request.CoverFocalX;
+        article.CoverFocalY = noCover ? null : request.CoverFocalY;
+
         article.IsFeatured = request.IsFeatured;
         article.CanonicalPath = string.IsNullOrWhiteSpace(request.CanonicalPath) ? null : request.CanonicalPath;
         article.IsNoindex = request.IsNoindex;
@@ -399,14 +428,17 @@ public sealed class AdminArticlesRepository(
         // 內容欄位視為「整份取代」：zh 一律覆寫，en 省略＝清掉既有英文版（見 DTO 上的註解）。
         AddOrReplaceI18n(article, RequestLocale.DefaultDbLocale, request.Content.Zh);
         var existingEn = article.ArticlesI18ns.FirstOrDefault(i => i.Locale == "en");
-        if (request.Content.En is not null)
+        var enContent = request.Content.En ?? (body?.EnJson is not null ? new AdminArticleLocaleContent() : null);
+        if (enContent is not null)
         {
-            AddOrReplaceI18n(article, "en", request.Content.En);
+            AddOrReplaceI18n(article, "en", enContent);
         }
         else if (existingEn is not null)
         {
             dbContext.Remove(existingEn);
         }
+
+        ApplyBody(article, body);
 
         // S1-5 新增：三個欄位分別套用，null＝這次請求沒有提到這個欄位，維持資料庫現況不動。
         if (tagsToApply is not null)
@@ -434,6 +466,14 @@ public sealed class AdminArticlesRepository(
 
         await SaveWithConcurrencyHandlingAsync(cancellationToken);
         await InvalidatePublicCacheAsync(scope, cancellationToken);
+
+        // 內文圖片：不再被引用的舊主檔（含衍生檔）一併刪除；fail-open。
+        var currentBodyKeys = NewsBodyBlocks.ExtractImageKeys(
+            article.ArticlesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Body).ToHashSet(StringComparer.Ordinal);
+        foreach (var oldKey in previousBodyKeys.Distinct(StringComparer.Ordinal).Where(k => !currentBodyKeys.Contains(k)))
+        {
+            await imageStorage.DeleteAsync(oldKey, cancellationToken);
+        }
 
         if (!string.Equals(previousCoverKey, effectiveCoverKey, StringComparison.Ordinal))
         {
@@ -553,6 +593,10 @@ public sealed class AdminArticlesRepository(
 
         var coverKey = article.CoverKey;
         var ogImageKey = article.OgImageKey;
+        var bodyImageKeys = article.ArticlesI18ns
+            .SelectMany(i => NewsBodyBlocks.ExtractImageKeys(i.Body))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
         dbContext.Articles.Remove(article);
 
         await SaveWithConcurrencyHandlingAsync(cancellationToken);
@@ -561,6 +605,12 @@ public sealed class AdminArticlesRepository(
         // 刪除資料列一併刪除其圖片物件（規劃書 §4.0「換圖與刪除」）。
         await imageStorage.DeleteAsync(coverKey, cancellationToken);
         await imageStorage.DeleteAsync(ogImageKey, cancellationToken);
+
+        // 刪除文章一併刪除全部內文圖片（主檔＋衍生檔）。
+        foreach (var bodyKey in bodyImageKeys)
+        {
+            await imageStorage.DeleteAsync(bodyKey, cancellationToken);
+        }
 
         return true;
     }
@@ -1008,6 +1058,23 @@ public sealed class AdminArticlesRepository(
         }
     }
 
+    /// <summary>把解析後的內文 JSON 寫進 zh／en 側表（<c>body</c>）；沒有帶 <c>bodyBlocks</c>（<c>body</c> 為 null）時不動。</summary>
+    private static void ApplyBody(Article article, NewsBodyResolved? body)
+    {
+        if (body is null)
+        {
+            return;
+        }
+
+        var zh = article.ArticlesI18ns.First(i => i.Locale == RequestLocale.DefaultDbLocale);
+        zh.Body = body.ZhJson;
+        var en = article.ArticlesI18ns.FirstOrDefault(i => i.Locale == "en");
+        if (en is not null)
+        {
+            en.Body = body.EnJson;
+        }
+    }
+
     private static void ValidateContent(AdminArticleContentInput content)
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Title))
@@ -1039,6 +1106,8 @@ public sealed class AdminArticlesRepository(
             CoverThumbUrl = imageUrlResolver.ResolveThumbnail(article.CoverKey),
             CoverWidth = article.CoverWidth,
             CoverHeight = article.CoverHeight,
+            CoverFocalX = article.CoverKey is null ? null : article.CoverFocalX,
+            CoverFocalY = article.CoverKey is null ? null : article.CoverFocalY,
             IsFeatured = article.IsFeatured,
             ViewCount = article.ViewCount,
             Status = article.Status,
@@ -1085,6 +1154,7 @@ public sealed class AdminArticlesRepository(
             Relations = article.ArticleRelations
                 .Select(r => new AdminArticleRelationInput { TargetType = r.TargetType, TargetId = r.TargetId })
                 .ToList(),
+            BodyBlocks = NewsBodyBlocks.ToAdminBlocks(zh?.Body, en?.Body, imageUrlResolver.Resolve, imageUrlResolver.ResolveThumbnail),
         };
     }
 

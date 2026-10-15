@@ -119,7 +119,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 |---|---|---|---|
 | **Dashboard** | — | Tasks, latest submissions, key figures | Blue Whale only |
 | **Content** | Pages | Fixed static pages; the fields to fill in on each page are set in advance, so you only enter content and do not add or delete pages | Blue Whale's pages |
-| | News & Stories | Writing, scheduled publishing, categories | Blue Whale's news |
+| | News & Stories | Writing (text with photos and photo sets in between), picking the spot on the cover photo to keep in view, scheduled publishing, categories | Blue Whale's news |
 | | Home layout | Home page block order and hero | Blue Whale's home |
 | | FAQ | Questions and answers | Blue Whale's entries |
 | | Charity & Impact | The website's charity section content | **Not used on this site** |

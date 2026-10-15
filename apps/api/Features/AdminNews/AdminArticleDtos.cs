@@ -121,6 +121,15 @@ public sealed record CreateArticleRequest
 
     /// <summary>從 Sitemap 排除（S1-12 新增）。對應 <c>articles.is_excluded_from_sitemap</c>。</summary>
     public bool IsExcludedFromSitemap { get; init; }
+    /// <summary>封面焦點（百分比 0–100，最多 2 位小數；主站規劃書 v3.28）。兩者需同為 <c>null</c>（＝置中）或同有值。
+    /// 照存；只有 <c>removeCover=true</c> 時伺服器強制清為 <c>null</c>。</summary>
+    public decimal? CoverFocalX { get; init; }
+    public decimal? CoverFocalY { get; init; }
+
+    /// <summary>內文區塊（雙語、一份清單，形狀見 <see cref="NewsBlockInput"/> 與 apps/api/README.md「新聞內文區塊」）。
+    /// <c>null</c>＝不動內文（沿用 <c>content.*.body</c> 的舊行為）；非 <c>null</c> 時以此為準並整份取代（空陣列＝清空內文）。
+    /// 圖片檔案放同一個 multipart 請求的 <c>file:{區塊索引}:image</c>／<c>file:{區塊索引}:images:{i}</c>。</summary>
+    public IReadOnlyList<NewsBlockInput>? BodyBlocks { get; init; }
 }
 
 /// <summary>
@@ -172,6 +181,15 @@ public sealed record UpdateArticleRequest
     /// <summary>勾選「移除 OG 圖片」（S1-12 驗收退回後補做）。跟這次請求的 <c>ogImage</c> 檔案
     /// 欄位互斥，兩者都有視為請求矛盾，回 400。兩者都沒有＝維持目前的 OG 圖片不變。</summary>
     public bool RemoveOgImage { get; init; }
+    /// <summary>封面焦點（百分比 0–100，最多 2 位小數；主站規劃書 v3.28）。兩者需同為 <c>null</c>（＝置中）或同有值。
+    /// 照存；只有 <c>removeCover=true</c> 時伺服器強制清為 <c>null</c>。</summary>
+    public decimal? CoverFocalX { get; init; }
+    public decimal? CoverFocalY { get; init; }
+
+    /// <summary>內文區塊（雙語、一份清單，形狀見 <see cref="NewsBlockInput"/> 與 apps/api/README.md「新聞內文區塊」）。
+    /// <c>null</c>＝不動內文（沿用 <c>content.*.body</c> 的舊行為）；非 <c>null</c> 時以此為準並整份取代（空陣列＝清空內文）。
+    /// 圖片檔案放同一個 multipart 請求的 <c>file:{區塊索引}:image</c>／<c>file:{區塊索引}:images:{i}</c>。</summary>
+    public IReadOnlyList<NewsBlockInput>? BodyBlocks { get; init; }
 }
 
 public sealed record PublishArticleRequest
@@ -231,6 +249,10 @@ public sealed record AdminArticleDetailDto
     /// <summary>封面主檔（縮小後）寬高，S0-7h。無封面時為 null。</summary>
     public int? CoverWidth { get; init; }
     public int? CoverHeight { get; init; }
+
+    /// <summary>封面焦點（百分比）；<c>null</c>＝置中。</summary>
+    public decimal? CoverFocalX { get; init; }
+    public decimal? CoverFocalY { get; init; }
     public required bool IsFeatured { get; init; }
     public required string Status { get; init; }
     public DateTime? PublishedAt { get; init; }
@@ -260,6 +282,10 @@ public sealed record AdminArticleDetailDto
 
     /// <summary>關聯（S1-5 新增）。</summary>
     public required IReadOnlyList<AdminArticleRelationInput> Relations { get; init; }
+
+    /// <summary>內文區塊（永遠是陣列，雙語合併後的一份清單；形狀同 <see cref="CreateArticleRequest.BodyBlocks"/>，
+    /// 圖片物件另附唯讀 <c>url</c>／<c>thumbUrl</c>）。舊 <c>{"text":…}</c>／純文字內文轉成單一 <c>text</c> 區塊。</summary>
+    public required IReadOnlyList<System.Text.Json.Nodes.JsonObject> BodyBlocks { get; init; }
 }
 
 // ── 批次操作（S1-5 新增，規劃書 B2「批次操作：改分類、批次發布／下架」）─────────────────

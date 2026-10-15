@@ -316,6 +316,8 @@ CREATE TABLE page_versions (
 -- 是兩個獨立欄位，OG 圖片未設定時前台回退用 cover_key，見 apps/api/README.md「S1-12」段。
 -- cover_width／cover_height（S0-7h，2026-10-02）：封面圖片欄位組補齊寬高（存主檔縮小後的尺寸，
 -- 前台必帶寬高以避免 CLS）；封面替代文字在 articles_i18n.cover_alt。
+-- cover_focal_x／_y（主站規劃書 v3.28，2026-10-15）：封面焦點（百分比，0–100，最多 2 位小數）；兩欄同為 NULL＝置中。
+-- 只是顯示設定，不改圖片檔；換封面或移除封面時由 API 清回 NULL（同次存檔帶焦點者照存）。
 CREATE TABLE articles (
   id                  uniqueidentifier NOT NULL CONSTRAINT DF_articles_id DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
@@ -340,6 +342,9 @@ CREATE TABLE articles (
   updated_by          uniqueidentifier NULL,
   cover_width         int              NULL,
   cover_height        int              NULL,
+  cover_focal_x       decimal(5,2)     NULL,
+  cover_focal_y       decimal(5,2)     NULL,
+  CONSTRAINT CK_articles_cover_focal CHECK ((cover_focal_x IS NULL AND cover_focal_y IS NULL) OR (cover_focal_x BETWEEN 0 AND 100 AND cover_focal_y BETWEEN 0 AND 100)),
   CONSTRAINT PK_articles PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_articles_row_seq UNIQUE CLUSTERED (row_seq)
 );

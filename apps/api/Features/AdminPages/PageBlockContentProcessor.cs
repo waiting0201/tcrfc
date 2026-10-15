@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Tcrfc.Api.Common;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 
 namespace Tcrfc.Api.Features.AdminPages;
@@ -206,9 +207,7 @@ internal static class PageBlockContentProcessor
 
         foreach (var image in ImageObjects(blockType, obj))
         {
-            var key = GetString(image, "key");
-            image["url"] = resolveUrl(key);
-            image["thumbUrl"] = resolveThumb(key);
+            BlockImageFields.AttachUrls(image, resolveUrl, resolveThumb);
         }
     }
 
@@ -245,49 +244,13 @@ internal static class PageBlockContentProcessor
         }
     }
 
-    private static async Task ResolveSingleImageAsync(
+    private static Task ResolveSingleImageAsync(
         JsonObject imageObj, int blockIndex, string uploadPath, string fieldPath, ImageUploadResolver resolveUpload, CancellationToken cancellationToken)
-    {
-        // 讀取端為了預覽補的 url／thumbUrl 不屬於儲存內容，一律丟掉（見 AttachImageUrls）。
-        imageObj.Remove("url");
-        imageObj.Remove("thumbUrl");
-
-        var isPending = imageObj["pendingUpload"] is JsonValue pendingValue
-            && pendingValue.TryGetValue<bool>(out var pendingBool) && pendingBool;
-
-        if (isPending)
-        {
-            var uploaded = await resolveUpload(uploadPath, cancellationToken)
-                ?? throw new AdminPageValidationException(
-                    $"第 {blockIndex + 1} 個區塊有圖片還沒有選擇檔案，請重新選擇圖片。", BlockKey(blockIndex, fieldPath));
-
-            imageObj.Remove("pendingUpload");
-            imageObj["key"] = uploaded.Key;
-            imageObj["width"] = uploaded.Width;
-            imageObj["height"] = uploaded.Height;
-        }
-        else
-        {
-            var existingKey = GetString(imageObj, "key");
-            if (string.IsNullOrWhiteSpace(existingKey))
-            {
-                throw new AdminPageValidationException(
-                    $"第 {blockIndex + 1} 個區塊的圖片欄位還沒有圖片，請選擇要上傳的圖片。", BlockKey(blockIndex, fieldPath));
-            }
-        }
-
-        var altZh = GetString(imageObj, "altZh");
-        if (string.IsNullOrWhiteSpace(altZh))
-        {
-            throw new AdminPageValidationException($"第 {blockIndex + 1} 個區塊的圖片替代文字（中文）為必填。", BlockKey(blockIndex, fieldPath + ".altZh"));
-        }
-
-        // 英文可空但欄位必須存在（CLAUDE.md 全域規定 4）。
-        if (imageObj["altEn"] is null)
-        {
-            imageObj["altEn"] = null;
-        }
-    }
+        // 圖片欄位解析（pendingUpload／key／altZh 必填／altEn 補 null）已抽到 Features/Uploads 與新聞內文共用，
+        // 行為與欄位鍵（blocks[N].…）不變。
+        => BlockImageFields.ResolveAsync(
+            imageObj, blockIndex, uploadPath, fieldPath, "blocks", new BlockImageUploadResolver(resolveUpload.Invoke),
+            (message, field) => new AdminPageValidationException(message, field), cancellationToken);
 
     // ───────────────────────────── 通用結構驗證 ─────────────────────────────
 

@@ -23,6 +23,10 @@ export type PageBlockType =
   | 'stat_cards'
   | 'table'
   | 'file_download'
+  // 以下三種只給新聞內文（B2）使用，B1 頁面管理的 `PAGE_BLOCK_TYPES` 不含它們，頁面管理畫面不會出現。
+  | 'heading'
+  | 'list'
+  | 'image'
 
 /** 12 種區塊型別的中文名稱——逐字取自規劃書 §4.2 B1，畫面上只顯示這個，不顯示英文代碼
  * （規劃書 §4.0「代號不進介面」；`CTA`／`FAQ` 兩詞是規劃書原文用字，不是英文技術詞，
@@ -40,12 +44,34 @@ export const PAGE_BLOCK_TYPE_LABEL: Record<PageBlockType, string> = {
   stat_cards: '數據卡',
   table: '表格',
   file_download: '檔案下載',
+  heading: '小標',
+  list: '清單',
+  image: '圖片',
 }
 
 export const PAGE_BLOCK_TYPES: PageBlockType[] = [
   'text', 'text_image', 'gallery', 'video_embed', 'quote', 'cta',
   'accordion_faq', 'timeline', 'steps', 'stat_cards', 'table', 'file_download',
 ]
+
+/**
+ * 新聞內文（B2，規劃書 v3.28 §4.2）可用的 7 種區塊與中文標籤。
+ * 標籤與 B1 不同處：文字→段落、圖片藝廊→圖集、影音嵌入→影音（共用元件以 `typeLabels` 覆寫）。
+ */
+export const NEWS_BODY_BLOCK_TYPES: PageBlockType[] = ['text', 'heading', 'quote', 'list', 'image', 'gallery', 'video_embed']
+
+export const NEWS_BLOCK_TYPE_LABEL: Partial<Record<PageBlockType, string>> = {
+  text: '段落',
+  heading: '小標',
+  quote: '引言',
+  list: '清單',
+  image: '圖片',
+  gallery: '圖集',
+  video_embed: '影音',
+}
+
+/** 新聞內文圖片（單張／圖集）寬度下限 800 像素；高度不限（封面維持 1600×900）。 */
+export const NEWS_BODY_IMAGE_MIN_WIDTH = 800
 
 /** 雙語文字，`en` 可空但欄位必須存在（CLAUDE.md 全域規定 4）。畫面上永遠是字串（空字串代表未填），
  * 序列化時才決定要不要送出 `en`（見 `pageBlockSerializer.ts`）。 */
@@ -165,6 +191,21 @@ export interface FileDownloadBlockContent {
   fileUrl: string
 }
 
+export interface HeadingBlockContent {
+  text: BilingualText
+}
+
+export interface ListBlockContent {
+  ordered: boolean
+  items: BilingualText[]
+}
+
+export interface ImageBlockContent {
+  image: ImageSlotState
+  /** 可選，兩種語言都留白就整個省略。 */
+  caption: BilingualText
+}
+
 export type PageBlockContent =
   | TextBlockContent
   | TextImageBlockContent
@@ -178,6 +219,9 @@ export type PageBlockContent =
   | StatCardsBlockContent
   | TableBlockContent
   | FileDownloadBlockContent
+  | HeadingBlockContent
+  | ListBlockContent
+  | ImageBlockContent
 
 /** 畫面上一個區塊的完整狀態。`localKey` 只給 `v-for` 當 `:key` 用，不會送給後端
  * （後端的區塊沒有穩定 id 可以在建立前先取得，新增／排序／刪除全部靠整份陣列送出，
@@ -222,6 +266,12 @@ export function createEmptyBlockContent(type: PageBlockType): PageBlockContent {
       return { headers: [emptyBilingualText()], rows: [['']] } satisfies TableBlockContent
     case 'file_download':
       return { label: emptyBilingualText(), fileUrl: '' } satisfies FileDownloadBlockContent
+    case 'heading':
+      return { text: emptyBilingualText() } satisfies HeadingBlockContent
+    case 'list':
+      return { ordered: false, items: [emptyBilingualText()] } satisfies ListBlockContent
+    case 'image':
+      return { image: emptyImageSlot(), caption: emptyBilingualText() } satisfies ImageBlockContent
   }
 }
 

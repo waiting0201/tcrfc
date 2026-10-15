@@ -758,3 +758,26 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `sponsor_activation_images`、`comic_pages`、`fan_event_images` | `image_alt_zh`、`image_alt_en`（寬高早已有） |
 
 API 契約：上傳成功後把主檔縮小後的寬高寫回；移除圖片寬高一併清成 `null`。後台讀取 DTO 是 `{名稱}Width`／`{名稱}Height`（沒有圖片時 `null`），Alt 在逐語系內容物件（`zh.{名稱}Alt`／`en.{名稱}Alt`，`≤200` 字，過長 400）；多圖子表圖片 DTO 是 `altZh`／`altEn`，以 `PUT .../images/{imageId}`（漫畫 `.../pages/{pageId}`）更新。公開 DTO 是 `{名稱}Width`／`{名稱}Height`／`{名稱}Alt`（當前語系、英文空白回退繁中、沒有圖片時三者 `null`；多圖子表為 `width`／`height`／`alt`）。逐端點精確欄位名見 `apps/api/README.md`「圖片欄位組補齊」。
+
+### 補充：新聞封面焦點與內文區塊（2026-10-15，主站 v3.28）
+
+| 表 | 變更 |
+|---|---|
+| `articles` | 新增 `cover_focal_x`、`cover_focal_y`（`decimal(5,2) NULL`，百分比）；具名 CHECK `CK_articles_cover_focal`：兩欄同為 `NULL`（＝置中）或同在 0–100。DDL 兩欄在表尾（`cover_height` 之後）。遷移 EF `ArticleCoverFocal`、`db/migrations/20261015_article-cover-focal_1-expand.sql`（展開型，🔴 先 migrate 再 deploy，E-289） |
+| `articles_i18n` | 欄位不變。`body` 內容改為區塊 JSON `{"blocks":[…]}`，zh、en 各一列、各存一份（見下） |
+
+**`articles_i18n.body` 區塊格式（每語言一份，結構與順序相同、圖片 `key` 相同）**：
+
+```jsonc
+{ "type":"paragraph", "text":"…" }                                   // 空行分段
+{ "type":"heading",   "text":"…" }
+{ "type":"quote",     "text":"…", "cite":"…" }                       // cite 可省略
+{ "type":"list",      "ordered":false, "items":["…"] }
+{ "type":"image",     "key":"…","width":1600,"height":2000,"alt":"…","caption":"…" }   // caption 可省略；alt 缺（英文）為 null
+{ "type":"gallery",   "images":[ {"key","width","height","alt"} ] }
+{ "type":"video",     "provider":"youtube","videoId":"…","caption":"…" }               // provider 只有 youtube／vimeo；videoId 只含 [A-Za-z0-9_-]
+```
+
+- 圖片物件鍵前綴 `{club}/articles/{articleId}/body/{區塊索引}/{路徑，':' 換 '-'}/…`；主檔＋衍生檔隨「不再被引用／刪除文章」一併刪除（規劃書 §4.0）。內文圖片寬度 ≥ 800px。
+- 英文版完全沒有任何文字時 `articles_i18n(en).body` 存 `NULL`（前台回退中文版）。
+- 舊 `{"text":"…"}` 仍有效；`body` 不存圖片網址（前台以 `mediaBaseUrl + "/" + key` 組）。

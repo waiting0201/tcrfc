@@ -91,3 +91,9 @@ export function resolveSiteImgSrcset(
 export function siteImgSrcset(path: string, width: number, height: number): string | undefined {
   return resolveSiteImgSrcset(path, useRuntimeConfig().public.mediaBaseUrl as string | undefined, width, height)
 }
+
+/** 封面焦點 → CSS object-position；缺值或超出 0–100 的一律退回 50（置中）。 */
+export function focalObjectPosition(x: number | null | undefined, y: number | null | undefined): string {
+  const norm = (v: number | null | undefined): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 100 ? v : 50)
+  return `${norm(x)}% ${norm(y)}%`
+}

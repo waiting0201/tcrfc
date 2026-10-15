@@ -100,6 +100,9 @@ export interface NewsCoverFields {
   coverWidth?: number | null
   coverHeight?: number | null
   coverAlt?: string | null
+  /** 封面焦點（0–100，%；null＝置中）。規劃書 v3.28 §4.0。 */
+  coverFocalX?: number | null
+  coverFocalY?: number | null
 }
 
 export interface NewsCoverImg {
@@ -111,6 +114,8 @@ export interface NewsCoverImg {
   alt: string
   /** 後台上傳封面的 1280／640／320 衍生檔 srcset（規劃書 §4.0）；本地過渡圖或寬高未知時為 undefined。 */
   srcset?: string
+  /** CSS object-position 字串（`${x}% ${y}%`，焦點缺值＝50）；模板以 inline style 套用。 */
+  objectPosition: string
 }
 
 /**
@@ -138,10 +143,11 @@ export function newsCoverImg(a: NewsCoverFields, club: 'tcrfc' | 'bw' = 'tcrfc')
       height: a.coverHeight ?? null,
       alt,
       srcset: coverSrcset(a.coverUrl, a.coverWidth, a.coverHeight),
+      objectPosition: focalObjectPosition(a.coverFocalX, a.coverFocalY),
     }
   }
   if (hasNewsCover(a.slug, club)) {
-    return { src: newsCoverSrc(a.slug), width: 1600, height: 1067, alt, srcset: siteImgSrcset(`/assets/img/news/${a.slug}.jpg`, 1600, 1067) }
+    return { src: newsCoverSrc(a.slug), width: 1600, height: 1067, alt, srcset: siteImgSrcset(`/assets/img/news/${a.slug}.jpg`, 1600, 1067), objectPosition: focalObjectPosition(null, null) }
   }
   return null
 }

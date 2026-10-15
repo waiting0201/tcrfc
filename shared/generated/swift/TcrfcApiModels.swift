@@ -623,6 +623,8 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
     public var coverUrl: String?
     public var coverWidth: Int?
     public var coverHeight: Int?
+    public var coverFocalX: Double?
+    public var coverFocalY: Double?
     public var coverAlt: String?
     public var isFeatured: Bool
     public var viewCount: Int?
@@ -656,6 +658,8 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
         coverUrl: String? = nil,
         coverWidth: Int? = nil,
         coverHeight: Int? = nil,
+        coverFocalX: Double? = nil,
+        coverFocalY: Double? = nil,
         coverAlt: String? = nil,
         isFeatured: Bool,
         viewCount: Int? = nil,
@@ -688,6 +692,8 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
         self.coverUrl = coverUrl
         self.coverWidth = coverWidth
         self.coverHeight = coverHeight
+        self.coverFocalX = coverFocalX
+        self.coverFocalY = coverFocalY
         self.coverAlt = coverAlt
         self.isFeatured = isFeatured
         self.viewCount = viewCount
@@ -723,6 +729,8 @@ public struct ArticleListItemDto: Codable, Equatable, Sendable {
     public var coverUrl: String?
     public var coverWidth: Int?
     public var coverHeight: Int?
+    public var coverFocalX: Double?
+    public var coverFocalY: Double?
     public var coverAlt: String?
     public var isFeatured: Bool
     public var publishedAt: JSONValue?
@@ -741,6 +749,8 @@ public struct ArticleListItemDto: Codable, Equatable, Sendable {
         coverUrl: String? = nil,
         coverWidth: Int? = nil,
         coverHeight: Int? = nil,
+        coverFocalX: Double? = nil,
+        coverFocalY: Double? = nil,
         coverAlt: String? = nil,
         isFeatured: Bool,
         publishedAt: JSONValue? = nil,
@@ -758,6 +768,8 @@ public struct ArticleListItemDto: Codable, Equatable, Sendable {
         self.coverUrl = coverUrl
         self.coverWidth = coverWidth
         self.coverHeight = coverHeight
+        self.coverFocalX = coverFocalX
+        self.coverFocalY = coverFocalY
         self.coverAlt = coverAlt
         self.isFeatured = isFeatured
         self.publishedAt = publishedAt

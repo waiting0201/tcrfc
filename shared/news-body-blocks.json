@@ -1,7 +1,7 @@
 {
   "$comment": "自動產生，請勿手改。產生器：shared/scripts/gen-news-body-blocks.mjs。來源是 apps/web/app/utils/news-body.ts 的 blockOf()（官網目前唯一解讀 bodyJson 的實作），不是規格；後端對 bodyJson 不解讀區塊型別。",
   "field": "ArticleDetailDto.bodyJson（字串；可能是純文字，也可能是 JSON 文字）",
-  "backendContract": "後台目前送純文字：後端存成 {\"text\":\"…\"}，公開端點讀回「還原後的原文字」。物件／陣列原樣保存、原樣回傳（為區塊編輯器預留）。後端不驗證也不解讀區塊型別。",
+  "backendContract": "主站規劃書 v3.28 起，後台以區塊編輯內文：後端驗證後依語系各存一份 {\"blocks\":[…]}（paragraph／heading／quote／list／image／gallery／video，欄位見 blockKinds 與 apps/api/README.md「新聞內文區塊」），公開端點把請求語系（缺則繁中）的單語 JSON 原樣回傳，不組圖片網址。舊文章仍可能是 {\"text\":\"…\"}（純文字還原後的原文字或物件）。",
   "parseOrder": [
     "null 或空白 → 沒有內文區塊",
     "不是以 { 或 [ 開頭，或 JSON.parse 失敗 → 整段當純文字，空行分段",
@@ -84,7 +84,9 @@
       ],
       "aliases": {},
       "fields": {
-        "src|url": "string（必填，須通過安全網址檢查）",
+        "key": "string（後台上傳的內文圖片物件鍵；網址 = mediaBaseUrl + \"/\" + key，API 不組網址）",
+        "src|url": "string（外部圖片網址，須通過安全網址檢查）",
+        "width|height": "number（選填，主檔寬高）",
         "alt": "string（缺漏退回 caption）",
         "caption": "string（選填）"
       }
@@ -95,7 +97,19 @@
       ],
       "aliases": {},
       "fields": {
-        "images": "{src|url, alt?, caption?}[]（沒有任何合法圖片則不輸出）"
+        "images": "{key | src|url, width?, height?, alt?}[]（沒有任何合法圖片則不輸出）"
+      }
+    },
+    "video": {
+      "type": [
+        "video",
+        "video_embed"
+      ],
+      "aliases": {},
+      "fields": {
+        "provider": "'youtube' | 'vimeo'（白名單）",
+        "videoId": "string（只允許 [A-Za-z0-9_-]；嵌入網址 youtube-nocookie.com／player.vimeo.com 由用戶端組）",
+        "caption": "string（選填）"
       }
     }
   },

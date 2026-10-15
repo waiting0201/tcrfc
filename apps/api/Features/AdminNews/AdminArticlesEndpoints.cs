@@ -99,12 +99,13 @@ public static class AdminArticlesEndpoints
             var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionCreate, cancellationToken);
             var operatorId = adminScope.Identity.AdminUserId;
 
-            var (request, file, ogImageFile) = await AdminArticleRequestForm.ReadAsync<CreateArticleRequest>(
+            var (request, file, ogImageFile, files) = await AdminArticleRequestForm.ReadAsync<CreateArticleRequest>(
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
 
             // 🔴 id 必須在上傳之前就決定：物件鍵路徑（{club}/articles/{articleId}/cover/...）要指到
             // 「這張圖屬於哪一筆將要建立的資料列」，見 AdminArticlesRepository.CreateAsync 上的說明。
             var articleId = Guid.NewGuid();
+            var bodyUploader = NewBodyUploader(imageStorage, files, adminScope, articleId);
             string? coverKey = null;
             int? coverWidth = null;
             int? coverHeight = null;
@@ -128,7 +129,7 @@ public static class AdminArticlesEndpoints
 
             try
             {
-                var created = await repository.CreateAsync(adminScope, articleId, request, coverKey, coverWidth, coverHeight, ogImageUpdate, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(adminScope, articleId, request, coverKey, coverWidth, coverHeight, ogImageUpdate, operatorId, cancellationToken, bodyUploader);
                 return Results.Created($"/api/v1/admin/{club}/news/{created.Id}", created);
             }
             catch
@@ -148,6 +149,7 @@ public static class AdminArticlesEndpoints
                     await imageStorage.DeleteAsync(ogImageUpdate.Key, CancellationToken.None);
                 }
 
+                await bodyUploader.RollbackAsync(); // 內文圖片同一套補償
                 throw;
             }
         })
@@ -172,7 +174,7 @@ public static class AdminArticlesEndpoints
             var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
             var operatorId = adminScope.Identity.AdminUserId;
 
-            var (request, file, ogImageFile) = await AdminArticleRequestForm.ReadAsync<UpdateArticleRequest>(
+            var (request, file, ogImageFile, files) = await AdminArticleRequestForm.ReadAsync<UpdateArticleRequest>(
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
 
             if (file is not null && request.RemoveCover)
@@ -185,6 +187,7 @@ public static class AdminArticlesEndpoints
                 throw new AdminArticleValidationException("不能同時上傳新的分享圖片與移除分享圖片，請擇一。", "ogImage");
             }
 
+            var bodyUploader = NewBodyUploader(imageStorage, files, adminScope, id);
             string? uploadedKey = null;
             CoverKeyUpdate coverUpdate;
             if (file is not null)
@@ -222,7 +225,7 @@ public static class AdminArticlesEndpoints
 
             try
             {
-                var updated = await repository.UpdateAsync(adminScope, id, request, coverUpdate, ogImageUpdate, operatorId, cancellationToken);
+                var updated = await repository.UpdateAsync(adminScope, id, request, coverUpdate, ogImageUpdate, operatorId, cancellationToken, bodyUploader);
                 if (updated is null)
                 {
                     // 找不到這篇文章（跨俱樂部或真的不存在）：圖片已經上傳成功，但不會有任何資料列
@@ -237,6 +240,7 @@ public static class AdminArticlesEndpoints
                         await imageStorage.DeleteAsync(ogImageUpdate.Key, cancellationToken);
                     }
 
+                    await bodyUploader.RollbackAsync();
                     return Results.NotFound();
                 }
 
@@ -244,6 +248,7 @@ public static class AdminArticlesEndpoints
             }
             catch
             {
+                await bodyUploader.RollbackAsync();
                 if (uploadedKey is not null)
                 {
                     await imageStorage.DeleteAsync(uploadedKey, CancellationToken.None); // 請求已取消也要清掉
@@ -373,6 +378,10 @@ public static class AdminArticlesEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
     }
+
+    /// <summary>內文圖片上傳元件（與 B1 頁面區塊共用）：物件鍵前綴 <c>{club}/articles/{articleId}/body/{區塊索引}/{路徑}</c>，寬度下限 800px。</summary>
+    private static BlockImageUploader NewBodyUploader(IImageStorageService imageStorage, IFormFileCollection files, AdminClubScope scope, Guid articleId)
+        => new(imageStorage, files, $"{scope.ClubCode}/articles/{articleId}/body", NewsBodyBlocks.MinImageWidth);
 
     /// <summary>
     /// 🔴🔴🔴 S0-8 修正：把封面圖片讀進記憶體並交給 <see cref="IImageStorageService"/> 處理＋上傳，

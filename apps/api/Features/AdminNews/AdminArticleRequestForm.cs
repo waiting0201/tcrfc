@@ -16,7 +16,7 @@ internal static class AdminArticleRequestForm
     private const string FileFieldName = "file";
     private const string OgImageFieldName = "ogImage";
 
-    public static async Task<(T Payload, IFormFile? File, IFormFile? OgImageFile)> ReadAsync<T>(
+    public static async Task<(T Payload, IFormFile? File, IFormFile? OgImageFile, IFormFileCollection Files)> ReadAsync<T>(
         HttpRequest request, JsonSerializerOptions jsonOptions, CancellationToken cancellationToken)
     {
         if (!request.HasFormContentType)
@@ -47,6 +47,6 @@ internal static class AdminArticleRequestForm
 
         var file = form.Files[FileFieldName];
         var ogImageFile = form.Files[OgImageFieldName];
-        return (payload, file, ogImageFile);
+        return (payload, file, ogImageFile, form.Files);
     }
 }

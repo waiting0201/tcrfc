@@ -38,6 +38,12 @@ public partial class ClubDbContext
         // 索引對齊 DDL（2026-10-01，docs/20 §5 差異清單；docs/18 E-111 同批），見 ClubDbContextIndexAlignment.cs。
         ConfigureIndexAlignment(modelBuilder);
 
+        // 新聞封面焦點（主站規劃書 v3.28，2026-10-15）：articles.cover_focal_x／cover_focal_y 兩欄同為 NULL（＝置中），
+        // 或兩欄皆落在 0–100（百分比）。名稱與定義與 db/club-schema.sql 一致（具名 CHECK，docs/14「約束命名」）。
+        modelBuilder.Entity<Article>().ToTable(t => t.HasCheckConstraint(
+            "CK_articles_cover_focal",
+            "([cover_focal_x] IS NULL AND [cover_focal_y] IS NULL) OR ([cover_focal_x] BETWEEN 0 AND 100 AND [cover_focal_y] BETWEEN 0 AND 100)"));
+
         // JSON 內容欄位的具名 CHECK（2026-10-13：不使用原生 json 型別），見 ClubDbContextJsonChecks.cs。
         ConfigureJsonChecks(modelBuilder);
     }

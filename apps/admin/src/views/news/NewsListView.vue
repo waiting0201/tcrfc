@@ -173,14 +173,21 @@ async function handleDuplicate(row: NewsArticle) {
         slug: `${detail.slug}-copy-${Date.now()}`,
         categoryCode: detail.categoryCode,
         isFeatured: false, // 複製品刻意不繼承置頂精選，避免立刻撞到「逐俱樂部限 3」的上限
+        coverFocalX: null,
+        coverFocalY: null,
         content: {
-          zh: detail.zh,
-          en: detail.en,
+          // 內文改由 bodyBlocks 帶入（v3.28），舊的內文字串不再複製
+          zh: { ...detail.zh, body: null },
+          en: detail.en ? { ...detail.en, body: null } : detail.en,
         },
+        // 圖片與圖集沒辦法沿用原文章的檔案，複製時略過，其餘區塊原樣帶入
+        bodyBlocks: (detail.bodyBlocks ?? [])
+          .filter((b) => !['image', 'gallery'].includes(b.blockType))
+          .map((b) => ({ blockType: b.blockType, content: b.content })),
       },
       null,
     )
-    ElMessage.success('已建立一份複製的草稿，封面圖片未帶入，請重新選擇後再儲存')
+    ElMessage.success('已建立一份複製的草稿，封面圖片與內文圖片未帶入，請重新選擇後再儲存')
     router.push(`/content/news/${created.id}/edit`)
   } catch (error) {
     ElMessage.error(error instanceof AdminApiError ? error.message : '複製失敗，請稍後再試')

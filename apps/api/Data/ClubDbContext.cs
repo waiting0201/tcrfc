@@ -656,6 +656,12 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("cover_key");
             entity.Property(e => e.CoverWidth).HasColumnName("cover_width");
             entity.Property(e => e.CoverHeight).HasColumnName("cover_height");
+            entity.Property(e => e.CoverFocalX)
+                .HasPrecision(5, 2)
+                .HasColumnName("cover_focal_x");
+            entity.Property(e => e.CoverFocalY)
+                .HasPrecision(5, 2)
+                .HasColumnName("cover_focal_y");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")

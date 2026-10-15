@@ -647,7 +647,7 @@ onBeforeUnmount(() => {
                 <div class="hero-card__media">
                   <!-- LCP 元素：首屏第一張卡不得 lazy（Lighthouse 實測 Load Delay 7.9s、占 LCP 64%），
                        改 eager ＋ fetchpriority=high；其餘卡維持 lazy。 -->
-                  <img v-if="newsCoverImg(a, clubKey)" :src="newsCoverImg(a, clubKey)!.src" :srcset="newsCoverImg(a, clubKey)!.srcset" :sizes="newsCoverImg(a, clubKey)!.srcset ? HERO_CARD_SIZES : undefined" alt="" :loading="hi === 0 ? 'eager' : 'lazy'" :fetchpriority="hi === 0 ? 'high' : undefined" :width="newsCoverImg(a, clubKey)!.width ?? undefined" :height="newsCoverImg(a, clubKey)!.height ?? undefined">
+                  <img v-if="newsCoverImg(a, clubKey)" :src="newsCoverImg(a, clubKey)!.src" :srcset="newsCoverImg(a, clubKey)!.srcset" :sizes="newsCoverImg(a, clubKey)!.srcset ? HERO_CARD_SIZES : undefined" alt="" :loading="hi === 0 ? 'eager' : 'lazy'" :fetchpriority="hi === 0 ? 'high' : undefined" :style="{ objectPosition: newsCoverImg(a, clubKey)!.objectPosition }" :width="newsCoverImg(a, clubKey)!.width ?? undefined" :height="newsCoverImg(a, clubKey)!.height ?? undefined">
                   <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" :loading="hi === 0 ? 'eager' : 'lazy'" width="64" height="67">
                 </div>
                 <div class="hero-card__body">
@@ -880,7 +880,7 @@ onBeforeUnmount(() => {
           <div v-if="NEWS_VARIANTS[i] === 'wide'" class="news-card__inner" style="display:flex;width:100%;">
             <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(article, clubKey) }]">
               <span class="news-card__tag">{{ article.categoryName }}</span>
-              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :srcset="newsCoverImg(article, clubKey)!.srcset" :sizes="newsCoverImg(article, clubKey)!.srcset ? NEWS_CARD_SIZES : undefined" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
+              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :srcset="newsCoverImg(article, clubKey)!.srcset" :sizes="newsCoverImg(article, clubKey)!.srcset ? NEWS_CARD_SIZES : undefined" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :style="{ objectPosition: newsCoverImg(article, clubKey)!.objectPosition }" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
               <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">
@@ -891,7 +891,7 @@ onBeforeUnmount(() => {
           <template v-else>
             <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(article, clubKey) }]">
               <span class="news-card__tag">{{ article.categoryName }}</span>
-              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :srcset="newsCoverImg(article, clubKey)!.srcset" :sizes="newsCoverImg(article, clubKey)!.srcset ? NEWS_CARD_SIZES : undefined" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
+              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :srcset="newsCoverImg(article, clubKey)!.srcset" :sizes="newsCoverImg(article, clubKey)!.srcset ? NEWS_CARD_SIZES : undefined" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :style="{ objectPosition: newsCoverImg(article, clubKey)!.objectPosition }" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
               <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">

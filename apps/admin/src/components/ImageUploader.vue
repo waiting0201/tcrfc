@@ -156,7 +156,9 @@ async function handleFile(rawFile: File) {
   }
 
   if (dimensions.width < props.minWidth || dimensions.height < props.minHeight) {
-    errorMessage.value = `圖片解析度太低（至少需要 ${props.minWidth}×${props.minHeight}），請換一張品質較好的圖片`
+    errorMessage.value = props.minHeight > 0
+      ? `圖片解析度太低（至少需要 ${props.minWidth}×${props.minHeight}），請換一張品質較好的圖片`
+      : `圖片解析度太低（寬度至少需要 ${props.minWidth} 像素），請換一張品質較好的圖片`
     isBusy.value = false
     return
   }

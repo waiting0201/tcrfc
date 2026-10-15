@@ -47,6 +47,10 @@ public sealed record ArticleListItemDto
     public int? CoverWidth { get; init; }
     public int? CoverHeight { get; init; }
 
+    /// <summary>封面焦點（百分比 0–100，v3.28）；<c>null</c>＝置中。前台以 <c>object-position</c> 套用。無封面時為 <c>null</c>。</summary>
+    public decimal? CoverFocalX { get; init; }
+    public decimal? CoverFocalY { get; init; }
+
     /// <summary>封面替代文字（S0-7h），已依語系回退；<c>null</c>＝尚未填寫，前台改用文章標題當 alt。</summary>
     public string? CoverAlt { get; init; }
     public required bool IsFeatured { get; init; }
@@ -81,6 +85,10 @@ public sealed record ArticleDetailDto
     /// <summary>封面寬高與替代文字，說明同 <see cref="ArticleListItemDto.CoverWidth"/>（S0-7h）。</summary>
     public int? CoverWidth { get; init; }
     public int? CoverHeight { get; init; }
+
+    /// <summary>封面焦點（百分比 0–100，v3.28）；<c>null</c>＝置中。前台以 <c>object-position</c> 套用。無封面時為 <c>null</c>。</summary>
+    public decimal? CoverFocalX { get; init; }
+    public decimal? CoverFocalY { get; init; }
     public string? CoverAlt { get; init; }
     public required bool IsFeatured { get; init; }
     public int ViewCount { get; init; }
@@ -88,7 +96,9 @@ public sealed record ArticleDetailDto
     public string? Title { get; init; }
     public string? Summary { get; init; }
 
-    /// <summary>原始 JSON 字串（<c>articles_i18n.body</c>，Azure SQL 原生 json 型別）。
+    /// <summary>單語 JSON 字串（<c>articles_i18n.body</c>）原樣回傳，不組圖片網址：區塊形狀 <c>{"blocks":[…]}</c>
+    /// （paragraph／heading／quote／list／image／gallery／video，見 apps/api/README.md「新聞內文區塊」）；
+    /// 舊文章可能仍是 <c>{"text":"…"}</c>，前台照舊處理。
     /// 本次種子資料全數為 null（文稿仍是 .gdoc 捷徑，見 db/seed/README.md「已知落差」）——
     /// 回傳 null 是資料現況，不是這支 API 的錯誤。</summary>
     public string? BodyJson { get; init; }

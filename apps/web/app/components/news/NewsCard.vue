@@ -22,6 +22,8 @@ interface NewsCardArticle {
   coverWidth?: number | null
   coverHeight?: number | null
   coverAlt?: string | null
+  coverFocalX?: number | null
+  coverFocalY?: number | null
 }
 
 const props = withDefaults(defineProps<{ article: NewsCardArticle; hidden?: boolean }>(), { hidden: false })
@@ -53,6 +55,7 @@ const { lp, isEn } = useLocale()
         :srcset="cover.srcset"
         :sizes="cover.srcset ? '(max-width: 720px) 100vw, 400px' : undefined"
         :alt="cover.alt"
+        :style="{ objectPosition: cover.objectPosition }"
         loading="lazy"
         :width="cover.width ?? undefined"
         :height="cover.height ?? undefined"

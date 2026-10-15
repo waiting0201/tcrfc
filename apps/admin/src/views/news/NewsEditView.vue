@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, shallowRef, toRaw, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, shallowRef, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -12,8 +12,9 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormSection from '@/components/FormSection.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import FocalPointPicker from '@/components/FocalPointPicker.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
-import LangPane from '@/components/LangPane.vue'
+import PageBlockListEditor from '@/components/pageBlocks/PageBlockListEditor.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -22,6 +23,7 @@ import {
   articleToSavePayload,
   createAdminNews,
   detailDtoToArticle,
+  detailDtoToBodyBlocks,
   fetchTagSuggestions,
   getAdminNewsById,
   publishAdminNews,
@@ -35,6 +37,9 @@ import {
   type RelationTargetOption,
 } from '@/api/adminRelationTargets'
 import { AdminApiError } from '@/api/http'
+import type { AdminArticleDetailDto } from '@/api/adminNews'
+import { NEWS_BLOCK_TYPE_LABEL, NEWS_BODY_BLOCK_TYPES, NEWS_BODY_IMAGE_MIN_WIDTH, type PageBlockState } from '@/types/pageBlocks'
+import { blocksHaveEnglish, PageBlockValidationError, serializeBlocksForSubmit } from '@/utils/pageBlockSerializer'
 import {
   CORE_VALUE_TAG_LABEL,
   CORE_VALUE_TAG_ORDER,
@@ -79,6 +84,8 @@ function emptyArticle(): NewsArticle {
     coverWidth: null,
     coverHeight: null,
     coverAlt: { zh: '', en: '' },
+    coverFocalX: null,
+    coverFocalY: null,
     isFeatured: false,
     status: 'draft',
     isSharedContent: false,
@@ -125,7 +132,19 @@ const removeCover = ref(false)
 const ogImageFile = ref<File | null>(null)
 const removeOgImage = ref(false)
 
-function applyLoadedArticle(article: NewsArticle) {
+/**
+ * 內文區塊（v3.28）。含 `File`（新選的內文圖片），所以和 `coverFile` 一樣不放進 `form`。
+ * `baselineBlocksJson` 是剛載入時的快照，用來判斷內文有沒有未儲存的變更；
+ * `baselineBodyHasEnglish` 用來判斷「原本有英文內文、現在全清空」要不要提醒。
+ */
+const bodyBlocks = ref<PageBlockState[]>([])
+const baselineBlocksJson = ref('[]')
+const baselineBodyHasEnglish = ref(false)
+
+function applyLoadedArticle(article: NewsArticle, blocks: PageBlockState[]) {
+  bodyBlocks.value = blocks
+  baselineBlocksJson.value = JSON.stringify(blocks)
+  baselineBodyHasEnglish.value = blocksHaveEnglish(blocks)
   Object.assign(form, structuredClone(article))
   // baseline 必須是 form 自己的鍵順序：isDirty 用 JSON.stringify 比對，鍵順序不同（例如 emptyArticle
   // 沒有的 statusAt 會被 Object.assign 附加在最後）就會讓「剛載入、什麼都沒改」被判成有未儲存變更（E-313）。
@@ -289,7 +308,7 @@ async function loadArticle() {
   try {
     const detail = await getAdminNewsById(club, currentId.value!)
     const article = detailDtoToArticle(detail)
-    applyLoadedArticle(article)
+    applyLoadedArticle(article, detailDtoToBodyBlocks(detail))
     loadState.value = 'ready'
     // 既有關聯用到哪幾種可查詢的類型，先把清單載回來，畫面上才顯示得出名稱而不是一片空白。
     const typesInUse = new Set(article.relations.map((r) => r.targetType))
@@ -315,6 +334,33 @@ const formErrors = provideFormErrors()
 // 選檔或移除圖片就清掉該欄位的錯誤
 watch([coverFile, removeCover], () => formErrors.clear('cover'))
 watch([ogImageFile, removeOgImage], () => formErrors.clear('ogImage'))
+
+// ── 封面焦點（v3.28）──────────────────────────────────────────────────────────────
+// 焦點只在使用者「選了新檔」或「按下移除」時重設為置中；不能用 watch(coverFile)，
+// 因為存檔成功／載入資料時程式也會把 coverFile 設回 null，會把剛載入的焦點清掉。
+function resetCoverFocal() {
+  form.coverFocalX = null
+  form.coverFocalY = null
+}
+
+function onCoverRemoveChange(removed: boolean) {
+  if (removed) resetCoverFocal()
+}
+
+/** 焦點選取器要顯示的圖：剛選的新檔用瀏覽器端預覽網址，否則用既有封面網址；已標記移除則沒有圖。 */
+const coverFileObjectUrl = ref<string | null>(null)
+watch(coverFile, (file) => {
+  if (coverFileObjectUrl.value) URL.revokeObjectURL(coverFileObjectUrl.value)
+  coverFileObjectUrl.value = file ? URL.createObjectURL(file) : null
+})
+onBeforeUnmount(() => {
+  if (coverFileObjectUrl.value) URL.revokeObjectURL(coverFileObjectUrl.value)
+})
+const focalSrc = computed<string | null>(() => {
+  if (coverFile.value) return coverFileObjectUrl.value
+  if (removeCover.value || !form.coverKey) return null
+  return form.coverUrl ?? form.coverThumbUrl
+})
 const scheduleDialogVisible = ref(false)
 const scheduleDateTime = ref<Date | null>(null)
 
@@ -324,6 +370,7 @@ const isDirty = computed(() =>
   loadState.value === 'ready'
   && (
     JSON.stringify(form) !== JSON.stringify(baseline.value)
+    || JSON.stringify(bodyBlocks.value) !== baselineBlocksJson.value
     || coverFile.value !== null
     || removeCover.value
     || ogImageFile.value !== null
@@ -348,10 +395,10 @@ const canPreview = computed(() => form.status === 'published')
 const previewUrl = computed(() => (canPreview.value ? `/zh/news/${form.urlName}/` : undefined))
 const isReadOnly = computed(() => loadState.value === 'ready' && form.isSharedContent)
 
-function isEnEmpty(article: NewsArticle): boolean {
+function isEnEmpty(article: NewsArticle, bodyHasEnglish: boolean): boolean {
   return (
-    !article.title.en.trim()
-    && !article.content.en.trim()
+    !bodyHasEnglish
+    && !article.title.en.trim()
     && !article.summary.en.trim()
     && !article.seoTitle.en.trim()
     && !article.seoDescription.en.trim()
@@ -364,7 +411,7 @@ function isEnEmpty(article: NewsArticle): boolean {
 /** 原本有英文內容、現在四個英文欄位全部清空了：儲存會真的把英文版本從資料庫刪掉（PUT 是整份
  * 取代語意），先跟使用者確認一次，不要讓這個動作在使用者沒意識到的情況下發生（任務指示）。 */
 async function confirmEnglishRemovalIfNeeded(): Promise<boolean> {
-  if (!isEnEmpty(baseline.value) && isEnEmpty(form)) {
+  if (!isEnEmpty(baseline.value, baselineBodyHasEnglish.value) && isEnEmpty(form, blocksHaveEnglish(bodyBlocks.value))) {
     try {
       await ElMessageBox.confirm(
         '偵測到英文內容的所有欄位都被清空了。儲存後，這篇文章的英文版本會被移除（不是暫時留白，是整份刪除）。確定要繼續嗎？',
@@ -384,6 +431,16 @@ function validate(): Record<string, string> {
   const errors: Record<string, string> = {}
   if (!form.title.zh.trim()) errors.titleZh = '請輸入中文標題'
   if (!form.urlName.trim()) errors.slug = '請輸入網址名稱'
+  // 內文區塊的驗證邏輯在序列化工具裡（一遇到錯就丟例外），逐區塊各跑一次，每個區塊最多標一則錯誤
+  bodyBlocks.value.forEach((block, index) => {
+    try {
+      serializeBlocksForSubmit([block])
+    } catch (error) {
+      errors[`blocks[${index}]`] = error instanceof PageBlockValidationError
+        ? error.message.replace(/^第 \d+ 個區塊/, `第 ${index + 1} 個區塊`)
+        : '這個區塊的內容有誤，請檢查後再試'
+    }
+  })
   return errors
 }
 
@@ -454,14 +511,17 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
   saving.value = true
   try {
     const club = activeClubId.value
-    const payload = articleToSavePayload(form)
-    let saved: NewsArticle
+    const serializedBody = serializeBlocksForSubmit(bodyBlocks.value)
+    const payload = {
+      ...articleToSavePayload(form, blocksHaveEnglish(bodyBlocks.value)),
+      bodyBlocks: serializedBody.blocks,
+    }
+    let savedDto: AdminArticleDetailDto
 
     if (isCreate.value && !currentId.value) {
       // 建立沒有「清空封面／分享圖片」這個概念（根本還沒有既有圖片可清），選了新檔案就附上，
       // 沒有就是「這篇文章沒有這張圖片」（apps/api/README.md「給前端接的契約」）。
-      const created = await createAdminNews(club, payload, coverFile.value, ogImageFile.value)
-      saved = detailDtoToArticle(created)
+      savedDto = await createAdminNews(club, payload, coverFile.value, ogImageFile.value, serializedBody.files)
     } else {
       const updated = await updateAdminNews(
         club,
@@ -474,20 +534,20 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
         },
         coverFile.value,
         ogImageFile.value,
+        serializedBody.files,
       )
-      saved = detailDtoToArticle(updated)
+      savedDto = updated
     }
 
     if (transition?.kind === 'publish') {
-      const published = await publishAdminNews(club, saved.id, saved.updatedAt)
-      saved = detailDtoToArticle(published)
+      savedDto = await publishAdminNews(club, savedDto.id, savedDto.updatedAt)
     } else if (transition?.kind === 'schedule') {
-      const scheduled = await scheduleAdminNews(club, saved.id, saved.updatedAt, transition.publishAt)
-      saved = detailDtoToArticle(scheduled)
+      savedDto = await scheduleAdminNews(club, savedDto.id, savedDto.updatedAt, transition.publishAt)
     }
 
+    const saved = detailDtoToArticle(savedDto)
     const wasCreate = isCreate.value && !currentId.value
-    applyLoadedArticle(saved)
+    applyLoadedArticle(saved, detailDtoToBodyBlocks(savedDto))
     scheduleDialogVisible.value = false
     formErrors.clearAll()
     formError.value = null
@@ -629,25 +689,27 @@ function retryLoad() {
                     @update:en="(v) => (form.title.en = v)"
                   />
                 </FormSection>
-                <FormSection title="內容">
-                  <LangPane lang="zh" field="bodyZh">
-                    <el-input
-                      v-model="form.content.zh"
-                      type="textarea"
-                      :rows="10"
-                      aria-label="中文內容"
-                      placeholder="請輸入中文內容（此畫面以文字框代替正式的富文本編輯器）"
-                    />
-                  </LangPane>
-                  <LangPane lang="en" field="bodyEn" :untranslated="!!form.content.zh.trim() && !form.content.en.trim()">
-                    <el-input
-                      v-model="form.content.en"
-                      type="textarea"
-                      :rows="10"
-                      aria-label="英文內容"
-                      placeholder="Enter English content"
-                    />
-                  </LangPane>
+                <FormSection title="摘要" hint="顯示在文章列表與搜尋結果，建議一至兩句話說明這篇文章在講什麼。">
+                  <BilingualTextareaField
+                    field="summary"
+                    label="摘要"
+                    :zh="form.summary.zh"
+                    :en="form.summary.en"
+                    placeholder="選填"
+                    :rows="3"
+                    @update:zh="(v) => (form.summary.zh = v)"
+                    @update:en="(v) => (form.summary.en = v)"
+                  />
+                </FormSection>
+                <FormSection title="內容" hint="用區塊組成文章內容，可以調整順序。圖片寬度至少 800 像素；中英文內容寫在同一個區塊裡，用上方的語言分頁切換。">
+                  <PageBlockListEditor
+                    v-model="bodyBlocks"
+                    :allowed-types="NEWS_BODY_BLOCK_TYPES"
+                    :type-labels="NEWS_BLOCK_TYPE_LABEL"
+                    :image-min-width="NEWS_BODY_IMAGE_MIN_WIDTH"
+                    :image-min-height="0"
+                    empty-hint="目前還沒有任何內容，從下方選一種類型開始新增。"
+                  />
                 </FormSection>
                 <FormSection title="關聯">
                   <p class="news-edit__hint">
@@ -798,6 +860,16 @@ function retryLoad() {
                       v-model:remove-cover="removeCover"
                       :has-existing-image="!!form.coverKey"
                       :existing-preview-url="form.coverThumbUrl ?? form.coverUrl"
+                      :disabled="saving"
+                      @update:file="resetCoverFocal"
+                      @update:remove-cover="onCoverRemoveChange"
+                    />
+                  </FormField>
+                  <FormField field="coverFocal" label="封面焦點">
+                    <FocalPointPicker
+                      v-model:x="form.coverFocalX"
+                      v-model:y="form.coverFocalY"
+                      :src="focalSrc"
                       :disabled="saving"
                     />
                   </FormField>

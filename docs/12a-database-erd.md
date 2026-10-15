@@ -74,6 +74,8 @@ erDiagram
     string_500 cover_key
     int cover_width
     int cover_height
+    decimal cover_focal_x
+    decimal cover_focal_y
     bool is_featured
     int view_count
     enum status

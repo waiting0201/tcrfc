@@ -23,3 +23,7 @@ public sealed class ImageTooLargeException()
 /// </summary>
 public sealed class UnsupportedImageFormatException()
     : ImageProcessingException("圖片格式不支援，請上傳 JPG、PNG 或 WebP 格式的圖片（不支援 HEIC）。");
+
+/// <summary>內文插圖（新聞內文區塊的單張圖片、圖集）處理後寬度低於下限（規劃書 §4.0 圖片上傳通則「內文插圖」，寬 ≥ 800px）。</summary>
+public sealed class ImageTooNarrowException(int minWidth)
+    : ImageProcessingException($"圖片寬度太小（至少需要 {minWidth} 像素），請換一張較大的圖片。");

@@ -6,17 +6,33 @@
 //   - 物件／陣列原樣保存、原樣回傳（為區塊編輯器保留）；後台尚無區塊編輯器，這裡只認
 //     {"blocks":[…]}／[…] 這兩種外形與下列區塊型別，其餘一律忽略（不猜測、不發明格式）。
 //
+// 區塊 JSON 的圖片以 `key` 儲存（公開 API 不組網址），由前台以 mediaBaseUrl + '/' + key 組出。
+//
 // 🔴 XSS：本檔只輸出「資料」，不輸出 HTML。元件一律用 Vue 文字插值渲染（自動跳脫），
 // 禁止 v-html。唯一會變成屬性值的是圖片網址，必須通過 safeUrl()（只放行 https:／http:／
 // 站內相對路徑 `/`，擋掉 javascript:／data:／protocol-relative `//` 等）。
+
+import { derivativeSrcset } from './siteImage.ts'
+
+export interface NewsBodyImage {
+  src: string
+  alt: string
+  caption: string | null
+  /** 主檔真實寬高；缺值為 null（模板不帶 width／height）。 */
+  width: number | null
+  height: number | null
+  /** 1280／640／320 衍生檔 srcset；寬高未知或非 .webp 時為 undefined。 */
+  srcset?: string
+}
 
 export type NewsBodyBlock =
   | { kind: 'p', lines: string[] }
   | { kind: 'heading', level: 2 | 3, text: string }
   | { kind: 'quote', text: string, cite: string | null }
   | { kind: 'list', ordered: boolean, items: string[] }
-  | { kind: 'image', src: string, alt: string, caption: string | null }
-  | { kind: 'gallery', images: { src: string, alt: string, caption: string | null }[] }
+  | ({ kind: 'image' } & NewsBodyImage)
+  | { kind: 'gallery', images: NewsBodyImage[] }
+  | { kind: 'video', provider: 'youtube' | 'vimeo', src: string, caption: string | null }
 
 /** 只放行 http(s) 絕對網址與站內相對路徑；其餘（javascript:／data:／vbscript:／`//host`）回 null。 */
 export function safeUrl(raw: unknown): string | null {
@@ -42,14 +58,45 @@ export function plainTextToBlocks(text: string): NewsBodyBlock[] {
     .map((lines) => ({ kind: 'p', lines }) as NewsBodyBlock)
 }
 
-function imageOf(o: Record<string, unknown>): { src: string, alt: string, caption: string | null } | null {
-  const src = safeUrl(o.src ?? o.url)
-  if (!src) return null
-  const caption = str(o.caption).trim()
-  return { src, alt: str(o.alt).trim() || caption, caption: caption || null }
+function posInt(v: unknown): number | null {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.round(v) : null
 }
 
-function blockOf(raw: unknown): NewsBodyBlock[] {
+/** 物件鍵 → 絕對網址（比照 shared/utils/page-blocks.ts imageOf）：需有 http(s) mediaBaseUrl、鍵不得為絕對網址或含 `..`。 */
+function keyUrl(key: string, mediaBaseUrl: string | null | undefined): string | null {
+  const base = (mediaBaseUrl ?? '').trim().replace(/\/+$/, '')
+  if (!key || !base || !/^https?:\/\//i.test(base)) return null
+  if (/^[a-z][a-z0-9+.-]*:/i.test(key) || key.startsWith('/') || key.includes('..') || /\s/.test(key)) return null
+  return `${base}/${key}`
+}
+
+/** image／gallery 項：優先 `key`（B2 儲存格式），相容舊 `src`／`url`。 */
+function imageOf(o: Record<string, unknown>, mediaBaseUrl: string | null | undefined): NewsBodyImage | null {
+  const src = keyUrl(str(o.key).trim(), mediaBaseUrl) ?? safeUrl(o.src ?? o.url)
+  if (!src) return null
+  const caption = str(o.caption).trim()
+  const width = posInt(o.width)
+  const height = posInt(o.height)
+  return {
+    src,
+    alt: str(o.alt).trim() || caption,
+    caption: caption || null,
+    width,
+    height,
+    srcset: derivativeSrcset(src, width, height, true),
+  }
+}
+
+/** 影音嵌入：只認 youtube／vimeo，代碼僅允許 `[A-Za-z0-9_-]`（其餘整塊丟棄，不接受任意網址）。 */
+export function videoEmbedUrl(provider: unknown, videoId: unknown): string | null {
+  const id = typeof videoId === 'string' ? videoId.trim() : ''
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return null
+  if (provider === 'youtube') return `https://www.youtube-nocookie.com/embed/${id}`
+  if (provider === 'vimeo') return `https://player.vimeo.com/video/${id}`
+  return null
+}
+
+function blockOf(raw: unknown, mediaBaseUrl: string | null | undefined): NewsBodyBlock[] {
   if (typeof raw === 'string') return plainTextToBlocks(raw)
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return []
   const o = raw as Record<string, unknown>
@@ -79,14 +126,20 @@ function blockOf(raw: unknown): NewsBodyBlock[] {
     }
     case 'image':
     case 'img': {
-      const img = imageOf(o)
+      const img = imageOf(o, mediaBaseUrl)
       return img ? [{ kind: 'image', ...img }] : []
     }
     case 'gallery': {
       const images = (Array.isArray(o.images) ? o.images : [])
-        .map((i) => (i && typeof i === 'object' ? imageOf(i as Record<string, unknown>) : null))
+        .map((i) => (i && typeof i === 'object' ? imageOf(i as Record<string, unknown>, mediaBaseUrl) : null))
         .filter((i): i is NonNullable<typeof i> => i !== null)
       return images.length ? [{ kind: 'gallery', images }] : []
+    }
+    case 'video':
+    case 'video_embed': {
+      const src = videoEmbedUrl(o.provider, o.videoId)
+      const caption = str(o.caption).trim()
+      return src ? [{ kind: 'video', provider: o.provider === 'vimeo' ? 'vimeo' : 'youtube', src, caption: caption || null }] : []
     }
     default:
       // 沒有 type 但有 text（例如 {"text":"…"} 原樣出現）→ 當純文字；其他未知區塊忽略。
@@ -100,7 +153,7 @@ function blockOf(raw: unknown): NewsBodyBlock[] {
  * - 不是以 `{`／`[` 開頭，或 JSON.parse 失敗 → 整段當純文字（後台目前的主要情況）
  * - 物件：認 `blocks`／`content` 陣列，或單一區塊／{text}；陣列：逐項當區塊
  */
-export function parseNewsBody(bodyJson: string | null | undefined): NewsBodyBlock[] {
+export function parseNewsBody(bodyJson: string | null | undefined, mediaBaseUrl?: string | null): NewsBodyBlock[] {
   if (bodyJson == null) return []
   const trimmed = bodyJson.trim()
   if (!trimmed) return []
@@ -111,12 +164,12 @@ export function parseNewsBody(bodyJson: string | null | undefined): NewsBodyBloc
   } catch {
     return plainTextToBlocks(bodyJson)
   }
-  if (Array.isArray(parsed)) return parsed.flatMap(blockOf)
+  if (Array.isArray(parsed)) return parsed.flatMap((b) => blockOf(b, mediaBaseUrl))
   if (parsed && typeof parsed === 'object') {
     const o = parsed as Record<string, unknown>
     const list = Array.isArray(o.blocks) ? o.blocks : Array.isArray(o.content) ? o.content : null
-    if (list) return list.flatMap(blockOf)
-    return blockOf(o)
+    if (list) return list.flatMap((b) => blockOf(b, mediaBaseUrl))
+    return blockOf(o, mediaBaseUrl)
   }
   return []
 }

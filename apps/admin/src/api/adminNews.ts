@@ -5,6 +5,9 @@
 import { apiRequest, apiUploadRequest } from './http'
 import type { CoreValueTag, NewsArticle, NewsCategory, NewsTag, RelationTargetType } from '@/types/news'
 import type { ContentStatus } from '@/types/common'
+import type { AdminPageBlockDto, AdminPageBlockInputDto } from './adminPages'
+import { parseBlockFromDto } from '@/utils/pageBlockSerializer'
+import type { PageBlockState } from '@/types/pageBlocks'
 
 // ── 後端 DTO（逐欄位對照 Features/AdminNews/AdminArticleDtos.cs，不自行增減欄位）──────────
 
@@ -73,6 +76,11 @@ export interface AdminArticleDetailDto {
   /** 封面主檔縮小後的實際寬高（S0-7h G 批，唯讀；沒有封面為 null）。 */
   coverWidth?: number | null
   coverHeight?: number | null
+  /** 封面焦點（v3.28，0–100；兩者同為 null＝置中）。 */
+  coverFocalX?: number | null
+  coverFocalY?: number | null
+  /** 內文區塊清單（v3.28，永遠回傳陣列；形狀沿用 B1 頁面區塊，雙語一份清單）。 */
+  bodyBlocks?: AdminPageBlockDto[]
   isFeatured: boolean
   status: 'draft' | 'published' | 'scheduled'
   publishedAt?: string | null
@@ -190,6 +198,11 @@ export function getAdminNewsById(club: string, id: string): Promise<AdminArticle
  * `CreateArticleRequest`／`UpdateArticleRequest`）。
  */
 export interface SaveArticlePayload {
+  /** 封面焦點（v3.28）；兩者需同為 null 或同有值。一律明確帶出畫面目前的值。 */
+  coverFocalX: number | null
+  coverFocalY: number | null
+  /** 內文區塊（v3.28）。由 `NewsEditView` 序列化後帶入（`articleToSavePayload` 不處理，因為需要檔案收集）。 */
+  bodyBlocks?: AdminPageBlockInputDto[] | null
   slug: string
   categoryCode: string
   isFeatured: boolean
@@ -261,15 +274,18 @@ export function batchUnpublishNews(club: string, ids: string[]): Promise<BatchOp
  * 非 `null` 時才附上 `file` 欄位，`ogImageFile`（S1-12 新增，分享圖片，獨立於封面圖片之外）非
  * `null` 時附上 `ogImage` 欄位——這正是「選檔不上傳、儲存才上傳」在請求層級的落地：呼叫這支函式
  * 之前，圖片只存在瀏覽器記憶體（`ImageUploader.vue` 的本機預覽），沒有任何 HTTP 請求送出過。 */
-function buildArticleFormData(
+export function buildArticleFormData(
   payload: SaveArticlePayload | UpdateArticlePayload,
   coverFile: File | null,
   ogImageFile: File | null,
+  bodyFiles: Record<string, File> = {},
 ): FormData {
   const form = new FormData()
   form.append('payload', JSON.stringify(payload))
   if (coverFile) form.append('file', coverFile)
   if (ogImageFile) form.append('ogImage', ogImageFile)
+  // 內文圖片：欄位名 `file:{區塊索引}:{路徑}`（沿用 B1，路徑為 `image` 或 `images:{i}`）。
+  for (const [name, file] of Object.entries(bodyFiles)) form.append(name, file)
   return form
 }
 
@@ -278,10 +294,11 @@ export function createAdminNews(
   payload: SaveArticlePayload,
   coverFile: File | null,
   ogImageFile: File | null = null,
+  bodyFiles: Record<string, File> = {},
 ): Promise<AdminArticleDetailDto> {
   return apiUploadRequest<AdminArticleDetailDto>(
     `/api/v1/admin/${club}/news`,
-    buildArticleFormData(payload, coverFile, ogImageFile),
+    buildArticleFormData(payload, coverFile, ogImageFile, bodyFiles),
     { method: 'POST' },
   )
 }
@@ -292,10 +309,11 @@ export function updateAdminNews(
   payload: UpdateArticlePayload,
   coverFile: File | null,
   ogImageFile: File | null = null,
+  bodyFiles: Record<string, File> = {},
 ): Promise<AdminArticleDetailDto> {
   return apiUploadRequest<AdminArticleDetailDto>(
     `/api/v1/admin/${club}/news/${id}`,
-    buildArticleFormData(payload, coverFile, ogImageFile),
+    buildArticleFormData(payload, coverFile, ogImageFile, bodyFiles),
     { method: 'PUT' },
   )
 }
@@ -352,6 +370,8 @@ export function detailDtoToArticle(dto: AdminArticleDetailDto): NewsArticle {
     coverWidth: dto.coverWidth ?? null,
     coverHeight: dto.coverHeight ?? null,
     coverAlt: pair.coverAlt,
+    coverFocalX: dto.coverFocalX ?? null,
+    coverFocalY: dto.coverFocalY ?? null,
     isFeatured: dto.isFeatured,
     status: dto.status,
     statusAt: dto.publishedAt ?? undefined,
@@ -376,6 +396,17 @@ export function detailDtoToArticle(dto: AdminArticleDetailDto): NewsArticle {
   }
 }
 
+/**
+ * 內文區塊還原成畫面狀態。契約的外層欄位寫 `type`，B1 實際是 `blockType`，兩者都接受。
+ * 永遠回陣列（舊文章由 API 轉成單一段落）；API 沒有回 `bodyBlocks` 時視為空清單。
+ */
+export function detailDtoToBodyBlocks(dto: AdminArticleDetailDto): PageBlockState[] {
+  return (dto.bodyBlocks ?? []).map((b, i) => {
+    const raw = b as AdminPageBlockDto & { type?: string }
+    return parseBlockFromDto({ ...raw, id: raw.id ?? '', blockType: raw.blockType ?? raw.type ?? 'text', sortOrder: raw.sortOrder ?? i })
+  })
+}
+
 export function listItemDtoToArticle(dto: AdminArticleListItemDto): NewsArticle {
   return {
     id: dto.id,
@@ -388,6 +419,8 @@ export function listItemDtoToArticle(dto: AdminArticleListItemDto): NewsArticle 
     coverWidth: null,
     coverHeight: null,
     coverAlt: { zh: '', en: '' },
+    coverFocalX: null,
+    coverFocalY: null,
     isFeatured: dto.isFeatured,
     status: dto.status,
     statusAt: dto.publishedAt ?? undefined,
@@ -442,10 +475,12 @@ export async function fetchTagSuggestions(club: string): Promise<NewsTag[]> {
  * 呼叫端（NewsEditView）在「原本有英文、現在四個欄位都清空了」這個情境要另外跳出確認，
  * 不能讓這個函式默默決定使用者的意圖。
  */
-export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
+export function articleToSavePayload(article: NewsArticle, bodyHasEnglish = false): SaveArticlePayload {
+  // v3.28：內文改為區塊清單（`bodyBlocks`，雙語在同一份清單裡），舊的 `content` 字串不再送出
+  // （`body` 一律 null，API 以 `bodyBlocks` 為準）；內文區塊有英文時也不能省略 `en`。
   const isEnEmpty =
-    !article.title.en.trim()
-    && !article.content.en.trim()
+    !bodyHasEnglish
+    && !article.title.en.trim()
     && !article.summary.en.trim()
     && !article.seoTitle.en.trim()
     && !article.seoDescription.en.trim()
@@ -454,6 +489,8 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
     && !article.coverAlt.en.trim()
 
   return {
+    coverFocalX: article.coverFocalX,
+    coverFocalY: article.coverFocalY,
     slug: article.urlName,
     categoryCode: article.category,
     isFeatured: article.isFeatured,
@@ -461,7 +498,7 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
       zh: {
         title: article.title.zh,
         summary: article.summary.zh || null,
-        body: article.content.zh || null,
+        body: null,
         seoTitle: article.seoTitle.zh || null,
         seoDescription: article.seoDescription.zh || null,
         seoKeywords: article.seoKeywords.zh || null,
@@ -473,7 +510,7 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
         : {
             title: article.title.en || null,
             summary: article.summary.en || null,
-            body: article.content.en || null,
+            body: null,
             seoTitle: article.seoTitle.en || null,
             seoDescription: article.seoDescription.en || null,
             seoKeywords: article.seoKeywords.en || null,

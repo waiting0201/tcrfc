@@ -49,6 +49,10 @@ public partial class Article
 
     public Guid? UpdatedBy { get; set; }
 
+    public decimal? CoverFocalX { get; set; }
+
+    public decimal? CoverFocalY { get; set; }
+
     public virtual ArticleCategory ArticleCategory { get; set; } = null!;
 
     public virtual ICollection<ArticleRelation> ArticleRelations { get; set; } = new List<ArticleRelation>();

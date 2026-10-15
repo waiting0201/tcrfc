@@ -375,7 +375,7 @@ flowchart LR
 | `Page` | **●** | 靜態頁面主檔。**藍鯨官網入口頁亦屬此型別**。唯一鍵 `(club_id, slug)`。**S1-12 新增單頁 SEO 欄位**：`canonical_path`（手動覆寫網址正規化，可為空＝沿用自動產生的 canonical）、`is_noindex`、`is_excluded_from_sitemap`（皆 `bit`，預設 `0`）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做）＋ `pages_i18n.seo_keywords`／`og_image_alt`（逐語系） | 🌐 | B1 |
 | `PageBlock` | — | 頁面內容欄位（**v3.21：結構不變**）。B1 改為固定頁、固定欄位：每頁有哪些欄位由前台版型事先定義，後台只填值、不能新增／刪除／調整欄位順序；一個欄位（或可增刪列欄位的一列）對應一筆 `page_blocks`，`block_type` 為版型欄位的型別、`content json`（**只存不查**）存值、`sort_order` 為版型定的順序。**由 `Page` 推導**。頁面清單固定（不新增、不刪除 `Page`），各頁欄位表見主站規劃書 §4.2 B1 | 🌐 | B1 |
 | `PageVersion` | — | 版本歷程與還原點、預覽分享 token。**這是內容版本不是操作日誌** | | B1 |
-| `Article` | **○** | 新聞與故事。**空＝兩隊共同**；`slug` **維持全站唯一**（共同文章須有單一 canonical）。**S1-12 新增單頁 SEO 欄位**：`canonical_path`／`is_noindex`／`is_excluded_from_sitemap`（皆 `bit`，預設 `0`，最後一欄用於 Sitemap 排除，不影響新聞列表本身的顯示）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做，優先序高於既有 `cover_key`）＋ `articles_i18n.seo_keywords`／`og_image_alt`（逐語系）。**S0-7h（2026-10-02）封面圖片欄位組補齊**：`cover_width`／`cover_height`（`int NULL`，存主檔縮小後的尺寸）＋ `articles_i18n.cover_alt`（`nvarchar(200) NULL`，逐語系），見 §12 第 49 點 | 🌐 | B2 |
+| `Article` | **○** | 新聞與故事。**空＝兩隊共同**；`slug` **維持全站唯一**（共同文章須有單一 canonical）。**S1-12 新增單頁 SEO 欄位**：`canonical_path`／`is_noindex`／`is_excluded_from_sitemap`（皆 `bit`，預設 `0`，最後一欄用於 Sitemap 排除，不影響新聞列表本身的顯示）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做，優先序高於既有 `cover_key`）＋ `articles_i18n.seo_keywords`／`og_image_alt`（逐語系）。**S0-7h（2026-10-02）封面圖片欄位組補齊**：`cover_width`／`cover_height`（`int NULL`，存主檔縮小後的尺寸）＋ `articles_i18n.cover_alt`（`nvarchar(200) NULL`，逐語系），見 §12 第 49 點。**v3.28（2026-10-15）封面焦點**：`cover_focal_x`／`cover_focal_y`（`decimal(5,2) NULL`，百分比 0–100；兩欄同為 `NULL`＝置中）＋具名 CHECK `CK_articles_cover_focal`，見 §12 第 53 點；新聞內文 `articles_i18n.body` 改存區塊 JSON，見 [`docs/12b`](12b-database-tables.md)「補充：新聞封面焦點與內文區塊」 | 🌐 | B2 |
 | `ArticleCategory` | — | 7.1–7.8 八分類。**刻意不加**——分類是內容主題，加了八個會變十六個 | 🌐 | B2 |
 | `Tag` | — | 標籤。**刻意不加**，同上 | 🌐 | B2 |
 | `ArticleTag` | — | `(article_id, tag_id)` | | B2 |
@@ -913,6 +913,10 @@ flowchart LR
     **聯賽簡稱不在此列**：`site.league_short_name` 本來就是逐語系設定（`settings_i18n`），結構無缺口；缺的是資料——磐石 `en`／`zh-Hant` 皆無簡稱值（企業甲級聯賽沒有通用簡稱），藍鯨 `zh-Hant`＝「木蘭聯賽」、`en`＝「Mulan League」（種子 `en_backfill_seed.py`）。磐石簡稱待客戶提供，後台「網站設定」可填，不需要改綱要。
 
 52. 🔴 **（S0-7h 收尾，2026-10-09）圖片欄位組全表補齊**——**表數不變**，63 個可為空欄位（遷移 `ClubImageFieldGroupExpand`，展開型，🔴 先 migrate 再 deploy）：寬高 `<名稱>_width`／`_height` 在主表、Alt `<名稱>_alt` 在 `_i18n` 側表；**多圖子表（無側表）用並排 `image_alt_zh`／`image_alt_en`**；深淺色兩版 Logo（`partners`／`sponsors`）寬高各一組、Alt 共用一欄；標誌類也補（規劃書未區分）；既有列不回填維持 `NULL`。`app_layout_items.icon_key` 是**圖示代碼不是圖片**，不在此列。逐表明細見 [`12b`](12b-database-tables.md)「圖片欄位組補齊」、[`12c`](12c-i18n-tables.md) §3.13、[`12d`](12d-field-audit.md) §12。
+
+53. 🔴 **（主站 v3.28，2026-10-15）新聞封面焦點與內文區塊**——**表數不變**，`articles` 加 2 欄＋1 個具名 CHECK（遷移 EF `ArticleCoverFocal`＝`db/migrations/20261015_article-cover-focal_1-expand.sql`，展開型，🔴 先 migrate 再 deploy）：
+    ① **`articles.cover_focal_x`／`cover_focal_y`**（`decimal(5,2) NULL`）：封面焦點百分比；**兩欄同為 `NULL`（置中）或同在 0–100**（`CK_articles_cover_focal`）。DDL 新欄位寫在表尾（`cover_height` 之後，欄序規則）。換封面不清焦點（同次存檔帶的焦點照存），**僅移除封面時強制清空**；沒有封面時讀回一律 `null`。
+    ② **`articles_i18n.body` 改存區塊 JSON** `{"blocks":[…]}`（每語言一份，結構、順序、圖片 key 相同），欄位型別不變（`nvarchar(max)` ＋ `CK_articles_i18n_body_json`）；舊 `{"text":"…"}` 繼續可讀（後台讀回時轉成單一 text 區塊）。格式見 `docs/14` 不變量與 `apps/api/README.md`「新聞內文區塊」。
 
 ---
 
