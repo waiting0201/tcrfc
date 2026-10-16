@@ -185,6 +185,7 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 | 涵蓋 | 主站（`ClubDbContext` ↔ `db/club-schema.sql`）與慈善（`CharityDbContext` ↔ `db/charity-schema.sql`）。快照內容：表、欄位（型別／可空／identity／計算欄位）、預設值、主鍵、唯一鍵與索引（含唯一性、叢集、篩選條件、含入欄位、遞減）、外鍵（欄位對應／參照／刪除與更新動作／受信任）、CHECK（含啟用／受信任狀態）、索引／約束／外鍵／**預設值與 CHECK 的名稱（2026-10-13 起系統自動命名也比，不再豁免）**、**欄位順序**（`COLORDER`）、索引選項（fill factor、padding、鎖定、壓縮…）、表選項、視圖（含本體）、資料庫定序與 ANSI 設定（`DB\|`）、不預期的觸發程序／預存程序／函式／序列／結構描述／延伸屬性；平台相關的環境資訊（相容性層級、RCSI、引擎版本、scoped 設定）列在 `ENV\|`，只印出、不計差異 |
 | 失敗時 | 輸出差異清單（改變／只在 DDL／只在 EF，依類別分組）。**DDL 與 EF 模型＋migration 兩邊一起改**（[`14`](14-invariants.md)）；要判斷哪邊對，以 DDL／`docs/12` 為準（§5 migration 注意事項 2） |
 | 本機執行 | `set -a; source .env; set +a; ./deploy/schema-drift-check.sh`（≈17 秒；只建四個 `tcrfc_drift_*` 一次性庫，跑完丟掉）。`--target club|charity`、`--keep`、`--dry-run`。**任意兩份快照**：`./deploy/schema-drift-check.sh --compare-snapshots A.txt B.txt [--a-label …] [--b-label …]`（不連資料庫，嚴格模式零容忍；快照檔由 `deploy/schema-snapshot.sql` 抽出，正式庫的唯讀快照由 `deploy/prod-schema-snapshot.sh` 產出） |
+| 錯誤輸出 | `ef_script()` 成功時安靜；`dotnet tool restore`／`dotnet ef dbcontext script` 失敗時印出完整 dotnet 輸出再 `die`（`E-327`，以前導到 `/dev/null` 吞錯） |
 | 擋不住什麼 | 見下方「正規化／排除／單向容忍」 |
 
 **正規化（兩邊同一套，差異只會來自真的結構不同）**

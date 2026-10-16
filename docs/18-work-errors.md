@@ -3190,3 +3190,11 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：新增 EF migration 後，`Up` 一律改成與 `db/migrations/*.sql` 同源的 `migrationBuilder.Sql(@"IF … EXEC(N'…')")`，推送前至少跑 `dotnet test --filter MigrationsOnBlankDatabaseTests`。
 - **修正**：`Up` 改為與 SQL 檔同源的冪等 SQL（`Down` 不變，history ID 不變，已套用的正式庫不受影響）；單測通過。
 - **防呆**：`MigrationsOnBlankDatabaseTests`（已存在）。✅ 已處理（2026-10-16，使用者決定）：`ci.yml` 加 `push: branches: [master]` 觸發，直接推 master 也會跑 CI。⚠️ CI 與 `deploy.yml` 並行，紅燈不會擋部署（見 `docs/20` §1）。
+
+### E-327 CI 改成 push master 觸發後首跑兩個 job 紅燈：`api` 的 EF 基準健檢缺 `JWT_SIGNING_KEY_CLUB`、`schema-drift` 吞掉 dotnet 錯誤（2026-10-16 發現，commit b7a9c39）
+- **錯在哪**：①`ci.yml` 的 `api` job「EF Core migrations 基準健檢（主站）」步驟只給 `CLUB_SQL_CONNECTION_STRING`，沒給 `JWT_SIGNING_KEY_CLUB`，`dotnet ef` 建不起 host（慈善那一步有給，主站漏了）；②`deploy/schema-drift-check.sh` 的 `ef_script()` 把 `dotnet tool restore`／`dotnet ef dbcontext script` 的輸出導到 `/dev/null`，失敗時 CI 只剩「結構分岔」的泛用訊息，看不到原因。
+- **根因（可改掉的行為）**：①`ci.yml` 只掛 `pull_request`、平常直接推 master（見 E-326），CI 實際上很久沒跑，潛伏的故障（Program.cs 新增 JWT 啟動檢查後沒同步補 CI env）無人發現；②工具腳本為了「安靜」把錯誤輸出整個丟掉，且 `dotnet ef` 的錯誤走 stdout，只轉 stderr 也看不到。
+- **下次怎麼避免**：Program.cs 新增「啟動必填設定」時，同一次交付 grep 所有 `dotnet ef`／`dotnet test` 步驟與 `deploy/*.sh` 補上假值；腳本包裝外部指令一律「成功安靜、失敗印完整輸出」，不准 `>/dev/null` 吞錯。
+- **修正**：`ci.yml` 主站基準健檢步驟補 `JWT_SIGNING_KEY_CLUB`（同一 job 其他步驟：慈善健檢兩把金鑰俱全；`dotnet test` 步驟本來就沒有 `JWT_SIGNING_KEY_CLUB`，測試主機自行提供金鑰，未動）；`ef_script()` 改為輸出收進 log，失敗時印出（濾掉 NU19xx 警告）並 `die`。
+- **防呆**：CI 現在 push master 也跑（E-326）。⚠️ `schema-drift` 在 CI 的實際失敗原因，本機（macOS，乾淨 worktree，同一組假環境變數）無法重現，已確認本機成功；真正原因待下一輪 CI 的 dotnet 輸出揭曉。
+

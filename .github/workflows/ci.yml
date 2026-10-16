@@ -276,6 +276,8 @@ jobs:
       - name: EF Core migrations 基準健檢（snapshot 存在性 ＋ 模型與 snapshot 是否一致）
         env:
           CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+          # 啟動檢查要求 JWT_SIGNING_KEY_CLUB（≥32 字元），缺了 dotnet ef 建不起 host（E-327）；假值，不是任何環境的憑證。
+          JWT_SIGNING_KEY_CLUB: "ci-only-jwt-signing-key-club-0123456789abcdef"
         run: |
           set -euo pipefail
           cd apps/api

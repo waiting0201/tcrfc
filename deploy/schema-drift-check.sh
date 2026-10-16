@@ -161,9 +161,16 @@ ef_script() { # ef_script <club|charity> <輸出檔>：dotnet ef dbcontext scrip
     export CHARITY_SQL_CONNECTION_STRING="${CLUB_SQL_CONNECTION_STRING}"
     export JWT_SIGNING_KEY_CLUB="ci-only-jwt-signing-key-club-0123456789abcdef"
     export JWT_SIGNING_KEY_CHARITY="ci-only-jwt-signing-key-charity-0123456789abcdef"
-    dotnet tool restore >/dev/null
-    dotnet ef dbcontext script --context "${ctx}" -o "${out}" >/dev/null
-  )
+    # 成功時安靜；失敗時把 dotnet 的完整輸出印出來（E-327：以前導到 /dev/null，CI 紅燈卻看不到原因。
+    # dotnet ef 的錯誤訊息走 stdout，所以 stdout／stderr 都要收）。
+    local log="${out}.dotnet.log"
+    if ! { dotnet tool restore && dotnet ef dbcontext script --context "${ctx}" -o "${out}"; } >"${log}" 2>&1; then
+      echo "---- dotnet 輸出（tool restore／ef dbcontext script ${ctx}）----" >&2
+      grep -v 'warning NU19' "${log}" >&2 || true
+      echo "----" >&2
+      exit 1
+    fi
+  ) || die "dotnet ef dbcontext script 失敗（${ctx}），原因見上方 dotnet 輸出"
   [[ -s "${out}" ]] || die "dotnet ef dbcontext script 沒有產出 ${ctx} 的 create script"
   sed -i.bak $'1s/^\xEF\xBB\xBF//' "${out}" && rm -f "${out}.bak"   # EF 輸出帶 UTF-8 BOM，sqlcmd 讀 stdin 不吃
 }
