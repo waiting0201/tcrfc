@@ -7,6 +7,7 @@ namespace Tcrfc.Api.Tests.Fixtures;
 /// 找不到時整組「需要真實 Azurite」的測試明確 skip 並印出原因，不再讓 fixture 初始化丟例外
 /// 把整個測試回合弄紅（沒裝 Azurite 的機器、CI 沒準備替身時，其餘測試照常跑）。
 /// 環境變數 <c>AZURITE_EXECUTABLE_PATH</c> 可覆寫路徑（指到不存在的檔案＝視為沒有 Azurite）。
+/// 🔴 設了 <c>TCRFC_TEST_REQUIRE_ALL=1</c>（CI 一律設）時不得靜默略過：找不到 Azurite 就讓測試失敗（E-335 第四次）。
 /// </summary>
 public static class AzuriteLocator
 {
@@ -19,6 +20,19 @@ public static class AzuriteLocator
     public static string? Path => Resolved.Value;
 
     public static bool IsAvailable => Path is not null;
+
+    /// <summary>找不到又要求「不得略過」時，fixture 初始化呼叫它丟出明確失敗。</summary>
+    public static void ThrowIfRequiredButMissing()
+    {
+        if (!IsAvailable && TestRequirements.RequireAll)
+        {
+            var overridePath = Environment.GetEnvironmentVariable("AZURITE_EXECUTABLE_PATH");
+            throw new InvalidOperationException(
+                $"{TestRequirements.EnvName}=1：不允許略過需要 Azurite 的測試，但找不到 azurite-blob"
+                + (string.IsNullOrWhiteSpace(overridePath) ? "（PATH 與固定路徑都沒有）。" : $"（AZURITE_EXECUTABLE_PATH={overridePath} 不存在）。")
+                + MissingReason);
+        }
+    }
 
     private static string? Resolve()
     {
@@ -35,7 +49,23 @@ public static class AzuriteLocator
             "/opt/homebrew/bin/azurite-blob", // Apple Silicon 若透過其他方式安裝
         ];
 
-        return candidates.FirstOrDefault(File.Exists);
+        var found = candidates.FirstOrDefault(File.Exists);
+        if (found is not null)
+        {
+            return found;
+        }
+
+        // 與 RedisServerLocator 一致：最後掃 PATH（CI 把 npm 安裝目錄加進 PATH，不依賴固定路徑）。
+        foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(System.IO.Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var candidate = System.IO.Path.Combine(dir, "azurite-blob");
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
     }
 }
 
@@ -44,7 +74,8 @@ public sealed class AzuriteFactAttribute : FactAttribute
 {
     public AzuriteFactAttribute()
     {
-        if (!AzuriteLocator.IsAvailable)
+        // 要求全部執行時不設 Skip：測試照跑，由 fixture 初始化失敗，紅燈而不是略過。
+        if (!AzuriteLocator.IsAvailable && !TestRequirements.RequireAll)
         {
             Skip = AzuriteLocator.MissingReason;
         }
@@ -56,7 +87,8 @@ public sealed class AzuriteTheoryAttribute : TheoryAttribute
 {
     public AzuriteTheoryAttribute()
     {
-        if (!AzuriteLocator.IsAvailable)
+        // 要求全部執行時不設 Skip：測試照跑，由 fixture 初始化失敗，紅燈而不是略過。
+        if (!AzuriteLocator.IsAvailable && !TestRequirements.RequireAll)
         {
             Skip = AzuriteLocator.MissingReason;
         }

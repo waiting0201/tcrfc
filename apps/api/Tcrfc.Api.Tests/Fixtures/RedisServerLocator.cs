@@ -14,6 +14,13 @@ internal static class RedisServerLocator
             return overridePath;
         }
 
+        // REQUIRE_ALL（CI）下，明確指定了路徑卻不存在是設定錯誤，不得悄悄退回別的路徑（E-335 第四次）。
+        if (!string.IsNullOrWhiteSpace(overridePath) && TestRequirements.RequireAll)
+        {
+            throw new InvalidOperationException(
+                $"{TestRequirements.EnvName}=1：REDIS_SERVER_PATH={overridePath} 不存在。");
+        }
+
         string[] candidates =
         [
             "/opt/homebrew/bin/redis-server", // Apple Silicon brew

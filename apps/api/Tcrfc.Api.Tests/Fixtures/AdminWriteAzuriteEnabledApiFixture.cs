@@ -51,6 +51,7 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
     {
         // 沒有 azurite-blob：不丟例外、不啟動測試主機，這個 collection 的測試由 [AzuriteFact]／[AzuriteTheory]
         // 在探索階段就標成 skip（附原因），其餘測試照常執行。
+        AzuriteLocator.ThrowIfRequiredButMissing();
         if (!AzuriteLocator.IsAvailable)
         {
             return;

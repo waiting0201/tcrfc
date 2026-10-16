@@ -804,7 +804,8 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 2. 只給 CI 同款的環境變數（`CLUB_SQL_CONNECTION_STRING`、`CHARITY_SQL_CONNECTION_STRING`、`JWT_SIGNING_KEY_CHARITY`），並**暫時把 `apps/api/appsettings.Development.json` 移開**（做完立刻移回）。
 3. 跑 `dotnet test apps/api/Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj`（或至少 `--filter Charity`、`--filter Shop` 與 Redis 三個測試類別）。
 4. Redis：CI 以 apt 安裝在 `/usr/bin/redis-server`；fixture 由 `Fixtures/RedisServerLocator.cs` 統一尋找（`REDIS_SERVER_PATH` → brew → `/usr/bin` → PATH），不需要在 `ci.yml` 設環境變數。
-5. 並行測試失敗而沒有例外細節時，失敗訊息會附 `ServerErrorLog`（`Fixtures/ServerErrorLog.cs`）收到的伺服器端錯誤。
+5. **不得靜默略過**（`E-335` 第四次）：`api` job 先安裝 `azurite@3.35.0`（`$RUNNER_TEMP` 本地前綴＋`GITHUB_PATH`），測試步驟設 `TCRFC_TEST_REQUIRE_ALL=1`（Azurite／redis-server 找不到或覆寫路徑指錯＝失敗，不 skip），之後一個步驟解析 trx，`outcome="NotExecuted"` 必須為 0。本機模擬時同樣 `export TCRFC_TEST_REQUIRE_ALL=1`；本機沒設則沒裝 Azurite 的機器仍照常 skip。Azurite 由 `Fixtures/AzuriteLocator.cs` 統一尋找（`AZURITE_EXECUTABLE_PATH` → `/usr/local/bin` → `/opt/homebrew/bin` → PATH）。
+6. 並行測試失敗而沒有例外細節時，失敗訊息會附 `ServerErrorLog`（`Fixtures/ServerErrorLog.cs`）收到的伺服器端錯誤。
 
 ## 6. 失敗與回滾
 
