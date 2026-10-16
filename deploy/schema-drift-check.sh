@@ -164,8 +164,12 @@ ef_script() { # ef_script <club|charity> <輸出檔>：dotnet ef dbcontext scrip
     # 成功時安靜；失敗時把 dotnet 的完整輸出印出來（E-327：以前導到 /dev/null，CI 紅燈卻看不到原因。
     # dotnet ef 的錯誤訊息走 stdout，所以 stdout／stderr 都要收）。
     local log="${out}.dotnet.log"
-    if ! { dotnet tool restore && dotnet ef dbcontext script --context "${ctx}" -o "${out}"; } >"${log}" 2>&1; then
-      echo "---- dotnet 輸出（tool restore／ef dbcontext script ${ctx}）----" >&2
+    # 先以 Release 明確建置（與 ci.yml api job 相同設定），ef 再 --no-build 沿用；dotnet ef 自行建置失敗時只印
+    # 「Build failed. Use dotnet build to see the errors.」，看不到編譯錯誤（E-327 第二輪 CI 即如此）。
+    if ! { dotnet tool restore \
+           && dotnet build Tcrfc.Api.csproj -c Release -nologo -clp:ErrorsOnly \
+           && dotnet ef dbcontext script --context "${ctx}" --configuration Release --no-build -o "${out}"; } >"${log}" 2>&1; then
+      echo "---- dotnet 輸出（tool restore／build Release／ef dbcontext script ${ctx}）----" >&2
       grep -v 'warning NU19' "${log}" >&2 || true
       echo "----" >&2
       exit 1
