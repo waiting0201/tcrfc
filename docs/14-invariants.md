@@ -16,6 +16,7 @@
 
 
 - 🔴 **測試 fixture 與 CI 會跑的腳本，不得依賴「只在開發者機器上有」的後備**（`E-327`、`E-334`、`E-335` 三次同類）：被 gitignore 的 `apps/api/appsettings.Development.json`、brew 安裝路徑、本機容器的執行身分與檔案權限、前一個 fixture 留下的行程全域環境變數。① fixture 的設定一律在組件載入時快照（`[ModuleInitializer]`），Dispose 不得清掉別人還要讀的行程全域環境變數；② 找外部執行檔要涵蓋 PATH 與 apt 路徑（`RedisServerLocator` 是唯一的找法）；③ 改了這類東西，回報前要在「CI 條件」下跑一次——藏起 appsettings.Development.json、只留 CI 同款環境變數，見 [`docs/20`](docs/20-cicd.md) §5「本機模擬 CI 環境」。④ 並行測試回 500 而看不到原因時，先看失敗訊息裡的 `ServerErrorLog`，不要靠猜、更不要調降並行數。 ⑤ **CI 不得靜默略過測試**（`E-335` 第四次）：「找不到外部執行檔就 skip」的前置必須受 `TCRFC_TEST_REQUIRE_ALL=1`（`Fixtures/TestRequirements.cs`）管，`ci.yml` 設此開關並在測試後檢查 trx 的 `NotExecuted` 為 0；CI 要安裝 Azurite。
+- 🔴 **所有測試資料庫必須開 `READ_COMMITTED_SNAPSHOT`**（`E-337`）：正式庫（Azure SQL Database）預設開，SQL Server 2022 容器預設關；關著會出現正式環境不會有的讀寫互鎖死結（結帳讀購物車 vs 清購物車）。建庫一律走 `deploy/local-ddl.sh`（內含 `ensure_rcsi`），不得手寫 `CREATE DATABASE` 來跑會寫資料的整合測試。結帳（`ShopOrderService.CheckoutAsync`）的死結犧牲者重試是涵蓋整筆流程的單一重試點，新增結帳步驟不要另外 catch 1205。細節見 [`docs/17`](docs/17-deployment.md) §6「READ_COMMITTED_SNAPSHOT」。
 - 🔴 **盤點、匯入、回報裡的任何數字（份數、筆數、題數），寫下之前一律用工具重數，不得沿用前一份文件或前一個 agent 的數字，也不得目測估算**（`E-325`，2026-10-16 同日再犯：盤點表寫里程碑 51 筆，實際 49 筆）。① 合計要與另一種切法（依類型、依單元、依年份）的加總對上；② 要拿數字做減法推「剩幾份」之前，先 `find`／`grep -c` 重數；③ 派 agent 盤點時，在指示裡要求「每個數字附上計數方式」，收到回報後抽查至少一個數字；④ 寫進資料遷移的筆數斷言，以原文重數的結果為準。
 
 - 🔴 **會員折扣與會籍的四條後端不變量**（2026-10-16，主站 v3.29，`apps/api/README.md` 末段「客戶文件對齊」）：

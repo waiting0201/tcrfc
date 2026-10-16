@@ -36,6 +36,8 @@ public sealed partial class ShopOrderService(
     public static readonly TimeSpan LookupTokenLifetime = TimeSpan.FromDays(30);
 
     private const int MaxPlacementAttempts = 5;
+    /// <summary>整筆結帳遇到死結犧牲者（1205）時的最多嘗試次數（含第一次）。</summary>
+    private const int MaxDeadlockAttempts = 5;
 
     [GeneratedRegex(@"^[A-Za-z0-9_\-:.]{8,64}$", RegexOptions.CultureInvariant)]
     private static partial Regex IdempotencyKeyShape();
@@ -76,6 +78,29 @@ public sealed partial class ShopOrderService(
             throw new MemberConflictException("購物車是空的", "找不到你的購物車，請先把商品加入購物車。", "cart_empty");
         }
 
+        // 死結犧牲者（1205）的唯一重試點，涵蓋整個結帳流程——包含最前面「讀購物車」的階段，不只建單交易（E-337）。
+        // 讀取（購物車、規格、價格）與並行請求的寫入（清購物車、保留庫存）在 READ COMMITTED（未開 RCSI）下會互鎖，
+        // SQL Server 只會殺掉其中一個。每個嘗試都從頭開始、先查冪等鍵：並行的同鍵請求若已成立訂單，這次就直接回那張（200）；
+        // 否則整筆重來。交易已整筆回復，重來不會留下半成品；金流、庫存、購物車仍一律直接查庫，不讀快取。
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await CheckoutOnceAsync(scope, owner, me, idempotencyKey, request, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException && IsDeadlockVictim(ex) && attempt < MaxDeadlockAttempts)
+            {
+                logger.LogWarning(ex, "結帳遇到死結犧牲者，第 {Attempt} 次嘗試，將整筆重試。", attempt);
+                db.ChangeTracker.Clear();
+                // 隨機退避（20–80ms × 嘗試次數），讓互鎖的對手錯開，不要同時重來又撞在一起。
+                await Task.Delay(Random.Shared.Next(20, 80) * attempt, cancellationToken);
+            }
+        }
+    }
+
+    private async Task<(ShopOrderDto Order, bool Created)> CheckoutOnceAsync(
+        ClubScope scope, CartOwner owner, MemberIdentity? me, string idempotencyKey, CheckoutRequest request, CancellationToken cancellationToken)
+    {
         var lang = string.Equals(request.Lang, "en", StringComparison.OrdinalIgnoreCase) ? "en" : "zh";
         var dbLocale = lang == "en" ? "en" : RequestLocale.DefaultDbLocale;
         var memberRow = me is null ? null : await db.Members.AsNoTracking().Where(m => m.Id == me.MemberId).Select(m => new { m.Email, m.Name, m.Phone }).FirstOrDefaultAsync(cancellationToken);
@@ -145,18 +170,6 @@ public sealed partial class ShopOrderService(
                 var line = lines.FirstOrDefault(l => string.Equals(l.Sku, ex.Sku, StringComparison.Ordinal));
                 var label = line is null ? ex.Sku : $"{line.ProductName}（{line.VariantLabel}）";
                 throw new MemberConflictException("庫存不足", ex.Available <= 0 ? $"「{label}」剛剛已經售完了。" : $"「{label}」目前只剩 {ex.Available} 件，請調整數量。", "insufficient_stock");
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException && IsDeadlockVictim(ex) && attempt < MaxPlacementAttempts)
-            {
-                // SQL Server 選了我們當死結犧牲者（1205）：整個交易（訂單、明細、發票、庫存保留、清購物車）已整筆回復，沒有留下任何半成品。
-                // 同一冪等鍵重送本來就安全——先看是不是並行的另一個請求已成立（是就回那張），否則整筆重來。
-                logger.LogWarning(ex, "結帳遇到死結犧牲者，第 {Attempt} 次嘗試，將重試。", attempt);
-                db.ChangeTracker.Clear();
-                var raced = await FindByIdempotencyKeyAsync(scope, idempotencyKey, fingerprint, lang, cancellationToken);
-                if (raced is not null)
-                {
-                    return (raced, false);
-                }
             }
             catch (DbUpdateException ex) when (ShopCartService.IsUniqueViolation(ex))
             {

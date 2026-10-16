@@ -209,6 +209,17 @@ mark_migrations_applied() {
   echo "    已標記 $(printf '%s\n' "${ids}" | grep -c .) 支 migration 為已套用（ProductVersion ${version}）：${db}"
 }
 
+# 🔴 READ_COMMITTED_SNAPSHOT（RCSI）必須開（E-337）：正式庫是 Azure SQL Database，預設就是開的；SQL Server 2022 容器預設關。
+# 關著時，讀取會與並行寫入互鎖（例：結帳讀購物車 vs 另一個請求清購物車），測試環境出現正式環境不會有的死結。
+# 每次建庫（含 --recreate、CI 的服務容器）之後都呼叫；已開則不動（不踢連線）。
+ensure_rcsi() {
+  local db="$1"
+  assert_allowed_database "${db}"
+  docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
+    -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -b \
+    -Q "IF EXISTS (SELECT 1 FROM sys.databases WHERE name = N'${db}' AND is_read_committed_snapshot_on = 0) ALTER DATABASE [${db}] SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;"
+}
+
 run_sqlcmd() {
   local db="$1" sql_file="$2"
   assert_allowed_database "${db}"
@@ -217,6 +228,7 @@ run_sqlcmd() {
   docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
     -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
     -Q "IF DB_ID('${db}') IS NULL CREATE DATABASE [${db}];"
+  ensure_rcsi "${db}"
   sqlcmd_apply_file "${db}" "${sql_file}"
   if [[ "${db}" == "tcrfc_club" ]]; then
     mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/Data/Migrations" "${REPO_ROOT}/apps/api/Data/Migrations/ClubDbContextModelSnapshot.cs"
@@ -238,12 +250,14 @@ apply_one_db() { # ${1}=資料庫（白名單內）${2}=本機 DDL 檔 ${3}=是�
     docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
       -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
       -Q "IF DB_ID('${db}') IS NOT NULL BEGIN ALTER DATABASE [${db}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [${db}]; END; CREATE DATABASE [${db}];"
+    ensure_rcsi "${db}"
     needs_ddl=1
   else
     echo "    建庫（若不存在）：${db}"
     docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
       -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
       -Q "IF DB_ID('${db}') IS NULL CREATE DATABASE [${db}];"
+    ensure_rcsi "${db}"
 
     # CREATE TABLE 不是冪等的——已經建過表的資料庫再灌一次 DDL 會直接失敗。用資料表數量判斷
     # 這次是不是全新的資料庫，不是全新的就略過 DDL（呼叫端要重灌表結構，請加 --recreate）。

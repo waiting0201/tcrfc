@@ -517,6 +517,13 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 不採「任何俱樂部都不得再有同名 slug」的強讀法——那無法用唯一索引表達、要加並行安全的觸發器，
 **維護成本高過它擋掉的風險**（頁面數十筆、由自己人在後台維護）。
 
+### 🔴 READ_COMMITTED_SNAPSHOT（RCSI）：正式庫依賴它，所有測試環境必須一致（2026-10-16，`E-337`）
+
+- **事實**：Azure SQL Database 新建資料庫預設 `READ_COMMITTED_SNAPSHOT = ON`（**未在本專案正式庫實測，待使用者確認**）；SQL Server 2022 容器（本機與 CI）預設 **OFF**。OFF 時讀取要等並行寫入釋放鎖，兩邊互等就是死結——結帳「讀購物車」對上另一個並行請求「清購物車」的 X 鎖，是 CI 結帳並行測試偶發 500 的真因（SQL 1205，重現並取得死結圖，見 `E-337`）。
+- **決定**：本機與 CI 的測試庫一律開 RCSI，與正式庫行為一致。`deploy/local-ddl.sh` 的 `ensure_rcsi` 在每一條建庫路徑（`--apply`、`--apply-club-db`／`--apply-charity-db`，含 `--recreate`）之後執行 `ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE`（已開則不動）。`setup-club-db.sh`、CI 的建庫步驟都走這支，主站（`tcrfc_club`）與慈善（`tcrfc_charity`）兩庫一視同仁。`MigrationsOnBlankDatabaseTests` 與 `schema-drift-check.sh`／`prod-schema-compare.sh` 的一次性庫只驗結構、沒有並行，不開（RCSI 在 Schema Compare 只列於 `ENV|`，不影響比對）。
+- **程式不得依賴 RCSI 才正確**：RCSI 只降低死結機率，不能消除（寫對寫仍可能死結）。`ShopOrderService.CheckoutAsync` 以單一重試點涵蓋整筆結帳的死結犧牲者（1205），以同一冪等鍵重來。
+- **使用者請在正式庫確認（唯讀）**：`SELECT name, is_read_committed_snapshot_on FROM sys.databases;`——`tcrfc_club`、`tcrfc_charity` 兩列應為 `1`。若為 `0`，用 `ALTER DATABASE [<庫名>] SET READ_COMMITTED_SNAPSHOT ON;`（會短暫等待連線，建議離峰）。
+
 ### 資料庫層級與容量
 
 兩個資料庫皆先開 **Basic（5 DTU／2 GB，約 US$5／月）**。
