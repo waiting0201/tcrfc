@@ -104,6 +104,9 @@ public sealed class ScriptedInvoiceIssuer : IInvoiceIssuer
     /// <summary>模擬加值中心的回應時間（毫秒）。並行測試用它拉長「呼叫加值中心」的窗口，讓競態穩定出現。</summary>
     public int IssueDelayMilliseconds { get; set; }
 
+    /// <summary>模擬加值中心作廢／折讓的回應時間（毫秒），用途同 <see cref="IssueDelayMilliseconds"/>。</summary>
+    public int VoidDelayMilliseconds { get; set; }
+
     public int IssueCalls => _issueCalls;
     public int VoidCalls => _voidCalls;
     public int AllowanceCalls => _allowanceCalls;
@@ -113,6 +116,7 @@ public sealed class ScriptedInvoiceIssuer : IInvoiceIssuer
     {
         IssueMode = Mode.Ok;
         IssueDelayMilliseconds = 0;
+        VoidDelayMilliseconds = 0;
         VoidFails = false;
         Interlocked.Exchange(ref _issueCalls, 0);
         Interlocked.Exchange(ref _voidCalls, 0);
@@ -137,16 +141,32 @@ public sealed class ScriptedInvoiceIssuer : IInvoiceIssuer
         };
     }
 
-    public Task VoidAsync(string invoiceNo, string reason, CancellationToken cancellationToken)
+    public async Task VoidAsync(string invoiceNo, string reason, CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref _voidCalls);
-        return VoidFails ? throw new InvoiceIssuerUnavailableException("scripted: void failed") : Task.CompletedTask;
+        if (VoidDelayMilliseconds > 0)
+        {
+            await Task.Delay(VoidDelayMilliseconds, cancellationToken);
+        }
+
+        if (VoidFails)
+        {
+            throw new InvoiceIssuerUnavailableException("scripted: void failed");
+        }
     }
 
-    public Task AllowanceAsync(string invoiceNo, int amount, string reason, CancellationToken cancellationToken)
+    public async Task AllowanceAsync(string invoiceNo, int amount, string reason, CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref _allowanceCalls);
-        return VoidFails ? throw new InvoiceIssuerUnavailableException("scripted: allowance failed") : Task.CompletedTask;
+        if (VoidDelayMilliseconds > 0)
+        {
+            await Task.Delay(VoidDelayMilliseconds, cancellationToken);
+        }
+
+        if (VoidFails)
+        {
+            throw new InvoiceIssuerUnavailableException("scripted: allowance failed");
+        }
     }
 
     public Task<InvoiceQueryResult?> QueryAsync(string invoiceNo, CancellationToken cancellationToken)

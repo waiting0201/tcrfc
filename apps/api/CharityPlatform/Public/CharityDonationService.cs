@@ -259,11 +259,24 @@ public sealed class CharityDonationService(
             throw new AdminValidationException("缺少交易識別碼。");
         }
 
-        var donation = await db.Donations.AsNoTracking()
+        // 🔴 捐款單與最新一筆付款紀錄用<b>單一查詢</b>一起讀（E-338 後續）：donations 與 donation_payments 由贏家的同一個交易更新，
+        // 兩個獨立語句之間贏家可能剛好提交，會讀到「捐款單 pending、付款紀錄 confirmed」的不一致組合。單一語句在 RCSI 下讀的是同一個
+        // 已提交快照，這個組合就不可能出現，不需要事後重讀補救。
+        var row = await db.Donations.AsNoTracking()
             .Where(d => d.OrderNo == orderNo)
-            .Select(d => new { d.Id, d.Status, d.Amount })
+            .Select(d => new
+            {
+                d.Id,
+                d.Status,
+                d.Amount,
+                Payment = d.DonationPayments.OrderByDescending(p => p.Seq)
+                    .Select(p => new { p.Id, p.TransactionId, p.Status })
+                    .FirstOrDefault(),
+            })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new CharityNotFoundException("找不到這筆捐款單。");
+        var donation = new { row.Id, row.Status, row.Amount };
+        var payment = row.Payment;
 
         // 冪等：已經有定論的單，重複 Confirm 只回傳目前結果，不打金流、不入帳、不開票、不寄信。
         if (donation.Status is DonationStatus.Paid or DonationStatus.Refunded)
@@ -276,30 +289,15 @@ public sealed class CharityDonationService(
             throw new CharityConflictException("尚未付款", "這筆捐款尚未發起付款或付款已失敗，請重新發起付款。");
         }
 
-        var payment = await db.DonationPayments.AsNoTracking()
-            .Where(p => p.DonationId == donation.Id)
-            .OrderByDescending(p => p.Seq)
-            .Select(p => new { p.Id, p.TransactionId, p.Status })
-            .FirstOrDefaultAsync(cancellationToken);
-
         if (payment is null || !string.Equals(payment.TransactionId, transactionId, StringComparison.Ordinal))
         {
             throw new AdminValidationException("交易識別碼與這張捐款單不符。");
         }
 
         // requested＝正常等待確認；failed＝上一次 Confirm 結果未知（待人工處理的單，允許再確認一次）。cancelled 不可確認。
+        // （同一快照下，付款紀錄 confirmed 必然伴隨捐款單 paid，已在上面回傳；走到這裡的非 requested／failed 就是真的取消了。）
         if (payment.Status is not (PaymentStatus.Requested or PaymentStatus.Failed))
         {
-            // 上面讀捐款單與這裡讀付款紀錄是兩個獨立語句：並行的另一個確認請求可能剛好在兩者之間提交（donations 與 donation_payments
-            // 同一交易更新）。此時付款紀錄已是 confirmed、捐款單已是 paid——這是「已有定論」的重播，不是衝突。
-            // 不得依賴讀取被寫入擋住（RCSI 下不會擋），所以只能在這裡重讀捐款單判斷。
-            var current = await db.Donations.AsNoTracking()
-                .Where(d => d.Id == donation.Id).Select(d => d.Status).SingleAsync(cancellationToken);
-            if (current is DonationStatus.Paid or DonationStatus.Refunded)
-            {
-                return await GetResultAsync(orderNo, lang, cancellationToken);
-            }
-
             throw new CharityConflictException("付款已取消", "這筆付款已經取消，請重新發起付款。");
         }
 

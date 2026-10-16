@@ -3288,3 +3288,18 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：新增或修改「先 SELECT 檢查、再 UPDATE／INSERT」或「夾外部呼叫」的程式時，PR 說明要寫出**保護手段是哪一種**（單句條件式 UPDATE＋看筆數／唯一索引／`UPDLOCK`＋重讀／`sp_getapplock`），**不得寫「讀取會等」**；並行測試要在 RCSI 開的庫上跑，且先在基準線證明會失敗。
 - **防呆**：①`Tests/Fixtures/RcsiGuard.cs`——主站與慈善兩個測試庫的 guard 啟動時查 `sys.databases`，RCSI 為關就讓整個 fixture 失敗並附修復指令（取代 E-337 防呆欄寫的「下一次要做的 CI 檢查」，本機與 CI 都生效）；②新增六個並行回歸測試；③`docs/14` 速查一條。**升級判斷**：同根因（隔離層級語意差異）第二次出現，已從「記錄」升級為機制（RcsiGuard）；仍沒有機器能檢查「新的臨界區有沒有保護」，這一項只能靠審查清單（`docs/14`），若第三次出現要考慮 Roslyn 靜態掃描（`ExecuteUpdate`／`SaveChanges` 前有 `AnyAsync`／`FirstOrDefault` 且無鎖的模式）。
 - **仍未處理的同族風險（RCSI 無關、早已存在，列入追蹤不在此次修）**：會員 refresh token 輪替是「讀 RevokedAt → 寫」，同一把權杖並行刷新會產生兩條有效鏈（重放偵測有窗口）；會員登入失敗計數是讀改寫（並行猜密碼會少算）；慈善發起付款在 `pending` 分支（沿用逾時的舊 requested）沒有 claim，雙擊可能留下兩筆 requested；商店 `ConfirmAsync` 對真實 LINE Pay 的並行第二次 Confirm 會被金流方拒絕而回 409（目前只有假金流）。
+
+#### E-338 後續（2026-10-16，同日審查後續；`backend-engineer`）
+- **慈善憑證鎖沒涵蓋全部路徑**：上一輪只有 `TryIssueAsync`／`ReissueAsync` 取 `charity-invoice:{id}`。退款連動作廢、手動填入號碼、人工作廢、人工折讓都沒取，開立期間（呼叫加值中心）它們能改寫同一張憑證：退款把 `pending` 標成作廢而沒呼叫加值中心、開立完成又寫回 `issued`（加值中心留下有效憑證）；人工號碼被背景開立蓋掉（兩個號碼）。**根因（可改掉的行為）**：上一輪只替「有外部呼叫的那一條路徑」加鎖，沒有列出「所有會寫同一列的路徑」逐一確認。**修正**：六條路徑共用同一把鎖；人工操作拿不到鎖回 409「憑證處理中」；退款連動作廢等最多 20 秒（> 加值中心逾時 15 秒），等不到才 409 並進異常佇列；`TryIssueCore` 對已作廢（`void_status` 非 `none`）的憑證一律略過。商店比照：`AdminShopRefundsRepository.ExecuteAsync` 在任何寫入前取 `shop-invoice:{訂單}`（同樣等 20 秒），等不到不動發票、結果訊息與 Error 日誌註明人工處理（商店目前沒有其他作廢／折讓／人工路徑）。規則寫入 `docs/10` §12 子項。**驗證**：新增 6 項並行測試（慈善 5、商店 1），基準線（還原兩個服務檔）6/6 失敗，修正後 6/6 通過並連跑 10 次全過。
+- **外部 HTTP 逾時**：持鎖期間呼叫外部服務卻沿用 `HttpClient` 預設 100 秒。新增 `Common/ExternalHttp.cs` 集中逾時（≤ 15 秒），既有四個用戶端改經它註冊，加值中心與 LINE Pay 先預註冊；`ExternalHttpTimeoutTests` 掃描禁止直接 `AddHttpClient`／`new HttpClient`。寫入 `docs/17` §3、`docs/14`。
+- **慈善確認的兩次讀取**：改為單一查詢（捐款單＋最新付款紀錄），同一快照不可能出現「pending＋confirmed」，移除上一輪的事後重讀補救。
+- **`MembershipActivationService` 自寫 `sp_getapplock`** 只判 `code < 0`（DBNull 會被當成拿到鎖）；改用共用 `SqlAppLocks`，`SqlAppLocks`／`CharitySqlLocks` 統一 `result.Value is int code && code >= 0`；`CharityDonationsAdminService` 另一份複製的取鎖也改走 `CharitySqlLocks`。**升級判斷**：同一段取鎖程式出現第三份複製，才是造成判斷不一致的原因——取鎖只有共用入口。
+- **結帳寄信**：確認有三個會漏寄的縫：提交後的 `LoadAsync` 遇死結被最外層整筆重試吃掉（走冪等重播、永不寄）、用戶端斷線取消了寄信、`SendAsync` 回 `false` 被忽略不記。修正：提交後讀取就地重試（失敗記 Error 含訂單 id）、寄信改不跟請求取消（自帶 15 秒上限）、回 `false` 與例外都記含單號的日誌。**仍無寄信佇列**（全系統信件都是盡力而為，`IEmailSender`），所以進程在提交與寄信之間崩潰仍會漏寄，只有日誌可查。
+- **`docs/14`**：新增「未啟用 `EnableRetryOnFailure`；啟用須把所有手動交易包進 `strategy.ExecuteAsync`，且交易內的外部呼叫會被重播」。
+
+### E-339 改了 API 的錯誤代碼卻沒跑 `shared/scripts/gen-all.sh`，CI 的 shared-contract 紅燈（2026-10-16，commit 5046790，`backend-engineer`）
+- **錯在哪**：5046790 為會籍訂單鎖新增錯誤代碼 `order_in_progress`（`MemberConflictException`），沒有在 `Common/ApiErrorMessages.cs` 補英文訊息，也沒跑 `gen-all.sh`；`gen-error-codes.mjs` 在 CI 對缺英文訊息的代碼直接丟錯，shared-contract job 失敗。`shared/README` 早就寫「後端改了 API（含錯誤代碼）後必須跑 gen-all」。
+- **根因（可改掉的行為）**：①驗證只跑了 `dotnet test`，沒有把 CI 的 job 清單（`ci.yml` 的 shared-contract）逐個在本機跑一遍；②新增錯誤代碼時沒有把「英文訊息表」當成同一個變更的一部分。
+- **修正**：補 `order_in_progress` 英文訊息、跑 `gen-all.sh`（`git diff` 只多 `shared/error-codes.json` 的該代碼一筆）；檢查兩輪新增的代碼，僅此一個缺漏（第二輪未新增任何錯誤代碼）。
+- **下次怎麼避免**：交付前「CI 的每個 job 在本機各跑一次」——動到 `apps/api` 的 Controller／端點／例外就一定跑 `shared/scripts/gen-all.sh` 並看 `git diff --stat shared`。
+- **防呆**：CI 已會擋（所以才紅燈）；本機沒有。這是**同類第一次**，先記錄不升級；若再發生，考慮把 `gen-all.sh --check` 加進 `dotnet test` 的收尾或 pre-commit。

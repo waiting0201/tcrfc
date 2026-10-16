@@ -54,7 +54,28 @@ public sealed class CharityInvoiceService(
             () => TryIssueCoreAsync(donationId, forceFinalFailure, cancellationToken), cancellationToken);
     }
 
+    /// <summary>
+    /// 憑證相關的所有寫入路徑共用的鎖（資源名稱 <c>charity-invoice:{捐款}</c>）：背景開立、後台重開、退款連動作廢、人工登記號碼、人工作廢、人工折讓。
+    /// 🔴 為什麼全部要取同一把：開立在「呼叫加值中心」期間持鎖，其他路徑若不取鎖，會在這段窗口內改寫同一張憑證的狀態——
+    /// 退款把 pending 標成作廢（沒呼叫加值中心），開立完成後又寫回 issued，加值中心端留下一張有效憑證；人工登記的號碼被背景開立蓋掉，
+    /// 同一筆捐款在加值中心有兩個號碼（E-338 後續）。
+    /// </summary>
+    private static string LockResource(Guid donationId) => $"charity-invoice:{donationId:N}";
+
+    /// <summary>人工操作（後台登記號碼／作廢／折讓／重開）拿不到鎖時等待的毫秒數：0＝不排隊，直接回 409 請操作者稍後重試。</summary>
+    private const int ManualLockWaitMilliseconds = 0;
+
+    /// <summary>
+    /// 退款連動作廢拿不到鎖時最多等待的毫秒數。🔴 必須大於加值中心呼叫逾時（<c>InvoiceIssuerHttp.Timeout</c>，15 秒）：
+    /// 退款當下金流端已經退錢，不能因為背景開立正在跑就放棄作廢；等它跑完（鎖釋放）就會看到 <c>issued</c> 而走真正的作廢／折讓。
+    /// </summary>
+    internal const int RefundLockWaitMilliseconds = 20_000;
+
     private async Task<T> WithInvoiceLockAsync<T>(Guid donationId, T lockBusyResult, Func<Task<T>> action, CancellationToken cancellationToken)
+        => await WithInvoiceLockAsync(donationId, 0, () => lockBusyResult, action, cancellationToken);
+
+    private async Task<T> WithInvoiceLockAsync<T>(
+        Guid donationId, int waitMilliseconds, Func<T> onBusy, Func<Task<T>> action, CancellationToken cancellationToken)
     {
         if (db.Database.CurrentTransaction is not null)
         {
@@ -62,15 +83,22 @@ public sealed class CharityInvoiceService(
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        if (!await CharitySqlLocks.TryAcquireAsync(db, transaction, $"charity-invoice:{donationId:N}", 0, cancellationToken))
+        if (!await CharitySqlLocks.TryAcquireAsync(db, transaction, LockResource(donationId), waitMilliseconds, cancellationToken))
         {
-            return lockBusyResult;
+            return onBusy();
         }
 
         var result = await action();
         await transaction.CommitAsync(cancellationToken);
         return result;
     }
+
+    private static CharityConflictException InvoiceBusy()
+        => new("憑證處理中", "這筆捐款的憑證正在處理中（開立、作廢或登記號碼），請稍候重新整理頁面確認結果後再操作。");
+
+    private async Task<Guid> DonationIdOfInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken)
+        => await db.DonationInvoices.AsNoTracking().Where(i => i.Id == invoiceId).Select(i => (Guid?)i.DonationId).SingleOrDefaultAsync(cancellationToken)
+            ?? throw new CharityNotFoundException("找不到這張憑證。");
 
     private async Task<InvoiceIssueOutcome> TryIssueCoreAsync(Guid donationId, bool forceFinalFailure, CancellationToken cancellationToken)
     {
@@ -95,6 +123,11 @@ public sealed class CharityInvoiceService(
         if (invoice.IssueStatus == "issued")
         {
             return InvoiceIssueOutcome.Issued;
+        }
+
+        if (invoice.VoidStatus != "none")
+        {
+            return InvoiceIssueOutcome.Skipped; // 已作廢（例如人工作廢了尚未開立的憑證）：不得再對加值中心開立
         }
 
         if (invoice.IsAnnualSummary || invoice.IssueStatus is not ("pending" or "failed"))
@@ -153,20 +186,8 @@ public sealed class CharityInvoiceService(
     public async Task<InvoiceIssueOutcome> ReissueAsync(Guid donationId, CancellationToken cancellationToken)
     {
         // 與 TryIssueAsync 同一把鎖：「檢查沒開立 → 改回 pending」若被背景工作的開立插在中間，會把已開立的憑證改回 pending 而重複開立。
-        if (db.Database.CurrentTransaction is not null)
-        {
-            return await ReissueCoreAsync(donationId, cancellationToken);
-        }
-
-        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        if (!await CharitySqlLocks.TryAcquireAsync(db, transaction, $"charity-invoice:{donationId:N}", 0, cancellationToken))
-        {
-            throw new CharityConflictException("憑證處理中", "這筆捐款的憑證正在開立中，請稍候重新整理頁面確認結果。");
-        }
-
-        var outcome = await ReissueCoreAsync(donationId, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return outcome;
+        return await WithInvoiceLockAsync(donationId, ManualLockWaitMilliseconds, () => throw InvoiceBusy(),
+            () => ReissueCoreAsync(donationId, cancellationToken), cancellationToken);
     }
 
     private async Task<InvoiceIssueOutcome> ReissueCoreAsync(Guid donationId, CancellationToken cancellationToken)
@@ -201,6 +222,15 @@ public sealed class CharityInvoiceService(
     /// 只標記作廢使其不再被背景工作開立。已作廢的不得重複作廢（回傳 <c>false</c>）。
     /// </summary>
     public async Task<bool> VoidOrAllowForRefundAsync(
+        Donation donation, string reason, Guid adminUserId, CancellationToken cancellationToken)
+    {
+        // 取同一把憑證鎖並<b>等待</b>（不是 409）：退款當下金流端已退錢，不能放棄作廢。若背景開立正在呼叫加值中心，等它提交後就會讀到 issued，
+        // 走真正的作廢／折讓；等不到（超過 RefundLockWaitMilliseconds）才丟 409，由呼叫端記錄並進異常佇列，由人員到憑證管理手動作廢。
+        return await WithInvoiceLockAsync(donation.Id, RefundLockWaitMilliseconds, () => throw InvoiceBusy(),
+            () => VoidOrAllowForRefundCoreAsync(donation, reason, adminUserId, cancellationToken), cancellationToken);
+    }
+
+    private async Task<bool> VoidOrAllowForRefundCoreAsync(
         Donation donation, string reason, Guid adminUserId, CancellationToken cancellationToken)
     {
         var invoice = await db.DonationInvoices
@@ -248,6 +278,14 @@ public sealed class CharityInvoiceService(
     /// 號碼重複（篩選唯一索引）回 409。
     /// </summary>
     public async Task<DonationInvoice> ManualIssueAsync(
+        Guid invoiceId, string invoiceNo, DateTime issuedAtUtc, Guid adminUserId, CancellationToken cancellationToken)
+    {
+        var donationId = await DonationIdOfInvoiceAsync(invoiceId, cancellationToken);
+        return await WithInvoiceLockAsync(donationId, ManualLockWaitMilliseconds, () => throw InvoiceBusy(),
+            () => ManualIssueCoreAsync(invoiceId, invoiceNo, issuedAtUtc, adminUserId, cancellationToken), cancellationToken);
+    }
+
+    private async Task<DonationInvoice> ManualIssueCoreAsync(
         Guid invoiceId, string invoiceNo, DateTime issuedAtUtc, Guid adminUserId, CancellationToken cancellationToken)
     {
         var invoice = await db.DonationInvoices
@@ -299,6 +337,16 @@ public sealed class CharityInvoiceService(
     /// </summary>
     public async Task VoidManuallyAsync(Guid invoiceId, string reason, Guid adminUserId, CancellationToken cancellationToken)
     {
+        var donationId = await DonationIdOfInvoiceAsync(invoiceId, cancellationToken);
+        await WithInvoiceLockAsync(donationId, ManualLockWaitMilliseconds, () => throw InvoiceBusy(), async () =>
+        {
+            await VoidManuallyCoreAsync(invoiceId, reason, adminUserId, cancellationToken);
+            return true;
+        }, cancellationToken);
+    }
+
+    private async Task VoidManuallyCoreAsync(Guid invoiceId, string reason, Guid adminUserId, CancellationToken cancellationToken)
+    {
         var invoice = await LoadOpenInvoiceAsync(invoiceId, cancellationToken);
         var now = DateTime.UtcNow;
         if (invoice.IssueStatus == "issued" && invoice.InvoiceNo is not null)
@@ -317,6 +365,16 @@ public sealed class CharityInvoiceService(
 
     /// <summary>N5「折讓」：已開立的憑證才能折讓（全額，與退款同一套語意，規劃書 §5.4；部分折讓不在範圍）。</summary>
     public async Task AllowanceManuallyAsync(Guid invoiceId, string reason, Guid adminUserId, CancellationToken cancellationToken)
+    {
+        var donationId = await DonationIdOfInvoiceAsync(invoiceId, cancellationToken);
+        await WithInvoiceLockAsync(donationId, ManualLockWaitMilliseconds, () => throw InvoiceBusy(), async () =>
+        {
+            await AllowanceManuallyCoreAsync(invoiceId, reason, adminUserId, cancellationToken);
+            return true;
+        }, cancellationToken);
+    }
+
+    private async Task AllowanceManuallyCoreAsync(Guid invoiceId, string reason, Guid adminUserId, CancellationToken cancellationToken)
     {
         var invoice = await LoadOpenInvoiceAsync(invoiceId, cancellationToken);
         if (invoice.IssueStatus != "issued" || invoice.InvoiceNo is null)

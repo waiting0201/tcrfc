@@ -139,7 +139,7 @@ public static class GoogleGeocoderRegistration
     /// </summary>
     public static IServiceCollection AddGoogleGeocoder(this IServiceCollection services)
     {
-        services.AddHttpClient(GoogleGeocoder.HttpClientName).RemoveAllLoggers();
+        services.AddExternalHttpClient(GoogleGeocoder.HttpClientName).RemoveAllLoggers();
         services.AddSingleton<IGeocoder, GoogleGeocoder>();
         return services;
     }

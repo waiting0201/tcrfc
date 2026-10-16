@@ -40,6 +40,15 @@ public sealed class ShopInvoiceService(
         }
     }
 
+    /// <summary>
+    /// 這張訂單的發票鎖（開立與退款連動作廢共用）。🔴 退款路徑（<c>AdminShopRefundsRepository.ExecuteAsync</c>）必須取同一把：
+    /// 開立在「呼叫加值中心」期間持鎖，退款若不取，會讀到 <c>invoice_no IS NULL</c> 而略過作廢，開立完成後訂單已退款卻留著一張有效發票（E-338 後續）。
+    /// </summary>
+    internal static string LockResource(Guid orderId) => $"shop-invoice:{orderId:N}";
+
+    /// <summary>退款連動作廢等鎖的上限（毫秒）。必須大於加值中心呼叫逾時（<see cref="ExternalHttp.MaxTimeout"/> 15 秒）。</summary>
+    internal const int RefundLockWaitMilliseconds = 20_000;
+
     /// <summary>開立這張（已付款）訂單的發票。冪等：已開立直接回傳號碼；沒有發票資料列回 null。</summary>
     public async Task<string?> TryIssueAsync(Guid orderId, CancellationToken cancellationToken)
     {
@@ -52,7 +61,7 @@ public sealed class ShopInvoiceService(
         }
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
-        if (!await SqlAppLocks.TryAcquireAsync(db, transaction, $"shop-invoice:{orderId:N}", 0, cancellationToken))
+        if (!await SqlAppLocks.TryAcquireAsync(db, transaction, LockResource(orderId), 0, cancellationToken))
         {
             return null;
         }

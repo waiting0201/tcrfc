@@ -780,6 +780,17 @@
       "retryable": false
     },
     {
+      "code": "order_in_progress",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ],
+      "messageEn": "Your order is being created. Please refresh in a moment.",
+      "retryable": false
+    },
+    {
       "code": "order_not_cancellable",
       "httpStatus": [
         409

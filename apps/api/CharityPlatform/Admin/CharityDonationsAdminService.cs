@@ -321,36 +321,8 @@ public sealed class CharityDonationsAdminService(
     }
 
     /// <summary>以交易層級的應用程式鎖串行化某個資源；<c>LockTimeout = 0</c>：拿不到立刻回 <c>false</c>，不排隊等待。</summary>
-    private async Task<bool> TryAcquireAppLockAsync(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, string resource, CancellationToken cancellationToken)
-    {
-        await using var command = db.Database.GetDbConnection().CreateCommand();
-        command.Transaction = transaction.GetDbTransaction();
-        command.CommandType = System.Data.CommandType.StoredProcedure;
-        command.CommandText = "sp_getapplock";
-
-        void Add(string name, System.Data.DbType type, object value)
-        {
-            var parameter = command.CreateParameter();
-            parameter.ParameterName = name;
-            parameter.DbType = type;
-            parameter.Value = value;
-            command.Parameters.Add(parameter);
-        }
-
-        Add("@Resource", System.Data.DbType.String, resource);
-        Add("@LockMode", System.Data.DbType.String, "Exclusive");
-        Add("@LockOwner", System.Data.DbType.String, "Transaction");
-        Add("@LockTimeout", System.Data.DbType.Int32, 0);
-
-        var result = command.CreateParameter();
-        result.ParameterName = "@result";
-        result.DbType = System.Data.DbType.Int32;
-        result.Direction = System.Data.ParameterDirection.ReturnValue;
-        command.Parameters.Add(result);
-
-        await command.ExecuteNonQueryAsync(cancellationToken);
-        return (int)result.Value! >= 0; // 0＝取得、1＝等待後取得；負數＝逾時、被取消、死結、錯誤
-    }
+    private Task<bool> TryAcquireAppLockAsync(Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction transaction, string resource, CancellationToken cancellationToken)
+        => CharitySqlLocks.TryAcquireAsync(db, transaction, resource, 0, cancellationToken);
 
     /// <summary>
     /// 隱藏／恢復徵信名單顯示（規劃書 §3.6「亦可逐筆隱藏」、§6.3 N3 操作）。只影響公開徵信名單頁，不動捐款本身。

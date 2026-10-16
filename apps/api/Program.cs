@@ -262,7 +262,7 @@ builder.Services.AddScoped<AdminEnquiriesRepository>();
     }
     else
     {
-        builder.Services.AddHttpClient(Tcrfc.Api.Security.CloudflareClubTurnstileVerifier.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(5));
+        builder.Services.AddExternalHttpClient(Tcrfc.Api.Common.ExternalHttp.ClubTurnstile);
         builder.Services.AddSingleton<Tcrfc.Api.Security.IClubTurnstileVerifier>(sp => new Tcrfc.Api.Security.CloudflareClubTurnstileVerifier(
             sp.GetRequiredService<IHttpClientFactory>().CreateClient(Tcrfc.Api.Security.CloudflareClubTurnstileVerifier.HttpClientName),
             clubTurnstileSecret, sp.GetRequiredService<ILogger<Tcrfc.Api.Security.CloudflareClubTurnstileVerifier>>()));
@@ -539,7 +539,8 @@ builder.Services.AddSingleton<Tcrfc.Api.Features.AdminDashboard.IAnalyticsSource
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 // ── E 批（2026-10-01，S2-11／S3-2）：主站前台會員中心、會籍付款訂單、文化公開端點 ──────────────────────────
-builder.Services.AddHttpClient(Tcrfc.Api.Features.MemberAuth.LineLoginClient.HttpClientName);
+builder.Services.AddExternalHttpClient(Tcrfc.Api.Common.ExternalHttp.LineLogin);
+builder.Services.AddExternalHttpClientDefaults(); // 加值中心／LINE Pay：串接尚未開發，逾時先就位（docs/17 §外部呼叫逾時）
 builder.Services.AddSingleton<Tcrfc.Api.Features.MemberAuth.ILineLoginClient, Tcrfc.Api.Features.MemberAuth.LineLoginClient>(); // 憑證缺值時端點回 503，見 LineLoginClient
 builder.Services.AddSingleton<MemberTokenService>();
 builder.Services.AddSingleton<Tcrfc.Api.Features.MemberAuth.MemberSecureTokens>();

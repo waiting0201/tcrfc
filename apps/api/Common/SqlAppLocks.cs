@@ -44,6 +44,6 @@ public static class SqlAppLocks
         command.Parameters.Add(result);
 
         await command.ExecuteNonQueryAsync(cancellationToken);
-        return (int)result.Value! >= 0; // 0＝取得、1＝等待後取得；負數＝逾時、被取消、死結、錯誤
+        return result.Value is int code && code >= 0; // 0＝取得、1＝等待後取得；負數＝逾時、被取消、死結、錯誤
     }
 }

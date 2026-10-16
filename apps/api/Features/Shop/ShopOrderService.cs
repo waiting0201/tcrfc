@@ -150,7 +150,9 @@ public sealed partial class ShopOrderService(
             {
                 var orderId = await PlaceOrderAsync(
                     scope, owner, me?.MemberId, cart.Id, lines, input, encryptedCarrier, subtotal, shippingFee, collecting, idempotencyKey, fingerprint, cancellationToken);
-                var order = await LoadAsync(orderId, cancellationToken);
+                // 訂單此時已提交。之後的讀取若遇到死結犧牲者，不能丟回最外層的整筆重試——那會走冪等重播（Created=false）而<b>永遠不寄</b>成立通知信（E-338 後續）。
+                // 所以讀取自己重試；仍失敗就記 Error（含訂單 id）再丟出，維運才找得到「已成立但沒寄信」的單。
+                var order = await LoadPlacedOrderAsync(orderId, cancellationToken);
                 await SendOrderCreatedAsync(scope, order, input, cancellationToken);
                 return (await ToDtoAsync(scope, order, mask: false, includeToken: me is null, lang, cancellationToken), true);
             }
@@ -703,6 +705,49 @@ public sealed partial class ShopOrderService(
 
     // ═══════════════════════════ 通知信（盡力而為，失敗不影響訂單）═══════════════════════════
 
+    /// <summary>訂單提交後的讀取：死結犧牲者就地重試（最多 3 次）；其他失敗記 Error 後丟出。</summary>
+    private async Task<Order> LoadPlacedOrderAsync(Guid orderId, CancellationToken cancellationToken)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await LoadAsync(orderId, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException && IsDeadlockVictim(ex) && attempt < 3)
+            {
+                logger.LogWarning(ex, "訂單 {OrderId} 提交後讀取遇到死結犧牲者，第 {Attempt} 次，就地重試。", orderId, attempt);
+                db.ChangeTracker.Clear();
+                await Task.Delay(Random.Shared.Next(20, 80) * attempt, cancellationToken);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "訂單 {OrderId} 已成立，但提交後讀取失敗，成立通知信未寄出；用戶端以同一冪等鍵重試只會得到既有訂單、不會補寄。", orderId);
+                throw;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 通知信的送出：不跟著請求取消（訂單已提交，用戶端斷線不該讓信消失），改以 15 秒上限自我保護；<see cref="IEmailSender.SendAsync"/> 回 false
+    /// （未串接或供應商拒收）或丟例外都記一筆含單號的日誌，不影響訂單。這裡沒有寄信佇列（全系統的信都是盡力而為，見 <see cref="IEmailSender"/>）。
+    /// </summary>
+    private async Task SendBestEffortAsync(Func<CancellationToken, Task<bool>> send, string orderNo, string what)
+    {
+        using var timeout = new CancellationTokenSource(ExternalHttp.MaxTimeout);
+        try
+        {
+            if (!await send(timeout.Token))
+            {
+                logger.LogWarning("訂單 {OrderNo} 的{What}沒有寄出（寄信通路未串接或供應商拒收；不影響訂單）。", orderNo, what);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "訂單 {OrderNo} 的{What}寄送失敗（不影響訂單，不會自動補寄）。", orderNo, what);
+        }
+    }
+
     private async Task SendOrderCreatedAsync(ClubScope scope, Order order, ValidatedCheckout input, CancellationToken cancellationToken)
     {
         try
@@ -711,13 +756,14 @@ public sealed partial class ShopOrderService(
             var timeout = await settings.GetPendingTimeoutMinutesAsync(scope.ClubId, cancellationToken);
             var lines = order.OrderItems.OrderBy(i => i.RowSeq).Select(i => new ShopEmailTemplates.Line(
                 i.VariantLabelSnapshot is { Length: > 0 } label ? $"{i.ProductNameSnapshot}（{label}）" : i.ProductNameSnapshot, i.Quantity, i.LineTotal)).ToList();
-            await email.SendAsync(ShopEmailTemplates.OrderCreated(
+            var message = ShopEmailTemplates.OrderCreated(
                 input.Email, input.Name, clubName, order.OrderNo, order.Total, lines, order.CreatedAt.AddMinutes(timeout),
-                order.MemberId is null ? LookupLink(domain, input.Lang, order.LookupToken) : null, input.Lang), cancellationToken);
+                order.MemberId is null ? LookupLink(domain, input.Lang, order.LookupToken) : null, input.Lang);
+            await SendBestEffortAsync(ct => email.SendAsync(message, ct), order.OrderNo, "成立通知信");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "訂單 {OrderNo} 的成立通知信寄送失敗（不影響訂單）。", order.OrderNo);
+            logger.LogError(ex, "訂單 {OrderNo} 的成立通知信準備失敗（不影響訂單，不會自動補寄）。", order.OrderNo);
         }
     }
 
@@ -731,13 +777,14 @@ public sealed partial class ShopOrderService(
             }
 
             var (clubName, domain) = await ClubDisplayAsync(scope.ClubId, lang, cancellationToken);
-            await email.SendAsync(ShopEmailTemplates.PaymentCompleted(
+            var message = ShopEmailTemplates.PaymentCompleted(
                 order.BuyerEmail, order.RecipientName ?? string.Empty, clubName, order.OrderNo, order.Total, invoiceNo,
-                order.MemberId is null ? LookupLink(domain, lang, order.LookupToken) : null, lang), cancellationToken);
+                order.MemberId is null ? LookupLink(domain, lang, order.LookupToken) : null, lang);
+            await SendBestEffortAsync(ct => email.SendAsync(message, ct), order.OrderNo, "付款完成通知信");
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            logger.LogWarning(ex, "訂單 {OrderNo} 的付款完成通知信寄送失敗（不影響訂單）。", order.OrderNo);
+            logger.LogError(ex, "訂單 {OrderNo} 的付款完成通知信準備失敗（不影響訂單，不會自動補寄）。", order.OrderNo);
         }
     }
 

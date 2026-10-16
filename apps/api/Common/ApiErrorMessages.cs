@@ -104,6 +104,7 @@ public static class ApiErrorMessages
         ["not_found"] = "The requested item could not be found.",
         ["open_order_exists"] = "You already have an unfinished order for this plan. Please complete or cancel it first.",
         ["order_expired"] = "This order has expired or was cancelled. Please place a new order.",
+        ["order_in_progress"] = "Your order is being created. Please refresh in a moment.",
         ["order_not_cancellable"] = "This order has been paid or is being shipped. Please contact support for returns or exchanges.",
         ["order_not_found"] = "No matching order was found. Please check the order number and the email used for the order.",
         ["order_not_paid"] = "This order has not been paid yet, so it cannot be activated.",

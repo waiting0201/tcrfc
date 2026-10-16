@@ -75,11 +75,8 @@ public sealed class MembershipActivationService(ClubDbContext db, IEmailSender e
         // 同一份會籍的開通一次只讓一個交易進行（應用程式鎖，交易結束自動釋放）。⚠️ 不能只靠下面的條件式 UPDATE：
         // 並行測試實測會死結——輸家的 UPDATE 先鎖住 PK 索引項目、再等聚集索引的列鎖，而贏家寫付款紀錄時外鍵檢查要 S 鎖同一個 PK 索引項目，
         // 兩邊互等（SQL Server 的索引取鎖順序死結）。先用應用程式鎖排隊，輸家要等贏家提交之後才開始動資料，就不會互相卡住。
-        var lockResult = new SqlParameter("@result", SqlDbType.Int) { Direction = ParameterDirection.Output };
-        await db.Database.ExecuteSqlRawAsync(
-            "EXEC @result = sp_getapplock @Resource = @resource, @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 15000;",
-            [lockResult, new SqlParameter("@resource", grantLockResource)], cancellationToken);
-        if (lockResult.Value is int code && code < 0)
+        // 共用 SqlAppLocks：回傳值一律以「>= 0 才算拿到」判斷（拿不到、逾時、死結、DBNull 都視為沒拿到，不會被誤當成已持鎖）。
+        if (!await SqlAppLocks.TryAcquireAsync(db, transaction, grantLockResource, 15_000, cancellationToken))
         {
             throw new MemberConflictException("處理中", "這張訂單正在開通，請稍後重新整理。", "activation_in_progress");
         }

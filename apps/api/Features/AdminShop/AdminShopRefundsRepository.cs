@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Features.Shop;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.AdminShop;
@@ -17,7 +18,8 @@ namespace Tcrfc.Api.Features.AdminShop;
 /// 發票：已開立的發票同步登記作廢（全額）或折讓（部分）；電子發票服務未串接時註明需人工處理。刻意不注入快取服務。
 /// </summary>
 public sealed class AdminShopRefundsRepository(
-    ClubDbContext db, InventoryService inventory, ILinePayGateway linePay, IEInvoiceService invoices, SensitiveActionLogger audit)
+    ClubDbContext db, InventoryService inventory, ILinePayGateway linePay, IEInvoiceService invoices, SensitiveActionLogger audit,
+    ILogger<AdminShopRefundsRepository> logger)
 {
     private static readonly string[] OpenStatuses = ["requested", "approved", "received", "processing"];
 
@@ -273,6 +275,10 @@ public sealed class AdminShopRefundsRepository(
         }
 
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        // 🔴 發票鎖要在任何寫入之前取（E-338 後續）：背景開立在呼叫加值中心期間持有這把鎖。不取的話，下面讀到 invoice_no 為空而略過作廢，
+        // 開立完成後訂單已退款卻留著一張有效發票。最多等 20 秒（大於加值中心逾時 15 秒），所以正常情況一定等到開立結束、讀到真正的狀態。
+        // 等不到：金流已退款不能回頭，改為不動發票、在結果訊息與日誌留下「須人工處理」。先取鎖再寫入，等鎖期間不會握著訂單與案件的列鎖。
+        var invoiceLocked = await SqlAppLocks.TryAcquireAsync(db, tx, ShopInvoiceService.LockResource(refund.OrderId), ShopInvoiceService.RefundLockWaitMilliseconds, cancellationToken);
         var now = DateTime.UtcNow;
         await db.RefundRequests.Where(r => r.Id == id).ExecuteUpdateAsync(s => s
             .SetProperty(r => r.Status, "refunded").SetProperty(r => r.RefundedAt, now).SetProperty(r => r.RefundedBy, scope.Identity.AdminUserId)
@@ -293,7 +299,17 @@ public sealed class AdminShopRefundsRepository(
         }
 
         string? invoiceAction = null;
-        var invoice = await db.StoreInvoices.Where(i => i.OrderId == refund.OrderId && i.InvoiceNo != null && i.VoidStatus == "none").OrderByDescending(i => i.CreatedAt).FirstOrDefaultAsync(cancellationToken);
+        StoreInvoice? invoice = null;
+        if (!invoiceLocked)
+        {
+            logger.LogError("退款已執行，但取不到訂單 {OrderNo} 的發票鎖（發票可能正在開立），發票未作廢或折讓，需人工到發票服務端處理。", refund.Order.OrderNo);
+            invoiceAction = "發票正在開立中，系統沒有自動作廢或折讓，請稍後到發票服務端手動處理這張發票。";
+        }
+        else
+        {
+            invoice = await db.StoreInvoices.Where(i => i.OrderId == refund.OrderId && i.InvoiceNo != null && i.VoidStatus == "none").OrderByDescending(i => i.CreatedAt).FirstOrDefaultAsync(cancellationToken);
+        }
+
         if (invoice is not null)
         {
             var voidResult = await invoices.VoidOrAllowanceAsync(invoice.InvoiceNo!, full ? InvoiceVoidKind.Void : InvoiceVoidKind.Allowance, amount, cancellationToken);

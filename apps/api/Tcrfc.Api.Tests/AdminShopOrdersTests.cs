@@ -30,12 +30,13 @@ public sealed class AdminShopOrdersTests(AdminWriteApiFixture fixture)
     private sealed class SlowInvoiceIssuer : Tcrfc.Api.Features.Shop.IInvoiceIssuer
     {
         public static int Calls;
+        public static int DelayMilliseconds = 300;
         public bool IsConfigured => true;
 
         public async Task<Tcrfc.Api.Features.Shop.InvoiceIssueResult> IssueAsync(Tcrfc.Api.Features.Shop.InvoiceIssueRequest request, CancellationToken cancellationToken)
         {
             Interlocked.Increment(ref Calls);
-            await Task.Delay(300, cancellationToken); // 拉長「呼叫加值中心」的窗口，讓競態穩定出現
+            await Task.Delay(DelayMilliseconds, cancellationToken); // 拉長「呼叫加值中心」的窗口，讓競態穩定出現
             return new Tcrfc.Api.Features.Shop.InvoiceIssueResult(true, "ZZ" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(), null);
         }
     }
@@ -77,6 +78,62 @@ public sealed class AdminShopOrdersTests(AdminWriteApiFixture fixture)
             Assert.Equal(1, Volatile.Read(ref SlowInvoiceIssuer.Calls));
             Assert.Equal(1, results.Count(r => r is not null));
             Assert.Equal(1, await ShopTest.CountAsync("SELECT COUNT(*) FROM store_invoices WHERE order_id = @O AND issue_status = 'issued' AND invoice_no IS NOT NULL", ("@O", order.Id)));
+        }
+        finally
+        {
+            await ShopTest.CleanupAsync(made.ProductId);
+        }
+    }
+
+    /// <summary>
+    /// 退款執行若不取發票鎖，會在背景開立「呼叫加值中心」期間讀到 <c>invoice_no IS NULL</c> 而略過作廢；開立完成後訂單已退款，
+    /// 卻留著一張有效發票（E-338 後續）。正確：退款等開立結束，對剛開出的發票作廢。
+    /// </summary>
+    [Fact]
+    public async Task 退款執行_背景開立進行中_等開立完成後作廢發票_不留有效發票()
+    {
+        using var admin0 = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        var made = await ShopTest.CreateProductAsync(admin0, "tcrfc", "invrefund", ("M", 100, 5));
+        try
+        {
+            using var factory = fixture.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<Tcrfc.Api.Features.Shop.IInvoiceIssuer>();
+                services.AddSingleton<Tcrfc.Api.Features.Shop.IInvoiceIssuer, SlowInvoiceIssuer>();
+            }));
+            using var admin = await BizTest.ClientAsync(factory, "super.admin@tcrfc.test");
+            using var service = await BizTest.ClientAsync(factory, "customer.service@tcrfc.test");
+            var order = await ShopTest.CreateOrderAsync(service, "tcrfc", "onsite_pickup", (made.Variants[0].Id, 1));
+            await BizTest.ExecuteSqlAsync("INSERT INTO store_invoices (club_id, order_id) SELECT club_id, id FROM orders WHERE id = @O", ("@O", order.Id));
+            Interlocked.Exchange(ref SlowInvoiceIssuer.Calls, 0);
+            SlowInvoiceIssuer.DelayMilliseconds = 1500;
+            try
+            {
+                var issuing = Task.Run(async () =>
+                {
+                    await using var scope = factory.Services.CreateAsyncScope();
+                    return await scope.ServiceProvider.GetRequiredService<Tcrfc.Api.Features.Shop.ShopInvoiceService>().TryIssueAsync(order.Id, default);
+                });
+                for (var i = 0; i < 100 && Volatile.Read(ref SlowInvoiceIssuer.Calls) == 0; i++)
+                {
+                    await Task.Delay(20);
+                }
+
+                Assert.Equal(1, Volatile.Read(ref SlowInvoiceIssuer.Calls)); // 開立已進入「呼叫加值中心」
+
+                var cancelled = await BizTest.ReadAsync<AdminOrderDetailDto>(await C1Test.PostJsonAsync(service, $"{Orders}/{order.Id}/cancel", new { reason = "【測試】開立中退款" }));
+                var refund = Assert.Single(cancelled.Refunds);
+                var executed = await BizTest.ReadAsync<AdminRefundExecuteResultDto>(await C1Test.PostJsonAsync(admin, $"/api/v1/admin/tcrfc/shop/refunds/{refund.Id}/execute", new { }));
+                Assert.NotNull(await issuing);
+
+                Assert.Equal("已退款", executed.Refund.StatusLabel);
+                Assert.NotNull(executed.InvoiceAction);
+                Assert.Equal(1, await ShopTest.CountAsync("SELECT COUNT(*) FROM store_invoices WHERE order_id = @O AND issue_status = 'issued' AND invoice_no IS NOT NULL AND void_status = 'voided'", ("@O", order.Id)));
+            }
+            finally
+            {
+                SlowInvoiceIssuer.DelayMilliseconds = 300;
+            }
         }
         finally
         {

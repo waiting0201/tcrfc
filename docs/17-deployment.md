@@ -294,6 +294,20 @@ services:
 **會員權杖簽章金鑰**：`JWT_SIGNING_KEY_MEMBER`（≥32 字元）。**正式環境建議設獨立的一把**；沒設時由 `JWT_SIGNING_KEY_CLUB` 以 HKDF 衍生（密碼學上互相獨立，不是「共用同一把」）。會員與後台權杖另有獨立的 issuer／audience 與驗證機制，互不認帳。
 **新增的環境設定**一覽見 [`apps/api/README.md`](../apps/api/README.md)「E 批」節的「環境設定」表與 [`20-cicd.md`](20-cicd.md) §7.2。
 
+### 外部呼叫逾時（2026-10-16，`E-338` 後續；`backend-engineer`）
+
+**決定**：所有對外 HTTP 呼叫的逾時集中定義在 `apps/api/Common/ExternalHttp.cs`（名稱 → 逾時），以 `services.AddExternalHttpClient(名稱)` 註冊；單次上限 `MaxTimeout` ＝ **15 秒**，超過或 ≤ 0 啟動即失敗。
+
+| 用戶端名稱 | 逾時 | 備註 |
+|---|---|---|
+| `invoice-issuer`（加值中心：開立／作廢／折讓／查詢） | 15 秒 | **持鎖呼叫**（`charity-invoice:*`、`shop-invoice:*`）；介面與假實作已就位，真實串接尚未開發（B-10） |
+| `linepay` | 15 秒 | 持鎖路徑（確認、退款）；同上（B-7） |
+| `line-login` | 10 秒 | 原本在呼叫端手設，改集中 |
+| `club-turnstile`／`charity-turnstile` | 5 秒 | 原本各自寫在註冊處，改集中 |
+| `google-geocoding` | 5 秒 | 另有呼叫端 `CancelAfter(5 秒)` |
+
+**為什麼 ≤ 15 秒**：預設 100 秒時，外部服務卡住會讓持鎖交易（以及連線池連線）被占住 100 秒；退款連動作廢等鎖上限是 **20 秒**（`CharityInvoiceService.RefundLockWaitMilliseconds`、`ShopInvoiceService.RefundLockWaitMilliseconds`），逾時必須明顯小於它，否則退款會在開立「還沒逾時」之前放棄等待。**串接加值中心與 LINE Pay 時**：用 `IHttpClientFactory.CreateClient(ExternalHttp.InvoiceIssuer／LinePay)`，不要自己 new；不要在呼叫端再改 `Timeout`。逾時要轉成既有的「暫時失敗」例外（`InvoiceIssuerUnavailableException`／`PaymentGatewayUnavailableException`），不是讓 `TaskCanceledException` 漏出去。
+
 ### F 批的接縫：商店前台付款與電子發票開立（2026-10-01，`backend-engineer`）
 
 站內商店前台結帳（`Features/Shop`）**沿用 E 批的 `IPaymentGateway` 與 `IEmailSender`，不另起爐灶**；唯一新增的接縫是「開發票」：

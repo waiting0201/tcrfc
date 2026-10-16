@@ -87,9 +87,9 @@ public static class CharityPlatformRegistration
         }
         else
         {
-            services.AddHttpClient("charity-turnstile", client => client.Timeout = TimeSpan.FromSeconds(5));
+            services.AddExternalHttpClient(Tcrfc.Api.Common.ExternalHttp.CharityTurnstile);
             services.AddSingleton<ITurnstileVerifier>(sp => new CloudflareTurnstileVerifier(
-                sp.GetRequiredService<IHttpClientFactory>().CreateClient("charity-turnstile"), turnstileSecret,
+                sp.GetRequiredService<IHttpClientFactory>().CreateClient(Tcrfc.Api.Common.ExternalHttp.CharityTurnstile), turnstileSecret,
                 sp.GetRequiredService<ILogger<CloudflareTurnstileVerifier>>()));
         }
 

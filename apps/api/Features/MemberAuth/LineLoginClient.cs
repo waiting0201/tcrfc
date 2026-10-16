@@ -53,7 +53,6 @@ public sealed class LineLoginClient(IConfiguration configuration, IHttpClientFac
     {
         EnsureConfigured();
         var http = httpClientFactory.CreateClient(HttpClientName);
-        http.Timeout = TimeSpan.FromSeconds(10);
         try
         {
             using var tokenResponse = await http.PostAsync(TokenEndpoint, new FormUrlEncodedContent(new Dictionary<string, string>
