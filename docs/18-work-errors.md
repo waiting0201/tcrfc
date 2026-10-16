@@ -3252,3 +3252,13 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **修正**：三支腳本的 `docker cp` 之後都補 `chmod 644`。
 - **補充**：修正推上去（`773d12d`）後 `api` job 被略過、沒有驗到——它的路徑過濾只有 `apps/api/**`，不含它實際執行的 `db/**`、`deploy/local-ddl.sh`、`deploy/lib/**`。E-334 本身也是因此在 PR 前沒被攔。
 - **防呆**：`ci.yml` 的 `api` 路徑過濾補上上述輸入與 `ci.yml` 本身（2026-10-16）。`check-sqlcmd-input.py` 只查 stdin 餵檔，不查權限。
+
+
+### E-335 CI 在 master 首次完整跑 `dotnet test` 的 18 項紅燈：三項都是「本機有、CI 沒有」的環境後備（2026-10-16，commit 28539f9 的 CI，E-327／E-334 同類第三次）
+- **錯在哪**：①12 項 Redis 測試：兩個 fixture 的 `ResolveRedisServerPath()` 只認 `REDIS_SERVER_PATH` 與 brew 路徑，CI 用 apt 裝在 `/usr/bin/redis-server`，找不到；兩個 fixture 還各抄了一份找法。②5 項慈善限流測試：`CharityApiFixture`／`CharityDisabledApiFixture` 的 `DisposeAsync` 把**行程全域**環境變數 `CHARITY_SQL_CONNECTION_STRING` 清成 null，之後才初始化的慈善 fixture 經 `CharityTestDatabaseGuard` 讀到空值；本機因為有 `apps/api/appsettings.Development.json` 後備而永遠讀得到，CI 沒有那份檔案。③`ShopPublicTests.結帳冪等_高強度並行`第 37 輪有一個請求回 500。
+- **根因（可改掉的行為）**：①②測試 fixture 的設定來源有「只在開發者機器上存在」的後備（brew 路徑、被 gitignore 的 appsettings.Development.json），本機永遠綠，從未在「沒有後備」的條件下跑過；fixture 之間用行程全域環境變數交接又在 Dispose 清掉，順序一變就壞。與 E-327（潛伏故障）、E-334（本機驗證條件與 CI 不同）是同一類：**CI 只在 PR 觸發期間幾乎沒人跑，潛伏故障累積到改成 push master 才一次爆出**。③見下方「③ 未能重現」。
+- **下次怎麼避免**：測試的設定來源一律先快照、不依賴「當下」的行程環境變數（`[ModuleInitializer]` 在組件載入時快照）；找外部執行檔必須涵蓋 PATH 與 apt 路徑；改測試 fixture 或 CI 會跑的設定後，必須做 `docs/20` §5「本機模擬 CI 環境」那一組檢查（藏起 appsettings.Development.json、只留 CI 同款環境變數）才能說驗證過。
+- **修正**：①新增 `Fixtures/RedisServerLocator.cs` 為唯一的找法（`REDIS_SERVER_PATH` → brew → `/usr/bin` → 掃 PATH），兩個 fixture 改呼叫它。②`CharityTestDatabaseGuard` 以 `[ModuleInitializer]` 快照啟動時的環境變數，之後不論 fixture 怎麼清，仍讀快照。③見下。
+- **③ 結帳並行 500：未能重現，不下「是測試環境造成」的結論**。證據：本機隔離容器 `sqlserver-cftest`（12 核主機）反覆跑——單測試 11 次、整個 `Shop` 範圍 5 次（各 50 項）、再把 SQL 容器限到 1 CPU 並開 8 個 CPU 佔用行程，跑 40 並行 × 95 輪 × 3 次（比 CI 的 16 × 40 重 6 倍以上），全數通過；SQL Server 開 trace flag 1222／1204 全程沒有任何死結紀錄；整個非慈善測試套件（1343 項）跑一次，該測試通過。CI 沒有留下伺服器例外（`ApiExceptionHandler` 刻意不回細節、測試輸出也沒有伺服器日誌），所以真因未知。已排除：訂單編號撞號（6 碼隨機、31 字元）、設定讀取寫入、會員折扣計算（只讀）。**唯一有路徑能 500 的已知情境是 SQL 死結犧牲者（1205）**，原本 `CheckoutAsync` 只處理唯一鍵衝突，遇 1205 會直接 500。
+- **③ 的處置**（沒有調降並行數或輪數）：a) `CheckoutAsync` 的下單迴圈新增死結犧牲者處理：交易已整筆回復，先以冪等鍵找是否已有並行的同鍵訂單（有就回它），沒有就在 `MaxPlacementAttempts` 內重試，並記 Warning；`IsDeadlockVictim` 沿 InnerException 找 SqlException 1205。b) 新增 `Fixtures/ServerErrorLog.cs`（`AdminWriteApiFixture` 掛上），並行測試失敗時把伺服器端 Error 以上日誌與例外放進失敗訊息，下一次在 CI 出現就能直接看到真因。**若再出現，看失敗訊息裡的例外，不要再猜。**
+- **防呆**：①②已由 `ModuleInitializer`／單一 locator 結構性消除。「藏起 appsettings.Development.json 後跑 `--filter Charity`」已驗證能重現舊錯誤（改前大量慈善測試以同一訊息失敗、改後 299 項全綠）。⚠️ 沒有自動檢查能防止「新 fixture 又依賴本機後備」——這是 E-327、E-334、E-335 三次同類，已升級為 `docs/14` 速查一條與 `docs/20` §3 的模擬步驟；若第四次再犯，要的是機制（例如 CI 在 PR 觸發之外加每日排程，或提供 `deploy/ci-parity.sh`），不是第四筆記錄。

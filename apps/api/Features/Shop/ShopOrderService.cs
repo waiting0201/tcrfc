@@ -146,6 +146,18 @@ public sealed partial class ShopOrderService(
                 var label = line is null ? ex.Sku : $"{line.ProductName}（{line.VariantLabel}）";
                 throw new MemberConflictException("庫存不足", ex.Available <= 0 ? $"「{label}」剛剛已經售完了。" : $"「{label}」目前只剩 {ex.Available} 件，請調整數量。", "insufficient_stock");
             }
+            catch (Exception ex) when (ex is not OperationCanceledException && IsDeadlockVictim(ex) && attempt < MaxPlacementAttempts)
+            {
+                // SQL Server 選了我們當死結犧牲者（1205）：整個交易（訂單、明細、發票、庫存保留、清購物車）已整筆回復，沒有留下任何半成品。
+                // 同一冪等鍵重送本來就安全——先看是不是並行的另一個請求已成立（是就回那張），否則整筆重來。
+                logger.LogWarning(ex, "結帳遇到死結犧牲者，第 {Attempt} 次嘗試，將重試。", attempt);
+                db.ChangeTracker.Clear();
+                var raced = await FindByIdempotencyKeyAsync(scope, idempotencyKey, fingerprint, lang, cancellationToken);
+                if (raced is not null)
+                {
+                    return (raced, false);
+                }
+            }
             catch (DbUpdateException ex) when (ShopCartService.IsUniqueViolation(ex))
             {
                 db.ChangeTracker.Clear();
@@ -162,6 +174,20 @@ public sealed partial class ShopOrderService(
                 }
             }
         }
+    }
+
+    /// <summary>例外鏈中是否有 SQL Server 死結犧牲者（錯誤 1205）。EF 會把它包在 DbUpdateException 或執行例外裡，所以要沿著 InnerException 找。</summary>
+    internal static bool IsDeadlockVictim(Exception ex)
+    {
+        for (var e = ex; e is not null; e = e.InnerException!)
+        {
+            if (e is Microsoft.Data.SqlClient.SqlException { Number: 1205 })
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private async Task<Guid> PlaceOrderAsync(

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Tcrfc.Api.Tests.Fixtures;
@@ -22,6 +23,7 @@ public sealed class AdminWriteApiFixture : WebApplicationFactory<Program>, IAsyn
     {
         base.ConfigureWebHost(builder);
         TestRateLimitOverrides.ApplyLooseAdminAuthOverrides(builder);
+        builder.ConfigureLogging(logging => logging.AddProvider(new ServerErrorLog()));
 
         // E 批（2026-10-01）：會員前台測試需要「看得到寄出的信」與「不真的連 LINE」。兩個接縫以測試替身取代，
         // 其餘測試完全不會用到它們（取代的只是 DI 註冊，不改變任何既有端點的行為）。

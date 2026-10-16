@@ -610,7 +610,7 @@ public sealed class ShopPublicTests(AdminWriteApiFixture fixture)
             var body = Checkout(NewEmail());
             var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => CheckoutAsync(token, body, key))));
             var codes = string.Join(",", results.Select(r => $"{(int)r.Status}{(r.Status == HttpStatusCode.Conflict ? ":" + r.Json.GetProperty("code").GetString() : "")}"));
-            Assert.True(results.All(r => r.Status is HttpStatusCode.Created or HttpStatusCode.OK), $"第 {round} 輪：{codes}");
+            Assert.True(results.All(r => r.Status is HttpStatusCode.Created or HttpStatusCode.OK), $"第 {round} 輪：{codes}\n伺服器端錯誤日誌：\n{ServerErrorLog.Snapshot()}");
             Assert.Equal(1, results.Count(r => r.Status == HttpStatusCode.Created));
             Assert.Single(results.Select(r => r.Json.GetProperty("orderNo").GetString()).Distinct());
             Assert.Equal(1, await C1Test.ScalarAsync<int>("SELECT COUNT(*) FROM orders WHERE idempotency_key = @K", ("@K", key)));

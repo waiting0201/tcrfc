@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Data.SqlClient;
 
@@ -18,9 +19,17 @@ internal static class CharityTestDatabaseGuard
     public const string RequiredDatabaseName = "tcrfc_charity";
     private const string Key = "CHARITY_SQL_CONNECTION_STRING";
 
+    // 🔴 行程啟動時（測試組件載入）的環境變數快照。CharityApiFixture／CharityDisabledApiFixture 在 Dispose 時會把這個
+    // 行程全域環境變數清成 null（為了不讓慈善平台洩漏到俱樂部測試主機），之後才跑的慈善 fixture 就讀不到 CI 設定的值
+    // （本機因為有 appsettings.Development.json 後備而被掩蓋；CI 沒有那份檔案，E-335）。所以來源以快照為準，不再讀「當下」的環境變數。
+    private static string? _initialEnvironmentValue;
+
+    [ModuleInitializer]
+    internal static void SnapshotEnvironment() => _initialEnvironmentValue = Environment.GetEnvironmentVariable(Key);
+
     public static async Task<string> ResolveAndVerifyAsync()
     {
-        var connectionString = Environment.GetEnvironmentVariable(Key) ?? ReadFromLocalSettings();
+        var connectionString = _initialEnvironmentValue ?? ReadFromLocalSettings();
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(

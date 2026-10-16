@@ -796,6 +796,16 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 > 🔴 **手改 scaffold 檔（`Data/EfEntities/*.cs`、`ClubDbContext.cs`）的換行陷阱**（`E-50` 連帶紀錄，第三次遇到）：這些檔案是 CRLF 和 LF **混雜**的，陳述式結尾是 `\r\n`，空行與 fluent chain 的續行是 `\n`。用一般編輯工具整檔改寫會把換行全部正規化，`git diff` 就會變成數千行的假差異。
 > **做法**：以 `git show HEAD:<path>` 取出原始位元組，找一個唯一的錨點，在那裡做位元組級插入，不要重打任何既有的行。改完用 `git diff --stat` 確認只有新增的行數。
 
+### 🔴 本機模擬 CI 環境（`E-327`／`E-334`／`E-335`，2026-10-16）
+
+`api` job 的 `dotnet test` 在 CI 上沒有任何「只在開發者機器上才有」的後備。改了測試 fixture、`ci.yml` 的 `api` job、建庫腳本或啟動必填設定之後，回報「驗證過」之前至少做這一組：
+
+1. 用隔離容器（不要用 `tcrfc_club` 的本機副本，`E-332`）：`LOCAL_MSSQL_CONTAINER=<容器> ./db/seed/setup-club-db.sh` 與 `setup-charity-db.sh`。
+2. 只給 CI 同款的環境變數（`CLUB_SQL_CONNECTION_STRING`、`CHARITY_SQL_CONNECTION_STRING`、`JWT_SIGNING_KEY_CHARITY`），並**暫時把 `apps/api/appsettings.Development.json` 移開**（做完立刻移回）。
+3. 跑 `dotnet test apps/api/Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj`（或至少 `--filter Charity`、`--filter Shop` 與 Redis 三個測試類別）。
+4. Redis：CI 以 apt 安裝在 `/usr/bin/redis-server`；fixture 由 `Fixtures/RedisServerLocator.cs` 統一尋找（`REDIS_SERVER_PATH` → brew → `/usr/bin` → PATH），不需要在 `ci.yml` 設環境變數。
+5. 並行測試失敗而沒有例外細節時，失敗訊息會附 `ServerErrorLog`（`Fixtures/ServerErrorLog.cs`）收到的伺服器端錯誤。
+
 ## 6. 失敗與回滾
 
 | 環節 | 設計 |

@@ -41,7 +41,7 @@ public sealed class RedisEnabledApiFixture : WebApplicationFactory<Program>, IAs
     {
         var connectionString = await TestDatabaseGuard.ResolveAndVerifyAsync();
 
-        var redisServerPath = ResolveRedisServerPath();
+        var redisServerPath = RedisServerLocator.Resolve();
         var port = GetUnusedLocalPort();
 
         _redisProcess = Process.Start(new ProcessStartInfo
@@ -97,31 +97,6 @@ public sealed class RedisEnabledApiFixture : WebApplicationFactory<Program>, IAs
         }
 
         _redisProcess?.Dispose();
-    }
-
-    private static string ResolveRedisServerPath()
-    {
-        var overridePath = Environment.GetEnvironmentVariable("REDIS_SERVER_PATH");
-        if (!string.IsNullOrWhiteSpace(overridePath) && File.Exists(overridePath))
-        {
-            return overridePath;
-        }
-
-        string[] candidates =
-        [
-            "/opt/homebrew/bin/redis-server", // Apple Silicon brew
-            "/usr/local/bin/redis-server", // Intel brew／一般 Linux
-        ];
-
-        var found = candidates.FirstOrDefault(File.Exists);
-        if (found is not null)
-        {
-            return found;
-        }
-
-        throw new InvalidOperationException(
-            "找不到 redis-server 執行檔——這組測試需要一個真正在跑的 Redis 行程（不 mock）。"
-            + "請先 `brew install redis`，或設定環境變數 REDIS_SERVER_PATH 指到 redis-server 執行檔。");
     }
 
     private static async Task WaitForRedisReadyAsync(int port)

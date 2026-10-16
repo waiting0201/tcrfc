@@ -14,6 +14,8 @@
 
 - 🔵 **核心價值是四項，不是五項**（使用者 2026-10-16 裁決，依客戶 2.3；主站 v3.29）：`inspiring_players` 啟發球員／`shaping_champions` 塑造冠軍／`local_pride` 在地驕傲／`global_influence` 撼動全球，同時是全站內容標籤 `value_tag_links.value_tag`。舊五標籤遷移：`players_first`→`inspiring_players`、`excellence`→`shaping_champions`、`community`→`local_pride`、`global_pathways`→`global_influence`、**`integrity` 無對應，連結列直接刪除**。看到 `players_first`／`excellence`／`global_pathways`／`community`／`integrity` 或「五大核心價值」一律是舊規格。4.4 課綱頁客戶原文的「培養菁英 Shaping elites」是頁面原文，不是核心價值定義，照留。
 
+
+- 🔴 **測試 fixture 與 CI 會跑的腳本，不得依賴「只在開發者機器上有」的後備**（`E-327`、`E-334`、`E-335` 三次同類）：被 gitignore 的 `apps/api/appsettings.Development.json`、brew 安裝路徑、本機容器的執行身分與檔案權限、前一個 fixture 留下的行程全域環境變數。① fixture 的設定一律在組件載入時快照（`[ModuleInitializer]`），Dispose 不得清掉別人還要讀的行程全域環境變數；② 找外部執行檔要涵蓋 PATH 與 apt 路徑（`RedisServerLocator` 是唯一的找法）；③ 改了這類東西，回報前要在「CI 條件」下跑一次——藏起 appsettings.Development.json、只留 CI 同款環境變數，見 [`docs/20`](docs/20-cicd.md) §5「本機模擬 CI 環境」。④ 並行測試回 500 而看不到原因時，先看失敗訊息裡的 `ServerErrorLog`，不要靠猜、更不要調降並行數。
 - 🔴 **盤點、匯入、回報裡的任何數字（份數、筆數、題數），寫下之前一律用工具重數，不得沿用前一份文件或前一個 agent 的數字，也不得目測估算**（`E-325`，2026-10-16 同日再犯：盤點表寫里程碑 51 筆，實際 49 筆）。① 合計要與另一種切法（依類型、依單元、依年份）的加總對上；② 要拿數字做減法推「剩幾份」之前，先 `find`／`grep -c` 重數；③ 派 agent 盤點時，在指示裡要求「每個數字附上計數方式」，收到回報後抽查至少一個數字；④ 寫進資料遷移的筆數斷言，以原文重數的結果為準。
 
 - 🔴 **會員折扣與會籍的四條後端不變量**（2026-10-16，主站 v3.29，`apps/api/README.md` 末段「客戶文件對齊」）：
