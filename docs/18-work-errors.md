@@ -3303,3 +3303,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **修正**：補 `order_in_progress` 英文訊息、跑 `gen-all.sh`（`git diff` 只多 `shared/error-codes.json` 的該代碼一筆）；檢查兩輪新增的代碼，僅此一個缺漏（第二輪未新增任何錯誤代碼）。
 - **下次怎麼避免**：交付前「CI 的每個 job 在本機各跑一次」——動到 `apps/api` 的 Controller／端點／例外就一定跑 `shared/scripts/gen-all.sh` 並看 `git diff --stat shared`。
 - **防呆**：CI 已會擋（所以才紅燈）；本機沒有。這是**同類第一次**，先記錄不升級；若再發生，考慮把 `gen-all.sh --check` 加進 `dotnet test` 的收尾或 pre-commit。
+
+### E-340 新聞內文區塊編輯上線後，使用者回報「不能插入圖片」「編輯區沒滿版」（2026-10-16，S2-27 的後續，`frontend-architect`）
+- **錯在哪**：①內文區塊只能「加在最後」，兩段文字之間放圖片要先加再一路按「上移」，圖片入口藏在下拉選單裡，使用者找不到；②未儲存變更的判斷用 `JSON.stringify(bodyBlocks)`，`File` 會被序列化成 `{}`，**只換圖、文字沒動時不算變更**（離開不提醒），與封面的 `coverFile !== null` 判斷不一致；③編輯頁沿用全站 `max-width: 1200px`，內文是區塊編輯器卻被主欄（約 70%）擠窄。
+- **根因（可改掉的行為）**：把 B1 的區塊編輯器原樣搬進新聞，只驗「型別清單、multipart、API 寫入」，沒有從「編輯者要在文章中間放一張圖」這個操作情境走一遍；快照比對沒把「含 `File` 的狀態」列入檢查項目；版面直接繼承全站上限，沒檢查內容性質。
+- **修正**：`PageBlockListEditor` 新增 `quickAddTypes`（底部一鍵「+ 圖片」「+ 圖集」）與 `allowInsert`（區塊之間「在這裡插入」，預設關閉，B1 行為不變）；`NewsEditView` 的內文快照把 `File` 換成名稱＋大小＋修改時間；`.news-edit` 去掉 1200px 上限。
+- **下次怎麼避免**：含 `File`／`Blob` 的狀態做快照比對時一律用 replacer；新增「由別處搬來的編輯器」時，驗收清單要包含「在已有內容的中間插入、替換既有項目」兩個操作。
+- **防呆**：無（尚未實機驗收；API 測試因本機測試庫未開 RCSI 無法執行，見 STATUS S2-27）。

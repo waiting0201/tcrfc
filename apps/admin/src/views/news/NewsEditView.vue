@@ -139,11 +139,18 @@ const removeOgImage = ref(false)
  */
 const bodyBlocks = ref<PageBlockState[]>([])
 const baselineBlocksJson = ref('[]')
+
+/** 內文區塊的比對快照。`File` 直接 `JSON.stringify` 會變成 `{}`，換圖不會被偵測到（只換圖、其餘沒動時
+ * 會被當成「沒有變更」），所以把檔案換成「名稱＋大小＋修改時間」。 */
+function blocksSnapshot(blocks: PageBlockState[]): string {
+  return JSON.stringify(blocks, (_key, value) =>
+    value instanceof File ? `file:${value.name}:${value.size}:${value.lastModified}` : value)
+}
 const baselineBodyHasEnglish = ref(false)
 
 function applyLoadedArticle(article: NewsArticle, blocks: PageBlockState[]) {
   bodyBlocks.value = blocks
-  baselineBlocksJson.value = JSON.stringify(blocks)
+  baselineBlocksJson.value = blocksSnapshot(blocks)
   baselineBodyHasEnglish.value = blocksHaveEnglish(blocks)
   Object.assign(form, structuredClone(article))
   // baseline 必須是 form 自己的鍵順序：isDirty 用 JSON.stringify 比對，鍵順序不同（例如 emptyArticle
@@ -370,7 +377,7 @@ const isDirty = computed(() =>
   loadState.value === 'ready'
   && (
     JSON.stringify(form) !== JSON.stringify(baseline.value)
-    || JSON.stringify(bodyBlocks.value) !== baselineBlocksJson.value
+    || blocksSnapshot(bodyBlocks.value) !== baselineBlocksJson.value
     || coverFile.value !== null
     || removeCover.value
     || ogImageFile.value !== null
@@ -701,13 +708,15 @@ function retryLoad() {
                     @update:en="(v) => (form.summary.en = v)"
                   />
                 </FormSection>
-                <FormSection title="內容" hint="用區塊組成文章內容，可以調整順序。圖片寬度至少 800 像素；中英文內容寫在同一個區塊裡，用上方的語言分頁切換。">
+                <FormSection title="內容" hint="用區塊組成文章內容，可以調整順序；要在兩段文字之間放圖片，點區塊之間的「在這裡插入」，或用下方「+ 圖片」。圖片寬度至少 800 像素；中英文內容寫在同一個區塊裡，用上方的語言分頁切換。">
                   <PageBlockListEditor
                     v-model="bodyBlocks"
                     :allowed-types="NEWS_BODY_BLOCK_TYPES"
                     :type-labels="NEWS_BLOCK_TYPE_LABEL"
                     :image-min-width="NEWS_BODY_IMAGE_MIN_WIDTH"
                     :image-min-height="0"
+                    :quick-add-types="['image', 'gallery']"
+                    allow-insert
                     empty-hint="目前還沒有任何內容，從下方選一種類型開始新增。"
                   />
                 </FormSection>
@@ -976,8 +985,9 @@ function retryLoad() {
 
 <style scoped>
 .news-edit {
-  max-width: 1200px;
-  margin: 0 auto;
+  /* 內文是區塊編輯器，要用滿可用寬度（使用者 2026-10-16 回報）；其餘編輯頁維持 1200px 上限。 */
+  width: 100%;
+  min-width: 0;
 }
 
 .news-edit__status-line {

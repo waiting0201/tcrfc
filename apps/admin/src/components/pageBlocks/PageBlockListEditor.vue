@@ -25,6 +25,10 @@ const props = withDefaults(
     /** 圖片欄位解析度下限，原樣傳給每個區塊編輯器；不傳＝沿用上傳元件預設。 */
     imageMinWidth?: number
     imageMinHeight?: number
+    /** 清單底部額外顯示成一鍵按鈕的類型（新聞內文用圖片、圖集），讓常用的「插入圖片」不必先找下拉選單。 */
+    quickAddTypes?: readonly PageBlockType[]
+    /** 區塊之間顯示「在這裡插入」。預設關閉，頁面管理（B1）行為不變。 */
+    allowInsert?: boolean
   }>(),
   {
     allowedTypes: () => PAGE_BLOCK_TYPES,
@@ -32,6 +36,8 @@ const props = withDefaults(
     typeLabels: () => ({}),
     imageMinWidth: undefined,
     imageMinHeight: undefined,
+    quickAddTypes: () => [],
+    allowInsert: false,
   },
 )
 
@@ -50,8 +56,9 @@ function clearBlockErrors() {
   }
 }
 
-function addBlock() {
-  blocks.value.push(createEmptyBlock(addBlockType.value))
+/** 在指定位置插入新區塊；省略位置＝加在最後。 */
+function addBlock(type: PageBlockType = addBlockType.value, at: number = blocks.value.length) {
+  blocks.value.splice(at, 0, createEmptyBlock(type))
   clearBlockErrors()
 }
 
@@ -83,7 +90,18 @@ async function removeBlock(index: number) {
   <div>
     <p v-if="blocks.length === 0" class="block-list__hint">{{ emptyHint }}</p>
 
-    <div v-for="(block, index) in blocks" :key="block.localKey" class="block-list__block">
+    <template v-for="(block, index) in blocks" :key="block.localKey">
+    <div v-if="allowInsert && index > 0" class="block-list__insert">
+      <el-dropdown trigger="click" @command="(type: PageBlockType) => addBlock(type, index)">
+        <el-button size="small" text type="primary">+ 在這裡插入</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item v-for="type in allowedTypes" :key="type" :command="type">{{ blockTypeLabel(type) }}</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
+    <div class="block-list__block">
       <div class="block-list__toolbar">
         <span class="block-list__type">{{ blockTypeLabel(block.blockType) }}</span>
         <div class="block-list__actions">
@@ -102,12 +120,14 @@ async function removeBlock(index: number) {
         />
       </FormField>
     </div>
+    </template>
 
     <div class="block-list__add">
       <el-select v-model="addBlockType" style="width: 200px">
         <el-option v-for="type in allowedTypes" :key="type" :label="blockTypeLabel(type)" :value="type" />
       </el-select>
-      <el-button type="primary" plain @click="addBlock">+ 新增區塊</el-button>
+      <el-button type="primary" plain @click="addBlock()">+ 新增區塊</el-button>
+      <el-button v-for="type in quickAddTypes" :key="type" plain @click="addBlock(type)">+ {{ blockTypeLabel(type) }}</el-button>
     </div>
   </div>
 </template>
@@ -141,8 +161,15 @@ async function removeBlock(index: number) {
   color: var(--admin-text-primary);
 }
 
+.block-list__insert {
+  display: flex;
+  justify-content: center;
+  margin: -8px 0 8px;
+}
+
 .block-list__add {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 </style>
