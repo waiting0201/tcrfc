@@ -3250,4 +3250,5 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：改了 CI 會執行的腳本，只在本機驗證。本機容器的執行身分與檔案權限和 CI 的服務容器不同，卻沒有在相同條件下跑一次（例如用 `mcr.microsoft.com/mssql/server` 的預設非 root 身分）；也沒有推到分支讓 CI 先跑。
 - **下次怎麼避免**：`docker cp` 進容器給另一個身分讀的檔，一律接著 `docker exec -u 0 … chmod 644`。改動 CI 會執行的腳本時，回報裡要寫明「CI 條件下是否驗證過」，沒驗過就先推分支或開 PR 讓 CI 跑，再進 master。
 - **修正**：三支腳本的 `docker cp` 之後都補 `chmod 644`。
-- **防呆**：無（`check-sqlcmd-input.py` 只查 stdin 餵檔，不查權限）。下次 CI 跑 `api` job 時驗證。
+- **補充**：修正推上去（`773d12d`）後 `api` job 被略過、沒有驗到——它的路徑過濾只有 `apps/api/**`，不含它實際執行的 `db/**`、`deploy/local-ddl.sh`、`deploy/lib/**`。E-334 本身也是因此在 PR 前沒被攔。
+- **防呆**：`ci.yml` 的 `api` 路徑過濾補上上述輸入與 `ci.yml` 本身（2026-10-16）。`check-sqlcmd-input.py` 只查 stdin 餵檔，不查權限。

@@ -77,6 +77,11 @@ jobs:
               - '.node-version'
             api:
               - 'apps/api/**'
+              # api job 會跑 local-ddl.sh／setup-club-db.sh／apply-charity-seed.sh 建測試庫，這些輸入改了也要重跑（E-334）
+              - 'db/**'
+              - 'deploy/local-ddl.sh'
+              - 'deploy/lib/**'
+              - '.github/workflows/ci.yml'
             compose_env:
               - 'docker-compose.yml'
               - 'apps/web/nuxt.config.ts'
