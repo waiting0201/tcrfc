@@ -2,7 +2,7 @@
 
 > **Document version**: v1.7
 > **Date**: 2026-09-14 (v1.7 revision: 2026-10-16)
-> **Corresponds to**: *TCRFC Website Functional Specification* v3.29
+> **Corresponds to**: *TCRFC Website Functional Specification* v3.30
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **How to read this document**
@@ -143,7 +143,7 @@ Membership covers **one thing only — belonging**. **A free registered account 
 |---|---|---|
 | **Dashboard** | — | Tasks, latest submissions, key figures |
 | **Content** | Pages | Fixed static pages (including the Blue Whale entrance page); the fields to fill in on each page are set in advance, so you only enter content and do not add or delete pages; includes draft, scheduling, Chinese and English versions, revision history with rollback, and preview links that can be shared before publishing |
-| | News & Stories | Writing (text with photos and photo sets in between), picking the spot on the cover photo to keep in view, scheduled publishing, categories and tags |
+| | News & Stories | Writing (a what-you-see-is-what-you-get editor with a full-width editing area; text, photos, photo sets and videos can be inserted anywhere), picking the spot on the cover photo to keep in view, scheduled publishing, categories and tags |
 | | Home layout | Order of the home page blocks and the hero |
 | | FAQ | Questions and answers, including reports of failed searches |
 | | Charity & Impact | The descriptive content and impact figures for section 11 |

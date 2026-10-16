@@ -198,6 +198,9 @@ export interface HeadingBlockContent {
 export interface ListBlockContent {
   ordered: boolean
   items: BilingualText[]
+  /** 畫面專用（不送後端）：與 `items` 同長度的穩定識別碼，新聞內文編輯器用來在中英兩份編輯器之間
+   * 對齊「同一個清單項目」，插入或刪除項目時才不會讓另一種語言的文字錯位。可省略。 */
+  itemKeys?: string[]
 }
 
 export interface ImageBlockContent {

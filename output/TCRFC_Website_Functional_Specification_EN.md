@@ -1,9 +1,15 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.29
-> **Date**: 2026-08-14 (v3.29 revision: 2026-10-16)
+> **Document version**: v3.30
+> **Date**: 2026-08-14 (v3.30 revision: 2026-10-16)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.29*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.30*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.30 revision summary — the news body is written in a what-you-see-is-what-you-get editor with a full-width editing area**
+> **Only the way the body is edited in admin B2 changes; the public site, the data structure and the app are unchanged.**
+> ① **The news body is written in a WYSIWYG document editor**: the editing area is full width; editors type directly, set subheadings and lists, and use the toolbar to insert an image, a gallery or a video anywhere in the body.
+> ② **The stored format is unchanged**: on save the body is converted to blocks (paragraph, subheading, pull quote, list, single image, gallery and video embed), so the public site and the mobile app render it the same way and the tables and interface contract stay the same; body images still upload on save and follow the "inline images" rule of the 4.0 image-upload rules.
+> Where: 4.2 B2.
 
 > **v3.29 revision summary — core values, academy squads and fan club plans follow the client's documents; the NAMA Elite Football Performance Camp is listed as a camp**
 > **The specification follows the client's documents on 2.3 football philosophy and the four core values, 4.3 academy pathway, 8.2 fan club plans and 5.2 summer camps.**
@@ -17,7 +23,7 @@
 > **v3.28 revision summary — news covers take a focal point; the news body can hold images and galleries, and galleries keep each photo's original proportions**
 > **An editing enhancement for news; no page or module is added.**
 > ① **News covers take a focal point**: in the admin, the editor clicks the most important spot on the cover preview, and the page-header visual, list cards, the homepage news area and related articles crop around that spot; with no focal point set, the image is centred. The focal point is a display setting only and does not alter the image file; replacing the cover resets it to centre.
-> ② **The news body is edited as blocks and can hold images and galleries**: the body is made of paragraph, subheading, pull-quote, list, single-image (with caption), gallery and video-embed blocks, which can be added, removed and reordered; a gallery holds multiple photos in a set order. Body images follow the "inline images" rule of the 4.0 image-upload rules.
+> ② **The news body can hold images and galleries**: the body can contain paragraphs, subheadings, pull quotes, lists, single images (with caption), galleries and video embeds; a gallery holds multiple photos in a set order. Body images follow the "inline images" rule of the 4.0 image-upload rules.
 > ③ **Galleries on the news detail page keep each photo's original proportions**: portrait and landscape photos are shown in full, not cropped to a fixed ratio.
 > Where: 3.7, 4.0 image-upload rules, 4.2 B2, 5.1 `Article`.
 
@@ -1149,7 +1155,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 #### B2 News & Stories
 - Article CRUD, categories (mapping to 7.1–7.8), tags, core-value tags
 - Cover image (**with a focal point**: click the most important spot on the cover preview and every public-site placement crops around it; centred when unset, and reset to centre when the cover is replaced), summary, relationships (player / team / match / program / partner)
-- **Block-based body**: paragraph, subheading, pull quote, list, single image (with caption), gallery (multiple photos, reorderable) and video embed (YouTube / Vimeo); blocks can be added, removed and reordered. Body images upload on save and follow the 4.0 image-upload rules
+- **Body editor**: a what-you-see-is-what-you-get document editor with a **full-width editing area**; type directly, set subheadings and lists, and use the toolbar to insert an image (with caption), a gallery (multiple photos, reorderable) or a video embed (YouTube / Vimeo) anywhere in the body. The body is stored as blocks (paragraph, subheading, pull quote, list, image, gallery, video embed). Body images upload on save and follow the 4.0 image-upload rules
 - Scheduled publishing, featured pinning (max 3, **counted per club**: Rock and Blue Whale each have up to 3), view counts
 - Bulk actions: recategorise, bulk publish / unpublish
 

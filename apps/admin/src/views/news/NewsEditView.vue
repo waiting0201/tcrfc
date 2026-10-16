@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, reactive, ref, shallowRef, toRaw, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, reactive, ref, shallowRef, toRaw, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -14,7 +14,6 @@ import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import FocalPointPicker from '@/components/FocalPointPicker.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
-import PageBlockListEditor from '@/components/pageBlocks/PageBlockListEditor.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
@@ -38,7 +37,8 @@ import {
 } from '@/api/adminRelationTargets'
 import { AdminApiError } from '@/api/http'
 import type { AdminArticleDetailDto } from '@/api/adminNews'
-import { NEWS_BLOCK_TYPE_LABEL, NEWS_BODY_BLOCK_TYPES, NEWS_BODY_IMAGE_MIN_WIDTH, type PageBlockState } from '@/types/pageBlocks'
+import { NEWS_BODY_IMAGE_MIN_WIDTH, type PageBlockState } from '@/types/pageBlocks'
+import { pruneEmptyTextBlocks } from '@/utils/newsBodyDoc'
 import { blocksHaveEnglish, PageBlockValidationError, serializeBlocksForSubmit } from '@/utils/pageBlockSerializer'
 import {
   CORE_VALUE_TAG_LABEL,
@@ -56,6 +56,9 @@ import {
 } from '@/types/news'
 import { nowAsPickerDate, pickerDateToUtc } from '@/utils/dateTime'
 import { toFrontendUrl } from '@/composables/useFrontendUrl'
+
+// 文書編輯器（TipTap）體積大，只有進新聞編輯頁才載入，不放進後台主程式包
+const NewsBodyEditor = defineAsyncComponent(() => import('@/components/newsBody/NewsBodyEditor.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -143,7 +146,8 @@ const baselineBlocksJson = ref('[]')
 /** 內文區塊的比對快照。`File` 直接 `JSON.stringify` 會變成 `{}`，換圖不會被偵測到（只換圖、其餘沒動時
  * 會被當成「沒有變更」），所以把檔案換成「名稱＋大小＋修改時間」。 */
 function blocksSnapshot(blocks: PageBlockState[]): string {
-  return JSON.stringify(blocks, (_key, value) =>
+  // 編輯器會留一個可輸入的空段落，不算內容：比對前去掉（存檔時同樣不送）
+  return JSON.stringify(pruneEmptyTextBlocks(blocks), (_key, value) =>
     value instanceof File ? `file:${value.name}:${value.size}:${value.lastModified}` : value)
 }
 const baselineBodyHasEnglish = ref(false)
@@ -439,7 +443,9 @@ function validate(): Record<string, string> {
   if (!form.title.zh.trim()) errors.titleZh = '請輸入中文標題'
   if (!form.urlName.trim()) errors.slug = '請輸入網址名稱'
   // 內文區塊的驗證邏輯在序列化工具裡（一遇到錯就丟例外），逐區塊各跑一次，每個區塊最多標一則錯誤
-  bodyBlocks.value.forEach((block, index) => {
+  // 錯誤鍵用「編輯器裡的區塊索引」（含空段落），序列化用去掉空段落的清單
+  pruneEmptyTextBlocks(bodyBlocks.value).forEach((block) => {
+    const index = bodyBlocks.value.indexOf(block)
     try {
       serializeBlocksForSubmit([block])
     } catch (error) {
@@ -518,9 +524,10 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
   saving.value = true
   try {
     const club = activeClubId.value
-    const serializedBody = serializeBlocksForSubmit(bodyBlocks.value)
+    const submitBlocks = pruneEmptyTextBlocks(bodyBlocks.value)
+    const serializedBody = serializeBlocksForSubmit(submitBlocks)
     const payload = {
-      ...articleToSavePayload(form, blocksHaveEnglish(bodyBlocks.value)),
+      ...articleToSavePayload(form, blocksHaveEnglish(submitBlocks)),
       bodyBlocks: serializedBody.blocks,
     }
     let savedDto: AdminArticleDetailDto
@@ -708,16 +715,11 @@ function retryLoad() {
                     @update:en="(v) => (form.summary.en = v)"
                   />
                 </FormSection>
-                <FormSection title="內容" hint="用區塊組成文章內容，可以調整順序；要在兩段文字之間放圖片，點區塊之間的「在這裡插入」，或用下方「+ 圖片」。圖片寬度至少 800 像素；中英文內容寫在同一個區塊裡，用上方的語言分頁切換。">
-                  <PageBlockListEditor
+                <FormSection title="內容" hint="像文書軟體一樣直接打字；用上方工具列設定小標、清單，並在游標位置插入圖片、圖集或影音。圖片寬度至少 800 像素，選好圖片按儲存才會上傳。中文與英文用上方的語言分頁切換，兩種語言共用同一份段落與圖片的順序。">
+                  <NewsBodyEditor
                     v-model="bodyBlocks"
-                    :allowed-types="NEWS_BODY_BLOCK_TYPES"
-                    :type-labels="NEWS_BLOCK_TYPE_LABEL"
                     :image-min-width="NEWS_BODY_IMAGE_MIN_WIDTH"
-                    :image-min-height="0"
-                    :quick-add-types="['image', 'gallery']"
-                    allow-insert
-                    empty-hint="目前還沒有任何內容，從下方選一種類型開始新增。"
+                    :disabled="isReadOnly"
                   />
                 </FormSection>
                 <FormSection title="關聯">
