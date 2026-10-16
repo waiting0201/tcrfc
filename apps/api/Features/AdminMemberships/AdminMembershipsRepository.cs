@@ -4,6 +4,7 @@ using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.AdminMembers;
+using Tcrfc.Api.Features.MembershipPayments;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -348,6 +349,13 @@ public sealed class AdminMembershipsRepository(
             .Select(c => (Guid?)c.Id).FirstOrDefaultAsync(cancellationToken) ?? scope.ClubId;
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        // 🔴 與線上開通（MembershipActivationService）同一把鎖（E-338）：客服連點兩次、或客服開通撞上會員剛完成付款，
+        // 「查重複 → 新增付款紀錄」都不能靠讀取阻塞（RCSI 下讀不到對方未提交的列）。拿不到鎖＝另一個開通正在進行，回 409。
+        if (!await SqlAppLocks.TryAcquireAsync(db, transaction, MembershipGrantLock.Resource(member.Id, scope.ClubId, plan.SeasonId), 15_000, cancellationToken))
+        {
+            throw new AdminConflictException("開通處理中", "這位會員的會籍正在開通，請稍後重新整理確認結果。", "planId");
+        }
+
         var now = DateTime.UtcNow;
         var membership = await db.Memberships
             .FirstOrDefaultAsync(m => m.MemberId == member.Id && m.ClubId == scope.ClubId && m.SeasonId == plan.SeasonId, cancellationToken);

@@ -27,6 +27,19 @@ public sealed class AdminShopOrdersTests(AdminWriteApiFixture fixture)
         }
     }
 
+    private sealed class SlowInvoiceIssuer : Tcrfc.Api.Features.Shop.IInvoiceIssuer
+    {
+        public static int Calls;
+        public bool IsConfigured => true;
+
+        public async Task<Tcrfc.Api.Features.Shop.InvoiceIssueResult> IssueAsync(Tcrfc.Api.Features.Shop.InvoiceIssueRequest request, CancellationToken cancellationToken)
+        {
+            Interlocked.Increment(ref Calls);
+            await Task.Delay(300, cancellationToken); // 拉長「呼叫加值中心」的窗口，讓競態穩定出現
+            return new Tcrfc.Api.Features.Shop.InvoiceIssueResult(true, "ZZ" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant(), null);
+        }
+    }
+
     private const string Orders = "/api/v1/admin/tcrfc/shop/orders";
 
     private static async Task<AdminOrderDetailDto> GetOrderAsync(HttpClient client, Guid id, string club = "tcrfc")
@@ -34,6 +47,42 @@ public sealed class AdminShopOrdersTests(AdminWriteApiFixture fixture)
 
     private static async Task<AdminRefundDetailDto> RefundAsync(HttpClient client, Guid id)
         => await BizTest.ReadAsync<AdminRefundDetailDto>(await client.GetAsync($"/api/v1/admin/tcrfc/shop/refunds/{id}"));
+
+    // ═════════════ 發票開立不得重複（E-338） ═════════════
+
+    /// <summary>付款確認的贏家與重試作業可能同時開同一張發票；「讀到未開立 → 呼叫加值中心 → 寫回」不串行化會重複開立。</summary>
+    [Fact]
+    public async Task 發票開立_多個路徑並行_加值中心只被呼叫一次_只有一個拿到號碼()
+    {
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
+        var made = await ShopTest.CreateProductAsync(admin, "tcrfc", "invrace", ("M", 100, 5));
+        try
+        {
+            var order = await ShopTest.CreateOrderAsync(service, "tcrfc", "onsite_pickup", (made.Variants[0].Id, 1));
+            await BizTest.ExecuteSqlAsync("INSERT INTO store_invoices (club_id, order_id) SELECT club_id, id FROM orders WHERE id = @O", ("@O", order.Id));
+            Interlocked.Exchange(ref SlowInvoiceIssuer.Calls, 0);
+            using var factory = fixture.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
+            {
+                services.RemoveAll<Tcrfc.Api.Features.Shop.IInvoiceIssuer>();
+                services.AddSingleton<Tcrfc.Api.Features.Shop.IInvoiceIssuer, SlowInvoiceIssuer>();
+            }));
+
+            var results = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(async () =>
+            {
+                await using var scope = factory.Services.CreateAsyncScope();
+                return await scope.ServiceProvider.GetRequiredService<Tcrfc.Api.Features.Shop.ShopInvoiceService>().TryIssueAsync(order.Id, default);
+            })));
+
+            Assert.Equal(1, Volatile.Read(ref SlowInvoiceIssuer.Calls));
+            Assert.Equal(1, results.Count(r => r is not null));
+            Assert.Equal(1, await ShopTest.CountAsync("SELECT COUNT(*) FROM store_invoices WHERE order_id = @O AND issue_status = 'issued' AND invoice_no IS NOT NULL", ("@O", order.Id)));
+        }
+        finally
+        {
+            await ShopTest.CleanupAsync(made.ProductId);
+        }
+    }
 
     // ═════════════ S3：建立、流程、快照 ═════════════
 

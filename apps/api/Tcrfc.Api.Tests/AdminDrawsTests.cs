@@ -137,6 +137,32 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
 
     // ═════════════ 名單快照 ═════════════
 
+    /// <summary>E-338：兩位管理者同時按「產生名單」。狀態檢查在交易外，輸家以前靠 (活動, 版本) 唯一鍵炸成 500；現在鎖住活動列重讀後回 409。</summary>
+    [Fact]
+    public async Task 合格名單_並行產生_只有一個成功_其餘409_只留下一版名單_不得500()
+    {
+        using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
+        var restore = await C1Test.SnapshotSettingsAsync("tcrfc", "member.draw_notice%");
+        var code = NewCode();
+        try
+        {
+            await C1Test.PutJsonAsync(service, $"{Draws}/notice", new { confirmed = true });
+            var draw = await NewDrawAsync(service, code);
+
+            var responses = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => Task.Run(() => C1Test.PostJsonAsync(service, $"{Draws}/{draw.Id}/roster", new { }))));
+            var codes = string.Join(",", responses.Select(r => (int)r.StatusCode));
+
+            Assert.True(responses.All(r => r.StatusCode is HttpStatusCode.OK or HttpStatusCode.Conflict), codes);
+            Assert.True(responses.Count(r => r.StatusCode == HttpStatusCode.OK) == 1, codes);
+            Assert.Equal(1, await ShopTest.CountAsync("SELECT COUNT(*) FROM draw_roster_versions WHERE member_draw_id = @D", ("@D", draw.Id)));
+        }
+        finally
+        {
+            await restore();
+            await CleanupAsync(code);
+        }
+    }
+
     [Fact]
     public async Task 合格名單_蒐集告知與活動辦法前置_試算_序號依會員編號_雜湊_作廢重產保留舊版()
     {

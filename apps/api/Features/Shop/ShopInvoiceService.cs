@@ -43,6 +43,27 @@ public sealed class ShopInvoiceService(
     /// <summary>開立這張（已付款）訂單的發票。冪等：已開立直接回傳號碼；沒有發票資料列回 null。</summary>
     public async Task<string?> TryIssueAsync(Guid orderId, CancellationToken cancellationToken)
     {
+        // 🔴 同一張訂單的開立以應用程式鎖串行化（E-338）：付款確認的贏家與重試作業可能同時走到這裡，
+        // 「讀到未開立 → 呼叫加值中心 → 寫回」不串行化會對加值中心重複開立。RCSI 下讀取不會被另一方的寫入擋住。
+        // 拿不到鎖＝別的路徑正在開這一張，回 null（呼叫端視同「尚未開立」，重試作業稍後會看到結果）。
+        if (db.Database.CurrentTransaction is not null)
+        {
+            return await TryIssueCoreAsync(orderId, cancellationToken);
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        if (!await SqlAppLocks.TryAcquireAsync(db, transaction, $"shop-invoice:{orderId:N}", 0, cancellationToken))
+        {
+            return null;
+        }
+
+        var result = await TryIssueCoreAsync(orderId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    private async Task<string?> TryIssueCoreAsync(Guid orderId, CancellationToken cancellationToken)
+    {
         var invoice = await db.StoreInvoices.AsNoTracking().Where(i => i.OrderId == orderId).OrderByDescending(i => i.CreatedAt).FirstOrDefaultAsync(cancellationToken);
         if (invoice is null)
         {

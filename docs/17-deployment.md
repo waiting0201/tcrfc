@@ -522,6 +522,7 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 - **事實**：Azure SQL Database 新建資料庫預設 `READ_COMMITTED_SNAPSHOT = ON`（**未在本專案正式庫實測，待使用者確認**）；SQL Server 2022 容器（本機與 CI）預設 **OFF**。OFF 時讀取要等並行寫入釋放鎖，兩邊互等就是死結——結帳「讀購物車」對上另一個並行請求「清購物車」的 X 鎖，是 CI 結帳並行測試偶發 500 的真因（SQL 1205，重現並取得死結圖，見 `E-337`）。
 - **決定**：本機與 CI 的測試庫一律開 RCSI，與正式庫行為一致。`deploy/local-ddl.sh` 的 `ensure_rcsi` 在每一條建庫路徑（`--apply`、`--apply-club-db`／`--apply-charity-db`，含 `--recreate`）之後執行 `ALTER DATABASE … SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE`（已開則不動）。`setup-club-db.sh`、CI 的建庫步驟都走這支，主站（`tcrfc_club`）與慈善（`tcrfc_charity`）兩庫一視同仁。`MigrationsOnBlankDatabaseTests` 與 `schema-drift-check.sh`／`prod-schema-compare.sh` 的一次性庫只驗結構、沒有並行，不開（RCSI 在 Schema Compare 只列於 `ENV|`，不影響比對）。
 - **程式不得依賴 RCSI 才正確**：RCSI 只降低死結機率，不能消除（寫對寫仍可能死結）。`ShopOrderService.CheckoutAsync` 以單一重試點涵蓋整筆結帳的死結犧牲者（1205），以同一冪等鍵重來。
+- **程式也不得依賴 RCSI 關閉的語意（`E-338`）**：RCSI 開啟時，讀取不會被並行寫入擋住——任何「讀 → 判斷 → 寫」都要有鎖、條件式 UPDATE 或唯一索引保護。稽核與修正結果見 `docs/18` E-338；測試庫由 `RcsiGuard`（`Tcrfc.Api.Tests/Fixtures/RcsiGuard.cs`）在 fixture 啟動時斷言 RCSI 為開，關著就整套失敗。
 - **使用者請在正式庫確認（唯讀）**：`SELECT name, is_read_committed_snapshot_on FROM sys.databases;`——`tcrfc_club`、`tcrfc_charity` 兩列應為 `1`。若為 `0`，用 `ALTER DATABASE [<庫名>] SET READ_COMMITTED_SNAPSHOT ON;`（會短暫等待連線，建議離峰）。
 
 ### 資料庫層級與容量

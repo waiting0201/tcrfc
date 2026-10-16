@@ -167,6 +167,32 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
 
     // ═════════════ 開通與續會 ═════════════
 
+    /// <summary>E-338：客服連點或兩位客服同時送出同一筆開通。「查重複 → 新增付款紀錄」不能靠讀取阻塞（RCSI 下讀不到對方未提交的列）。</summary>
+    [Fact]
+    public async Task 開通_同一筆並行送出_只寫一筆付款紀錄與一張卡_其餘409_不得500()
+    {
+        using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
+        var member = await B1Test.CreateMemberAsync(service, "tcrfc", "activate-race");
+        try
+        {
+            var plan = await B1Test.PlanIdAsync("tcrfc", "2026-27", "standard");
+            var paidOn = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
+            var request = new { memberId = member.Id, planId = plan, paymentMethod = "onsite", amount = 400, paidOn, note = "【測試】並行開通" };
+
+            var responses = await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(() => service.PostAsync("/api/v1/admin/tcrfc/memberships/activate", BizTest.Json(request)))));
+            var codes = string.Join(",", responses.Select(r => (int)r.StatusCode));
+
+            Assert.True(responses.All(r => r.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.Conflict), codes);
+            Assert.True(responses.Count(r => r.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created) == 1, codes);
+            Assert.Equal(1, await ShopTest.CountAsync("SELECT COUNT(*) FROM membership_payments p JOIN memberships m ON m.id = p.membership_id WHERE m.member_id = @M", ("@M", member.Id)));
+            Assert.Equal(1, await ShopTest.CountAsync("SELECT COUNT(*) FROM member_cards c JOIN memberships m ON m.id = c.membership_id WHERE m.member_id = @M AND c.status = 'active'", ("@M", member.Id)));
+        }
+        finally
+        {
+            await B1Test.DeleteMembersAsync(member.Id);
+        }
+    }
+
     [Fact]
     public async Task 開通_建立會籍_層級隨方案_付款紀錄記下受益俱樂部與收款法人_發一張卡_不提供升級()
     {

@@ -60,6 +60,11 @@ internal static class CharityTestDatabaseGuard
         {
             await using var connection = new SqlConnection(connectionString);
             await connection.OpenAsync();
+            await RcsiGuard.AssertEnabledAsync(connection);
+        }
+        catch (RcsiGuard.RcsiDisabledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {

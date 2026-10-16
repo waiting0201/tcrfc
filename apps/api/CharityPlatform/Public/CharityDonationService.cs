@@ -290,6 +290,16 @@ public sealed class CharityDonationService(
         // requested＝正常等待確認；failed＝上一次 Confirm 結果未知（待人工處理的單，允許再確認一次）。cancelled 不可確認。
         if (payment.Status is not (PaymentStatus.Requested or PaymentStatus.Failed))
         {
+            // 上面讀捐款單與這裡讀付款紀錄是兩個獨立語句：並行的另一個確認請求可能剛好在兩者之間提交（donations 與 donation_payments
+            // 同一交易更新）。此時付款紀錄已是 confirmed、捐款單已是 paid——這是「已有定論」的重播，不是衝突。
+            // 不得依賴讀取被寫入擋住（RCSI 下不會擋），所以只能在這裡重讀捐款單判斷。
+            var current = await db.Donations.AsNoTracking()
+                .Where(d => d.Id == donation.Id).Select(d => d.Status).SingleAsync(cancellationToken);
+            if (current is DonationStatus.Paid or DonationStatus.Refunded)
+            {
+                return await GetResultAsync(orderNo, lang, cancellationToken);
+            }
+
             throw new CharityConflictException("付款已取消", "這筆付款已經取消，請重新發起付款。");
         }
 
@@ -516,8 +526,9 @@ public sealed class CharityDonationService(
         var currentRaw = await db.DonationPayments.AsNoTracking().Where(p => p.Id == paymentId).Select(p => p.RawResponse).SingleAsync(CancellationToken.None);
         var merged = MergeConfirmError(currentRaw, reason, now);
 
+        // 條件式：付款紀錄已被並行的確認請求寫成 confirmed 就不能被「結果未知」覆寫回 failed（會讓已入帳的單看起來像待人工處理）。
         await db.DonationPayments
-            .Where(p => p.Id == paymentId)
+            .Where(p => p.Id == paymentId && p.Status != PaymentStatus.Confirmed)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.Status, PaymentStatus.Failed)
                 .SetProperty(p => p.RawResponse, merged)

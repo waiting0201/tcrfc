@@ -47,12 +47,46 @@ public sealed class CharityInvoiceService(
     /// </summary>
     public async Task<InvoiceIssueOutcome> TryIssueAsync(Guid donationId, bool forceFinalFailure, CancellationToken cancellationToken)
     {
+        // 🔴 同一筆捐款的開立以應用程式鎖串行化（E-338）：付款確認的贏家、背景重試工作、後台手動重開三條路徑都會呼叫這裡，
+        // 「讀到 pending → 呼叫加值中心 → 寫回 issued」若不串行化，會對加值中心重複開立同一張憑證。RCSI 下讀取不會被另一方的寫入擋住，
+        // 不能靠讀取阻塞。拿不到鎖＝別的路徑正在開這一張，回 RetryLater（背景工作稍後會看到結果）。
+        return await WithInvoiceLockAsync(donationId, InvoiceIssueOutcome.RetryLater,
+            () => TryIssueCoreAsync(donationId, forceFinalFailure, cancellationToken), cancellationToken);
+    }
+
+    private async Task<T> WithInvoiceLockAsync<T>(Guid donationId, T lockBusyResult, Func<Task<T>> action, CancellationToken cancellationToken)
+    {
+        if (db.Database.CurrentTransaction is not null)
+        {
+            return await action(); // 呼叫端已在自己的交易內：沿用，不巢狀開交易
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        if (!await CharitySqlLocks.TryAcquireAsync(db, transaction, $"charity-invoice:{donationId:N}", 0, cancellationToken))
+        {
+            return lockBusyResult;
+        }
+
+        var result = await action();
+        await transaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    private async Task<InvoiceIssueOutcome> TryIssueCoreAsync(Guid donationId, bool forceFinalFailure, CancellationToken cancellationToken)
+    {
         var donation = await db.Donations
             .Include(d => d.DonationProject).ThenInclude(p => p.DonationProjectsI18ns)
             .Include(d => d.DonationInvoices)
             .SingleOrDefaultAsync(d => d.Id == donationId, cancellationToken);
 
         var invoice = donation?.DonationInvoices.OrderByDescending(i => i.Seq).FirstOrDefault();
+        if (donation is not null && invoice is not null)
+        {
+            // 追蹤中的實體不會被查詢覆寫：同一個 DbContext 先前讀過的舊值要在鎖內重新整理，才是「鎖內的真實狀態」。
+            await db.Entry(donation).ReloadAsync(cancellationToken);
+            await db.Entry(invoice).ReloadAsync(cancellationToken);
+        }
+
         if (donation is null || invoice is null || donation.Status != DonationStatus.Paid)
         {
             return InvoiceIssueOutcome.Skipped;
@@ -118,6 +152,25 @@ public sealed class CharityInvoiceService(
     /// <summary>後台手動重新開立（規劃書 §5.3「失敗重試或手動」）：把失敗的重置回待開立再試一次，仍失敗就維持失敗。</summary>
     public async Task<InvoiceIssueOutcome> ReissueAsync(Guid donationId, CancellationToken cancellationToken)
     {
+        // 與 TryIssueAsync 同一把鎖：「檢查沒開立 → 改回 pending」若被背景工作的開立插在中間，會把已開立的憑證改回 pending 而重複開立。
+        if (db.Database.CurrentTransaction is not null)
+        {
+            return await ReissueCoreAsync(donationId, cancellationToken);
+        }
+
+        await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        if (!await CharitySqlLocks.TryAcquireAsync(db, transaction, $"charity-invoice:{donationId:N}", 0, cancellationToken))
+        {
+            throw new CharityConflictException("憑證處理中", "這筆捐款的憑證正在開立中，請稍候重新整理頁面確認結果。");
+        }
+
+        var outcome = await ReissueCoreAsync(donationId, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return outcome;
+    }
+
+    private async Task<InvoiceIssueOutcome> ReissueCoreAsync(Guid donationId, CancellationToken cancellationToken)
+    {
         var invoice = await db.DonationInvoices
             .Where(i => i.DonationId == donationId)
             .OrderByDescending(i => i.Seq)
@@ -139,6 +192,7 @@ public sealed class CharityInvoiceService(
         await db.SaveChangesAsync(cancellationToken);
 
         // forceFinalFailure=true：手動重開只試一次，失敗就回到失敗狀態讓人看到結果，不要又掛回背景重試。
+        // 已在 ReissueAsync 的鎖內（呼叫端有交易），所以 TryIssueAsync 會沿用而不再取鎖。
         return await TryIssueAsync(donationId, forceFinalFailure: true, cancellationToken);
     }
 

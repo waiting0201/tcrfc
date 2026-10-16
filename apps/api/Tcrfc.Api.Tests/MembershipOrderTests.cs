@@ -154,6 +154,22 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     }
 
     [Fact]
+    public async Task 不同冪等鍵_同一會員同一方案高強度並行_只成立一張未完成訂單_其餘409_不得兩張都成立()
+    {
+        // E-338：「同一會員 × 同一方案只能有一張未完成訂單」沒有資料庫唯一索引，RCSI 下讀取不會被對方未提交的插入擋住；
+        // 不同冪等鍵的並行請求（雙分頁、重複點擊）以前會各建一張，之後兩張都付款就重複扣款。
+        for (var round = 0; round < 8; round++)
+        {
+            var racer = await _scope.CreateVerifiedMemberAsync($"order-diffkey-{round}");
+            var results = await Task.WhenAll(Enumerable.Range(0, 12).Select(_ => Task.Run(() => racer.Client.SendAsync(Create("standard", Key())))));
+            var codes = string.Join(",", results.Select(r => (int)r.StatusCode));
+            Assert.True(results.All(r => r.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict), $"第 {round} 輪：{codes}");
+            Assert.True(results.Count(r => r.StatusCode == HttpStatusCode.Created) == 1, $"第 {round} 輪：{codes}");
+            Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_orders WHERE member_id = @M", ("@M", racer.MemberId)));
+        }
+    }
+
+    [Fact]
     public async Task 別人的訂單一律404_取消後可以重新建立()
     {
         var a = await _scope.CreateVerifiedMemberAsync("order-owner");

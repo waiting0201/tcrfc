@@ -101,6 +101,9 @@ public sealed class ScriptedInvoiceIssuer : IInvoiceIssuer
     public Mode IssueMode { get; set; } = Mode.Ok;
     public bool VoidFails { get; set; }
 
+    /// <summary>模擬加值中心的回應時間（毫秒）。並行測試用它拉長「呼叫加值中心」的窗口，讓競態穩定出現。</summary>
+    public int IssueDelayMilliseconds { get; set; }
+
     public int IssueCalls => _issueCalls;
     public int VoidCalls => _voidCalls;
     public int AllowanceCalls => _allowanceCalls;
@@ -109,6 +112,7 @@ public sealed class ScriptedInvoiceIssuer : IInvoiceIssuer
     public void Reset()
     {
         IssueMode = Mode.Ok;
+        IssueDelayMilliseconds = 0;
         VoidFails = false;
         Interlocked.Exchange(ref _issueCalls, 0);
         Interlocked.Exchange(ref _voidCalls, 0);
@@ -116,15 +120,20 @@ public sealed class ScriptedInvoiceIssuer : IInvoiceIssuer
         Requests.Clear();
     }
 
-    public Task<InvoiceIssueResult> IssueAsync(InvoiceIssueRequest request, CancellationToken cancellationToken)
+    public async Task<InvoiceIssueResult> IssueAsync(InvoiceIssueRequest request, CancellationToken cancellationToken)
     {
         Interlocked.Increment(ref _issueCalls);
         Requests.Enqueue(request);
+        if (IssueDelayMilliseconds > 0)
+        {
+            await Task.Delay(IssueDelayMilliseconds, cancellationToken);
+        }
+
         return IssueMode switch
         {
             Mode.Unavailable => throw new InvoiceIssuerUnavailableException("scripted: unavailable"),
             Mode.Rejected => throw new InvoiceRejectedException("scripted: rejected"),
-            _ => Task.FromResult(new InvoiceIssueResult($"{request.TrackPrefix}-{request.OrderNo}", DateTime.UtcNow, "{\"scripted\":true}")),
+            _ => new InvoiceIssueResult($"{request.TrackPrefix}-{request.OrderNo}", DateTime.UtcNow, "{\"scripted\":true}"),
         };
     }
 

@@ -430,6 +430,35 @@ public sealed class CharityDonationFlowTests(CharityApiFixture fx) : IAsyncLifet
         Assert.Equal(1, await fx.ScalarAsync<int>("SELECT COUNT(*) FROM donation_payments p JOIN donations d ON d.id = p.donation_id WHERE d.order_no = @o AND p.status = N'confirmed'", ("@o", orderNo)));
     }
 
+    /// <summary>
+    /// 壓力版（RCSI 開啟後 CI 才曝光的競態）：捐款單與付款紀錄是兩個獨立讀取，並行的贏家可以剛好提交在兩者之間，
+    /// 輸家讀到「捐款單 pending、付款紀錄 confirmed」。正確結果是所有請求都回 200 與同一個定論，而不是 409「付款已取消」。
+    /// 多輪、較高並行度是為了在慢速 CI 以外也能穩定踩到這個窗口。
+    /// </summary>
+    [Fact]
+    public async Task 確認_多輪高並行_全部回200_每輪只入帳一次_感謝信與開票各一次()
+    {
+        var (_, slug) = await CreateProjectAsync(fx);
+        using var client = fx.CreateClient();
+
+        for (var round = 0; round < 8; round++)
+        {
+            var orderNo = await CreateDonationAsync(client, NewRequest(slug, 500));
+            await StartPaymentAsync(client, orderNo);
+            var tx = await LatestTransactionIdAsync(fx, orderNo);
+            var mailBefore = fx.Mail.Sent.Count(m => m.TemplateCode == "donation_thanks");
+            var invoiceBefore = fx.Invoices.IssueCalls;
+
+            var responses = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => ConfirmAsync(client, orderNo, tx))));
+
+            Assert.All(responses, r => Assert.Equal(HttpStatusCode.OK, r.StatusCode));
+            Assert.Equal(1, await fx.ScalarAsync<int>("SELECT COUNT(*) FROM donations WHERE order_no = @o AND status = N'paid'", ("@o", orderNo)));
+            Assert.Equal(1, await fx.ScalarAsync<int>("SELECT COUNT(*) FROM donation_payments p JOIN donations d ON d.id = p.donation_id WHERE d.order_no = @o AND p.status = N'confirmed'", ("@o", orderNo)));
+            Assert.Equal(mailBefore + 1, fx.Mail.Sent.Count(m => m.TemplateCode == "donation_thanks"));
+            Assert.Equal(invoiceBefore + 1, fx.Invoices.IssueCalls);
+        }
+    }
+
     [Fact]
     public async Task 確認_交易識別碼與捐款單不符_回400_不呼叫金流()
     {
@@ -631,6 +660,30 @@ public sealed class CharityDonationFlowTests(CharityApiFixture fx) : IAsyncLifet
         Assert.NotNull(final.InvoiceNo);
         Assert.Equal(1, fx.Mail.Sent.Count(m => m.TemplateCode == "invoice_issued"));
         Assert.Equal(1, fx.Mail.Sent.Count(m => m.TemplateCode == "donation_thanks")); // 感謝信沒有因為重試而重寄
+    }
+
+    /// <summary>
+    /// 憑證開立「讀 → 呼叫加值中心 → 寫回」若不串行化，付款確認的贏家、背景重試、後台手動重開同時走到這裡會對加值中心重複開立（E-338）。
+    /// 加值中心延遲 300 毫秒讓窗口穩定出現；六個並行的背景作業加一個手動重開，加值中心只能被呼叫一次、通知信只寄一封。
+    /// </summary>
+    [Fact]
+    public async Task 憑證開立_多路徑並行_加值中心只被呼叫一次_憑證通知只寄一封()
+    {
+        var (_, slug) = await CreateProjectAsync(fx);
+        using var client = fx.CreateClient();
+        fx.Invoices.IssueMode = ScriptedInvoiceIssuer.Mode.Unavailable;
+        var orderNo = await CreatePaidDonationAsync(fx, client, slug);
+        Assert.Equal("pending", await fx.ScalarAsync<string>("SELECT i.issue_status FROM donation_invoices i JOIN donations d ON d.id = i.donation_id WHERE d.order_no = @o", ("@o", orderNo)));
+
+        fx.Invoices.IssueMode = ScriptedInvoiceIssuer.Mode.Ok;
+        fx.Invoices.IssueDelayMilliseconds = 300;
+        var callsBefore = fx.Invoices.IssueCalls;
+
+        await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => Task.Run(RunMaintenanceAsync)));
+
+        Assert.Equal(callsBefore + 1, fx.Invoices.IssueCalls);
+        Assert.Equal("issued", await fx.ScalarAsync<string>("SELECT i.issue_status FROM donation_invoices i JOIN donations d ON d.id = i.donation_id WHERE d.order_no = @o", ("@o", orderNo)));
+        Assert.Equal(1, fx.Mail.Sent.Count(m => m.TemplateCode == "invoice_issued"));
     }
 
     [Fact]

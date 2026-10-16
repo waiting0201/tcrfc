@@ -62,16 +62,23 @@ public sealed class MembershipActivationService(ClubDbContext db, IEmailSender e
 
     private async Task<MembershipActivationResultDto> ActivateCoreAsync(Guid orderId, string orderNo, string source, CancellationToken cancellationToken)
     {
+        // 🔴 鎖的粒度是「會員 × 俱樂部 × 球季」而不是單張訂單（E-338）：同一份會籍可能被兩張訂單（不同冪等鍵）或後台客服手動開通同時寫入，
+        // 「讀會籍 → 新增或更新 → 寫付款紀錄」不串行化會重複寫付款紀錄，或在唯一鍵 (member, club, season) 上炸成 500。
+        // 同一張訂單必然落在同一份會籍，所以這把鎖同時涵蓋原本「同一張訂單」的串行化。後台開通（AdminMembershipsRepository.ActivateAsync）取同一個資源名稱。
+        var key = await db.MembershipOrders.AsNoTracking().Where(o => o.Id == orderId)
+            .Select(o => new { o.MemberId, o.ClubId, o.MembershipPlan.SeasonId }).FirstAsync(cancellationToken);
+        var grantLockResource = MembershipGrantLock.Resource(key.MemberId, key.ClubId, key.SeasonId);
+
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         var now = DateTime.UtcNow;
 
-        // 同一張訂單的開通一次只讓一個交易進行（應用程式鎖，交易結束自動釋放）。⚠️ 不能只靠下面的條件式 UPDATE：
+        // 同一份會籍的開通一次只讓一個交易進行（應用程式鎖，交易結束自動釋放）。⚠️ 不能只靠下面的條件式 UPDATE：
         // 並行測試實測會死結——輸家的 UPDATE 先鎖住 PK 索引項目、再等聚集索引的列鎖，而贏家寫付款紀錄時外鍵檢查要 S 鎖同一個 PK 索引項目，
         // 兩邊互等（SQL Server 的索引取鎖順序死結）。先用應用程式鎖排隊，輸家要等贏家提交之後才開始動資料，就不會互相卡住。
         var lockResult = new SqlParameter("@result", SqlDbType.Int) { Direction = ParameterDirection.Output };
         await db.Database.ExecuteSqlRawAsync(
             "EXEC @result = sp_getapplock @Resource = @resource, @LockMode = N'Exclusive', @LockOwner = N'Transaction', @LockTimeout = 15000;",
-            [lockResult, new SqlParameter("@resource", $"membership-activate:{orderNo}")], cancellationToken);
+            [lockResult, new SqlParameter("@resource", grantLockResource)], cancellationToken);
         if (lockResult.Value is int code && code < 0)
         {
             throw new MemberConflictException("處理中", "這張訂單正在開通，請稍後重新整理。", "activation_in_progress");
@@ -174,4 +181,10 @@ public sealed class MembershipActivationService(ClubDbContext db, IEmailSender e
             logger.LogWarning(ex, "會籍開通確認信寄送失敗（訂單 {OrderNo}），會籍已生效。", order.OrderNo);
         }
     }
+}
+
+/// <summary>會籍寫入（線上開通、後台手動開通）共用的應用程式鎖資源名稱：會員 × 俱樂部 × 球季，與 <c>memberships</c> 的唯一鍵同粒度。</summary>
+public static class MembershipGrantLock
+{
+    public static string Resource(Guid memberId, Guid clubId, Guid seasonId) => $"membership-grant:{memberId:N}:{clubId:N}:{seasonId:N}";
 }

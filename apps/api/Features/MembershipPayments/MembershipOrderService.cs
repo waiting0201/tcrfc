@@ -46,6 +46,24 @@ public sealed partial class MembershipOrderService(
             .FirstOrDefaultAsync(p => p.Code == request.PlanCode && p.ClubId == club.ClubId && p.Status == "published", cancellationToken)
             ?? throw new MemberNotFoundException("找不到這個會籍方案。", "plan_not_found");
 
+        // 🔴 「同一會員 × 同一方案同時只能有一張未完成訂單」是跨列的不變量，資料庫沒有對應的唯一索引（冪等鍵的唯一鍵只擋同一把鍵）。
+        // 以應用程式鎖把「查未完成訂單 → 插入」串行化（E-338）：不同冪等鍵的兩個並行請求（雙分頁、重複點擊）否則會各建一張，
+        // 之後兩張都付款就會重複扣款。RCSI 下讀取不會被對方未提交的插入擋住，不能靠讀取阻塞。
+        await using var lockTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        if (!await SqlAppLocks.TryAcquireAsync(db, lockTransaction, $"membership-order:{me.MemberId:N}:{plan.Id:N}", 10_000, cancellationToken))
+        {
+            throw new MemberConflictException("處理中", "你的訂單正在建立，請稍後重新整理。", "order_in_progress");
+        }
+
+        var result = await CreateCoreAsync(me, club, idempotencyKey, request, lang, plan, cancellationToken);
+        await lockTransaction.CommitAsync(cancellationToken);
+        return result;
+    }
+
+    private async Task<(MembershipOrderDto Order, bool Created)> CreateCoreAsync(
+        MemberIdentity me, ClubScope club, string idempotencyKey, CreateMembershipOrderRequest request, string lang, MembershipPlan plan, CancellationToken cancellationToken)
+    {
+
         // 先查冪等鍵：同一鍵重送，內容相同回原訂單，內容不同是用戶端的錯。
         var existing = await OrdersWithDetail().FirstOrDefaultAsync(o => o.MemberId == me.MemberId && o.IdempotencyKey == idempotencyKey, cancellationToken);
         if (existing is not null)

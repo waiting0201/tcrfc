@@ -317,6 +317,15 @@ public sealed partial class AdminDrawsRepository(
 
         var now = DateTime.UtcNow;
         await using var tx = await db.Database.BeginTransactionAsync(cancellationToken);
+        // 🔴 鎖住活動列後重讀狀態（E-338）：上面的狀態檢查在交易外，兩個管理者同時按「產生名單」會都通過檢查，
+        // 後到的人最後靠 (活動, 版本) 唯一鍵炸成 500。RCSI 下讀取不會等對方，必須用鎖序列化，輸家重讀到新狀態後回 409。
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM member_draws WITH (UPDLOCK, ROWLOCK) WHERE id = {id}", cancellationToken);
+        await db.Entry(draw).ReloadAsync(cancellationToken);
+        if (draw.Status != (regenerate ? "roster_locked" : "draft"))
+        {
+            throw new AdminConflictException("名單已被產生", "這個活動的名單剛剛已經被產生或狀態已改變，請重新整理後再確認。");
+        }
+
         if (regenerate)
         {
             var current = await db.DrawRosterVersions.FirstAsync(v => v.MemberDrawId == id && v.RosterVersion == draw.RosterVersion, cancellationToken);
