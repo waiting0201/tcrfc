@@ -61,6 +61,9 @@ public sealed record ShopProductListItemDto
     public string? CollectionName { get; init; }
     public required IReadOnlyList<string> Tags { get; init; }
     public required bool IsNewArrival { get; init; }
+
+    /// <summary>true＝這項商品適用商店會員折扣（持有該俱樂部有效會籍者結帳時自動享有，與促銷價不疊加、取低）。價格欄位一律是未折扣的原價／促銷價。</summary>
+    public required bool MemberDiscountEligible { get; init; }
     public string? ImageUrl { get; init; }
     public string? ImageThumbUrl { get; init; }
 
@@ -126,6 +129,9 @@ public sealed record ShopProductDetailDto
     public string? CollectionName { get; init; }
     public required IReadOnlyList<string> Tags { get; init; }
     public required bool IsNewArrival { get; init; }
+
+    /// <summary>true＝這項商品適用商店會員折扣（持有該俱樂部有效會籍者結帳時自動享有，與促銷價不疊加、取低）。價格欄位一律是未折扣的原價／促銷價。</summary>
+    public required bool MemberDiscountEligible { get; init; }
     public JsonElement? SizeChart { get; init; }
     public required IReadOnlyList<ShopImageDto> Images { get; init; }
     public required IReadOnlyList<ShopVariantDto> Variants { get; init; }
@@ -163,8 +169,18 @@ public sealed record ShopCartItemDto
     public int? ImageHeight { get; init; }
     public string? ImageAlt { get; init; }
     public required int ListPrice { get; init; }
+
+    /// <summary>實際單價：已含促銷價／會員折扣（兩者不疊加、取較低價）。</summary>
     public required int UnitPrice { get; init; }
+
+    /// <summary>true＝促銷價生效且就是實際單價（會員折扣價更低時為 false，改看 <see cref="MemberDiscountApplied"/>）。</summary>
     public required bool OnSale { get; init; }
+
+    /// <summary>true＝這一列套用了會員折扣（會員折扣價低於原價／促銷價）。</summary>
+    public required bool MemberDiscountApplied { get; init; }
+
+    /// <summary>這一列因會員折扣少收的金額（單價差 × 數量）；沒有套用為 0。</summary>
+    public required int MemberDiscountAmount { get; init; }
     public required int Quantity { get; init; }
     public required int LineTotal { get; init; }
     public required int AvailableQty { get; init; }
@@ -194,7 +210,15 @@ public sealed record ShopCartDto
     public required string ClubCode { get; init; }
     public required IReadOnlyList<ShopCartItemDto> Items { get; init; }
     public required int ItemCount { get; init; }
+
+    /// <summary>小計（已是折後金額，不含運費）。</summary>
     public required int Subtotal { get; init; }
+
+    /// <summary>本次購物車因會員折扣少收的總額（含在小計之內）；沒有為 0。</summary>
+    public required int MemberDiscountTotal { get; init; }
+
+    /// <summary>目前登入會員在這個俱樂部可享的商店會員折扣比例（0–100 的整數百分比）；訪客、僅註冊帳號或方案無折扣為 <c>null</c>。用於提示「會員折扣 X%（適用商品）」。</summary>
+    public int? MemberDiscountPercent { get; init; }
     public required ShopCartShippingDto Shipping { get; init; }
     public required bool CanCheckout { get; init; }
 }
@@ -252,9 +276,14 @@ public sealed record ShopOrderItemDto
     public required string ProductName { get; init; }
     public string? VariantLabel { get; init; }
     public required string Sku { get; init; }
+
+    /// <summary>成交單價：已是折後值（促銷價／會員折扣取低），發票明細、退款都用它。</summary>
     public required int UnitPrice { get; init; }
     public required int Quantity { get; init; }
     public required int LineTotal { get; init; }
+
+    /// <summary>這一列因會員折扣少收的金額（含在 <see cref="LineTotal"/> 的折後值內）；沒有為 0。</summary>
+    public required int MemberDiscountAmount { get; init; }
 }
 
 public sealed record ShopOrderInvoiceDto
@@ -302,6 +331,9 @@ public sealed record ShopOrderDto
     public required string DeliveryMethod { get; init; }
     public required string DeliveryMethodLabel { get; init; }
     public required int Subtotal { get; init; }
+
+    /// <summary>整張訂單因商店會員折扣少收的總額（已含在 <see cref="Subtotal"/> 的折後金額內，不是另一個扣除項）；沒有為 0。</summary>
+    public required int MemberDiscountAmount { get; init; }
     public required int ShippingFee { get; init; }
     public required int Total { get; init; }
     public required IReadOnlyList<ShopOrderItemDto> Items { get; init; }

@@ -3569,3 +3569,17 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - `/en/` 孿生路由共用同一份檔案，自動套用。未新增任何客戶可見文案。
 - 防呆：`scripts/check-has-score.mjs`（`npm run lint:has-score`，已掛 `npm run lint`）驗證 `hasScore` 邊界值，並靜態檢查兩頁印比分處都有把關、首頁篩選含 `hasScore`。
 - 未驗證：未用真實 API／藍鯨 21 場資料渲染，只做單元式腳本與建置；`check-club-brand-leak.mjs` 在未帶站名環境變數的本機容器會因 `og:site_name=TCRFC` 全站命中，與本次無關。
+
+## 客戶文件對齊（主站 v3.29／藍鯨 v1.12，2026-10-16，`frontend-architect`，STATUS `CF-3b`／`3c`／`3d`／`4`／`6`）
+
+契約輸入是 `apps/api/README.md` 末段「客戶文件對齊」。前台落點：
+- **核心價值四項**：`shared/utils/core-values.ts` 的說明＝客戶 2.3 原文（首頁卡片取 `desc`＝第一段、2.3 足球理念頁放 `paragraphs` 全文）；英文在 `club-copy-en-core.ts` 的 `CORE_VALUE_DESCRIPTIONS_EN`／`PHILOSOPHY_BODY_EN`。舊五個代碼一律是舊規格。`.values-grid--4`／`--2` 是 `tcrfc.css` 新增的欄數修飾。
+- **隊別**：磐石梯隊 U10／U12／U14／U16／U18 的單一來源仍是後端 `squadCodes`（`site-facts.ts` 只是備援）；4.2 分頁沒有「其他年齡層」；4.3 三階段由 `getAcademyPathwayStages()` 提供（藍鯨維持 U12→U15→一線隊）。`/schedule/u15/` 對磐石是 unknown→302，由 `scripts/check-schedule-route.mjs` 鎖住。
+- **會籍**：註冊帳號不是會籍。會員中心 `MemberMemberships.vue` 三種狀態（未持有／持有基礎方案／持有高階方案），購買與到期續約共用 `MemberPlanPicker.vue`（只送 `created` 申請，不收款）；**有效期間內不顯示升級入口**；方案名稱與層級標籤一律取 API，藍鯨不套磐石的兩級命名。權益對照表 `MembershipBenefits.vue` 以方案為欄（`/membership/benefits` 新形狀，無 `planCode` 參數）。`/zh/member/upgrade/` 網址為深連結與外流網址相容而保留，頁面改稱「會籍方案」。
+- **商店會員折扣**：前台只顯示 API 回的 `unitPrice`／`memberDiscountTotal`／`memberDiscountAmount`，**不自己算折扣價**（docs/14）。
+- **4.4 課程與課綱**：`academy/curriculum.vue` 磐石讀 CMS 固定頁（`useCmsPage` 新增 `slots`＝與後台區塊順序一一對應，空欄位不會讓後面的小標錯位）；藍鯨維持通用頁。
+- **5.5 合作學校**：`usePartnerList({ type: '教育夥伴' })`。
+- **聯絡地址**：`contact.address`（獨立設定）與場地地址不得互相借用；英文讀 `addressEn`。
+- 🔴 **種子同步**：`db/seed/page_seed_content.json` 的 `about/philosophy` 與 `academy/curriculum` 來源已是前台 `core-values.ts`／`academy-curriculum.ts`；`npm run lint:page-seed-sync` 驗證 extract 重產結果與 json 逐位元一致。
+- 未驗證：會員中心登入後畫面、購物車／結帳折扣顯示（需真 API 與會員／會籍資料）；只做 SSR 假 API 掃描與 build。
+- 已知殘留：`charity/commitment.vue` 的備援文案已改為「在地驕傲／四大核心價值」，但種子 `extract.ts` 內 `commitment` 的原文仍寫「Community 社區共好／五大核心價值」（改它會讓 `page_seed_content.json` 與 `db/prod` 種子 manifest 失準，需後端一併重產），待後續處理。

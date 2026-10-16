@@ -86,6 +86,8 @@ const hrefOf = (h: string) => (h.startsWith('/zh/') || h.startsWith('/en/') ? lp
 </template>
 
 <style>
+/* 內文單一換行（如「小標\n內文」）保留顯示；段落仍以空行拆成多個 <p>（normalizePageBlocks） */
+.pb .prose p, .pb-list li{ white-space:pre-line; }
 .pb-textimage, .pb-gallery, .pb-video, .pb-faq, .pb-file{ margin-block:1.5rem; }
 .pb-textimage{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:clamp(1.25rem,3vw,2.5rem); align-items:start; }
 .pb-textimage--right .pb-figure{ order:2; }

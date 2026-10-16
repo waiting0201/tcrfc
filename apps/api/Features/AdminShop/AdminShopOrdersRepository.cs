@@ -21,7 +21,7 @@ public sealed record OrderFilter(
 /// </summary>
 public sealed class AdminShopOrdersRepository(
     ClubDbContext db, IPermissionChecker permissions, SensitiveActionLogger audit, InventoryService inventory,
-    ShopOrderLifecycle lifecycle, ShopSettingsReader shopSettings, Shop.ShopInvoiceService invoiceService)
+    ShopOrderLifecycle lifecycle, ShopSettingsReader shopSettings, Shop.ShopInvoiceService invoiceService, Shop.MemberDiscountService memberDiscounts)
 {
     private const int ExportRowLimit = 20000;
 
@@ -162,7 +162,7 @@ public sealed class AdminShopOrdersRepository(
         return new AdminOrderDetailDto
         {
             Id = order.Id, OrderNo = order.OrderNo, CreatedAt = order.CreatedAt, PaidAt = order.PaidAt, CompletedAt = order.CompletedAt,
-            CancelledAt = order.CancelledAt, CancelReason = order.CancelReason, Subtotal = order.Subtotal, ShippingFee = order.ShippingFee, Total = order.Total,
+            CancelledAt = order.CancelledAt, CancelReason = order.CancelReason, Subtotal = order.Subtotal, MemberDiscountAmount = order.MemberDiscountAmount, ShippingFee = order.ShippingFee, Total = order.Total,
             LinepayTransactionId = order.LinepayTransactionId, PaymentStatus = order.PaymentStatus,
             PaymentStatusLabel = ShopLabels.Of(ShopLabels.PaymentStatus, order.PaymentStatus), PaymentMethod = order.PaymentMethod,
             PaymentMethodLabel = ShopLabels.Of(ShopLabels.PaymentMethod, order.PaymentMethod), OrderStatus = order.OrderStatus,
@@ -180,7 +180,7 @@ public sealed class AdminShopOrdersRepository(
             Items = order.OrderItems.OrderBy(i => i.RowSeq).Select(i => new AdminOrderItemDto
             {
                 Id = i.Id, VariantId = i.ProductVariantId, ProductName = i.ProductNameSnapshot, VariantLabel = i.VariantLabelSnapshot, Sku = i.SkuSnapshot,
-                UnitPrice = i.UnitPriceSnapshot, Quantity = i.Quantity, LineTotal = i.LineTotal, RefundedQuantity = refundedByItem.GetValueOrDefault(i.Id),
+                UnitPrice = i.UnitPriceSnapshot, Quantity = i.Quantity, LineTotal = i.LineTotal, MemberDiscountAmount = i.MemberDiscountAmount, RefundedQuantity = refundedByItem.GetValueOrDefault(i.Id),
             }).ToList(),
             Shipment = shipment is null ? null : ToShipmentDto(shipment),
             Invoice = invoice is null ? null : ToInvoiceDto(invoice, canReveal),
@@ -266,10 +266,12 @@ public sealed class AdminShopOrdersRepository(
         }
 
         var variantIds = lines.Select(l => l.VariantId).ToList();
+        // 會員折扣（v3.29）：現場建單指定了會員，且該會員在本俱樂部持有有效會籍，同樣依「適用會員折扣」商品套用（與前台結帳同一個計價函式：與促銷價不疊加、取低）。
+        var memberDiscount = await memberDiscounts.ResolveAsync(memberId, scope.ClubId, cancellationToken);
         var variants = await db.ProductVariants.AsNoTracking().Where(v => variantIds.Contains(v.Id) && v.ClubId == scope.ClubId)
             .Select(v => new
             {
-                Variant = v, ProductSlug = v.Product.Slug,
+                Variant = v, ProductSlug = v.Product.Slug, DiscountEligible = v.Product.MemberDiscountEligible,
                 ProductName = v.Product.ProductsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
             }).ToListAsync(cancellationToken);
         if (variants.Count != lines.Count)
@@ -294,13 +296,14 @@ public sealed class AdminShopOrdersRepository(
         var items = lines.Select(l =>
         {
             var v = variants.First(x => x.Variant.Id == l.VariantId);
-            var price = v.Variant.SalePrice ?? v.Variant.Price;
+            var priced = Shop.MemberDiscountService.Compute(v.Variant.Price, v.Variant.SalePrice, v.DiscountEligible, memberDiscount);
+            var price = priced.UnitPrice;
             return new OrderItem
             {
                 Id = Guid.NewGuid(), ClubId = scope.ClubId, OrderId = orderId, ProductVariantId = v.Variant.Id,
                 ProductNameSnapshot = v.ProductName ?? v.ProductSlug, VariantLabelSnapshot = AdminShopProductsRepository.VariantLabel(v.Variant.Size, v.Variant.Colour) is { Length: > 0 } label ? label : null,
                 SkuSnapshot = v.Variant.Sku, UnitPriceSnapshot = price, Quantity = l.Quantity, LineTotal = price * l.Quantity,
-                CreatedAt = now, UpdatedAt = now, CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
+                MemberDiscountAmount = priced.MemberDiscountPerUnit * l.Quantity, CreatedAt = now, UpdatedAt = now, CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
             };
         }).ToList();
         var subtotal = items.Sum(i => i.LineTotal);
@@ -311,6 +314,7 @@ public sealed class AdminShopOrdersRepository(
             Id = orderId, OrderNo = await NewOrderNoAsync(scope.ClubCode, cancellationToken), ClubId = scope.ClubId, SellingClubId = scope.ClubId, CollectingClubId = collecting,
             MemberId = memberId, LookupToken = SecureToken.Generate(), RecipientName = name, RecipientPhone = phone, RecipientAddress = address,
             Subtotal = subtotal, ShippingFee = shippingFee, Total = subtotal + shippingFee, PaymentStatus = "paid", PaymentMethod = "onsite",
+            MemberDiscountAmount = items.Sum(i => i.MemberDiscountAmount), MemberDiscountPlanId = items.Any(i => i.MemberDiscountAmount > 0) ? memberDiscount?.PlanId : null,
             OrderStatus = completed ? ShopLabels.Completed : ShopLabels.Paid, DeliveryMethod = request.DeliveryMethod, IsManual = true, PaidAt = now,
             CompletedAt = completed ? now : null, CustomerNote = customerNote, InternalNote = internalNote, SettlementStatus = "pending",
             CreatedAt = now, UpdatedAt = now, CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,

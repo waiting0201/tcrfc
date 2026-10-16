@@ -74,8 +74,8 @@
 
 | 資料 | 內容 | 怎麼用 |
 |---|---|---|
-| 會員 `M900101`（`jersey-single@example.com`） | tcrfc 2026-27 單人方案、有效付費會籍、球衣 0／1 件 | 登入後在會員中心登記球衣，登記第二件會被擋（`jersey_quota_reached`） |
-| 會員 `M900102`（`jersey-family@example.com`） | tcrfc 2026-27 家庭方案、有效付費會籍、球衣 0／3 件 | 走滿三件、修改（`pending` 才可改）、超量被擋 |
+| 會員 `M900101`（`jersey-single@example.com`） | tcrfc 2026-27 尊尚會員（`premium`）方案、有效會籍、球衣 0／1 件（v3.29：原「單人」方案已由磐石會員／尊尚會員取代） | 登入後在會員中心登記球衣，登記第二件會被擋（`jersey_quota_reached`） |
+| 會員 `M900102`（`jersey-family@example.com`） | tcrfc 2026-27 尊尚會員方案、有效會籍、球衣 0／1 件（v3.29：家庭方案已移除，兩位驗收會員額度相同） | 登記、修改（`pending` 才可改）、超量被擋；要試多件請在後台暫時建一個含多件球衣的方案 |
 | 漫畫第 101、102 集 | tcrfc、已發布、各 3 頁（800×1200），102 為最新 | 前台 `/zh/culture/manga/`（閱讀器、上下集導覽、閱讀數） |
 
 - 登入密碼與其他種子會員相同（`ContentEditor@123`，僅本機）。既有 `M900001`／`M900002` 的球衣額度已用滿或剩 1 件，不足以走完整條路，故另建。
@@ -388,7 +388,7 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 | 媒體專區 B6 | `press_resources`／`press_resources_i18n` | 3（三類各一，**draft＋佔位檔案鍵 `seed-placeholder/no-file`**，公開端點不會顯示） | — | **全測試** |
 | 榮譽 C5 | `achievements` | 3（一線隊 D1，2024–2026） | — | **全測試**（里程碑既有真實種子，未動） |
 | 試訓 P4（B1 新增，2026-09-30） | `trials`／`trials_i18n`／`registrations`（`trial_id`） | 場次 2（一線隊：1 場開放、1 場已結束）＋報名 3／藍鯨 U15 場次 1＋報名 1 | 場次 1＋報名 1（見左） | **全測試**（報名者【測試】前綴、電話全 0、`@example.com`；`enrolled_count` 與報名狀態一致） |
-| 會員系統 K1–K3（B1 新增） | `members`／`memberships`／`member_cards`／`membership_payments`／`membership_plans`(+`_i18n`)／`jersey_issues` | 方案 2（單人、家庭）；會員 7 位涵蓋雙會籍、現場入會、未驗證、停用、疑似重複帳號、即將到期；會籍 8、卡 9、付款 4、球衣 4 | 方案 1；藍鯨會籍 2（皆已到期球季 2025） | **全測試**（會員編號 `M900001`–`M900007`、姓名【測試】、Email `@example.com`；即將到期的示範會籍到期日 2026-10-15 是固定日期，過了就變成已到期） |
+| 會員系統 K1–K3（B1 新增） | `members`／`memberships`／`member_cards`／`membership_payments`／`membership_plans`(+`_i18n`)／`jersey_issues` | 方案 2（磐石會員 NT$400、尊尚會員 NT$2,400，客戶 8.2，v3.29）；會員 7 位涵蓋雙會籍、現場入會、未驗證、停用、疑似重複帳號、即將到期、**僅註冊帳號（M900006，沒有會籍）**；會籍 7（含 M900004 待確認、M900007 已取消）、球衣 4（不含驗收會員 M900101／102；註冊帳號不再有「一般會員」會籍） | 方案 1；藍鯨會籍 1（M900001，已到期球季 2025） | **全測試**（會員編號 `M900001`–`M900007`、姓名【測試】、Email `@example.com`；即將到期的示範會籍到期日 2026-10-15 是固定日期，過了就變成已到期） |
 | 特約店家與權益 K4 | `partner_stores`(+`_i18n`)／`membership_benefits`(+`_i18n`) | 店家 4（含 1 家草稿）＋兩隊共同 1；權益 6 條（四個分組） | 店家 1 | **全測試**（座標為台中市區近似值，非真實店家；沒有圖片） |
 | 行事曆設定 L3（B1 新增） | `settings`：`calendar.*`／`member.no_*`；`calendar_team_settings`(+`_i18n`) | 預設檢視、範圍、隊別、試訓同步（關閉）；`D1` 顯示名稱與代表色 | 同左；`BW1` 顯示名稱與代表色、`BW-U12` 不公開（示範） | 顯示名稱與色碼是**測試值**（色碼取自既有隊徽色，非正式定案） |
 

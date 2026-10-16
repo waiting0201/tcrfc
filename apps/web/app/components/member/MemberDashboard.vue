@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // app/components/member/MemberDashboard.vue — 登入後的會員中心（主站 §3.14「前台功能」）
 //
-// 五個分頁：我的會籍（含升級續會與權益對照）／電子會員卡／我的訂單（站內商店，S3-5）／球衣登記／個人資料與安全。
+// 五個分頁：我的會籍（含購買會籍、到期續約與權益對照；v3.29 不提供升級）／電子會員卡／我的訂單（站內商店，S3-5）／球衣登記／個人資料與安全。
 // 特約店家清單是公開頁（8.4），這裡只放入口。**不做**「我的報名」「我的抽獎」：主站 §3.14 明文網頁前台不納入
 // （報名歸戶是行動 App 的功能）；「我的訂單」是站內商店 8.3 的會員入口（`MemberOrders.vue`）。
 import { toMemberApiError } from '#shared/utils/member'
@@ -76,7 +76,7 @@ async function onLogout() {
     </div>
 
     <p v-if="member && !member.emailVerified" class="mc-alert mc-alert--info" role="status">
-      {{ tx('您的 Email 尚未驗證，部分功能（例如送出升級申請）需要先完成驗證。', 'Your email address has not been verified yet. Some features, such as submitting an upgrade request, require verification first.') }}
+      {{ tx('您的 Email 尚未驗證，部分功能（例如送出會籍申請）需要先完成驗證。', 'Your email address has not been verified yet. Some features, such as submitting a membership request, require verification first.') }}
     </p>
     <p v-if="error" class="mc-alert mc-alert--error" role="alert">{{ error }}</p>
 
@@ -100,7 +100,7 @@ async function onLogout() {
       <div class="mc-benefits-wrap"><ContentMembershipBenefits /></div>
     </div>
     <div v-show="tab === 'cards'" id="mpanel-cards" role="tabpanel" aria-labelledby="mtab-cards" tabindex="0">
-      <MemberCards :cards="cards" @changed="loadCards" />
+      <MemberCards :cards="cards" @changed="loadCards" @go-memberships="select('memberships')" />
       <p class="mc-note">{{ tx('想找哪裡可以使用？', 'Wondering where to use it? ') }}<a :href="lp('/zh/perks/')">{{ tx('查看特約店家清單', 'See the list of partner stores') }}</a>{{ tx('。', '.') }}</p>
     </div>
     <div v-show="tab === 'orders'" id="mpanel-orders" role="tabpanel" aria-labelledby="mtab-orders" tabindex="0">

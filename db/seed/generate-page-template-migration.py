@@ -12,6 +12,10 @@
 #      只是第二道保險，正常不會觸發。
 # 冪等、單一交易、可重複執行。結構比對只看區塊類型順序（固定列數由 API 在寫入時檢查，種子本身符合）。
 # 執行：sqlcmd -S <server> -d tcrfc_club -b -i db/migrations/20261007_page-templates.sql
+#
+# 🔴 2026-10-16：20261007_page-templates.sql 已套用到正式庫，視為凍結，不再重新產生。page_seed_content.json 之後的變動
+# （磐石 about/philosophy 改四大核心價值、新增 academy/curriculum 4.4 固定頁）由 db/migrations/20261016_intake-docs-import-3.sql 承接，
+# 所以本腳本的 --check 對 20261007 檔已不成立（不在 CI 內）；要為「新版型」另寫遷移請新增一支，不要覆寫 20261007。
 # 用法：python3 db/seed/generate-page-template-migration.py [--check]
 
 import hashlib

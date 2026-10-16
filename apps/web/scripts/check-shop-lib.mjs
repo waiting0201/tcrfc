@@ -11,7 +11,7 @@
  *   ④ 尺碼表 JSON 容錯解析（認得兩種形狀，其餘回 null，不輸出原始 JSON）；
  *   ⑤ Product／Offer 結構化資料（GEO-05「資料不足時不輸出」、唯一 `@id`、供貨狀態、AggregateOffer）；
  *   ⑥ 積分榜與球員數據顯示規則（助攻 `null` 顯示「—」不是 0；0 是真的 0）；
- *   ⑦ 首頁五大核心價值（API 回空退回備援、依 sortOrder 排序、認不得的 code 不編說明）；
+ *   ⑦ 首頁四大核心價值（API 回空退回備援、依 sortOrder 排序、認不得的 code 不編說明）；
  *   ⑧ B1 區塊內容正規化（只輸出純文字節點、連結白名單、`javascript:` 被拒）。
  *
  * 用法：node scripts/check-shop-lib.mjs　　離開碼：任一斷言失敗 → 1；全部通過 → 0。
@@ -166,16 +166,18 @@ eq(safeSeasonParam('<script>'), '', '不合法球季參數視為沒指定')
 eq(safeSeasonParam(['a']), '', '陣列參數視為沒指定')
 
 // ── ⑦ 核心價值 ────────────────────────────────────────────────────────
-console.log('\n── ⑦ 首頁五大核心價值 ─────────────')
-eq(buildCoreValueViews([]).map(x => x.code), CORE_VALUES_FALLBACK.map(x => x.code), 'API 回空 → 備援同順序五項')
-eq(buildCoreValueViews(null).length, 5, 'null → 備援')
+console.log('\n── ⑦ 首頁四大核心價值 ─────────────')
+eq(buildCoreValueViews([]).map(x => x.code), CORE_VALUES_FALLBACK.map(x => x.code), 'API 回空 → 備援同順序四項')
+eq(buildCoreValueViews(null).length, 4, 'null → 備援')
+eq(CORE_VALUES_FALLBACK.map(x => x.code), ['inspiring_players', 'shaping_champions', 'local_pride', 'global_influence'], '備援四項代碼＝後端 CoreValueCatalog（v3.29）')
+ok(buildCoreValueViews(null).every(v => v.paragraphs.length >= 3 && v.desc === v.paragraphs[0]), '四項皆有客戶原文各段；首頁只取第一段')
 const shuffled = [
-  { code: 'integrity', nameZh: '誠信專業', nameEn: 'Integrity', sortOrder: 5, learnMorePageSlug: 'about/philosophy' },
-  { code: 'players_first', nameZh: '以球員為本', nameEn: 'Players First', sortOrder: 1, learnMorePageSlug: 'about/philosophy' },
+  { code: 'global_influence', nameZh: '撼動全球', nameEn: 'Global influence', sortOrder: 5, learnMorePageSlug: 'about/philosophy' },
+  { code: 'inspiring_players', nameZh: '啟發球員', nameEn: 'Inspiring players', sortOrder: 1, learnMorePageSlug: 'about/philosophy' },
   { code: 'new_code', nameZh: '新價值', nameEn: 'New', sortOrder: 3, learnMorePageSlug: null },
 ]
 const views = buildCoreValueViews(shuffled)
-eq(views.map(x => [x.num, x.code]), [['01', 'players_first'], ['02', 'new_code'], ['03', 'integrity']], '依 sortOrder 排序並重新編號')
+eq(views.map(x => [x.num, x.code]), [['01', 'inspiring_players'], ['02', 'new_code'], ['03', 'global_influence']], '依 sortOrder 排序並重新編號')
 eq(views[1].desc, '', '認不得的 code 不編說明文字')
 ok(views[0].desc.length > 0, '已知 code 有說明文字')
 eq(coreValueLearnMorePath(shuffled), '/zh/about/philosophy/', '了解更多連結 → 2.3 足球理念')

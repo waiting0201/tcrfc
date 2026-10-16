@@ -59,7 +59,7 @@ const FIELDS = {
   quote: { text: 'string（必填）', 'cite|source': 'string（選填，出處）' },
   list: { items: 'string[]（空項略過）', ordered: 'boolean（選填；type 為 ol 時恆為有序）' },
   image: {
-    'key': 'string（後台上傳的內文圖片物件鍵；網址 = mediaBaseUrl + "/" + key，API 不組網址）',
+    'key': 'string（後台上傳的內文圖片物件鍵；網址 = mediaBaseUrl + "/" + key，API 不組網址；mediaBaseUrl 取自 GET /api/v1/app/config）',
     'src|url': 'string（外部圖片網址，須通過安全網址檢查）',
     'width|height': 'number（選填，主檔寬高）',
     alt: 'string（缺漏退回 caption）',

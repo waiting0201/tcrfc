@@ -137,7 +137,9 @@ const edit = (row: MembershipPlanListItemDto) => router.push(`/members/plans/${r
           <el-table-column label="方案" min-width="160">
             <template #default="{ row }">{{ row.nameZh || '（未命名）' }}<div class="plans-tab__muted">{{ row.code }}</div></template>
           </el-table-column>
-          <el-table-column label="費用" width="110"><template #default="{ row }">{{ formatMoney(row.fee) }}</template></el-table-column>
+          <el-table-column label="層級" width="100"><template #default="{ row }">{{ row.tierLabel || (row.tier === 'premium' ? '尊尚會員' : '磐石會員') }}</template></el-table-column>
+          <el-table-column label="建議年費" width="110"><template #default="{ row }">{{ formatMoney(row.fee) }}</template></el-table-column>
+          <el-table-column label="商店折扣" width="90"><template #default="{ row }">{{ row.shopDiscountPercent > 0 ? `${row.shopDiscountPercent}%` : '無' }}</template></el-table-column>
           <el-table-column label="卡數／球衣" width="100"><template #default="{ row }">{{ row.cardQuota }}／{{ row.jerseyQuota }}</template></el-table-column>
           <el-table-column label="方案期間" min-width="170"><template #default="{ row }">{{ period(row) }}</template></el-table-column>
           <el-table-column label="會籍數" width="80" prop="membershipCount" />
@@ -161,7 +163,9 @@ const edit = (row: MembershipPlanListItemDto) => router.push(`/members/plans/${r
           <template #title="{ row }">{{ row.seasonCode }}｜{{ row.nameZh || row.code }}</template>
           <template #meta="{ row }">
             <el-tag :type="row.status === 'published' ? 'success' : 'info'" size="small">{{ row.statusLabel }}</el-tag>
+            <span>{{ row.tierLabel || (row.tier === 'premium' ? '尊尚會員' : '磐石會員') }}</span>
             <span>{{ formatMoney(row.fee) }}</span>
+            <span v-if="row.shopDiscountPercent > 0">商店折扣 {{ row.shopDiscountPercent }}%</span>
             <span>{{ row.cardQuota }} 張卡／{{ row.jerseyQuota }} 件球衣</span>
             <span>{{ row.membershipCount }} 份會籍</span>
           </template>

@@ -2053,6 +2053,16 @@ FORM_FIELD_DEFAULTS = {
     ],
 }
 
+# 2026-10-16（主站 v3.29，客戶 4.3 發展路徑）：磐石學院梯隊代號改為 U10／U12／U14／U16／U18，報名表單「報名項目」選項同步；
+# 藍鯨（BW-U15／BW-U12，不屬學院）維持原選項不動。已存在的資料庫由 db/migrations/20261016_academy-squad-codes.sql 對齊。
+FORM_FIELD_OVERRIDES = {
+    ("tcrfc", "academy_children_training", "enrollment_category"): (
+        ["學院 U10", "學院 U12", "學院 U14", "學院 U16", "學院 U18", "兒童混齡班", "兒童初學班", "兒童技巧發展班", "專項訓練"],
+        ["Academy U10", "Academy U12", "Academy U14", "Academy U16", "Academy U18", "Children Mixed-Age Class",
+         "Children Beginner Class", "Children Skill Development Class", "Specialist Training"],
+    ),
+}
+
 emit("-- ── 22. forms／form_fields／form_fields_i18n：8 個固定表單目錄 ＋ 預設欄位，兩俱樂部各種一份 ──")
 for club_code in ("tcrfc", "bw"):
     club_ref = CLUB_TCRFC if club_code == "tcrfc" else CLUB_BW
@@ -2071,6 +2081,7 @@ END
         form_ref = f"(SELECT id FROM forms WHERE club_id = {club_ref} AND form_code = {esc(form_code)})"
         for i, (field_key, field_type, is_required, validation_rule, options, is_summary,
                 label_zh, label_en, option_labels_en) in enumerate(FORM_FIELD_DEFAULTS[form_code]):
+            options, option_labels_en = FORM_FIELD_OVERRIDES.get((club_code, form_code, field_key), (options, option_labels_en))
             field_id = new_id("form_field", club_code, form_code, field_key)
             field_ref = f"(SELECT id FROM form_fields WHERE form_id = {form_ref} AND field_key = {esc(field_key)})"
             options_json = esc(json.dumps(options, ensure_ascii=False)) if options else "NULL"
@@ -2230,9 +2241,9 @@ SITE_FACTS = [
         "2024", None, "2024 年創立", None,
         "全國乙級聯賽冠軍", None,
         "企業甲級聯賽", "Enterprise Premier League", None, None,
-        "一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系",
-        "A development pathway with the first team and the Academy (U15 / U14 / U12) running in parallel",
-        ["U15", "U14", "U12"],
+        "一線隊與足球學院（U10／U12／U14／U16／U18）並行的發展體系",
+        "A development pathway with the first team and the Academy (U10 / U12 / U14 / U16 / U18) running in parallel",
+        ["U10", "U12", "U14", "U16", "U18"],
     ),
     (
         CLUB_BW, "bw",
@@ -2264,6 +2275,12 @@ for (club_sq, club_code, founded_year, founding_date_iso, founding_date_display_
     # 用它驗證「缺英文時回退中文」，且成立月日（site.founding_date）至今沒有核實來源，不種假日期。
     emit_site_setting_value(club_sq, club_code, "site.contact_phone", "04-0000-0000")
     emit_site_setting_i18n(club_sq, club_code, "site.contact_hours", "【測試】平日 09:00–18:00", None)
+
+# 2026-10-16（主站 v3.29 §4.9 I 聯絡資訊）：聯絡地址是獨立設定鍵 site.contact_address（中英），與場地地址無關。
+# 台中磐石的值取自客戶 10 聯絡資訊文件（中文地址、英文地址原文）；藍鯨沒有核實來源，不種（前台暫以主場地址補）。
+emit_site_setting_i18n(CLUB_TCRFC, "tcrfc", "site.contact_address",
+                       "台中市北屯區昌平路二段敬固巷11弄41號",
+                       "No. 41, Alley 11, Jinggu Lane, Section 2, Changping Road, Beitun District, Taichung City, Taiwan")
 
 # 🔵 2026-10-06（後端 C-2 新增的聯絡資訊與社群連結 setting key，apps/api/README.md C-2）：社群連結（單一值）、
 # 頁尾品牌簡介（逐語系）、bw 的聯絡 Email。皆為客戶官方公開資訊，URL 通過後端白名單（https＋網域）。

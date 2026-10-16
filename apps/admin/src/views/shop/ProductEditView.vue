@@ -67,6 +67,7 @@ const form = reactive({
   slug: '',
   collectionId: '',
   isNewArrival: false,
+  memberDiscountEligible: false,
   sortOrder: 0,
   status: 'draft' as ShopPublishStatus,
   outOfStockBehavior: 'show_unavailable' as OutOfStockBehavior,
@@ -99,6 +100,7 @@ function apply(d: ProductDetailDto) {
   form.slug = d.slug ?? ''
   form.collectionId = d.collectionId ?? ''
   form.isNewArrival = d.isNewArrival
+  form.memberDiscountEligible = d.memberDiscountEligible
   form.sortOrder = d.sortOrder
   form.status = d.status
   form.outOfStockBehavior = d.outOfStockBehavior
@@ -175,6 +177,7 @@ async function handleSave() {
     slug: nullIfBlank(form.slug) ?? undefined,
     collectionId: form.collectionId || null,
     isNewArrival: form.isNewArrival,
+    memberDiscountEligible: form.memberDiscountEligible,
     sortOrder: form.sortOrder,
     status: form.status,
     outOfStockBehavior: form.outOfStockBehavior,
@@ -471,6 +474,10 @@ async function moveVariant(index: number, delta: -1 | 1) {
                   </FormField>
                   <FormField field="slug" label="網址名稱（選填）"><el-input v-model="form.slug" maxlength="128" placeholder="留空由系統自動產生" /></FormField>
                   <el-form-item label="標示為新品"><el-switch v-model="form.isNewArrival" /></el-form-item>
+                  <el-form-item label="適用會員折扣">
+                    <el-switch v-model="form.memberDiscountEligible" />
+                    <p class="product-edit__hint">勾選後，持有有效會籍的會員購買這項商品可享會籍方案的商店折扣；商品有促銷價時，與折扣價取較低者，不疊加。</p>
+                  </el-form-item>
                   <FormField field="outOfStockBehavior" label="缺貨時的前台顯示">
                     <el-select v-model="form.outOfStockBehavior" style="width: 100%">
                       <el-option label="顯示為缺貨" value="show_unavailable" />

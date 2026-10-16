@@ -3531,49 +3531,6 @@
         }
       }
     },
-    "/api/v1/{club}/member/memberships/join": {
-      "post": {
-        "tags": [
-          "MemberCenter"
-        ],
-        "operationId": "JoinClubMembership",
-        "parameters": [
-          {
-            "name": "club",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "lang",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MyMembershipDto"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden"
-          },
-          "409": {
-            "description": "Conflict"
-          }
-        }
-      }
-    },
     "/api/v1/{club}/membership/benefits": {
       "get": {
         "tags": [
@@ -3585,13 +3542,6 @@
             "name": "club",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "planCode",
-            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -7262,6 +7212,12 @@
           "android": {
             "$ref": "#/components/schemas/AppPlatformConfig"
           },
+          "mediaBaseUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "evaluation": {
             "oneOf": [
               {
@@ -8153,10 +8109,15 @@
       },
       "BenefitItemPublicDto": {
         "required": [
-          "isFallbackLocale"
+          "code",
+          "isFallbackLocale",
+          "values"
         ],
         "type": "object",
         "properties": {
+          "code": {
+            "type": "string"
+          },
           "name": {
             "type": [
               "null",
@@ -8172,13 +8133,62 @@
               "string"
             ]
           },
-          "freeValue": {
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BenefitPlanValueDto"
+            }
+          }
+        }
+      },
+      "BenefitPlanColumnDto": {
+        "required": [
+          "code",
+          "tier",
+          "tierLabel",
+          "isFallbackLocale",
+          "fee"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "tierLabel": {
+            "type": "string"
+          },
+          "name": {
             "type": [
               "null",
               "string"
             ]
           },
-          "paidValue": {
+          "isFallbackLocale": {
+            "type": "boolean"
+          },
+          "fee": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "BenefitPlanValueDto": {
+        "required": [
+          "planCode"
+        ],
+        "type": "object",
+        "properties": {
+          "planCode": {
+            "type": "string"
+          },
+          "value": {
             "type": [
               "null",
               "string"
@@ -8188,25 +8198,16 @@
       },
       "BenefitTablePublicDto": {
         "required": [
-          "isFallbackLocale",
+          "plans",
           "groups"
         ],
         "type": "object",
         "properties": {
-          "planCode": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "planName": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "isFallbackLocale": {
-            "type": "boolean"
+          "plans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BenefitPlanColumnDto"
+            }
           },
           "groups": {
             "type": "array",
@@ -10763,6 +10764,43 @@
           }
         }
       },
+      "MemberOpenOrderDto": {
+        "required": [
+          "orderNo",
+          "status",
+          "statusLabel",
+          "clubCode",
+          "planCode",
+          "seasonCode"
+        ],
+        "type": "object",
+        "properties": {
+          "orderNo": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "clubCode": {
+            "type": "string"
+          },
+          "planCode": {
+            "type": "string"
+          },
+          "planName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "seasonCode": {
+            "type": "string"
+          }
+        }
+      },
       "MemberPendingOrderDto": {
         "required": [
           "orderNo",
@@ -11374,6 +11412,9 @@
       "MembershipPlanPublicDto": {
         "required": [
           "code",
+          "tier",
+          "tierLabel",
+          "shopDiscountPercent",
           "isFallbackLocale",
           "fee",
           "cardQuota",
@@ -11386,6 +11427,20 @@
         "properties": {
           "code": {
             "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          },
+          "tierLabel": {
+            "type": "string"
+          },
+          "shopDiscountPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "name": {
             "type": [
@@ -11612,7 +11667,8 @@
       "MyMembershipsDto": {
         "required": [
           "memberships",
-          "joinableClubs"
+          "joinableClubs",
+          "openOrders"
         ],
         "type": "object",
         "properties": {
@@ -11626,6 +11682,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/MemberJoinableClubDto"
+            }
+          },
+          "openOrders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MemberOpenOrderDto"
             }
           }
         }
@@ -15196,6 +15258,7 @@
           "items",
           "itemCount",
           "subtotal",
+          "memberDiscountTotal",
           "shipping",
           "canCheckout"
         ],
@@ -15232,6 +15295,23 @@
             ],
             "format": "int32"
           },
+          "memberDiscountTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "memberDiscountPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
           "shipping": {
             "$ref": "#/components/schemas/ShopCartShippingDto"
           },
@@ -15249,6 +15329,8 @@
           "listPrice",
           "unitPrice",
           "onSale",
+          "memberDiscountApplied",
+          "memberDiscountAmount",
           "quantity",
           "lineTotal",
           "availableQty",
@@ -15323,6 +15405,17 @@
           },
           "onSale": {
             "type": "boolean"
+          },
+          "memberDiscountApplied": {
+            "type": "boolean"
+          },
+          "memberDiscountAmount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           },
           "quantity": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -15620,6 +15713,7 @@
           "deliveryMethod",
           "deliveryMethodLabel",
           "subtotal",
+          "memberDiscountAmount",
           "shippingFee",
           "total",
           "items",
@@ -15664,6 +15758,14 @@
             "type": "string"
           },
           "subtotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "memberDiscountAmount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -15819,7 +15921,8 @@
           "sku",
           "unitPrice",
           "quantity",
-          "lineTotal"
+          "lineTotal",
+          "memberDiscountAmount"
         ],
         "type": "object",
         "properties": {
@@ -15852,6 +15955,14 @@
             "format": "int32"
           },
           "lineTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "memberDiscountAmount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -15967,6 +16078,7 @@
           "slug",
           "tags",
           "isNewArrival",
+          "memberDiscountEligible",
           "images",
           "variants",
           "onSale",
@@ -16021,6 +16133,9 @@
             }
           },
           "isNewArrival": {
+            "type": "boolean"
+          },
+          "memberDiscountEligible": {
             "type": "boolean"
           },
           "sizeChart": {
@@ -16088,6 +16203,7 @@
           "slug",
           "tags",
           "isNewArrival",
+          "memberDiscountEligible",
           "onSale",
           "stockStatus",
           "stockStatusLabel",
@@ -16124,6 +16240,9 @@
             }
           },
           "isNewArrival": {
+            "type": "boolean"
+          },
+          "memberDiscountEligible": {
             "type": "boolean"
           },
           "imageUrl": {

@@ -43,7 +43,7 @@ const SEO: Record<string, (club: string) => ShopSeoEn> = {
   }),
   member: club => ({
     title: `Member Centre | ${club}`,
-    description: `The ${club} Member Centre: sign in or join. Members enjoy discounts at partner stores, and Paid Fan Club members also receive a jersey.`,
+    description: `The ${club} Member Centre: sign in or join. Create an account, purchase a membership plan and enjoy partner store discounts and your plan's benefits.`,
   }),
   lineCallback: club => ({
     title: `LINE sign-in | ${club}`,
@@ -62,8 +62,8 @@ const SEO: Record<string, (club: string) => ShopSeoEn> = {
     description: '',
   }),
   upgrade: club => ({
-    title: `Upgrade membership | Member Centre | ${club}`,
-    description: `Compare benefits and apply to upgrade to a Paid Fan Club membership with ${club}.`,
+    title: `Membership plans | Member Centre | ${club}`,
+    description: `Compare the benefits of the ${club} membership plans and apply to become a member.`,
   }),
   app: club => ({
     title: `Download the app | Taichung Football | ${club}`,
@@ -93,7 +93,7 @@ export const SHOP_APP_FEATURES_EN: ReadonlyArray<{ title: string, desc: string }
   { title: 'News and players', desc: 'The latest news and player profiles, synced from the website.' },
   { title: 'Partner stores', desc: 'Browse partner stores and their offers.' },
   { title: 'Courses', desc: 'View course information and register.' },
-  { title: 'Digital membership card and membership', desc: 'Carry your membership card with you, and apply to upgrade your membership in the app.' },
+  { title: 'Digital membership card and membership', desc: 'Carry your membership card with you, and view membership plans in the app.' },
 ]
 
 /** 商店「結帳」頁預設配送方式（API 沒回 deliveryMethods 時的備援，順序與代碼對應原寫法）。 */

@@ -559,6 +559,7 @@ builder.Services.AddScoped<Tcrfc.Api.Features.FanEvents.FanEventsRepository>();
 // F 批（2026-10-01，S3-5 站內商店前台）：目錄、購物車、結帳與訂單、發票、定時維護。🔴 這一組類別刻意不注入 IQueryCache（庫存、購物車、訂單狀態不得讀快取）。
 builder.Services.AddScoped<Tcrfc.Api.Features.Standings.StandingsRepository>(); // F 批：公開積分榜與球員數據彙總
 builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopCatalogRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Shop.MemberDiscountService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopCartService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopInvoiceService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopOrderService>();

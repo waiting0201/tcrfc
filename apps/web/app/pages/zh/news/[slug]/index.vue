@@ -109,7 +109,7 @@ const matchFields = computed(() => {
 })
 
 // ── B-15：核心價值標籤與關聯球員 ──────────────────────────────────────────────
-// 核心價值標籤：`coreValueTags` 是五個固定代碼（與首頁核心價值同一組），名稱取 shared/utils/core-values.ts 的對照；
+// 核心價值標籤：`coreValueTags` 是四個固定代碼（與首頁核心價值同一組），名稱取 shared/utils/core-values.ts 的對照；
 // 認不得的代碼不顯示（不輸出原始代碼給訪客看）。
 type ArticleExtras2 = { coreValueTags?: string[] }
 const coreValueLabels = computed(() => {

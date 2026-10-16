@@ -2,7 +2,7 @@
 // app/pages/zh/academy/teams.vue — 由 site/src/pages/zh/academy/teams/index.html 轉來
 // （S0-9 資料驅動頁搬遷），S1-15 補上俱樂部分支與賽程真資料。
 //
-// 🔵 SSR 打真實球員／教練／賽程 API（依梯隊代碼過濾）。磐石梯隊代碼 U15／U14／U12
+// 🔵 SSR 打真實球員／教練／賽程 API（依梯隊代碼過濾）。磐石梯隊代碼 U10／U12／U14／U16／U18（v3.29，客戶 4.3）
 // 目前完全沒有建立 Team 主檔（db/seed/generate-club-seed-sql.py 只建了 D1，註解明講
 // 「本俱樂部學院球隊本次也未建立，無球員名單佐證需要建隊」），API 對不存在的隊別代碼
 // 一樣回 200 + 空陣列，不是 404——這頁因此仍會渲染「準備中」預留文字，不是沒接 API。
@@ -41,7 +41,7 @@ const { facts } = useSiteFacts(clubKey.value)
 // C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案；分頁 id／teamCode 與中文版相同）。
 const hero = computed(() => (isEn.value ? getAcademyTeamsHeroEn(facts.value, clubKey.value) : getAcademyTeamsHero(clubKey.value, facts.value)))
 // B-10（2026-10-06）：分頁優先由公開 `/teams`（type=academy，後台排序）驅動；API 失敗或沒有學院球隊時回退 club-copy 的
-// `getAcademyTeamTabs`（site-facts 梯隊代碼 ＋ 磐石「其他年齡層」說明分頁）。API 驅動時不再附「其他年齡層」占位分頁。
+// `getAcademyTeamTabs`（site-facts 梯隊代碼；v3.29 起沒有「其他年齡層」說明分頁）。
 const fallbackTabs = computed(() => (isEn.value ? getAcademyTeamTabsEn(facts.value, clubKey.value) : getAcademyTeamTabs(clubKey.value, facts.value)))
 type TeamTab = { id: string, labelZh: string, teamCode: string | null, team: PublicTeamView | null }
 const { academyTeams } = await usePublicTeams()
@@ -49,7 +49,7 @@ const tabs = computed<TeamTab[]>(() => (academyTeams.value.length
   ? academyTeams.value.map((t) => ({ id: t.code.toLowerCase(), labelZh: academyTabLabel(t.code), teamCode: t.code, team: t }))
   : fallbackTabs.value.map((t) => ({ ...t, team: null }))))
 const introParagraphs = (t: PublicTeamView) => (t.intro ?? '').split(/\n{2,}/).map((x) => x.trim()).filter(Boolean)
-/** 有真實 `Team.code` 可查詢的分頁（排除磐石的「其他年齡層」靜態說明分頁）。 */
+/** 有真實 `Team.code` 可查詢的分頁。 */
 const teamTabs = computed(() => tabs.value.filter((t) => t.teamCode !== null))
 
 // S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
@@ -192,9 +192,6 @@ useSeoMeta({
         </div>
       </div>
 
-      <div v-if="tabs.some((t) => t.id === 'other')" class="team-tabs__panel" id="panel-other" role="tabpanel" aria-labelledby="tab-other" tabindex="0" :hidden="active !== 'other'">
-        <p>{{ tx('其他年齡層梯隊資訊準備中，稍後將於本頁公布。', 'Information on the other age-group squads is being prepared and will be published on this page soon.') }}</p>
-      </div>
     </div>
 
   </div>
@@ -208,7 +205,7 @@ useSeoMeta({
       <a class="cta-card" :href="lp('/zh/academy/pathway/')">
         <span class="cta-card__num">4.3</span>
         <span class="cta-card__title">{{ tx(isTcrfc ? '學院發展路徑' : '青年隊發展路徑', isTcrfc ? 'Academy Pathway' : 'Youth Pathway') }}</span>
-        <p class="cta-card__desc">{{ tx(isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑', isTcrfc ? 'The pathway from U12 to the First Team and overseas' : 'The pathway from U12 to the First Team') }}</p>
+        <p class="cta-card__desc">{{ tx(isTcrfc ? '從培育、發展到職業階段的成長路徑' : '從 U12 到一線隊的成長路徑', isTcrfc ? 'The pathway from the foundation and development stages to the professional stage' : 'The pathway from U12 to the First Team') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>

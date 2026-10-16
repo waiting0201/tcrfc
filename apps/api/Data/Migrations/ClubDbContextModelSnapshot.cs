@@ -7321,7 +7321,7 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("membership_end_on");
 
-                    b.Property<Guid?>("MembershipPlanId")
+                    b.Property<Guid>("MembershipPlanId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("membership_plan_id");
 
@@ -7392,6 +7392,12 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
 
+                    b.Property<string>("BenefitCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("benefit_code");
+
                     b.Property<string>("BenefitGroup")
                         .IsRequired()
                         .HasMaxLength(64)
@@ -7447,6 +7453,9 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
 
+                    b.HasIndex(new[] { "MembershipPlanId", "BenefitCode" }, "UQ_membership_benefits_plan_code")
+                        .IsUnique();
+
                     b.HasIndex(new[] { "RowSeq" }, "UQ_membership_benefits_row_seq")
                         .IsUnique();
 
@@ -7470,11 +7479,6 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("description");
 
-                    b.Property<string>("FreeValue")
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)")
-                        .HasColumnName("free_value");
-
                     b.Property<string>("GroupLabel")
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)")
@@ -7485,10 +7489,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(128)")
                         .HasColumnName("name");
 
-                    b.Property<string>("PaidValue")
+                    b.Property<string>("Value")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")
-                        .HasColumnName("paid_value");
+                        .HasColumnName("value");
 
                     b.HasKey("MembershipBenefitId", "Locale");
 
@@ -7801,6 +7805,12 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("season_id");
 
+                    b.Property<int>("ShopDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("shop_discount_percent")
+                        .HasDefaultValue(0, "DF_membership_plans_shop_discount_percent");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("int")
                         .HasColumnName("sort_order");
@@ -7816,6 +7826,12 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(16)")
                         .HasColumnName("status")
                         .HasDefaultValue("draft", "DF_membership_plans_status");
+
+                    b.Property<string>("Tier")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("tier");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -8153,6 +8169,16 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(64)")
                         .HasColumnName("lookup_token");
 
+                    b.Property<int>("MemberDiscountAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("member_discount_amount")
+                        .HasDefaultValue(0, "DF_orders_member_discount_amount");
+
+                    b.Property<Guid?>("MemberDiscountPlanId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_discount_plan_id");
+
                     b.Property<Guid?>("MemberId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("member_id");
@@ -8331,6 +8357,12 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<int>("LineTotal")
                         .HasColumnType("int")
                         .HasColumnName("line_total");
+
+                    b.Property<int>("MemberDiscountAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("member_discount_amount")
+                        .HasDefaultValue(0, "DF_order_items_member_discount_amount");
 
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier")
@@ -9632,6 +9664,12 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<bool>("IsNewArrival")
                         .HasColumnType("bit")
                         .HasColumnName("is_new_arrival");
+
+                    b.Property<bool>("MemberDiscountEligible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasColumnName("member_discount_eligible")
+                        .HasDefaultValue(false, "DF_products_member_discount_eligible");
 
                     b.Property<string>("OutOfStockBehavior")
                         .IsRequired()
@@ -15108,6 +15146,7 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasOne("Tcrfc.Api.Data.EfEntities.MembershipPlan", "MembershipPlan")
                         .WithMany("Memberships")
                         .HasForeignKey("MembershipPlanId")
+                        .IsRequired()
                         .HasConstraintName("FK_memberships_plan");
 
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Season", "Season")

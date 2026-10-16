@@ -48,6 +48,7 @@ const o = computed(() => props.order)
 
     <ul class="order-meta">
       <li><span>{{ tx('商品小計', 'Subtotal') }}</span><span>{{ formatPrice(o.subtotal) }}</span></li>
+      <li v-if="(o.memberDiscountAmount ?? 0) > 0"><span>{{ tx('其中已享會員折扣', 'Member discount included above') }}</span><span>−{{ formatPrice(o.memberDiscountAmount) }}</span></li>
       <li><span>{{ tx('運費', 'Shipping') }}</span><span>{{ o.shippingFee > 0 ? formatPrice(o.shippingFee) : tx('免運', 'Free') }}</span></li>
       <li><span><strong>{{ tx('應付金額', 'Total due') }}</strong></span><span>{{ formatPrice(o.total) }}</span></li>
     </ul>

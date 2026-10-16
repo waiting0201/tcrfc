@@ -42,7 +42,7 @@ async function toggleNotice(confirmed: boolean) {
   try {
     await ElMessageBox.confirm(
       confirmed
-        ? '請確認會員條款已增列：「會籍有效期間將自動列入球迷會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」。確認後才能產生抽獎名單。'
+        ? '請確認會員條款已增列：「會籍有效期間將自動列入會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」。確認後才能產生抽獎名單。'
         : '取消確認後，這個俱樂部就不能再產生新的抽獎名單（已產生的不受影響）。',
       confirmed ? '確認蒐集告知' : '取消蒐集告知確認',
       { confirmButtonText: '確定', cancelButtonText: '取消', type: 'warning' },
@@ -145,7 +145,7 @@ const go = (row: DrawListItemDto) => router.push(`/members/lottery/${row.id}`)
         <div>
           <strong>蒐集告知確認</strong>
           <el-tag v-if="notice" :type="notice.confirmed ? 'success' : 'warning'" size="small" class="draws__tag">{{ notice.confirmed ? '已確認' : '尚未確認' }}</el-tag>
-          <p class="draws__hint">會員條款必須已增列「會籍有效期間將自動列入球迷會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」（每個俱樂部各自確認）。<strong>尚未確認前，不能產生抽獎名單。</strong>活動辦法也要寫明：同時具備兩隊會籍的人可以分別參加兩隊的抽獎。</p>
+          <p class="draws__hint">會員條款必須已增列「會籍有效期間將自動列入會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」（每個俱樂部各自確認）。<strong>尚未確認前，不能產生抽獎名單。</strong>活動辦法也要寫明：同時具備兩隊會籍的人可以分別參加兩隊的抽獎。</p>
           <p v-if="noticeError" class="draws__hint">{{ noticeError }}</p>
         </div>
         <el-button v-if="canUpdate && notice" :type="notice.confirmed ? 'default' : 'primary'" :loading="noticeSaving" @click="toggleNotice(!notice.confirmed)">{{ notice.confirmed ? '取消確認' : '我已確認條款' }}</el-button>

@@ -1,52 +1,50 @@
 <script setup lang="ts">
-// S2-11：資料來源改為後台 K4（`GET /{club}/membership/benefits`，一份資料多處使用）。
-// 後台尚未建立任何上架條目（API 失敗或空表）時，**落回下方既有的靜態說明表**——那張表只寫規劃書 3.14
-// 已定案的層級規則，金額、件數等客戶未決事項仍以「待補」標示，不是假資料。
+// 權益對照表（K4）：`GET /{club}/membership/benefits`，一份資料多處使用（加入頁、8.2 球迷會頁、會員中心方案頁）。
+// v3.29（客戶 8.2）：**以方案為欄**——每個目前可購買的方案一欄（磐石＝磐石會員、尊尚會員；藍鯨由藍鯨自訂方案），
+// 欄位名稱、年費與每格的值全來自 API，前台不硬編任何權益文字或方案名稱。沒有可購買方案時顯示空狀態。
 const { lp, isEn, tx } = useLocale()
-const { benefits } = await useMembershipBenefits()
+const { benefits, failed } = await useMembershipBenefits()
+const plans = computed(() => benefits.value?.plans ?? [])
 const groups = computed(() => (benefits.value?.groups ?? []).filter(g => g.items.length > 0))
-const hasData = computed(() => groups.value.length > 0)
+const hasData = computed(() => plans.value.length > 0 && groups.value.length > 0)
+const feeText = (n: number) => `NT$ ${n.toLocaleString(isEn.value ? 'en-US' : 'zh-TW')}`
 
-/** 對照欄位值：空值顯示「—」並附螢幕閱讀器文字（不得只靠符號傳達「沒有」）。 */
-function cell(value: string | null | undefined): string {
-  return value && value.trim() ? value.trim() : ''
+/** 第 i 個方案在某條權益上的值；API 保證同序，缺格時視為「沒有這一條」。 */
+function valueAt(item: { values: Array<{ planCode: string, value: string | null }> }, planCode: string, i: number): string {
+  const v = item.values[i]?.planCode === planCode ? item.values[i] : item.values.find(x => x.planCode === planCode)
+  return v?.value?.trim() ?? ''
 }
 </script>
 
 <template>
-<!-- 會籍權益對照表 —— 規劃書 3.14 要求「一份資料、三處使用」（加入會員頁／8.2 球迷會頁／升級頁），
-     且必須是可被搜尋引擎索引、可被螢幕閱讀器朗讀的 HTML 文字，**不得做成圖片**。
-     正式站改由後台 K4 產生；此處為靜態骨架。修改請改這一支，勿在各頁另抄一份。
-     由 site/src/partials/membership-benefits.html 轉來，做成元件而非複製兩份
-     （zh/member/、zh/culture/fan-club/ 兩頁 include，見 docs/13-blue-whale-site.md §6 紀律 9 的搬遷紀錄）。 -->
+<!-- 會籍權益對照表 —— 規劃書 3.14 要求「一份資料、多處使用」（加入會員頁／8.2 球迷會頁／會員中心方案頁），
+     且必須是可被搜尋引擎索引、可被螢幕閱讀器朗讀的 HTML 文字，**不得做成圖片**。修改請改這一支，勿在各頁另抄一份。 -->
 <div class="benefits">
   <p class="kicker">MEMBER BENEFITS</p>
   <h2 class="section-title" id="benefits-title">{{ tx('會員權益對照', 'Membership benefits compared') }}</h2>
-  <p class="section-lede">{{ tx('加入會員即可享特約店家折扣；升級付費會籍另可獲得球衣。以下權益未登入亦可查看。', 'Members enjoy discounts at partner stores, and upgrading to a paid membership also earns a jersey. The benefits below can be viewed without signing in.') }}</p>
+  <p class="section-lede">{{ tx('各方案的權益逐條對照。權益以會籍所屬俱樂部為準，未登入亦可查看。', 'The benefits of each plan, side by side. Benefits apply to the club that issues the membership, and can be viewed without signing in.') }}</p>
 
   <div v-if="hasData" class="table-scroll">
     <table class="benefits-table">
-      <caption class="visually-hidden">{{ tx('一般會員與球迷會員（付費）的權益對照表', 'Benefits comparison for Registered members and Paid Fan Club members') }}<template v-if="benefits?.planName">{{ isEn ? ': ' : '：' }}{{ benefits.planName }}</template></caption>
+      <caption class="visually-hidden">{{ tx('各會籍方案的權益對照表', 'Benefits comparison of the membership plans') }}</caption>
       <thead>
         <tr>
           <th scope="col">{{ tx('權益項目', 'Benefit') }}</th>
-          <th scope="col">{{ isEn ? 'Registered member' : '一般會員' }} <span v-if="!isEn" class="en">Registered</span><span class="benefits-table__price">{{ tx('免費', 'Free') }}</span></th>
-          <th scope="col">{{ isEn ? 'Paid Fan Club member' : '球迷會員' }} <span v-if="!isEn" class="en">Fan Club</span><span class="benefits-table__price">{{ tx('付費會籍', 'Paid membership') }}</span></th>
+          <th v-for="p in plans" :key="p.code" scope="col">
+            {{ p.name ?? p.tierLabel }}
+            <span class="benefits-table__price">{{ feeText(p.fee) }}{{ tx('／年', ' / year') }}</span>
+          </th>
         </tr>
       </thead>
       <tbody v-for="g in groups" :key="g.group">
-        <tr class="benefits-table__group"><th colspan="3" scope="colgroup">{{ g.groupLabel }}</th></tr>
-        <tr v-for="item in g.items" :key="`${g.group}-${item.name}`">
+        <tr class="benefits-table__group"><th :colspan="plans.length + 1" scope="colgroup">{{ g.groupLabel }}</th></tr>
+        <tr v-for="item in g.items" :key="`${g.group}-${item.code}`">
           <th scope="row">
             {{ item.name }}
             <span v-if="item.description" class="benefits-table__desc">{{ item.description }}</span>
           </th>
-          <td>
-            <template v-if="cell(item.freeValue)">{{ cell(item.freeValue) }}</template>
-            <template v-else><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">{{ tx('無', 'No') }}</span></template>
-          </td>
-          <td>
-            <template v-if="cell(item.paidValue)">{{ cell(item.paidValue) }}</template>
+          <td v-for="(p, i) in plans" :key="p.code">
+            <template v-if="valueAt(item, p.code, i)">{{ valueAt(item, p.code, i) }}</template>
             <template v-else><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">{{ tx('無', 'No') }}</span></template>
           </td>
         </tr>
@@ -54,54 +52,9 @@ function cell(value: string | null | undefined): string {
     </table>
   </div>
 
-  <div v-else class="table-scroll">
-    <table class="benefits-table">
-      <caption class="visually-hidden">{{ tx('一般會員與球迷會員（付費）的權益對照表', 'Benefits comparison for Registered members and Paid Fan Club members') }}</caption>
-      <thead>
-        <tr>
-          <th scope="col">{{ tx('權益項目', 'Benefit') }}</th>
-          <th scope="col">{{ isEn ? 'Registered member' : '一般會員' }} <span v-if="!isEn" class="en">Registered</span><span class="benefits-table__price">{{ tx('免費', 'Free') }}</span></th>
-          <th scope="col">{{ isEn ? 'Paid Fan Club member' : '球迷會員' }} <span v-if="!isEn" class="en">Fan Club</span><span class="benefits-table__price pending-inline">{{ tx('年費待定', 'Annual fee to be confirmed') }}</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <th scope="row">{{ tx('電子會員卡', 'Digital membership card') }}</th>
-          <td><span class="tick">✓</span><span class="visually-hidden">{{ tx('有', 'Yes') }}</span></td>
-          <td><span class="tick">✓</span><span class="visually-hidden">{{ tx('有', 'Yes') }}</span></td>
-        </tr>
-        <tr>
-          <th scope="row">{{ tx('特約店家折扣（標示「全會員適用」）', 'Partner store discounts (marked for all members)') }}</th>
-          <td><span class="tick">✓</span><span class="visually-hidden">{{ tx('有', 'Yes') }}</span></td>
-          <td><span class="tick">✓</span><span class="visually-hidden">{{ tx('有', 'Yes') }}</span></td>
-        </tr>
-        <tr>
-          <th scope="row">{{ tx('特約店家折扣（標示「限付費會員」）', 'Partner store discounts (marked for paid members only)') }}</th>
-          <td><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">{{ tx('無', 'No') }}</span></td>
-          <td><span class="tick">✓</span><span class="visually-hidden">{{ tx('有', 'Yes') }}</span></td>
-        </tr>
-        <tr>
-          <th scope="row">{{ tx('入會球衣', 'Welcome jersey') }}</th>
-          <td><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">{{ tx('無', 'No') }}</span></td>
-          <td class="pending-cell">{{ tx('件數依方案，內容待定', 'Number of jerseys depends on the plan; details to be confirmed') }}</td>
-        </tr>
-        <tr>
-          <th scope="row">{{ tx('球迷活動優先報名', 'Priority registration for fan events') }}</th>
-          <td><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">{{ tx('無', 'No') }}</span></td>
-          <td><span class="tick">✓</span><span class="visually-hidden">{{ tx('有', 'Yes') }}</span></td>
-        </tr>
-        <tr>
-          <th scope="row">{{ tx('球迷會員抽獎', 'Fan Club member prize draws') }}</th>
-          <td><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">{{ tx('無', 'No') }}</span></td>
-          <td>{{ tx('會籍有效期間自動具備，不需登記', 'Included automatically while your membership is valid, with no registration needed') }}</td>
-        </tr>
-        <tr>
-          <th scope="row">{{ tx('會籍效期', 'Membership validity') }}</th>
-          <td>{{ tx('不限', 'No limit') }}</td>
-          <td>{{ tx('以球季計，全體同時到期，球季末續會', 'Counted by season. All memberships expire together, and you renew at the end of the season') }}</td>
-        </tr>
-      </tbody>
-    </table>
+  <div v-else class="pending-note">
+    <template v-if="failed">{{ tx('權益對照表暫時無法載入，請稍後再試。', 'The benefits comparison cannot be loaded right now. Please try again later.') }}</template>
+    <template v-else>{{ tx('目前沒有開放購買的會籍方案，方案與權益公布後會在這裡逐條對照。', 'There are no membership plans open for purchase at the moment. Once the plans and benefits are announced, they will be compared here.') }}</template>
   </div>
 
   <p class="benefits__note">
@@ -109,13 +62,6 @@ function cell(value: string | null | undefined): string {
     <template v-else>到店<strong>出示電子會員卡</strong>即可享折扣，不需額外手續。</template>
     <a :href="lp('/zh/perks/')">{{ tx('查看特約店家清單 →', 'See the list of partner stores →') }}</a>
   </p>
-
-  <div v-if="!hasData" class="pending-note">
-    <template v-if="isEn">The annual fee, plan details (whether a family plan is offered and how many jerseys each includes), season start and end dates, the jersey size chart, and the prize, draw date and rules for the prize draws are still to be confirmed.</template>
-    <template v-else>年費金額、方案內容（是否設家庭方案、各含幾件球衣）、球季起訖日、球衣尺碼表，
-    以及抽獎的獎品內容、開獎時間與活動辦法待補
-    —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 3、4、5、7、8 點與第 16–20 點。</template>
-  </div>
 </div>
 </template>
 

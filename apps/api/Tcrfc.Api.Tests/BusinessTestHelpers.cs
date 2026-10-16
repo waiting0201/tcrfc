@@ -90,6 +90,22 @@ internal static class BizTest
         return (Guid)(await command.ExecuteScalarAsync() ?? throw new InvalidOperationException("查無資料：" + sql));
     }
 
+    public static async Task<string> ScalarStringAsync(string sql, params (string Name, object? Value)[] parameters)
+    {
+        var connectionString = Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING")
+            ?? throw new InvalidOperationException("CLUB_SQL_CONNECTION_STRING 未設定。");
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = sql;
+        foreach (var (name, value) in parameters)
+        {
+            command.Parameters.AddWithValue(name, value ?? DBNull.Value);
+        }
+
+        return Convert.ToString(await command.ExecuteScalarAsync() ?? throw new InvalidOperationException("查無資料：" + sql))!;
+    }
+
     public static string Unique(string prefix) => $"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 9)];
 
     public static object Zh(string name, string? content = null) => new { name, content };

@@ -234,7 +234,7 @@ public sealed class AppContractBatch4Tests(AdminWriteApiFixture fixture) : IAsyn
         using var anonymous = fixture.CreateClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync("/api/v1/member/draws")).StatusCode);
 
-        using var fan = await SeedMemberClientAsync("member-a@example.com"); // M900001：磐石有效的球迷會員
+        using var fan = await SeedMemberClientAsync("member-a@example.com"); // M900001：磐石有效的尊尚會員
         var response = await fan.GetAsync("/api/v1/member/draws");
         Assert.Contains("no-store", response.Headers.CacheControl?.ToString() ?? "");
         var raw = await response.Content.ReadAsStringAsync();
@@ -253,8 +253,8 @@ public sealed class AppContractBatch4Tests(AdminWriteApiFixture fixture) : IAsyn
         Assert.True(draw.GetProperty("isEligible").GetBoolean());
         Assert.All(draws, d => Assert.NotEqual("draft", d.GetProperty("status").GetString())); // 草稿不列
 
-        // 沒有球迷會籍的一般會員：看得到活動，個人資格為 false（布林，不是缺漏）
-        using var plain = await SeedMemberClientAsync("member-c@example.com"); // M900003：只有一般會員
+        // 沒有會籍的僅註冊帳號（v3.29：註冊帳號不是會籍）：看得到活動，個人資格為 false（布林，不是缺漏）
+        using var plain = await SeedMemberClientAsync("member-f@example.com"); // M900006：僅註冊帳號，沒有任何會籍
         var plainDraws = JsonDocument.Parse(await plain.GetStringAsync("/api/v1/member/draws")).RootElement.EnumerateArray().ToList();
         Assert.Equal(draws.Count, plainDraws.Count);
         Assert.All(plainDraws, d => Assert.False(d.GetProperty("isEligible").GetBoolean()));

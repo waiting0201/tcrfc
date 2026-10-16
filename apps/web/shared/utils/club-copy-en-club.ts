@@ -312,7 +312,7 @@ export function getCultureHubSeoEn(showManga: boolean): SeoCopy {
 export const CLUB_PERKS_SEO_EN: SeoCopy = {
   title: 'Partner Perks | Taichung Rock FC',
   description:
-    'Partner stores offering discounts to Taichung Rock members. Show your digital membership card in store to enjoy the offer; each store states whether it applies to registered members or Paid Fan Club members.',
+    'Partner stores offering discounts to Taichung Rock members. Show your digital membership card in store to enjoy the offer; each store states whether it applies to all members or only the top tier.',
 }
 
 export function getPerksDetailSeoEn(storeName: string | null | undefined, offer: string | null | undefined): SeoCopy {
@@ -597,7 +597,7 @@ export const CLUB_CULTURE_PAGE_EN_BW = {
 export const CLUB_PERKS_SEO_EN_BW: SeoCopy = {
   title: 'Partner Perks' + BW_SUFFIX_EN,
   description:
-    `Partner stores offering discounts to ${BW_NAME_EN} members. Show your digital membership card in store to enjoy the offer; each store states whether it applies to registered members or Paid Fan Club members.`,
+    `Partner stores offering discounts to ${BW_NAME_EN} members. Show your digital membership card in store to enjoy the offer; each store states whether it applies to all members or only the top tier.`,
 }
 
 export const CLUB_PERKS_HERO_LEDE_EN_BW =
@@ -618,7 +618,7 @@ export const CLUB_FAN_CLUB_SEO_EN_BW: SeoCopy = {
 }
 
 export const CLUB_FAN_CLUB_HERO_LEDE_EN_BW =
-  `Cheer with ${BW_NAME_EN} from the touchline. The Fan Club is the club's paid membership: besides a jersey, you get more discounts at partner stores and priority access to fan events.`
+  `Cheer with ${BW_NAME_EN} from the touchline. The Fan Club is the club's membership: choose a plan and enjoy partner store discounts, shop member discounts and the benefits that come with it.`
 
 export function getFanEventSeoEnBw(name: string, when: string, location: string | null | undefined): SeoCopy {
   return {

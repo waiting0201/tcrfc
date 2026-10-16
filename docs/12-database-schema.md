@@ -1,7 +1,7 @@
 # 12 — 資料庫綱要（技術中立邏輯模型）
 
 > 來源：規劃書 §5（**行 1328–1460**）、§6（**行 1461–1507**）、§4（**行 777–1327**）、§8（**行 1536–1550**）。
-> **行號依主站 v3.0（1691 行）。**
+> **行號依主站 v3.0（1691 行）。** 規格版本已升至**主站 v3.29**（2026-10-16；本檔最新同步點見下方 §12 第 54 項與 [`12b`](12b-database-tables.md) 末段「v3.29 待落 DDL 的變更清單」——**文件已改、`db/club-schema.sql` 與 EF 模型尚未改**）。
 >
 > 🔴 **本檔尚未完成 v3.0 的同步——動工前必讀下方「v3.0 落差」段落。**
 >
@@ -155,7 +155,7 @@
 台幣無角分；慈善站 §8.3 明訂分潤「**無條件捨去至整數元**」。用 `decimal(10,2)` 會製造永遠對不上的尾差。
 唯一的例外是**百分比**（`store_share_pct`、`project_share_pct` 及其快照），用 `decimal(5,2)`。
 
-**核心價值標籤**：`value_tags[]`（五大核心價值，可掛任何內容型別）以 `ValueTagLink(entity_type, entity_id, value_tag)` 多型關聯表實作，**不用陣列欄位**（見 §1.4）。
+**核心價值標籤**：`value_tags[]`（四項核心價值：啟發球員／塑造冠軍／在地驕傲／撼動全球，可掛任何內容型別；`value_tag` 代碼 `inspiring_players`／`shaping_champions`／`local_pride`／`global_influence`，主站 v3.29）以 `ValueTagLink(entity_type, entity_id, value_tag)` 多型關聯表實作，**不用陣列欄位**（見 §1.4）。
 
 ### 1.4 DBMS 相依的五件事（已定案）
 
@@ -250,7 +250,7 @@ Article                          article_i18n
 |---|---|
 | `Match.opponent_en`、`venue_en`（v2.5 新增，行 1251） | `match_i18n(match_id, locale, opponent, venue)`。**實作確認（2026-10-05，`E-220`）：結構早已齊備**——`matches_i18n` 自 DDL 初版即有 `opponent`／`venue`，`matches.opponent` 是繁中預設值（回退來源），英文值存 `matches_i18n` 的 `en` 列；後台 C4 的 `opponentEn`／`venueEn`（新增、修改、CSV 匯入）與公開 API 的 `isFallbackLocale`（英文 `opponent` 為空即 true）均已接。**目前缺的只是英文資料**：種子的 `en` 列只補了 `venue`，對手球隊英文名無來源（`content/schedule` 只有 `opponent_zh`），**不自行音譯**，待客戶提供後經後台或 CSV 匯入。**不需要 migration**。**對手是自由文字不是實體**，仍照側表走。⚠️ **場地不只是自由文字**——`matches` 另有 `venue_id`（`db/club-schema.sql` `FK_matches_venue`，指向既有 `venues` 共用主檔，`db/club-schema.sql` 初版即有，本表格原描述遺漏這一欄，2026-09-29 於 `S1-12d` 後續補完盤點時發現並更正）；`venue`／`venue_en` 側表欄位與 `venue_id` 刻意並存，前者是顯示用文字（可覆寫、可留空，適用清單裡沒有的客場場地），後者是選填的結構化場地參照，兩者不是互斥設計，見 `apps/admin/README.md`「I：網站設定與 C4 賽程賽果——場地清單串接」節 |
 | K5 各欄「中／英」（行 1287） | `member_draw_i18n(name, prize_description, rules, notes)` |
-| `MembershipBenefit`「須 zh／en 雙欄位、不得做成圖片」（行 673） | `membership_benefit_i18n(group_label, free_value, paid_value)` |
+| `MembershipBenefit`「須 zh／en 雙欄位、不得做成圖片」（行 673） | `membership_benefit_i18n(group_label, value)`（v3.29：原 `free_value`／`paid_value` 合為 `value`） |
 | `Partner`／`Sponsor`「名稱（中／英）」（行 1259–1260） | `partner_i18n`、`sponsor_i18n` |
 | 慈善站 §9.4「zh / en 雙欄位」 | `donation_store_i18n`、`donation_project_i18n`；站台文案走 `Setting` + `setting_i18n` |
 
@@ -360,7 +360,7 @@ flowchart LR
 | `Locale` | — | 啟用語系（`code`、名稱、是否預設、fallback 對象、排序）。**加第三語系＝INSERT 一列** | |
 | `UiString` | — | 介面字串鍵（按鈕、標籤、提示、錯誤訊息）與所屬分組 | |
 | `UiStringTranslation` | — | `(ui_string_id, locale) → value` | |
-| `ValueTagLink` | — | 五大核心價值標籤的多型關聯 `(entity_type, entity_id, value_tag)` | |
+| `ValueTagLink` | — | 四項核心價值標籤的多型關聯 `(entity_type, entity_id, value_tag)`；`value_tag` 四個代碼（v3.29，`CK_value_tag_links_value_tag`） | |
 | `Setting` | **●** | 全域設定鍵值（含商店設定、聯絡資訊、社群連結、政策頁、維護模式）；文案類另有 `setting_i18n`。**唯一鍵 `(club_id, setting_key)`** | 🌐 |
 | `EmailTemplate` | **●** | 系統信樣板 | 🌐 |
 | `EmailLog` | **●** | 系統信寄送紀錄。**`type` 值域 9 個**：會員五封 ＋ 商店四封 | 🔒 |
@@ -402,7 +402,7 @@ flowchart LR
 |---|---|---|---|
 | `Competition` | **●** | **賽事系列**（`code`、名稱、類型、`season_id`）。v3.0 新增，App 的賽事篩選與 12 個月完整賽程靠它。`status` **收斂為 `draft`／`published`**（S1-8，見 [§12 第 33 點](#12-踩雷點)） | 🌐 |
 | `Season` | **●** | 賽季（`code` 如 `2026-27`、起訖日）。唯一鍵 `(club_id, code)`——**兩隊球季不同步** | |
-| `Team` | **●** | 球隊。**`code` UNIQUE（全站唯一，不得改複合鍵）**，值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`；`type` = `first_team`／`academy`；**`gender`（`men`／`women`／`mixed`）**。`first_team` 為**每俱樂部至多一筆** | 🌐 |
+| `Team` | **●** | 球隊。**`code` UNIQUE（全站唯一，不得改複合鍵）**，值域 `D1`／**`BW1`**／磐石學院梯隊 `U10`／`U12`／`U14`／`U16`／`U18`／藍鯨青年隊 **`BW-U15`／`BW-U12`**（v3.29；`U15` 退出，實際建立哪幾隊以 C1 為準，年齡層另存 `age_band`）；`type` = `first_team`／`academy`；**`gender`（`men`／`women`／`mixed`）**。`first_team` 為**每俱樂部至多一筆** | 🌐 |
 | `Player` | **●** | 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態。**新增 `portrait_consent_status`**（肖像同意，S1-8，見 [§12 第 32 點](#12-踩雷點)）。**新增 `slug`**（2026-10-05，網址代稱：App 規劃書 §2.3 深連結 `tcrfc://player/{slug}` → `/zh/club/first-team/player/{slug}`，`string(160)`、`[a-z0-9-]`，必填；唯一鍵 **`(club_id, slug)`**，兩隊的球員可各自有同一個 slug） | 🌐 |
 | `PlayerSeasonStat` | — | 逐季數據 `(player_id, season_id)`。**由 `Player` 推導** | |
 | `Staff` | **○** | 教練與團隊成員：證照、專長、分組。**空＝兩隊共同**（行政與醫療多為共用）。**新增 `portrait_consent_status`**（同 `Player`，S1-8） | 🌐 |
@@ -416,7 +416,7 @@ flowchart LR
 | `Achievement` | **●** | 榮譽（年份、隊伍；賽事名 `competition_name`、名次 `placing` 在側表 `achievements_i18n`，2026-10-06 起，稽核 D 類） | 🌐 |
 | `Milestone` | **●** | 里程碑時間軸。E1a 補：圖片欄位組（`image_key`／`image_width`／`image_height`，替代文字在側表 `image_alt`）、`is_visible`（是否顯示於時間軸） | 🌐 |
 
-> ⚠️ **`Team` 是兩隊各自的隊伍**：磐石 `D1`／`U15`／`U14`／`U12`，藍鯨 `BW1` 與其青年隊。
+> ⚠️ **`Team` 是兩隊各自的隊伍**：磐石 `D1` 與學院梯隊 `U10`／`U12`／`U14`／`U16`／`U18`，藍鯨 `BW1` 與青年隊 `BW-U15`／`BW-U12`（帶 `BW-` 前綴，所以全站唯一的 `code` 從不撞名；`U15`／`U12` 是藍鯨的 `age_band`，不是 `code`）。
 > **兩隊都有「一線隊」，所以任何同時呈現兩隊賽事的畫面，每張卡片都必須標球隊。**
 > ⚠️ `Match.opponent`、`Standing` 的對手都是**字串**，不建對手球隊表——賽事全部人工維護。
 > 🔄 **`Standing`／`Achievement` 改為有 `*_i18n` 側表**（2026-10-06，稽核 D 類「雙語缺口」，**推翻 2026-09-22 的裁決**）：
@@ -556,15 +556,15 @@ flowchart LR
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `Member` | — | 會員帳號：會員編號、註冊來源、**LINE 綁定識別碼（加密）**、Email／電話／生日（受限）。**監護人同意（2026-10-05，主站規劃書「會員資料安全要求」、App 規劃書 §4.5「未滿 18 歲須經監護人同意方得註冊」）：`guardian_consented_at`（同意時間，伺服器時間）、`guardian_name`（🔒 受限，監護人姓名）、`guardian_relationship`（與當事人關係：`parent`／`legal_guardian`）、`guardian_consent_version`（同意文案版本，可為空；文案本身待法務 B-9）——四欄要嘛全空（成年註冊）要嘛前三欄全有（`CK_members_guardian_consent`）；生日是年齡閘門的依據，註冊流程生日必填**。🔴 **刻意不加 `club_id`**——Email 是登入鍵、LINE 綁定 1:1、個資法上的當事人是「人」不是「會籍」 | 🔒 |
-| `Membership` | **●** | **會籍（v3.0 新增）**：`member_id` × `club_id` × `season_id`、層級（`registered`／`fan_club`）、起訖、狀態。**一人每俱樂部一份** | 🔒 |
+| `Membership` | **●** | **會籍（v3.0 新增）**：`member_id` × `club_id` × `season_id`、層級（`standard`／`premium`，v3.29）、`membership_plan_id`（NOT NULL）、起訖、狀態。**一人每俱樂部一份；註冊帳號（免費）不是會籍、不建此列** | 🔒 |
 | `MemberCard` | **●** | **電子會員卡，一張一列**；**`membership_id` 必填——每份會籍一張卡**。持卡人姓名、`token`（UNIQUE，**不可由會員編號推導**）、狀態、補發次數 | 🔒 |
-| `MembershipPlan` | **●** | 會籍方案：費用、`season_id`、期間、`card_quota`、`jersey_quota`；**季中計價規則文字 `mid_season_rule` 在側表 `membership_plans_i18n`**（2026-10-06 起，稽核 D 類；它是給會員看的規則說明，不是計算參數） | 🌐 |
+| `MembershipPlan` | **●** | 會籍方案：`tier`（`standard`／`premium`）、建議年費、`shop_discount_percent`（商店會員折扣，v3.29）、`season_id`、期間、`card_quota`、`jersey_quota`；**季中計價規則文字 `mid_season_rule` 在側表 `membership_plans_i18n`**（2026-10-06 起，稽核 D 類；它是給會員看的規則說明，不是計算參數） | 🌐 |
 | `MembershipPayment` | **●** | 會籍付款與開通：方式、金額、日期、**經辦人**、開通起訖；**`collecting_club_id`（收款法人）**供代收代付分帳 | 🔒 |
 | `MembershipOrder` | **●** | **（E 批新增）會籍付款訂單**：訂單編號、受益俱樂部（`club_id`）與收款主體（`collecting_club_id`）、方案、**伺服器重算的金額**、**冪等鍵**（`(member_id, idempotency_key)` 唯一）、狀態機（App 規劃書 §5.3）。與商店 `Order` 分開 | 🔒 |
 | `MemberRefreshToken` | — | **（E 批新增）會員網頁登入的更新權杖**：只存雜湊、輪替鏈、重放偵測；同 `AdminRefreshToken`，**不是日誌表**。App 的權杖鏈在 `AppDevice` | — |
-| `MembershipBenefit` | — | 權益對照條目（**由父表 `MembershipPlan` 推導**）：分組、免費層值、付費層值、排序。**單一維護點，前台三處共用** | 🌐 |
+| `MembershipBenefit` | — | 權益對照條目（**由父表 `MembershipPlan` 推導**）：`benefit_code`（同方案內唯一）、分組、單一權益值 `value`（v3.29，取代免費層值／付費層值）、排序。**單一維護點，前台三處共用** | 🌐 |
 | `JerseyIssue` | **●** | 球衣發放，**一件一列**：領用人姓名、尺寸、配送方式、地址、狀態 | 🔒 |
-| `PartnerStore` | **○** | 特約店家（**適用範圍可設單一俱樂部或兩隊共同**，主站 §3.14）：類別、地址、電話、營業時間、優惠內容、適用層級、合作起訖、**`lat`／`lng`**（K4 人工確認後儲存）。**無金流無分潤** | 🌐 |
+| `PartnerStore` | **○** | 特約店家（**適用範圍可設單一俱樂部或兩隊共同**，主站 §3.14）：類別、地址、電話、營業時間、優惠內容、適用層級（`applicable_tier`：`all`／`premium`，v3.29）、合作起訖、**`lat`／`lng`**（K4 人工確認後儲存）。**無金流無分潤** | 🌐 |
 | `MemberDraw` | **●** | 抽獎活動：`snapshot_at`、開獎時間、領獎期限、狀態、`roster_version`、`total_count`、`roster_hash`。**各俱樂部各自舉辦**。C1 補 `internal_note` | 🌐 |
 | `DrawRoster` | **●** | **合格名單快照，一人一列**。C1：`roster_version`（**唯一鍵含版本**：`(member_draw_id, roster_version, serial_no)`／`(…, member_no_snapshot)`，作廢重產時舊版保留）、`is_backup`（備取）、`recipient_*`／`shipped_at`／`claimed_at`（獎品發放，比照 K3）、`claim_method`（ship／pickup）與 `fulfilment_status`（pending／shipped／claimed）加值域約束 | 🔒 📸 |
 | `DrawRosterVersion` | — | **名單版本歷程**（C1 新增）：每次產生名單一列 `(member_draw_id, roster_version, snapshot_at, total_count, roster_hash, generated_by/at, voided_at/by, void_reason)`；作廢的舊版**不得刪除**。由 `MemberDraw` 推導，不帶 `club_id` | |
@@ -593,7 +593,7 @@ flowchart LR
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `Collection` | **●** | 商品分類，含品牌敘事區塊。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 |
-| `Product` | **●** | 商品：分類、標籤、敘事、尺碼表、狀態（含缺貨自動判定）、排序、SEO。**無會員價欄位**。`status` **收斂為 `draft`／`published`**（S1-8）；C1 補 `out_of_stock_behavior`（`show_unavailable` 顯示但不可購買／`hide` 自動隱藏，預設前者） | 🌐 |
+| `Product` | **●** | 商品：分類、標籤、敘事、尺碼表、狀態（含缺貨自動判定）、排序、SEO。**無逐品項會員價欄位**；v3.29 新增 `member_discount_eligible`（勾選「適用會員折扣」，會員折扣比例在 `MembershipPlan.shop_discount_percent`）。`status` **收斂為 `draft`／`published`**（S1-8）；C1 補 `out_of_stock_behavior`（`show_unavailable` 顯示但不可購買／`hide` 自動隱藏，預設前者） | 🌐 |
 | `ProductImage` | — | 圖集 `(product_id, sort_order, image_key)` | |
 | `ProductVariant` | **●** | **SKU**：尺寸／顏色、貨號（**維持全站唯一**——揀貨與庫存識別鍵）、售價、促銷價、**成本（受限）**、庫存量、預留量。C1：`status`（`active`／`inactive`，`NOT NULL`）、`low_stock_threshold`（空＝用俱樂部設定）、`sort_order`；**`CK_product_variants_stock`：庫存非負且保留量 ≤ 庫存量**。🔴 **庫存量與保留量只透過庫存異動改動**（S2） | 🔒 |
 | `InventoryMovement` | **●** | 庫存異動：類型、數量、原因、**經辦人**、時間、關聯訂單。C1：`movement_type` `NOT NULL`＋`CK_inventory_movements_type`（stock_in／stocktake／damage／adjust／reserve／release／sale／cancel_restock／return_restock）、`stock_after`／`reserved_after`（異動後水位）；`quantity` 有正負號，`reserve`／`release` 變動保留量、其餘變動庫存量 | |
@@ -664,10 +664,10 @@ flowchart LR
 4. **五種商業對象五張表、彼此零外鍵**：`Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（特約店家，**無金流無分潤**）／`DonationStore`（慈善站掃碼，**有金流有分潤**）／`Advertiser`（App 廣告主，**本檔不建**）。同一家公司同時是數種就**各建一筆**。唯一允許的關聯 `Advertiser.sponsor_id` 屬 App 範圍。
 5. **本檔沒有任何日誌表**，是委託方指示的刻意落差（[§13.1](#131-沒有稽核與登入日誌表)）。反過來說：**`EmailLog`、`InventoryMovement`、`PageVersion`、`FaqSearchMiss`、訂單與捐款的狀態欄位、`AdminRefreshToken` 不是日誌，是功能單元**，不得一併刪除。🔵 **判準是「拿掉它系統還能不能運作」**：日誌是事後查詢用的旁路，刪了不影響運作；`AdminRefreshToken` 刪了輪替與重放偵測直接做不到。⚠️ **反過來說，這條不是「只要沾得上功能就能留」的通行證**——`AdminRefreshToken` 原本有 `created_ip`／`user_agent` 兩欄，因為**只寫入、程式裡沒有任何地方讀取、也沒有清除機制**，等同一份持續增長的登入位置紀錄，已於 2026-09-23 依使用者裁決拿掉（見 [`12b` §7.7](12b-database-tables.md#77-admin_refresh_tokens更新權杖的工作階段狀態s1-3-新增2026-09-23-補文件)）。
 6. **管理員登入識別是 `username` 不是 Email**。種子超管 `sa@system.local` **長得像 Email，但存在 `username` 欄**。`AdminUser.email` 不設唯一索引、不作登入查詢鍵。**前台 `Member.email` 是另一套系統，維持 Email 登入不變。**
-7. **`Team.code` 全站唯一**，值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`，**沒有 `D2`**。⚠️ **v3.0：藍鯨建立完整的 `Team`／`Player`／`Match`**（`club_id` 區隔），`type` 的 `women` 值已廢除改用 `gender`。**`code` 不得改成「俱樂部 × 代號」複合鍵**——它是行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，已在外流通。對手球隊仍是**字串不是實體**。
+7. **`Team.code` 全站唯一**，值域 `D1`／**`BW1`**／`U10`／`U12`／`U14`／`U16`／`U18`（磐石學院）／`BW-U15`／`BW-U12`（藍鯨青年隊），**沒有 `D2`**；`U15` 已退出磐石值域且資料庫從未建過該列。**已對外發出訂閱網址的代碼不得改指其他球隊；日後停用梯隊是不公開，不是改代碼或刪除後重用。**⚠️ **v3.0：藍鯨建立完整的 `Team`／`Player`／`Match`**（`club_id` 區隔），`type` 的 `women` 值已廢除改用 `gender`。**`code` 不得改成「俱樂部 × 代號」複合鍵**——它是行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，已在外流通。對手球隊仍是**字串不是實體**。
    🔴 **後半段已被 App v2.0 推翻**：藍鯨一線隊會以 `BW1` 建為正式 `Team`（`code` 仍**全站唯一**，不改複合鍵）。轉 DDL 前須同步，見 [`14-invariants.md`](14-invariants.md)。
-8. **`D1` 有雙重身分**：`D1` 是隊別代號（一線隊）。後台課程模組原編 `D1–D4` 已改 `P1–P4`，看到「D1 課程管理」一律是舊資料。**權限碼的 `module_code` 禁用 `D`／`U`／`O`／`M`。**
-9. **一份會籍可能多張卡、多件球衣**（`card_quota`／`jersey_quota` 可 > 1，家庭方案），所以 `MemberCard` 與 `JerseyIssue` 是表不是欄位。**每張卡只有一組 token**，官網驗證頁與 App 卡片共用；發兩組＝兩份可撤銷狀態，撤銷必漏一邊。token **不可由 `member_no` 推導**。
+8. **`D1` 有雙重身分**：`D1` 是隊別代號（一線隊）。後台課程模組原編 `D1–D4` 已改 `P1–P4`，看到「D1 課程管理」一律是舊資料。**權限碼的 `module_code` 禁用 `D`（撞 `D1`）／`U`（撞 `U10`–`U18`）／`O`／`M`。**
+9. **一份會籍可能多張卡、多件球衣**（`card_quota`／`jersey_quota` 可 > 1，含多張卡的方案），所以 `MemberCard` 與 `JerseyIssue` 是表不是欄位。**每張卡只有一組 token**，官網驗證頁與 App 卡片共用；發兩組＝兩份可撤銷狀態，撤銷必漏一邊。token **不可由 `member_no` 推導**。
 10. **抽獎資格是算出來的布林值不是表**：沒有 `DrawEntry`／`Ticket`／`Point`／`Weight` 任何表或欄位。`serial_no` 於 `snapshot_at` 依 `member_no` 升冪**一次性配發**，鎖定後不得重排；有誤只能**整份作廢重產**（`roster_version` +1，舊版保留）。**系統不抽出**，`is_winner` 人工回填。
 11. **捐款人沒有帳號**：`Donation` **不得有 `member_id` 外鍵**。Email 軟比對只在 N3 查詢當下做，**不寫入 `Member`、不建關聯欄位、不做歸戶**。
 12. **分潤五欄是成立當下的快照**：改設定**不追溯**。退款以**負項 `SettlementLine`（`is_clawback = true`）沖回下一期**，**不改原列、不重算已付款期間**。`store_id` 為空時 `store_share_pct_snapshot = 0` 仍能結算。
@@ -831,12 +831,12 @@ flowchart LR
     ① `trials` 加 `enrolled_count`／`status`（`CK_trials_status`：開放／額滿／候補／已結束，值域沿用 `sessions.status`）＋新表 `trials_i18n(audience)`；
     ② `members` 加 `email_verified_at`（K1「未驗證」狀態由它推得，**不另設 `status` 值**）、`last_login_at`（取代「登入紀錄」表，同 `admin_users.last_login_at`）、
     `internal_note`、`locale`（語系偏好）、`merged_into_member_id`（合併帳號的去向，**不建日誌表**，合併紀錄以被合併帳號留下的這一欄為準）；
-    ③ `memberships` 加 `membership_plan_id`（§5.1 Membership「方案」欄）、`last_adjust_reason`／`last_adjusted_at`（K2「手動調整層級（含異動原因）」只留最近一次，
+    ③ `memberships` 加 `membership_plan_id`（§5.1 Membership「方案」欄；v3.29 起 NOT NULL）、`last_adjust_reason`／`last_adjusted_at`（K2「手動調整層級（含異動原因）」只留最近一次，
     **不建異動歷程表**）；`status` 收斂為 `NOT NULL DEFAULT 'active'`＋`CK_memberships_status`（pending／active／expired／cancelled）；
     ④ `member_cards.status` 收斂為 `active`／`revoked`＋`revoked_at`；⑤ `membership_plans` 加 `starts_on`／`ends_on`（K2「期間起訖」）、`status`（draft＝下架／published＝上架）；
-    ⑥ `membership_benefits` 加 `status`、`benefit_group` 值域（member_card／store_discount／jersey／event）、`membership_benefits_i18n.name`／`description`；
-    ⑦ `jersey_issues` 加 `membership_id`（家庭方案依 `jersey_quota` 逐件登記）、`received_on`，`status`（pending／shipped／received）與 `delivery_method`（ship／pickup）加值域；
-    ⑧ `partner_stores` 加 `region`（8.4 地區篩選）、`map_url`（K4「地圖連結」），`applicable_tier`（all／fan_club）與 `status`（draft／published）收斂、`partner_stores_i18n.address`（英文地址）；
+    ⑥ `membership_benefits` 加 `status`、`benefit_group` 值域（member_card／store_discount／jersey／event；**v3.29 改為 member_card／discount／gift／event／content**，見 §12 第 54 項）、`membership_benefits_i18n.name`／`description`；
+    ⑦ `jersey_issues` 加 `membership_id`（含多件球衣的方案依 `jersey_quota` 逐件登記）、`received_on`，`status`（pending／shipped／received）與 `delivery_method`（ship／pickup）加值域；
+    ⑧ `partner_stores` 加 `region`（8.4 地區篩選）、`map_url`（K4「地圖連結」），`applicable_tier`（all／fan_club；**v3.29 改為 all／premium**）與 `status`（draft／published）收斂、`partner_stores_i18n.address`（英文地址）；
     ⑨ 新表 `calendar_team_settings`／`_i18n`（L3 隊別分類覆寫）、`calendar_feed_fetches`（L4 訂閱數統計）。
     **不變**：`Member` 仍不加 `club_id`、`MembershipBenefit` 仍不加 `club_id`（範圍靠「方案屬於目前俱樂部」）、`Trial` 是否同步行事曆仍由 L3 開關決定（開關連動 `trials.sync_to_calendar`，視圖不改）。
     **稽核仍無表**（§13.1）：匯出與個資檢視的「誰、何時、幾筆、用途」目前寫進應用程式結構化日誌（`SensitiveActionLogger`），不落資料表，見 `apps/api/README.md`「B1」節「待裁決」。
@@ -917,6 +917,8 @@ flowchart LR
 53. 🔴 **（主站 v3.28，2026-10-15）新聞封面焦點與內文區塊**——**表數不變**，`articles` 加 2 欄＋1 個具名 CHECK（遷移 EF `ArticleCoverFocal`＝`db/migrations/20261015_article-cover-focal_1-expand.sql`，展開型，🔴 先 migrate 再 deploy）：
     ① **`articles.cover_focal_x`／`cover_focal_y`**（`decimal(5,2) NULL`）：封面焦點百分比；**兩欄同為 `NULL`（置中）或同在 0–100**（`CK_articles_cover_focal`）。DDL 新欄位寫在表尾（`cover_height` 之後，欄序規則）。換封面不清焦點（同次存檔帶的焦點照存），**僅移除封面時強制清空**；沒有封面時讀回一律 `null`。
     ② **`articles_i18n.body` 改存區塊 JSON** `{"blocks":[…]}`（每語言一份，結構、順序、圖片 key 相同），欄位型別不變（`nvarchar(max)` ＋ `CK_articles_i18n_body_json`）；舊 `{"text":"…"}` 繼續可讀（後台讀回時轉成單一 text 區塊）。格式見 `docs/14` 不變量與 `apps/api/README.md`「新聞內文區塊」。
+
+54. 🔴 **（主站 v3.29，2026-10-16）會籍兩級方案、商店會員折扣、核心價值四項、學院梯隊 U10–U18**——**表數與 `club_id` 張數不變**（本次沒有新增或刪除任何資料表），只有欄位與值域變動，**共 16 項，逐項清單在 [`12b`](12b-database-tables.md) 末段「v3.29 DDL 變更清單」**。🔴 **狀態（2026-10-16 更新）：`db/club-schema.sql`、EF 模型＋migration、`db/migrations/20261016_client-doc-alignment_{1-expand,2-contract}.sql`、種子與 API 已落地**（與清單的三處差異：`shop_discount_percent` 用 `int`、`draw_rosters.tier_snapshot` 放寬不改寫、`orders.member_discount_plan_id` 無外鍵，見 12b「實作差異」）；本檔其餘章節（§4 總覽、`12a` ERD 屬性方塊）已改到文字層級。要點：`memberships.tier` 改 `standard`／`premium` 且 `membership_plan_id` NOT NULL（註冊帳號不是會籍，原 `registered` 列連同會員卡刪除）；`membership_plans` 加 `tier`、`shop_discount_percent`；`membership_benefits` 加 `benefit_code`、`benefit_group` 改五值、側表 `value` 取代 `free_value`／`paid_value`；`applicable_tier`／`tier_snapshot`／`audience_tier` 值域改寫；`products.member_discount_eligible`、`orders`／`order_items` 折扣欄位；`value_tag_links` 四個新 code（`integrity` 連結列刪除）；`Team.code` 值域與藍鯨實際代號 `BW-U15`／`BW-U12`。
 
 ---
 
@@ -1067,7 +1069,7 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 |---|---|---|
 | `Season` | 行 1248–1253 關聯欄提到 Season | `Match`／`Standing`／`Achievement`／`MembershipPlan` 的軸 |
 | `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | 行 1247 關聯欄列 Category／Tag | B2 的分類、標籤與多型關聯 |
-| `ValueTagLink` | `docs/04` §4 `value_tags[]` | 五大核心價值可掛任何型別 |
+| `ValueTagLink` | `docs/04` §4 `value_tags[]` | 四項核心價值可掛任何型別 |
 | `PageBlock` `PageVersion` | B1（§4.2） | 版型定義的固定欄位內容、版本還原點、預覽 token |
 | `Banner` `HomeSection` | B3 | Hero 輪播與首頁區塊開關 |
 | `FaqCategoryLink` `FaqSearchMiss` | B4 | 一題多分類、零結果關鍵字排行 |

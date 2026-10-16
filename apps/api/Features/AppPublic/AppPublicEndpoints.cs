@@ -56,7 +56,7 @@ public static class AppPublicEndpoints
             }
 
             http.Response.Headers.CacheControl = EdgeCacheable;
-            return Results.Ok(new AppConfigResponse { GeneratedAt = doc.GeneratedAt, Ios = doc.Ios, Android = doc.Android, Evaluation = evaluation });
+            return Results.Ok(new AppConfigResponse { GeneratedAt = doc.GeneratedAt, Ios = doc.Ios, Android = doc.Android, MediaBaseUrl = doc.MediaBaseUrl, Evaluation = evaluation });
         }).WithName("AppGetConfig").Produces<AppConfigResponse>().Produces(StatusCodes.Status400BadRequest);
 
         group.MapGet("/layout", async (

@@ -135,13 +135,16 @@ public sealed record AdminDashboardUpcomingItemDto
 
 public sealed record AdminDashboardMembersDto
 {
-    /// <summary>有效會籍數（本俱樂部，含免費與付費）。</summary>
+    /// <summary>有效會籍數（本俱樂部）。v3.29 起註冊帳號不是會籍，會籍一律是付費方案，所以與 <see cref="ActivePaidMemberships"/> 相同。</summary>
     public required int ActiveMemberships { get; init; }
 
-    /// <summary>有效的付費會籍數（球迷會員）。</summary>
+    /// <summary>有效的付費會籍數（沿用欄位；v3.29 起等同 <see cref="ActiveMemberships"/>）。</summary>
     public required int ActivePaidMemberships { get; init; }
 
-    /// <summary>30 天內到期的有效付費會籍數。</summary>
+    /// <summary>有效的尊尚層級（<c>premium</c>）會籍數（v3.29 新增）。</summary>
+    public required int ActivePremiumMemberships { get; init; }
+
+    /// <summary>30 天內到期的有效會籍數。</summary>
     public required int ExpiringIn30Days { get; init; }
 
     /// <summary>等待客服確認的升級申請數（會籍狀態「待確認」）。</summary>

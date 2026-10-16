@@ -123,6 +123,9 @@ public sealed record AdminProductListItemDto
     public Guid? CollectionId { get; init; }
     public string? CollectionName { get; init; }
     public required bool IsNewArrival { get; init; }
+
+    /// <summary>是否適用商店會員折扣（逐商品勾選；折扣比例在會籍方案，與促銷價不疊加、取低）。</summary>
+    public required bool MemberDiscountEligible { get; init; }
     public required int SortOrder { get; init; }
 
     /// <summary>資料庫狀態：<c>draft</c>／<c>published</c>。</summary>
@@ -152,6 +155,9 @@ public sealed record AdminProductDetailDto
     public Guid? CollectionId { get; init; }
     public string? CollectionName { get; init; }
     public required bool IsNewArrival { get; init; }
+
+    /// <summary>是否適用商店會員折扣（逐商品勾選；折扣比例在會籍方案，與促銷價不疊加、取低）。</summary>
+    public required bool MemberDiscountEligible { get; init; }
     public required int SortOrder { get; init; }
     public required string Status { get; init; }
     public required string DisplayStatus { get; init; }
@@ -176,6 +182,9 @@ public sealed record UpsertAdminProductRequest
     public string? Slug { get; init; }
     public Guid? CollectionId { get; init; }
     public bool IsNewArrival { get; init; }
+
+    /// <summary>是否適用商店會員折扣（預設 false；省略＝不適用）。</summary>
+    public bool MemberDiscountEligible { get; init; }
     public int? SortOrder { get; init; }
 
     /// <summary><c>draft</c>（下架）或 <c>published</c>（上架，至少要有一個販售中的規格）。</summary>

@@ -30,7 +30,7 @@ public sealed class DevAcceptanceSeedTests(AdminWriteApiFixture fixture)
 
     [Theory]
     [InlineData("jersey-single@example.com", 1)]
-    [InlineData("jersey-family@example.com", 3)]
+    [InlineData("jersey-family@example.com", 1)] // v3.29：家庭方案已移除，兩位驗收會員都是尊尚會員（含球衣 1 件）
     public async Task 球衣登記驗收會員_可登入_有效付費會籍_額度全新可登記(string email, int quota)
     {
         var group = await JerseyGroupAsync(email);

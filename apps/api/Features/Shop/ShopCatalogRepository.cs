@@ -191,7 +191,7 @@ public sealed class ShopCatalogRepository(
             Slug = product.Slug, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), Narrative = RequestLocale.Pick(requested?.Narrative, fallback?.Narrative),
             SeoTitle = RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle), SeoDescription = RequestLocale.Pick(requested?.SeoDescription, fallback?.SeoDescription),
             CollectionSlug = product.Collection?.Slug, CollectionName = CollectionName(product.Collection, dbLocale),
-            Tags = ParseTags(RequestLocale.Pick(requested?.Tags, fallback?.Tags)), IsNewArrival = product.IsNewArrival, SizeChart = ParseJson(product.SizeChart),
+            Tags = ParseTags(RequestLocale.Pick(requested?.Tags, fallback?.Tags)), IsNewArrival = product.IsNewArrival, MemberDiscountEligible = product.MemberDiscountEligible, SizeChart = ParseJson(product.SizeChart),
             Images = product.ProductImages.OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new ShopImageDto
             {
                 Url = imageUrls.Resolve(i.ImageKey) ?? string.Empty, ThumbUrl = imageUrls.Resolve(ImageObjectKey.ForThumbnail(i.ImageKey)) ?? string.Empty, Width = i.Width, Height = i.Height, Alt = GalleryImageAlt.Pick(dbLocale, i.ImageAltZh, i.ImageAltEn),
@@ -247,7 +247,7 @@ public sealed class ShopCatalogRepository(
         return new ShopProductListItemDto
         {
             Slug = p.Slug, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), CollectionSlug = p.Collection?.Slug, CollectionName = CollectionName(p.Collection, dbLocale),
-            Tags = ParseTags(RequestLocale.Pick(requested?.Tags, fallback?.Tags)), IsNewArrival = p.IsNewArrival,
+            Tags = ParseTags(RequestLocale.Pick(requested?.Tags, fallback?.Tags)), IsNewArrival = p.IsNewArrival, MemberDiscountEligible = p.MemberDiscountEligible,
             ImageUrl = coverKey is null ? null : imageUrls.Resolve(coverKey), ImageThumbUrl = coverKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(coverKey)),
             ImageWidth = cover?.Width, ImageHeight = cover?.Height, ImageAlt = cover is null ? null : GalleryImageAlt.Pick(dbLocale, cover.AltZh, cover.AltEn),
             PriceMin = summary.PriceMin, PriceMax = summary.PriceMax, ListPriceMin = summary.ListPriceMin, OnSale = summary.OnSale,

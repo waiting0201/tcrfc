@@ -3,8 +3,8 @@
 //
 // 對應 `POST {club}/fan-events/{slug}/registrations`、`DELETE …/registrations/me`（apps/api README E 批）：
 //   - **會員**（帶存取權杖）只需備註，報名記到會員、不另存個資；**非會員**必須有姓名與（手機或 Email）。
-//   - **限付費會員的活動**：沒登入 → 引導登入（回來後回到這一頁）；登入但沒有有效球迷會員會籍 → 後端 403
-//     `fan_club_required`，顯示後端說明並導向加入／升級。
+//   - **限持有效會籍者的活動**：沒登入 → 引導登入（回來後回到這一頁）；登入但沒有有效會籍（任一方案）→ 後端 403
+//     `fan_club_required`，顯示後端說明並導向購買會籍。
 //   - 名額已滿自動進候補（`isFull` 時按鈕寫「登記候補」）；重複報名、截止、已開始由後端以 409 回覆，顯示其說明。
 //   - 取消報名：已報名或候補皆可取消；**取消已報名者不會自動遞補候補者**（客服人工處理，同後台 F2）。
 // 🔴 回應不含任何個資；非會員的姓名／電話／Email 只送出、不存任何瀏覽器儲存空間。
@@ -51,7 +51,7 @@ function statusText(status: string, label: string): string {
 /** 後端錯誤訊息為繁中；英文版對已知代碼改用英文說明，其餘退回通用英文訊息。 */
 function errorText(code: string | undefined, detail: string): string {
   if (!isEn.value) return detail
-  if (code === 'fan_club_required') return 'This event is for paid Fan Club members only. Please upgrade your membership in the Member Centre.'
+  if (code === 'fan_club_required') return 'This event is for members only. Please purchase a membership plan in the Member Centre.'
   if (code === 'login_required') return 'Please log in to register for this event.'
   return /[\u3400-\u9fff]/.test(detail)
     ? 'We could not complete your registration. Please check the details and try again, or contact us.'
@@ -127,15 +127,15 @@ async function cancel() {
       <p v-else-if="closed" class="mc-alert mc-alert--info" role="status">{{ tx('此活動目前不開放報名（已截止或已開始）。', 'Registration for this event is not open at the moment (the deadline has passed or the event has started).') }}</p>
 
       <div v-else-if="paidOnlyBlocked" class="mc-alert mc-alert--info" role="status">
-        <p><template v-if="isEn">This event is open to <strong>paid Fan Club members</strong> only. Please log in to your member account first.</template><template v-else>此活動<strong>限付費球迷會員</strong>報名。請先登入會員帳號。</template></p>
-        <p><a class="btn btn--primary btn--sm" :href="loginHref">{{ tx('登入會員', 'Log in') }}</a>　<a class="btn btn--dark btn--sm" :href="lp('/zh/culture/fan-club/')">{{ tx('了解球迷會', 'About the Fan Club') }}</a></p>
+        <p><template v-if="isEn">This event is open to <strong>members with a valid membership</strong> only. Please log in to your account first.</template><template v-else>此活動<strong>限持有效會籍者</strong>報名。請先登入帳號。</template></p>
+        <p><a class="btn btn--primary btn--sm" :href="loginHref">{{ tx('登入會員', 'Log in') }}</a>　<a class="btn btn--dark btn--sm" :href="lp('/zh/culture/fan-club/')">{{ tx('了解球迷會與會籍方案', 'About the Fan Club and membership plans') }}</a></p>
       </div>
 
       <form v-else class="tcrfc-form fe-reg__form" novalidate @submit.prevent="submit">
         <fieldset>
           <legend>{{ event.isFull ? tx('登記候補', 'Join the waitlist') : tx('活動報名', 'Event registration') }}</legend>
           <p v-if="event.isFull" class="mc-note">{{ tx('目前名額已滿，送出後會列入候補，若有名額會與您聯繫。', 'The event is currently full. If you submit, you will be added to the waitlist and we will contact you if a place becomes available.') }}</p>
-          <p v-if="event.isPaidMembersOnly" class="mc-note">{{ tx('此活動限付費球迷會員；系統會核對您的會籍。', 'This event is for paid Fan Club members only. We will check your membership.') }}</p>
+          <p v-if="event.isPaidMembersOnly" class="mc-note">{{ tx('此活動限持有效會籍者；系統會核對您的會籍。', 'This event is for members with a valid membership only. We will check your membership.') }}</p>
           <div class="form-grid">
             <template v-if="!isLoggedIn">
               <div class="form-field">
@@ -168,7 +168,7 @@ async function cancel() {
         </div>
         <div v-if="error" class="mc-alert mc-alert--error" role="alert">
           <p>{{ error }}</p>
-          <p v-if="needFanClub"><a href="#" @click.prevent="navigateTo(lp('/zh/member/'))">{{ tx('前往會員中心升級球迷會員', 'Go to the Member Centre to upgrade to a Fan Club membership') }}</a></p>
+          <p v-if="needFanClub"><a href="#" @click.prevent="navigateTo(lp('/zh/member/'))">{{ tx('前往會員中心購買會籍', 'Go to the Member Centre to purchase a membership') }}</a></p>
         </div>
         <button type="submit" class="btn btn--primary" :disabled="busy">{{ busy ? tx('送出中…', 'Submitting...') : (event.isFull ? tx('登記候補', 'Join the waitlist') : tx('送出報名', 'Submit registration')) }}</button>
       </form>

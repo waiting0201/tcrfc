@@ -18,17 +18,19 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
     // ═══════════════════════════ 首頁核心價值 ═══════════════════════════
 
     [Fact]
-    public async Task 首頁核心價值_五項固定目錄_代碼與文章標籤一致_兩站共用_不存在的俱樂部404()
+    public async Task 首頁核心價值_四項固定目錄_代碼與文章標籤一致_兩站共用_不存在的俱樂部404()
     {
         using var client = fixture.CreateClient();
         var tcrfc = await client.GetFromJsonAsync<JsonElement>("/api/v1/tcrfc/home/core-values");
-        Assert.Equal(["players_first", "excellence", "global_pathways", "community", "integrity"],
+        // v3.29（客戶 2.3）：四大核心價值；舊的五項（players_first／excellence／global_pathways／community／integrity）已淘汰
+        Assert.Equal(["inspiring_players", "shaping_champions", "local_pride", "global_influence"],
             tcrfc.EnumerateArray().Select(v => v.GetProperty("code").GetString()).ToArray());
         var first = tcrfc[0];
-        Assert.Equal("以球員為本", first.GetProperty("nameZh").GetString());
-        Assert.Equal("Players First", first.GetProperty("nameEn").GetString());
+        Assert.Equal("啟發球員", first.GetProperty("nameZh").GetString());
+        Assert.Equal("Inspiring players", first.GetProperty("nameEn").GetString());
+        Assert.Equal(["塑造冠軍", "在地驕傲", "撼動全球"], tcrfc.EnumerateArray().Skip(1).Select(v => v.GetProperty("nameZh").GetString()).ToArray());
         Assert.Equal("about/philosophy", first.GetProperty("learnMorePageSlug").GetString());
-        Assert.Equal(5, (await client.GetFromJsonAsync<JsonElement>("/api/v1/bw/home/core-values")).GetArrayLength());
+        Assert.Equal(4, (await client.GetFromJsonAsync<JsonElement>("/api/v1/bw/home/core-values")).GetArrayLength());
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/v1/no-such-club/home/core-values")).StatusCode);
     }
 
@@ -205,7 +207,7 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
     {
         await using var members = new MemberTestScope(fixture);
         var m = await members.CreateVerifiedMemberAsync("k2-apps");
-        using var create = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcrfc/member/membership-orders") { Content = BizTest.Json(new { planCode = "single" }) };
+        using var create = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcrfc/member/membership-orders") { Content = BizTest.Json(new { planCode = "standard" }) };
         create.Headers.Add("Idempotency-Key", "k2-" + Guid.NewGuid().ToString("N"));
         var created = await m.Client.SendAsync(create);
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
@@ -223,7 +225,7 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
         Assert.Equal("created", item.GetProperty("status").GetString());
         Assert.Equal("待確認", item.GetProperty("statusLabel").GetString());
         Assert.Equal(m.MemberId, item.GetProperty("memberId").GetGuid());
-        Assert.Equal("single", item.GetProperty("planCode").GetString());
+        Assert.Equal("standard", item.GetProperty("planCode").GetString());
         Assert.True(item.GetProperty("amount").GetInt32() > 0);
         // 完整個資權限：超級管理員看得到完整姓名與 Email；沒有權限的角色看到遮罩（兩者至少一邊必須與對方不同，證明遮罩有套用）。
         var full = (await superAdmin.GetFromJsonAsync<JsonElement>($"/api/v1/admin/tcrfc/membership-applications?keyword={orderNo}")).GetProperty("items")[0];
@@ -244,7 +246,7 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
         Assert.Equal(HttpStatusCode.OK, (await m.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/cancel", null)).StatusCode);
 
         // 再送一份申請 → 客服用清單帶出的 memberId／planId／amount 開通 → 申請一併結案，不再出現在待確認。
-        using var create2 = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcrfc/member/membership-orders") { Content = BizTest.Json(new { planCode = "single" }) };
+        using var create2 = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcrfc/member/membership-orders") { Content = BizTest.Json(new { planCode = "standard" }) };
         create2.Headers.Add("Idempotency-Key", "k2-" + Guid.NewGuid().ToString("N"));
         var orderNo2 = (await (await m.Client.SendAsync(create2)).Content.ReadFromJsonAsync<JsonElement>()).GetProperty("orderNo").GetString()!;
         var row = (await service.GetFromJsonAsync<JsonElement>($"/api/v1/admin/tcrfc/membership-applications?keyword={orderNo2}")).GetProperty("items")[0];

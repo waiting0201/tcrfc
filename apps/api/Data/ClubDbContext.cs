@@ -4321,6 +4321,7 @@ public partial class ClubDbContext : DbContext
 
             entity.HasOne(d => d.MembershipPlan).WithMany(p => p.Memberships)
                 .HasForeignKey(d => d.MembershipPlanId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_memberships_plan");
 
             entity.HasOne(d => d.Season).WithMany(p => p.Memberships)
@@ -4339,6 +4340,8 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("membership_benefits");
 
+            entity.HasIndex(e => new { e.MembershipPlanId, e.BenefitCode }, "UQ_membership_benefits_plan_code").IsUnique();
+
             entity.HasIndex(e => e.RowSeq, "UQ_membership_benefits_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -4346,6 +4349,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
+            entity.Property(e => e.BenefitCode)
+                .HasMaxLength(64)
+                .HasColumnName("benefit_code");
             entity.Property(e => e.BenefitGroup)
                 .HasMaxLength(64)
                 .HasColumnName("benefit_group");
@@ -4395,18 +4401,15 @@ public partial class ClubDbContext : DbContext
                 .HasMaxLength(10)
                 .HasColumnName("locale");
             entity.Property(e => e.Description).HasColumnName("description");
-            entity.Property(e => e.FreeValue)
-                .HasMaxLength(255)
-                .HasColumnName("free_value");
             entity.Property(e => e.GroupLabel)
                 .HasMaxLength(64)
                 .HasColumnName("group_label");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
                 .HasColumnName("name");
-            entity.Property(e => e.PaidValue)
+            entity.Property(e => e.Value)
                 .HasMaxLength(255)
-                .HasColumnName("paid_value");
+                .HasColumnName("value");
 
             entity.HasOne(d => d.MembershipBenefit).WithMany(p => p.MembershipBenefitsI18ns)
                 .HasForeignKey(d => d.MembershipBenefitId)
@@ -4522,12 +4525,18 @@ public partial class ClubDbContext : DbContext
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
             entity.Property(e => e.SeasonId).HasColumnName("season_id");
+            entity.Property(e => e.ShopDiscountPercent)
+                .HasDefaultValue(0, "DF_membership_plans_shop_discount_percent")
+                .HasColumnName("shop_discount_percent");
             entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.StartsOn).HasColumnName("starts_on");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
                 .HasDefaultValue("draft", "DF_membership_plans_status")
                 .HasColumnName("status");
+            entity.Property(e => e.Tier)
+                .HasMaxLength(16)
+                .HasColumnName("tier");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -4772,6 +4781,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.LookupToken)
                 .HasMaxLength(64)
                 .HasColumnName("lookup_token");
+            entity.Property(e => e.MemberDiscountAmount)
+                .HasDefaultValue(0, "DF_orders_member_discount_amount")
+                .HasColumnName("member_discount_amount");
+            entity.Property(e => e.MemberDiscountPlanId).HasColumnName("member_discount_plan_id");
             entity.Property(e => e.MemberId).HasColumnName("member_id");
             entity.Property(e => e.OrderNo)
                 .HasMaxLength(32)
@@ -4872,6 +4885,9 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.LineTotal).HasColumnName("line_total");
+            entity.Property(e => e.MemberDiscountAmount)
+                .HasDefaultValue(0, "DF_order_items_member_discount_amount")
+                .HasColumnName("member_discount_amount");
             entity.Property(e => e.OrderId).HasColumnName("order_id");
             entity.Property(e => e.ProductNameSnapshot)
                 .HasMaxLength(200)
@@ -5725,6 +5741,9 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.IsNewArrival).HasColumnName("is_new_arrival");
+            entity.Property(e => e.MemberDiscountEligible)
+                .HasDefaultValue(false, "DF_products_member_discount_eligible")
+                .HasColumnName("member_discount_eligible");
             entity.Property(e => e.OutOfStockBehavior)
                 .HasMaxLength(16)
                 .HasDefaultValue("show_unavailable", "DF_products_oos")

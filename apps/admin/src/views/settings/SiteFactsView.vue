@@ -66,6 +66,8 @@ interface SiteFactsForm {
   squadStructureZh: string
   squadStructureEn: string
   contactPhone: string
+  contactAddressZh: string
+  contactAddressEn: string
   contactHoursZh: string
   contactHoursEn: string
   blueWhaleSiteUrl: string
@@ -119,6 +121,8 @@ function emptyForm(): SiteFactsForm {
     squadStructureZh: '',
     squadStructureEn: '',
     contactPhone: '',
+    contactAddressZh: '',
+    contactAddressEn: '',
     contactHoursZh: '',
     contactHoursEn: '',
     blueWhaleSiteUrl: '',
@@ -171,6 +175,8 @@ function applyLoaded(dto: AdminSiteFactsDto) {
   form.squadStructureZh = dto.squadStructureZh ?? ''
   form.squadStructureEn = dto.squadStructureEn ?? ''
   form.contactPhone = dto.contactPhone ?? ''
+  form.contactAddressZh = dto.contactAddressZh ?? ''
+  form.contactAddressEn = dto.contactAddressEn ?? ''
   form.contactHoursZh = dto.contactHoursZh ?? ''
   form.contactHoursEn = dto.contactHoursEn ?? ''
   form.blueWhaleSiteUrl = dto.blueWhaleSiteUrl ?? ''
@@ -379,6 +385,8 @@ async function handleSave() {
         address: v.address.trim() || null,
       })),
       contactPhone: form.contactPhone.trim() || null,
+      contactAddressZh: form.contactAddressZh.trim() || null,
+      contactAddressEn: form.contactAddressEn.trim() || null,
       contactHoursZh: form.contactHoursZh.trim() || null,
       contactHoursEn: form.contactHoursEn.trim() || null,
       blueWhaleSiteUrl: form.blueWhaleSiteUrl.trim() || null,
@@ -496,15 +504,15 @@ async function handleSave() {
                     :en="form.squadStructureEn"
                     required
                     :rows="3"
-                    placeholder="例如：一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系"
+                    placeholder="例如：一線隊與足球學院（U10／U12／U14／U16／U18）並行的發展體系"
                     @update:zh="(v) => (form.squadStructureZh = v)"
                     @update:en="(v) => (form.squadStructureEn = v)"
                   />
-                  <p class="site-facts__hint">梯隊年齡層代碼（依顯示順序，例如 U15、U14、U12）：</p>
+                  <p class="site-facts__hint">梯隊年齡層代碼（依顯示順序，磐石學院例如 U10、U12、U14、U16、U18）：</p>
                   <FormField field="squadCodes" label="">
                     <div v-if="squadCodes.length > 0" class="site-facts__list">
                       <div v-for="(row, index) in squadCodes" :key="index" class="site-facts__row">
-                        <el-input v-model="row.value" placeholder="例如：U15" class="site-facts__code-input" />
+                        <el-input v-model="row.value" placeholder="例如：U12" class="site-facts__code-input" />
                         <el-button-group class="site-facts__order-buttons">
                           <el-button :disabled="index === 0" @click="moveItem(squadCodes, index, -1)">
                             <el-icon><ArrowUp /></el-icon>
@@ -581,6 +589,20 @@ async function handleSave() {
                     <el-empty v-else description="目前沒有設定任何主場場地" :image-size="64" />
                   </FormField>
                   <el-button class="site-facts__add-button" @click="addHomeVenue">+ 建立新場地資料（清單裡沒有這座場地時才使用）</el-button>
+                </FormSection>
+
+                <FormSection title="聯絡地址">
+                  <BilingualShortField
+                    field="contactAddress"
+                    label="聯絡地址（選填）"
+                    :zh="form.contactAddressZh"
+                    :en="form.contactAddressEn"
+                    :maxlength="200"
+                    placeholder="辦公室或通訊處地址，前台聯絡頁與頁尾會顯示"
+                    @update:zh="(v) => (form.contactAddressZh = v)"
+                    @update:en="(v) => (form.contactAddressEn = v)"
+                  />
+                  <p class="site-facts__hint">這是聯絡用的地址，和上方「主場場地」的球場地址是兩回事，修改這裡不會影響場地。填了英文地址時，中文也要填。</p>
                 </FormSection>
 
                 <FormSection title="營業時間">

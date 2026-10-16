@@ -24,7 +24,7 @@ public static class AdminDrawsEndpoints
     {
         var group = app.MapGroup("/api/v1/admin/{club}/draws")
             .WithTags("AdminDraws")
-            .WithDescription("K5 抽獎名單管理（球迷會員抽獎），需要登入與俱樂部授權。名單視同會員個資，預設遮罩姓名。");
+            .WithDescription("K5 抽獎名單管理（會員抽獎），需要登入與俱樂部授權。名單視同會員個資，預設遮罩姓名。");
 
         // ── 蒐集告知 ──
         group.MapGet("/notice", async (

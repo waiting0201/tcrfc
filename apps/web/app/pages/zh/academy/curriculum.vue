@@ -1,22 +1,37 @@
 <script setup lang="ts">
 // app/pages/zh/academy/curriculum.vue — 由 site/src/pages/zh/academy/curriculum/index.html 轉來（S0-9 靜態頁搬遷）
 //
+// 2026-10-16（v3.29，客戶 4.4）：磐石改讀 CMS 固定頁 `academy/curriculum`（九個區塊，後台 B1 維護），拿掉寫死的「五大訓練面向」；
+// API 打不到或頁面尚無區塊時，以客戶 4.4 原文備援（shared/utils/academy-curriculum.ts，同時是種子來源）。
+// 藍鯨不設 4.4（規劃書 B1 僅磐石 13 頁），路由維持原狀：仍顯示下方通用的五大面向佔位內容，不受影響。
 // S2-8（2026-09-29）：改為細粒度 unit '4.4'（原本粗粒度 '04' 零俱樂部分支，藍鯨容器
 // 會直接顯示磐石內容，屬於既有缺口，見 units.ts 檔頭說明）。本頁全部既有內容都是
 // 「準備中」通用佔位文字，沒有磐石專屬真實事實，改為兩俱樂部共用同一份文案（只換
 // 抬頭與 CTA 連結），不需要臆造新內容。
 definePageMeta({ nav: "academy", unit: "4.4", enReady: true, enReadyBw: true })
 
-const { lp, isEn, tx } = useLocale()
+const { lp, isEn, tx, locale } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
 
-useSeoMeta({
-  title: computed(() => (isEn.value ? getAcademyCurriculumSeoEn(clubKey.value) : getAcademyCurriculumSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getAcademyCurriculumSeoEn(clubKey.value) : getAcademyCurriculumSeo(clubKey.value)).description),
+const seo = computed(() => (isEn.value ? getAcademyCurriculumSeoEn(clubKey.value) : getAcademyCurriculumSeo(clubKey.value)))
+// 磐石：CMS 有值用 CMS 的 SEO，沒值用上面的備援；藍鯨沒有這個 CMS 頁，不發請求。
+const cms = isTcrfc.value ? await useCmsPage('academy/curriculum') : null
+if (cms) cms.applySeo({ title: () => seo.value.title, description: () => seo.value.description })
+else useSeoMeta({ title: computed(() => seo.value.title), description: computed(() => seo.value.description) })
+
+// 九個區段：每段「固定小標＋該欄位的區塊」。CMS 有已發布區塊用 CMS（依區塊順序對應欄位，空欄位整段略過）；否則用客戶原文備援。
+const sections = computed(() => {
+  if (!isTcrfc.value) return []
+  const slots = cms?.active.value
+    ? cms.slots.value
+    : ACADEMY_CURRICULUM_BLOCKS.map((b, i) => normalizePageBlocks([{ blockType: b.type, content: b.content, sortOrder: i }], { locale: locale.value }))
+  return ACADEMY_CURRICULUM_HEADINGS
+    .map((h, i) => ({ key: i, heading: isEn.value ? h.en : h.zh, blocks: slots[i] ?? [] }))
+    .filter(sec => sec.blocks.length > 0)
 })
 const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn(clubKey.value) : getAcademyCurriculumHero(clubKey.value)))
 </script>
@@ -43,6 +58,19 @@ const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn(clubKey.val
   </div>
 </section>
 
+<!-- 磐石：客戶 4.4 固定頁（CMS 或備援），每個欄位一段 -->
+<template v-if="isTcrfc">
+  <LocaleFallbackNotice v-if="isEn && cms?.active.value && cms.hasZhFallback.value" partial />
+  <section v-for="sec in sections" :key="sec.key" class="band curriculum-band" :aria-labelledby="`curriculum-h-${sec.key}`">
+    <div class="container">
+      <h2 :id="`curriculum-h-${sec.key}`" class="section-title">{{ sec.heading }}</h2>
+      <ContentPageBlocks :blocks="sec.blocks" />
+    </div>
+  </section>
+</template>
+
+<!-- 藍鯨：維持原狀（通用五大面向佔位內容） -->
+<template v-else>
 <section class="band values-band">
   <div class="container">
     <div class="eyebrow-row">
@@ -111,6 +139,7 @@ const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn(clubKey.val
     </div>
   </div>
 </section>
+</template>
 
 <section class="band grain cta-band">
   <div class="container">
@@ -118,7 +147,7 @@ const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn(clubKey.val
       <a class="cta-card" :href="lp('/zh/academy/pathway/')">
         <span class="cta-card__num">4.3</span>
         <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '發展路徑', isTcrfc ? 'Academy Pathway' : 'Youth Pathway') }}</span>
-        <p class="cta-card__desc">{{ tx(isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑', isTcrfc ? 'The pathway from U12 to the First Team and overseas' : 'The pathway from U12 to the First Team') }}</p>
+        <p class="cta-card__desc">{{ tx(isTcrfc ? '從培育、發展到職業階段的成長路徑' : '從 U12 到一線隊的成長路徑', isTcrfc ? 'The pathway from the foundation and development stages to the professional stage' : 'The pathway from U12 to the First Team') }}</p>
       </a>
       <!-- BW-C1：4.5 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <a class="cta-card" :href="lp('/zh/academy/coaches/')">
@@ -138,6 +167,9 @@ const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn(clubKey.val
 </template>
 
 <style>
+.curriculum-band{ padding-block:clamp(2.5rem,5vw,4.5rem); }
+.curriculum-band + .curriculum-band{ border-top:1px solid var(--rule); }
+.curriculum-band .section-title{ margin-bottom:1.25rem; }
 /* ── 4.4 專屬元件：資料表格 ──────────────────────────
    全站目前沒有共用表格樣式；4.7 費用表、5.x 課表也會用到，
    建議把 .data-table 收進 tcrfc.css 共用。 */

@@ -46,6 +46,9 @@ public sealed record AdminOrderItemDto
     public required int Quantity { get; init; }
     public required int LineTotal { get; init; }
 
+    /// <summary>這一列因會員折扣少收的金額（單價與小計已是折後值）；沒有為 0。</summary>
+    public required int MemberDiscountAmount { get; init; }
+
     /// <summary>已申請退貨的數量（不含已駁回的案件）。</summary>
     public required int RefundedQuantity { get; init; }
 }
@@ -109,6 +112,9 @@ public sealed record AdminOrderDetailDto
     public DateTime? CancelledAt { get; init; }
     public string? CancelReason { get; init; }
     public required int Subtotal { get; init; }
+
+    /// <summary>整張訂單因商店會員折扣少收的總額（已含在小計的折後金額內）；沒有為 0。</summary>
+    public required int MemberDiscountAmount { get; init; }
     public required int ShippingFee { get; init; }
     public required int Total { get; init; }
 

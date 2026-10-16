@@ -82,7 +82,7 @@ async function save() {
           <div class="pr__toggles"><div v-for="t in rules.toggles" :key="t.key" class="pr__toggle"><el-switch v-model="form.toggles[t.key]" /><span>{{ t.label }}</span></div></div>
         </el-form-item>
       </el-form>
-      <p class="pr__hint">新聞發布的自動推播預設關閉；帶「球迷會員抽獎」標籤的文章一律不會自動推播，避免推播成為繞過「中獎只在最新消息公布」的後門。</p>
+      <p class="pr__hint">新聞發布的自動推播預設關閉；帶「會員抽獎」標籤的文章一律不會自動推播，避免推播成為繞過「中獎只在最新消息公布」的後門。</p>
       <el-button v-if="canEdit" type="primary" :loading="saving" @click="save">儲存規則</el-button>
     </el-card>
   </div>

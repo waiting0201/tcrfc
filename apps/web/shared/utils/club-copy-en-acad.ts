@@ -98,8 +98,8 @@ export function getAcademyHubCardsEn(facts: SiteFacts, club: AcadClub = 'tcrfc')
   return [
     card('4.1', 'Academy Overview', 'The Academy\'s positioning, training base and the big picture', '/zh/academy/overview/'),
     card('4.2', 'Our Teams', `Rosters, coaches and fixtures for the ${squadCodes(facts, ' / ')} squads`, '/zh/academy/teams/'),
-    card('4.3', 'Academy Pathway', 'The pathway from U12 to the First Team and overseas', '/zh/academy/pathway/'),
-    card('4.4', 'Training & Curriculum', 'Five pillars: technical, tactical, physical, game reading and character', '/zh/academy/curriculum/'),
+    card('4.3', 'Academy Pathway', 'The pathway from the foundation and development stages to the professional stage', '/zh/academy/pathway/'),
+    card('4.4', 'Training & Curriculum', 'Training philosophy, training structure, competition plan, and squad training times and venues', '/zh/academy/curriculum/'),
     card('4.5', 'Coaches', 'Meet the coaches who lead each squad', '/zh/academy/coaches/'),
     card('4.6', 'Academy Life', 'A day-to-day record of training, matches and activities', '/zh/academy/life/'),
     card('4.7', 'Join the Academy', 'Who we recruit, the selection process and online application', '/zh/academy/join/'),
@@ -142,7 +142,7 @@ export function getAcademyOverviewHeroEn(club: AcadClub = 'tcrfc', facts?: SiteF
     h1En: null,
     lede:
       'TCRFC Academy is the youth development system of Taichung Rock FC. It carries forward the club vision of LOCAL ROOTS. GLOBAL PATHWAYS. ' +
-      'and the five core values of Players First, Excellence, Global Pathways, Community and Integrity, supporting players\' growth through age-group training.',
+      'and the four core values of Inspiring players, Shaping champions, Local pride and Global influence, supporting players\' growth through age-group training.',
   }
 }
 
@@ -166,7 +166,7 @@ export function getAcademyTeamsSeoEn(facts: SiteFacts, club: AcadClub = 'tcrfc')
   }
   return {
     title: `Our Teams | TCRFC Academy | ${SITE}`,
-    description: `TCRFC Academy squads (${squadCodes(facts)} and other age groups): rosters, coaches, fixtures and results by squad (data being collected), with a subscription to each squad's calendar.`,
+    description: `TCRFC Academy squads (${squadCodes(facts)}): rosters, coaches, fixtures and results by squad (data being collected), with a subscription to each squad's calendar.`,
   }
 }
 
@@ -181,18 +181,17 @@ export function getAcademyTeamsHeroEn(facts: SiteFacts, club: AcadClub = 'tcrfc'
   return {
     h1Zh: 'Our Teams',
     h1En: null,
-    lede: `TCRFC Academy is organised by age into ${squadCodes(facts)} and other age-group squads. Each squad has its own roster, coaches, fixtures and results, and you can subscribe to a squad's calendar to keep up with every training session and match.`,
+    lede: `TCRFC Academy is organised by age into ${squadCodes(facts)} squads. Each squad has its own roster, coaches, fixtures and results, and you can subscribe to a squad's calendar to keep up with every training session and match.`,
   }
 }
 
-/** English tab labels. `id` and `teamCode` are identical to getAcademyTeamTabs(); only the label of the "other" tab is English. */
+/** English tab labels. `id` and `teamCode` are identical to getAcademyTeamTabs() (v3.29: no "other age groups" tab). */
 export function getAcademyTeamTabsEn(facts: SiteFacts, club: AcadClub = 'tcrfc'): AcademyTeamTab[] {
   if (club === 'bw') {
     return facts.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: `BW-${code}` }))
   }
   return [
     ...facts.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: code })),
-    { id: 'other', labelZh: 'Other age groups', teamCode: null },
   ]
 }
 
@@ -209,7 +208,7 @@ export function getAcademyPathwaySeoEn(club: AcadClub = 'tcrfc'): SeoCopy {
   }
   return {
     title: `Academy Pathway | TCRFC Academy | ${SITE}`,
-    description: 'The step-by-step development pathway at TCRFC Academy: U12 to U15 to the First Team or overseas. Select each stage to see what it takes to move up (details being collected).',
+    description: 'The step-by-step development pathway at TCRFC Academy: the foundation stage (U10, U12), the development stage (U14, U16) and the professional stage (U18, First Team). Select each stage to see what it takes to move up (details being collected).',
   }
 }
 
@@ -224,7 +223,7 @@ export function getAcademyPathwayHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
   return {
     h1Zh: 'Academy Pathway',
     h1En: null,
-    lede: 'Start at U12, deepen your game at U15, then step up to the First Team or an overseas stage. TCRFC Academy offers a step-by-step development pathway. Select a stage below to see how players progress to the next level.',
+    lede: 'Start in the foundation stage (U10, U12), grow through the development stage (U14, U16), then reach the professional stage (U18 and the First Team). TCRFC Academy offers a step-by-step development pathway. Select a stage below to see how players progress to the next level.',
   }
 }
 
@@ -237,7 +236,7 @@ export function getAcademyCurriculumSeoEn(club: AcadClub = 'tcrfc'): SeoCopy {
   }
   return {
     title: `Training & Curriculum | TCRFC Academy | ${SITE}`,
-    description: 'Training at TCRFC Academy covers five pillars: technical, tactical, physical, game reading and character. The syllabus and training-cycle plan for each pillar are being collected.',
+    description: "TCRFC Academy's training philosophy, training structure, competition plan and participation principles, football and education, codes of conduct, and training times and venues for each squad.",
   }
 }
 
@@ -252,7 +251,7 @@ export function getAcademyCurriculumHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
   return {
     h1Zh: 'Training & Curriculum',
     h1En: null,
-    lede: 'Technical, tactical, physical, game reading and character: training at TCRFC Academy is built around five pillars, each with its own syllabus and training-cycle plan.',
+    lede: 'Periodised training that combines technical, tactical, physical and psychological development: learn about the training philosophy, training structure and competition plan at TCRFC Academy, and the training times and venues for each squad.',
   }
 }
 

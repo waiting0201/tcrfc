@@ -1,9 +1,9 @@
 <script setup lang="ts">
-// app/components/member/MemberAuthPanel.vue — 會員登入／加入會員（S2-11，主站 §3.14「前台功能」）
+// app/components/member/MemberAuthPanel.vue — 會員登入／註冊帳號（S2-11，主站 §3.14「前台功能」；v3.29：註冊帳號不是會籍，成為會員需購買會籍方案）
 //
 // 版型沿用 mockup 的 member-tabs（DOM／class 不動），把靜態表單接上真實流程：
 //   - 登入：Email＋密碼、記住我、LINE 一鍵登入；失敗依後端 `code` 區分（未驗證信箱／帳號鎖定／停用）。
-//   - 加入會員：Email 註冊，寄驗證信後才能登入（驗證前不能以密碼登入）。
+//   - 註冊帳號：Email 註冊，寄驗證信後才能登入（驗證前不能以密碼登入）。
 // 🔴 寄信供應商尚未串接時（後端 `emailSent=false`），如實告知「驗證信尚未寄出」，不假裝成功。
 import { GUARDIAN_CONSENT_VERSION_PENDING, MEMBER_PASSWORD_HINT, MEMBER_PASSWORD_HINT_EN, formatTaipeiDateTime, isMinorBirth, passwordProblem, taipeiAge, toMemberApiError } from '#shared/utils/member'
 import type { GuardianRelationship, MemberRegistered } from '#shared/utils/member'
@@ -145,9 +145,9 @@ async function onRegister() {
 
 <template>
   <div class="member-tabs">
-    <div class="member-tabs__list" role="tablist" :aria-label="tx('登入或加入會員', 'Sign in or join')" @keydown="onTabKey">
+    <div class="member-tabs__list" role="tablist" :aria-label="tx('登入或註冊帳號', 'Sign in or register')" @keydown="onTabKey">
       <button id="tab-login" type="button" role="tab" aria-controls="panel-login" :aria-selected="tab === 'login'" :tabindex="tab === 'login' ? 0 : -1" class="member-tabs__tab" @click="tab = 'login'">{{ tx('會員登入', 'Member sign-in') }}</button>
-      <button id="tab-register" type="button" role="tab" aria-controls="panel-register" :aria-selected="tab === 'register'" :tabindex="tab === 'register' ? 0 : -1" class="member-tabs__tab" @click="tab = 'register'">{{ tx('加入會員', 'Join') }}</button>
+      <button id="tab-register" type="button" role="tab" aria-controls="panel-register" :aria-selected="tab === 'register'" :tabindex="tab === 'register' ? 0 : -1" class="member-tabs__tab" @click="tab = 'register'">{{ tx('註冊帳號', 'Register') }}</button>
     </div>
 
     <div v-show="tab === 'login'" id="panel-login" class="member-tabs__panel" role="tabpanel" aria-labelledby="tab-login" tabindex="0">
@@ -191,8 +191,8 @@ async function onRegister() {
 
       <MemberPerksTeaser />
 
-      <h2 class="section-title" style="margin-top:4rem;">{{ tx('兩種入會管道', 'Two ways to join') }}</h2>
-      <p class="section-lede">{{ tx('兩種管道建立的是同一套會員資料。已用 Email 註冊的帳號，登入後可在「個人資料」綁定 LINE。', 'Both ways create the same member record. If you registered with your email, you can link LINE under Profile after signing in.') }}</p>
+      <h2 class="section-title" style="margin-top:4rem;">{{ tx('兩種註冊管道', 'Two ways to register') }}</h2>
+      <p class="section-lede">{{ tx('兩種管道建立的是同一個帳號。註冊帳號可以登入、報名與購物，但不是會籍；要成為會員（取得電子會員卡與會籍權益）請登入後購買會籍方案。已用 Email 註冊的帳號，登入後可在「個人資料」綁定 LINE。', 'Both ways create the same account. A registered account lets you sign in, register for programs and shop, but it is not a membership; to become a member (with a digital membership card and membership benefits), sign in and purchase a membership plan. If you registered with your email, you can link LINE under Profile after signing in.') }}</p>
 
       <div class="channel-grid channel-grid--2">
         <div class="channel-card clip-card clip-card--outlined">
@@ -203,7 +203,7 @@ async function onRegister() {
         <div class="channel-card clip-card clip-card--outlined">
           <p class="channel-card__num">B</p>
           <h3>{{ tx('LINE 一鍵註冊', 'Register with LINE') }}</h3>
-          <p>{{ tx('以既有 LINE 帳號授權建立會員並完成綁定，免記密碼。之後可用 LINE 一鍵登入。', 'Authorise with your existing LINE account to create your membership and link it, with no password to remember. You can then sign in with LINE in one step.') }}</p>
+          <p>{{ tx('以既有 LINE 帳號授權建立帳號並完成綁定，免記密碼。之後可用 LINE 一鍵登入。', 'Authorise with your existing LINE account to create your account and link it, with no password to remember. You can then sign in with LINE in one step.') }}</p>
           <p style="margin-top:1rem;"><button type="button" class="btn btn--dark btn--sm" :disabled="lineBusy" @click="onLine">{{ tx('以 LINE 註冊', 'Register with LINE') }}</button></p>
           <p v-if="lineMessage" class="mc-alert mc-alert--info" role="status" style="margin-top:.75rem;">{{ lineMessage }}</p>
         </div>

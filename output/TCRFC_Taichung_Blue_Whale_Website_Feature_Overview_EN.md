@@ -1,8 +1,8 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.9
-> **Date**: 2026-09-14 (v1.9 revision: 2026-10-07)
-> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.11
+> **Document version**: v1.10
+> **Date**: 2026-09-14 (v1.10 revision: 2026-10-16)
+> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.12
 > **Content principal**: Taichung Blue Whale Women's Football Club
 
 > **How to read this document**
@@ -94,7 +94,7 @@ Plus the **member area**, visible once signed in.
 **One person, one account — but one membership per club.** A Blue Whale supporter can **join Blue Whale alone** without joining Rock; that is the expected case, not an exception.
 
 - Each membership carries **its own digital card**, in Blue Whale's crest and colours, so Blue Whale's partner stores see a Blue Whale card.
-- There are still only two tiers, free and paid. **A second club does not create a third kind of member.**
+- **A free registered account is not a membership** and has no digital membership card; to become a Blue Whale member you buy a Blue Whale plan. Plan names, number of tiers, fees and benefits are set by Blue Whale and **do not reuse Taichung Rock's Rock Member and Prestige Member**; a second club does not create an extra kind of member either.
 - **The two clubs' seasons are not aligned**; expiry dates and renewal reminders are calculated separately.
 
 ### The shop and who collects the money

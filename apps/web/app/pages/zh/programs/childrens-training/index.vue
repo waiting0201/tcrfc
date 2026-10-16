@@ -33,7 +33,7 @@ const identity = computed(() => getClubIdentity(clubKey.value))
 
 const classesBw = computed(() => (isEn.value ? CHILDRENS_TRAINING_CLASSES_BW_EN : CHILDRENS_TRAINING_CLASSES_BW))
 // BW-C1：改讀 useSiteFacts(clubKey)（後端公開端點），不再固定讀 tcrfc。
-const { facts, primaryVenue } = useSiteFacts(clubKey.value)
+const { primaryVenue } = useSiteFacts(clubKey.value)
 // C-6／S2-13：英文版場地名取後端 en 回應的 nameEn，沒有就退回中文名（不自行音譯）。
 // 藍鯨英文：後端 en 回應沒有場地英文名時，用規劃書英文版既有寫法（Taichung Beitun Taiyuan Football Field），不退回中文。
 const factsVenueName = computed(() => (isEn.value ? (primaryVenue.value.nameEn ?? (isTcrfc.value ? null : BW_PRIMARY_VENUE_EN_FALLBACK)) : null) ?? primaryVenue.value.nameZh)
@@ -184,10 +184,10 @@ useCourseSchema(
             <dt>{{ tx('地址', 'Address') }}</dt>
             <dd>{{ homeVenue.address }}</dd>
           </template>
-          <template v-else-if="facts.contact.address">
+          <template v-else-if="primaryVenue.address">
             <dt>{{ tx('地址', 'Address') }}</dt>
-            <dd v-if="isEn"><span lang="zh-Hant">{{ facts.contact.address }}</span></dd>
-            <dd v-else>{{ facts.contact.address }}</dd>
+            <dd v-if="isEn"><span lang="zh-Hant">{{ primaryVenue.address }}</span></dd>
+            <dd v-else>{{ primaryVenue.address }}</dd>
           </template>
           <template v-if="venueMapUrl || isTcrfc">
             <dt>{{ tx('地圖', 'Map') }}</dt>

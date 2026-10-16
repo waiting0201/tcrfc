@@ -169,7 +169,7 @@ useSeoMeta({
       <div class="cta-card" style="background:var(--ink)">
         <p class="cta-card__num">8.2</p>
         <p class="cta-card__title">{{ tx('加入台中磐石球迷會', 'Join the TCRFC Fan Club') }}</p>
-        <p class="cta-card__desc">{{ tx('成為球迷會成員，優先參與球迷活動，並享有特約店家折扣與入會球衣。', 'Become a Fan Club member to get priority for fan events, partner store discounts and a membership jersey.') }}</p>
+        <p class="cta-card__desc">{{ tx('成為會員，享有特約店家折扣、商店會員折扣與各方案權益。', 'Become a member to enjoy partner store discounts, shop member discounts and the benefits of your plan.') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/culture/fan-club/')">{{ tx('前往球迷會', 'Go to the Fan Club') }}</a>
       </div>
       <div class="cta-card" style="background:var(--ink)">

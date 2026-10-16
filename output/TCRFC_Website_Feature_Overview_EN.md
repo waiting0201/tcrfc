@@ -1,8 +1,8 @@
 # Taichung Rock FC — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.6
-> **Date**: 2026-09-14 (v1.6 revision: 2026-10-07)
-> **Corresponds to**: *TCRFC Website Functional Specification* v3.9
+> **Document version**: v1.7
+> **Date**: 2026-09-14 (v1.7 revision: 2026-10-16)
+> **Corresponds to**: *TCRFC Website Functional Specification* v3.29
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **How to read this document**
@@ -49,9 +49,9 @@ The site is organised into **13 sections**, plus the shop and the member area.
 | # | Section | What is in it | Where the content comes from |
 |---|---|---|---|
 | **01** | **Home** | Nine arrangeable blocks: hero, next match, latest news, academy intake, shop picks, sponsors | Pulled from each module; block order set in the admin |
-| **02** | **About Taichung Rock** | Founding story, vision and mission, five core values, organisation, honours, facilities | Written once, rarely changes |
+| **02** | **About Taichung Rock** | Founding story, vision and mission, four core values (Inspiring players, Shaping champions, Local pride, Global influence), organisation, honours, facilities | Written once, rarely changes |
 | **03** | **Football Club** | First team, squad, coaching staff, season reviews | Teams module; **must follow squad changes** |
-| **04** | **Academy** | Philosophy, age groups (U15 / U14 / U12), coaches, grounds, intake and trials | Part fixed copy, part follows each age group |
+| **04** | **Academy** | Philosophy and development pathway, age groups (U10 to U18), coaches, grounds, intake and trials | Part fixed copy, part follows each age group |
 | **05** | **Programmes** | Regular courses, short camps, taster sessions, school and corporate work | Programmes module; **updated every intake** |
 | **06** | **Women's Football** | A single page plus **the entrance to the Blue Whale site** | Squad and fixtures live on the Blue Whale site; not duplicated here |
 | **07** | **News & Stories** | Latest news, match reports, features, video, media area | **The most frequently updated section** |
@@ -84,6 +84,7 @@ The shop runs **inside the site**, not on a third-party platform. The club is th
 | **Payment** | **LINE Pay only** |
 | **Invoice** | **An e-invoice is always issued**; carrier, tax ID or donation code can be entered |
 | **Account needed?** | **No.** Non-members can check out and later look up an order with the order number and email |
+| **Member discount** | A membership plan can carry a shop discount (10% for both Rock Member and Prestige Member), applied automatically at checkout to products marked "member discount applies" (it does not stack with a sale price; the lower price applies); there are no discount codes |
 | **Shipping** | One flat rate plus a free-shipping threshold |
 | **What is sold** | **Physical goods only.** Memberships, programme fees and donations do not go through the shop |
 | **Returns** | Requested on the site; the invoice is voided or credited on return |
@@ -96,24 +97,37 @@ Blue Whale merchandise is sold through the same system. **The collecting entity 
 
 ## 4. Membership and the membership card
 
-Membership covers **one thing only — belonging**, at two tiers:
+Membership covers **one thing only — belonging**. **A free registered account is not a membership**: after registering you can sign in, book programmes, shop in the official store and view the membership plans, but you receive no digital membership card and no membership benefits. To become a member you buy one of the club's plans. Taichung Rock offers two:
 
-| | Free member | Paid member (supporters' club) |
+| | Rock Member (suggested NT$400 a year) | Prestige Member (suggested NT$2,400 a year) |
 |---|---|---|
-| Partner store discounts | ✔ | ✔ (better rates) |
-| Shirt | — | ✔ one |
-| Prize draw entry | — | ✔ |
-| Digital membership card | ✔ | ✔ |
+| Digital membership card | ✔ Dedicated digital member card | ✔ |
+| Welcome gift | ✔ Cap and luggage tag | ✔ |
+| Member votes | ✔ Player of the year, best goal and more | ✔ |
+| Priority booking | ✔ Fan events, summer camps or talks | ✔ |
+| Shopping discount | ✔ 10% on club apparel, merchandise and selected events | ✔ |
+| Limited Prestige gift box | — | ✔ Includes one jersey, plus a cap, luggage tag or a limited commemorative item |
+| Priority tickets / reserved places | — | ✔ Public matches, exhibition games, dinners, overseas exchanges or special events |
+| Exclusive events | — | ✔ At least once a year: coach talk, player meet-and-greet, training visit or members' day |
+| Training / course offers | — | ✔ 10%–15% on academy courses, holiday camps, personal training or partner stores |
+| Behind-the-scenes content | — | ✔ Tactical analysis, youth development reports, coach interviews |
+| Priority communication channel | — | ✔ Dedicated community group or quarterly Q&A |
+| Name display | — | ✔ Optionally listed on the official website or the annual thank-you wall |
+| Referral rewards | — | ✔ Shop vouchers, event credit or upgrade perks for referring new students or members |
+| Prize draw entry | ✔ | ✔ |
+| Partner store discounts | ✔ | ✔ (according to each store's applicable tier) |
+
+> The plan content is based on the client's *Official Fan Club Plans*. Which benefits need system support and which the club handles by hand is confirmed separately in the specification.
 
 **The rules that matter**:
 
 - **One person, one account — but one membership per club.** Joining Rock only, Blue Whale only, or both are all normal.
 - **Each membership carries its own digital card**, in that club's crest and colours.
 - When a store scans the card's QR code, the page it opens shows only the **first character of the name, the member number, the tier, and whether it is valid or expired** — no personal data is exposed.
-- Fees run **by season**, paid through a LINE Pay payment link or in person, not through the shop checkout.
+- Fees run **by season**, paid through a LINE Pay payment link or in person, not through the shop checkout; a member can choose a different plan when renewing after expiry (no upgrades during the season).
 - **The two clubs' seasons are not aligned**; expiry dates and renewal reminders are calculated separately.
 
-**The prize draw**: any paid member whose membership is valid at the cut-off time is **entered automatically, with nothing to do**, one number each. **Spending more, checking in or sharing does not improve anyone's odds.** The draw itself is made by hand, live or on stream, and winners are announced through the news section.
+**The prize draw**: any member whose membership is valid at the cut-off time is **entered automatically, with nothing to do**, one number each. **Spending more, checking in or sharing does not improve anyone's odds.** The draw itself is made by hand, live or on stream, and winners are announced through the news section.
 
 ---
 

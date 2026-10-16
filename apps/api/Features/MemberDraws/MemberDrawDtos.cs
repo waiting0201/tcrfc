@@ -67,7 +67,7 @@ public sealed record MemberDrawDto
     public required string StatusLabel { get; init; }
 
     /// <summary>
-    /// <b>你的個人資格（布林，逐俱樂部）</b>：你在這個俱樂部的球迷會員會籍，在 <see cref="SnapshotAt"/> 當下是否有效（會員帳號啟用）。
+    /// <b>你的個人資格（布林，逐俱樂部）</b>：你在這個俱樂部的有效會籍（任一層級），在 <see cref="SnapshotAt"/> 當下是否有效（會員帳號啟用）。
     /// <c>true</c>＝「將自動列入／已列入」，<c>false</c>＝「會籍尚未涵蓋基準時間」。與「合格人數」無關，後者明確不提供。
     /// </summary>
     public required bool IsEligible { get; init; }

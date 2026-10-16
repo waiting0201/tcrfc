@@ -299,7 +299,7 @@ async function galleryReorder(ids: string[]) {
                           <el-input-number v-if="!form.unlimited" v-model="form.capacity" :min="1" :step="1" @change="formErrors.clear('capacity')" />
                         </div>
                       </FormField>
-                      <el-form-item label="報名資格"><el-switch v-model="form.isPaidMembersOnly" active-text="限付費會員報名" /></el-form-item>
+                      <el-form-item label="報名資格"><el-switch v-model="form.isPaidMembersOnly" active-text="限有效會籍的會員報名" /></el-form-item>
                     </FormSection>
                     <FormSection title="封面圖片">
                       <FormField field="cover" label="封面圖片">

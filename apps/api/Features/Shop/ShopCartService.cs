@@ -37,7 +37,8 @@ public sealed class CartOwner
 /// 價格與庫存以<b>當下</b>為準（購物車只存「規格＋數量」，不存價格快照）。
 /// 訪客權杖：伺服器發出 32 位元組亂數、<b>只存 SHA-256 雜湊</b>（<c>carts.anonymous_token</c>），遺失無法補發。
 /// </summary>
-public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator members, ShopSettingsReader settings, IImagePublicUrlResolver imageUrls)
+public sealed class ShopCartService(
+    ClubDbContext db, MemberAuthenticator members, ShopSettingsReader settings, IImagePublicUrlResolver imageUrls, MemberDiscountService memberDiscounts)
 {
     public const string CartTokenHeader = "X-Cart-Token";
     public const int MaxLines = 50;
@@ -311,7 +312,7 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
 
     public sealed record CartLine(
         Guid VariantId, string ProductSlug, string? ProductName, string VariantLabel, string Sku, string? ImageKey, int? ImageWidth, int? ImageHeight, string? ImageAlt, int ListPrice, int UnitPrice, bool OnSale,
-        int Quantity, int Available, bool Purchasable, string? Issue, string? IssueMessage);
+        int Quantity, int Available, bool Purchasable, string? Issue, string? IssueMessage, int MemberDiscountPerUnit = 0, Guid? MemberDiscountPlanId = null);
 
     private async Task<IReadOnlyList<CartLine>> BuildLinesAsync(ClubScope scope, Cart cart, string dbLocale, CancellationToken cancellationToken)
     {
@@ -323,6 +324,8 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
 
         var rows = await db.ProductVariants.AsNoTracking().Include(v => v.Product).ThenInclude(p => p.ProductsI18ns)
             .Where(v => ids.Contains(v.Id) && v.ClubId == scope.ClubId).AsSplitQuery().ToListAsync(cancellationToken);
+        // 會員折扣（v3.29）：購物車擁有者是會員、且在賣方俱樂部持有有效會籍才有；訪客與僅註冊帳號付原價（或促銷價）。直接查庫，不讀快取。
+        var discount = await memberDiscounts.ResolveAsync(cart.MemberId, scope.ClubId, cancellationToken);
         var productIds = rows.Select(r => r.ProductId).Distinct().ToList();
         var covers = await db.ProductImages.AsNoTracking().Where(i => productIds.Contains(i.ProductId))
             .OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).Select(i => new { i.ProductId, Cover = new ShopCatalogRepository.ProductCover(i.ImageKey, i.Width, i.Height, i.ImageAltZh, i.ImageAltEn) }).ToListAsync(cancellationToken);
@@ -338,8 +341,9 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
 
             var requested = v.Product.ProductsI18ns.FirstOrDefault(i => i.Locale == dbLocale);
             var fallback = v.Product.ProductsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
-            var onSale = v.SalePrice is int sale && sale < v.Price;
-            var unit = onSale ? v.SalePrice!.Value : v.Price;
+            var price = MemberDiscountService.Compute(v.Price, v.SalePrice, v.Product.MemberDiscountEligible, discount);
+            var onSale = price.OnSale;
+            var unit = price.UnitPrice;
             var available = Math.Max(0, v.StockQty - v.ReservedQty);
             string? issue = null;
             string? message = null;
@@ -357,7 +361,7 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
             lines.Add(new CartLine(
                 v.Id, v.Product.Slug, RequestLocale.Pick(requested?.Name, fallback?.Name), AdminShopProductsRepository.VariantLabel(v.Size, v.Colour), v.Sku,
                 coverBy.GetValueOrDefault(v.ProductId)?.Key, coverBy.GetValueOrDefault(v.ProductId)?.Width, coverBy.GetValueOrDefault(v.ProductId)?.Height,
-                coverBy.TryGetValue(v.ProductId, out var cv) ? GalleryImageAlt.Pick(dbLocale, cv.AltZh, cv.AltEn) : null, v.Price, unit, onSale, item.Quantity, available, issue is null, issue, message));
+                coverBy.TryGetValue(v.ProductId, out var cv) ? GalleryImageAlt.Pick(dbLocale, cv.AltZh, cv.AltEn) : null, v.Price, unit, onSale, item.Quantity, available, issue is null, issue, message, price.MemberDiscountPerUnit, price.MemberDiscountApplied ? discount?.PlanId : null));
         }
 
         return lines;
@@ -366,6 +370,7 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
     private async Task<ShopCartDto> BuildAsync(ClubScope scope, Cart? cart, string? newToken, string dbLocale, CancellationToken cancellationToken)
     {
         var lines = cart is null ? [] : await BuildLinesAsync(scope, cart, dbLocale, cancellationToken);
+        var cartDiscount = cart is null ? null : await memberDiscounts.ResolveAsync(cart.MemberId, scope.ClubId, cancellationToken);
         var shippingRule = await settings.GetShippingAsync(scope.ClubId, cancellationToken);
         var subtotal = lines.Sum(l => l.UnitPrice * l.Quantity);
         var fee = lines.Count == 0 ? 0 : ShopSettingsReader.ComputeShippingFee(shippingRule, "home_delivery", subtotal);
@@ -373,12 +378,15 @@ public sealed class ShopCartService(ClubDbContext db, MemberAuthenticator member
         return new ShopCartDto
         {
             CartToken = newToken, ClubCode = scope.ClubCode, ItemCount = lines.Sum(l => l.Quantity), Subtotal = subtotal,
+            MemberDiscountTotal = lines.Sum(l => l.MemberDiscountPerUnit * l.Quantity),
+            MemberDiscountPercent = cartDiscount?.Percent,
             Items = lines.Select(l => new ShopCartItemDto
             {
                 VariantId = l.VariantId, ProductSlug = l.ProductSlug, ProductName = l.ProductName, VariantLabel = l.VariantLabel, Sku = l.Sku,
                 ImageThumbUrl = l.ImageKey is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(l.ImageKey)),
                 ImageWidth = l.ImageWidth, ImageHeight = l.ImageHeight, ImageAlt = l.ImageAlt, ListPrice = l.ListPrice, UnitPrice = l.UnitPrice,
-                OnSale = l.OnSale, Quantity = l.Quantity, LineTotal = l.UnitPrice * l.Quantity, AvailableQty = Math.Min(l.Available, ShopCatalogRepository.MaxReportedQty),
+                OnSale = l.OnSale, MemberDiscountApplied = l.MemberDiscountPerUnit > 0, MemberDiscountAmount = l.MemberDiscountPerUnit * l.Quantity,
+                Quantity = l.Quantity, LineTotal = l.UnitPrice * l.Quantity, AvailableQty = Math.Min(l.Available, ShopCatalogRepository.MaxReportedQty),
                 Purchasable = l.Purchasable, Issue = l.Issue, IssueMessage = l.IssueMessage,
             }).ToList(),
             Shipping = new ShopCartShippingDto { Fee = fee, FreeThreshold = shippingRule.FreeThreshold, AmountToFree = toFree },

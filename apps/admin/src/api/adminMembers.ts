@@ -5,7 +5,7 @@
  */
 import { apiRequest, buildQuery, downloadExport, type PagedResult } from './adminCommon'
 
-export type MemberTier = 'registered' | 'fan_club'
+export type MemberTier = 'standard' | 'premium'
 export type MembershipStatusCode = 'pending' | 'active' | 'expired' | 'cancelled'
 export type MemberAccountStatus = 'active' | 'unverified' | 'suspended' | 'deleted'
 export type MemberSignupSource = 'web' | 'line' | 'admin' | 'app'
@@ -13,8 +13,8 @@ export type JerseyStatusCode = 'pending' | 'shipped' | 'received'
 export type MemberLocale = 'zh-Hant' | 'en'
 
 export const MEMBER_TIER_OPTIONS: { value: MemberTier; label: string }[] = [
-  { value: 'registered', label: '一般會員' },
-  { value: 'fan_club', label: '球迷會員' },
+  { value: 'standard', label: '磐石會員' },
+  { value: 'premium', label: '尊尚會員' },
 ]
 export const MEMBERSHIP_STATUS_OPTIONS: { value: MembershipStatusCode; label: string }[] = [
   { value: 'pending', label: '待確認' },

@@ -37,7 +37,7 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
     // ═════════════ 我的會籍 ═════════════
 
     [Fact]
-    public async Task 我的會籍_逐俱樂部列出_每份會籍帶卡片與俱樂部品牌_需要登入()
+    public async Task 我的會籍_註冊帳號沒有會籍與卡_購買方案後逐俱樂部列出_每份會籍帶卡片與俱樂部品牌_需要登入()
     {
         var m = await _scope.CreateVerifiedMemberAsync("center-list");
         using var anonymous = _scope.Client();
@@ -46,6 +46,16 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
             Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(path)).StatusCode);
         }
 
+        // 🔴 v3.29：註冊帳號不是會籍——註冊＋Email 驗證之後沒有會籍、沒有電子會員卡；磐石列在「可加入」清單（導向方案頁購買），藍鯨目前沒有開放的球季
+        var before = await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"));
+        Assert.Equal(0, before.GetProperty("memberships").GetArrayLength());
+        Assert.Equal(new[] { "tcrfc" }, before.GetProperty("joinableClubs").EnumerateArray().Select(c => c.GetProperty("code").GetString()).ToArray());
+        Assert.Equal(0, (await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/cards"))).GetArrayLength());
+        Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M", ("@M", m.MemberId)));
+        // 舊的「免費加入」端點已移除（不再有免費會籍）
+        Assert.Contains((await m.Client.PostAsync("/api/v1/tcrfc/member/memberships/join", null)).StatusCode, new[] { HttpStatusCode.NotFound, HttpStatusCode.MethodNotAllowed });
+
+        await MemberTestScope.BuyMembershipAsync(m, "standard");
         var json = await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"));
         var list = json.GetProperty("memberships");
         Assert.Equal(1, list.GetArrayLength());
@@ -55,7 +65,9 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
         // 🔴 主站規劃書 v3.20：後端不再提供標誌與品牌色（App 內建兩隊標誌與品牌色，以 club.code 對應）。
         Assert.False(ms.GetProperty("club").TryGetProperty("brandColor", out _));
         Assert.False(ms.GetProperty("club").TryGetProperty("logoLightUrl", out _));
-        Assert.Equal("一般會員", ms.GetProperty("tierLabel").GetString());
+        Assert.Equal("standard", ms.GetProperty("tier").GetString());
+        Assert.Equal("磐石會員", ms.GetProperty("tierLabel").GetString());
+        Assert.Equal("standard", ms.GetProperty("planCode").GetString());
         Assert.Equal("有效", ms.GetProperty("statusLabel").GetString());
         Assert.Equal("2026-27", ms.GetProperty("seasonCode").GetString());
         Assert.True(ms.GetProperty("isCurrentSeason").GetBoolean());
@@ -63,52 +75,43 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
         Assert.Equal(m.MemberNo, card.GetProperty("memberNo").GetString());
         Assert.True(card.GetProperty("isValid").GetBoolean());
         Assert.Equal(43, card.GetProperty("token").GetString()!.Length); // 不可由會員編號推導的隨機憑證
-
-        // 藍鯨目前沒有開放的球季 → 不在「可加入」清單，直接加入回 409
-        Assert.Equal(0, json.GetProperty("joinableClubs").GetArrayLength());
-        var joinBw = await m.Client.PostAsync("/api/v1/bw/member/memberships/join", null);
-        Assert.Equal(HttpStatusCode.Conflict, joinBw.StatusCode);
-        Assert.Equal("season_not_available", CodeOf(await ReadJsonAsync(joinBw)));
-
-        // 重複加入磐石：冪等，回同一份會籍
-        var again = await ReadJsonAsync(await m.Client.PostAsync("/api/v1/tcrfc/member/memberships/join", null));
-        Assert.Equal(ms.GetProperty("id").GetString(), again.GetProperty("id").GetString());
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M", ("@M", m.MemberId)));
+        Assert.Equal(0, json.GetProperty("joinableClubs").GetArrayLength()); // 這一季已經有會籍，磐石不再列為可加入
         Assert.Equal(HttpStatusCode.NotFound, (await m.Client.PostAsync("/api/v1/nope/member/memberships/join", null)).StatusCode);
 
         // 英文標籤
         var en = await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships?lang=en"));
-        Assert.Equal("Member", en.GetProperty("memberships")[0].GetProperty("tierLabel").GetString());
+        Assert.Equal("Rock Member", en.GetProperty("memberships")[0].GetProperty("tierLabel").GetString());
     }
 
     [Fact]
-    public async Task 加入俱樂部_高強度並行_16並行乘10輪_全部200同一份會籍_只有一份會籍與一張卡()
+    public async Task 不提供會籍期間內升級_已有磐石會員不能再買尊尚會員_同方案重複購買也被擋()
     {
-        for (var round = 0; round < 10; round++)
-        {
-            var m = await _scope.CreateVerifiedMemberAsync($"center-join-race-{round}");
-            // 註冊時已自動建立磐石會籍；刪掉它，讓並行的 join 真的走「首次建立」路徑。
-            await BizTest.ExecuteSqlAsync(
-                "DELETE FROM member_cards WHERE membership_id IN (SELECT id FROM memberships WHERE member_id = @M); DELETE FROM memberships WHERE member_id = @M;", ("@M", m.MemberId));
-            var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => m.Client.PostAsync("/api/v1/tcrfc/member/memberships/join", null))));
-            var codes = string.Join(",", results.Select(r => (int)r.StatusCode));
-            Assert.True(results.All(r => r.StatusCode == HttpStatusCode.OK), $"第 {round} 輪：{codes}");
-            var ids = new HashSet<string?>();
-            foreach (var r in results)
-            {
-                ids.Add((await ReadJsonAsync(r)).GetProperty("id").GetString());
-            }
+        var m = await _scope.CreateVerifiedMemberAsync("center-no-upgrade");
+        await MemberTestScope.BuyMembershipAsync(m, "standard");
 
-            Assert.Single(ids);
-            Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M", ("@M", m.MemberId)));
-            Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM member_cards WHERE membership_id IN (SELECT id FROM memberships WHERE member_id = @M)", ("@M", m.MemberId)));
-        }
+        using var upgrade = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcrfc/member/membership-orders") { Content = BizTest.Json(new { planCode = "premium" }) };
+        upgrade.Headers.Add("Idempotency-Key", "test-" + Guid.NewGuid().ToString("N"));
+        var denied = await m.Client.SendAsync(upgrade);
+        Assert.Equal(HttpStatusCode.Conflict, denied.StatusCode);
+        Assert.Equal("upgrade_not_supported", CodeOf(await ReadJsonAsync(denied)));
+
+        using var again = new HttpRequestMessage(HttpMethod.Post, "/api/v1/tcrfc/member/membership-orders") { Content = BizTest.Json(new { planCode = "standard" }) };
+        again.Headers.Add("Idempotency-Key", "test-" + Guid.NewGuid().ToString("N"));
+        var duplicate = await m.Client.SendAsync(again);
+        Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
+        Assert.Equal("already_fan_club", CodeOf(await ReadJsonAsync(duplicate)));
+
+        // 會籍沒有被動到：仍是磐石會員一份
+        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier = 'standard'", ("@M", m.MemberId)));
+        Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM membership_orders WHERE member_id = @M AND status = 'created'", ("@M", m.MemberId)));
     }
 
     [Fact]
     public async Task 到期前三十天顯示續會提示_已過期的會籍顯示已到期()
     {
         var m = await _scope.CreateVerifiedMemberAsync("center-renew");
+        await MemberTestScope.BuyMembershipAsync(m, "standard");
         await BizTest.ExecuteSqlAsync("UPDATE memberships SET membership_end_on = DATEADD(DAY, 10, CAST(SYSUTCDATETIME() AS date)) WHERE member_id = @M", ("@M", m.MemberId));
         var soon = (await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"))).GetProperty("memberships")[0];
         Assert.True(soon.GetProperty("renewalDue").GetBoolean());
@@ -127,6 +130,7 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
     public async Task 公開驗證頁_只回姓名首字_會員編號_層級_有效或已過期_不顯示任何其他個資與俱樂部()
     {
         var m = await _scope.CreateVerifiedMemberAsync("center-verify");
+        await MemberTestScope.BuyMembershipAsync(m, "premium");
         using var anonymous = _scope.Client();
         var cards = await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/cards"));
         var token = cards[0].GetProperty("token").GetString()!;
@@ -141,6 +145,8 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
         Assert.Equal(m.MemberNo, json.GetProperty("memberNo").GetString());
         Assert.Equal("valid", json.GetProperty("status").GetString());
         Assert.Equal("有效", json.GetProperty("statusLabel").GetString());
+        Assert.Equal("premium", json.GetProperty("tier").GetString());
+        Assert.Equal("尊尚會員", json.GetProperty("tierLabel").GetString());
         var raw = json.GetRawText();
         foreach (var leaked in new[] { m.Email, "0900-000-111", "club", "tcrfc", "birth", "phone" })
         {
@@ -170,6 +176,8 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
     {
         var a = await _scope.CreateVerifiedMemberAsync("center-regen-a");
         var b = await _scope.CreateVerifiedMemberAsync("center-regen-b");
+        await MemberTestScope.BuyMembershipAsync(a, "standard");
+        await MemberTestScope.BuyMembershipAsync(b, "standard");
         using var anonymous = _scope.Client();
         var card = (await ReadJsonAsync(await a.Client.GetAsync("/api/v1/member/cards")))[0];
         var cardId = card.GetProperty("id").GetString();
@@ -200,19 +208,32 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
     };
 
     [Fact]
-    public async Task 球衣登記_只有有效的球迷會員可以登記_件數受方案限制_寄出後不能再改_別人的會籍404()
+    public async Task 球衣登記_只有有效會籍可以登記_件數受方案限制_寄出後不能再改_別人的會籍404()
     {
         var m = await _scope.CreateVerifiedMemberAsync("center-jersey");
         var other = await _scope.CreateVerifiedMemberAsync("center-jersey-other");
-        var freeMembership = Guid.Parse((await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"))).GetProperty("memberships")[0].GetProperty("id").GetString()!);
 
-        // 免費會員：列表沒有可登記的會籍；登記 409
+        // 僅註冊帳號（沒有會籍）：列表沒有可登記的會籍；登記到不存在的會籍 404
         Assert.Equal(0, (await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/jerseys"))).GetArrayLength());
-        var notFan = await m.Client.PostAsJsonAsync("/api/v1/tcrfc/member/jerseys", Jersey(freeMembership), TestJson.WriteOptions);
-        Assert.Equal(HttpStatusCode.Conflict, notFan.StatusCode);
-        Assert.Equal("not_fan_club", CodeOf(await ReadJsonAsync(notFan)));
+        Assert.Equal(HttpStatusCode.NotFound, (await m.Client.PostAsJsonAsync("/api/v1/tcrfc/member/jerseys", Jersey(Guid.NewGuid()), TestJson.WriteOptions)).StatusCode);
 
-        await MemberTestScope.BuyFanClubAsync(m, "single"); // single 含 1 件球衣
+        // 磐石會員（standard）方案不含球衣：列表不出現、登記 409 jersey_quota_reached
+        var s = await _scope.CreateVerifiedMemberAsync("center-jersey-standard");
+        await MemberTestScope.BuyMembershipAsync(s, "standard");
+        var standardMembership = Guid.Parse((await ReadJsonAsync(await s.Client.GetAsync("/api/v1/member/memberships"))).GetProperty("memberships")[0].GetProperty("id").GetString()!);
+        Assert.Equal(0, (await ReadJsonAsync(await s.Client.GetAsync("/api/v1/member/jerseys"))).GetArrayLength());
+        var noQuota = await s.Client.PostAsJsonAsync("/api/v1/tcrfc/member/jerseys", Jersey(standardMembership), TestJson.WriteOptions);
+        Assert.Equal(HttpStatusCode.Conflict, noQuota.StatusCode);
+        Assert.Equal("jersey_quota_reached", CodeOf(await ReadJsonAsync(noQuota)));
+
+        // 會籍已到期：不能登記（not_fan_club 為沿用的錯誤碼，語意＝沒有有效會籍）
+        await BizTest.ExecuteSqlAsync("UPDATE memberships SET membership_end_on = DATEADD(DAY, -1, CAST(SYSUTCDATETIME() AS date)) WHERE id = @M", ("@M", standardMembership));
+        var expiredTry = await s.Client.PostAsJsonAsync("/api/v1/tcrfc/member/jerseys", Jersey(standardMembership), TestJson.WriteOptions);
+        Assert.Equal(HttpStatusCode.Conflict, expiredTry.StatusCode);
+        Assert.Equal("not_fan_club", CodeOf(await ReadJsonAsync(expiredTry)));
+
+        await MemberTestScope.BuyMembershipAsync(m, "premium"); // premium 含 1 件球衣（尊尚禮盒）
+        var freeMembership = Guid.Parse((await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"))).GetProperty("memberships")[0].GetProperty("id").GetString()!);
         var group = (await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/jerseys")))[0];
         Assert.Equal(1, group.GetProperty("quota").GetInt32());
         Assert.Equal(0, group.GetProperty("used").GetInt32());
@@ -235,7 +256,7 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
         Assert.True(jersey.GetProperty("editable").GetBoolean());
         var jerseyId = jersey.GetProperty("id").GetString();
 
-        // single 只含 1 件 → 第二件 409（並行也一樣：用鎖保證不超收）
+        // premium 只含 1 件 → 第二件 409（並行也一樣：用鎖保證不超收）
         var results = await Task.WhenAll(Enumerable.Range(0, 3).Select(_ => m.Client.PostAsJsonAsync("/api/v1/tcrfc/member/jerseys", Jersey(freeMembership), TestJson.WriteOptions)));
         Assert.All(results, r => Assert.Equal(HttpStatusCode.Conflict, r.StatusCode));
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM jersey_issues WHERE member_id = @M", ("@M", m.MemberId)));

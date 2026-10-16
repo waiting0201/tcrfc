@@ -31,6 +31,9 @@ public partial class Product
 
     public Guid? UpdatedBy { get; set; }
 
+    /// <summary>是否適用商店會員折扣（逐商品勾選；預設 false）。</summary>
+    public bool MemberDiscountEligible { get; set; }
+
     public string OutOfStockBehavior { get; set; } = null!;
 
     public virtual Club Club { get; set; } = null!;

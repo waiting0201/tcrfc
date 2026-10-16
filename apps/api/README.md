@@ -4695,9 +4695,9 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 | 方法 路徑 | 說明 |
 |---|---|
-| `GET ?seasonId=&status=` | 陣列（球季新→舊、排序）：`{ id, seasonId, seasonCode, code, fee, cardQuota, jerseyQuota, startsOn, endsOn, sortOrder, status, statusLabel, nameZh, nameEn, membershipCount, updatedAt }` |
+| `GET ?seasonId=&status=` | 陣列（球季新→舊、排序）：`{ id, seasonId, seasonCode, code, tier（standard／premium）, tierLabel, shopDiscountPercent（商店會員折扣 0–100）, fee, cardQuota, jerseyQuota, startsOn, endsOn, sortOrder, status, statusLabel, nameZh, nameEn, membershipCount, updatedAt }` |
 | `GET /{id}` | 詳情多 `midSeasonRule`、`zh`／`en`（`{ name, benefitNote }`）、`createdAt` |
-| `POST`／`PUT /{id}` | payload：`seasonId`（必填，須屬於目前俱樂部）、`code`（必填，小寫英數與連字號 ≤32，**同俱樂部同球季內不可重複 → 409**）、`fee`（≥0，元）、`cardQuota`（1–10，預設 1）、`jerseyQuota`（0–10）、`midSeasonRule?`、`startsOn?`／`endsOn?`、`sortOrder`、`status`（`published` 上架／`draft` 下架，預設 `draft`）、`content.zh.name`（必填）／`content.zh.benefitNote?`／`content.en?`。**有會籍或付款紀錄使用時不能換球季（400）** |
+| `POST`／`PUT /{id}` | payload：`seasonId`（必填，須屬於目前俱樂部）、`code`（必填，小寫英數與連字號 ≤32，**同俱樂部同球季內不可重複 → 409**）、**`tier`（必填，`standard`＝磐石會員／`premium`＝尊尚會員；有會籍使用的方案不能變更層級 → 400）、`shopDiscountPercent`（0–100 整數，預設 0；適用 S1 勾選「適用會員折扣」的商品，與促銷價不疊加、取低）**（v3.29）、`fee`（≥0，元，建議年費）、`cardQuota`（1–10，預設 1）、`jerseyQuota`（0–10）、`midSeasonRule?`、`startsOn?`／`endsOn?`、`sortOrder`、`status`（`published` 上架／`draft` 下架，預設 `draft`）、`content.zh.name`（必填）／`content.zh.benefitNote?`／`content.en?`。**有會籍或付款紀錄使用時不能換球季（400）** |
 | `DELETE /{id}` | 204；**有會籍或付款紀錄使用 → 409**（改為下架）。方案底下的權益條目一併刪除 |
 | `PUT /order` | 排序（`{ ids }`） |
 
@@ -4707,8 +4707,8 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 |---|---|---|
 | `GET ?memberId=&keyword=&tier=&status=&seasonId=&planId=&expiringWithinDays=&page=&pageSize=` | `member.membership.view` | 分頁；**會籍到期提醒清單＝`expiringWithinDays=30`**（依到期日近→遠）。清單項 `{ membershipId, memberId, memberNo, memberName（遮罩）, tier, status, effectiveStatus(+Label), seasonId, seasonCode, startOn, endOn, daysToExpire, planId, planName, cardCount, paidTotal, updatedAt }` |
 | `GET /{id}` | 同上 | 詳情 `{ membership, lastAdjustReason, lastAdjustedAt, payments[], cards[], cardQuota, jerseyQuota }` |
-| `POST /activate` | `member.membership.create` | **手動開通／續會**。body：`memberId`、`planId`（須屬於目前俱樂部且**上架**）、`beneficiaryClubId?`（受益俱樂部；省略或＝目前俱樂部，不同 → 400）、`paymentMethod`（`linepay`／`onsite`）、`amount`（≥0，實收元）、`paidOn`（不可晚於今天）、`note?`、`startOn?`（省略＝方案起日；方案已開始則今天）、`endOn?`（省略＝方案迄日，再省略用球季結束日）。找到或建立「這位會員在這個俱樂部這個球季」的會籍 → 升為球迷會員、設起訖 → 寫一筆付款紀錄（**同時記受益俱樂部與收款法人**：`collectingClubCode` 恆為收款主體俱樂部＝代收代付）→ 確保有一張使用中的會員卡（不足的副卡另用 `POST /{id}/cards`）。**續會＝用下一球季的方案再開通一次**。同一會籍、同方案、同付款日、同金額重複送出 → 409。**補登已結束球季的會籍必須明確給 `startOn` 與 `endOn`**（否則 400「方案期間已結束」）。回傳會籍詳情 |
-| `POST /` → 201 | `member.membership.create` | 建立免費（一般會員）會籍與第一張卡：`{ memberId, seasonId }`；已有 → 409 |
+| `POST /activate` | `member.membership.create` | **手動開通／續會**。body：`memberId`、`planId`（須屬於目前俱樂部且**上架**）、`beneficiaryClubId?`（受益俱樂部；省略或＝目前俱樂部，不同 → 400）、`paymentMethod`（`linepay`／`onsite`）、`amount`（≥0，實收元）、`paidOn`（不可晚於今天）、`note?`、`startOn?`（省略＝方案起日；方案已開始則今天）、`endOn?`（省略＝方案迄日，再省略用球季結束日）。找到或建立「這位會員在這個俱樂部這個球季」的會籍 → **層級隨方案**（`standard`／`premium`）、設起訖 → 寫一筆付款紀錄（**同時記受益俱樂部與收款法人**：`collectingClubCode` 恆為收款主體俱樂部＝代收代付）→ 確保有一張使用中的會員卡（不足的副卡另用 `POST /{id}/cards`）。**續會＝用下一球季的方案再開通一次**。同一會籍、同方案、同付款日、同金額重複送出 → 409。**🔴 不提供會籍期間內升級（v3.29）：這個球季已有有效會籍且方案不同 → 409（無升級流程與補差價），要改選方案等到期後續約**。**補登已結束球季的會籍必須明確給 `startOn` 與 `endOn`**（否則 400「方案期間已結束」）。回傳會籍詳情 |
+| ~~`POST /`~~ | — | **v3.29 已移除**：後台沒有「建立免費會籍」，註冊帳號不是會籍，會籍只由 `POST /activate` 開通方案而來（呼叫舊路徑 → 404／405） |
 | `PUT /{id}/adjust` | `member.membership.update` | 手動調整：`{ tier?, status?, startOn?, endOn?, reason }`，**`reason` 必填、至少改一項**。**只留最近一次原因**（不建歷程表）。改成 `cancelled` 時其會員卡一併停用 |
 | `POST /{id}/cards` | 同上 | 新增副卡（家庭方案）：`{ holderName }`；**不得超過方案 `cardQuota`（409）** |
 | `POST /{id}/cards/{cardId}/revoke` | 同上 | 停用單張卡 |
@@ -4726,7 +4726,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 | `GET ?status=&size=&deliveryMethod=&memberId=&membershipId=&keyword=&page=&pageSize=` | `member.jersey.view` | 分頁，**待處理→已寄出→已領取**排序。收件資訊依 `member.pii.reveal` 遮罩（有權限者的每次名單查詢會寫日誌） |
 | `GET /size-summary?status=pending` | 同上 | **依尺寸統計備貨量** `[{ size, sizeLabel, total, ship, pickup }]`（依 XS…4XL 排序，未填尺寸另列「未填尺寸」）；`status` 省略＝待處理 |
 | `GET /{id}` | 同上 | `{ id, memberId, memberNo, membershipId, recipientName, phone, size, deliveryMethod(+Label), address, status(+Label), shippedOn, receivedOn, createdAt, updatedAt, isMasked }` |
-| `POST /` → 201 | `member.jersey.create` | 後台代填：`{ membershipId, recipientName, phone?, size, deliveryMethod（"ship"｜"pickup"）, address? }`；**寄送必須有電話與地址**；**件數不得超過方案 `jerseyQuota`（409；免費會籍不含球衣）**；尺寸自動轉大寫 |
+| `POST /` → 201 | `member.jersey.create` | 後台代填：`{ membershipId, recipientName, phone?, size, deliveryMethod（"ship"｜"pickup"）, address? }`；**寄送必須有電話與地址**；**件數不得超過方案 `jerseyQuota`（409；磐石會員 `standard` 方案不含球衣、尊尚會員含 1 件）**；尺寸自動轉大寫 |
 | `PUT /{id}` | `member.jersey.update` | 只改有帶的欄位（省略＝不變）。**修改領用人／電話／地址需要 `member.pii.reveal`（否則 403）**。狀態：`pending`／`shipped`／`received`——`shipped` 只有寄送的球衣可用（到場領取請直接標已領取），記寄出日；`received` 記領取日；回 `pending` 清掉兩個日期；可往回改（更正誤按）。狀態變更**即時反映在會員端**（同一張表） |
 | `POST /batch/status` | 同上 | `{ ids（1–200）, status }` → `{ updatedCount, skipped }`（不符規則的列進 `skipped`） |
 | `GET /export?status=&purpose=` | `member.jersey.export`（🔴） | 出貨清單 CSV（**含完整收件資訊**），須填 `purpose` |
@@ -4750,7 +4750,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 | 方法 路徑 | 說明 |
 |---|---|
-| `GET ?planId=&group=&status=` | 陣列（依球季、方案排序、條目排序）：`{ id, planId, planCode, planName, seasonCode, group, groupLabel, sortOrder, status(+Label), nameZh, nameEn, freeValueZh, paidValueZh, updatedAt }` |
+| `GET ?planId=&group=&status=` | 陣列（依球季、方案排序、條目排序）：`{ id, code（條目代碼，同方案內唯一；各方案以它對齊成對照表）, planId, planCode, planName, seasonCode, group（member_card／discount／gift／event／content）, groupLabel, sortOrder, status(+Label), nameZh, nameEn, valueZh, valueEn（該方案的對應值）, updatedAt }`。**v3.29**：新增／更新 body 多 `code?`（新增省略＝伺服器產生 `item_xxxxxxxx`；更新不可變更 → 400；同方案重複 → 409；小寫英數底線 ≤64）與內容 `value`（取代 `freeValue`／`paidValue`）；舊分組 `store_discount`／`jersey` 已淘汰（400） |
 | `GET /groups` | 分組 `[{ code, label }]`：`member_card` 會員卡／`store_discount` 店家折扣／`jersey` 球衣／`event` 活動 |
 | `GET /{id}` | 詳情 `zh`／`en`：`{ name, description, freeValue, paidValue }` |
 | `POST`（201）／`PUT /{id}` | payload：`planId`（必填，屬於目前俱樂部；**更新時不可變更**）、`group`、`sortOrder?`（省略＝排在該方案最後）、`status`（`published`／`draft`）、`content.zh.name`（必填）／`description?`／`freeValue?`（如「✓」「✗」「9 折」）／`paidValue?`、`content.en?`。分組的雙語顯示文案由系統依分組代碼自動帶入 |
@@ -4993,7 +4993,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 | `POST /{id}/images` → 201 | update | multipart `files`（多張，≤40）→ 詳情 |
 | `DELETE /{id}/images/{imageId}` → 204／`PUT /{id}/images/order` | update | 同 F1 內頁 |
 | `GET /{id}/registrations?status=&keyword=` | view | 陣列：`{ id, memberId, memberNo, isMember, applicantName, phone, email, status(registered／waitlist／cancelled／attended), statusLabel, note, createdAt, isMasked }`。**姓名／電話／Email 依 `member.pii.reveal` 遮罩**（F2 的角色不因此取得會員模組權限）；沒有權限時 `keyword` 只比對會員編號 |
-| `POST /{id}/registrations` → 201 | update | 後台代填：`{ memberId?, applicantName?, phone?, email?, note? }`。會員報名只給 `memberId`；非會員必須有姓名與電話或 Email。**限付費會員的活動：非會員 → 400、沒有有效球迷會員會籍的會員 → 400**；同一會員重複報名 → 409；**名額已滿自動進候補**（回應 `status: "waitlist"`） |
+| `POST /{id}/registrations` → 201 | update | 後台代填：`{ memberId?, applicantName?, phone?, email?, note? }`。會員報名只給 `memberId`；非會員必須有姓名與電話或 Email。**限會員的活動（`isPaidMembersOnly`，v3.29 語意＝限持有該俱樂部有效會籍者，任一層級）：非會員 → 400、沒有有效會籍的會員 → 400**；同一會員重複報名 → 409；**名額已滿自動進候補**（回應 `status: "waitlist"`） |
 | `PUT /{id}/registrations/{registrationId}` | update | `{ status, note? }`：`registered`／`waitlist`／`cancelled`／`attended`。轉入佔名額的狀態（已報名／已到場）時名額已滿 → 409；只有已報名的人能標到場；`note` 省略＝不變、空字串＝清除 |
 
 ### S1 商品與規格 `/api/v1/admin/{club}/shop/…`
@@ -5097,13 +5097,13 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 ### K5 抽獎名單 `/api/v1/admin/{club}/draws`
 
-**🔴 系統不抽出**：沒有任何隨機抽出的端點；實體抽獎於現場或直播由人工進行，中獎人以**序號**回填。各俱樂部各自舉辦（不合辦）。**資格條件固定、不可由後台自訂**：基準時間當下持有**本活動主辦俱樂部**的球迷會員（`fan_club`）會籍（**狀態有效或已批次到期但基準時間落在會籍期間內**；待確認與已取消不算）且帳號啟用；同時持有兩隊會籍者在兩份名單各佔一號（**活動辦法須明示「同時具備兩隊會籍者可分別參加兩隊抽獎」**）。
+**🔴 系統不抽出**：沒有任何隨機抽出的端點；實體抽獎於現場或直播由人工進行，中獎人以**序號**回填。各俱樂部各自舉辦（不合辦）。**資格條件固定、不可由後台自訂**：基準時間當下持有**本活動主辦俱樂部**的**有效會籍（任一層級，v3.29；註冊帳號不是會籍）**（**狀態有效或已批次到期但基準時間落在會籍期間內**；待確認與已取消不算）且帳號啟用；同時持有兩隊會籍者在兩份名單各佔一號（**活動辦法須明示「同時具備兩隊會籍者可分別參加兩隊抽獎」**）。
 
 **狀態流**：`draft 草稿 → roster_locked 名單已鎖定 → drawn 已抽出 → announced 已公布 → closed 已結案`，另有 `voided 作廢`（結案前任何時候）。
 
 | 方法 路徑 | 權限碼 | 說明 |
 |---|---|---|
-| `GET /notice`／`PUT /notice` | view／update | **蒐集告知確認**：`{ confirmed, confirmedAt }`；PUT `{ confirmed }`。**未確認前不得舉辦抽獎——產生名單會 409**（會員條款須增列「會籍有效期間將自動列入球迷會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」，每個俱樂部各自確認） |
+| `GET /notice`／`PUT /notice` | view／update | **蒐集告知確認**：`{ confirmed, confirmedAt }`；PUT `{ confirmed }`。**未確認前不得舉辦抽獎——產生名單會 409**（會員條款須增列「會籍有效期間將自動列入會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」，每個俱樂部各自確認） |
 | `GET ?status=&keyword=&page=&pageSize=` | `member.draw.view` | 分頁（新→舊）：`{ id, drawCode, nameZh, nameEn, snapshotAt, drawnAt, drawOccasion(+Label), claimDeadlineOn, status, statusLabel, rosterVersion, totalCount（合格人數）, winnerCount, backupCount, fulfilledCount（已寄出或已領取）, announcementArticleId, announcementStatus(+Label), createdByName, createdAt, updatedAt }` |
 | `GET /{id}` | 同上 | 詳情：以上＋`coverKey／coverUrl／coverThumbUrl`、`internalNote`、`rosterHash`、`lockedAt`、`lockedByName`、`zh／en?: { name, prizeDescription, rules, notes }`、`versions: [ { version, snapshotAt, totalCount, rosterHash, generatedAt, generatedByName, voidedAt, voidReason, isCurrent } ]`（**名單版本歷程，作廢的舊版保留、不可刪除**）、`availableActions[]`（`edit`／`generate_roster`／`regenerate_roster`／`record_winners`／`announce`／`mark_announced`／`close`／`void`／`delete`） |
 | `POST` → 201／`PUT /{id}` | `create`／`update` | **multipart**：`payload` `{ drawCode?（英數字與連字號 ≤32，同俱樂部唯一 → 409；新增省略＝自動產生 `Dyyyymmdd-XXXX`；會出現在匯出檔名）, snapshotAt?（資格基準時間，UTC；**省略且有開獎時間＝開獎日（台灣時間）當天 00:00**）, drawnAt?（開獎時間，UTC）, drawOccasion?（home_match 主場賽事日／livestream 直播／other 其他）, claimDeadlineOn?（領獎期限）, internalNote?, removeCover?, content: { zh: { name（必填）, prizeDescription?, rules?（**活動辦法：鎖定名單前必填**）, notes? }, en? } }` ＋ 選填 `cover`。**名單鎖定後不能改活動代碼與基準時間（409）**；已結案／作廢不能編輯 |
@@ -5120,7 +5120,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 | `GET /{id}/export/winners?purpose=` | `member.draw.export`（🔴） | **中獎人聯絡用（受限版）** `…-winners.csv`：**僅已回填的中獎人**（不得匯出全體合格名單的完整個資），欄位：抽獎序號、會員編號、姓名、手機、Email、領獎方式、收件人、收件電話、收件地址、獎項 |
 | `GET /{id}/export/shipping?purpose=` | 同上 | **獎品出貨清單** `…-shipping.csv`（比照 K3）：中獎人、獎項、領獎方式、收件資訊、發放狀態（逾期會標示） |
 | `GET /{id}/announcement-preview` | `member.draw.announce` | 公布稿預覽 `{ drawName, prizeDescription, snapshotAt, eligibleCount, winners: [ { serialNo, memberNo, maskedName, prizeName } ] }`——**公關／媒體只拿到遮罩名單，不因此取得會員模組權限** |
-| `POST /{id}/announcement-draft` → 201 | 同上 | **交接 B2**：產生一篇**草稿**文章（分類 7.1 Club News＝`club`、加掛標籤「球迷會員抽獎／Member Draw」〔slug `member-draw`〕，內文只有活動名稱、獎品、基準時間、合格人數與遮罩後中獎名單），並連結到活動 → `{ articleId, articleSlug, draw }`。已連結過 → 409。**內文是 `{"blocks":[{"type":"paragraph","text":"…"}]}` 區塊 JSON**（格式以文章編輯器為準，見待裁決） |
+| `POST /{id}/announcement-draft` → 201 | 同上 | **交接 B2**：產生一篇**草稿**文章（分類 7.1 Club News＝`club`、加掛標籤「會員抽獎／Member Draw」〔slug `member-draw`〕，內文只有活動名稱、獎品、基準時間、合格人數與遮罩後中獎名單），並連結到活動 → `{ articleId, articleSlug, draw }`。已連結過 → 409。**內文是 `{"blocks":[{"type":"paragraph","text":"…"}]}` 區塊 JSON**（格式以文章編輯器為準，見待裁決） |
 | `PUT /{id}/announcement-article` | 同上 | `{ articleId }` 連結既有文章（須是本俱樂部或共用；已結案／作廢 409） |
 | `POST /{id}/mark-announced` | `update` | 已抽出 → 已公布：**連結的文章必須已發布**（否則 409 說明）。列表顯示公布狀態與連結 |
 | `POST /{id}/close` | 同上 | 已公布 → 已結案（唯讀） |
@@ -9166,7 +9166,7 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 | `DELETE /items/{id}` → 204 | 首頁區塊 → 409 |
 | `POST /items/reorder` | `{ kind, ids }` 排到最前面，其餘維持相對順序；含不屬於該類型的 id 或重複 → 400。回該類型的項目陣列 |
 | `GET／POST／PUT／DELETE /deep-links` | **深連結對照表**：`{ id, code, appLink, webUrl, requiresLogin, isActive, sortOrder, labelZh, labelEn, usedByCount }`；寫入 `{ code（小寫英數底線，唯一 409）, appLink（**必須 `tcrfc://` 開頭**，否則 400；scheme 固定）, webUrl?, requiresLogin, isActive, label: { zh, en? } }`；**有版面項目使用時不能刪（409）** |
-| `GET／POST／PUT／DELETE /announcements` | **公告條**：`{ id, messageZh, messageEn, linkUrl, startsAt, endsAt, audienceTier(all／fan_club／registered／anonymous)(+Label), audienceClubCode, isEnabled, isActiveNow }`；寫入 `{ message: { zh（必填 ≤200）, en? }, linkUrl?（`tcrfc://` 或 http(s)）, startsAt?, endsAt?（須晚於開始）, audienceTier?, audienceClubCode?, isEnabled }` |
+| `GET／POST／PUT／DELETE /announcements` | **公告條**：`{ id, messageZh, messageEn, linkUrl, startsAt, endsAt, audienceTier(all／member／premium／anonymous)(+Label), audienceClubCode, isEnabled, isActiveNow }`；寫入 `{ message: { zh（必填 ≤200）, en? }, linkUrl?（`tcrfc://` 或 http(s)）, startsAt?, endsAt?（須晚於開始）, audienceTier?, audienceClubCode?, isEnabled }` |
 
 **不做** App 內的內容 CRUD（新聞、賽事、球員、店家仍在既有模組維護，M2 只管呈現順序與開關）。
 
@@ -9174,13 +9174,13 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 
 **流程**：公關／媒體 **建立草稿（`draft`）→ 預覽／試送 → 送審（`pending_review`）** → **另一位**系統管理員 **核可（→ `scheduled`，時間到就發送）**；`sending` 是發送中；結果 `sent 已發送`／`partial 部分送出`／`failed 失敗`；`cancelled 已取消`。
 🔴 **核可者不得是建立者本人（409「必須由另一位系統管理員覆核」）——系統管理員自己建立的批次一樣要另一位核可。**🔴 **二次確認**：核可必須帶 `expectedAudience`（操作者在畫面上看到的預估觸及裝置數），與伺服器當下重算的人數不同 → 409（分眾在核可前變動了）；沒有任何符合條件的裝置 → 409。
-🔴 **系統層阻擋（建立、修改、送審、核可、試送都檢查）**：**推播不得成為繞過「中獎只以最新消息公布」承諾的後門**——標題或內文（中英）含「中獎」「得獎」「獲獎」「抽中」「winner」等字樣 → 409；**深連結指向帶「球迷會員抽獎」標籤的文章（`tcrfc://news/{slug}` 或官網新聞網址）→ 409**。分眾條件本身沒有「以中獎名單為對象」的維度，所以無法用分眾送到中獎人。**自動推播（新聞發布）必須先呼叫 `PushContentGuard.IsMemberDrawArticleAsync`：帶抽獎標籤的文章一律不自動推播。**
+🔴 **系統層阻擋（建立、修改、送審、核可、試送都檢查）**：**推播不得成為繞過「中獎只以最新消息公布」承諾的後門**——標題或內文（中英）含「中獎」「得獎」「獲獎」「抽中」「winner」等字樣 → 409；**深連結指向帶「會員抽獎」標籤的文章（`tcrfc://news/{slug}` 或官網新聞網址）→ 409**。分眾條件本身沒有「以中獎名單為對象」的維度，所以無法用分眾送到中獎人。**自動推播（新聞發布）必須先呼叫 `PushContentGuard.IsMemberDrawArticleAsync`：帶抽獎標籤的文章一律不自動推播。**
 
 | 方法 路徑 | 權限碼 | 說明 |
 |---|---|---|
 | `GET /messages?status=` | `app.push.view` | 陣列（新→舊，最多 200）：`{ id, titleZh, kind, status, statusLabel, scheduledAt, sentAt, sentCount, deliveredCount, openedCount, createdBy, createdAt }` |
 | `GET /messages/{id}` | 同上 | 詳情：`{ id, kind, status, statusLabel, content: { zh: { title, body, imageAlt }, en? }, imageKey, imageUrl, deepLink, audienceTier(+Label), audienceClubCode, audienceTeamCodes[], scheduledAt, audienceEstimate, createdBy, reviewedBy, reviewedAt, rejectNote, sentAt, sentCount, deliveredCount, failedCount, openedCount, failureMessage, stats: [ { platform, platformLabel, locale, localeLabel, sent, delivered, opened } ], statsNote, availableActions[], updatedAt }`。**`statsNote` 是三個數字的語意說明，畫面必須照這個措辭呈現**：送出＝我方交給推播服務的則數；**送達＝推播服務已接受且沒有回報權杖失效，不等於已到達使用者手機**；開啟＝App 回報的次數，**系統不追蹤是哪一位使用者開啟** |
-| `POST /messages` → 201／`PUT /messages/{id}` | `app.push.create` | **multipart**：`payload` `{ kind?（announcement 預設／news／match）, deepLink?（`tcrfc://…` 或 http(s)）, audienceTier?（all 預設／fan_club／registered／anonymous）, audienceClubCode?（**用於一般公告，不得用於商業訊息的差別投放**）, audienceTeamCodes?（追蹤球隊，只算推播開啟的追蹤）, scheduledAt?（不可是過去）, removeImage?, content: { zh: { title（必填 ≤120）, body（必填 ≤500）, imageAlt? }, en?（**文案須雙語**，英文缺漏時英文語系的裝置收到繁中）} }` ＋ 選填 `image`。**只有草稿能修改**（待審核請先退回） |
+| `POST /messages` → 201／`PUT /messages/{id}` | `app.push.create` | **multipart**：`payload` `{ kind?（announcement 預設／news／match）, deepLink?（`tcrfc://…` 或 http(s)）, audienceTier?（all 預設／member／premium／anonymous）, audienceClubCode?（**用於一般公告，不得用於商業訊息的差別投放**）, audienceTeamCodes?（追蹤球隊，只算推播開啟的追蹤）, scheduledAt?（不可是過去）, removeImage?, content: { zh: { title（必填 ≤120）, body（必填 ≤500）, imageAlt? }, en?（**文案須雙語**，英文缺漏時英文語系的裝置收到繁中）} }` ＋ 選填 `image`。**只有草稿能修改**（待審核請先退回） |
 | `DELETE /messages/{id}` → 204 | 同上 | 只有草稿或已取消的批次（409） |
 | `POST /estimate` | `app.push.view` | **發送前分眾人數試算**（只回人數，不寫入、不回傳裝置清單）：`{ audienceTier?, audienceClubCode?, audienceTeamCodes? }` → `{ total, breakdown: [ { platform, platformLabel, locale, localeLabel, sent（＝該群人數）, delivered:0, opened:0 } ] }`。**只算「權杖有效且已允許推播」的裝置** |
 | `GET /messages/{id}/preview` | 同上 | **預覽（雙語各一）**：`{ zh, en, enEffective（沒有英文時英文裝置實際看到的＝繁中）, deepLink, imageUrl, audienceSummary }` |
@@ -9193,7 +9193,7 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 | `POST /dispatch-due` | 同上 | 手動觸發「已核可且排程時間已到」的批次發送 → `{ dispatched }`（背景作業本來就會做） |
 | `GET／PUT /rules` | view／`app.push.approve` | **自動推播規則**：`{ matchReminderHours（1–72，預設 2）, membershipExpiryDays（預設 [30,7]，1–5 個 1–365 的不重複天數，大到小排列）, toggles: [ { key, label, enabled } ] }`；`PUT` 只送要改的欄位，`toggles` 是 `{ key: bool }`。九個開關：`match_reminder`／`venue_confirmed`／`match_change`／`match_result`／**`news_published`（預設關閉）**／`membership_expiry`／`membership_activated`／`jersey_status`／`program_status`。⚠️ **只保存規則，實際觸發（掃描賽事與到期、產生批次）屬 App 開發階段** |
 
-**分眾（規劃書 §6.3，刻意不做行為定向）**：會籍層級（`all`／`fan_club`＝持有有效球迷會員會籍／`registered`＝已登入但不是有效球迷會員／`anonymous`＝未登入裝置）、追蹤球隊（`is_push_enabled` 才算）、俱樂部歸屬（追蹤該俱樂部、追蹤其球隊、或持有其會籍；有指定俱樂部時 `fan_club` 只看該俱樂部的會籍）。**分眾一律在 .NET 端解析成裝置清單，不使用 FCM topic**（付費狀態不送進 Google 的索引）。
+**分眾（規劃書 §6.3，刻意不做行為定向）**：會籍層級（v3.22：`all`／`member`＝持有效會籍者〔任一層級〕／`premium`＝僅尊尚層級的有效會籍／`anonymous`＝無有效會籍者〔含未登入裝置與僅註冊帳號〕；舊的 `fan_club`／`registered` 已淘汰）、追蹤球隊（`is_push_enabled` 才算）、俱樂部歸屬（追蹤該俱樂部、追蹤其球隊、或持有其會籍；有指定俱樂部時 `member`／`premium`／`anonymous` 只看該俱樂部的會籍）。**分眾一律在 .NET 端解析成裝置清單，不使用 FCM topic**（付費狀態不送進 Google 的索引）。
 
 ### M4 裝置 `/api/v1/admin/app/devices`
 
@@ -9304,7 +9304,7 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 | 方法 路徑 | 登入 | 說明 |
 |---|:-:|---|
 | `POST /auth/register` | — | `{ club, email, password, name, phone?, birthOn?, lang? }` → **201** `{ memberNo, emailVerificationRequired: true, emailSent }`。建立**未驗證**帳號（`signup_source=web`）並寄驗證信；`emailSent=false` 代表寄信服務尚未串接（正式環境目前如此，前端要如實告知）。`club` 是註冊的站台（驗證後在該俱樂部成為一般會員）。Email 一律轉小寫；密碼 8–128 字元、須含英文字母與數字、不得是常見弱密碼（`weak_password`）；Email 已註冊 → 409 `email_taken`。 |
-| `POST /auth/verify-email` | — | `{ token }`（信件連結的 `token`）→ 200 `{ verified: true, club }`。**冪等**；順便為該俱樂部建立免費（一般會員）會籍與第一張會員卡。無效／過期／用途不符 → 400 `token_invalid`。權杖 24 小時。 |
+| `POST /auth/verify-email` | — | `{ token }`（信件連結的 `token`）→ 200 `{ verified: true, club }`。**冪等**；**不建立會籍與會員卡**（v3.29：註冊帳號不是會籍）。無效／過期／用途不符 → 400 `token_invalid`。權杖 24 小時。 |
 | `POST /auth/resend-verification` | — | `{ email, club, lang? }` → **一律 202**。 |
 | `POST /auth/login` | — | `{ email, password, rememberMe?, tokenDelivery? }` → 200 **`MemberSession`**：`{ accessToken, accessTokenExpiresAt, refreshToken?, refreshTokenExpiresAt?, member: { memberNo, name, emailVerified, hasPassword, lineBound } }`。401 `invalid_credentials`；403 `email_not_verified`（密碼正確才告知）／`account_suspended`；423 `account_locked`。**Email 驗證前不能用密碼登入。** |
 | `POST /auth/refresh` | — | 本文 `{ refreshToken? }` 或 Cookie → 200 `MemberSession`（新的更新權杖）；401 `session_expired`（同時清掉 Cookie）。 |
@@ -9318,7 +9318,7 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 | `DELETE /me` | ✅ | `{ password }`（沒有密碼的 LINE 帳號改填 `{ confirm: "DELETE" }`）→ 204。**欄位清除、不是刪列**：保留會員編號與遮罩姓名，Email 改成不可寄送的佔位值、電話／生日／LINE／密碼清除；**會員卡全部作廢**、更新權杖全撤、App 裝置解除綁定、球衣收件個資清除、未完成訂單取消。**保留**會籍列與付款紀錄（稅法與會計法規優先於刪除請求）與已鎖定的抽獎名單快照。 |
 | `POST /auth/line/authorize` | bind 才要 | `{ club, mode: "login"｜"bind", redirectUri? }` → `{ authorizeUrl, state }`。`redirectUri` 必須在 `LINE_LOGIN_REDIRECT_URIS` 白名單（省略＝第一個）。**前端要把 `state` 存起來（sessionStorage），LINE 導回時與網址上的 `state` 比對，不符就丟棄**（防登入 CSRF）。憑證未設定 → **503** `line_not_configured`。 |
 | `POST /auth/line/callback` | bind 才要 | `{ code, state, tokenDelivery? }`（前端從導回網址取 `code`、`state`）→ `{ status: "logged_in", session }`／`{ status: "bound" }`／`{ status: "signup_required", ticket, displayName, suggestedEmail }`。授權碼經 LINE 驗證 id_token 與 nonce。**找不到會員時不自動併入同 Email 的既有帳號**（LINE 的 Email 不保證驗證過，見待裁決 3）。綁定：LINE 已綁別人 → 409 `line_in_use`；自己已綁 → 409 `line_already_bound`；state 內的會員必須就是目前登入的人。 |
-| `POST /auth/line/complete` | — | `{ club, ticket, email, name?, phone?, birthOn?, lang?, tokenDelivery? }` → 200 `MemberSession`。補 Email 完成 LINE 註冊（`signup_source=line`，**沒有密碼**）；直接成為該俱樂部一般會員；仍寄 Email 驗證信。Email 已有帳號 → 409 `email_taken`（引導先用 Email 登入、再到設定綁定 LINE）。票據 15 分鐘。 |
+| `POST /auth/line/complete` | — | `{ club, ticket, email, name?, phone?, birthOn?, lang?, tokenDelivery? }` → 200 `MemberSession`。補 Email 完成 LINE 註冊（`signup_source=line`，**沒有密碼**）；同樣**不建立會籍**（v3.29）；仍寄 Email 驗證信。Email 已有帳號 → 409 `email_taken`（引導先用 Email 登入、再到設定綁定 LINE）。票據 15 分鐘。 |
 | `DELETE /me/line` | ✅ | 解除 LINE 綁定 → 204。**至少保留一種登入方式**：沒設定過密碼 → 409 `password_required`。 |
 
 **信件連結（前端要實作的兩個頁面）**：`{站台網址}/{zh|en}/member/verify-email?token=…` 與 `{站台網址}/{zh|en}/member/reset-password?token=…`。站台網址預設 `https://{clubs.domain}`，本機用 `MEMBER_EMAIL_LINK_BASE_URL`（如 `http://localhost:3000`）覆寫。本機開發信件寫成文字檔（`EMAIL_OUTBOX_PATH`，預設 `{暫存目錄}/tcrfc-email-outbox`），**點檔案裡的連結即可走完驗證**。
@@ -9327,13 +9327,13 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 
 | 方法 路徑 | 說明 |
 |---|---|
-| `GET /member/memberships?lang=` | **我的會籍**：`{ memberships: [ { id, club:{code,name,logoLightUrl,logoDarkUrl,brandColor,brandSecondaryColor}, seasonCode, tier(+Label), status(+Label), startOn, endOn, planCode, planName, cardQuota, jerseyQuota, isCurrentSeason, renewalDue, pendingOrder:{orderNo,status,statusLabel}｜null, cards:[…] } ], joinableClubs: [ {code,name} ] }`。**逐俱樂部、一人每俱樂部一份**；`renewalDue`＝到期前 30 天內且仍有效（顯示續會提示）；`pendingOrder` 有值＝升級申請待確認（網頁的「待確認」就是它）；沒有目前球季會籍的俱樂部在 `joinableClubs`（顯示加入入口，不隱藏）。 |
-| `POST /{club}/member/memberships/join` | 加入這個俱樂部（免費一般會員，建立會籍與第一張卡），冪等。該俱樂部沒有開放的球季 → 409 `season_not_available`（**藍鯨目前就是這樣**，其 2025 球季已結束）。 |
+| `GET /member/memberships?lang=` | **我的會籍**（v3.29：**註冊帳號不是會籍**——只註冊／驗證 Email 的帳號 `memberships` 為空陣列、沒有會員卡；成為會員只有購買並開通方案）：`{ memberships: [ { id, club:{code,name}, seasonCode, tier(standard／premium)(+Label，優先用方案名稱), status(+Label), startOn, endOn, planCode, planName, cardQuota, jerseyQuota, isCurrentSeason, renewalDue, pendingOrder:{orderNo,status,statusLabel}｜null, cards:[…] } ], joinableClubs: [ {code,name} ], openOrders: [ {orderNo,status,statusLabel,clubCode,planCode,planName,seasonCode} ] }`。**`openOrders`＝已送出但尚未開通的申請（待確認／待付款）**，註冊帳號沒有會籍列，「待確認」狀態就放這裡；**逐俱樂部、一人每俱樂部一份**；`renewalDue`＝到期前 30 天內且仍有效（顯示續會提示）；`pendingOrder` 有值＝同俱樂部同球季另有未完成訂單；沒有目前球季會籍的俱樂部在 `joinableClubs`（顯示加入入口＝導向方案頁購買，不隱藏）。 |
+| ~~`POST /{club}/member/memberships/join`~~ | **v3.29 已移除**（不再有免費會籍；成為會員＝購買方案，見 `membership-orders`）。錯誤碼 `season_not_available` 一併刪除。 |
 | `GET /member/cards?lang=` | **電子會員卡**（每份會籍一張、家庭方案多張，已展平）：`{ id, membershipId, club:{…品牌}, memberNo, holderName, tier(+Label), validUntil, status("valid"｜"expired"｜"revoked")(+Label), isValid, token, reissueCount, issuedAt }`。`token` 是這張卡的 QR 憑證，**QR 內容＝`{官網網址}/m/{token}`，在裝置端／前端組出**；只有本人看得到。 |
 | `POST /member/cards/{cardId}/regenerate` | **重新產生 QR**：同一張卡換 token、`reissueCount` +1，**舊 token 立即失效**。別人的卡 404；已停用的卡 409 `card_revoked`。 |
 | `GET /m/{token}?lang=` | **電子會員卡公開驗證頁（不需登入）**。回應**只有**：`nameInitial`（姓名首字）、`memberNo`、`tier`／`tierLabel`、`status`（`valid`｜`expired`）／`statusLabel`。🔴 **不得新增欄位**（尤其「適用球隊」，主站 §3.14／App §3.6）；查無、已撤銷、帳號停用或刪除一律 **404**（不分原因）；**`Cache-Control: no-store`、直接查庫不讀快取**（docs/14）。 |
 | `GET /member/jerseys?lang=` | **球衣登記概況**：每份付費會籍一組 `{ membershipId, clubCode, clubName, seasonCode, quota, used, canRegister, items:[{ id, recipientName, phone, size, deliveryMethod(+Label), address, status(+Label), shippedOn, receivedOn, editable }] }`。沒有球衣額度也沒有登記的會籍不列。 |
-| `POST /{club}/member/jerseys` | `{ membershipId, recipientName, size, deliveryMethod: "ship"｜"pickup", phone?, address? }` → 201。**只有有效的球迷會員會籍**（409 `not_fan_club`）；**件數受方案 `jerseyQuota` 限制**（409 `jersey_quota_reached`，並行也不會超收）；寄送必須有電話與地址；尺寸轉大寫。 |
+| `POST /{club}/member/jerseys` | `{ membershipId, recipientName, size, deliveryMethod: "ship"｜"pickup", phone?, address? }` → 201。**只有有效會籍**（409 `not_fan_club`）；**件數受方案 `jerseyQuota` 限制**（409 `jersey_quota_reached`，並行也不會超收）；寄送必須有電話與地址；尺寸轉大寫。 |
 | `PUT /{club}/member/jerseys/{id}` | 同上欄位（不含 `membershipId`）；**只有「待處理」能改**，已寄出／已領取 → 409 `jersey_locked`。 |
 | `GET /member/registrations` | **我的課程／試訓報名**（行動 App 的「我的報名」用，網頁前台不做歸戶，主站 §3.14）。報名時**帶著會員權杖**才會記到會員（見下方「既有端點的異動」）。 |
 
@@ -9343,7 +9343,7 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 
 | 方法 路徑 | 說明 |
 |---|---|
-| `POST /{club}/member/membership-orders` | 標頭 **`Idempotency-Key`（必填，8–64 字元，英數與 `_-:.`）**；本文 `{ planCode }`——**沒有金額欄位，金額一律由伺服器依方案重算**（夾帶的金額被忽略）。→ **201** 新訂單／**200** 同一冪等鍵同內容重送（回原訂單，並行也只成立一張）。409：`idempotency_key_reused`（同鍵不同內容）、`open_order_exists`（同方案已有未完成訂單）、`already_fan_club`（本球季已是球迷會員）、`plan_closed`（方案期間已結束）；404 `plan_not_found`；400 `plan_free`。需 Email 已驗證。 |
+| `POST /{club}/member/membership-orders` | 標頭 **`Idempotency-Key`（必填，8–64 字元，英數與 `_-:.`）**；本文 `{ planCode }`——**沒有金額欄位，金額一律由伺服器依方案重算**（夾帶的金額被忽略）。→ **201** 新訂單／**200** 同一冪等鍵同內容重送（回原訂單，並行也只成立一張）。409：`idempotency_key_reused`（同鍵不同內容）、`open_order_exists`（同方案已有未完成訂單）、`already_fan_club`（本球季已持有這個方案的有效會籍）、**`upgrade_not_supported`（本球季已有有效會籍、買的是不同方案＝升級／改選，v3.29 不提供）**、`plan_closed`（方案期間已結束）；404 `plan_not_found`；400 `plan_free`。需 Email 已驗證。 |
 | `GET /member/membership-orders?lang=`／`GET …/{orderNo}` | 我的訂單（最近 50 筆）／單筆。待付款超過 15 分鐘**讀到時換算**為 `expired`。 |
 | `POST /member/membership-orders/{orderNo}/pay` | 向金流方請款 → `pending_payment`、`paymentUrl`（把使用者導過去）、`expiresAt`（15 分鐘）；重複呼叫回同一個網址。**金流尚未串接 → 503 `payment_not_configured`**（訂單維持 `created`，不會被誤標成待付款）；金流方失敗退回 `created` 可重試。 |
 | `POST /member/membership-orders/{orderNo}/confirm` | `{ transactionId }`（使用者從 LINE Pay 導回後，前端帶回交易識別；`confirmUrlType` 採 CLIENT，`docs/17` §3）。**由伺服器向金流方確認**（金額用訂單上的值），成功才標 `paid` 並**立即冪等開通**→ 200 訂單（`activated`）。`transaction_mismatch`（400）、`order_expired`／`payment_failed`／`order_not_pending`（409）；已 `paid`／`activated` 重複確認 → 200（冪等）。**用戶端無法自己宣稱付款成功。** |
@@ -9360,8 +9360,8 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 | 方法 路徑 | 說明 |
 |---|---|
 | `GET /{club}/membership/plans?lang=` | 會籍方案（8.2 Membership Plans、升級頁）：`{ code, name, benefitNote, fee, cardQuota, jerseyQuota, midSeasonRule, seasonCode, startsOn, endsOn }`。只列**已上架且球季未結束**的方案。藍鯨目前沒有現行方案（空陣列）。 |
-| `GET /{club}/membership/benefits?planCode=&lang=` | **權益對照表**（免費 vs 付費逐條對照，一份資料多處使用）：`{ planCode, planName, groups:[{ group, groupLabel, items:[{ name, description, freeValue, paidValue }] }] }`，分組依序 `member_card`／`store_discount`／`jersey`／`event`，只列上架條目。省略 `planCode`＝最早的現行方案（沒有 → 空表）；方案不存在 404。 |
-| `GET /{club}/partner-stores?category=&region=&tier=&lang=` | **特約店家清單**（8.4）：本俱樂部專屬＋兩隊共同（`isShared`）、**已上架且在合作期間內**。`{ slug, name, category, region, address, lat, lng, phone, businessHours, offerContent, applicableTier("all"｜"fan_club")(+Label), mapUrl, websiteUrl, imageUrl, isShared }`；`lat`／`lng` 給 App 的附近地圖（距離計算在裝置端）。 |
+| `GET /{club}/membership/benefits?lang=` | **權益對照表（v3.29：以方案為欄）**，一份資料多處使用：`{ plans:[{ code, tier, tierLabel, name, isFallbackLocale, fee }], groups:[{ group, groupLabel, items:[{ code, name, isFallbackLocale, description, values:[{ planCode, value｜null }] }] }] }`。`plans`＝目前可購買的上架方案（依排序）；每個條目以 `code` 對齊各方案，**`values` 與 `plans` 同序、每方案一格，沒有該條權益的方案 `value` 為 null**；分組依序 `member_card`／`discount`／`gift`／`event`／`content`，只列上架條目。沒有可購買方案 → 空表（`plans`、`groups` 皆空，不是 404）；**不再有 `planCode` 參數**。 |
+| `GET /{club}/partner-stores?category=&region=&tier=&lang=` | **特約店家清單**（8.4）：本俱樂部專屬＋兩隊共同（`isShared`）、**已上架且在合作期間內**；`tier` 篩選值 `all`／`premium`。`{ slug, name, category, region, address, lat, lng, phone, businessHours, offerContent, applicableTier("all"＝所有會員｜"premium"＝限尊尚層級)(+Label), mapUrl, websiteUrl, imageUrl, isShared }`；`lat`／`lng` 給 App 的附近地圖（距離計算在裝置端）。 |
 | `GET /{club}/partner-stores/filters` | 目前有上架店家的 `categories`／`regions`（篩選項目）。 |
 | `GET /{club}/partner-stores/{slug}?lang=` | 店家詳情；草稿、合作期間外、別隊店家 404。 |
 
@@ -9384,7 +9384,7 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 |---|---|
 | `GET /fan-events?phase=upcoming｜past` | 活動列表：`{ slug, name, location, startsAt, endsAt, registrationDeadlineAt, capacity, spotsLeft, isPaidMembersOnly, isRegistrationOpen, isFull, phase, coverUrl, coverThumbUrl }`。`phase=past` 即「活動回顧」（新→舊）；省略＝全部。`spotsLeft`／`capacity` 為 null＝不限名額；**額滿時 `isRegistrationOpen` 仍為 true（報名會進候補）**，用 `isFull` 顯示「候補」。 |
 | `GET /fan-events/{slug}` | `{ event:{…同上}, description, venueName, images:[…活動回顧圖集], articles:[{slug,title}]（關聯文章，只列已發布）, myRegistration:{status,statusLabel}｜null }`。**帶會員權杖時才有 `myRegistration`**（匿名永遠 null）。 |
-| `POST /fan-events/{slug}/registrations` | `{ applicantName?, phone?, email?, note? }` → **201** `{ status("registered"｜"waitlist"), statusLabel, isWaitlisted }`。**會員**（帶權杖）只需 `note`，報名記到會員、不另存個資；**非會員**必須有 `applicantName` 與（`phone` 或 `email`）。**限付費會員的活動**：沒登入 → 401 `login_required`、沒有有效球迷會員會籍 → 403 `fan_club_required`。**名額已滿自動進候補**（交易內鎖活動列再數名額，並行不超收）；重複報名 409 `already_registered`（會員依 id，非會員依 Email 或電話）；截止或已開始 409 `registration_closed`。回應**不含任何個資**。限流 `public-member-write`。 |
+| `POST /fan-events/{slug}/registrations` | `{ applicantName?, phone?, email?, note? }` → **201** `{ status("registered"｜"waitlist"), statusLabel, isWaitlisted }`。**會員**（帶權杖）只需 `note`，報名記到會員、不另存個資；**非會員**必須有 `applicantName` 與（`phone` 或 `email`）。**限會員的活動**：沒登入 → 401 `login_required`、沒有有效會籍 → 403 `fan_club_required`。**名額已滿自動進候補**（交易內鎖活動列再數名額，並行不超收）；重複報名 409 `already_registered`（會員依 id，非會員依 Email 或電話）；截止或已開始 409 `registration_closed`。回應**不含任何個資**。限流 `public-member-write`。 |
 | `DELETE /fan-events/{slug}/registrations/me` | 會員取消自己的報名（已報名或候補）→ 204；沒有有效報名 404。**取消已報名者不會自動遞補候補者**（同後台 F2，由客服人工處理）。 |
 
 ### 既有端點的異動
@@ -10384,7 +10384,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 ## 英文化後端兩件（2026-10-05，`E-220`／`E-221`）
 
 - **賽程對手英文不需改結構**：`matches_i18n` 的 `en` 列存 `opponent`／`venue`，`matches.opponent` 是繁中預設與回退來源；`MatchDto.isFallbackLocale` 在英文 `opponent` 為空時為 true（現行行為正確）。後台 C4 `opponentEn`／`venueEn`（新增、修改、CSV）早已接好。缺的是英文資料，無來源不音譯，沒有 migration。
-- **`ApplicableTierLabel`**：`lang=en` 時為 `All members`／`Paid Fan Club members only`，以 `docs/06` §1.1 對照表為準；測試在 `MembershipPublicTests`。
+- **`ApplicableTierLabel`**：`lang=en` 時為 `All members`／`Prestige members only`，以 `docs/06` §1.1 對照表為準；測試在 `MembershipPublicTests`。
 
 ## 後台欄位串接稽核的後端修正（2026-10-06，`docs/23` A-1／A-2／A-3／A-4／A-6／A-12／B-12／B-13／B-16／B-22／E-1／E-2）
 
@@ -10679,3 +10679,33 @@ Multipart：`payload`（JSON）、`file`（封面）、`ogImage`、內文圖片 
 **共用元件**：`Features/Uploads/BlockImageSupport.cs`（`BlockImageUploader` 多檔上傳＋補償、`BlockImageFields` 圖片欄位解析）由 B1 `PageBlockContentProcessor`／`AdminPagesRepository` 與新聞 `NewsBodyBlocks` 共用；B1 行為與欄位鍵不變。新聞解析在 `Features/AdminNews/NewsBodyBlocks.cs`，焦點驗證在 `CoverFocalPolicy.cs`。
 
 **測試**：`NewsBodyBlocksTests`（34 項純邏輯：驗證、拆合往返、舊格式、圖片補償與寬度下限、焦點）；`AdminNewsBodyBlocksApiTests`（HTTP＋Azurite 端對端，需要種子測試帳號與 Azurite）。`shared/scripts/gen-news-body-blocks.mjs` 補 `video` 欄位說明。
+
+## 客戶文件對齊（主站 v3.29／藍鯨 v1.12／App v3.22，2026-10-16，`backend-engineer`）
+
+> 使用者 2026-10-16 裁決「照客戶文件」。遷移：`db/migrations/20261016_client-doc-alignment_1-expand.sql`（＝EF `ClientDocAlignmentExpand`）→ **部署新版 api** → `…_2-contract.sql`（＝`ClientDocAlignmentContract`）；資料遷移 `20261016_academy-squads-and-contact-address.sql`、`20261016_intake-docs-import-3.sql`。細節與順序見 `STATUS.md` CF-1。
+
+- **核心價值四項**：`GET /{club}/home/core-values` 回 `inspiring_players`／`shaping_champions`／`local_pride`／`global_influence`（`CoreValueCatalog`）；後台新聞 `coreValueTags` 只收這四個（舊五個 → 400）；公開文章只輸出目錄內的代碼（容忍收縮前殘留的舊代碼）。
+- **註冊帳號不是會籍**：註冊、Email 驗證、LINE 註冊都**不建立** `Membership` 與電子會員卡（`MemberMembershipService.EnsureRegisteredAsync` 已刪）；`POST /{club}/member/memberships/join` 與後台 `POST /memberships`（建立免費會籍）**已移除**。會籍只由 `membership-orders`（付款確認後 `MembershipActivationService`）或後台 `POST /memberships/activate` 開通，**層級隨方案**（`memberships.tier = membership_plans.tier`）。
+- **不提供升級**：本球季已有有效會籍、買／開通不同方案 → 409 `upgrade_not_supported`（會員端）／409「無法升級」（後台，欄位 `planId`）；同方案 → 409 `already_fan_club`。
+- **方案**：`tier`、`shopDiscountPercent`（見上方 K2 方案表）；`GET /{club}/membership/plans` 多 `tier`、`tierLabel`、`shopDiscountPercent`。磐石種子：`standard` 磐石會員 NT$400（含球衣 0）、`premium` 尊尚會員 NT$2,400（含球衣 1），折扣各 10%。
+- **權益對照表以方案為欄**：見上方 `GET /{club}/membership/benefits`；後台 K4 條目新增 `code`、`value`，分組改五類。
+- **特約店家適用層級**：`all`（所有會員）／`premium`（限尊尚層級）；舊 `fan_club` → `premium`。
+- **推播與公告分眾**：`all`／`member`／`premium`／`anonymous`（無有效會籍者含未登入與僅註冊帳號）。
+- **抽獎資格**：任一層級的有效會籍；`draw_rosters.tier_snapshot` 新名單寫 `standard`／`premium`，**舊制凍結名單的 `fan_club`／`registered` 快照維持原值**（名單雜湊含層級字串，改寫會讓雜湊對不上），後台名單顯示「球迷會員（舊制）」。
+- **限會員活動**（`fan_events.is_paid_members_only`）：語意改為持有該俱樂部有效會籍（任一層級）；錯誤碼 `fan_club_required`／`login_required` 沿用（訊息改「限會員」）。
+- **商店會員折扣**（`Features/Shop/MemberDiscount.cs`，`MemberDiscountService`）：購物車擁有者是會員且在**賣方俱樂部**持有狀態 `active`、期間涵蓋今天的會籍、方案 `shopDiscountPercent > 0`，且商品勾選 `products.member_discount_eligible` → 單價＝`min(原價或促銷價, 原價 × (100 − 折扣率) / 100 四捨五入)`（**與促銷價不疊加、取低**）。每次計價**直接查庫、不讀快取**。`order_items.unit_price_snapshot`／`line_total`、`orders.subtotal`／`total` 一律是**折後值**，所以 LINE Pay 請款與確認金額、電子發票明細、退款（`unit_price_snapshot × 數量`）自動一致；`orders.member_discount_amount`／`order_items.member_discount_amount` 只記「少收多少」，`orders.member_discount_plan_id` 記套用當時的方案（值複製、無外鍵）。後台現場建單指定 `memberId` 時用同一個計價函式。
+  - 購物車 `ShopCartDto` 多 `memberDiscountTotal`、`memberDiscountPercent`（null＝無折扣）；品項多 `memberDiscountApplied`、`memberDiscountAmount`；`onSale` 只在促銷價就是實際單價時為 true。訂單 DTO 多 `memberDiscountAmount`（整張）與品項 `memberDiscountAmount`。公開商品 DTO 多 `memberDiscountEligible`；後台商品 DTO／upsert 多 `memberDiscountEligible`（整份取代，省略＝不適用）；後台訂單詳情多 `memberDiscountAmount`。
+- **聯絡地址**：新設定鍵 `site.contact_address`（中英）；`GET /{club}/site-facts` 的 `contact.address` 讀它（尚未設定時暫以第一個主場地址補）；後台 `site-facts` 讀寫多 `contactAddressZh`／`contactAddressEn`（整份取代，省略＝清空）。場地地址不動。
+- **4.4 固定頁版型** `academy/curriculum`（磐石 13 頁，藍鯨不設）：九個區塊 `philosophy`／`environment`（文字）、`vision`（固定 4）、`framework`（文字）、`competitions`（可增刪列）、`representation`／`education`（文字）、`conduct`（固定 3）、`schedule`（表格，可增刪列）；2.3 足球理念 `coreValues` 固定 4 項。表格區塊補了空白骨架。
+- **學院梯隊**：種子 `site.squad_codes` 與報名表單選項改 `U10`／`U12`／`U14`／`U16`／`U18`；`teams` 表為準（行事曆 feed 對不存在的隊別回 404），沒有寫死代號。
+- **5.5 合作學校**：資料來源 = `GET /{club}/partners?type=教育夥伴`（已有合作期間濾法）。
+- **後台儀表板**會員概況多 `activePremiumMemberships`；`activePaidMemberships` 等同 `activeMemberships`。
+- 錯誤碼：新增 `upgrade_not_supported`，刪除 `season_not_available`；`already_fan_club`／`not_fan_club`／`fan_club_required`／`login_required` 沿用（訊息改為「會籍／會員」）。
+- 測試：新增 `ShopMemberDiscountTests`（13 項）、`AdminPageTemplatesTests`／`MemberCenterTests`／`MembershipOrderTests` 等改寫；測試資料庫請用 `./db/seed/setup-club-db.sh` 建好的 `tcrfc_club`（本次以獨立容器隔離執行，見 `STATUS.md` CF-7）。
+
+### 契約變更（2026-10-16，「球迷會員」改名與 App 設定的 `mediaBaseUrl`，`backend-engineer`）
+- **改名**：新制沒有「球迷會員」這一級。K5「球迷會員抽獎」→「**會員抽獎**」（英文 Member Draw 不變）；泛指持有會籍者一律「會員」，限定一級才寫「磐石會員」「尊尚會員」。程式內的字面值：公布稿草稿的標籤名稱（`AdminDrawsRepository`，slug `member-draw` 不變、推播守衛 `PushContentGuard` 以 slug 辨識不受影響）、蒐集告知錯誤訊息、端點描述、測試、`backoffice_seed.py`／`en_backfill_seed.py` 的測試資料。**刻意保留**：`MemberLabels.SnapshotTier` 的「球迷會員（舊制）」「一般會員（舊制）」——凍結名單的歷史快照顯示（`E-331`，名單雜湊含層級字串，不改寫）。
+- **資料遷移** `db/migrations/20261016_member-draw-rename.sql`（冪等、單一交易、只換字面值）：標籤 `member-draw` 的中文名稱（後台建公布稿時只在標籤不存在才寫名稱，已建過的庫不會自己改名）＋種子殘留的測試資料文案。**正式庫套用順序**：與其他 `20261016_*` 資料遷移互不相依，不改結構；在 `client-doc-alignment_1-expand` 之後任何時間皆可（建議與 `intake-docs-import*` 同批）。沒有舊字面值就一筆不動。
+- **`GET /api/v1/app/config` 與 Cloudflare 靜態設定（同一份 `AppConfigDocument`）新增頂層 `mediaBaseUrl: string | null`**：圖片公開網址的基底（無結尾斜線）。新聞內文 `bodyJson` 的 image／gallery 只帶物件鍵、API 不組網址，**網址 = `mediaBaseUrl + "/" + key`**；與 API 自己組的 `*Url` 欄位同一個規則（有設 `AZURE_BLOB_PUBLIC_BASE_URL` 時為 `{CDN}/{容器}`，沒設時為容器網址，本機 Azurite 為 `http://127.0.0.1:10000/devstoreaccount1/images`）。未設定圖片儲存（沒有連線字串）時為 `null`——客戶端此時不應嘗試組網址。實作：`IImagePublicUrlResolver.ResolveBase()`（預設實作由 `Resolve` 反推，不存在第二套組網址規則）→ `AppConfigComposer`。CDN 網域搬家時 App 不必改版。已跑 `shared/scripts/gen-all.sh`（`openapi.json`／Swift／Kotlin DTO 皆含 `mediaBaseUrl`）；`mobile/` 客戶端需在設定模型加欄位並以它組內文圖片網址（`shared/news-body-blocks.json` 的說明已指向此欄位）。
+- **測試**：`AppMediaBaseUrlTests`（新增，純邏輯 5 項：有／無 CDN 基底、基底＋`/`＋鍵＝`Resolve(鍵)`、無儲存為 null）；`AppPublicTests` 設定端點加 `mediaBaseUrl` 無結尾斜線斷言。
+- **慈善理念頁種子**（`charity/commitment`）：`db/seed/page_seed_content.extract.ts` 原本內嵌舊文案（「Community 社區共好」「五大核心價值」＋舊四領域），改為匯入新檔 `apps/web/shared/utils/charity-commitment.ts`（客戶 11.1 原文，與 `20261016_intake-docs-import.sql` 匯入正式庫的區塊逐字相同；區塊結構仍是 text,text,steps），重跑 extract 寫回 `page_seed_content.json`，`npm run lint:page-seed-sync` 通過。前台 `commitment.vue` 的備援文案不在後端範圍，應改讀該檔。

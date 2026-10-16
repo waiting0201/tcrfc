@@ -62,13 +62,42 @@ public sealed class AdminPageTemplatesTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
-    public void 俱樂部版型清單_磐石十二頁_藍鯨十頁_藍鯨沒有女子足球與慈善()
+    public void 版型_2_3足球理念是四大核心價值固定4項_4_4訓練課程與課綱九個區塊_藍鯨不設()
+    {
+        var philosophy = PageTemplateCatalog.Default.Find("tcrfc", "about/philosophy")!;
+        Assert.Equal(["valuesIntro", "coreValues"], philosophy.Blocks.Select(b => b.Key).ToArray());
+        var values = philosophy.Blocks[1];
+        Assert.Equal(PageBlockTypes.Steps, values.BlockType);
+        Assert.False(values.AllowRowEdit);
+        Assert.Equal(4, values.FixedRowCount); // 啟發球員／塑造冠軍／在地驕傲／撼動全球
+
+        var curriculum = PageTemplateCatalog.Default.Find("tcrfc", "academy/curriculum")!;
+        Assert.Equal("訓練課程與課綱", curriculum.TitleZh);
+        Assert.Equal(
+            ["philosophy", "environment", "vision", "framework", "competitions", "representation", "education", "conduct", "schedule"],
+            curriculum.Blocks.Select(b => b.Key).ToArray());
+        Assert.Equal(
+            [PageBlockTypes.Text, PageBlockTypes.Text, PageBlockTypes.Steps, PageBlockTypes.Text, PageBlockTypes.Steps, PageBlockTypes.Text, PageBlockTypes.Text, PageBlockTypes.Steps, PageBlockTypes.Table],
+            curriculum.Blocks.Select(b => b.BlockType).ToArray());
+        Assert.Equal(4, curriculum.Blocks.Single(b => b.Key == "vision").FixedRowCount); // 願景固定 4 項
+        Assert.Equal(3, curriculum.Blocks.Single(b => b.Key == "conduct").FixedRowCount); // 行為規範固定 3 項：球員／家長／共同原則
+        Assert.True(curriculum.Blocks.Single(b => b.Key == "competitions").AllowRowEdit); // 賽事規劃可增刪列
+        Assert.True(curriculum.Blocks.Single(b => b.Key == "schedule").AllowRowEdit); // 訓練時間與地點可增刪列
+        Assert.Equal("rows", curriculum.Blocks.Single(b => b.Key == "schedule").RowsField);
+        Assert.Null(PageTemplateCatalog.Default.Find("bw", "academy/curriculum")); // 藍鯨不設
+        Assert.NotNull(PageTemplates.BuildSkeleton(curriculum.Blocks.Single(b => b.Key == "schedule"))); // 表格區塊也建得出空白骨架
+    }
+
+    [Fact]
+    public void 俱樂部版型清單_磐石十三頁_藍鯨十頁_藍鯨沒有女子足球_慈善與4_4訓練課程()
     {
         var tcrfc = PageTemplateCatalog.Default.ForClub("tcrfc").Select(t => t.Slug).ToList();
         var bw = PageTemplateCatalog.Default.ForClub("bw").Select(t => t.Slug).ToList();
 
-        Assert.Equal(12, tcrfc.Count);
+        Assert.Equal(13, tcrfc.Count);
         Assert.Equal(10, bw.Count);
+        Assert.Contains("academy/curriculum", tcrfc); // 4.4 訓練課程與課綱（v3.29，客戶 4.4）
+        Assert.DoesNotContain("academy/curriculum", bw);
         Assert.Contains("womens", tcrfc);
         Assert.Contains("charity/commitment", tcrfc);
         Assert.DoesNotContain("womens", bw);
@@ -150,7 +179,7 @@ public sealed class AdminPageTemplatesTests(AdminWriteApiFixture fixture)
     }
 
     [Theory]
-    [InlineData("tcrfc", 12)]
+    [InlineData("tcrfc", 13)]
     [InlineData("bw", 10)]
     public async Task 後台清單_各俱樂部都是版型清單_每個版型有一列_帶頁名與版型鍵_順序依版型(string club, int expectedCount)
     {

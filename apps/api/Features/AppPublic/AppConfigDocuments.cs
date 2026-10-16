@@ -31,6 +31,13 @@ public sealed record AppConfigDocument
     public required DateTime GeneratedAt { get; init; }
     public required AppPlatformConfig Ios { get; init; }
     public required AppPlatformConfig Android { get; init; }
+
+    /// <summary>
+    /// 圖片公開網址的基底（無結尾斜線）。App 契約的內文圖片網址 = <c>mediaBaseUrl + "/" + key</c>（新聞 <c>bodyJson</c> 的 image／gallery 帶物件鍵、API 不組網址）；
+    /// 與 API 自己組的 <c>*Url</c> 欄位同一個規則（含 CDN 子網域設定 <c>AZURE_BLOB_PUBLIC_BASE_URL</c>）。未設定圖片儲存時為 <c>null</c>。
+    /// 屬設定下發的一部分，第 1 層（Cloudflare 靜態 JSON）與第 2 層（API）內容相同，CDN 網域搬家時 App 不必改版。
+    /// </summary>
+    public string? MediaBaseUrl { get; init; }
 }
 
 /// <summary>帶了 <c>platform</c> 與 <c>appVersion</c> 查詢時，伺服器順手替 App 算好的判斷（App 也可自己用文件內容判斷，兩者必須一致）。</summary>
@@ -46,5 +53,8 @@ public sealed record AppConfigResponse
     public required DateTime GeneratedAt { get; init; }
     public required AppPlatformConfig Ios { get; init; }
     public required AppPlatformConfig Android { get; init; }
+
+    /// <summary>同 <see cref="AppConfigDocument.MediaBaseUrl"/>。</summary>
+    public string? MediaBaseUrl { get; init; }
     public AppConfigEvaluation? Evaluation { get; init; }
 }

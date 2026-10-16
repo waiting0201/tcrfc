@@ -266,7 +266,7 @@ function retryLoad() {
               <el-card shadow="never" header="基本設定">
                 <FormSection>
                   <FormField field="code" label="隊別代號" required>
-                    <el-input v-model="form.code" placeholder="例如 D1、BW1、U15" />
+                    <el-input v-model="form.code" placeholder="例如 D1、BW1、U12" />
                   </FormField>
                   <FormField field="type" label="類型" required>
                     <el-select v-model="form.type" style="width: 100%" @change="formErrors.clear('type')">
@@ -279,7 +279,7 @@ function retryLoad() {
                     </el-select>
                   </FormField>
                   <el-form-item label="年齡層">
-                    <el-input v-model="form.ageBand" placeholder="選填，例如 U15" />
+                    <el-input v-model="form.ageBand" placeholder="選填，例如 U12" />
                   </el-form-item>
                   <el-form-item label="代表色">
                     <el-input v-model="form.teamColor" placeholder="選填，例如 #E0218A" />

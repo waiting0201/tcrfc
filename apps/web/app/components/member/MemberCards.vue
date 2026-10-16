@@ -10,7 +10,7 @@ import { formatPlainDate, toMemberApiError } from '#shared/utils/member'
 import type { MemberCard } from '#shared/utils/member'
 
 const props = defineProps<{ cards: MemberCard[] }>()
-const emit = defineEmits<{ changed: [] }>()
+const emit = defineEmits<{ changed: [], goMemberships: [] }>()
 
 const { authedFetch } = useMemberSession()
 const { isEn, tx } = useLocale()
@@ -57,9 +57,11 @@ function tabLabel(c: MemberCard) {
 
 <template>
   <div class="mc-cards">
-    <p v-if="cards.length === 0" class="mc-empty">
-      {{ tx('目前沒有電子會員卡。完成 Email 驗證或加入俱樂部會籍後，會自動發給您第一張卡。', 'You do not have a digital membership card yet. Your first card is issued automatically once you verify your email or join a club membership.') }}
-    </p>
+    <!-- v3.29：註冊帳號不是會籍，沒有會籍就沒有會員卡；卡片只在購買會籍並開通後發給 -->
+    <div v-if="cards.length === 0" class="mc-empty">
+      <p>{{ tx('目前沒有電子會員卡。電子會員卡只發給持有會籍的會員——購買會籍方案、款項確認並開通後，會自動發給您會員卡。', 'You do not have a digital membership card yet. Digital membership cards are issued only to members who hold a membership: once you purchase a plan and it is activated after payment is confirmed, your card is issued automatically.') }}</p>
+      <p><button type="button" class="btn btn--primary btn--sm" @click="emit('goMemberships')">{{ tx('前往我的會籍', 'Go to My memberships') }}</button></p>
+    </div>
     <template v-else>
       <div v-if="cards.length > 1" class="mc-subtabs" role="tablist" :aria-label="tx('切換會員卡', 'Switch membership card')">
         <button

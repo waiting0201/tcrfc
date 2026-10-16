@@ -1,9 +1,18 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.28
-> **Date**: 2026-08-14 (v3.28 revision: 2026-10-15)
+> **Document version**: v3.29
+> **Date**: 2026-08-14 (v3.29 revision: 2026-10-16)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.28*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.29*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.29 revision summary — core values, academy squads and fan club plans follow the client's documents; the NAMA Elite Football Performance Camp is listed as a camp**
+> **The specification follows the client's documents on 2.3 football philosophy and the four core values, 4.3 academy pathway, 8.2 fan club plans and 5.2 summer camps.**
+> ① **Four core values**: Inspiring players, Shaping champions, Local pride and Global influence, which are also the site-wide content tags (Value Tags). Where: 1.2, 3.1, 3.2 (2.3), 3.11, 4.2 B1 / B2 / B3, section 10 item 35.
+> ② **Academy squads follow the 4.3 pathway**: the development stage runs Foundation (U10, U12), Development (U14, U16) and Professional (U18 and the First Team); academy team codes are `U10` / `U12` / `U14` / `U16` / `U18` (the age-group names), and which squads actually exist follows the C1 team data. Team codes stay globally unique, and a code for which a calendar subscription URL has been issued is never reassigned to a different team. Where: 3.1, 3.4 (4.2 / 4.3), 3.10 (10.2), 3.13, 4.3 C1, 4.12 L, 5.1 `Team`, section 9.
+> ③ **The fan club has two paid plans, and a registered account is not a membership**: Taichung Rock offers Rock Member (suggested annual fee NT$400) and Prestige Member (suggested annual fee NT$2,400), with benefits as in the client's 8.2 comparison. A free registered account can sign in, register for programmes and shop, but has no digital membership card, no membership benefits and no place in prize draws. The benefits table has one column per plan; **the on-site shop gains a "member discount"**: a plan sets a shop discount percentage that applies to the products ticked for it, and there are still no discount codes or per-item member prices (the member discount does not stack with a sale price, the lower price applies); Rock Member cannot upgrade to Prestige Member during the term, and the Prestige gift box includes one jersey; a partner store's applicable tier is set store by store as either both plans or Prestige only. Taichung Blue Whale's membership plans are its own. Where: 3.8 (8.2 / 8.3 / 8.4), 3.14, 4.11 K1–K5, 4.13 S1 / S3 / S6, section 5.1, sections 8, 9 and 10.
+> ④ **The 2026 NAMA Elite Football Performance Camp is a Taichung Rock summer camp (5.2)**: the collaboration with the North American International Montessori education organisation (NAMA) is expressed through the existing programme and partner relationship; no new type is added. Where: 3.5 (5.2).
+> ⑤ **4.4 Training & Curriculum has a fixed-page template**: B1 gains a Taichung Rock page "4.4 Training & Curriculum" (philosophy, vision, training structure, competition plan and playing principles, football and education, codes of conduct, training times and venues), bringing Taichung Rock to 13 pages; Blue Whale does not have it. The public page description follows the client's four dimensions. Where: 3.4 4.4, 4.2 B1.
+> ⑥ **The data source of the 5.5 partner school list is specified** as E1 partners of type "Education". Where: 3.5 5.5.
 
 > **v3.28 revision summary — news covers take a focal point; the news body can hold images and galleries, and galleries keep each photo's original proportions**
 > **An editing enhancement for news; no page or module is added.**
@@ -148,7 +157,7 @@
 > 4. **A new `Team.gender`** (`men` / `women` / `mixed`) — gender is an attribute of a team, not a kind of team. The `first_team` constraint is "**at most one per club**". Section 3.6 【06】 Women's Football is **an entry point to the Blue Whale site**, with Blue Whale's `Team` / `Player` / `Match` records all created in this database.
 > 5. **Membership is one per person per club**: a new `Membership` type (`member_id` × `club_id` × `season_id`); `tier` / `membership_start_on` / `membership_end_on` **belong to it**. **`Member` remains one account per person** (email is the login key, the LINE binding is 1:1 with a person, and the data subject under privacy law is the person, not the membership). The two clubs' **seasons are not aligned**; expiry and renewal are calculated separately.
 > 6. **One card per membership**: `MemberCard.membership_id` is mandatory. **The "one card, one token" rule is unchanged** — it constrains card-to-token as 1:1, not person-to-card (`MembershipPlan.card_quota` has always allowed several cards per person). The verification page `/m/<token>` returns **exactly the same fields as before**, because the token already implies the club, so an "applicable team" field is **neither needed nor permitted**.
-> 7. **Draws (K5) are run per club**: `MemberDraw.club_id` is mandatory and eligibility is evaluated against **that club's** paid membership. It is **still a boolean, still a roster snapshot, still no points and no weighting**. Someone holding both clubs' paid memberships appears once in each roster, so **the rules must state explicitly that holding both memberships allows entry to both draws** — otherwise it reads as buying extra chances.
+> 7. **Draws (K5) are run per club**: `MemberDraw.club_id` is mandatory and eligibility is evaluated against **that club's** valid membership. It is **still a boolean, still a roster snapshot, still no points and no weighting**. Someone holding both clubs' memberships appears once in each roster, so **the rules must state explicitly that holding both memberships allows entry to both draws** — otherwise it reads as buying extra chances.
 > 8. **The shop keeps a single collecting entity; Blue Whale goods are sold on a collect-and-remit basis**: `Order` gains `selling_club_id` (the beneficiary) and `collecting_club_id` (the collecting legal entity, always this club), value-copied onto `OrderItem` and `StoreInvoice`. **The LINE Pay merchant account, invoice track and invoice title stay single.** **Carts must not mix clubs** (`Cart.club_id` mandatory) — the current shipping rule is a single flat fee plus a free-shipping threshold, and a mixed cart has no defined answer for either. **Shop-level settlement and revenue splitting are explicitly out of scope**; the system only aggregates and exports by `selling_club_id`.
 > 9. **Row-level data scope in `J`**: new `AdminUserClub` association table (with **grant and expiry dates, expiring automatically**); `AdminRole` gains `scope_mode`, `AdminUser` gains `primary_club_id`, `Permission` gains `is_club_scoped`. **The permission matrix gains a "data scope" column and a tenth role, "Partner club manager".** Scope **must be enforced at the data-access layer — hiding it in the UI does not count**.
 > 10. **Shared content (`club_id` null) is read-only to any scope-limited account**; only super administrators may create or modify it. Otherwise "can see shared content" and "cannot edit someone else's content" cannot both hold.
@@ -161,7 +170,7 @@
 > 3. **"No payment gateway" is scoped a third time; the boundary now divides four ways**: ① **shop checkout on this website takes payments, and the only payment method is LINE Pay** (collected by this club); ② **membership fees still do not go through on-site checkout** (the website keeps payment links and in-person collection; the app uses LINE Pay), with a possible move to shop checkout listed as an open item in section 10; ③ the Charity Donation Platform integrates LINE Pay (collected for by the **Association**); ④ the Mobile App's membership payment (collected by **this club**). **"No card data" remains globally applicable** — payment always completes on LINE Pay's side and this site renders no card fields. **All four payment flows use LINE Pay, but the collecting entities differ, so merchant accounts and invoice tracks must never be shared.**
 > 4. **Every checkout issues an e-invoice**: **carrier, tax ID, or donation code**, made out to **this club**, on a **different invoice track from the Association's** charity invoices; voided or credit-noted on a return. **LINE Pay does not issue invoices itself**, so a separate invoicing service is required (an open item in section 10).
 > 5. **New data types**: `Product`, `ProductVariant`, `InventoryMovement`, `Cart`, `Order`, `OrderItem`, `Shipment`, `RefundRequest`, `StoreInvoice`. `Order.member_id` **may be empty** — **guest checkout is supported**, mirroring `Registration`; `OrderItem` is a **value-copied snapshot**, so renaming or repricing a product must never alter historical orders. The Member Centre gains **"My orders"**; the shop is on-site, so **the member account is the shop account**.
-> 6. **Deliberately not built (keeping to the old store's scale rather than building a large shop in version one)**: **multiple payment methods** (no card, convenience-store code, ATM transfer, or cash on delivery — **LINE Pay only**), **member pricing and discount codes** (products carry only a list price and a sale price; paid membership keeps partner-store discounts and the jersey and **does not include merchandise discounts**), a **shipping-rate engine** (a single flat rate plus a free-shipping threshold only), subscriptions and recurring billing, cross-border sales and multi-currency, marketplace/multi-vendor, resale or consignment, points redemption and e-wallet, **ticketing and match packages**, tying merchandise to membership or draw eligibility, carrier API integration (tracking numbers entered manually or by CSV), and product reviews or ratings.
+> 6. **Deliberately not built (keeping to the old store's scale rather than building a large shop in version one)**: **multiple payment methods** (no card, convenience-store code, ATM transfer, or cash on delivery — **LINE Pay only**), **discount codes and per-item member pricing** (products carry only a list price and a sale price), a **shipping-rate engine** (a single flat rate plus a free-shipping threshold only), subscriptions and recurring billing, cross-border sales and multi-currency, marketplace/multi-vendor, resale or consignment, points redemption and e-wallet, **ticketing and match packages**, tying merchandise to membership or draw eligibility, carrier API integration (tracking numbers entered manually or by CSV), and product reviews or ratings.
 > 7. **The old site's Wix store is a transitional channel**: it keeps selling until the on-site shop launches, then closes, with `/product-page/…` and `/category/…` 301-redirected to their on-site equivalents.
 
 > **v2.5 revision summary — a Mobile App specification is added; four assumptions are scoped accordingly**
@@ -179,11 +188,11 @@
 > 4. In section 10, "donation receipts and fundraising eligibility" turns on the Association.
 
 > **v2.3 revision summary — prize draw entitlement for paying members**
-> 1. **The "Fan Club Prize Draw" is added as a paid-membership benefit**: at a draw's **eligibility snapshot time**, every paying member (`fan_club`) with a valid membership is **automatically included in the eligible roster — the member does nothing at all**: no entry, no sign-up, no points, no accumulation. One entry is added to the benefits comparison table under the existing "events" group (**no new group**), maintained as before in K4.
+> 1. **The "Member Draw" is added as a paid-membership benefit**: at a draw's **eligibility snapshot time**, every member with a valid membership is **automatically included in the eligible roster — the member does nothing at all**: no entry, no sign-up, no points, no accumulation. One entry is added to the benefits comparison table under the existing "events" group (**no new group**), maintained as before in K4.
 > 2. **The system does not draw winners**: the physical draw is **performed by people, on site or on a live stream**, and what is drawn is the **draw serial number** the system issued. The system only **freezes the roster into a snapshot** at the snapshot time, issues consecutive serial numbers, and exports a CSV for use at the event; winners are then **ticked in manually** in the admin.
 > 3. **New admin module `K5 Prize draw rosters`**, placed under K Members (the roster comes from membership, it is maintained by the same support/administration staff, and prize fulfilment mirrors K3).
 > 4. **Two new data types: `MemberDraw` (draw) and `DrawRoster` (eligible roster snapshot)**. `DrawRoster` is an **immutable snapshot**: it copies the name, member number, tier, and membership expiry as values at snapshot time, cannot be added to or deleted from once locked, and can only be voided and regenerated in full if wrong; a **roster hash** is stored for audit. It is deliberately not named `Ticket` (which would blur into the excluded ticketing scope) or `Entry` (which would imply members must enter).
-> 5. **Winners are announced through News only** (category 7.1 Club News plus a new `Fan Club Prize Draw` tag — **no ninth news category**), always masked to "serial number + member number + masked name". **No winner notification email** (the five system emails are unchanged), no on-site notification, no LINE push. The public site has **no** draw page, no "my draws", no serial-number lookup, no winners list page, and no online draw animation.
+> 5. **Winners are announced through News only** (category 7.1 Club News plus a new `Member Draw` tag — **no ninth news category**), always masked to "serial number + member number + masked name". **No winner notification email** (the five system emails are unchanged), no on-site notification, no LINE push. The public site has **no** draw page, no "my draws", no serial-number lookup, no winners list page, and no online draw animation.
 > 6. **Tax and personal data follow data minimisation**: a winner's national ID number is collected only where a single prize reaches the withholding threshold (encrypted, masked, audited, destroyed at end of retention), and **the first draws' prize values are recommended to sit below the threshold so nothing need be collected at all**; the member terms must add a collection notice for the draw. Section 10 gains open items 16–20.
 
 > **v2.2 revision summary — English club name corrected**
@@ -199,11 +208,11 @@
 > 6. The `Donation` type is defined in Charity Donation Platform §9.
 
 > **v2.0 revision summary — member system scope narrowed**
-> 1. **The member system carries membership alone**: a free tier and a paid tier, with **partner-store discounts** for members and a **jersey** for paying members.
+> 1. **The member system carries membership alone**: members get **partner-store discounts** and the benefits of their plan (plan content is defined in 3.14).
 > 2. **New section 8.4 Partner Perks** (a public page) plus admin module K4. This is an entirely new content type, `PartnerStore`, which shares no data with 9.1 Partners (the B2B logo wall).
-> 3. **A paying member is a fan club member**, not a separate identity; page 8.2 is the introduction and join page for paid membership.
+> 3. **A holder of a membership is a member**, not a separate identity; page 8.2 is the introduction and join page for membership.
 > 4. **The benefits comparison table is a stated requirement**: structured data, maintained in the admin, visible without signing in, and **never delivered as images**; one dataset shared by the join page, 8.2, and the upgrade page.
-> 5. **Membership runs by season**, with everyone expiring together; individual and family plans are supported via `card_quota` / `jersey_quota`.
+> 5. **Membership runs by season**, with everyone expiring together; a plan can set the number of membership cards and jerseys via `card_quota` / `jersey_quota`.
 > 6. **Fees are collected via LINE Pay payment links and in person**; the website takes no payments, and the admin activates membership after reconciliation. An automation hook is reserved.
 > 7. **Not built**: loyalty points, e-wallet, ticketing and match packages, **store scan-to-redeem and redemption reporting**, booking attribution and form pre-filling (**from v2.5 provided in the Mobile App; this site still does neither**), parent–student linking (**still excluded everywhere**), on-site notification centre, LINE push and parameterised QR source tracking, Google sign-in, member calendar and "I'm attending".
 > 8. Admin module K is **K1 Member list / K2 Membership and plans / K3 Jersey fulfilment / K4 Partner stores and benefits**. The data model gains `MembershipPlan`, `MembershipPayment`, `MembershipBenefit`, `PartnerStore`, and `EmailLog`.
@@ -244,9 +253,9 @@
 | Attract talent (players, coaches, students) | Recruitment / trial / registration conversion funnels, International Pathways |
 | Expand international partnerships and sponsorship | Partner zone, sponsorship packages, deck download, B2B enquiry forms |
 
-### 1.2 Five core values (threaded through site-wide visuals and content tagging)
+### 1.2 Four core values (threaded through site-wide visuals and content tagging)
 
-`Players First`, `Excellence`, `Global Pathways`, `Community`, `Integrity`
+`Inspiring players`, `Shaping champions`, `Local pride`, `Global influence`
 
 > Recommendation: implement the core values as **content tags (Value Tags)** in the admin, applicable to any article / player story / event, so the public site can aggregate content by value.
 
@@ -261,7 +270,7 @@
   - **Fixed advertising slots** — **this site's public web front end** has no separate fixed slots; seasonal content is surfaced through the hero carousel or latest news (see 3.1 / 4.2 B3). **The Mobile App's own advertising slots are app scope**, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 7.
   - **Native push and notification centre** — this site builds no notification centre, no notification preferences, and no LINE push; **the Mobile App's native push and in-app notification centre are app scope**, see the app specification, section 6.
   - **Booking attribution and form pre-filling** — not built on this site's public web front end; **the Mobile App provides form pre-filling and "my bookings"** (the member's own data only), see the app specification, section 3.9. **Parent–student linking is excluded everywhere.**
-  - **Ticketing and match packages**, **loyalty points**, **e-wallet**, and **partner-store scan-to-redeem with redemption reporting** (recommended for later evaluation). The paying-member prize draw (3.14 / admin K5) is **none of these**: eligibility is a boolean derived from membership, the draw serial number is not a ticket, and prizes exclude tickets — see 3.14.
+  - **Ticketing and match packages**, **loyalty points**, **e-wallet**, and **partner-store scan-to-redeem with redemption reporting** (recommended for later evaluation). The member draw (3.14 / admin K5) is **none of these**: eligibility is a boolean derived from membership, the draw serial number is not a ticket, and prizes exclude tickets — see 3.14.
   - **On-site donations and volunteer signup** — fan donations move to the Charity Donation Platform (separate domain, see above); **volunteer signup is not built**, and any such need is handled by the general contact form (10.7).
 
 ### 1.4 Existing digital assets
@@ -355,10 +364,10 @@ The following assets must be inventoried before launch to determine migration sc
 | Block | Description | Data source |
 |---|---|---|
 | Hero | Video or image carousel (max 5 slides), supporting headline / subhead / dual CTA | Admin banner management |
-| Five core values | Icon + name, linking to 2.3 Our Philosophy | Admin settings |
+| Four core values | Icon + name, linking to 2.3 Our Philosophy | Admin settings |
 | Four-pillar navigation cards | Football Club / Academy / Programs / Women's Football | Static module with editable text and imagery |
 | Latest match block | Next fixture (with countdown) + most recent result | Fixtures module |
-| Upcoming fixtures | Summary of the next 30 days, with `D1 / U15 / U14 / U12` team quick-filter chips, linking to 13 Schedule | Calendar module |
+| Upcoming fixtures | Summary of the next 30 days, with team quick-filter chips (`D1` and the academy squads that have been created), linking to 13 Schedule | Calendar module |
 | Latest news | Pulls the newest 3–6 items from 7.x; featured items can be pinned | News module |
 | Sponsor logo wall | Carousel ordered by tier, clicking through to 9.1 | Partners module |
 | Official store entry | Featured products and collection entry points, linking to the **on-site shop** (8.3; an on-site page, not a new tab) | Shop module S1 |
@@ -374,7 +383,7 @@ The following assets must be inventoried before launch to determine migration sc
 |---|---|---|
 | 2.1 | Our Story | Long-form editor (rich text + mixed image/text + pull quotes) |
 | 2.2 | Vision & Mission | Two-column vision/mission layout supporting icon lists |
-| 2.3 | Our Philosophy | Philosophy narrative + expansion of the five core values |
+| 2.3 | Our Philosophy | Philosophy narrative + expansion of the four core values |
 | 2.4 | Our People | Person cards (photo / title / bio), groupable (management / coaching / administration), with modal detail |
 | 2.5 | Governance | Org chart, governance principles, downloadable documents (articles of association, annual report PDFs) |
 | 2.6 | TCRFC Ecosystem | Interactive ecosystem diagram; clicking a node jumps to the corresponding section |
@@ -429,9 +438,9 @@ Eight module pages: technical & tactical analysis, physical conditioning, game r
 | No. | Page | Public-site functionality |
 |---|---|---|
 | 4.1 | Academy Overview | Positioning, training base, headline metrics (students, coaches, progression rate) |
-| 4.2 | Our Teams | Tabs for **U15 / U14 / U12 / other age groups**; each team shows roster, coaches, fixtures, results. The "fixtures" block embeds that team's data from the Schedule (13) directly, with a "Subscribe to this team's calendar" button |
-| 4.3 | Academy Pathway | Step-ladder pathway diagram (U12 → U15 → First Team / overseas); each stage is clickable for detail |
-| 4.4 | Training & Curriculum | Five dimensions (technical / tactical / physical / game reading / character), each with a syllabus and periodisation table |
+| 4.2 | Our Teams | Tabs for **U18 / U16 / U14 / U12 / U10** (shown according to the squads created in C1); each team shows roster, coaches, fixtures, results. The "fixtures" block embeds that team's data from the Schedule (13) directly, with a "Subscribe to this team's calendar" button |
+| 4.3 | Academy Pathway | Step-ladder pathway diagram in three stages: Foundation (U10, U12) → Development (U14, U16) → Professional (U18, First Team); each stage is clickable for detail |
+| 4.4 | Training & Curriculum | Training philosophy and vision; training method and structure (periodised training: annual → monthly → weekly plans; four dimensions of technical, tactical, physical and psychological); competition plan and playing principles (including competition representation); football combined with education; codes of conduct for players and parents; training times and venues per squad; content is maintained in the B1 fixed page |
 | 4.5 | Coaches | Coach list + detail (licences, specialisms, assigned age group) |
 | 4.6 | Academy Life | Daily training, matches, competitions, educational support, player welfare; image gallery + video |
 | 4.7 | Join the Academy | Who it's for, selection process (step bar), trial information, **fees and information table**, online application (routes to 10.2). This page uses the FAQ quick block (G-12) to embed the "Academy admissions" topic automatically, with a "See all FAQs" link (full content in section 12) |
@@ -445,10 +454,10 @@ Eight module pages: technical & tactical analysis, physical conditioning, game r
 | No. | Program | Public-site functionality |
 |---|---|---|
 | 5.1 | Children's Training | Level descriptions (mixed-age / beginner / skill development), **training venue map**, weekly timetable, online registration |
-| 5.2 | Summer Camp | Who it's for, curriculum, coaching staff, activities, partners, **dates and venue**, registration (with early-bird pricing and remaining-place countdown) |
+| 5.2 | Summer Camp | Who it's for, curriculum, coaching staff, activities, partners (which can be a collaborating education organisation, e.g. the 2026 NAMA Elite Football Performance Camp with the North American International Montessori education organisation), **dates and venue**, registration (with early-bird pricing and remaining-place countdown) |
 | 5.3 | Winter Camp | Same structure as 5.2 (shared template and data model) |
 | 5.4 | Specialist Training | Six specialisms (goalkeeping / forwards / defenders / midfielders / speed & conditioning / advanced), each with objectives, target audience, registration |
-| 5.5 | School & Community | School partnership packages, community programmes, coach education; includes a **partner school list** and enquiry form |
+| 5.5 | School & Community | School partnership packages, community programmes, coach education; includes a **partner school list** (taken from E1 partners of type "Education") and enquiry form |
 
 **Registration flow (public site)**: choose program → choose session → enter student details (multiple students supported) → parent / emergency contact → health declaration and privacy consent (required checkbox; the consent time and policy version are stored on submit) → submit → registration number issued → email / SMS confirmation → (optional) online payment or bank transfer instructions.
 
@@ -504,18 +513,18 @@ A **unified newsroom** segmented into eight categories:
 - **Episodes / Stories**: episode list (cover, episode number, publish date) + an **online reader** (paged and scroll modes, previous/next navigation, mobile gestures); **entirely free, no sign-in required**
 - **Latest Episode**: pinned block, also surfaced on the homepage
 
-#### 8.2 Fan Club (the introduction and join page for **paid membership**)
+#### 8.2 Fan Club (the introduction and join page for **membership**)
 
 | Block | Content |
 |---|---|
-| Membership Plans | Individual and family plan cards: price, season term, cards included, jerseys included, benefit summary |
-| Fan Benefits | The **free versus paid benefits comparison table**, sourced from the same data as 3.14 (maintained in admin K4), visible without signing in |
+| Membership Plans | Two plan cards, Rock Member and Prestige Member: suggested annual fee, season term, benefit summary (a plan that includes several cards or jerseys says so) |
+| Fan Benefits | The **benefits comparison table for the two plans**, sourced from the same data as 3.14 (maintained in admin K4), visible without signing in |
 | Partner Perks | Current number of partner stores and a selection of them, linking through to the full list in 8.4 |
-| Join / Upgrade | Routes to registration or the upgrade flow in the Member Centre; signed-in visitors go straight to the upgrade page |
-| Fan Events | Event list + registration (can be restricted to paying members) + event recaps |
+| Join | Routes to registration or the membership purchase flow in the Member Centre; signed-in visitors go straight to the plans page |
+| Fan Events | Event list + registration (can be restricted to holders of a valid membership) + event recaps |
 | Member Draw | **An explanatory block, not an interactive one**: states that a valid membership **confers prize-draw eligibility automatically, with no entry or sign-up**, and that the prizes, quantities, **eligibility snapshot time**, draw time, and collection method for each draw are announced in News. This page has **no** draw entry, serial-number lookup, or winners list (see 3.14) |
 
-> Fan club members are members flagged `fan_club` in the member system — **no separate list is maintained** (see 3.14 and 4.11 K).
+> A member is someone who holds a valid membership at that club — **no separate list is maintained** (see 3.14 and 4.11 K).
 
 #### 8.3 Merchandise & Online Store (**built on this site from v2.6; no external store**)
 
@@ -532,13 +541,13 @@ A **unified newsroom** segmented into eight categories:
 | Shipping | Home delivery, convenience-store pickup (**pickup only, no pay-on-collection**), and **collection at a home match or the club**; **a single flat rate plus a free-shipping threshold** (configured in admin S6 — **no weight or banded rates**). **No carrier API integration** — tracking numbers are entered manually or by CSV |
 | Order lookup | Members use **"My orders"** in the Member Centre; **guests look up an order with the order number and email at `/order/lookup`**, or follow the time-limited link in the order confirmation email |
 | Returns | The statutory seven-day cooling-off period applies (**a legal duty, not trimmed away with the rest of the scope**). The public site provides a **returns policy page** and a request channel (form or support email — **no dedicated returns wizard**); admin S5 handles review, inspection, refund, and **invoice voiding or credit notes**. Refunds go **back through LINE Pay**. **Exclusions (e.g. customised goods) must be stated on the product page** |
-| Members and the shop | The shop is on this site, so the **member account is the shop account** and no SSO is needed; members see orders under "My orders". **No member pricing and no discount codes this time round** — paid membership keeps **partner-store discounts and the jersey** (see 3.14 / K4) and **does not include merchandise discounts**; adding them later requires amending the assumption in section 10 first |
+| Members and the shop | The shop is on this site, so the **member account is the shop account** and no SSO is needed; members see orders under "My orders". **A membership plan can set a member discount in the shop** (10% for both Rock Member and Prestige Member, set per plan in K2): for products marked "member discount applies", someone holding a valid membership at the selling club gets the discount automatically at checkout, and the order detail shows the amount taken off; the member discount does not stack with a sale price — the lower of the two applies; non-members and registered accounts pay the list price. **No discount codes and no per-item member-price field this time round** |
 | Transactional email | Shop emails are **a separate set**: order placed, payment received, shipped, refunded. **They are counted separately from the member system's five system emails, which remain five** |
-| Not included | ✗ Payment methods other than LINE Pay ✗ Member pricing and discount codes ✗ Weight-based or banded shipping rates ✗ Subscriptions / recurring billing ✗ Cross-border sales and multi-currency ✗ Marketplace / multi-vendor ✗ Resale or consignment ✗ Points redemption and e-wallet ✗ Ticketing and match packages ✗ Tying merchandise to membership or draw eligibility ✗ Live chat support ✗ Product reviews and ratings |
+| Not included | ✗ Payment methods other than LINE Pay ✗ Discount codes and per-item member pricing ✗ Weight-based or banded shipping rates ✗ Subscriptions / recurring billing ✗ Cross-border sales and multi-currency ✗ Marketplace / multi-vendor ✗ Resale or consignment ✗ Points redemption and e-wallet ✗ Ticketing and match packages ✗ Tying merchandise to membership or draw eligibility ✗ Live chat support ✗ Product reviews and ratings |
 
 > **Boundary with membership**: the shop sells **physical goods only**. **Membership fees do not go through shop checkout** — they keep payment links and in-person collection (and LINE Pay inside the app). Whether membership should move into the shop is an open item in section 10.
 > **Boundary with the Charity Donation Platform**: both use LINE Pay, but the shop collects for the **club** and the platform for the **Association**; **merchant accounts, credentials, and invoice tracks must never be shared**. The shop must not sell donation items or take donations under the guise of merchandise.
-> **Where the scope line sits**: the goal this time is to **move the old Wix store into this site as it stands and put our own payment and invoicing behind it** — not to build a bigger shop. Anything beyond what the old store already does (member pricing, discount codes, extra payment methods, banded shipping rates, subscriptions) requires amending the assumption in section 10 first.
+> **Where the scope line sits**: the goal this time is to **move the old Wix store into this site as it stands and put our own payment and invoicing behind it** — not to build a bigger shop. Anything beyond what the old store already does (discount codes, extra payment methods, banded shipping rates, subscriptions) requires amending the assumption in section 10 first; the **member discount set by a membership plan** comes from the client's 8.2 fan club plans and is an accepted exception.
 > **Retirement of the old store**: the old site's Wix store is a transitional channel and closes once the on-site shop launches, with 301 redirects (see 1.4).
 
 #### 8.4 Partner Perks (member discounts)
@@ -548,13 +557,13 @@ A **unified newsroom** segmented into eight categories:
 | Positioning | The content source for the discount benefit and the primary incentive to join. **A public page, browsable without signing in** |
 | Store list | Card wall, filterable by **category** (dining, sportswear, health, education, services, etc.) and **area** |
 | Store detail | Name, photo / logo, category, address, phone, opening hours, map link, website or social link |
-| Offer | Each store states its offer and the **applicable tier** (all members / paying members only) |
+| Offer | Each store states its offer and the **applicable tier** (set store by store: both plans / Prestige only) |
 | How to use | Show the digital membership card in store. The page sets out usage notes and caveats (e.g. not combinable with other offers, store terms prevail) |
 | Not included | ✗ Scan-to-redeem ✗ Redemption counts ✗ Store-side accounts or admin ✗ Loyalty points ✗ E-wallet |
 
 > This is a **different content type** from 9.1 Partners (the B2B logo wall): different audience, fields, and maintenance cadence, with no shared data (see `PartnerStore` and `Partner` in section 5).
 
-> **Launch prerequisite**: the value proposition of paid membership rests on partner discounts and the jersey (this site does not do ticketing or match packages), so **the size and quality of the initial partner store roster directly determines whether the paid tier is viable**. It must be secured before launch (see section 10).
+> **Launch prerequisite**: the value proposition of membership includes partner-store discounts (this site does not do ticketing or match packages), so **the size and quality of the initial partner store roster directly affects how attractive the paid plans, Prestige Member in particular, are**. It must be secured before launch (see section 10).
 
 ---
 
@@ -580,7 +589,7 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 | No. | Form | Key fields | Recipient team |
 |---|---|---|---|
 | 10.1 | Join as a Player | Name, date of birth, position, experience, video link, contact details | Football operations |
-| 10.2 | Academy & Children's Training | **Programme selected (Academy U12 / U14 / U15 age groups, Children's Training mixed-age / beginner / skill-development classes, or the six Specialist Training disciplines)**, student details, preferred venue, parent contact, football background, health notes | Academy / Programs (routed by programme selected) |
+| 10.2 | Academy & Children's Training | **Programme selected (Academy U10 / U12 / U14 / U16 / U18 age groups, Children's Training mixed-age / beginner / skill-development classes, or the six Specialist Training disciplines)**, student details, preferred venue, parent contact, football background, health notes | Academy / Programs (routed by programme selected) |
 | 10.3 | Camp Registration | Camp session, student details, health declaration, emergency contact | Programs |
 | 10.4 | International Player Enquiries | Name (English), nationality, passport, experience, video, visa status | International |
 | 10.5 | Partnership & Sponsorship | **Enquiry type (partnership / sponsorship / both)**, company, industry, budget range, proposed collaboration, packages of interest, contact person | Commercial |
@@ -602,7 +611,7 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 
 ### 3.11 【11】CHARITY & IMPACT
 
-**Purpose**: demonstrate the club's `Community` core value in practice, reinforcing brand trust while serving as supporting material for CSR-driven corporate sponsorship (cross-linked with the "social impact" argument in 9.3).
+**Purpose**: demonstrate the club's `Local pride` core value in practice, reinforcing brand trust while serving as supporting material for CSR-driven corporate sponsorship (cross-linked with the "social impact" argument in 9.3).
 
 | No. | Page | Public-site functionality |
 |---|---|---|
@@ -680,20 +689,22 @@ The calendar is organised primarily **by team**:
 | Code | Team | Covers | Source data |
 |---|---|---|---|
 | **D1** | **First Team** | League and cup fixtures, results, first-team public events | C1 Team (`first_team`), C4 Fixtures & Results |
-| **U15** | U15 squad | That squad's fixtures and results | C1 Team (`academy` / U15), C4 Fixtures & Results |
+| **U18** | U18 squad | That squad's fixtures and results | C1 Team (`academy` / U18), C4 Fixtures & Results |
+| **U16** | U16 squad | As above | C1 Team (`academy` / U16), C4 Fixtures & Results |
 | **U14** | U14 squad | As above | C1 Team (`academy` / U14), C4 Fixtures & Results |
 | **U12** | U12 squad | As above | C1 Team (`academy` / U12), C4 Fixtures & Results |
+| **U10** | U10 squad | As above | C1 Team (`academy` / U10), C4 Fixtures & Results |
 
 **Categorisation rules**:
 
 1. Every match must be assigned to a **team** (cross-squad friendlies may select more than one).
 2. Events not belonging to a specific team are classified as `Club Event` and appear in the "All" view.
 3. Once a team is selected, the page header shows the team name and a countdown to its next fixture, and offers that team's **dedicated calendar subscription URL** (so a parent subscribing to U12 does not receive D1 fixtures).
-4. The team list is generated automatically from the C1 team records, so **any new squad added later (U18, U10, etc.) appears as a category automatically** with no code change (matching the "other age groups" provision in 4.2).
+4. The team list is generated automatically from the C1 team records, so **only teams that have been created are listed, and any new squad added later appears as a category automatically** with no code change (matching the squad tabs in 4.2 Our Teams).
 
 > **Terminology**: **D1 is the First Team described in 3.1** — the same team, not an additional one. `D1` is the site-wide **team code** used for calendar categories, filter chips, and subscription URLs; `First Team` is the public-facing display name used in headings and body copy across 03 FOOTBALL CLUB.
 >
-> The team list (D1 / U15 / U14 / U12) is therefore the First Team plus the three academy squads from 4.2 Our Teams — covering every competitive team at the club.
+> The team list (D1 / U18 / U16 / U14 / U12 / U10) is therefore the First Team plus the academy squads created under 4.2 Our Teams — covering every competitive team at the club.
 
 #### Fixture list layout (reference: Manchester United fixtures page)
 
@@ -701,14 +712,14 @@ The calendar is organised primarily **by team**:
 
 > Note: that site returns 403 to programmatic fetching. The **confirmed** points below are: ① the page is men's-team-specific, i.e. team is the first-level split; ② all kick-off times are shown in the **viewer's local time zone**, with a note that times may change; ③ the site operates a Match Centre. The remaining specifications follow common practice among professional club fixture pages.
 >
-> Supporting evidence: Man Utd splits fixtures across Men's / Women's / U21 / U18 tabs, consistent with the `D1 / U15 / U14 / U12` team split proposed here.
+> Supporting evidence: Man Utd splits fixtures across Men's / Women's / U21 / U18 tabs, consistent with the `D1 / U18 / U16 / U14 / U12 / U10` team split proposed here.
 
 ##### Layout structure
 
 ```
 ┌──────────────────────────────────────────────────────────┐
 │  SCHEDULE                                                 │
-│  [ D1 ] [ U15 ] [ U14 ] [ U12 ]              ← team tabs  │
+│  [ D1 ] [ U18 ] [ U16 ] [ U14 ] [ U12 ] [ U10 ] ← team tabs│
 ├──────────────────────────────────────────────────────────┤
 │  [ Fixtures ] [ Results ]                    ← main tabs  │
 │  Season 2026/27 ▾   Competition All ▾   Venue All ▾  [Cal]│
@@ -738,7 +749,7 @@ The calendar is organised primarily **by team**:
 
 | Control | Options |
 |---|---|
-| Team tabs (first level) | `D1` / `U15` / `U14` / `U12` (plus `All` and `Club Events`) |
+| Team tabs (first level) | `D1` / `U18` / `U16` / `U14` / `U12` / `U10` (shown according to the teams created; plus `All` and `Club Events`) |
 | Fixtures / Results toggle | `Fixtures` (future, nearest first) / `Results` (past, most recent first) |
 | Season | Dropdown, defaulting to the current season, with past seasons available |
 | Competition type | All / League / Cup / Friendly / Other |
@@ -772,35 +783,71 @@ The calendar is organised primarily **by team**:
 #### SEO and URL rules
 
 - Every public fixture emits **SportsEvent schema** (name, start/end time, location, competing teams, status) to compete for Google's match result features
-- Team categories have their own indexable URLs: `/schedule/d1/`, `/schedule/u15/`, `/schedule/u14/`, `/schedule/u12/`
+- Team categories have their own indexable URLs: `/schedule/d1/`, `/schedule/u18/`, `/schedule/u16/`, `/schedule/u14/`, `/schedule/u12/`, `/schedule/u10/` (the URL comes from the team code); a team URL that does not exist or is not public redirects to `/schedule/`
 - Significant fixtures can have dedicated URLs: `/schedule/2026-03-15-tcrfc-vs-xxx`
 
 ---
 
 ### 3.14 MEMBER CENTRE
 
-**Positioning**: the member system carries **one thing — membership**. Anyone who joins gets discounts at partner stores; paying members additionally receive a jersey. The member system does not handle student records or newsletter campaigns; **this site's public web front end** does not handle booking attribution (the Mobile App provides "my bookings", see the app specification, section 3.9).
+**Positioning**: the member system carries **one thing — membership**. Buying a club's membership plan makes someone a member, with a digital membership card and the benefits of that plan. The member system does not handle student records or newsletter campaigns; **this site's public web front end** does not handle booking attribution (the Mobile App provides "my bookings", see the app specification, section 3.9).
 
 > **Explicitly out of scope**: loyalty points, e-wallet, ticketing and match packages, and partner-store scan-to-redeem and redemption reporting.
 > **The shop is on this site (8.3), so the member account *is* the shop account** and no second account exists.
 
-#### Membership tiers (two)
+#### Registered accounts and membership plans
 
-> **v3.0: membership becomes "one per person per club".** The account is still single (email sign-in, LINE linking), but **memberships belong to Taichung Rock and Taichung Blue Whale separately** — a person may hold one, the other, or both. The tiers and benefits below **apply within each club independently**.
+> **v3.0: membership becomes "one per person per club".** The account is still single (email sign-in, LINE linking), but **memberships belong to Taichung Rock and Taichung Blue Whale separately** — a person may hold one, the other, or both. The plans and benefits below **apply within each club independently**.
 
-| Code | Display name | How it's obtained | Benefits |
+**A registered account is not a membership.** Free registration (email verification or one-tap LINE registration) only creates an account: it can sign in, set follow preferences, register for programmes and camps, shop on the site, and view the plans and the benefits comparison table; it gets **no digital membership card, no membership benefits and no place in prize draws**. There is only one way to become a member: buy that club's membership plan, activated by the admin after payment (activated automatically for in-app payment in the Mobile App).
+
+**Taichung Rock's membership has two paid plans** (content follows the client's 8.2 fan club plans):
+
+| Tier code | Plan | Suggested annual fee | How it's obtained |
 |---|---|---|---|
-| `registered` | Member | Free registration + email verification | Digital membership card; discounts at partner stores marked "all members" |
-| `fan_club` | Fan Club Member (paid) | Annual fee, activated by the admin after payment | The above + discounts marked "paying members only" + **a jersey** (quantity per plan) + priority booking for fan events + **prize draw eligibility** (automatic while the membership is valid, with no sign-up) |
+| `standard` | **Rock Member** | NT$400 | Annual fee, activated by the admin after payment |
+| `premium` | **Prestige Member** | NT$2,400 | Annual fee, activated by the admin after payment; includes all Rock Member benefits; the Prestige gift box includes one jersey (plan `jersey_quota` = 1; Rock Member = 0) |
 
-> A paying member **is** a fan club member (8.2) — not a separate identity, and no separate list is maintained.
+> The English plan names (Rock Member, Prestige Member) are the development team's working translations; the client has not supplied English names.
+
+**Plan 1: Rock Member**
+
+| Benefit | Content |
+|---|---|
+| Digital membership card | A dedicated digital member card |
+| Welcome gift | Cap and luggage tag |
+| Member voting | Vote in the annual Best Player, Best Goal and similar polls |
+| Priority registration | Early registration for fan events, summer camps or talks |
+| Shopping discount | 10% off club apparel, merchandise and designated events |
+
+**Plan 2: Prestige Member**
+
+| Benefit | Content |
+|---|---|
+| Includes all Rock Member benefits | The Rock Member benefits are kept in full |
+| Limited-edition Prestige gift box | Jersey, cap, luggage tag or a limited-edition keepsake |
+| Priority tickets / reserved places | For public matches, exhibition matches, dinners, overseas exchange or special events |
+| Exclusive events | At least once a year: a coach talk, player meet-and-greet, training visit or members' day |
+| Training / programme discounts | 10%–15% off Academy programmes, holiday camps, personal training or partner stores |
+| Behind-the-scenes content | Tactical analysis, youth-development reports, coach interviews |
+| Priority communication channel | A members-only community group or quarterly Q&A |
+| Name display | Option to be named on the official website or the annual thanks wall |
+| Referral rewards | Successfully referring a new student or member earns a shop voucher, event credit or an upgrade perk |
+
+Two benefits that both plans carry are unchanged: **prize-draw eligibility** (automatic while the membership is valid, with no sign-up) and **partner-store discounts** (by each store's applicable tier, see 8.4).
+
+> **How benefits are delivered**: the digital membership card, prize-draw eligibility, the member discount in the shop, partner-store discounts and jersey fulfilment registration are carried by the system (see this section, 4.11 K, 4.13 S). The remaining benefits — member voting, priority registration and priority-ticket reserved places, exclusive events, training / programme discounts, behind-the-scenes content, the community channel, name display, referral rewards, and the handing out of welcome gifts and Prestige gift boxes — appear as text in the benefits comparison table; **whether delivering any of them needs a system feature (for example online voting, member pricing on programmes, or referral codes) is an open item in section 10** and must not be implemented before it is settled.
+> **A benefit applies within the club the membership belongs to**: someone holding a Taichung Blue Whale membership gets the benefits of the Blue Whale plan and Blue Whale prize-draw eligibility; a partner store follows the scope that store sets (a single club, or both clubs).
+> **Taichung Blue Whale's membership plans are its own** (names, number of tiers, fees and benefits); they do not reuse Rock's plan names or its two-tier structure — see the Blue Whale specification, section 5.
+> **Member** means someone who holds a valid membership at that club; the 8.2 fan club page is the introduction and join page for membership, and **no separate list is maintained**.
 
 #### Membership term and plans
 
 - **Season-based term**: membership runs by season (e.g. 2026/27); the expiry date comes from the plan rather than being calculated from the join date. Within a club, all members expire together.
 - ⚠️ **The two clubs' seasons are not aligned** (the TFPL and the Taiwan Mulan Football League run to different calendars): **expiry, renewal reminders and end-of-season batch processing are calculated per club**, and the Member Centre lists each membership rather than a single expiry date. The knock-on effect is that **manual activation is spread across the year rather than concentrated at the start of a season** — whether membership should move to shop checkout is an open item in section 10.
-- **Plan settings** (admin K2): plan name, price, season code, start and end dates, `card_quota` (cards issued per membership), `jersey_quota` (jerseys included), mid-season pricing rule, benefit description, sort order, publish state.
-- **Family plans** are simply different records of the same entity (e.g. 1 adult + 2 children = `card_quota` 3, `jersey_quota` 3). Names and jersey sizes for additional cardholders are captured during jersey registration — **no parent–student linking mechanism is required**.
+- **Plan settings** (admin K2): plan name, tier, suggested annual fee, season code, start and end dates, `card_quota` (cards issued per membership), `jersey_quota` (jerseys included), **shop member-discount percentage**, benefit description, sort order, publish state.
+- **A plan can include several cards or jerseys** (`card_quota` or `jersey_quota` above 1); names and jersey sizes for additional cardholders are captured during jersey registration — **no parent–student linking mechanism is required**. Each Rock plan membership carries one card.
+- **No upgrade during the membership term**: a Rock Member cannot switch to Prestige Member within the season and can only choose another plan when renewing after expiry; the Member Centre, admin and mobile app offer no upgrade flow or price-difference calculation.
 - **Mid-season pricing** (pro-rata, full price, or otherwise) is defined per plan.
 
 #### Membership fees (no payment processing on this site)
@@ -808,7 +855,7 @@ The calendar is organised primarily **by team**:
 | Item | Approach |
 |---|---|
 | Payment method | **LINE Pay** (payment link / official account invoice), plus in-person payment (matchdays, recruitment events) |
-| Role of the website | Presents plans and payment instructions and accepts upgrade requests; **membership fees do not go through shop checkout** — v2.6 opens on-site payments, but **for physical merchandise only**, while membership keeps payment links and in-person collection. **"No card data" remains globally applicable** — the Mobile App stores no card data either |
+| Role of the website | Presents plans and payment instructions and accepts sign-up requests; **membership fees do not go through shop checkout** — v2.6 opens on-site payments, but **for physical merchandise only**, while membership keeps payment links and in-person collection. **"No card data" remains globally applicable** — the Mobile App stores no card data either |
 | Mobile App | **Membership payment is completed in-app via LINE Pay** (membership fees only); a successful-payment callback activates the membership automatically, see the app specification, section 5. The collecting entity is **this club**, using **the club's own merchant account — never the Association's** |
 | Activation | Customer service activates the membership in the admin after reconciling payment, recording payment method, amount, date, transaction note, and handler; the system writes a payment record for reconciliation and audit |
 | Automation hook | An internal endpoint `POST /api/membership/activate` (credential-protected, and required to be idempotent). **From v2.5 it is triggered by the Mobile App's successful-payment callback**, with manual activation by support staff retained; the original promise — "only the trigger changes, the member module does not" — is delivered here. Calling conventions are in the app specification, section 9.7 |
@@ -824,22 +871,22 @@ The calendar is organised primarily **by team**:
 - **Token security**: the token cannot be derived from the member number, and members can regenerate it from the Member Centre if a card is leaked.
 
 > 🔴 **Two constraints that must not be misread (clarified in v3.0)**
-> **"One card, one token" is unchanged** — it constrains **card-to-token as 1:1** (issuing two tokens for one card creates two revocable states, and revoking will always miss one). **It has never meant one card per person**: `card_quota` on a family plan has always allowed three.
+> **"One card, one token" is unchanged** — it constrains **card-to-token as 1:1** (issuing two tokens for one card creates two revocable states, and revoking will always miss one). **It has never meant one card per person**: a plan with `card_quota` above 1 can have several cards.
 > **The verification page `/m/<token>` returns exactly the same fields as before, and must not gain an "applicable team" field** — the token already implies the club, so scanning it shows that club's membership status.
 > Conversely, **"one card showing two memberships" is not an option**: without displaying "Rock valid / Blue Whale expired" staff cannot make a decision, and displaying it *is* adding an applicable-team field — a direct breach of the rule above.
 
 #### Benefits comparison table (the core of signup conversion)
 
-- A **line-by-line comparison** of free versus paid benefits, maintained as structured content in the admin (K4).
-- **One dataset, three placements (from v2.5, three plus the Mobile App)**: ① the join page, ② Fan Benefits on the fan club page (8.2), ③ the upgrade page in the Member Centre, plus ④ the app's upgrade screen. All share one component and one dataset; **the app must not hard-code any benefit text**.
+- A **line-by-line comparison** of the plans' benefits (one column per plan), maintained as structured content in the admin (K4).
+- **One dataset, three placements (from v2.5, three plus the Mobile App)**: ① the join page, ② Fan Benefits on the fan club page (8.2), ③ the plans page in the Member Centre, plus ④ the app's membership plans screen. All share one component and one dataset; **the app must not hard-code any benefit text**.
 - **Visible without signing in.** Benefits and the partner store list are the incentive to join; requiring registration to see them defeats the purpose.
 - **Must not be delivered as images.** Benefits require zh/en fields, must be indexable by search engines, and must be readable by screen readers.
 
-#### Fan Club Prize Draw (eligibility is automatic)
+#### Member Draw (eligibility is automatic)
 
-- **Eligibility**: at a draw's **eligibility snapshot time**, every paying member (`fan_club`) with a valid membership is **automatically included in the eligible roster**. The member **does nothing at all** — no entry, no sign-up, no check-in, and nothing to accumulate.
+- **Eligibility**: at a draw's **eligibility snapshot time**, every member holding a valid membership (any plan) at the hosting club is **automatically included in the eligible roster**. The member **does nothing at all** — no entry, no sign-up, no check-in, and nothing to accumulate.
 - **How the draw runs**: the physical draw is **performed by people, on site or on a live stream**, and what is drawn is the **draw serial number** issued by the system. The system only freezes the roster into a **snapshot** at the snapshot time, issues consecutive serial numbers, and exports the list for use at the event. It runs **no random-selection algorithm** and produces no random result.
-- **Announcement**: winners are announced **through News only** (category 7.1 Club News, tagged `Fan Club Prize Draw`), always masked (serial number + member number + masked name). No system email, no on-site notification, no LINE push.
+- **Announcement**: winners are announced **through News only** (category 7.1 Club News, tagged `Member Draw`), always masked (serial number + member number + masked name). No system email, no on-site notification, no LINE push.
 - **Prizes**: physical items supplied by the club, shipped or collected in person, fulfilled the same way as jerseys (admin K3). No tickets, no partner-store redemption, no cash or cash equivalent.
 - **Admin workflow**: see 4.11 K5 Prize draw rosters.
 - **Not built on the public site**: a draw page or entry button, "my draws / my serial number" in the Member Centre, any lookup of a serial number or win status, an on-site winners list page, an online draw animation or wheel, a live counter of eligible members, and any share-or-invite mechanism that would improve someone's chances.
@@ -859,9 +906,9 @@ The calendar is organised primarily **by team**:
 
 #### Jersey fulfilment
 
-- Once a paid membership is activated, the member enters a **size** and **collection method** (shipping / in-person) in the Member Centre; shipping requires recipient name, phone, and address.
+- For a plan that includes a jersey (`jersey_quota` above 0), once the membership is activated the member enters a **size** and **collection method** (shipping / in-person) in the Member Centre; shipping requires recipient name, phone, and address.
 - Fulfilment status: `pending / shipped / collected`, visible to the member and maintained by the admin in K3.
-- Family plans capture a size for each jersey per `jersey_quota`.
+- A size is captured for each jersey per `jersey_quota`.
 
 #### Signup channels (two)
 
@@ -882,10 +929,10 @@ The calendar is organised primarily **by team**:
 | Forgotten password | Time-limited reset link by email |
 | LINE link management | Shows link status and allows linking and unlinking; at least one sign-in method must remain |
 | Profile | Name, mobile, email, date of birth, language preference; change password, delete account (personal-data deletion request workflow) |
-| **Digital membership card** | **One card per membership** (switchable when holding both clubs'); member number, QR code, tier, expiry date; QR can be regenerated |
-| **Benefits comparison** | Free versus paid, line by line, visible without signing in |
+| **Digital membership card** | **One card per membership** (switchable when holding both clubs'; an account with no membership has no card); member number, QR code, tier, expiry date; QR can be regenerated |
+| **Benefits comparison** | One column per plan, line by line, visible without signing in |
 | **Partner store list** | Browse by category and area, each store marked with the applicable tier and offer (see 8.4) |
-| **Upgrade to paid membership** | Plan comparison (individual / family), payment instructions, upgrade request, status display (pending / active / expired) |
+| **Join membership** | Plan comparison (Rock Member / Prestige Member), payment instructions, request submission, status display (pending / active / expired); a different plan can be chosen when renewing after expiry |
 | **Jersey registration** | Enter size and collection method; view fulfilment status |
 | Renewal | Renewal prompt and payment instructions ahead of expiry |
 | **My orders** (added in v2.6) | Shop order list and detail: items, amount breakdown, payment and fulfilment status, tracking number, invoice number, and the entry point for return requests (see 8.3 and 4.13) |
@@ -902,9 +949,9 @@ Registration verification, password reset, membership activation confirmation, 3
 
 #### Integration with existing modules
 
-- **Fan club (8.2 / F2)**: fan club members are members flagged `fan_club`; no separate list is maintained, and page 8.2 is the introduction and join page for paid membership.
+- **Fan club (8.2 / F2)**: a member is someone who holds a valid membership at that club; no separate list is maintained, and page 8.2 is the introduction and join page for membership.
 - **Partner stores (8.4)**: the content source for the discount benefit, publicly browsable.
-- **Official store (8.3 / admin S)**: the shop is on this site, so the **member account is the shop account** — there is no second account and no SSO to build, and orders appear under "My orders". **Guest checkout remains supported**, so `Order.member_id` may be empty. **Paid membership does not include a merchandise discount** — no member pricing and no discount codes this time round; the benefits stay partner-store discounts and the jersey (see the benefits table, K4).
+- **Official store (8.3 / admin S)**: the shop is on this site, so the **member account is the shop account** — there is no second account and no SSO to build, and orders appear under "My orders". **Guest checkout remains supported**, so `Order.member_id` may be empty. **A membership plan can set a member discount in the shop** (see 8.3 and 4.13 S1); no discount codes and no per-item member pricing this time round.
 - **LINE Official Account**: used only for sign-in and account linking — not as a separate contact database, and with no parameterised QR source tracking.
 
 ---
@@ -1078,7 +1125,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ### 4.2 B. Content
 
 #### B1 Pages
-- **A fixed list of pages; no adding or deleting pages**: B1 manages only the existing static pages of the public site (table below). The page list follows the public-site templates; adding a page is public-site development work. **Taichung Rock has 12 pages and Blue Whale 10** (Blue Whale has no 06 Women's Football entry and no 11.1 Our Commitment)
+- **A fixed list of pages; no adding or deleting pages**: B1 manages only the existing static pages of the public site (table below). The page list follows the public-site templates; adding a page is public-site development work. **Taichung Rock has 13 pages and Blue Whale 10** (Blue Whale has no 06 Women's Football entry and no 11.1 Our Commitment)
 - **Fixed fields**: each page's content fields are predefined by its template. The admin fills in content only and **cannot add, delete or reorder fields**. The table states, field by field, either "N fixed items" (content only) or "rows can be added or removed"
 - **What the admin edits is the main-body passage of each public page.** **Not edited in the admin**: page titles, page-header key visuals, breadcrumbs and action buttons are set by the public-site template; sections outside the main body (such as the organisation chart, the partner-club list, trial sessions, embedded FAQs and dynamic data areas) follow the public-site template or are provided by other modules
 - Each page carries: status (draft / published / scheduled), SEO settings, bilingual content (zh / en), revision history with rollback, and a preview link (shareable before publishing); each club maintains its own page content
@@ -1087,9 +1134,10 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 |---|---|---|
 | 2.1 Our Story | Story text (one block of text, blank line between paragraphs) | Same as Taichung Rock |
 | 2.2 Vision & Mission | Vision and mission (2 fixed items: vision, mission; title and description each) | Page named "Vision", same URL as Taichung Rock; development vision (5 fixed items; name and description each) |
-| 2.3 Our Philosophy | Core-values introduction (one block of text); five core values (5 fixed items; name and description each) | Page named "Club Slogan and Training Spirit"; three quotes: crest concept, club slogan, training spirit |
+| 2.3 Our Philosophy | Core-values introduction (one block of text); four core values (4 fixed items; name and description each) | Page named "Club Slogan and Training Spirit"; three quotes: crest concept, club slogan, training spirit |
 | 2.5 Governance | Public-documents note (one block of text; the downloadable file list is not yet maintainable) | Same as Taichung Rock |
 | 2.7 Club History | History text (one block of text) | Yearly history (**rows can be added or removed**: year, that year's events, several events separated by line breaks); note (one block of text) |
+| 4.4 Training & Curriculum | Training philosophy (one text); environment statement (one text); vision (4 fixed items, name each); training method and structure (one text); competition plan (**add/remove rows**: domestic, international, away training, each with a category and description); playing principles and competition representation (one text); football and education (one text); codes of conduct (3 fixed items: players, parents, shared principles, description each); training times and venues per squad (**add/remove rows**: squad, weekday and time, venue) | Not offered |
 | 3.2 Player Development | Eight development modules (8 fixed items; name and description each); closing summary (first paragraph a sub-heading, second the description) | Page named "Player Development Focus"; eight development areas (8 fixed items); closing summary |
 | 3.3 Player Opportunities | Join introduction (one block of text; trial sessions, FAQs and the sign-up button are not edited here) | Same as Taichung Rock |
 | 3.4 International Pathways | Pathway overview (4 fixed stages; name and description each) | Same as Taichung Rock |
@@ -1136,8 +1184,8 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ### 4.3 C. Teams
 
 #### C1 Teams
-- Team record: **club**, name, **team code (D1 / BW1 / U15 / U14 / U12 …)**, type (`first_team` / `academy`), **gender (`men` / `women` / `mixed`)**, age group, season, description, key visual, brand colour, display order
-  - **`D1` = Taichung Rock First Team**, **`BW1` = Taichung Blue Whale First Team (new in v3.0)**; U15 / U14 / U12 and any future squads are `academy`
+- Team record: **club**, name, **team code (D1 / BW1 / U10 / U12 / U14 / U16 / U18 …)**, type (`first_team` / `academy`), **gender (`men` / `women` / `mixed`)**, age group, season, description, key visual, brand colour, display order
+  - **`D1` = Taichung Rock First Team**, **`BW1` = Taichung Blue Whale First Team (new in v3.0)**; the academy squads (`U10` / `U12` / `U14` / `U16` / `U18`, following the 4.3 pathway) and any future squads are `academy`
   - **`type = first_team` is "at most one per club"**
   - **Team codes must be globally unique** — they are the identifier for calendar categories and subscription URLs (e.g. `/schedule/d1/`). ⚠️ **They must not become a "club × code" composite key**: subscription URLs are already in public circulation and changing them would break existing subscriptions. This is why Blue Whale's first team is `BW1` rather than a second `D1`
 - **Team codes drive calendar categorisation**: teams created here automatically become filter options and subscription sources in the public Schedule (13)
@@ -1230,8 +1278,8 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Readership statistics
 
 #### F2 Fan Club (events)
-- **Member lists, membership plans, and the benefits table are all maintained in module K** (fan club members = paying members with the `fan_club` tier); no separate list and no separate plans are kept here
-- Fan events: event CRUD, registrant list (can be restricted to paying members), event recaps (linked galleries and articles)
+- **Member lists, membership plans, and the benefits table are all maintained in module K** (members = holders of a valid membership at that club); no separate list and no separate plans are kept here
+- Fan events: event CRUD, registrant list (can be restricted to holders of a valid membership), event recaps (linked galleries and articles)
 - The plan cards and benefits table required by page 8.2 are sourced from K2 (plans) and K4 (benefit entries)
 
 ---
@@ -1339,7 +1387,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - CSV export (**requires additional authorisation** and is written to the audit log)
 
 #### K2 Membership and plans
-- **Plan settings**: plan name (zh / en), price, season code, start and end dates, `card_quota` (cards issued), `jersey_quota` (jerseys included), mid-season pricing rule, benefit description, sort order, publish state
+- **Plan settings**: plan name (zh / en), **tier** (Rock: Rock Member / Prestige Member), suggested annual fee, season code, start and end dates, `card_quota` (cards issued), `jersey_quota` (jerseys included), **shop member-discount percentage**, mid-season pricing rule, benefit description, sort order, publish state. **Each club's plans, fees, card quotas and season rules are independent**; a registered account creates no membership, which is created on activation
 - **Activation and renewal**: activate a membership manually, recording payment method (LINE Pay / in person), amount, payment date, transaction note, and handler; the system writes a payment record for reconciliation and audit
 - **Automation hook**: an internal endpoint `POST /api/membership/activate` (credential-protected) is reserved for future automated collection, not enabled in this phase
 - Expiry reminder list, **end-of-season batch expiry**, and renewal list export
@@ -1353,15 +1401,15 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Fulfilment list CSV export (permission-gated, written to the audit log)
 
 #### K4 Partner stores and benefits
-- **Partner store CRUD**: name (zh / en), photo / logo, category, address (zh / en), phone, opening hours, map link, website or social link, offer (zh / en), **applicable tier** (all members / paying members only), partnership dates, sort order, publish state
+- **Partner store CRUD**: name (zh / en), photo / logo, category, address (zh / en), phone, opening hours, map link, website or social link, offer (zh / en), **applicable tier** (set store by store: both plans / Prestige only), partnership dates, sort order, publish state
 - Maintains the category and area filters used by the public 8.4 list
-- **Benefits comparison entries**: entry name (zh / en), description (zh / en), group (card / store discounts / jersey / events), value for the free tier, value for the paid tier (tick / cross / text such as "10% off", "one"), sort order, publish state
-- The benefits data is **shared by three public placements** — the join page (3.14), the fan club page (8.2), and the upgrade page — plus the Mobile App's upgrade screen from v2.5 (four in total), and this is the single point of maintenance
+- **Benefits comparison entries**: entry name (zh / en), description (zh / en), group (card / discounts and offers / gifts / events / content and communication), **the value for each plan** (tick / cross / text such as "10%", "one"), sort order, publish state
+- The benefits data is **shared by three public placements** — the join page (3.14), the fan club page (8.2), and the Member Centre plans page — plus the Mobile App's membership plans screen from v2.5 (four in total), and this is the single point of maintenance
 - **Geographic coordinates (added in v2.5)**: `PartnerStore` gains `lat` / `lng` plus a "locate from address" helper, **saved after human confirmation** (no run-time geocoding). Used by the app's nearby-store distance sorting, see the app specification, section 3.8
 
-#### K5 Prize draw rosters (Fan Club Prize Draw)
+#### K5 Prize draw rosters (Member Draw)
 
-> **Positioning**: one of the benefits of paid membership. The system **only builds the eligible roster, freezes it, issues serial numbers, and exports the list**; the **physical draw is performed by people, on site or on a live stream**, and winners are ticked in afterwards in the admin. The system runs **no random-selection algorithm** and produces no random result.
+> **Positioning**: one of the benefits of membership. The system **only builds the eligible roster, freezes it, issues serial numbers, and exports the list**; the **physical draw is performed by people, on site or on a live stream**, and winners are ticked in afterwards in the admin. The system runs **no random-selection algorithm** and produces no random result.
 
 **① Create a draw**
 - Fields: draw name (zh / en), prizes and quantities (zh / en, itemised), **eligibility snapshot time** (date + time, defaulting to 00:00 on the day of the draw), draw time, setting (home match day / live stream / other), **collection deadline and how unclaimed prizes are handled**, rules and notices (zh / en), cover image, internal notes
@@ -1369,7 +1417,8 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - The rules are **mandatory** and must state: prizes, quantities, eligibility, snapshot time, draw time and setting, collection deadline, and the extent to which the organiser reserves the right to make changes
 
 **② Build the eligible roster (snapshot)**
-- The condition is fixed: **tier is `fan_club`, the membership is valid (`paid_until` covers the snapshot time), and the account is active at the snapshot time**. It is **not configurable in the admin**, so that no one can adjust who qualifies
+- The condition is fixed: **the account holds a membership (any plan) at the hosting club, that membership is valid (`paid_until` covers the snapshot time), and the account is active at the snapshot time**. It is **not configurable in the admin**, so that no one can adjust who qualifies
+- **Fairness with two memberships**: someone holding both clubs' memberships appears once in **each** roster. "One person, one number" still holds **within each draw**, but **the rules must state explicitly that holding both clubs' memberships allows entry to both draws**, or it reads as buying two memberships to improve the odds, contradicting this site's promise that spending does not increase the chance of winning
 - **The member does nothing**: no entry, no sign-up, no check-in, no points threshold
 - On execution the system writes the snapshot in one pass: **consecutive serial numbers 1…N issued in ascending member-number order**, one per person, copying the name, member number, tier, and membership expiry as they stand
 - The roster **locks** immediately: **rows cannot be added or removed**. A roster that is wrong can only be **voided and regenerated in full** (`roster_version` +1, with the old version retained for audit)
@@ -1404,7 +1453,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Prizes are always the club's own physical goods**, shipped or collected in person; never tickets, partner-store redemptions, cash, or cash equivalents
 
 **⑦ Announce the winners (handed over to B2)**
-- Announcement goes **through B2 News only**: category 7.1 Club News, tagged `Fan Club Prize Draw`. **No new news category is added**
+- Announcement goes **through B2 News only**: category 7.1 Club News, tagged `Member Draw`. **No new news category is added**
 - K5 offers "generate announcement draft", carrying the draw name, prizes, snapshot time, eligible count, and the **masked winners list** (serial number + member number + masked name) into B2 as a draft for communications staff to polish and publish
 - The published article is linked back, and the K5 list shows announcement status and a link
 - **Announcements are always masked**: never a phone number, email, address, date of birth, or full name
@@ -1425,21 +1474,21 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Passwords stored hashed (irreversible), strength rules, lockout after failed attempts
 - Viewing member personal data in the admin requires the corresponding permission, and every view and export is written to the audit log
 - A defined process and timeframe for member-initiated account deletion (in line with personal-data legislation)
-- **Registration by anyone under 18 requires guardian consent**; where an additional cardholder on a family plan is a minor, their name and size are entered by, and are the responsibility of, the primary account holder
+- **Registration by anyone under 18 requires guardian consent**; where an additional cardholder on a plan with several cards is a minor, their name and size are entered by, and are the responsibility of, the primary account holder
 - The **LINE link identifier** (a user's account-specific ID) is treated as personal data: stored encrypted, never displayed publicly, never included in general exports
 - The **membership card QR token** must not be derivable from the member number; the public verification page `/m/<token>` returns only the first character of the name, the member number, the tier, and validity status, and no other personal data
 - Registration and signup forms must state the purpose of data collection and consent terms
 
 #### Personal data and tax requirements for the draw (K5)
 
-- **Collection notice**: the member terms and registration consent (maintained in admin I) must add a notice — "while your membership is valid you will automatically be included in the Fan Club Prize Draw roster; if you win, your name will be published in News in masked form". **No draw may be held until this notice is in place**
+- **Collection notice**: the member terms and registration consent (maintained in admin I) must add a notice — "while your membership is valid you will automatically be included in the Member Draw roster; if you win, your name will be published in News in masked form". **No draw may be held until this notice is in place**
 - **Masked announcements**: announcements carry only the **serial number, member number, and masked name**. Never a phone number, email, address, date of birth, or full name
 - **Prize value and withholding**: prizes won by chance are taxable income. The specification follows **data minimisation** —
   1. where a single prize is **below the withholding threshold**, the system **does not collect the winner's national ID number**; only the name and delivery details are needed;
   2. only where a single prize **reaches the withholding or reporting threshold** are the details needed for a withholding certificate (national ID number, registered address) collected in **restricted fields** on the roster snapshot — **encrypted, masked by default, never merged into the `Member` record, and never present in a general export** — with every view and export written to the audit log and a retention period set to the statutory life of the certificate, after which the data is destroyed;
   3. **non-residents** are subject to different withholding rules with no starting threshold, which must be stated in the rules.
   > The actual threshold, withholding rate, and filing method **must be confirmed by an accountant** (see open item 16 in section 10). **Keeping the first draws' prize values below the threshold is recommended**, as it removes the need to collect a national ID number at all — the cheapest and lowest-risk option
-- **Minors**: registration by anyone under 18 continues to require guardian consent; where an additional cardholder on a family plan is a minor, the **prize and any tax certificate go to the adult primary account holder**
+- **Minors**: registration by anyone under 18 continues to require guardian consent; where an additional cardholder is a minor, the **prize and any tax certificate go to the adult primary account holder**
 - **Image rights**: photographs of a prize being collected or presented that are used in News or on social media require **separate consent for that use**; where the subject is a minor, written guardian consent is required. This extends the club's existing handling of material featuring minors rather than relaxing it
 - **Retention of the rules**: each draw's rules, snapshot time, roster snapshot, roster hash, and announcement are retained together, for the same period as the audit log
 
@@ -1449,7 +1498,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 #### L1 Master calendar
 - Displays all matches (C4) and custom club events (L2) in a month view, colour-coded by team
-- **Per-team swimlanes**: D1 / U15 / U14 / U12 side by side, making each squad's month and any clashes visible at a glance
+- **Per-team swimlanes**: D1 and each academy squad (U18 / U16 / U14 / U12 / U10) side by side, making each squad's month and any clashes visible at a glance
 - Drag-and-drop date changes that **write back to the match record** (triggering notifications on rescheduling)
 - **Clash detection**: warns when the same venue or the same squad is double-booked in a time slot
 - Filters: team, competition type, venue, status
@@ -1463,14 +1512,14 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Recurrence rules**: weekly / fortnightly / monthly, with an end date and exception dates
 
 #### L3 Categories & display settings
-- **Team categories**: populated automatically from C1 teams (D1 / U15 / U14 / U12 …); this screen maintains the public display name (Chinese / English), order, colour, and visibility
+- **Team categories**: populated automatically from C1 teams (D1 / U18 / U16 / U14 / U12 / U10 …); this screen maintains the public display name (Chinese / English), order, colour, and visibility
 - Competition types: names, identifying colours, **icon** (chosen from the system's preset icon set, **not uploaded**), order for league / cup / friendly etc.
 - Public defaults: default view (list or calendar), default date range, default selected team
 - Default filters for each embeddable block (which teams show on the homepage, D1 fixed on the first-team page, each squad's own page showing that squad)
 - **Whether trials sync to the calendar**: a toggle (off by default, keeping trial information on the recruitment pages)
 
 #### L4 Subscription & export
-- **iCal subscription URLs**: separate webcal feeds for `all` and **each team (D1 / U15 / U14 / U12)**
+- **iCal subscription URLs**: separate webcal feeds for `all` and **each team (D1 / U18 / U16 / U14 / U12 / U10)**
 - Export: matches within a date range to CSV / .ics
 - **Bulk import**: a full season of fixtures via CSV (sharing the mechanism with the C4 import)
 - Subscription statistics (subscriber count per team feed)
@@ -1493,7 +1542,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 #### S1 Products & options
 - **Product**: name (zh/en), collection (club / academy / fan), tags, gallery, product narrative (zh/en), size chart, publication state, ordering, SEO fields (title / description / structured data)
-- **Variants (SKUs)**: size × colour combinations, each with its own **SKU code, price, sale price (optional), and stock level**; the cost field is visible to authorised roles only. **No member-price field** (no member discounts this time round)
+- **Variants (SKUs)**: size × colour combinations, each with its own **SKU code, price, sale price (optional), and stock level**; the cost field is visible to authorised roles only. A product can be ticked **"member discount applies"** (the percentage is set by the membership plan, see K2); **SKUs carry no per-item member-price field**
 - Product states: `draft / published / out of stock (derived from inventory) / unpublished`; out-of-stock items can be set to "visible but not purchasable" or hidden automatically; items can be flagged "new"
 - Collection copy: the brand narrative block for each collection (this is where 8.3's showcase quality is maintained)
 
@@ -1505,7 +1554,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 #### S3 Orders
 - List: order number, placed at, amount, payment status, fulfilment status, shipping method, **member or guest**; filterable by status and period
-- Detail: items and SKUs, amount breakdown (subtotal / shipping), **LINE Pay transaction ID and payment time**, invoice number, tracking number, customer notes and internal notes
+- Detail: items and SKUs, amount breakdown (subtotal / **member discount** / shipping), **LINE Pay transaction ID and payment time**, invoice number, tracking number, customer notes and internal notes
 - State machine: `awaiting payment → paid → picking → shipped → completed`, with branches `cancelled` / `return in progress` / `refunded`
 - Supports **manual order creation and back-entry** (in-person sales, match-day stalls), flagged as in-person payment
 - CSV export **requires separate authorisation and is written to the audit log** (who, when, how many records, stated purpose), mirroring the member-list export rule
@@ -1528,7 +1577,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Bilingual maintenance of the store entry and policy content: shopping guide, shipping information, returns policy, terms of sale
 - Reports: revenue, order count, average order value, best-selling SKUs, stock, return rate; **exports are written to the audit log**
 - **Division of labour with the A dashboard**: A shows summary figures only; detail always lives in S6
-- **Not in this module**: discount-code and member-price settings (not built this time), payment-method settings (LINE Pay only)
+- **Not in this module**: discount-code and per-item member-price settings (not built this time; the member-discount percentage is maintained with the plan in K2), payment-method settings (LINE Pay only)
 
 > **Payments and personal data**: payment always completes on **LINE Pay's** side; **this site renders no card fields and stores no card data** (global premise). Callbacks must be signature-verified and idempotent, and orders whose `Confirm` fails or times out are cancelled with stock released.
 > Orders contain the **recipient's name, phone number, and address** and are **treated as member personal data**: full values are visible only to system administrators, the all-module manager, support/administration, and fulfilment roles; other roles see masked values, and exports require separate authorisation and are audited.
@@ -1559,7 +1608,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `Competition` | **Competition series (new in v3.0)**: code, name (zh/en), type (mapping to `Match.competition`'s four values), season, organiser, sort order, status. 🏛 mandatory. **Coexists with `Match.competition` rather than replacing it** — the latter is a coarse enum, the former is a named actual competition (TFPL, Taiwan Mulan Football League, President's Cup…); when both clubs play a same-named cup, **each gets its own record** | Match, Season, Club |
 | `Page` | Static page (with the content fields defined by its template); **the Blue Whale site entry page is also this type**. 🏛 mandatory (both sites will have `about` / `contact` / `privacy`, so the `slug` unique key becomes `(club_id, slug)`) | SEO, languages |
 | `Article` | News and stories. The cover image field group also carries a **focal point** (horizontal and vertical percentages; unset = centred); the body is a **block structure** (paragraph, subheading, pull quote, list, image, gallery, video embed), with each body image's field group stored inside the body | Category, Tag, Player, Team, Match, Program |
-| `Team` | Team, carrying the **team code**: `D1` (Taichung Rock First Team) / **`BW1` (Taichung Blue Whale First Team, new in v3.0)** / `U15` / `U14` / `U12`. 🏛 mandatory. **`code` stays globally unique and must not become a "club × code" composite** — it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation. **v3.0 adds `gender`** (`men` / `women` / `mixed`) and **retires `type`'s `women` value** (gender is an attribute of a team, not a kind of team); the "exactly one `first_team` site-wide" constraint becomes "**at most one per club**" | Club, Player, Coach, Match, Season, CalendarEvent |
+| `Team` | Team, carrying the **team code**: `D1` (Taichung Rock First Team) / **`BW1` (Taichung Blue Whale First Team, new in v3.0)** / Rock academy squads `U10` / `U12` / `U14` / `U16` / `U18` (following the 4.3 pathway; which squads actually exist follows C1) / Blue Whale youth teams (codes carry a `BW-` prefix, e.g. `BW-U15`, `BW-U12`). 🏛 mandatory. **`code` stays globally unique and must not become a "club × code" composite** — it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation, and **a code for which a subscription URL has been issued is never reassigned to a different team**. **v3.0 adds `gender`** (`men` / `women` / `mixed`) and **retires `type`'s `women` value** (gender is an attribute of a team, not a kind of team); the "exactly one `first_team` site-wide" constraint becomes "**at most one per club**" | Club, Player, Coach, Match, Season, CalendarEvent |
 | `Player` | Player | Team, Article, Stats, Pathway |
 | `Staff` | Coaches and staff | Team, Program |
 | `Match` | Match. **v2.5 adds** `opponent_en` / `venue_en`, and promotes `competition` / `status` to formal fields. **v3.13 adds** original date and original time (populated only when status is "postponed") | Team, Season, Article (match report) |
@@ -1573,12 +1622,12 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `Partner` | Partner: name (zh/en), logo (**dark and light variants**), type, country, partnership content and dates, website link, display order, whether shown in the footer / homepage | Article, Program |
 | `Sponsor` | Sponsor: name (zh/en), logo (both variants), **tier** (title / official / supporting), contract dates, sponsorship content, contact, expiry reminder, display order | SponsorPackage, Article, Advertiser |
 | `SponsorPackage` | Sponsorship package (9 types): name (zh/en), content, benefit list, target audience, price band (**may be withheld**), order, publication state | Enquiry |
-| `Product` | **Product**: name (zh/en), collection, tags, gallery, narrative, size chart, state, ordering, SEO fields | ProductVariant, OrderItem |
+| `Product` | **Product**: name (zh/en), collection, tags, gallery, narrative, size chart, **whether the member discount applies**, state, ordering, SEO fields | ProductVariant, OrderItem |
 | `ProductVariant` | **Variant (SKU)**: size / colour, SKU code, price, **sale price (optional)**, cost (restricted), stock level | Product, InventoryMovement, OrderItem |
 | `InventoryMovement` | Stock movement: type (receipt / sale / return restock / stocktake / write-off / adjustment), quantity, reason, operator, timestamp | ProductVariant, Order |
 | `Cart` | Cart: owner (member or anonymous token), line items and quantities, updated at; merged into the account cart on sign-in. 🏛 mandatory — **carts must not mix clubs**; switching site switches cart (rationale in 4.13) | Club, Member, ProductVariant |
-| `Order` | **Order**: order number (**prefixed `TR-` / `BW-` per club but still globally unique** — a single merchant account must not see duplicate numbers), `member_id` (**may be empty — guest checkout is supported**), recipient name / phone / address (**restricted fields**), amount breakdown (subtotal / shipping), **LINE Pay transaction ID and payment status**, shipping method and fulfilment status, invoice number, lookup token. **v3.0 adds `selling_club_id`** (the seller and settlement beneficiary) **and `collecting_club_id`** (the collecting legal entity, always this club), plus `settlement_status` / `settled_on` / `settle_note` as a **manual flag, not a state machine** | Club, Member, OrderItem, Shipment, StoreInvoice |
-| `OrderItem` | Order line: **SKU snapshot** (product name, variant, unit price, all **value-copied**), quantity, line total | Order, ProductVariant |
+| `Order` | **Order**: order number (**prefixed `TR-` / `BW-` per club but still globally unique** — a single merchant account must not see duplicate numbers), `member_id` (**may be empty — guest checkout is supported**), recipient name / phone / address (**restricted fields**), amount breakdown (subtotal / **member discount** / shipping), **the membership plan the discount was based on (value-copied)**, **LINE Pay transaction ID and payment status**, shipping method and fulfilment status, invoice number, lookup token. **v3.0 adds `selling_club_id`** (the seller and settlement beneficiary) **and `collecting_club_id`** (the collecting legal entity, always this club), plus `settlement_status` / `settled_on` / `settle_note` as a **manual flag, not a state machine** | Club, Member, OrderItem, Shipment, StoreInvoice |
+| `OrderItem` | Order line: **SKU snapshot** (product name, variant, unit price, all **value-copied**), quantity, line total, **the member-discount amount for that line** | Order, ProductVariant |
 | `Shipment` | Shipment: method, tracking number, shipped and delivered timestamps, pickup store code, collection status | Order |
 | `RefundRequest` | Return/refund request: items, reason, status (requested / under review / approved / refunded / rejected), refund amount and method, invoice voiding or credit-note record | Order |
 | `StoreInvoice` | **E-invoice**: number, issued at, **carrier / tax ID / donation code**, issue result and retries, voiding and credit-note status. **Made out to the club**, on a different invoice track from the Association's charity invoices | Order |
@@ -1594,13 +1643,13 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `Donation` | Donation record. **From v3.0 it does not belong to this system at all** — the Charity Donation Platform now has its own admin and its own database, see the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §9. Impact figures for 11.4 are supplied by that platform or entered manually | (not in this system) |
 | `ImpactMetric` | Impact statistic | CharityProgram |
 | `Member` | **Member account (one per person, not per club)**: member number, name, email (**the login key, globally unique**), phone, date of birth, jersey size, registration source, **LINE link identifier** (encrypted), account status. **v3.0 moves `tier` / `membership_start_on` / `membership_end_on` into `Membership`** — once membership is its own type, leaving those here creates a second source of truth. **No `club_id`**: the login key is club-agnostic, the LINE binding is 1:1 with a person, and the data subject under privacy law is the person, not the membership | Membership, FanEvent, Order |
-| `Membership` | **Membership (new in v3.0)**: `member_id` × `club_id` × `season_id` (unique together), plan, tier (`registered` / `fan_club`), start and end dates, status. 🏛 mandatory. **One membership per club per person**; the two clubs' **seasons are not aligned**, so expiry and renewal reminders are calculated separately | Member, Club, Season, MembershipPlan, MemberCard |
-| `MemberCard` | **Digital membership card**: `token` (**globally unique, one per card**), card status, issue and revocation times, last sync time. 🏛 mandatory. **From v3.0 `membership_id` is mandatory — one card per membership**. The "one card, one token" rule is **unchanged** (it constrains card-to-token as 1:1, not person-to-card; `card_quota` has always allowed several cards per person). The verification page `/m/<token>` returns **exactly the same fields as before**, because the token already implies the club — an "applicable team" field is **neither needed nor permitted** | Membership |
-| `MembershipPlan` | Membership plan: price, season, term, `card_quota`, `jersey_quota`, mid-season pricing rule. 🏛 mandatory (each club sets its own fees, card quotas and season rules) | Membership, MembershipPayment |
+| `Membership` | **Membership (new in v3.0)**: `member_id` × `club_id` × `season_id` (unique together), plan, tier (`standard` / `premium`, following the plan), start and end dates, status. 🏛 mandatory. **A registered account creates no membership; buying and activating a plan does**. **One membership per club per person**; the two clubs' **seasons are not aligned**, so expiry and renewal reminders are calculated separately | Member, Club, Season, MembershipPlan, MemberCard |
+| `MemberCard` | **Digital membership card**: `token` (**globally unique, one per card**), card status, issue and revocation times, last sync time. 🏛 mandatory. **From v3.0 `membership_id` is mandatory — one card per membership**. The "one card, one token" rule is **unchanged** (it constrains card-to-token as 1:1, not person-to-card; a plan with `card_quota` above 1 has always allowed several cards per person). The verification page `/m/<token>` returns **exactly the same fields as before**, because the token already implies the club — an "applicable team" field is **neither needed nor permitted** | Membership |
+| `MembershipPlan` | Membership plan: plan name (zh / en), tier (`standard` / `premium`), suggested annual fee, season, term, `card_quota`, `jersey_quota`, **shop member-discount percentage `shop_discount_percent`**, mid-season pricing rule. 🏛 mandatory (each club sets its own fees, card quotas and season rules) | Membership, MembershipPayment |
 | `MembershipPayment` | Membership payment and activation record: method, amount, date, transaction note, handler, activation dates | Member, MembershipPlan |
-| `MembershipBenefit` | Benefits comparison entry: group, free-tier value, paid-tier value, sort order (shared by 3.14 / 8.2 / upgrade page) | MembershipPlan |
+| `MembershipBenefit` | Benefits comparison entry: owning plan, group, entry code (entries of a club's plans are lined up by code into the comparison table), that plan's value (tick / cross / text), sort order (shared by 3.14 / 8.2 / plans page) | MembershipPlan |
 | `PartnerStore` | **Partner store**: category, address, phone, opening hours, map link, offer, applicable tier, partnership dates. **v2.5 adds `lat` / `lng`** (saved in admin K4 after human confirmation) for the app's nearby-store distance sorting | — |
-| `MemberDraw` | **Fan Club Prize Draw**: name (zh / en), prizes and quantities (zh / en), **eligibility snapshot time `snapshot_at`**, draw time and setting (on site / live stream), collection deadline and unclaimed handling, rules and notices (zh / en), status (draft / roster locked / drawn / announced / closed / voided), `roster_version`, `total_count` eligible members, `roster_hash`, **cover image**, the linked announcement article, creator and locker | Member, DrawRoster, Article |
+| `MemberDraw` | **Member Draw**: name (zh / en), prizes and quantities (zh / en), **eligibility snapshot time `snapshot_at`**, draw time and setting (on site / live stream), collection deadline and unclaimed handling, rules and notices (zh / en), status (draft / roster locked / drawn / announced / closed / voided), `roster_version`, `total_count` eligible members, `roster_hash`, **cover image**, the linked announcement article, creator and locker | Member, DrawRoster, Article |
 | `DrawRoster` | **Eligible roster snapshot (one row per eligible member)**: `serial_no` draw serial number (issued consecutively in ascending member-number order at snapshot time, one per person), member number, **name snapshot**, tier snapshot, membership expiry snapshot, won or not, prize name, collection method (shipping / in person), fulfilment status (pending / shipped / collected / overdue), **withholding details (collected only above the threshold; encrypted, masked by default)**, notes. **Written by the system in one pass at the snapshot time — members cannot create rows; once locked, rows cannot be added or removed and only the win and fulfilment fields may be filled in** | MemberDraw, Member |
 | `EmailLog` | System email delivery record. 🏛 mandatory — **Blue Whale's support staff should see their own renewal emails, and should not see this club's**. **v3.0 drops system emails from 13 to 9** (5 membership + 4 shop): the four charity emails leave with the separate charity admin | Member, Club |
 
@@ -1609,7 +1658,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 >
 > **Five "commercial counterparties" must not be conflated**: `Partner` (B2B logo wall) / `Sponsor` / `PartnerStore` (member discounts, no payments, no revenue share) / `DonationStore` (charity site scan-in, **payments and revenue share**) / `Advertiser` (**app advertiser, impressions counted**). One real company may be several of these at once — **create a separate record for each, never share one**. The only exception is `Advertiser.sponsor_id`, which links back to a `Sponsor` to avoid maintaining duplicate contacts; it is **a link, not a merge**.
 > **`Club` is not a sixth commercial counterparty** — it is a content subject: no impressions, no payments, no revenue share. **The two clubs' sponsors and partners must be shown in separate zones and never mixed** (the contracts are signed separately); where one company sponsors both clubs, the same "one record each" rule applies.
-| `CalendarEvent` | **Calendar event (aggregate view)**: points at a Match via `source_type` + `source_id`, or is a `custom` club event; carries **`team_codes[]` (D1 / **BW1** / U15 / U14 / U12)** as its first-level category. **The view projects `club_id`** from its source rather than storing it | Match, Team, Venue, Club |
+| `CalendarEvent` | **Calendar event (aggregate view)**: points at a Match via `source_type` + `source_id`, or is a `custom` club event; carries **`team_codes[]` (D1 / **BW1** / U10 / U12 / U14 / U16 / U18)** as its first-level category. **The view projects `club_id`** from its source rather than storing it | Match, Team, Venue, Club |
 | `EventType` | Match / event type (**icon** — chosen from a preset set, not uploaded; colour, display rules) | CalendarEvent |
 
 ### 5.2 Structural principles
@@ -1803,7 +1852,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 - **06 Blue Whale site entry page** (single page, low cost, delivered alongside)
 - 07 Newsroom (all categories), 10 Forms hub (all 9), Location & Map
 - **12 Standalone FAQ section** (starting with 3–4 high-frequency topics)
-- **13 Schedule**: **team-first categorisation by D1 / U15 / U14 / U12** (Blue Whale's `BW1` appears on the Blue Whale site), fixtures/results toggle, list and calendar views, per-match .ics download
+- **13 Schedule**: **team-first categorisation by D1 and the academy squads (U18 / U16 / U14 / U12 / U10)** (Blue Whale's `BW1` appears on the Blue Whale site), fixtures/results toggle, list and calendar views, per-match .ics download
 - Admin: content management, news, teams / players / coaches, programs and registrations, FAQ management, master calendar and custom events, enquiry inbox, SEO basics, permissions. **Images are uploaded per field under the rule in 4.0**
 - **Multilingual framework** (Chinese content launches first, with English fields and URL structure in place, and room for a third language)
 
@@ -1812,15 +1861,15 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 - 03.2–03.5 Player Development, International Pathways, Player Stories
 - **The full 11 Charity & Impact area**
 - 05.3–05.5 Winter Camp, Specialist Training, School & Community
-- **Member system (module K)**: email registration and sign-in, one-tap LINE sign-in and linking, **the `Membership` dual-membership structure (v3.0)**, two membership tiers, **digital card and public verification page (one card per membership)**, **benefits comparison table**, **partner store directory (8.4)**, upgrade and renewal flows, jersey registration
+- **Member system (module K)**: email registration and sign-in, one-tap LINE sign-in and linking, **the `Membership` dual-membership structure (v3.0)**, two paid membership plans (a registered account is not a membership), **digital card and public verification page (one card per membership)**, **benefits comparison table**, **partner store directory (8.4)**, upgrade and renewal flows, jersey registration
 - **Advanced schedule**: per-team subscription URLs (webcal), member "I'm attending" and reminders, admin swimlane view / clash detection / drag-to-reschedule
 - Admin: business modules, charity module, trial management, advanced registration (waitlists / exports / attendance sheets), **member management K1–K4 (list / membership and plans / jersey fulfilment / partner stores and benefits)**, advanced calendar
 - **English content goes live**
 - **The Taichung Blue Whale website (new in v3.0)**: a bilingual front-end project on its own domain, see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md) §9. **Depends on the Phase 1 multi-club foundation**; launch also requires Blue Whale's written authorisation, brand assets, rosters and fixture data
 
 ### Phase 3 — Culture and community (approx. 6 weeks)
-- 08 TCRFC Culture: manga reader, fan club 8.2 (paid membership introduction and join page, integrated with the member system)
-- **The on-site official store (8.3 + admin module S, added in v2.6)**: products and SKUs, inventory, cart, checkout, **LINE Pay integration**, **e-invoicing**, fulfilment and shipping, order lookup, returns and refunds, shop reports. **Scoped to match the old site's existing store** — no member pricing, discount codes, or extra payment methods, so the effort is far below a full e-commerce build. **Depends on the member system (Phase 2) being live**; **the club's LINE Pay merchant account and the invoicing service must be onboarded from Phase 2 onwards** or they will block this phase
+- 08 TCRFC Culture: manga reader, fan club 8.2 (membership introduction and join page, integrated with the member system)
+- **The on-site official store (8.3 + admin module S, added in v2.6)**: products and SKUs, inventory, cart, checkout, **LINE Pay integration**, **e-invoicing**, fulfilment and shipping, order lookup, returns and refunds, shop reports. **Scoped to match the old site's existing store** — no discount codes or extra payment methods (the member discount set by a membership plan excepted), so the effort is far below a full e-commerce build. **Depends on the member system (Phase 2) being live**; **the club's LINE Pay merchant account and the invoicing service must be onboarded from Phase 2 onwards** or they will block this phase
 - **Retirement of the old store**: the old site's Wix store closes when the on-site shop launches, and its product and category URLs are 301-redirected (bulk import in module H)
 - **Member management K5 Prize draw rosters**: roster snapshots and serial numbers, the two CSV exports, ticking in winners, prize fulfilment, and handing the announcement to B2. (Eligibility itself is a K4 benefits entry and ships with the Phase 2 benefits table)
 - League tables, automatic aggregation of player statistics
@@ -1845,19 +1894,19 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 |---|---|
 | Technology selection | Deferred; this document defines functional requirements only (the app specification follows the same premise, expressed as "platform capability requirements") |
 | Payments and shopping | **This site runs its own shop** (8.3 / admin module S). Payments divide **four ways**: ① **shop checkout on this website takes payments, by LINE Pay only** (collected by **this club**); ② **membership fees still do not go through on-site checkout** (payment links and in-person collection); ③ the **Charity Donation Platform** integrates LINE Pay, collected for by the **Association**; ④ the **Mobile App** integrates LINE Pay for **membership fees only**, collected by **this club**. **All four flows use LINE Pay, but merchant accounts, credentials, and invoice tracks are never shared between entities**; **"no card data" applies globally**, with payment always completing on LINE Pay's side. **LINE Pay's production environment requires the merchant's payment-server egress IP to be registered in the merchant portal**, so any runtime that calls the payment API **must have a fixed egress IP**; each entity registers its own merchant account separately. `confirmUrlType` is **CLIENT**, so no inbound allowlist is needed |
-| On-site shop | **Yes, at the same functional scale as the old site's store.** Products and SKUs, inventory, cart, checkout, **LINE Pay payment**, **e-invoicing**, fulfilment and shipping, order lookup, and returns are all handled here, under the `S. Shop` admin module (S1–S6). **Guest checkout is supported.** ✗ **Payment methods other than LINE Pay** ✗ **Member pricing and discount codes** (paid membership includes no merchandise discount) ✗ **Weight-based or banded shipping rates** (flat rate plus free-shipping threshold only) ✗ Subscriptions / recurring billing ✗ Cross-border and multi-currency ✗ Marketplace / multi-vendor ✗ Resale or consignment ✗ Points redemption and e-wallet ✗ Ticketing and match packages ✗ Tying merchandise to membership or draw eligibility ✗ Carrier API integration ✗ Product reviews and ratings |
+| On-site shop | **Yes, at the same functional scale as the old site's store.** Products and SKUs, inventory, cart, checkout, **LINE Pay payment**, **e-invoicing**, fulfilment and shipping, order lookup, and returns are all handled here, under the `S. Shop` admin module (S1–S6). **Guest checkout is supported.** ✗ **Payment methods other than LINE Pay** ✗ **Discount codes and per-item member pricing** (the member discount set by a membership plan excepted) ✗ **Weight-based or banded shipping rates** (flat rate plus free-shipping threshold only) ✗ Subscriptions / recurring billing ✗ Cross-border and multi-currency ✗ Marketplace / multi-vendor ✗ Resale or consignment ✗ Points redemption and e-wallet ✗ Ticketing and match packages ✗ Tying merchandise to membership or draw eligibility ✗ Carrier API integration ✗ Product reviews and ratings |
 | Advertising slots | **This site's public web front end** has no separate fixed slots; seasonal content uses the hero carousel or news. **The Mobile App sells its own advertising slots with performance measurement** (admin E4–E6): **no third-party ad networks, no advertising identifiers, no behavioural targeting, no splash ads**. **Neither the website nor the app carries charity slots** |
 | Push notifications | **This site's public web front end** has no notification centre, no notification preferences, and no LINE push. **The Mobile App provides native push (APNs/FCM) and an in-app notification centre.** **The five system emails are unchanged**; **push must never be used for individual winner notifications** |
 | Mobile App | **Yes**, with its own specification, [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) (v1.0): **shares this site's admin and database**, adding admin module `M` and `E4–E6`. Both the operating entity and the collecting entity are **this club**, entirely separate from the Association's charity platform |
 | Languages | **Traditional Chinese (default) / English**; Japanese is out of scope, with the architecture left extensible |
-| Member system | **Required**, delivered in Phase 2. Scope narrowed to **membership** alone: a free tier and a paid tier, with partner-store discounts for members and a jersey for paying members. Signup channels are **email registration + one-tap LINE sign-in** (no Google) |
+| Member system | **Required**, delivered in Phase 2. Scope narrowed to **membership** alone: a registered account (free) is not a membership; membership is a paid plan (Taichung Rock: Rock Member and Prestige Member), and members get a digital membership card, partner-store discounts and the benefits of their plan. Signup channels are **email registration + one-tap LINE sign-in** (no Google) |
 | Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ **Parent–student linking (website, app, and admin alike)** ✗ Web notification centre and LINE push<br>**The two v2.5 exceptions (Mobile App only)**: ✔ Form pre-filling ✔ My bookings (`Registration.member_id`). This site's web front end still does neither<br>The shop is on this site, the **member account is the shop account**, and the Member Centre carries "My orders" |
-| Paying-member prize draw | **Built**. Eligibility follows membership **automatically, with no sign-up** (every paying member valid at the snapshot time is included); the system only **freezes the eligible roster, issues serial numbers, and exports a CSV**, while the **physical draw is performed by people, on site or on a live stream** and winners are ticked in afterwards. Winners are announced **through News only** (masked); prizes are **physical items**, shipped or collected in person, fulfilled as jerseys are. ✗ System-run random selection ✗ Public draw page or "my draws" ✗ Winner notification emails and push ✗ Paid entries ✗ Ticket or store-redemption prizes |
+| Member draw | **Built**. Eligibility follows membership **automatically, with no sign-up** (every member whose membership is valid at the snapshot time is included); the system only **freezes the eligible roster, issues serial numbers, and exports a CSV**, while the **physical draw is performed by people, on site or on a live stream** and winners are ticked in afterwards. Winners are announced **through News only** (masked); prizes are **physical items**, shipped or collected in person, fulfilled as jerseys are. ✗ System-run random selection ✗ Public draw page or "my draws" ✗ Winner notification emails and push ✗ Paid entries ✗ Ticket or store-redemption prizes |
 | Membership term | **Season-based** (e.g. 2026/27); within a club everyone expires together. **From v3.0 the two clubs' seasons are not aligned** and are calculated separately |
 | Membership fees | **LINE Pay** (payment link / official account invoice) and in-person payment; **membership does not go through shop checkout**, and the admin activates it after reconciliation |
 | How discounts are used | Members **show the digital card** in store and staff check it visually; the QR points to a public read-only verification page. **No scan-to-redeem, no redemption counts, no store-side account or software** |
 | LINE Official Account | **Already exists** — integrate with the current account; no new application needed. Used here for sign-in and linking only |
-| Member offers | Partner-store discounts are maintained on this site (8.4). **The on-site shop gives members no discount this time round** — no member pricing, no codes; paid membership keeps **partner-store discounts and the jersey**. Adding a merchandise discount later requires amending this assumption |
+| Member offers | Partner-store discounts are maintained on this site (8.4). **The on-site shop gives members a discount** — at the percentage set by the membership plan, taken off products marked "member discount applies" at checkout; no discount codes and no per-item member pricing |
 | Fan donations | **Moved to a separate Charity Donation Platform** (**organised and collected for by 台灣足球策略發展協會**, on its own domain, sharing this site's admin and database), entered through partner venues' QR codes, integrating LINE Pay and issuing e-invoices or donation receipts. Section 11 here is editorial and referral only, and the CTA must name the recipient — see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md) |
 | Volunteer signup | **Not built**. The section 11 CTA narrows from three routes to two; any volunteering need is handled by the general contact form (10.7) |
 | FAQ | Standalone section 12, centrally managed and embedded across pages |
@@ -1872,8 +1921,8 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 ### Still to confirm
 
 1. **Retiring the old Wix store, and the redirects**: the shop is built on-site (settled in v2.6). What remains open: when does the old Wix store stop selling, how are its outstanding orders and stock handed over before the on-site shop launches, and who signs off the 301 mapping for the five `/product-page/…` and `/category/…` URLs?
-2. **Initial partner store roster**: this site does not do ticketing or match packages, so the value of paid membership rests on **store discounts and the jersey**. The **number and quality of the launch roster directly determines whether the paid tier is viable** and must be secured before launch (see 8.4).
-3. **Annual fee and plan design**: price of the individual plan? Is there a family plan (1 adult + N children)? How many jerseys does each include?
+2. **Initial partner store roster**: this site does not do ticketing or match packages, so the value of membership includes **partner-store discounts**. The **number and quality of the launch roster directly affects how attractive the paid plans, Prestige Member in particular, are** and must be secured before launch (see 8.4).
+3. **Annual fee**: Rock Member at NT$400 and Prestige Member at NT$2,400 are the suggested annual fees the client indicated — are they final?
 4. **Season dates and mid-season pricing**: membership runs by season, so the season start and end dates need confirming, along with whether mid-season joiners are charged pro rata.
 5. **The club's own LINE Pay merchant account**: settled in v2.5 — the website keeps payment links and in-person collection, while **the Mobile App uses LINE Pay API checkout**. What remains open is **onboarding the club's own merchant account** (the charity platform uses the Association's, which **must not be shared**) and the App Store in-app-purchase determination; see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 16.2.
    Note: the Charity Donation Platform is **already committed to a proper LINE Pay API integration**; once merchant onboarding is done, whether membership fees reuse it can be assessed separately.
@@ -1890,7 +1939,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 16. **Prize value ceiling and the withholding threshold**: should a single prize be kept deliberately below the withholding threshold, removing the need to collect a winner's national ID number? The actual threshold, the withholding rate, any obligation to report even where withholding does not apply, and the rules for non-residents must be confirmed by an **accountant** and written into the draw rules (see 4.11 K5).
 17. **Draw frequency and setting**: once a quarter, once a season, or alongside particular home matches? Will draws be streamed and the recording kept as evidence?
 18. **Collection deadline and unclaimed prizes**: how many days? Once the deadline passes, does a reserve step in, is the prize redrawn, voided, or rolled into the next draw? This must be stated in the rules.
-19. **Collection and tax certificates for minors who win**: where an additional cardholder on a family plan wins, the prize and any tax certificate go to the adult primary account holder (this specification's default) — does that match the club's practice?
+19. **Collection and tax certificates for minors who win**: where an additional cardholder on a plan wins, the prize and any tax certificate go to the adult primary account holder (this specification's default) — does that match the club's practice?
 20. **Approval of the draw rules and member terms**: the template rules and the collection notice to be added to the member terms must be approved by **legal advisers** before the first draw is held.
 
 **Added in v2.6 (the on-site shop)**
@@ -1912,10 +1961,16 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 32. **Member numbering**: does `member_no` stay globally unique at the account level, or does each club get its own membership numbering? **This decides draw serial-number allocation, the `DrawRoster` unique key and what appears on the membership card.**
 33. **Fulfilment staffing and stock location for Blue Whale goods**: who picks and packs, and where is the stock held? **This decides whether Blue Whale merchandise can be sold at all, and what delivery estimate the public site can promise** (cf. item 25).
 34. **Who holds the Blue Whale admin accounts, and their authorisation dates**: an empty `AdminUserClub.expires_on` means an indefinite grant. If a partner-club account is ever provisioned, it should track the partnership term so that it lapses automatically.
-35. **Blue Whale core-value tags**: the tag mechanism follows the Blue Whale specification's section 1.3 general rule; still to confirm is whether the tag wording reuses TCRFC's five phrases or Blue Whale sets its own (Blue Whale specification section 10 item 13). **This affects scope estimation and pricing.**
+35. **Blue Whale core-value tags**: the tag mechanism follows the Blue Whale specification's section 1.3 general rule; still to confirm is whether the tag wording reuses TCRFC's four phrases or Blue Whale sets its own (Blue Whale specification section 10 item 13). **This affects scope estimation and pricing.**
 36. **Shared content and canonical attribution**: articles with a null `club_id` appear on both sites — which site owns the canonical URL? The recommendation is this site, with the Blue Whale site linking across; to be confirmed.
 37. **The Blue Whale domain**: name, who owns it, who manages DNS. ⚠️ If the app is to support deep links into Blue Whale content, **that domain must be controlled by a party who can place** `.well-known/apple-app-site-association` and `assetlinks.json` on it.
 38. **The two Blue Whale brand assets still outstanding**: the **vector** logo master (with a dark variant) and **print colour references** (PANTONE / CMYK). Blue Whale's English name is settled (short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club`; usage in the Blue Whale specification §8.2). Web colour values are settled (sampled from the crest) and the raster master already covers @2x / @3x rasters, the favicon and the OG image — values and status in the Blue Whale specification §8.1 and §8.2. **The vector file, when obtained, must not be a redrawn mark, a screenshot trace, or an upscaled raster**; where an asset is still missing the corresponding areas are not rendered, with no placeholder imagery and no empty logo box.
+
+**New in v3.29 (the client's 8.2 fan club plans)**
+
+39. **How far the system delivers each benefit**: member voting, priority registration and priority-ticket reserved places, exclusive events, training and programme discounts (programme fees are paid offline — add a member-price field, or have support staff apply the discount?), the community group, the name-display wall and referral rewards — which need system features and which are done by hand by the club? Until settled they appear in the benefits table as text only. **This affects scope estimation and quotation.**
+40. **Fulfilment registration for welcome gifts and Prestige gift boxes**: are caps, luggage tags and gift boxes registered for collection status in admin K3, as jerseys are?
+41. **Where the shop member discount applies**: the client wrote "10% off club apparel, merchandise and designated events" — which products qualify (ticked product by product), do "designated events" include paid events outside the shop, and is Prestige Member also 10%?
 
 
 ---

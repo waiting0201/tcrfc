@@ -18,7 +18,7 @@ const { isLoggedIn, restored, restore } = useMemberSession()
 
 useSeoMeta({
   title: computed(() => (isEn.value ? getShopSeoEn('member', clubNameEn.value).title : `會員中心 Member｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('member', clubNameEn.value).description : `${clubAssets.value.nameZh}會員中心：登入與加入會員。會員享特約店家折扣，付費球迷會員另可獲得球衣。`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('member', clubNameEn.value).description : `${clubAssets.value.nameZh}會員中心：登入、註冊帳號與購買會籍。持有會籍可享特約店家折扣與各方案權益。`)),
   robots: 'noindex, nofollow',
 })
 
@@ -53,8 +53,8 @@ async function onLoggedOut() {
   <div class="container">
     <p class="page-hero__eyebrow">Member Centre</p>
     <h1>{{ tx('會員中心', 'Member Centre') }}<span v-if="!isEn" class="en">Member</span></h1>
-    <p v-if="isEn" class="page-hero__lede">Join {{ clubNameEn }} as a member and show your membership card at partner stores to enjoy discounts. Upgrade to Paid Fan Club membership to also receive a jersey.</p>
-    <p v-else class="page-hero__lede">加入{{ clubAssets.shortNameZh }}會員，到特約店家出示會員卡即享折扣；升級付費球迷會員，另可獲得球衣。</p>
+    <p v-if="isEn" class="page-hero__lede">Create an account, then purchase a {{ clubNameEn }} membership plan to receive a digital membership card, show it at partner stores to enjoy discounts, and enjoy the benefits of your plan.</p>
+    <p v-else class="page-hero__lede">註冊帳號後購買{{ clubAssets.shortNameZh }}會籍方案，即可取得電子會員卡，到特約店家出示即享折扣，並享有各方案權益。</p>
   </div>
 </section>
 
@@ -82,12 +82,12 @@ async function onLoggedOut() {
           <p v-else class="feature-card__desc">依類別與地區瀏覽<a :href="lp('/zh/perks/')">合作店家</a>，每家標示優惠內容與適用層級（不需登入即可瀏覽）。</p>
         </div>
         <div class="feature-card">
-          <p class="feature-card__title">{{ tx('會籍與續會', 'Membership and renewal') }}</p>
-          <p class="feature-card__desc">{{ tx('升級付費會籍、查看有效期限，球季末辦理續會。', 'Upgrade to a paid membership, check your expiry date, and renew at the end of the season.') }}</p>
+          <p class="feature-card__title">{{ tx('會籍與續約', 'Membership and renewal') }}</p>
+          <p class="feature-card__desc">{{ tx('購買會籍方案、查看有效期限；到期後續約時可改選方案（有效期間內不提供升級）。', 'Purchase a membership plan and check your expiry date. When it expires you can renew and choose a different plan (plans cannot be upgraded while a membership is valid).') }}</p>
         </div>
         <div class="feature-card">
           <p class="feature-card__title">{{ tx('球衣登記', 'Jersey registration') }}</p>
-          <p class="feature-card__desc">{{ tx('付費會籍開通後填寫尺寸與領取方式（寄送或到場領取），並查看發放狀態。', 'Once your paid membership is activated, enter your size and how you will receive the jersey (delivery or collection), and check its status.') }}</p>
+          <p class="feature-card__desc">{{ tx('方案含球衣者，會籍開通後填寫尺寸與領取方式（寄送或到場領取），並查看發放狀態。', 'If your plan includes a jersey, enter your size and how you will receive it (delivery or collection) once your membership is activated, and check its status.') }}</p>
         </div>
         <div class="feature-card">
           <p class="feature-card__title">{{ tx('我的訂單', 'My orders') }}</p>
@@ -97,7 +97,7 @@ async function onLoggedOut() {
       </div>
 
       <div class="pending-note" style="margin-top:2rem;">
-        {{ tx('會費採 LINE Pay 收款連結與現場收款，網頁只接受升級申請、不收款，不走商店結帳（見規劃書 3.14）；商店的商品才走站內 LINE Pay 結帳。付費會籍的權益不含商品折扣。', 'Membership fees are collected through a LINE Pay payment link or in person. This website only accepts upgrade requests and does not take payment, and it does not use shop checkout. Only shop products are paid for through on-site LINE Pay checkout. Paid membership benefits do not include product discounts.') }}
+        {{ tx('會費採 LINE Pay 收款連結與現場收款，網頁只接受入會申請、不收款，不走商店結帳（見規劃書 3.14）；商店的商品才走站內 LINE Pay 結帳。持有會籍者購買勾選的商品可享方案的商店會員折扣，結帳時會直接顯示折扣金額。', 'Membership fees are collected through a LINE Pay payment link or in person. This website only accepts membership requests and does not take payment, and it does not use shop checkout. Only shop products are paid for through on-site LINE Pay checkout. Members get the shop member discount of their plan on eligible products, and the discount is shown at checkout.') }}
       </div>
     </template>
   </div>

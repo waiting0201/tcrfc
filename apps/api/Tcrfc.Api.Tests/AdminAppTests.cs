@@ -210,7 +210,7 @@ public sealed class AdminAppTests(AdminWriteApiFixture fixture)
             // 英文內文含中獎字樣一樣擋
             Assert.Equal(HttpStatusCode.Conflict, (await pr.PostAsync(Base + "/push/messages", PushPayload(enTitle: "ZZTEST Winner announced"))).StatusCode);
 
-            // 深連結指向「球迷會員抽獎」標籤文章：擋（不管文案怎麼寫）
+            // 深連結指向「會員抽獎」標籤文章：擋（不管文案怎麼寫）
             if (await C1Test.ScalarAsync<int>("SELECT COUNT(*) FROM tags WHERE slug = @S", ("@S", "member-draw")) == 0)
             {
                 await BizTest.ExecuteSqlAsync("INSERT INTO tags (id, slug) VALUES (@I, @S)", ("@I", tagId), ("@S", "member-draw"));
@@ -393,17 +393,27 @@ public sealed class AdminAppTests(AdminWriteApiFixture fixture)
             await AppTest.PutJsonAsync(anonymous, $"/api/v1/app/devices/{muted}/subscriptions", new { items = new[] { new { topicType = "team", topicValue = "D1", isFollowing = true, isPushEnabled = false } } });
             await AppTest.PutJsonAsync(anonymous, $"/api/v1/app/devices/{bwFollower}/subscriptions", new { items = new[] { new { topicType = "club", topicValue = "bw", isFollowing = true, isPushEnabled = true } } });
             await BizTest.ExecuteSqlAsync(
-                "UPDATE app_devices SET member_id = (SELECT TOP 1 m.member_id FROM memberships m WHERE m.tier = 'fan_club' AND m.status = 'active' ORDER BY m.row_seq) WHERE device_install_id = @I", ("@I", member));
+                "UPDATE app_devices SET member_id = (SELECT TOP 1 m.member_id FROM memberships m WHERE m.tier = 'premium' AND m.status = 'active' ORDER BY m.row_seq) WHERE device_install_id = @I", ("@I", member));
 
             async Task<int> Estimate(object audience)
                 => (await AppTest.ReadAsync<AdminPushAudienceEstimateDto>(await AppTest.PostJsonAsync(pr, Base + "/push/estimate", audience))).Total;
 
             Assert.Equal(4, await Estimate(new { audienceTier = "all" }));
             Assert.Equal(1, await Estimate(new { audienceTeamCodes = new[] { "D1" } })); // 追蹤但關閉推播的不算
+            // v3.22 會籍層級分眾：全部／持有效會籍者（member）／僅尊尚層級（premium）／無有效會籍者（anonymous，含未登入裝置與僅註冊帳號）
             Assert.Equal(3, await Estimate(new { audienceTier = "anonymous" }));
-            Assert.Equal(1, await Estimate(new { audienceTier = "fan_club" }));
+            Assert.Equal(1, await Estimate(new { audienceTier = "member" }));
+            Assert.Equal(1, await Estimate(new { audienceTier = "premium" }));
             Assert.Equal(1, await Estimate(new { audienceClubCode = "bw" })); // 追蹤藍鯨俱樂部
-            Assert.Equal(0, await Estimate(new { audienceTier = "registered" })); // 唯一的會員裝置是球迷會員
+            // 舊的 fan_club／registered 已淘汰
+            Assert.Equal(HttpStatusCode.BadRequest, (await AppTest.PostJsonAsync(pr, Base + "/push/estimate", new { audienceTier = "fan_club" })).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await AppTest.PostJsonAsync(pr, Base + "/push/estimate", new { audienceTier = "registered" })).StatusCode);
+            // 同一個會員只有磐石會員（standard）會籍：算 member、不算 premium
+            await BizTest.ExecuteSqlAsync(
+                "UPDATE app_devices SET member_id = (SELECT TOP 1 m.member_id FROM memberships m WHERE m.tier = 'standard' AND m.status = 'active' AND (m.membership_end_on IS NULL OR m.membership_end_on >= CAST(SYSUTCDATETIME() AS date)) ORDER BY m.row_seq) WHERE device_install_id = @I", ("@I", member));
+            Assert.Equal(1, await Estimate(new { audienceTier = "member" }));
+            Assert.Equal(0, await Estimate(new { audienceTier = "premium" }));
+            Assert.Equal(3, await Estimate(new { audienceTier = "anonymous" }));
             Assert.Equal(HttpStatusCode.BadRequest, (await AppTest.PostJsonAsync(pr, Base + "/push/estimate", new { audienceTier = "vip" })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await AppTest.PostJsonAsync(pr, Base + "/push/estimate", new { audienceTeamCodes = new[] { "NOPE" } })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await AppTest.PostJsonAsync(pr, Base + "/push/estimate", new { audienceClubCode = "nope" })).StatusCode);

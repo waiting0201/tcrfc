@@ -6,7 +6,7 @@
 > 也不提出新欄位名（若標「建議」則必須能指回規劃書原文）。
 >
 > **核對基準**：
-> - `output/TCRFC_前後台功能規劃書.md`（**v3.28，1915 行**，行號已於 2026-09-25 隨規劃書改版重算；核對內容仍為 2026-09-20 快照）——**唯一真實來源**
+> - `output/TCRFC_前後台功能規劃書.md`（**v3.29，1966 行**，行號已於 2026-09-25 隨規劃書改版重算；核對內容仍為 2026-09-20 快照）——**唯一真實來源**
 > - `docs/12a-database-erd.md`（v3.0 同步後版本，17 張 ERD／2026-09-20 更新）
 > - `docs/12b-database-tables.md`（12 張關鍵表明細、權限模型、索引，2026-09-20 更新）
 > - `docs/12c-i18n-tables.md`（39 張 i18n 側表欄位起草，2026-09-20 產出，S0-3b）
@@ -266,7 +266,7 @@
 | `Trial` | 行1122：「對應 3.3、4.7、6.3 試訓資訊：日期、地點、**對象**、名額、報名截止…」 | `docs/12c` §4 已列為低信心度候選欄位（`audience`），`trial` 主表確實沒有對應欄位。本檔沿用 `12c` 判斷，不重複升級信心度 |
 | `Enquiry` | 行1175：「欄位：來源表單、**姓名**、聯絡方式、內容摘要、來源頁面、UTM 來源、送出時間」 | `enquiry` 主表沒有姓名／聯絡方式欄位，但 `Enquiry` 設計上是靠 `EnquiryAnswer` 承載動態表單填答內容，姓名很可能只是「動態欄位之一」而非固定欄位。若列表要能直接排序／篩選姓名，才需要在主表加冗餘欄位；規劃書字面不足以判斷是否需要 |
 | `Club` | 行1245：「…前台網域、**官網連結**、預設語系…」 | `club` 已有 `domain`（前台網域），「官網連結」是否為獨立欄位或只是同一件事的重複敘述不確定 |
-| `Member` | 行1529：「…電話、生日、**球衣尺寸**、註冊來源…」 | `member` 主表沒有球衣尺寸欄位，但 `JerseyIssue.size` 已逐件記錄實際尺寸（含家庭方案多件不同尺寸）。`Member` 層級的「球衣尺寸」可能是註冊時的預設偏好值，也可能只是規劃書把 `JerseyIssue` 的欄位錯記到 `Member` 身上 |
+| `Member` | 行1529：「…電話、生日、**球衣尺寸**、註冊來源…」 | `member` 主表沒有球衣尺寸欄位，但 `JerseyIssue.size` 已逐件記錄實際尺寸（含多件球衣的方案、各件不同尺寸）。`Member` 層級的「球衣尺寸」可能是註冊時的預設偏好值，也可能只是規劃書把 `JerseyIssue` 的欄位錯記到 `Member` 身上 |
 | `MembershipPlan` | 行1271：「…球季代碼、**期間起訖**…」 | `membership_plan` 已有 `season_id`，而 `Season` 本身帶 `start_on`／`end_on`。方案的販售期間是否可能短於或不同於球季期間（因而需要獨立欄位）不確定 |
 
 ---
@@ -339,7 +339,7 @@
 |---|---|
 | `Match`（`content/schedule/2026-27_企甲賽程.csv`／`site/src/data/schedule.json` 的 `match_no`） | ✅ **已解決（2026-09-21）**。每筆賽程都有聯賽官方配發的「場次編號」（如 `match_no: 3`），與 `round_no`（第幾輪）是兩個不同的東西——同一輪可能對應多場比賽，各有自己的官方編號。已跑完規格異動同步鏈：規劃書 C4（中英雙版）補上「場次編號」欄位並升版 v3.12、`docs/12`／`docs/12a`／`docs/12b` 補上欄位說明與 ERD 屬性、`db/club-schema.sql` 的 `matches` 表加 `match_no int NULL`（可為空，因盃賽等非聯賽賽事可能沒有官方編號）。**未新增唯一鍵**——`match_no` 只在同賽季同聯賽內唯一，且會有 NULL 並存，SQL Server 唯一索引把 NULL 當成相等會誤擋，留待實際需要時再設計篩選式唯一索引 |
 | `Article.article_category_id`（`site/src/data/news.json` 的 `category` 值 `intcup`） | 🟡 **落點存疑，非欄位缺漏**。News mockup 用的 6 個 `category` 值裡，`intcup`（台中磐石國際足球盃）沒有任何一個規劃書 7.1–7.8 的分類字面對得上。本次逐篇標題人工確認內容皆為賽事報導，**歸類到 7.2 Match Reports**——這是 seed 時的人工判斷不是規劃書規則，正式資料應由後台人工複核分類是否需要獨立看待「盃賽」與「聯賽」報導 |
-| `StaffTeam`（`site/src/data/coaches-academy.json`，青訓教練／青訓總監） | 🟡 **資料缺口，非欄位缺漏**。來源 JSON 沒有標明青訓教練是帶 `U15`／`U14`／`U12` 哪一隊，本次 seed **刻意不連結任何 `Team`**，避免臆測。連帶地本次也沒有建立這三支學院球隊（`Team.type = 'academy'`）——沒有球員名單可以佐證需要建隊，建了也是空殼 |
+| `StaffTeam`（`site/src/data/coaches-academy.json`，青訓教練／青訓總監） | 🟡 **資料缺口，非欄位缺漏**。來源 JSON 沒有標明青訓教練是帶 `U15`／`U14`／`U12` 哪一隊，（v3.29 補註：磐石學院值域已改為 `U10`／`U12`／`U14`／`U16`／`U18`，仍未建隊。）本次 seed **刻意不連結任何 `Team`**，避免臆測。連帶地本次也沒有建立這三支學院球隊（`Team.type = 'academy'`）——沒有球員名單可以佐證需要建隊，建了也是空殼 |
 | `Article.cover_key`／`Player.photo_key`（`news.json` 的 `cover`／`cover_web`，`players.json` 的 `photo`） | ✅ **不算缺，是已知的 pipeline 落差**。JSON 的 `cover_web` 是 mockup 靜態資源相對路徑，`players.json` 的 `photo` 全部是 `null`——兩者都不是走過「上傳即縮圖」pipeline（`docs/14`）後產生的 Blob object key，本次 seed 一律留 `NULL`，不把 mockup 路徑硬塞進 `_key` 欄位誤導未來開發者 |
 | `Staff.staff_group`（`site/src/data/staff.json` 職稱「顧問」） | ✅ **已拍板（2026-09-22，使用者決定），屬執行層決定不是規劃書明文**。規劃書 C3（後台 `Staff` 模組）只列出
 四個分組——管理層／行政／醫療／後勤——沒有「顧問」這個分組，`staff.json` 裡職稱「顧問」的一位人員（陳曉明）

@@ -6,8 +6,8 @@ import { taipeiToday } from '@/utils/dateTime'
 export type TagType = 'success' | 'info' | 'warning' | 'danger'
 
 export const TIER_LABEL: Record<MembershipTier, string> = {
-  registered: '一般會員',
-  fan_club: '付費球迷會員',
+  standard: '磐石會員',
+  premium: '尊尚會員',
 }
 
 export const STATUS_LABEL: Record<MembershipStatus, string> = {

@@ -61,6 +61,8 @@ export interface ShopProductListItem {
   priceMax: number | null
   listPriceMin: number | null
   onSale: boolean
+  /** v3.29：true＝適用商店會員折扣（持有賣方俱樂部有效會籍者結帳時自動享有，與促銷價不疊加、取低）。價格欄位是未折扣的原價／促銷價。 */
+  memberDiscountEligible?: boolean
   stockStatus: ShopStockStatus
   stockStatusLabel: string
   sizes: string[]
@@ -106,6 +108,8 @@ export interface ShopProductDetail {
   priceMax: number | null
   listPriceMin: number | null
   onSale: boolean
+  /** v3.29：同列表型別。 */
+  memberDiscountEligible?: boolean
   stockStatus: ShopStockStatus
   stockStatusLabel: string
 }
@@ -121,8 +125,14 @@ export interface ShopCartItem {
   imageHeight?: number | null
   imageAlt?: string | null
   listPrice: number
+  /** 實際單價：已含促銷價／會員折扣（兩者不疊加、取較低價）。前台只顯示，不自己算。 */
   unitPrice: number
+  /** true＝促銷價生效且就是實際單價（會員折扣價更低時為 false，改看 `memberDiscountApplied`）。 */
   onSale: boolean
+  /** v3.29：true＝這一列套用了會員折扣。 */
+  memberDiscountApplied?: boolean
+  /** 這一列因會員折扣少收的金額（單價差 × 數量）；沒有套用為 0。 */
+  memberDiscountAmount?: number
   quantity: number
   lineTotal: number
   availableQty: number
@@ -135,7 +145,12 @@ export interface ShopCart {
   clubCode: string
   items: ShopCartItem[]
   itemCount: number
+  /** 小計（已是折後金額，不含運費）。 */
   subtotal: number
+  /** v3.29：本次因會員折扣少收的總額（已含在小計內）；沒有為 0。 */
+  memberDiscountTotal?: number
+  /** 目前登入會員在這個俱樂部可享的商店會員折扣比例（0–100）；訪客、僅註冊帳號或方案無折扣為 null。 */
+  memberDiscountPercent?: number | null
   shipping: { fee: number, freeThreshold: number | null, amountToFree: number | null }
   canCheckout: boolean
 }
@@ -144,9 +159,12 @@ export interface ShopOrderItem {
   productName: string
   variantLabel: string | null
   sku: string
+  /** 成交單價：已是折後值（促銷價／會員折扣取低），發票明細、退款都用它。 */
   unitPrice: number
   quantity: number
   lineTotal: number
+  /** v3.29：這一列因會員折扣少收的金額（已含在 lineTotal 的折後值內）。 */
+  memberDiscountAmount?: number
 }
 
 export interface ShopOrderInvoice {
@@ -181,6 +199,8 @@ export interface ShopOrder {
   deliveryMethod: string
   deliveryMethodLabel: string
   subtotal: number
+  /** v3.29：整張訂單因商店會員折扣少收的總額（已含在小計的折後金額內，不是另一個扣除項）。 */
+  memberDiscountAmount?: number
   shippingFee: number
   total: number
   items: ShopOrderItem[]

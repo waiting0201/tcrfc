@@ -84,7 +84,7 @@
       ],
       "aliases": {},
       "fields": {
-        "key": "string（後台上傳的內文圖片物件鍵；網址 = mediaBaseUrl + \"/\" + key，API 不組網址）",
+        "key": "string（後台上傳的內文圖片物件鍵；網址 = mediaBaseUrl + \"/\" + key，API 不組網址；mediaBaseUrl 取自 GET /api/v1/app/config）",
         "src|url": "string（外部圖片網址，須通過安全網址檢查）",
         "width|height": "number（選填，主檔寬高）",
         "alt": "string（缺漏退回 caption）",

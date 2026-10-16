@@ -24,7 +24,6 @@ namespace Tcrfc.Api.Features.MemberAuth;
 public sealed partial class MemberAuthService(
     ClubDbContext db,
     MemberSessionService sessions,
-    MemberMembershipService memberships,
     MemberNumberGenerator numbers,
     MemberSecureTokens secureTokens,
     IEmailSender email,
@@ -209,13 +208,8 @@ public sealed partial class MemberAuthService(
             await db.SaveChangesAsync(cancellationToken);
         }
 
-        // 免費註冊＋Email 驗證＝一般會員，有電子會員卡（規劃書 §3.14）。俱樂部取自權杖（註冊時的站台）。
-        var clubId = await db.Clubs.AsNoTracking().Where(c => c.Code == payload.Club).Select(c => (Guid?)c.Id).FirstOrDefaultAsync(cancellationToken);
-        if (clubId is Guid id)
-        {
-            await memberships.EnsureRegisteredAsync(member.Id, member.Name, id, cancellationToken);
-        }
-
+        // 註冊帳號不是會籍（v3.29）：Email 驗證只完成帳號驗證，不建立會籍與電子會員卡；成為會員只有購買並開通方案一條路。
+        // 俱樂部取自權杖（註冊時的站台），僅用於驗證完成後導回原站台。
         return payload.Club;
     }
 
@@ -632,7 +626,6 @@ public sealed partial class MemberAuthService(
         };
         ApplyGuardian(member, lineGuardian);
         await SaveNewMemberAsync(member, club, cancellationToken);
-        await memberships.EnsureRegisteredAsync(member.Id, member.Name, club.ClubId, cancellationToken); // LINE 已證明身分，直接成為一般會員
         await SendVerificationAsync(member, club, LangOrDefault(request.Lang), cancellationToken); // Email 仍需驗證（密碼登入與重設才安全）
 
         var tokens = await sessions.IssueAsync(member.Id, persistent: true, cancellationToken, request.DeviceInstallId);

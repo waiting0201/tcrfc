@@ -42,8 +42,24 @@ public sealed record MemberPendingOrderDto
     public required string StatusLabel { get; init; }
 }
 
-/// <summary>一份會籍（一人每俱樂部每球季一份）。<c>Status</c> 是「有效與否以到期日為準」的有效狀態（<c>pending</c>／<c>active</c>／<c>expired</c>／<c>cancelled</c>）。
-/// 升級申請待確認時 <c>PendingOrder</c> 有值（網頁的「待確認」就是它）。</summary>
+/// <summary>
+/// 還沒有開通的會籍申請／訂單（<c>created</c> 待確認、<c>pending_payment</c> 待付款）。v3.29 起註冊帳號沒有會籍列，
+/// 購買方案後、開通前的「待確認／待付款」狀態就放在這裡（頂層 <see cref="MyMembershipsDto.OpenOrders"/>），不依附在某份會籍上。
+/// </summary>
+public sealed record MemberOpenOrderDto
+{
+    public required string OrderNo { get; init; }
+    public required string Status { get; init; }
+    public required string StatusLabel { get; init; }
+    public required string ClubCode { get; init; }
+    public required string PlanCode { get; init; }
+    public string? PlanName { get; init; }
+    public required string SeasonCode { get; init; }
+}
+
+/// <summary>一份會籍（一人每俱樂部每球季一份；v3.29：註冊帳號不是會籍，會籍只由購買並開通方案而來，層級 <c>Tier</c> 隨方案）。
+/// <c>Status</c> 是「有效與否以到期日為準」的有效狀態（<c>pending</c>／<c>active</c>／<c>expired</c>／<c>cancelled</c>）。
+/// 同球季同俱樂部另有未完成訂單時 <c>PendingOrder</c> 有值（續約改選方案等情境）。</summary>
 public sealed record MyMembershipDto
 {
     public required Guid Id { get; init; }
@@ -72,11 +88,17 @@ public sealed record MemberJoinableClubDto
     public required string Name { get; init; }
 }
 
-/// <summary>「我的會籍」：逐俱樂部列出；沒有會籍的俱樂部放在 <c>JoinableClubs</c>（畫面顯示加入入口，不隱藏，規劃書 §3.14／App §3.5）。</summary>
+/// <summary>
+/// 「我的會籍」：逐俱樂部列出；<b>沒有會籍時 <c>Memberships</c> 為空（僅註冊帳號，沒有會員卡）</b>，沒有目前球季會籍的俱樂部放在 <c>JoinableClubs</c>
+/// （畫面顯示加入入口＝導向方案頁購買，不隱藏，規劃書 §3.14／App §3.5）；已送出但尚未開通的申請放在 <c>OpenOrders</c>。
+/// </summary>
 public sealed record MyMembershipsDto
 {
     public required IReadOnlyList<MyMembershipDto> Memberships { get; init; }
     public required IReadOnlyList<MemberJoinableClubDto> JoinableClubs { get; init; }
+
+    /// <summary>尚未開通的申請（待確認／待付款）；沒有為空陣列。</summary>
+    public required IReadOnlyList<MemberOpenOrderDto> OpenOrders { get; init; }
 }
 
 public sealed record MemberJerseyDto

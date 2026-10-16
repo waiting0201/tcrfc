@@ -18,7 +18,7 @@
 //
 // 🔴 BW-C1（品牌外洩全站盤點）：本頁原本整頁固定磐石內容，且把「學院梯隊」「兒童訓練」
 // 「專項訓練」三種完全不同性質的報名合併成一份表單——這個合併結構本身只適用磐石：
-// 藍鯨青年隊梯隊代碼比磐石少一個（沒有 U14），且藍鯨的兒童訓練／專項訓練（05 單元 5.1／5.4）
+// 藍鯨青年隊梯隊代碼與磐石不同（BW-U15／BW-U12，磐石學院梯隊見 site-facts squadCodes），且藍鯨的兒童訓練／專項訓練（05 單元 5.1／5.4）
 // 現況一律現場個人報名，不接這套站內線上流程（見 shared/utils/club-copy.ts
 // getProgramsHubEnrolNoteBw 檔頭說明）。故 bw 版簡化為只收「加入青年隊」單一報名項目
 // （青年隊各梯隊試訓申請），不提供兒童訓練／專項訓練選項，不得對藍鯨假裝這些課程也接受
@@ -51,7 +51,8 @@ useSeoMeta({
 })
 
 const PROGRAM_LABELS: Record<string, string> = {
-  'academy-u12': 'U12 梯隊', 'academy-u14': 'U14 梯隊', 'academy-u15': 'U15 梯隊',
+  'academy-u10': 'U10 梯隊', 'academy-u12': 'U12 梯隊', 'academy-u14': 'U14 梯隊', 'academy-u16': 'U16 梯隊', 'academy-u18': 'U18 梯隊',
+  'academy-u15': 'U15 青年隊', // 藍鯨青年隊（磐石已無 U15）
   'children-mixed': '混齡班', 'children-beginner': '初學班', 'children-skill': '技巧發展班',
   'specialist-goalkeeper': '專項訓練（守門員）', 'specialist-forward': '專項訓練（前鋒）',
   'specialist-defender': '專項訓練（後衛）', 'specialist-midfield': '專項訓練（中場）',
@@ -60,7 +61,8 @@ const PROGRAM_LABELS: Record<string, string> = {
 }
 /** mockup 13 個細項 → 後端 enrollment_category 封閉選項的 7 選 1（見上方檔頭說明）。 */
 const ENROLLMENT_CATEGORY_MAP: Record<string, string> = {
-  'academy-u12': '學院 U12', 'academy-u14': '學院 U14', 'academy-u15': '學院 U15',
+  'academy-u10': '學院 U10', 'academy-u12': '學院 U12', 'academy-u14': '學院 U14', 'academy-u16': '學院 U16', 'academy-u18': '學院 U18',
+  'academy-u15': '學院 U15', // 藍鯨沿用的後端選項（磐石已無 U15）
   'children-mixed': '兒童混齡班', 'children-beginner': '兒童初學班', 'children-skill': '兒童技巧發展班',
   'specialist-goalkeeper': '專項訓練', 'specialist-forward': '專項訓練', 'specialist-defender': '專項訓練',
   'specialist-midfield': '專項訓練', 'specialist-fitness': '專項訓練', 'specialist-advanced': '專項訓練',
@@ -122,7 +124,7 @@ async function onSubmit() {
     <p class="page-hero__eyebrow">{{ isTcrfc ? "10.2 Academy & Children's Training" : '10.2 Join Youth Team' }}</p>
     <h1 v-if="isTcrfc"><template v-if="isEn">Academy &amp; Children's Training</template><template v-else>加入學院／兒童訓練<span class="en">Academy &amp; Children's Training</span></template></h1>
     <h1 v-else><template v-if="isEn">Join the Youth Team</template><template v-else>加入青年隊<span class="en">Join Youth Team</span></template></h1>
-    <p v-if="isTcrfc" class="page-hero__lede"><template v-if="isEn">Whether you are applying for the TCRFC Academy U12 / U14 / U15 squads or registering for children's training and specialist training programs, this one form covers it all. Parents, please fill in the details below. Depending on the program you choose, we will pass your application to the Academy or Programs department to arrange trials and program information.</template><template v-else>不論是申請加入台中磐石足球學院 U12／U14／U15 梯隊，或是報名兒童訓練與專項訓練的各類課程，都在這一份表單完成。請家長協助填寫以下資料，我們會依你選擇的報名項目轉交學院部或課程部，安排後續試訓與課程說明。</template></p>
+    <p v-if="isTcrfc" class="page-hero__lede"><template v-if="isEn">Whether you are applying for the TCRFC Academy {{ academyLabel(' / ') }} squads or registering for children's training and specialist training programs, this one form covers it all. Parents, please fill in the details below. Depending on the program you choose, we will pass your application to the Academy or Programs department to arrange trials and program information.</template><template v-else>不論是申請加入台中磐石足球學院 {{ academyLabel() }} 梯隊，或是報名兒童訓練與專項訓練的各類課程，都在這一份表單完成。請家長協助填寫以下資料，我們會依你選擇的報名項目轉交學院部或課程部，安排後續試訓與課程說明。</template></p>
     <p v-else class="page-hero__lede"><template v-if="isEn">Apply for a {{ clubEn }} Youth team {{ academyLabel(' / ') }} trial. Parents, please fill in the details below and we will arrange the trial and information as soon as possible.</template><template v-else>申請加入{{ clubAssets.shortNameZh }}青年隊 {{ academyLabel() }} 試訓，請家長協助填寫以下資料，我們會盡快安排後續試訓與說明。</template></p>
   </div>
 </section>
@@ -152,9 +154,11 @@ async function onSubmit() {
               <select v-if="isTcrfc" id="a-program" v-model="program" name="program" required aria-describedby="a-program-error a-program-hint">
                 <option value="">{{ tx('請選擇', 'Please select') }}</option>
                 <optgroup :label="tx('足球學院梯隊', 'Academy squads')">
+                  <option value="academy-u10">{{ tx('U10 梯隊', 'U10 squad') }}</option>
                   <option value="academy-u12">{{ tx('U12 梯隊', 'U12 squad') }}</option>
                   <option value="academy-u14">{{ tx('U14 梯隊', 'U14 squad') }}</option>
-                  <option value="academy-u15">{{ tx('U15 梯隊', 'U15 squad') }}</option>
+                  <option value="academy-u16">{{ tx('U16 梯隊', 'U16 squad') }}</option>
+                  <option value="academy-u18">{{ tx('U18 梯隊', 'U18 squad') }}</option>
                 </optgroup>
                 <optgroup :label="tx('兒童訓練班別', 'Children\'s training classes')">
                   <option value="children-mixed">{{ tx('混齡班', 'Mixed-age class') }}</option>
@@ -290,7 +294,7 @@ async function onSubmit() {
         <div class="form-sidebar__card">
           <h2>{{ tx('報名項目', 'Program') }}</h2>
           <ul v-if="isTcrfc">
-            <li>{{ tx('足球學院：U12／U14／U15 梯隊', 'Academy: U12 / U14 / U15 squads') }}</li>
+            <li>{{ tx(`足球學院：${academyLabel()} 梯隊`, `Academy: ${academyLabel(' / ')} squads`) }}</li>
             <li>{{ tx('兒童訓練：混齡班／初學班／技巧發展班', 'Children\'s training: mixed-age, beginner and skills development classes') }}</li>
             <li>{{ tx('專項訓練：守門員／前鋒／後衛／中場／體能與速度／高階訓練', 'Specialist training: goalkeeper, forward, defender, midfield, fitness and speed, advanced training') }}</li>
           </ul>

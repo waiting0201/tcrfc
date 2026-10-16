@@ -65,7 +65,7 @@ const backToList = () => router.push({ path: '/members/plans', query: { tab: 'me
 
 // ── 調整 ──
 const adjustOpen = ref(false)
-const adjust = ref({ tier: 'registered' as MembershipTier, status: 'active' as MembershipStatus, startOn: '', endOn: '', reason: '' })
+const adjust = ref({ tier: 'standard' as MembershipTier, status: 'active' as MembershipStatus, startOn: '', endOn: '', reason: '' })
 const adjustError = ref<string | null>(null)
 const busy = ref(false)
 
@@ -254,7 +254,7 @@ const fmtTime = (iso?: string | null) => formatDateTime(iso) || '—'
             <template #actions><span /></template>
           </MobileCardList>
         </template>
-        <el-empty v-else description="沒有付款紀錄（例如一般會員會籍）" :image-size="64" />
+        <el-empty v-else description="沒有付款紀錄" :image-size="64" />
       </el-card>
     </template>
 
@@ -267,7 +267,7 @@ const fmtTime = (iso?: string | null) => formatDateTime(iso) || '—'
         <el-row :gutter="12">
           <el-col :xs="24" :sm="12">
             <FormField field="tier" label="會員層級">
-              <el-select v-model="adjust.tier" style="width: 100%"><el-option label="一般會員" value="registered" /><el-option label="付費球迷會員" value="fan_club" /></el-select>
+              <el-select v-model="adjust.tier" style="width: 100%"><el-option label="磐石會員" value="standard" /><el-option label="尊尚會員" value="premium" /></el-select>
             </FormField>
           </el-col>
           <el-col :xs="24" :sm="12">

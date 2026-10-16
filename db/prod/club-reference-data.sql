@@ -7854,7 +7854,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'43f78941-69c2-55ea-a51d-fb1794082b64', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training'), N'enrollment_category', N'select', 1, NULL, N'["學院 U12", "學院 U14", "學院 U15", "兒童混齡班", "兒童初學班", "兒童技巧發展班", "專項訓練"]', 0, 0);
+  VALUES (N'43f78941-69c2-55ea-a51d-fb1794082b64', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training'), N'enrollment_category', N'select', 1, NULL, N'["學院 U10", "學院 U12", "學院 U14", "學院 U16", "學院 U18", "兒童混齡班", "兒童初學班", "兒童技巧發展班", "專項訓練"]', 0, 0);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category') AND locale = N'zh-Hant')
@@ -7864,7 +7864,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'en', N'Enrollment Category', N'["Academy U12", "Academy U14", "Academy U15", "Children Mixed-Age Class", "Children Beginner Class", "Children Skill Development Class", "Specialist Training"]');
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'en', N'Enrollment Category', N'["Academy U10", "Academy U12", "Academy U14", "Academy U16", "Academy U18", "Children Mixed-Age Class", "Children Beginner Class", "Children Skill Development Class", "Specialist Training"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'name')

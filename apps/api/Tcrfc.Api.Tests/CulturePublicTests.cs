@@ -326,7 +326,7 @@ public sealed class CulturePublicTests(AdminWriteApiFixture fixture) : IAsyncLif
     }
 
     [Fact]
-    public async Task 限付費會員的活動_要登入且有效球迷會員會籍_會員報名記到會員_可看到自己的狀態與取消()
+    public async Task 限付費會員的活動_要登入且有效會籍_會員報名記到會員_可看到自己的狀態與取消()
     {
         using var anonymous = fixture.CreateClient();
         var slug = "mtest-paid";
@@ -344,9 +344,9 @@ public sealed class CulturePublicTests(AdminWriteApiFixture fixture) : IAsyncLif
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
         Assert.Equal("fan_club_required", CodeOf(await ReadJsonAsync(forbidden)));
 
-        // 球迷會員（走完付款流程）→ 報名成功
+        // 持有會籍的會員（走完付款流程）→ 報名成功
         var fan = await _scope.CreateVerifiedMemberAsync("culture-fan");
-        await MemberTestScope.BuyFanClubAsync(fan, "single");
+        await MemberTestScope.BuyMembershipAsync(fan, "standard");
         var ok = await fan.Client.PostAsJsonAsync(url, new { note = "我會到" }, TestJson.WriteOptions);
         Assert.Equal(HttpStatusCode.Created, ok.StatusCode);
         Assert.Equal("registered", (await ReadJsonAsync(ok)).GetProperty("status").GetString());

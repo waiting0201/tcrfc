@@ -76,7 +76,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.Equal("全國乙級聯賽冠軍", dto.FoundingTitleZh);
         Assert.Equal("企業甲級聯賽", dto.LeagueNameZh);
         Assert.Equal("Enterprise Premier League", dto.LeagueNameEn);
-        Assert.Equal(["U15", "U14", "U12"], dto.SquadCodes);
+        Assert.Equal(["U10", "U12", "U14", "U16", "U18"], dto.SquadCodes); // v3.29：磐石學院梯隊 U10／U12／U14／U16／U18（客戶 4.3 發展路徑）
         var venue = Assert.Single(dto.HomeVenues);
         Assert.Equal("西屯足球場", venue.NameZh);
         Assert.Equal("Xitun Football Field", venue.NameEn);
@@ -124,6 +124,8 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
             {
                 ContactPhone = $"04-0000-{marker[..4]}",
                 ContactHoursZh = "平日 09:00–18:00",
+                ContactAddressZh = "【測試】台中市測試路 1 號",
+                ContactAddressEn = "[Test] No. 1 Test Rd., Taichung",
                 LeagueShortNameZh = "測試簡稱",
                 BlueWhaleSiteUrl = "https://bw-test.tcrfc.tw",
             };
@@ -133,6 +135,8 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
             var updated = await updateResponse.Content.ReadFromJsonAsync<AdminSiteFactsDto>(TestJson.Options);
             Assert.Equal(updateRequest.ContactPhone, updated!.ContactPhone);
             Assert.Equal("平日 09:00–18:00", updated.ContactHoursZh);
+            Assert.Equal("【測試】台中市測試路 1 號", updated.ContactAddressZh);
+            Assert.Equal("[Test] No. 1 Test Rd., Taichung", updated.ContactAddressEn);
             Assert.Null(updated.ContactHoursEn); // 省略英文＝清空既有英文列（目前種子資料本來就沒有）。
             Assert.Equal("測試簡稱", updated.LeagueShortNameZh);
             Assert.Equal("https://bw-test.tcrfc.tw", updated.BlueWhaleSiteUrl);
@@ -152,6 +156,9 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
                 .Content.ReadFromJsonAsync<PublicSiteFactsDto>(TestJson.Options);
             Assert.Equal(updateRequest.ContactPhone, publicFacts!.Contact.Phone);
             Assert.Equal("平日 09:00–18:00", publicFacts.Contact.Hours);
+            Assert.Equal("【測試】台中市測試路 1 號", publicFacts.Contact.Address); // 聯絡地址讀獨立設定，不是場地地址
+            var venueAddress = Assert.Single(publicFacts.Venues).Address;
+            Assert.NotEqual(venueAddress, publicFacts.Contact.Address);
             Assert.Equal("測試簡稱", publicFacts.League.ShortName);
             Assert.Equal("https://bw-test.tcrfc.tw", publicFacts.BlueWhaleSiteUrl);
         }
@@ -323,6 +330,8 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
             Address = v.Address,
         }).ToList(),
         ContactPhone = dto.ContactPhone,
+        ContactAddressZh = dto.ContactAddressZh,
+        ContactAddressEn = dto.ContactAddressEn,
         ContactHoursZh = dto.ContactHoursZh,
         ContactHoursEn = dto.ContactHoursEn,
         BlueWhaleSiteUrl = dto.BlueWhaleSiteUrl,
@@ -356,14 +365,16 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.Equal("全國乙級聯賽冠軍", dto.FoundingTitle);
         Assert.Equal("企業甲級聯賽", dto.League.Name);
         Assert.Null(dto.League.ShortName);
-        Assert.Equal(["U15", "U14", "U12"], dto.SquadCodes);
+        Assert.Equal(["U10", "U12", "U14", "U16", "U18"], dto.SquadCodes); // v3.29：磐石學院梯隊 U10／U12／U14／U16／U18（客戶 4.3 發展路徑）
 
         var venue = Assert.Single(dto.Venues);
         Assert.Equal("西屯足球場", venue.Name);
         Assert.Equal("台中市北屯區崇平路二段景谷巷 11 弄 41 號", venue.Address);
         Assert.True(venue.IsHomeGround);
 
-        Assert.Equal(venue.Address, dto.Contact.Address);
+        // v3.29：聯絡地址是獨立設定（site.contact_address，客戶 10 聯絡資訊），與場地地址（球場所在，崇平路二段景谷巷）是兩件事
+        Assert.Equal("台中市北屯區昌平路二段敬固巷11弄41號", dto.Contact.Address);
+        Assert.NotEqual(venue.Address, dto.Contact.Address);
         // 電話與營業時間沒有核實資料，種子放的是明顯的測試值（db/seed/README.md「測試值清單」）；
         // 這裡只驗證「有值會被公開端點帶出」，不綁定測試值本身，正式資料替換後測試仍成立。
         Assert.False(string.IsNullOrWhiteSpace(dto.Contact.Phone));
@@ -386,6 +397,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         var venue = Assert.Single(dto.Venues);
         Assert.Equal("Xitun Football Field", venue.Name); // 場地本身有英文名稱。
         Assert.Equal("台中市北屯區崇平路二段景谷巷 11 弄 41 號", venue.Address); // 場地沒有英文地址，回退中文。
+        Assert.Equal("No. 41, Alley 11, Jinggu Lane, Section 2, Changping Road, Beitun District, Taichung City, Taiwan", dto.Contact.Address); // 聯絡地址有英文
     }
 
     [Fact]

@@ -42,7 +42,7 @@ public sealed class AdminAppPushRepository(
 
     private static readonly IReadOnlyDictionary<string, string> TierLabels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["all"] = "全部裝置", ["fan_club"] = "球迷會員", ["registered"] = "一般會員", ["anonymous"] = "未登入裝置",
+        ["all"] = "全部裝置", ["member"] = "持有效會籍者", ["premium"] = "尊尚會員", ["anonymous"] = "無有效會籍者（含未登入）",
     };
 
     public async Task<IReadOnlyList<AdminPushMessageListItemDto>> ListAsync(string? status, CancellationToken cancellationToken)
@@ -373,7 +373,7 @@ public sealed class AdminAppPushRepository(
 
     private async Task<PushAudienceSpec> ResolveSpecAsync(string? tier, string? clubCode, IReadOnlyList<string>? teamCodes, CancellationToken cancellationToken)
     {
-        var t = AdminInput.OneOf(tier ?? "all", PushAudienceSpec.Tiers, "會籍層級", "「全部」「球迷會員」「一般會員」或「未登入」", "audienceTier");
+        var t = AdminInput.OneOf(tier ?? "all", PushAudienceSpec.Tiers, "會籍層級", "「全部」「持有效會籍者」「尊尚會員」或「無有效會籍者」", "audienceTier");
         Guid? clubId = null;
         if (!string.IsNullOrWhiteSpace(clubCode))
         {

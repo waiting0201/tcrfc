@@ -21,7 +21,7 @@ public sealed class SiteFactsRepository(IClubSqlConnectionFactory connectionFact
     [
         "site.founded_year", "site.founding_date", "site.founding_date_display", "site.founding_title",
         "site.league_name", "site.league_short_name", "site.squad_structure_summary", "site.squad_codes",
-        "site.contact_phone", "site.contact_hours", "site.home_venue_ids", "site.blue_whale_site_url",
+        "site.contact_phone", "site.contact_hours", "site.contact_address", "site.home_venue_ids", "site.blue_whale_site_url",
         .. SiteContactSupport.Keys,
     ];
 
@@ -80,7 +80,8 @@ public sealed class SiteFactsRepository(IClubSqlConnectionFactory connectionFact
                     SquadCodes = SplitCodes(Value("site.squad_codes")),
                     Contact = new PublicSiteFactContactDto
                     {
-                        Address = venues.Count > 0 ? venues[0].Address : null,
+                        // 聯絡地址是獨立設定（site.contact_address，v3.29，與場地地址無關）；尚未設定時暫以第一個主場的地址補（舊行為），設定後即完全不用場地地址。
+                        Address = I18nResolved("site.contact_address") ?? (venues.Count > 0 ? venues[0].Address : null),
                         Phone = Value("site.contact_phone"),
                         Hours = I18nResolved("site.contact_hours"),
                         Email = Value(SiteContactSupport.KeyContactEmail),

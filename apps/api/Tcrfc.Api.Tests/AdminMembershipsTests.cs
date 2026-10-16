@@ -10,14 +10,15 @@ namespace Tcrfc.Api.Tests;
 
 /// <summary>
 /// K2 會籍與方案（S2-5）：方案 CRUD、手動開通與續會、調整、會員卡張數、批次到期、付款紀錄、續會名單匯出、會員編號規則。
-/// 種子方案：tcrfc 2026-27 <c>single</c>（1200 元、1 卡 1 衣）／<c>family</c>（3000 元、3 卡 3 衣），bw 2025 <c>single</c>；唯讀。
+/// 種子方案（v3.29）：tcrfc 2026-27 <c>standard</c>（磐石會員，400 元、1 卡 0 衣、商店折扣 10%）／<c>premium</c>（尊尚會員，2400 元、1 卡 1 衣、商店折扣 10%），bw 2025 <c>single</c>（層級 standard）；唯讀。
+/// 後台沒有「建立免費會籍」——會籍只由開通方案而來；會籍期間內不提供升級（開通不同方案回 409）。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
 {
-    private static object PlanPayload(Guid seasonId, string code, int fee = 999, string status = "draft", int cardQuota = 1, int jerseyQuota = 0) => new
+    private static object PlanPayload(Guid seasonId, string code, int fee = 999, string status = "draft", int cardQuota = 1, int jerseyQuota = 0, string tier = "standard", int shopDiscountPercent = 0) => new
     {
-        seasonId, code, fee, cardQuota, jerseyQuota, midSeasonRule = "測試規則", midSeasonRuleEn = "Pro-rated", startsOn = "2026-09-13", endsOn = "2027-05-02", sortOrder = 9, status,
+        seasonId, code, tier, shopDiscountPercent, fee, cardQuota, jerseyQuota, midSeasonRule = "測試規則", midSeasonRuleEn = "Pro-rated", startsOn = "2026-09-13", endsOn = "2027-05-02", sortOrder = 9, status,
         content = new { zh = new { name = $"【測試】方案{code}", benefitNote = "測試權益" }, en = new { name = $"Test {code}" } },
     };
 
@@ -53,13 +54,21 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, "Bad Code")))).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, "neg", fee: -1)))).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, "quota", cardQuota: 0)))).StatusCode);
+            // v3.29：層級只有 standard／premium；商店會員折扣比例 0–100 的整數
+            Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, "tier-bad", tier: "fan_club")))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, "tier-gold", tier: "gold")))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, "disc-neg", shopDiscountPercent: -1)))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, "disc-over", shopDiscountPercent: 101)))).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(Guid.NewGuid(), "noseason")))).StatusCode);
             // bw 的球季不能用在 tcrfc 的方案
             var bwSeason = await B1Test.SeasonIdAsync("bw", "2025");
             Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(bwSeason, "cross")))).StatusCode);
 
-            var created = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, code))));
+            var created = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(PlanPayload(seasonId, code, tier: "premium", shopDiscountPercent: 15))));
             id = created.Id;
+            Assert.Equal("premium", created.Tier);
+            Assert.Equal($"【測試】方案{code}", created.TierLabel); // 層級顯示優先用方案名稱（藍鯨方案自訂）；沒有方案名稱才用「磐石會員／尊尚會員」
+            Assert.Equal(15, created.ShopDiscountPercent);
             Assert.Equal("下架", created.StatusLabel);
             Assert.Equal("Test " + code, created.En!.Name);
             Assert.Equal("測試規則", created.MidSeasonRule);
@@ -69,10 +78,12 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
             var updated = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.PutAsync($"/api/v1/admin/tcrfc/membership-plans/{id}",
                 BizTest.Json(new
                 {
-                    seasonId, code, fee = 1500, cardQuota = 2, jerseyQuota = 1, sortOrder = 9, status = "published",
+                    seasonId, code, tier = "standard", shopDiscountPercent = 0, fee = 1500, cardQuota = 2, jerseyQuota = 1, sortOrder = 9, status = "published",
                     content = new { zh = new { name = "【測試】改名方案" } },
                 })));
             Assert.Equal(1500, updated.Fee);
+            Assert.Equal("standard", updated.Tier); // 沒有會籍使用的方案可以改層級
+            Assert.Equal(0, updated.ShopDiscountPercent);
             Assert.Equal("上架", updated.StatusLabel);
             Assert.Null(updated.En); // PUT 整份取代：省略英文版＝移除
             Assert.Null(updated.MidSeasonRule);
@@ -80,7 +91,7 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
 
             // 只有英文規則、沒有英文名稱：英文列仍存在（En 內容區塊為 null），公開英文版規則用英文、名稱回退繁中
             var ruleOnly = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.PutAsync($"/api/v1/admin/tcrfc/membership-plans/{id}",
-                BizTest.Json(new { seasonId, code, fee = 1500, cardQuota = 2, jerseyQuota = 1, sortOrder = 9, status = "published", midSeasonRule = "照比例", midSeasonRuleEn = "Pro-rated", content = new { zh = new { name = "【測試】改名方案" } } })));
+                BizTest.Json(new { seasonId, code, tier = "standard", fee = 1500, cardQuota = 2, jerseyQuota = 1, sortOrder = 9, status = "published", midSeasonRule = "照比例", midSeasonRuleEn = "Pro-rated", content = new { zh = new { name = "【測試】改名方案" } } })));
             Assert.Null(ruleOnly.En);
             Assert.Equal("Pro-rated", ruleOnly.MidSeasonRuleEn);
             using (var anonymousPlans = await BizTest.ClientAsync(fixture, null))
@@ -93,7 +104,7 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
             }
 
             Assert.Equal(HttpStatusCode.BadRequest, (await admin.PutAsync($"/api/v1/admin/tcrfc/membership-plans/{id}",
-                BizTest.Json(new { seasonId, code, fee = 1500, cardQuota = 2, jerseyQuota = 1, sortOrder = 9, status = "published", midSeasonRuleEn = new string('a', 256), content = new { zh = new { name = "x" } } }))).StatusCode);
+                BizTest.Json(new { seasonId, code, tier = "standard", fee = 1500, cardQuota = 2, jerseyQuota = 1, sortOrder = 9, status = "published", midSeasonRuleEn = new string('a', 256), content = new { zh = new { name = "x" } } }))).StatusCode);
 
             var list = await BizTest.ReadAsync<List<AdminPlanListItemDto>>(await admin.GetAsync("/api/v1/admin/tcrfc/membership-plans?status=published"));
             Assert.Contains(list, p => p.Id == id);
@@ -118,11 +129,11 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
     public async Task 方案_有會籍使用時不能刪除也不能換球季()
     {
         using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
-        var single = await B1Test.PlanIdAsync("tcrfc", "2026-27", "single");
+        var single = await B1Test.PlanIdAsync("tcrfc", "2026-27", "premium");
         // 這個測試對「真的種子方案」呼叫 DELETE 並期望 409。若庫裡沒有任何會籍在用它（例如種子會員被清掉），DELETE 會直接成功，
         // 測試雖然紅燈，種子方案卻已被刪掉、之後整批會籍／球衣／抽獎測試連鎖失敗（docs/18 E-293）。所以先確認前提成立才送 DELETE。
         var inUse = await ShopTest.CountAsync("SELECT COUNT(*) FROM memberships WHERE membership_plan_id = @P", ("@P", single));
-        Assert.True(inUse > 0, "前提不成立：種子方案「tcrfc 2026-27 single」沒有任何會籍在用（種子會員被清掉了？請先重灌種子 ./db/seed/apply-seed.sh），為免誤刪種子方案，不送 DELETE。");
+        Assert.True(inUse > 0, "前提不成立：種子方案「tcrfc 2026-27 premium」沒有任何會籍在用（種子會員被清掉了？請先重灌種子 ./db/seed/apply-seed.sh），為免誤刪種子方案，不送 DELETE。");
         Assert.Equal(HttpStatusCode.Conflict, (await admin.DeleteAsync($"/api/v1/admin/tcrfc/membership-plans/{single}")).StatusCode);
 
         // 同一份方案的內容可以改，但換球季不行（tcrfc 只有一個球季，所以用一個臨時球季）
@@ -135,10 +146,18 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
             var detail = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.GetAsync($"/api/v1/admin/tcrfc/membership-plans/{single}"));
             var response = await admin.PutAsync($"/api/v1/admin/tcrfc/membership-plans/{single}", BizTest.Json(new
             {
-                seasonId = tempSeason, code = detail.Code, fee = detail.Fee, cardQuota = detail.CardQuota, jerseyQuota = detail.JerseyQuota,
+                seasonId = tempSeason, code = detail.Code, tier = detail.Tier, fee = detail.Fee, cardQuota = detail.CardQuota, jerseyQuota = detail.JerseyQuota,
                 status = detail.Status, content = new { zh = new { name = detail.Zh.Name } },
             }));
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+            // 已有會員使用的方案也不能變更層級（會員的層級隨方案）
+            var tierChange = await admin.PutAsync($"/api/v1/admin/tcrfc/membership-plans/{single}", BizTest.Json(new
+            {
+                seasonId = detail.SeasonId, code = detail.Code, tier = "standard", fee = detail.Fee, cardQuota = detail.CardQuota, jerseyQuota = detail.JerseyQuota,
+                status = detail.Status, content = new { zh = new { name = detail.Zh.Name } },
+            }));
+            Assert.Equal(HttpStatusCode.BadRequest, tierChange.StatusCode);
         }
         finally
         {
@@ -149,19 +168,21 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
     // ═════════════ 開通與續會 ═════════════
 
     [Fact]
-    public async Task 開通_建立球迷會籍_付款紀錄記下受益俱樂部與收款法人_發一張卡()
+    public async Task 開通_建立會籍_層級隨方案_付款紀錄記下受益俱樂部與收款法人_發一張卡_不提供升級()
     {
         using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
         var member = await B1Test.CreateMemberAsync(service, "tcrfc", "activate");
         try
         {
-            var plan = await B1Test.PlanIdAsync("tcrfc", "2026-27", "single");
+            var plan = await B1Test.PlanIdAsync("tcrfc", "2026-27", "standard");
+            var premiumPlan = await B1Test.PlanIdAsync("tcrfc", "2026-27", "premium");
             var tcrfcId = await B1Test.ClubIdAsync("tcrfc");
             var paidOn = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
             var request = new { memberId = member.Id, planId = plan, paymentMethod = "onsite", amount = 1000, paidOn, note = "【測試】季中入會折算" };
 
             var result = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/memberships/activate", BizTest.Json(request)));
-            Assert.Equal("fan_club", result.Membership.Tier);
+            Assert.Equal("standard", result.Membership.Tier);
+            Assert.Equal("磐石會員", result.Membership.TierLabel);
             Assert.Equal("有效", result.Membership.EffectiveStatusLabel);
             Assert.Equal(new DateOnly(2027, 5, 2), result.Membership.EndOn);
             Assert.Equal(1000, result.Membership.PaidTotal);
@@ -176,6 +197,14 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
 
             // 重複送出 → 409
             Assert.Equal(HttpStatusCode.Conflict, (await service.PostAsync("/api/v1/admin/tcrfc/memberships/activate", BizTest.Json(request))).StatusCode);
+            // 🔴 不提供會籍期間內升級（v3.29）：已有有效的磐石會員，後台也不能改開通尊尚會員（沒有升級流程與補差價），409
+            var upgrade = await service.PostAsync("/api/v1/admin/tcrfc/memberships/activate",
+                BizTest.Json(new { memberId = member.Id, planId = premiumPlan, paymentMethod = "onsite", amount = 2000, paidOn }));
+            Assert.Equal(HttpStatusCode.Conflict, upgrade.StatusCode);
+            Assert.Equal(1, await ShopTest.CountAsync("SELECT COUNT(*) FROM membership_payments WHERE membership_id = @M", ("@M", result.Membership.MembershipId)));
+            // 後台沒有「建立免費會籍」：POST /memberships 已移除
+            Assert.Contains((await service.PostAsync("/api/v1/admin/tcrfc/memberships", BizTest.Json(new { memberId = member.Id, seasonId = await B1Test.SeasonIdAsync("tcrfc", "2026-27") }))).StatusCode,
+                new[] { HttpStatusCode.NotFound, HttpStatusCode.MethodNotAllowed });
             // 受益俱樂部不是目前操作的俱樂部 → 400
             var bwClub = await B1Test.ClubIdAsync("bw");
             Assert.Equal(HttpStatusCode.BadRequest, (await service.PostAsync("/api/v1/admin/tcrfc/memberships/activate",
@@ -218,7 +247,7 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/memberships/activate",
                 BizTest.Json(new { memberId = member.Id, planId, paymentMethod = "linepay", amount = 1, paidOn }))).StatusCode);
 
-            var single = await B1Test.PlanIdAsync("tcrfc", "2026-27", "single");
+            var single = await B1Test.PlanIdAsync("tcrfc", "2026-27", "standard");
             Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsync("/api/v1/admin/tcrfc/memberships/activate",
                 BizTest.Json(new { memberId = Guid.NewGuid(), planId = single, paymentMethod = "linepay", amount = 1, paidOn }))).StatusCode);
 
@@ -241,16 +270,23 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
-    public async Task 調整_原因必填_取消會停用會員卡_家庭方案副卡不超過發卡上限()
+    public async Task 調整_原因必填_取消會停用會員卡_副卡不超過方案發卡上限()
     {
         using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
         var member = await B1Test.CreateMemberAsync(service, "tcrfc", "adjust");
+        Guid? tempPlanId = null;
         try
         {
-            var family = await B1Test.PlanIdAsync("tcrfc", "2026-27", "family");
+            // 磐石兩級方案皆每份會籍一張卡；要測副卡上限，用一個臨時方案（發卡 3、含球衣 3，下方 finally 刪除）
+            var seasonId = await B1Test.SeasonIdAsync("tcrfc", "2026-27");
+            var tempPlan = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans",
+                BizTest.Json(PlanPayload(seasonId, BizTest.Unique("t-multi"), fee: 100, status: "published", cardQuota: 3, jerseyQuota: 3))));
+            tempPlanId = tempPlan.Id;
+            var family = tempPlan.Id;
             var paidOn = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
             var activated = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/memberships/activate",
-                BizTest.Json(new { memberId = member.Id, planId = family, paymentMethod = "linepay", amount = 3000, paidOn })));
+                BizTest.Json(new { memberId = member.Id, planId = family, paymentMethod = "linepay", amount = 100, paidOn })));
             var id = activated.Membership.MembershipId;
             Assert.Equal(3, activated.CardQuota);
             Assert.Equal(3, activated.JerseyQuota);
@@ -265,14 +301,16 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.BadRequest, (await service.PostAsync($"/api/v1/admin/tcrfc/memberships/{id}/cards", BizTest.Json(new { holderName = "" }))).StatusCode);
 
             // 調整：沒有原因 400；沒有任何要改的 400
-            Assert.Equal(HttpStatusCode.BadRequest, (await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust", BizTest.Json(new { tier = "registered", reason = "" }))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust", BizTest.Json(new { tier = "premium", reason = "" }))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust", BizTest.Json(new { tier = "registered", reason = "舊代碼已淘汰" }))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust", BizTest.Json(new { tier = "fan_club", reason = "舊代碼已淘汰" }))).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust", BizTest.Json(new { reason = "沒有要改的" }))).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust", BizTest.Json(new { tier = "gold", reason = "x" }))).StatusCode);
 
-            var downgraded = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust",
-                BizTest.Json(new { tier = "registered", reason = "【測試】降級" })));
-            Assert.Equal("registered", downgraded.Membership.Tier);
-            Assert.Equal("【測試】降級", downgraded.LastAdjustReason);
+            var adjustedTier = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust",
+                BizTest.Json(new { tier = "premium", reason = "【測試】更正層級" })));
+            Assert.Equal("premium", adjustedTier.Membership.Tier);
+            Assert.Equal("【測試】更正層級", adjustedTier.LastAdjustReason);
 
             var cancelled = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust",
                 BizTest.Json(new { status = "cancelled", reason = "【測試】取消" })));
@@ -288,6 +326,10 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
         finally
         {
             await B1Test.DeleteMembersAsync(member.Id);
+            if (tempPlanId is not null)
+            {
+                await admin.DeleteAsync($"/api/v1/admin/tcrfc/membership-plans/{tempPlanId}");
+            }
         }
     }
 
@@ -298,8 +340,7 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
         var member = await B1Test.CreateMemberAsync(service, "tcrfc", "expire");
         try
         {
-            var season = await B1Test.SeasonIdAsync("tcrfc", "2026-27");
-            var membership = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/memberships", BizTest.Json(new { memberId = member.Id, seasonId = season })));
+            var membership = await B1Test.ActivateAsync(service, "tcrfc", member.Id, "2026-27", "standard", 400);
             var id = membership.Membership.MembershipId;
             // 把這份測試會籍的到期日改到 2019（遠早於任何種子），基準日設 2020，其餘資料一份都不會被波及。
             Assert.Equal(HttpStatusCode.OK, (await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{id}/adjust",
@@ -331,9 +372,10 @@ public sealed class AdminMembershipsTests(AdminWriteApiFixture fixture)
     public async Task 會籍清單_篩選與到期提醒排序_名單不含個資明文()
     {
         using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
-        var page = await BizTest.ReadAsync<PagedResult<AdminMembershipListItemDto>>(await service.GetAsync("/api/v1/admin/tcrfc/memberships?tier=fan_club&pageSize=100"));
+        var page = await BizTest.ReadAsync<PagedResult<AdminMembershipListItemDto>>(await service.GetAsync("/api/v1/admin/tcrfc/memberships?tier=premium&pageSize=100"));
         Assert.NotEmpty(page.Items);
-        Assert.All(page.Items, i => Assert.Equal("fan_club", i.Tier));
+        Assert.All(page.Items, i => Assert.Equal("premium", i.Tier));
+        Assert.Equal(HttpStatusCode.BadRequest, (await service.GetAsync("/api/v1/admin/tcrfc/memberships?tier=fan_club")).StatusCode);
         var body = await (await service.GetAsync("/api/v1/admin/tcrfc/memberships?keyword=M900001")).Content.ReadAsStringAsync();
         Assert.DoesNotContain("member-a@example.com", body);
         Assert.Equal(HttpStatusCode.BadRequest, (await service.GetAsync("/api/v1/admin/tcrfc/memberships?status=oops")).StatusCode);

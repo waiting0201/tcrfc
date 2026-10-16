@@ -27,7 +27,7 @@ public sealed class AdminPartnerStoresRepository(
     public const string LocateUnavailable = "unavailable";
 
     private static readonly HashSet<string> Statuses = new(StringComparer.Ordinal) { "draft", "published" };
-    private static readonly HashSet<string> Tiers = new(StringComparer.Ordinal) { "all", "fan_club" };
+    private static readonly HashSet<string> Tiers = new(StringComparer.Ordinal) { "all", "premium" };
 
     private IQueryable<PartnerStore> Visible(AdminClubScope scope)
         => db.PartnerStores.Where(s => s.ClubId == scope.ClubId || s.ClubId == null);
@@ -54,7 +54,7 @@ public sealed class AdminPartnerStoresRepository(
 
         if (!string.IsNullOrWhiteSpace(tier))
         {
-            AdminInput.OneOf(tier, Tiers, "適用層級", "「全會員」或「限付費」");
+            AdminInput.OneOf(tier, Tiers, "適用層級", "「所有會員」或「限尊尚層級」");
             query = query.Where(s => s.ApplicableTier == tier);
         }
 
@@ -233,7 +233,7 @@ public sealed class AdminPartnerStoresRepository(
         var mapUrl = AdminInput.OptionalHttpUrl(request.MapUrl, "地圖連結", 500, "mapUrl");
         var website = AdminInput.OptionalHttpUrl(request.WebsiteUrl, "官網或社群連結", 500, "websiteUrl");
         var hours = AdminInput.OptionalText(request.BusinessHours, "營業時間", 500, "businessHours");
-        AdminInput.OneOf(request.ApplicableTier, Tiers, "適用層級", "「全會員」或「限付費」", "applicableTier");
+        AdminInput.OneOf(request.ApplicableTier, Tiers, "適用層級", "「所有會員」或「限尊尚層級」", "applicableTier");
         AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」", "status");
         AdminInput.DateRange(request.StartOn, request.EndOn, "合作期間", "endOn");
         if ((request.Lat is null) != (request.Lng is null))
@@ -382,7 +382,9 @@ public sealed class AdminPartnerStoresRepository(
 
     public static string StatusLabel(string status) => status == "published" ? "上架" : "下架";
 
-    public static string TierLabel(string tier) => tier == "fan_club" ? "限付費會員" : "全會員";
+    /// <summary>適用層級的顯示文字：<c>all</c>＝所有會員、<c>premium</c>＝限尊尚層級（v3.29）。</summary>
+    public static string TierLabel(string tier, bool en = false)
+        => en ? (tier == "premium" ? "Prestige members only" : "All members") : (tier == "premium" ? "限尊尚層級" : "所有會員");
 
     private string? Thumb(string? key) => key is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(key));
 

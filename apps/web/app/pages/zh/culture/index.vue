@@ -76,7 +76,7 @@ useSeoMeta({
         <div class="unit-card__body">
           <p class="unit-card__num">8.2</p>
           <p class="unit-card__title">{{ isEn ? (isTcrfc ? 'TCRFC Fan Club' : CLUB_CULTURE_PAGE_EN_BW.fanClubCardTitle) : `${clubAssets.shortNameZh}球迷會` }}<span v-if="!isEn" class="en">Fan Club</span></p>
-          <p class="unit-card__desc">{{ tx('付費會籍方案、會員權益對照與球迷活動報名、回顧。', 'Paid membership plans, a comparison of member benefits, and fan event registration and reviews.') }}</p>
+          <p class="unit-card__desc">{{ tx('會籍方案、會員權益對照與球迷活動報名、回顧。', 'Membership plans, a comparison of member benefits, and fan event registration and reviews.') }}</p>
           <span class="unit-card__link">{{ tx('加入球迷會', 'Join the Fan Club') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
@@ -98,7 +98,7 @@ useSeoMeta({
         <div class="unit-card__body">
           <p class="unit-card__num">8.4</p>
           <p class="unit-card__title">{{ tx('特約店家', 'Partner Perks') }}<span v-if="!isEn" class="en">Partner Perks</span></p>
-          <p class="unit-card__desc">{{ tx('會員到店出示電子會員卡即享折扣，依店家標示適用一般或付費會員。', 'Members enjoy discounts by showing their digital membership card in store; each store states whether it applies to registered or paid members.') }}</p>
+          <p class="unit-card__desc">{{ tx('會員到店出示電子會員卡即享折扣，依店家標示適用所有會員或限高階層級。', 'Members enjoy discounts by showing their digital membership card in store; each store states whether it applies to all members or only the top tier.') }}</p>
           <span class="unit-card__link">{{ tx('看店家清單', 'View partner stores') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>

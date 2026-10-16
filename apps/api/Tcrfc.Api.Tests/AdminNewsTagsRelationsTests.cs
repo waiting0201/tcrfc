@@ -207,7 +207,7 @@ public sealed class AdminNewsTagsRelationsTests(AdminWriteApiFixture fixture)
             Slug = UniqueSlug("core-values"),
             CategoryCode = CategoryCode,
             Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "核心價值標籤測試" } },
-            CoreValueTags = ["players_first", "community"],
+            CoreValueTags = ["inspiring_players", "local_pride"],
         };
         var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(request));
         response.EnsureSuccessStatusCode();
@@ -215,15 +215,37 @@ public sealed class AdminNewsTagsRelationsTests(AdminWriteApiFixture fixture)
 
         try
         {
-            Assert.Equal(["community", "players_first"], created.CoreValueTags.OrderBy(v => v));
+            Assert.Equal(["inspiring_players", "local_pride"], created.CoreValueTags.OrderBy(v => v));
 
             var reread = await client.GetFromJsonAsync<AdminArticleDetailDto>($"/api/v1/admin/tcrfc/news/{created.Id}", TestJson.Options);
-            Assert.Equal(["community", "players_first"], reread!.CoreValueTags.OrderBy(v => v));
+            Assert.Equal(["inspiring_players", "local_pride"], reread!.CoreValueTags.OrderBy(v => v));
         }
         finally
         {
             await DeleteBestEffortAsync(client, created.Id, created.UpdatedAt);
         }
+    }
+
+    [Theory]
+    [InlineData("players_first")]
+    [InlineData("excellence")]
+    [InlineData("global_pathways")]
+    [InlineData("community")]
+    [InlineData("integrity")]
+    public async Task 舊的五項核心價值代碼已淘汰_回400(string oldCode)
+    {
+        using var client = AuthorizedClient(fixture.CreateClient(), await ContentEditorTokenAsync());
+
+        var request = new CreateArticleRequest
+        {
+            Slug = UniqueSlug("core-values-old-" + oldCode.Replace('_', '-')),
+            CategoryCode = CategoryCode,
+            Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "核心價值標籤測試：舊代碼 " + oldCode } },
+            CoreValueTags = [oldCode],
+        };
+        var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(request));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]

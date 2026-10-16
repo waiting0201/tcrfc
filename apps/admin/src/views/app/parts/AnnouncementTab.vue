@@ -21,7 +21,7 @@ const canUpdate = usePermission('app.layout.update')
 const errText = (e: unknown, f: string) => (e instanceof AdminApiError ? e.message : f)
 
 const TIERS: { value: AudienceTier; label: string }[] = [
-  { value: 'all', label: '所有人' }, { value: 'fan_club', label: '付費球迷會員' }, { value: 'registered', label: '已登入但不是付費球迷會員' }, { value: 'anonymous', label: '尚未登入' },
+  { value: 'all', label: '所有人' }, { value: 'member', label: '所有會員（磐石與尊尚）' }, { value: 'premium', label: '限尊尚會員' }, { value: 'anonymous', label: '非會員（含未登入與僅註冊帳號）' },
 ]
 const tierText = (v: string) => TIERS.find((t) => t.value === v)?.label ?? v
 

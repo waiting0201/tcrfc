@@ -6,7 +6,6 @@ import { ElMessage } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
 import ExportPurposeDialog from '@/components/ExportPurposeDialog.vue'
 import MembershipActivateDialog from './MembershipActivateDialog.vue'
-import MembershipFreeDialog from './MembershipFreeDialog.vue'
 import MembershipExpireBatchDialog from './MembershipExpireBatchDialog.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions, usePermission } from '@/composables/useCrudPermissions'
@@ -92,7 +91,6 @@ function openDetail(row: MembershipListItemDto) {
 
 // ── 對話框 ──
 const activateOpen = ref(false)
-const freeOpen = ref(false)
 const expireOpen = ref(false)
 function onCreated(detail: MembershipDetailDto) {
   router.push(`/members/plans/memberships/${detail.membership.membershipId}`)
@@ -138,8 +136,8 @@ async function doExport(purpose: string) {
           <el-option v-for="d in EXPIRING_OPTIONS" :key="d" :label="`${d} 天內到期`" :value="d" />
         </el-select>
         <el-select v-model="filters.tier" placeholder="會員層級" clearable class="ms-tab__select" @change="search">
-          <el-option label="一般會員" value="registered" />
-          <el-option label="付費球迷會員" value="fan_club" />
+          <el-option label="磐石會員" value="standard" />
+          <el-option label="尊尚會員" value="premium" />
         </el-select>
         <el-select v-model="filters.status" placeholder="會籍狀態" clearable class="ms-tab__select" @change="search">
           <el-option label="待確認" value="pending" />
@@ -158,7 +156,6 @@ async function doExport(purpose: string) {
       </div>
       <div class="ms-tab__row ms-tab__actions">
         <el-button v-if="canCreate" type="primary" @click="activateOpen = true">手動開通／續會</el-button>
-        <el-button v-if="canCreate" @click="freeOpen = true">建立一般會員會籍</el-button>
         <el-button v-if="canUpdate" @click="expireOpen = true">球季末批次到期</el-button>
         <el-button v-if="canExport" @click="openExport">匯出續會名單</el-button>
       </div>
@@ -228,7 +225,6 @@ async function doExport(purpose: string) {
     </el-card>
 
     <MembershipActivateDialog v-model="activateOpen" :plans="plans" @done="onCreated" />
-    <MembershipFreeDialog v-model="freeOpen" :seasons="seasons" @done="onCreated" />
     <MembershipExpireBatchDialog v-model="expireOpen" :seasons="seasons" @done="load" />
 
     <el-dialog v-model="exportChoiceOpen" title="匯出續會名單" width="min(420px, 94vw)" :close-on-click-modal="false">

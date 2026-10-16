@@ -136,6 +136,7 @@ public sealed class AppPublicTests(AdminWriteApiFixture fixture)
             Assert.Contains("max-age=60", response.Headers.CacheControl!.ToString());
             Assert.Contains("stale-if-error=86400", response.Headers.CacheControl.ToString());
             var config = await AppTest.ReadAsync<AppConfigResponse>(response);
+            Assert.True(config.MediaBaseUrl is null || !config.MediaBaseUrl.EndsWith('/'), "mediaBaseUrl 無結尾斜線（內文圖片網址 = mediaBaseUrl + \"/\" + key）");
             Assert.Equal("9.0.0", config.Ios.MinSupportedVersion);
             Assert.Equal("9.2.0", config.Ios.RecommendedVersion);
             Assert.Equal("請更新", config.Ios.ForceUpdateMessage!.Zh);
@@ -210,9 +211,9 @@ public sealed class AppPublicTests(AdminWriteApiFixture fixture)
                 await AppTest.PutJsonAsync(admin, $"/api/v1/admin/app/layout/items/{sponsor.Id}", new { isEnabled = true, label = new { zh = sponsor.LabelZh, en = sponsor.LabelEn } });
             }
 
-            // 公告條：期間外不顯示；對象＝球迷會員的公告，匿名不可見、綁定有效球迷會員的裝置可見
+            // 公告條：期間外不顯示；對象＝會員的公告，匿名不可見、綁定有效會籍的裝置可見
             var all = await AppTest.ReadAsync<AdminAppAnnouncementDto>(await AppTest.PostJsonAsync(admin, "/api/v1/admin/app/layout/announcements", new { message = new { zh = "ZZTEST 全部對象", en = "ZZTEST all" }, audienceTier = "all" }));
-            var fan = await AppTest.ReadAsync<AdminAppAnnouncementDto>(await AppTest.PostJsonAsync(admin, "/api/v1/admin/app/layout/announcements", new { message = new { zh = "ZZTEST 球迷限定" }, audienceTier = "fan_club" }));
+            var fan = await AppTest.ReadAsync<AdminAppAnnouncementDto>(await AppTest.PostJsonAsync(admin, "/api/v1/admin/app/layout/announcements", new { message = new { zh = "ZZTEST 球迷限定" }, audienceTier = "member" }));
             var expired = await AppTest.ReadAsync<AdminAppAnnouncementDto>(await AppTest.PostJsonAsync(admin, "/api/v1/admin/app/layout/announcements", new { message = new { zh = "ZZTEST 已過期" }, startsAt = Iso(-TimeSpan.FromDays(3)), endsAt = Iso(-TimeSpan.FromDays(1)) }));
             created.AddRange([all.Id, fan.Id, expired.Id]);
             Assert.False(expired.IsActiveNow);
@@ -228,7 +229,7 @@ public sealed class AppPublicTests(AdminWriteApiFixture fixture)
             Assert.True(asDevice.Headers.CacheControl!.NoStore && asDevice.Headers.CacheControl.Private);
             Assert.DoesNotContain((await AppTest.ReadAsync<AppLayoutResponse>(asDevice)).Announcements, a => a.Message == "ZZTEST 球迷限定");
             await BizTest.ExecuteSqlAsync(
-                "UPDATE app_devices SET member_id = (SELECT TOP 1 m.member_id FROM memberships m WHERE m.tier = 'fan_club' AND m.status = 'active' ORDER BY m.row_seq) WHERE device_install_id = @I", ("@I", deviceId));
+                "UPDATE app_devices SET member_id = (SELECT TOP 1 m.member_id FROM memberships m WHERE m.tier = 'premium' AND m.status = 'active' ORDER BY m.row_seq) WHERE device_install_id = @I", ("@I", deviceId));
             Assert.Contains((await AppTest.ReadAsync<AppLayoutResponse>(await anonymous.GetAsync($"{App}/layout?deviceInstallId={deviceId}"))).Announcements, a => a.Message == "ZZTEST 球迷限定");
         }
         finally
@@ -261,13 +262,13 @@ public sealed class AppPublicTests(AdminWriteApiFixture fixture)
             }
 
             await Message(everyone, "all", 1, "ZZTEST 對所有人");
-            await Message(fanOnly, "fan_club", 2, "ZZTEST 只給球迷會員");
+            await Message(fanOnly, "member", 2, "ZZTEST 只給會員");
             await Message(old, "all", 120, "ZZTEST 太舊");
             var device = await AppTest.RegisterDeviceAsync(anonymous, locale: "en");
 
             var noDevice = await AppTest.ReadAsync<List<AppNotificationDto>>(await anonymous.GetAsync($"{App}/notifications?lang=zh"));
             Assert.Contains(noDevice, n => n.Title == "ZZTEST 對所有人");
-            Assert.DoesNotContain(noDevice, n => n.Title == "ZZTEST 只給球迷會員");
+            Assert.DoesNotContain(noDevice, n => n.Title == "ZZTEST 只給會員");
             Assert.DoesNotContain(noDevice, n => n.Title == "ZZTEST 太舊"); // 只保留 90 天
             var asDevice = await AppTest.ReadAsync<List<AppNotificationDto>>(await anonymous.GetAsync($"{App}/notifications?lang=en&deviceInstallId={device}"));
             Assert.Contains(asDevice, n => n.Title == "ZZTEST 對所有人 EN");

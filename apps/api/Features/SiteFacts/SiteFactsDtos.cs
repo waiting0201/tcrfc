@@ -101,8 +101,8 @@ public sealed record PublicSiteFactVenueDto
 
 public sealed record PublicSiteFactContactDto
 {
-    /// <summary>取自主場地址（第一筆主場場地，見 <see cref="PublicSiteFactsDto.Venues"/>）的
-    /// 計算值，不是獨立儲存的欄位——避免同一個地址在兩處各寫一份（GEO-03）。</summary>
+    /// <summary>聯絡地址，依 <c>lang</c> 解析（英文缺漏回退中文）。v3.29 起是獨立設定（<c>site.contact_address</c>，後台 I 聯絡資訊維護），
+    /// <b>與場地地址無關</b>；尚未設定時暫時回退為第一筆主場場地的地址（見 <see cref="PublicSiteFactsDto.Venues"/>），設定後不再使用場地地址。</summary>
     public string? Address { get; init; }
 
     /// <summary>聯絡電話，與 <c>lang</c> 無關，目前兩俱樂部皆未核實，恆為 <c>null</c>。</summary>

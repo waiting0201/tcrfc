@@ -18,18 +18,23 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
     public static readonly IReadOnlyList<AdminBenefitGroupDto> Groups =
     [
         new() { Code = "member_card", Label = "會員卡" },
-        new() { Code = "store_discount", Label = "店家折扣" },
-        new() { Code = "jersey", Label = "球衣" },
+        new() { Code = "discount", Label = "折扣與優惠" },
+        new() { Code = "gift", Label = "禮品" },
         new() { Code = "event", Label = "活動" },
+        new() { Code = "content", Label = "內容與溝通" },
     ];
 
     private static readonly Dictionary<string, (string Zh, string En)> GroupLabels = new(StringComparer.Ordinal)
     {
-        ["member_card"] = ("會員卡", "Member card"),
-        ["store_discount"] = ("店家折扣", "Store discounts"),
-        ["jersey"] = ("球衣", "Jersey"),
+        ["member_card"] = ("會員卡", "Membership card"),
+        ["discount"] = ("折扣與優惠", "Discounts & offers"),
+        ["gift"] = ("禮品", "Gifts"),
         ["event"] = ("活動", "Events"),
+        ["content"] = ("內容與溝通", "Content & community"),
     };
+
+    /// <summary>條目代碼：小寫英數與底線（對照表的列鍵，不顯示給一般使用者）。</summary>
+    private static readonly System.Text.RegularExpressions.Regex CodeShape = new("^[a-z0-9_]{1,64}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Compiled);
 
     private static readonly HashSet<string> Statuses = new(StringComparer.Ordinal) { "draft", "published" };
 
@@ -47,7 +52,7 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
 
         if (!string.IsNullOrWhiteSpace(group))
         {
-            AdminInput.OneOf(group, GroupLabels.Keys.ToHashSet(), "分組", "「會員卡」「店家折扣」「球衣」或「活動」");
+            AdminInput.OneOf(group, GroupLabels.Keys.ToHashSet(), "分組", "「會員卡」「折扣與優惠」「禮品」「活動」或「內容與溝通」");
             query = query.Where(b => b.BenefitGroup == group);
         }
 
@@ -60,20 +65,20 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
         var rows = await query.OrderBy(b => b.MembershipPlan.Season.StartOn).ThenBy(b => b.MembershipPlan.SortOrder).ThenBy(b => b.SortOrder).ThenBy(b => b.RowSeq)
             .Select(b => new
             {
-                b.Id, b.MembershipPlanId, PlanCode = b.MembershipPlan.Code, SeasonCode = b.MembershipPlan.Season.Code, b.BenefitGroup, b.SortOrder, b.Status, b.UpdatedAt,
+                b.Id, b.BenefitCode, b.MembershipPlanId, PlanCode = b.MembershipPlan.Code, SeasonCode = b.MembershipPlan.Season.Code, b.BenefitGroup, b.SortOrder, b.Status, b.UpdatedAt,
                 PlanName = b.MembershipPlan.MembershipPlansI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameZh = b.MembershipBenefitsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = b.MembershipBenefitsI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
-                FreeZh = b.MembershipBenefitsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.FreeValue).FirstOrDefault(),
-                PaidZh = b.MembershipBenefitsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.PaidValue).FirstOrDefault(),
+                ValueZh = b.MembershipBenefitsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Value).FirstOrDefault(),
+                ValueEn = b.MembershipBenefitsI18ns.Where(i => i.Locale == "en").Select(i => i.Value).FirstOrDefault(),
             })
             .ToListAsync(cancellationToken);
 
         return rows.Select(r => new AdminBenefitListItemDto
         {
-            Id = r.Id, PlanId = r.MembershipPlanId, PlanCode = r.PlanCode, PlanName = r.PlanName, SeasonCode = r.SeasonCode, Group = r.BenefitGroup,
+            Id = r.Id, Code = r.BenefitCode, PlanId = r.MembershipPlanId, PlanCode = r.PlanCode, PlanName = r.PlanName, SeasonCode = r.SeasonCode, Group = r.BenefitGroup,
             GroupLabel = GroupLabels.TryGetValue(r.BenefitGroup, out var gl) ? gl.Zh : r.BenefitGroup, SortOrder = r.SortOrder, Status = r.Status,
-            StatusLabel = StatusLabel(r.Status), NameZh = r.NameZh, NameEn = r.NameEn, FreeValueZh = r.FreeZh, PaidValueZh = r.PaidZh, UpdatedAt = r.UpdatedAt,
+            StatusLabel = StatusLabel(r.Status), NameZh = r.NameZh, NameEn = r.NameEn, ValueZh = r.ValueZh, ValueEn = r.ValueEn, UpdatedAt = r.UpdatedAt,
         }).ToList();
     }
 
@@ -94,15 +99,29 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
         var sortOrder = request.SortOrder
             ?? ((await db.MembershipBenefits.AsNoTracking().Where(b => b.MembershipPlanId == plan.Id).MaxAsync(b => (int?)b.SortOrder, cancellationToken)) ?? -1) + 1;
 
+        var code = string.IsNullOrWhiteSpace(request.Code) ? $"item_{Guid.NewGuid().ToString("N")[..8]}" : request.Code.Trim();
+        if (await db.MembershipBenefits.AsNoTracking().AnyAsync(b => b.MembershipPlanId == plan.Id && b.BenefitCode == code, cancellationToken))
+        {
+            throw new AdminConflictException("條目重複", "這個方案已經有同一條權益了，請直接編輯那一條。", "code");
+        }
+
         var now = DateTime.UtcNow;
         var benefit = new MembershipBenefit
         {
-            Id = Guid.NewGuid(), MembershipPlanId = plan.Id, BenefitGroup = request.Group, SortOrder = sortOrder, Status = request.Status,
+            Id = Guid.NewGuid(), MembershipPlanId = plan.Id, BenefitCode = code, BenefitGroup = request.Group, SortOrder = sortOrder, Status = request.Status,
             CreatedAt = now, UpdatedAt = now, CreatedBy = operatorId, UpdatedBy = operatorId,
         };
         db.MembershipBenefits.Add(benefit);
         SetI18n(benefit, request);
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
+        {
+            throw new AdminConflictException("條目重複", "這個方案已經有同一條權益了，請直接編輯那一條。", "code"); // 並行新增同一代碼
+        }
+
         return (await GetByIdAsync(scope, benefit.Id, cancellationToken))!;
     }
 
@@ -119,6 +138,11 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
         if (request.PlanId != benefit.MembershipPlanId)
         {
             throw new AdminValidationException("權益條目不能搬到其他方案；請在新方案底下新增，再刪除這一條。", "planId");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Code) && !string.Equals(request.Code.Trim(), benefit.BenefitCode, StringComparison.Ordinal))
+        {
+            throw new AdminValidationException("權益條目的對照代碼建立後不能變更；請新增一條再刪除這一條。", "code");
         }
 
         benefit.BenefitGroup = request.Group;
@@ -184,7 +208,12 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
 
     private static void Validate(UpsertAdminBenefitRequest request)
     {
-        AdminInput.OneOf(request.Group, GroupLabels.Keys.ToHashSet(), "分組", "「會員卡」「店家折扣」「球衣」或「活動」", "group");
+        AdminInput.OneOf(request.Group, GroupLabels.Keys.ToHashSet(), "分組", "「會員卡」「折扣與優惠」「禮品」「活動」或「內容與溝通」", "group");
+        if (!string.IsNullOrWhiteSpace(request.Code) && !CodeShape.IsMatch(request.Code.Trim()))
+        {
+            throw new AdminValidationException("權益條目的對照代碼只能用小寫英文、數字與底線（最多 64 字元）。", "code");
+        }
+
         AdminInput.OneOf(request.Status, Statuses, "狀態", "「上架」或「下架」", "status");
         AdminInput.OptionalNonNegative(request.SortOrder, "排序", "sortOrder");
         ValidateLocale(request.Content.Zh, "中文", "Zh");
@@ -197,8 +226,7 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
     private static void ValidateLocale(AdminBenefitLocaleContent content, string prefix, string suffix)
     {
         AdminInput.RequireText(content.Name, $"{prefix}條目名稱", 128, "name" + suffix);
-        AdminInput.OptionalText(content.FreeValue, $"{prefix}免費層對應值", 255, "freeValue" + suffix);
-        AdminInput.OptionalText(content.PaidValue, $"{prefix}付費層對應值", 255, "paidValue" + suffix);
+        AdminInput.OptionalText(content.Value, $"{prefix}對應值", 255, "value" + suffix);
     }
 
     private async Task<MembershipPlan> ResolvePlanAsync(AdminClubScope scope, Guid planId, CancellationToken cancellationToken)
@@ -232,8 +260,7 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
 
         row.Name = content.Name.Trim();
         row.Description = string.IsNullOrWhiteSpace(content.Description) ? null : content.Description;
-        row.FreeValue = string.IsNullOrWhiteSpace(content.FreeValue) ? null : content.FreeValue.Trim();
-        row.PaidValue = string.IsNullOrWhiteSpace(content.PaidValue) ? null : content.PaidValue.Trim();
+        row.Value = string.IsNullOrWhiteSpace(content.Value) ? null : content.Value.Trim();
         row.GroupLabel = groupLabel;
     }
 
@@ -246,11 +273,11 @@ public sealed class AdminBenefitsRepository(ClubDbContext db)
         var planName = b.MembershipPlan.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Name;
         return new AdminBenefitDetailDto
         {
-            Id = b.Id, PlanId = b.MembershipPlanId, PlanCode = b.MembershipPlan.Code, PlanName = planName, SeasonCode = b.MembershipPlan.Season.Code,
+            Id = b.Id, Code = b.BenefitCode, PlanId = b.MembershipPlanId, PlanCode = b.MembershipPlan.Code, PlanName = planName, SeasonCode = b.MembershipPlan.Season.Code,
             Group = b.BenefitGroup, GroupLabel = GroupLabels.TryGetValue(b.BenefitGroup, out var gl) ? gl.Zh : b.BenefitGroup, SortOrder = b.SortOrder,
             Status = b.Status, StatusLabel = StatusLabel(b.Status),
-            Zh = new AdminBenefitLocaleContent { Name = zh?.Name ?? "", Description = zh?.Description, FreeValue = zh?.FreeValue, PaidValue = zh?.PaidValue },
-            En = en is null ? null : new AdminBenefitLocaleContent { Name = en.Name ?? "", Description = en.Description, FreeValue = en.FreeValue, PaidValue = en.PaidValue },
+            Zh = new AdminBenefitLocaleContent { Name = zh?.Name ?? "", Description = zh?.Description, Value = zh?.Value },
+            En = en is null ? null : new AdminBenefitLocaleContent { Name = en.Name ?? "", Description = en.Description, Value = en.Value },
             CreatedAt = b.CreatedAt, UpdatedAt = b.UpdatedAt,
         };
     }

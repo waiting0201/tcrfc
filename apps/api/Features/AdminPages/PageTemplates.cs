@@ -200,6 +200,13 @@ public static class PageTemplates
                 return new JsonObject { ["items"] = new JsonArray(Enumerable.Range(0, rowCount).Select(_ => (JsonNode)new JsonObject { ["value"] = "", ["label"] = Bi() }).ToArray()) };
             case PageBlockTypes.AccordionFaq:
                 return new JsonObject { ["items"] = new JsonArray(Enumerable.Range(0, rowCount).Select(_ => (JsonNode)new JsonObject { ["question"] = Bi(), ["answer"] = Bi() }).ToArray()) };
+            case PageBlockTypes.Table:
+                // 表格：一列表頭（欄位標題中文必填，編輯者填）＋一列空資料；欄數預設 3（梯隊／星期與時段／地點）。
+                return new JsonObject
+                {
+                    ["headers"] = new JsonArray(Enumerable.Range(0, 3).Select(_ => (JsonNode)Bi()).ToArray()),
+                    ["rows"] = new JsonArray(),
+                };
             default:
                 throw new NotSupportedException($"版型區塊 {def.Key} 的類型 {def.BlockType} 尚未提供空白骨架。");
         }
@@ -223,6 +230,10 @@ public static class PageTemplates
     private static PageTemplateBlock EditableTimeline(string key, string label, string? hint = null)
         => new() { Key = key, BlockType = PageBlockTypes.Timeline, LabelZh = label, HintZh = hint, AllowRowEdit = true };
 
+    /// <summary>表格：欄位標題由內容決定、資料列可增刪。</summary>
+    private static PageTemplateBlock EditableTable(string key, string label, string? hint = null)
+        => new() { Key = key, BlockType = PageBlockTypes.Table, LabelZh = label, HintZh = hint, AllowRowEdit = true };
+
     private static PageTemplate T(string club, string slug, string titleZh, string? titleEn, params PageTemplateBlock[] blocks)
         => new() { ClubCode = club, Slug = slug, TitleZh = titleZh, TitleEn = titleEn, Blocks = blocks };
 
@@ -233,7 +244,7 @@ public static class PageTemplates
     {
         var list = new List<PageTemplate>();
 
-        // ── 磐石（12 頁）──
+        // ── 磐石（13 頁）──
         list.Add(T(Tcrfc, "about/our-story", "我們的故事", "Our Story",
             Text("story", "故事內文", "介紹俱樂部的成立與定位，段落之間空一行。")));
 
@@ -241,8 +252,8 @@ public static class PageTemplates
             FixedSteps("visionMission", "願景與使命", 2, "固定兩項：願景、使命。")));
 
         list.Add(T(Tcrfc, "about/philosophy", "足球理念", "Our Philosophy",
-            Text("valuesIntro", "核心價值說明", "五大核心價值上方的一句說明。"),
-            FixedSteps("coreValues", "五大核心價值", 5, "固定五項：以球員為本、追求卓越、國際發展、社區共好、誠信專業。")));
+            Text("valuesIntro", "核心價值說明", "四大核心價值上方的說明文字，段落之間空一行。"),
+            FixedSteps("coreValues", "四大核心價值", 4, "固定四項：啟發球員、塑造冠軍、在地驕傲、撼動全球（同時是全站內容標籤）。")));
 
         list.Add(T(Tcrfc, "about/governance", "治理與管理", "Governance",
             Text("documentsNote", "公開文件說明", "公開文件區的說明文字；可下載檔案清單尚未開放維護。")));
@@ -263,6 +274,18 @@ public static class PageTemplates
         list.Add(T(Tcrfc, "club/player-stories", "球員故事", "Player Stories",
             EditableSteps("stories", "球員故事案例", "每一列是一位球員：標題為姓名，說明為位置與背號等簡述。"),
             Text("note", "補充說明")));
+
+        // 4.4 訓練課程與課綱（主站規劃書 v3.29 §4.2 B1，客戶 4.4 文件）：藍鯨不設。
+        list.Add(T(Tcrfc, "academy/curriculum", "訓練課程與課綱", "Training & Curriculum",
+            Text("philosophy", "訓練理念", "一段文字。"),
+            Text("environment", "環境說明", "一段文字。"),
+            FixedSteps("vision", "願景", 4, "固定四項，各填名稱（說明可空）。"),
+            Text("framework", "培訓方式與訓練架構", "一段文字。"),
+            EditableSteps("competitions", "賽事規劃", "每一列一類賽事（國內賽事、國際賽事、移地訓練等）：標題填類別，說明填內容。"),
+            Text("representation", "參賽原則與賽事代表權", "一段文字，段落之間空一行。"),
+            Text("education", "足球與教育的結合", "一段文字。"),
+            FixedSteps("conduct", "行為規範", 3, "固定三項：球員規範、家長規範、共同原則，各填說明。"),
+            EditableTable("schedule", "各梯隊訓練時間與地點", "每一列一個時段：梯隊、星期與時段、地點。")));
 
         list.Add(T(Tcrfc, "womens", "女子足球", "Women's Football",
             Text("intro", "藍鯨女子隊介紹", "女子足球頁的簡介段；事實面板與前往官網按鈕不在此編輯。")));

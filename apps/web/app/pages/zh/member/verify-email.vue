@@ -2,7 +2,7 @@
 // app/pages/zh/member/verify-email.vue — Email 驗證連結頁（`/{zh|en}/member/verify-email?token=…`，S2-11）
 //
 // 信件連結的落地頁。驗證在瀏覽器端進行（onMounted 才呼叫），後端驗證是冪等的，重複點擊不會出錯。
-// 成功後該俱樂部會自動建立免費（一般會員）會籍與第一張會員卡。連結 24 小時有效，失效時提供重寄。
+// 成功後帳號啟用。🔴 v3.29：註冊帳號不是會籍，驗證完成**不會**建立會籍或電子會員卡；成為會員需購買會籍方案。連結 24 小時有效，失效時提供重寄。
 import { toMemberApiError } from '#shared/utils/member'
 
 definePageMeta({ nav: '', unit: '14', enReady: true, enReadyBw: true })
@@ -80,8 +80,8 @@ async function resend() {
     <div class="form-layout form-layout--narrow">
       <p v-if="state === 'checking'" class="mc-empty" role="status">{{ tx('驗證中…', 'Verifying…') }}</p>
       <div v-else-if="state === 'ok'" class="mc-alert mc-alert--ok" role="status">
-        <p v-if="isEn"><strong>Your email has been verified.</strong> Your account is now active, and a Registered member membership and digital membership card for {{ clubNameEn }} have been created.</p>
-        <p v-else><strong>Email 驗證完成。</strong>您的帳號已啟用，並已建立{{ clubAssets.shortNameZh }}的一般會員會籍與電子會員卡。</p>
+        <p v-if="isEn"><strong>Your email has been verified.</strong> Your account is now active. You can sign in, register for programs and events, and shop in the store. To become a {{ clubNameEn }} member and receive a digital membership card, purchase a membership plan in the Member Centre.</p>
+        <p v-else><strong>Email 驗證完成。</strong>您的帳號已啟用，可以登入、報名課程與活動、在商店購物。要成為{{ clubAssets.shortNameZh }}會員並取得電子會員卡，請至會員中心購買會籍方案。</p>
         <p><a class="btn btn--primary btn--sm" :href="lp('/zh/member/')">{{ tx('前往登入', 'Go to sign in') }}</a></p>
       </div>
       <template v-else>

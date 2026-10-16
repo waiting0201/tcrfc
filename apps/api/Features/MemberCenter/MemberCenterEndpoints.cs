@@ -23,21 +23,6 @@ public static class MemberCenterEndpoints
         .Produces<MyMembershipsDto>()
         .Produces(StatusCodes.Status401Unauthorized);
 
-        // POST /api/v1/{club}/member/memberships/join —— 加入這個俱樂部（免費一般會員）
-        app.MapPost("/api/v1/{club}/member/memberships/join", async (
-            string club, string? lang, HttpContext http, IClubResolver clubs, MemberAuthenticator authenticator, MemberCenterService center, CancellationToken ct) =>
-        {
-            var me = await authenticator.RequireAsync(http, ct, requireVerifiedEmail: true);
-            var scope = await clubs.ResolveAsync(club, ct);
-            return Results.Ok(await center.JoinAsync(me.MemberId, scope, Lang(lang), ct));
-        })
-        .WithName("JoinClubMembership")
-        .WithTags("MemberCenter")
-        .RequireRateLimiting(PublicRateLimitPolicies.MemberWrite)
-        .Produces<MyMembershipDto>()
-        .Produces(StatusCodes.Status403Forbidden)
-        .Produces(StatusCodes.Status409Conflict);
-
         // GET /api/v1/member/cards?lang=zh —— 電子會員卡（每份會籍一張，家庭方案多張），已展平
         app.MapGet("/api/v1/member/cards", async (
             string? lang, HttpContext http, MemberAuthenticator authenticator, MemberCenterService center, CancellationToken ct) =>

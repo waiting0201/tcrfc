@@ -10,6 +10,7 @@
 // `COACH_TRAINING_BODY_BW`（逐字節錄舊站原文，紀律 11）。磐石版「合作學校列表」與
 // 「社區計畫」「教練培訓」兩段既有內容本來就是空白（客戶尚未提供），維持原樣，
 // 不臆造磐石的對應內容。
+// 2026-10-16（v3.29）：合作學校列表改讀 E1 合作夥伴（類型「教育夥伴」），不再是寫死的空表（見下方 schoolRows）。
 definePageMeta({ nav: 'programs', unit: '5.5', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
@@ -24,7 +25,27 @@ useSeoMeta({
   description: computed(() => (isEn.value ? getSchoolCommunitySeoEn(clubKey.value) : getSchoolCommunitySeo(clubKey.value)).description),
 })
 
-const schoolPartners = computed(() => (isEn.value ? SCHOOL_PARTNERS_BW_EN : SCHOOL_PARTNERS_BW))
+const schoolPartnersBw = computed(() => (isEn.value ? SCHOOL_PARTNERS_BW_EN : SCHOOL_PARTNERS_BW))
+// 5.5 合作學校列表（主站規劃書 v3.29 §3.5）：資料來源＝E1 合作夥伴中類型為「教育夥伴」者（API 已套合作期間濾法，同 9.1）。
+// 藍鯨：後台尚無「教育夥伴」資料時，沿用舊站建教合作 5 校（SCHOOL_PARTNERS_BW，逐字節錄）；磐石沒有就顯示空狀態，不臆造。
+const { partners: eduPartners } = await usePartnerList({ type: '教育夥伴' })
+const yearOf = (iso: string | null) => (iso ? iso.slice(0, 4) : '')
+const schoolRows = computed(() => {
+  if (eduPartners.value.length > 0) {
+    return eduPartners.value.map((p) => {
+      const from = yearOf(p.startOn)
+      const to = yearOf(p.endOn)
+      return {
+        key: p.id,
+        name: p.name ?? p.slug,
+        content: p.content ?? '',
+        year: from && to && from !== to ? `${from}–${to}` : (from || to || null),
+      }
+    })
+  }
+  if (!isTcrfc.value) return schoolPartnersBw.value.map(s => ({ key: s.nameZh, name: s.nameZh, content: s.contentZh, year: s.yearZh }))
+  return []
+})
 const clubNameEn = computed(() => (isTcrfc.value ? 'Taichung Rock FC' : BW_NAME_EN))
 // B-8：全部已發布校園與社區課程的詳情（內容、教練團、合作夥伴、封面）。
 const { programs, first: programDetail } = await useProgramsOfType('school_community')
@@ -99,25 +120,23 @@ useCourseSchema(
   <div class="container">
     <div class="prose" style="margin-bottom:1.5rem;">
       <h2 id="sch-list-title">{{ tx('合作學校列表', 'Partner Schools') }}</h2>
-      <p v-if="!isTcrfc">{{ tx('台中藍鯨既有建教合作學校（女子足球隊）如下：', `The existing industry-academia partner schools (women's football teams) of ${BW_NAME_EN} are listed below:`) }}</p>
-      <p v-else>{{ tx('合作學校名單將於客戶確認後公告於此處。', 'The list of partner schools will be published here once confirmed.') }}</p>
+      <p v-if="schoolRows.length > 0">{{ isTcrfc ? tx('與台中磐石合作的學校與教育單位如下：', 'The schools and education partners working with Taichung Rock FC are listed below:') : tx('台中藍鯨既有建教合作學校（女子足球隊）如下：', `The existing industry-academia partner schools (women's football teams) of ${BW_NAME_EN} are listed below:`) }}</p>
+      <p v-else>{{ tx('合作學校名單將於確認後公告於此處。', 'The list of partner schools will be published here once confirmed.') }}</p>
     </div>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
           <tr><th scope="col">{{ tx('學校／單位', 'School / organisation') }}</th><th scope="col">{{ tx('合作內容', 'Collaboration') }}</th><th scope="col">{{ tx('合作年度', 'Year') }}</th></tr>
         </thead>
-        <tbody v-if="!isTcrfc">
-          <tr v-for="s in schoolPartners" :key="s.nameZh">
-            <td>{{ s.nameZh }}</td>
-            <td>{{ s.contentZh }}</td>
-            <td :class="{ 'is-pending': !s.yearZh }">{{ s.yearZh ?? tx('未標明年度', SCHOOL_PARTNER_NO_YEAR_EN) }}</td>
+        <tbody v-if="schoolRows.length > 0">
+          <tr v-for="s in schoolRows" :key="s.key">
+            <td>{{ s.name }}</td>
+            <td>{{ s.content }}</td>
+            <td :class="{ 'is-pending': !s.year }">{{ s.year ?? tx('未標明年度', SCHOOL_PARTNER_NO_YEAR_EN) }}</td>
           </tr>
         </tbody>
         <tbody v-else>
-          <tr></tr>
-          <tr></tr>
-          <tr></tr>
+          <tr><td colspan="3" class="is-pending">{{ tx('尚無合作學校資料。', 'No partner schools listed yet.') }}</td></tr>
         </tbody>
       </table>
     </div>

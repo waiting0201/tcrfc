@@ -31,7 +31,7 @@ useSeoMeta({
   title: computed(() => isEn.value ? getNewsCategorySeoEn('community', articles.value.length, clubKey).title : (club === 'bw' ? `社區活動 Community｜新聞 News｜${getClubAssets(club).nameZh}` : "社區活動 Community｜新聞 News｜台中磐石足球俱樂部")),
   description: computed(() => isEn.value ? getNewsCategorySeoEn('community', articles.value.length, clubKey).description : (club === 'bw'
     ? `${getClubAssets(club).shortNameZh}社區公益與地方合作活動紀錄，共 ${articles.value.length} 篇真實報導。`
-    : "台中磐石社區公益與地方合作活動紀錄，共 3 篇真實報導，呼應「Community 社區共好」核心價值。")),
+    : "台中磐石社區公益與地方合作活動紀錄，共 3 篇真實報導，呼應「在地驕傲 Local pride」核心價值。")),
 })
 </script>
 

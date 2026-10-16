@@ -10,7 +10,7 @@ using Tcrfc.Api.Features.MemberCenter;
 namespace Tcrfc.Api.Features.MembershipPayments;
 
 /// <summary>
-/// 會籍開通（App 規劃書 §9.7 的 <c>POST /api/membership/activate</c> 核心）：把「已付款」的訂單變成球迷會員會籍。
+/// 會籍開通（App 規劃書 §9.7 的 <c>POST /api/membership/activate</c> 核心）：把「已付款」的訂單變成會籍（層級隨方案：磐石會員 <c>standard</c>／尊尚會員 <c>premium</c>）。
 /// 觸發來源只有兩種——付款確認後（<c>payment</c>）與內部端點（<c>internal</c>）；後台客服手動開通走 K2（<c>AdminMembershipsRepository.ActivateAsync</c>，
 /// 兩者共用同一套「會籍＋付款紀錄＋會員卡」的寫法，<b>會員模組的開通邏輯一行不改，只是觸發者不同</b>）。
 ///
@@ -121,12 +121,12 @@ public sealed class MembershipActivationService(ClubDbContext db, IEmailSender e
             };
             db.Memberships.Add(membership);
         }
-        else if (membership.Tier != "fan_club" || membership.Status != "active" || membership.MembershipStartOn is null)
+        else if (membership.Status != "active" || membership.MembershipStartOn is null)
         {
             membership.MembershipStartOn = startOn;
         }
 
-        membership.Tier = "fan_club";
+        membership.Tier = plan.Tier;
         membership.Status = "active";
         membership.MembershipPlanId = plan.Id;
         membership.MembershipEndOn = endOn;
@@ -152,8 +152,8 @@ public sealed class MembershipActivationService(ClubDbContext db, IEmailSender e
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        logger.LogInformation("會籍開通：訂單 {OrderNo}、來源 {Source}、俱樂部 {Club}、異動前 {Before} → 異動後 fan_club/active、到期 {EndOn}",
-            orderNo, source, order.Club.Code, before, endOn);
+        logger.LogInformation("會籍開通：訂單 {OrderNo}、來源 {Source}、俱樂部 {Club}、異動前 {Before} → 異動後 {Tier}/active、到期 {EndOn}",
+            orderNo, source, order.Club.Code, before, plan.Tier, endOn);
 
         await SendConfirmationAsync(member, order, plan, endOn, cancellationToken);
         return new MembershipActivationResultDto { OrderNo = orderNo, Status = "activated", MembershipId = membership.Id, AlreadyActivated = false };

@@ -65,7 +65,7 @@ public sealed class AdminMembershipsRepository(
 
         if (!string.IsNullOrWhiteSpace(filter.Tier))
         {
-            AdminInput.OneOf(filter.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「一般會員」或「球迷會員」");
+            AdminInput.OneOf(filter.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「磐石會員」或「尊尚會員」");
             query = query.Where(m => m.Tier == filter.Tier);
         }
 
@@ -196,7 +196,7 @@ public sealed class AdminMembershipsRepository(
         return new AdminMembershipListItemDto
         {
             MembershipId = r.Id, MemberId = r.MemberId, MemberNo = r.MemberNo, MemberName = PiiMasking.MaskName(r.MemberName),
-            Tier = r.Tier, TierLabel = MemberLabels.Of(MemberLabels.Tier, r.Tier)!, Status = r.Status, EffectiveStatus = effective,
+            Tier = r.Tier, TierLabel = MemberLabels.TierName(r.Tier, false, r.PlanName), Status = r.Status, EffectiveStatus = effective,
             EffectiveStatusLabel = MemberLabels.Of(MemberLabels.MembershipStatus, effective)!, SeasonId = r.SeasonId, SeasonCode = r.SeasonCode,
             StartOn = r.StartOn, EndOn = r.EndOn, DaysToExpire = r.EndOn is DateOnly end ? end.DayNumber - today.DayNumber : null,
             PlanId = r.PlanId, PlanName = r.PlanName, CardCount = r.CardCount, PaidTotal = r.PaidTotal, UpdatedAt = r.UpdatedAt,
@@ -295,7 +295,7 @@ public sealed class AdminMembershipsRepository(
     // ═══════════════════════════ 開通與續會 ═══════════════════════════
 
     /// <summary>
-    /// 手動開通／續會：找到或建立「這位會員在這個俱樂部這個球季」的會籍，升為球迷會員並設定起訖，寫一筆付款紀錄
+    /// 手動開通／續會：找到或建立「這位會員在這個俱樂部這個球季」的會籍，層級隨方案（standard／premium）並設定起訖，寫一筆付款紀錄
     /// （同時記受益俱樂部與收款法人），確保有一張使用中的會員卡。全程一個交易。續會就是用下一球季的方案再開通一次。
     /// 同一份會籍、同一方案、同一付款日與金額重複送出視為重複開通（409）。
     /// </summary>
@@ -352,6 +352,14 @@ public sealed class AdminMembershipsRepository(
         var membership = await db.Memberships
             .FirstOrDefaultAsync(m => m.MemberId == member.Id && m.ClubId == scope.ClubId && m.SeasonId == plan.SeasonId, cancellationToken);
 
+        // 🔴 不提供會籍期間內升級（v3.29）：這個球季已有有效會籍且方案不同＝升級，後台同樣不做（沒有補差價流程）；
+        // 要改選方案，等目前會籍到期、續約下一球季時再開通。同方案的重複開通由下面的 409 檢查處理。
+        if (membership is not null && membership.MembershipPlanId != plan.Id
+            && MemberLabels.EffectiveMembershipStatus(membership.Status, membership.MembershipEndOn, today) == "active")
+        {
+            throw new AdminConflictException("無法升級", "這位會員在這個球季已經有有效的會籍，會籍期間內不能改開通其他方案（沒有升級流程）。請等目前會籍到期後，續約時再改選方案。", "planId");
+        }
+
         if (membership is not null && await db.MembershipPayments.AsNoTracking().AnyAsync(
                 p => p.MembershipId == membership.Id && p.MembershipPlanId == plan.Id && p.PaidOn == request.PaidOn && p.Amount == request.Amount,
                 cancellationToken))
@@ -368,12 +376,12 @@ public sealed class AdminMembershipsRepository(
             };
             db.Memberships.Add(membership);
         }
-        else if (membership.Tier != "fan_club" || membership.Status != "active" || membership.MembershipStartOn is null)
+        else if (membership.Status != "active" || membership.MembershipStartOn is null)
         {
             membership.MembershipStartOn = startOn;
         }
 
-        membership.Tier = "fan_club";
+        membership.Tier = plan.Tier;
         membership.Status = "active";
         membership.MembershipPlanId = plan.Id;
         membership.MembershipEndOn = endOn;
@@ -413,37 +421,6 @@ public sealed class AdminMembershipsRepository(
         return (await GetByIdAsync(scope, membership.Id, cancellationToken))!;
     }
 
-    /// <summary>建立免費（一般會員）會籍與第一張會員卡。已經有這一季的會籍 → 409。</summary>
-    public async Task<AdminMembershipDetailDto> RegisterAsync(
-        AdminClubScope scope, RegisterMembershipRequest request, CancellationToken cancellationToken)
-    {
-        var season = await db.Seasons.AsNoTracking().FirstOrDefaultAsync(s => s.Id == request.SeasonId && s.ClubId == scope.ClubId, cancellationToken)
-            ?? throw new AdminValidationException("找不到指定的球季，請確認球季屬於目前的俱樂部。", "seasonId");
-        var member = await db.Members.AsNoTracking().FirstOrDefaultAsync(m => m.Id == request.MemberId, cancellationToken)
-            ?? throw new AdminValidationException("找不到指定的會員，請確認會員資料是否存在。", "memberId");
-        if (member.Status == "deleted")
-        {
-            throw new AdminValidationException("這個帳號已刪除或已合併，無法建立會籍。", "memberId");
-        }
-
-        if (await db.Memberships.AsNoTracking().AnyAsync(m => m.MemberId == member.Id && m.ClubId == scope.ClubId && m.SeasonId == season.Id, cancellationToken))
-        {
-            throw new AdminConflictException("會籍已存在", "這位會員在這個球季已經有會籍了。", "memberId");
-        }
-
-        var now = DateTime.UtcNow;
-        var membership = new Membership
-        {
-            Id = Guid.NewGuid(), MemberId = member.Id, ClubId = scope.ClubId, SeasonId = season.Id, Tier = "registered", Status = "active",
-            MembershipStartOn = season.StartOn, MembershipEndOn = season.EndOn, CreatedAt = now, UpdatedAt = now,
-            CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
-        };
-        db.Memberships.Add(membership);
-        db.MemberCards.Add(NewCard(membership.Id, scope.ClubId, member.Name, scope.Identity.AdminUserId, now));
-        await db.SaveChangesAsync(cancellationToken);
-        return (await GetByIdAsync(scope, membership.Id, cancellationToken))!;
-    }
-
     private static MemberCard NewCard(Guid membershipId, Guid clubId, string holderName, Guid? operatorId, DateTime now) => new()
     {
         Id = Guid.NewGuid(), MembershipId = membershipId, ClubId = clubId, HolderName = holderName, Token = SecureToken.Generate(),
@@ -464,7 +441,7 @@ public sealed class AdminMembershipsRepository(
 
         if (request.Tier is not null)
         {
-            AdminInput.OneOf(request.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「一般會員」或「球迷會員」", "tier");
+            AdminInput.OneOf(request.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「磐石會員」或「尊尚會員」", "tier");
         }
 
         if (request.Status is not null)

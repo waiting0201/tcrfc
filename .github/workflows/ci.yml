@@ -94,6 +94,9 @@ jobs:
               - 'db/prod/**'
               - 'content/blue-whale/data/**'
               - 'site/src/data/**'
+              - 'deploy/*.sh'
+              - 'deploy/lib/**'
+              - 'deploy/check-sqlcmd-input.py'
             schema:
               - 'db/club-schema.sql'
               - 'db/charity-schema.sql'
@@ -413,6 +416,9 @@ jobs:
         run: |
           python3 db/seed/generate-prod-content-sql.py --check \
             || { echo "::error::db/prod/*-content-seed.sql 與開發種子不一致。請在本機執行 python3 db/seed/generate-prod-content-sql.py 並一併提交（docs/18 E-157）。"; exit 1; }
+
+      - name: sqlcmd 不得以 stdin 讀 SQL，且正式庫腳本須轉 UTF-16（E-296／E-330）
+        run: python3 deploy/check-sqlcmd-input.py
 
       - name: 參照資料（club／charity-reference-data.sql）
         run: |

@@ -17,12 +17,6 @@ namespace Tcrfc.Api.Features.MemberCenter;
 /// </summary>
 public sealed class MemberCenterService(ClubDbContext db, MemberMembershipService membershipService)
 {
-    private static readonly IReadOnlyDictionary<string, string> TierLabelEn = new Dictionary<string, string>(StringComparer.Ordinal)
-    {
-        ["registered"] = "Member",
-        ["fan_club"] = "Fan Club Member",
-    };
-
     private static readonly IReadOnlyDictionary<string, string> StatusLabelEn = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["pending"] = "Pending",
@@ -44,7 +38,8 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
         ["pickup"] = "Pick-up",
     };
 
-    public static string TierLabel(string tier, bool en) => en ? TierLabelEn.GetValueOrDefault(tier, tier) : MemberLabels.Of(MemberLabels.Tier, tier)!;
+    /// <summary>層級顯示名稱：優先用會籍所屬方案的名稱（藍鯨方案自訂），沒有方案名稱時用層級預設名稱（<see cref="MemberLabels.TierName"/>）。</summary>
+    public static string TierLabel(string tier, bool en, string? planName = null) => MemberLabels.TierName(tier, en, planName);
 
     public static string StatusLabel(string status, bool en) => en ? StatusLabelEn.GetValueOrDefault(status, status) : MemberLabels.Of(MemberLabels.MembershipStatus, status)!;
 
@@ -58,13 +53,18 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
         var rows = await db.Memberships.AsNoTracking().Where(m => m.MemberId == memberId)
             .Include(m => m.Club).ThenInclude(c => c.ClubsI18ns)
             .Include(m => m.Season).Include(m => m.MemberCards)
-            .Include(m => m.MembershipPlan).ThenInclude(p => p!.MembershipPlansI18ns)
+            .Include(m => m.MembershipPlan).ThenInclude(p => p.MembershipPlansI18ns)
             .OrderBy(m => m.Club.SortOrder).ThenByDescending(m => m.Season.StartOn)
             .AsSplitQuery().ToListAsync(cancellationToken);
 
         var openOrders = await db.MembershipOrders.AsNoTracking()
             .Where(o => o.MemberId == memberId && (o.Status == "created" || o.Status == "pending_payment"))
-            .Select(o => new { o.OrderNo, o.Status, o.ClubId, o.MembershipPlan.SeasonId }).ToListAsync(cancellationToken);
+            .Select(o => new
+            {
+                o.OrderNo, o.Status, o.ClubId, o.MembershipPlan.SeasonId, ClubCode = o.Club.Code, PlanCode = o.MembershipPlan.Code,
+                SeasonCode = o.MembershipPlan.Season.Code, PlanNameZh = o.MembershipPlan.MembershipPlansI18ns.Where(i => i.Locale == "zh-Hant").Select(i => i.Name).FirstOrDefault(),
+                PlanNameEn = o.MembershipPlan.MembershipPlansI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
+            }).ToListAsync(cancellationToken);
 
         var items = rows.Select(m =>
         {
@@ -73,10 +73,10 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
             var brand = Brand(m.Club, en);
             return new MyMembershipDto
             {
-                Id = m.Id, Club = brand, SeasonCode = m.Season.Code, Tier = m.Tier, TierLabel = TierLabel(m.Tier, en),
+                Id = m.Id, Club = brand, SeasonCode = m.Season.Code, Tier = m.Tier, TierLabel = TierLabel(m.Tier, en, PlanName(m.MembershipPlan, en)),
                 Status = effective, StatusLabel = StatusLabel(effective, en), StartOn = m.MembershipStartOn, EndOn = m.MembershipEndOn,
-                PlanCode = m.MembershipPlan?.Code, PlanName = m.MembershipPlan is null ? null : PlanName(m.MembershipPlan, en),
-                CardQuota = m.MembershipPlan?.CardQuota ?? 1, JerseyQuota = m.MembershipPlan?.JerseyQuota ?? 0,
+                PlanCode = m.MembershipPlan.Code, PlanName = PlanName(m.MembershipPlan, en),
+                CardQuota = m.MembershipPlan.CardQuota, JerseyQuota = m.MembershipPlan.JerseyQuota,
                 IsCurrentSeason = m.Season.StartOn <= today && today <= m.Season.EndOn,
                 RenewalDue = effective == "active" && m.MembershipEndOn is DateOnly end && end <= today.AddDays(30),
                 PendingOrder = pending is null ? null : new MemberPendingOrderDto
@@ -87,7 +87,7 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
             };
         }).ToList();
 
-        // 沒有「目前球季」會籍的俱樂部：畫面顯示加入入口。
+        // 沒有「目前球季」會籍的俱樂部：畫面顯示加入入口（導向方案頁購買，註冊帳號本身不是會籍，v3.29）。
         var clubs = await db.Clubs.AsNoTracking().Include(c => c.ClubsI18ns).Where(c => c.Status == "active").OrderBy(c => c.SortOrder).ToListAsync(cancellationToken);
         var joinable = new List<MemberJoinableClubDto>();
         foreach (var club in clubs)
@@ -99,22 +99,18 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
             }
         }
 
-        return new MyMembershipsDto { Memberships = items, JoinableClubs = joinable };
+        var openOrderItems = openOrders.Select(o => new MemberOpenOrderDto
+        {
+            OrderNo = o.OrderNo, Status = o.Status, StatusLabel = MembershipOrderLabels.Of(o.Status, en), ClubCode = o.ClubCode, PlanCode = o.PlanCode,
+            PlanName = en && !string.IsNullOrWhiteSpace(o.PlanNameEn) ? o.PlanNameEn : o.PlanNameZh, SeasonCode = o.SeasonCode,
+        }).ToList();
+        return new MyMembershipsDto { Memberships = items, JoinableClubs = joinable, OpenOrders = openOrderItems };
     }
 
     public async Task<IReadOnlyList<MemberCardDto>> GetCardsAsync(Guid memberId, string lang, CancellationToken cancellationToken)
     {
         var all = await GetMembershipsAsync(memberId, lang, cancellationToken);
         return all.Memberships.SelectMany(m => m.Cards).ToList();
-    }
-
-    public async Task<MyMembershipDto> JoinAsync(Guid memberId, ClubScope club, string lang, CancellationToken cancellationToken)
-    {
-        var member = await db.Members.AsNoTracking().FirstAsync(m => m.Id == memberId, cancellationToken);
-        var membership = await membershipService.EnsureRegisteredAsync(memberId, member.Name, club.ClubId, cancellationToken)
-                         ?? throw new MemberConflictException("目前無法加入", "這個俱樂部目前沒有開放加入的球季，請稍後再試。", "season_not_available");
-        var all = await GetMembershipsAsync(memberId, lang, cancellationToken);
-        return all.Memberships.First(m => m.Id == membership.Id);
     }
 
     /// <summary>重新產生會員卡 QR：同一張卡換 token、補發次數 +1，<b>舊 token 立即失效</b>（卡片外流時自保，規劃書 §3.14）。</summary>
@@ -144,7 +140,7 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
         return new MemberCardDto
         {
             Id = card.Id, MembershipId = membership.Id, Club = brand, MemberNo = member.MemberNo, HolderName = card.HolderName,
-            Tier = membership.Tier, TierLabel = TierLabel(membership.Tier, en), ValidUntil = membership.MembershipEndOn,
+            Tier = membership.Tier, TierLabel = TierLabel(membership.Tier, en, PlanName(membership.MembershipPlan, en)), ValidUntil = membership.MembershipEndOn,
             Status = valid ? "valid" : card.Status == "revoked" ? "revoked" : "expired",
             StatusLabel = en ? (valid ? "Valid" : card.Status == "revoked" ? "Revoked" : "Expired") : (valid ? "有效" : card.Status == "revoked" ? "已停用" : "已過期"),
             IsValid = valid, Token = card.Token, ReissueCount = card.ReissueCount, IssuedAt = card.IssuedAt, ServerTime = DateTime.UtcNow,
@@ -169,6 +165,8 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
             {
                 c.Membership.Tier, c.Membership.Status, c.Membership.MembershipEndOn,
                 c.Membership.Member.Name, c.Membership.Member.MemberNo, MemberStatus = c.Membership.Member.Status,
+                PlanNameZh = c.Membership.MembershipPlan.MembershipPlansI18ns.Where(i => i.Locale == "zh-Hant").Select(i => i.Name).FirstOrDefault(),
+                PlanNameEn = c.Membership.MembershipPlan.MembershipPlansI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
             }).FirstOrDefaultAsync(cancellationToken);
         if (row is null || row.MemberStatus != "active")
         {
@@ -181,7 +179,8 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
         var initial = System.Globalization.StringInfo.GetNextTextElement(row.Name.Trim());
         return new CardVerificationDto
         {
-            NameInitial = initial, MemberNo = row.MemberNo, Tier = row.Tier, TierLabel = TierLabel(row.Tier, en),
+            NameInitial = initial, MemberNo = row.MemberNo, Tier = row.Tier,
+            TierLabel = TierLabel(row.Tier, en, en && !string.IsNullOrWhiteSpace(row.PlanNameEn) ? row.PlanNameEn : row.PlanNameZh), // 方案名稱（藍鯨自訂）；欄位集合未變，驗證頁不新增欄位
             Status = valid ? "valid" : "expired", StatusLabel = en ? (valid ? "Valid" : "Expired") : (valid ? "有效" : "已過期"),
         };
     }
@@ -192,7 +191,7 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
     {
         var en = lang == "en";
         var today = TaiwanClock.Today;
-        var memberships = await db.Memberships.AsNoTracking().Where(m => m.MemberId == memberId && m.Tier == "fan_club")
+        var memberships = await db.Memberships.AsNoTracking().Where(m => m.MemberId == memberId)
             .Include(m => m.Club).ThenInclude(c => c.ClubsI18ns).Include(m => m.Season).Include(m => m.MembershipPlan)
             .OrderBy(m => m.Club.SortOrder).ThenByDescending(m => m.Season.StartOn).AsSplitQuery().ToListAsync(cancellationToken);
         var issues = await db.JerseyIssues.AsNoTracking().Where(j => j.MemberId == memberId && j.MembershipId != null)
@@ -220,9 +219,9 @@ public sealed class MemberCenterService(ClubDbContext db, MemberMembershipServic
         var membership = await db.Memberships.Include(m => m.MembershipPlan)
             .FirstOrDefaultAsync(m => m.Id == request.MembershipId && m.MemberId == memberId && m.ClubId == club.ClubId, cancellationToken)
             ?? throw new MemberNotFoundException("找不到這份會籍。");
-        if (membership.Tier != "fan_club" || MemberLabels.EffectiveMembershipStatus(membership.Status, membership.MembershipEndOn, TaiwanClock.Today) != "active")
+        if (MemberLabels.EffectiveMembershipStatus(membership.Status, membership.MembershipEndOn, TaiwanClock.Today) != "active")
         {
-            throw new MemberConflictException("無法登記球衣", "只有有效的球迷會員會籍可以登記球衣。", "not_fan_club");
+            throw new MemberConflictException("無法登記球衣", "只有有效的會籍可以登記球衣。", "not_fan_club");
         }
 
         var quota = membership.MembershipPlan?.JerseyQuota ?? 0;

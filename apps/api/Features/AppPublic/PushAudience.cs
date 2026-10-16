@@ -6,10 +6,14 @@ using Tcrfc.Api.Data.EfEntities;
 
 namespace Tcrfc.Api.Features.AppPublic;
 
-/// <summary>分眾條件（App 規劃書 §6.3）。三個維度，<b>刻意不做行為定向</b>：會籍層級、追蹤球隊、俱樂部歸屬；語系由裝置決定（推播文案依裝置語系送出）。</summary>
+/// <summary>
+/// 分眾條件（App 規劃書 §6.3，v3.22）。三個維度，<b>刻意不做行為定向</b>：會籍層級、追蹤球隊、俱樂部歸屬；語系由裝置決定（推播文案依裝置語系送出）。
+/// 會籍層級 <see cref="Tier"/>：<c>all</c>（全部）／<c>member</c>（持有效會籍者，任一層級）／<c>premium</c>（僅尊尚層級的有效會籍）／
+/// <c>anonymous</c>（<b>無有效會籍者，含未登入裝置與僅註冊帳號</b>）。指定俱樂部時，「有效會籍」限該俱樂部的會籍。
+/// </summary>
 public sealed record PushAudienceSpec(string Tier, Guid? ClubId, IReadOnlyList<string> TeamCodes)
 {
-    public static readonly IReadOnlySet<string> Tiers = new HashSet<string>(["all", "fan_club", "registered", "anonymous"], StringComparer.Ordinal);
+    public static readonly IReadOnlySet<string> Tiers = new HashSet<string>(["all", "member", "premium", "anonymous"], StringComparer.Ordinal);
 
     public static IReadOnlyList<string> ParseTeamCodes(string? json)
     {
@@ -52,16 +56,19 @@ public static class PushAudience
         switch (spec.Tier)
         {
             case "anonymous":
-                q = q.Where(d => d.MemberId == null);
-                break;
-            case "fan_club":
-                q = q.Where(d => d.MemberId != null && db.Memberships.Any(m =>
-                    m.MemberId == d.MemberId && m.Tier == "fan_club" && m.Status == "active"
+                // 無有效會籍者：未登入裝置，或已登入但沒有（該俱樂部）有效會籍的帳號。
+                q = q.Where(d => d.MemberId == null || !db.Memberships.Any(m =>
+                    m.MemberId == d.MemberId && m.Status == "active"
                     && (m.MembershipEndOn == null || m.MembershipEndOn >= today) && (clubId == null || m.ClubId == clubId)));
                 break;
-            case "registered":
-                q = q.Where(d => d.MemberId != null && !db.Memberships.Any(m =>
-                    m.MemberId == d.MemberId && m.Tier == "fan_club" && m.Status == "active"
+            case "member":
+                q = q.Where(d => d.MemberId != null && db.Memberships.Any(m =>
+                    m.MemberId == d.MemberId && m.Status == "active"
+                    && (m.MembershipEndOn == null || m.MembershipEndOn >= today) && (clubId == null || m.ClubId == clubId)));
+                break;
+            case "premium":
+                q = q.Where(d => d.MemberId != null && db.Memberships.Any(m =>
+                    m.MemberId == d.MemberId && m.Tier == "premium" && m.Status == "active"
                     && (m.MembershipEndOn == null || m.MembershipEndOn >= today) && (clubId == null || m.ClubId == clubId)));
                 break;
         }

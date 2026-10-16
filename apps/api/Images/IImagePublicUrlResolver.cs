@@ -18,4 +18,16 @@ public interface IImagePublicUrlResolver
     /// <summary><paramref name="objectKey"/> 為 <c>null</c>／空字串時回傳 <c>null</c>
     /// （沒有圖片，呼叫端不應該輸出任何 <c>og:image</c> 之類的標籤）。</summary>
     string? Resolve(string? objectKey);
+
+    /// <summary>
+    /// 公開網址的基底（<c>Resolve(key) = ResolveBase() + "/" + key</c>），沒有圖片儲存可用時為 <c>null</c>。
+    /// 給「API 不組網址、由客戶端自己拼」的契約使用（行動 App 的新聞內文圖片，見 <c>GET /api/v1/app/config</c> 的 <c>mediaBaseUrl</c>）。
+    /// 預設實作從 <see cref="Resolve"/> 反推，所以任何實作（含測試替身）自動一致，不會出現第二套組網址規則。
+    /// </summary>
+    string? ResolveBase()
+    {
+        const string probe = "_";
+        var url = Resolve(probe);
+        return url is not null && url.EndsWith("/" + probe, StringComparison.Ordinal) ? url[..^(probe.Length + 1)] : null;
+    }
 }

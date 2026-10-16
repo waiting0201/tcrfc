@@ -41,10 +41,10 @@ public sealed class AdminArticlesRepository(
     /// 比照同一套命名（<c>player</c>／<c>program</c>……）即可。</summary>
     private const string ArticleEntityType = "article";
 
-    /// <summary>五大核心價值標籤值域（規劃書 §1.2，<c>value_tag_links.value_tag</c> 的 CHECK 約束逐字照抄）。</summary>
+    /// <summary>四大核心價值標籤值域（規劃書 v3.29 §1.2，<c>value_tag_links.value_tag</c> 的 CHECK 約束逐字照抄；與 <see cref="Features.Home.CoreValueCatalog"/> 同一組）。</summary>
     private static readonly HashSet<string> AllowedCoreValueTags = new(StringComparer.Ordinal)
     {
-        "players_first", "excellence", "global_pathways", "community", "integrity",
+        "inspiring_players", "shaping_champions", "local_pride", "global_influence",
     };
 
     /// <summary>文章多型關聯（<c>article_relations.target_type</c>）允許的五種（規劃書 B2「關聯
@@ -219,7 +219,8 @@ public sealed class AdminArticlesRepository(
             .Select(v => v.ValueTag)
             .ToListAsync(cancellationToken);
 
-        return ToDetailDto(article, coreValueTags);
+        // 容忍收縮型遷移之前殘留的舊代碼（不在四大核心價值內的不輸出；儲存時 SyncCoreValueTagsAsync 整批取代，舊代碼自然消失）。
+        return ToDetailDto(article, coreValueTags.Where(AllowedCoreValueTags.Contains).ToList());
     }
 
     // ───────────────────────────── 寫入 ─────────────────────────────
@@ -948,7 +949,7 @@ public sealed class AdminArticlesRepository(
             if (!AllowedCoreValueTags.Contains(value))
             {
                 throw new AdminArticleValidationException(
-                    "核心價值只能從「以球員為本」「追求卓越」「國際發展」「社區共好」「誠信專業」五項中選擇，請重新選擇。",
+                    "核心價值只能從「啟發球員」「塑造冠軍」「在地驕傲」「撼動全球」四項中選擇，請重新選擇。",
                     FieldKey.Item("coreValueTags", index));
             }
 

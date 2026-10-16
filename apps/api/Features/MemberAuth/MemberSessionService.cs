@@ -129,8 +129,10 @@ public sealed class MemberSessionService(ClubDbContext db, MemberTokenService to
 }
 
 /// <summary>
-/// 會員註冊／入會時「確保有一份免費（一般會員）會籍與一張會員卡」（規劃書 §3.14：免費註冊＋Email 驗證即為一般會員，有電子會員卡）。
-/// 會籍是「一人每俱樂部每球季一份」：目前球季＝涵蓋今天的球季，沒有就取最近的未來球季，兩者都沒有回 null（俱樂部尚未建立球季）。
+/// 俱樂部「目前球季」的查詢（會籍方案與會員中心的加入入口用）。
+/// 🔴 <b>註冊帳號不是會籍</b>（主站規劃書 v3.29 §3.14，客戶 8.2）：註冊、Email 驗證、LINE 註冊都<b>不建立</b> <c>Membership</c> 與電子會員卡；
+/// 會籍只由購買並開通方案而來（<c>MembershipActivationService</c>／K2 手動開通），舊的 <c>EnsureRegisteredAsync</c>（自動建「一般會員」會籍）已移除。
+/// 目前球季＝涵蓋今天的球季，沒有就取最近的未來球季，兩者都沒有回 null（俱樂部尚未建立球季）。
 /// </summary>
 public sealed class MemberMembershipService(ClubDbContext db)
 {
@@ -139,48 +141,5 @@ public sealed class MemberMembershipService(ClubDbContext db)
         var today = TaiwanClock.Today;
         return await db.Seasons.AsNoTracking().Where(s => s.ClubId == clubId && s.EndOn >= today)
             .OrderBy(s => s.StartOn).FirstOrDefaultAsync(cancellationToken);
-    }
-
-    public async Task<Membership?> EnsureRegisteredAsync(Guid memberId, string memberName, Guid clubId, CancellationToken cancellationToken)
-    {
-        var season = await CurrentSeasonAsync(clubId, cancellationToken);
-        if (season is null)
-        {
-            return null;
-        }
-
-        var existing = await db.Memberships.FirstOrDefaultAsync(
-            m => m.MemberId == memberId && m.ClubId == clubId && m.SeasonId == season.Id, cancellationToken);
-        if (existing is not null)
-        {
-            return existing;
-        }
-
-        var now = DateTime.UtcNow;
-        var membership = new Membership
-        {
-            Id = Guid.NewGuid(), MemberId = memberId, ClubId = clubId, SeasonId = season.Id, Tier = "registered", Status = "active",
-            MembershipStartOn = season.StartOn, MembershipEndOn = season.EndOn, CreatedAt = now, UpdatedAt = now,
-        };
-        var card = new MemberCard
-        {
-            Id = Guid.NewGuid(), MembershipId = membership.Id, ClubId = clubId, HolderName = memberName, Token = SecureToken.Generate(),
-            Status = "active", IssuedAt = now, CreatedAt = now, UpdatedAt = now,
-        };
-        db.Memberships.Add(membership);
-        db.MemberCards.Add(card);
-        try
-        {
-            await db.SaveChangesAsync(cancellationToken);
-            return membership;
-        }
-        catch (DbUpdateException)
-        {
-            // 並行請求搶先建立了同一份會籍（唯一鍵 member×club×season）：丟掉我們這份、改讀現有的。
-            db.Entry(card).State = EntityState.Detached;
-            db.Entry(membership).State = EntityState.Detached;
-            return await db.Memberships.FirstOrDefaultAsync(
-                m => m.MemberId == memberId && m.ClubId == clubId && m.SeasonId == season.Id, cancellationToken);
-        }
     }
 }

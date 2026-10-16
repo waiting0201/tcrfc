@@ -512,6 +512,8 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 
 **`db-migrate.sh apply` 同樣受影響（2026-10-13，`E-295` 第二次）**：正式庫 8 支待套用只套上 3 支，sqlcmd 結束碼 0、只靠事後的歷史表筆數核對才擋下（第 4 支起的交易隨斷線回滾，沒有半套用）。本機以 10/02 的 DDL＋21 筆歷史重現（停點隨起始狀態不同，但都是 `SqlState 24000`）。現在 `apply` 也用 `SET NOCOUNT ON; GO; :r /work/idempotent.sql` 包裝檔執行（`idempotent.sql` 原檔與 SHA-256 鎖定不變），並以「結束碼 0 **且**輸出沒有錯誤字樣」判斷；錯誤掃描與包裝檔產生收成共用的 [`deploy/lib/sqlcmd-guard.sh`](../deploy/lib/sqlcmd-guard.sh)，`prod-db-init.sh`（含經由它的 `prod-seed-import.sh`）與 `db-migrate.sh` 都 `source` 它。演練（`DBM_REHEARSAL=1`、同一個 sqlcmd 13 映像檔、同一份 artifact）15 支一次套完、待套用 0；沒有包裝時的輸出交給新的錯誤掃描會判定失敗。**往後任何把寫入型 SQL 檔交給 sqlcmd 13 的腳本都必須用這個共用檔**。
 
+**sqlcmd 13 的 UTF-8 陷阱（2026-10-16，`E-330`，`E-296` 第二次）**：sqlcmd 13 讀 UTF-8 檔（`-i`、`:r` 皆然）會在內部緩衝邊界把多位元組字元切壞，每個位元組變一個 U+FFFD（正式庫實例：`台灣電力`→`台���電力`），**結束碼 0、無警告**。本機演練（同一份 `club-content-seed.sql`）重現且位置固定。因此 `prod-db-init.sh`（DDL、參照資料）、`prod-seed-import.sh`（內容種子）、`db-migrate.sh`（`idempotent.sql`）都先以 `deploy/lib/sqlcmd-guard.sh` 的 `sqlcmd_to_utf16` 轉成 UTF-16LE＋BOM 的副本再交給 sqlcmd（原檔、SHA-256、manifest 不動）；`verify` 新增「含 U+FFFD 的欄位數 = 0」；CI `prod-seed` job 跑 `deploy/check-sqlcmd-input.py`（擋 stdin、擋漏轉）。已被寫壞的庫：先跑 `db/tools/scan-replacement-chars.sql` 點名，再套 `db/migrations/20261016_fix-replacement-chars.sql`。
+
 **VM 上怎麼跑**（腳本還沒 push 前，用 DDL／migrations 與部署 commit 一致的暫存目錄；push 並部署後改用 runner 的 checkout 目錄 `/opt/tcrfc/actions-runner/_work/tcrfc/tcrfc`，`~/tcrfc-src` 已退役）：以 `tar` 把 `deploy/prod-db-init.sh`、`deploy/prod-seed-import.sh` 與 `db/prod/*-content-*` 疊在 runner checkout 的 `db/`、`apps/api/**/Migrations` 之上。
 
 ```bash

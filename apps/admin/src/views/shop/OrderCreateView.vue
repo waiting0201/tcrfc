@@ -198,6 +198,7 @@ async function handleSave() {
             <el-select v-model="form.memberId" filterable remote clearable :remote-method="searchMembers" :loading="memberSearching" placeholder="輸入會員編號搜尋" style="width: 100%" @change="dirty = true">
               <el-option v-for="m in memberOptions" :key="m.id" :label="`${m.memberNo} ${m.name || ''}`" :value="m.id" />
             </el-select>
+            <p class="order-create__hint">指定會員後，若對方持有本俱樂部的有效會籍，系統會自動套用會員折扣（只套用在已勾選「適用會員折扣」的商品），建立訂單後可在訂單詳情看到折扣金額。</p>
           </FormField>
         </el-form>
       </el-card>

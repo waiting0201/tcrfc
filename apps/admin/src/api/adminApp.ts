@@ -110,7 +110,8 @@ export interface SaveDeepLinkPayload {
   isActive: boolean
   label: { zh: string; en?: string }
 }
-export type AudienceTier = 'all' | 'fan_club' | 'registered' | 'anonymous'
+/** 推播與公告對象：member＝任一層級的有效會籍、premium＝限尊尚會員、anonymous＝沒有有效會籍者（含未登入與僅註冊帳號）。 */
+export type AudienceTier = 'all' | 'member' | 'premium' | 'anonymous'
 export interface AnnouncementDto {
   id: string
   messageZh: string | null

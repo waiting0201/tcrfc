@@ -19,13 +19,17 @@ public sealed record AdminPlanContentInput
 }
 
 /// <summary>新增與更新同形（更新是整份取代；省略英文版＝移除英文版）。<c>Status</c>：<c>published</c>（上架）／<c>draft</c>（下架）。
-/// 費用單位「元」。<c>CardQuota</c> 是這份會籍可發幾張會員卡（家庭方案 3）；<c>JerseyQuota</c> 是含幾件球衣。</summary>
+/// 費用單位「元」（建議年費）。<c>CardQuota</c> 是這份會籍可發幾張會員卡（磐石兩級方案皆 1）；<c>JerseyQuota</c> 是含幾件球衣（磐石會員 0、尊尚會員 1）。
+/// <c>Tier</c>（v3.29）＝層級：<c>standard</c>（磐石會員）／<c>premium</c>（尊尚會員），開通後會籍的層級隨方案；已有會籍使用的方案不能變更層級。
+/// <c>ShopDiscountPercent</c>＝商店會員折扣比例（0–100 的整數百分比，0＝無折扣），適用於 S1 勾選「適用會員折扣」的商品，與促銷價不疊加、取較低價。</summary>
 public sealed record UpsertAdminPlanRequest
 {
     public required Guid SeasonId { get; init; }
 
-    /// <summary>方案代碼（例：single、family）：小寫英文字母、數字與連字號，同一俱樂部同一球季內不可重複。</summary>
+    /// <summary>方案代碼（例：standard、premium）：小寫英文字母、數字與連字號，同一俱樂部同一球季內不可重複。</summary>
     public required string Code { get; init; }
+    public required string Tier { get; init; }
+    public int ShopDiscountPercent { get; init; }
     public required int Fee { get; init; }
     public int CardQuota { get; init; } = 1;
     public int JerseyQuota { get; init; }
@@ -48,6 +52,9 @@ public sealed record AdminPlanListItemDto
     public required Guid SeasonId { get; init; }
     public required string SeasonCode { get; init; }
     public required string Code { get; init; }
+    public required string Tier { get; init; }
+    public required string TierLabel { get; init; }
+    public required int ShopDiscountPercent { get; init; }
     public required int Fee { get; init; }
     public required int CardQuota { get; init; }
     public required int JerseyQuota { get; init; }
@@ -70,6 +77,9 @@ public sealed record AdminPlanDetailDto
     public required Guid SeasonId { get; init; }
     public required string SeasonCode { get; init; }
     public required string Code { get; init; }
+    public required string Tier { get; init; }
+    public required string TierLabel { get; init; }
+    public required int ShopDiscountPercent { get; init; }
     public required int Fee { get; init; }
     public required int CardQuota { get; init; }
     public required int JerseyQuota { get; init; }
@@ -148,13 +158,6 @@ public sealed record ActivateMembershipRequest
 
     /// <summary>省略＝方案期間迄日（再省略則用球季結束日）。</summary>
     public DateOnly? EndOn { get; init; }
-}
-
-/// <summary>免費（一般會員）會籍：現場入會的會員需要一份會籍才有會員卡。</summary>
-public sealed record RegisterMembershipRequest
-{
-    public required Guid MemberId { get; init; }
-    public required Guid SeasonId { get; init; }
 }
 
 /// <summary>手動調整會籍（規劃書 §4.11 K2「手動調整層級（含異動原因紀錄）」）。至少要改一項，<c>Reason</c> 必填。</summary>

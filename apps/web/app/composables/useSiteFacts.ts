@@ -120,6 +120,7 @@ function mergeSiteFacts(
     squadCodes: zh.squadCodes,
     contact: {
       address: zh.contact.address,
+      addressEn: pickEn(en?.contact.address, SITE_FACTS[club].contact.addressEn ?? null),
       phone: zh.contact.phone,
       hours: zh.contact.hours,
       hoursEn: pickEn(en?.contact.hours, SITE_FACTS[club].contact.hoursEn ?? null),

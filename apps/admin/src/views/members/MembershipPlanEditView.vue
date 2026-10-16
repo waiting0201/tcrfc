@@ -26,6 +26,7 @@ import {
   updateMembershipPlan,
   type MembershipPlanDetailDto,
   type PlanStatus,
+  type PlanTier,
   type SavePlanPayload,
 } from '@/api/adminMemberships'
 
@@ -39,6 +40,8 @@ const { canCreate, canUpdate } = useCrudPermissions('member.plan')
 const form = reactive({
   seasonId: '',
   code: '',
+  tier: 'standard' as PlanTier,
+  shopDiscountPercent: 0,
   fee: 0,
   cardQuota: 1,
   jerseyQuota: 0,
@@ -68,10 +71,14 @@ const formErrors = provideFormErrors()
 const readOnly = computed(() => (isCreate.value ? !canCreate.value : !canUpdate.value))
 const pageTitle = computed(() => (isCreate.value ? '新增方案' : `編輯：${form.nameZh || '（未命名）'}`))
 const seasonLocked = computed(() => !isCreate.value && membershipCount.value > 0)
+/** 已有會籍使用的方案不能改層級（會籍的層級隨方案）。 */
+const tierLocked = seasonLocked
 
 function applyDetail(d: MembershipPlanDetailDto) {
   form.seasonId = d.seasonId
   form.code = d.code
+  form.tier = d.tier
+  form.shopDiscountPercent = d.shopDiscountPercent
   form.fee = d.fee
   form.cardQuota = d.cardQuota
   form.jerseyQuota = d.jerseyQuota
@@ -120,7 +127,8 @@ function validate(): Record<string, string> {
   if (form.midSeasonRule.trim().length > 255) errors.midSeasonRule = '期中加入規則（中文）最多 255 字'
   if (form.midSeasonRuleEn.trim().length > 255) errors.midSeasonRuleEn = '期中加入規則（英文）最多 255 字'
   if (!/^[a-z0-9-]{1,32}$/.test(form.code.trim())) errors.code = '方案代號只能用小寫英文字母、數字與連字號，最多 32 字'
-  if (form.fee === null || form.fee < 0) errors.fee = '費用不能是負數'
+  if (form.fee === null || form.fee < 0) errors.fee = '年費不能是負數'
+  if (!Number.isInteger(form.shopDiscountPercent) || form.shopDiscountPercent < 0 || form.shopDiscountPercent > 100) errors.shopDiscountPercent = '商店折扣要在 0 到 100 之間的整數'
   if (form.cardQuota < 1 || form.cardQuota > 10) errors.cardQuota = '會員卡數上限要在 1 到 10 之間'
   if (form.jerseyQuota < 0 || form.jerseyQuota > 10) errors.jerseyQuota = '球衣件數上限要在 0 到 10 之間'
   if (form.startsOn && form.endsOn && form.endsOn < form.startsOn) errors.endsOn = '方案結束日不能早於開始日'
@@ -131,6 +139,8 @@ function buildPayload(): SavePlanPayload {
   return {
     seasonId: form.seasonId,
     code: form.code.trim(),
+    tier: form.tier,
+    shopDiscountPercent: form.shopDiscountPercent,
     fee: form.fee,
     cardQuota: form.cardQuota,
     jerseyQuota: form.jerseyQuota,
@@ -242,7 +252,7 @@ const backToList = () => router.push({ path: '/members/plans', query: { tab: 'pl
                     </el-col>
                     <el-col :span="24">
                       <FormField field="code" label="方案代號（小寫英文、數字與連字號）" required>
-                        <el-input v-model="form.code" maxlength="32" placeholder="例如 single、family" />
+                        <el-input v-model="form.code" maxlength="32" placeholder="例如 standard、premium" />
                       </FormField>
                     </el-col>
                   </el-row>
@@ -254,7 +264,17 @@ const backToList = () => router.push({ path: '/members/plans', query: { tab: 'pl
 
                 <FormSection title="費用與額度">
                   <el-row :gutter="12">
-                    <el-col :span="24"><FormField field="fee" label="費用（元）" required><el-input-number v-model="form.fee" :min="0" :precision="0" style="width: 100%" @change="formErrors.clear('fee')" /></FormField></el-col>
+                    <el-col :span="24">
+                      <FormField field="tier" label="會員層級" required>
+                        <el-radio-group v-model="form.tier" :disabled="tierLocked">
+                          <el-radio value="standard">磐石會員</el-radio>
+                          <el-radio value="premium">尊尚會員</el-radio>
+                        </el-radio-group>
+                      </FormField>
+                      <p v-if="tierLocked" class="plan-edit__hint">這個方案已有 {{ membershipCount }} 份會籍，層級已鎖定。會籍的層級由方案決定。</p>
+                    </el-col>
+                    <el-col :span="24"><FormField field="fee" label="建議年費（元）" required><el-input-number v-model="form.fee" :min="0" :precision="0" style="width: 100%" @change="formErrors.clear('fee')" /></FormField></el-col>
+                    <el-col :span="24"><FormField field="shopDiscountPercent" label="商店會員折扣（%，0＝無折扣）" required><el-input-number v-model="form.shopDiscountPercent" :min="0" :max="100" :precision="0" style="width: 100%" @change="formErrors.clear('shopDiscountPercent')" /></FormField></el-col>
                     <el-col :span="24"><FormField field="cardQuota" label="會員卡數上限（1–10）" required><el-input-number v-model="form.cardQuota" :min="1" :max="10" style="width: 100%" @change="formErrors.clear('cardQuota')" /></FormField></el-col>
                     <el-col :span="24"><FormField field="jerseyQuota" label="球衣件數上限（0–10）" required><el-input-number v-model="form.jerseyQuota" :min="0" :max="10" style="width: 100%" @change="formErrors.clear('jerseyQuota')" /></FormField></el-col>
                   </el-row>
@@ -262,6 +282,7 @@ const backToList = () => router.push({ path: '/members/plans', query: { tab: 'pl
                     <el-col :span="24"><el-form-item label="方案開始日"><el-date-picker v-model="form.startsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></el-form-item></el-col>
                     <el-col :span="24"><FormField field="endsOn" label="方案結束日"><el-date-picker v-model="form.endsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></FormField></el-col>
                   </el-row>
+                  <p class="plan-edit__hint">商店折扣只適用於商品勾選「適用會員折扣」的品項，與促銷價不疊加、取較低價。填 10 代表 9 折。</p>
                   <p class="plan-edit__hint">開始日、結束日留空時，會籍期間依球季起訖計算。</p>
                 </FormSection>
               </el-card>

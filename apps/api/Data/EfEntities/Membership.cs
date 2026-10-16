@@ -23,7 +23,7 @@ public partial class Membership
 
     public string Status { get; set; } = null!;
 
-    public Guid? MembershipPlanId { get; set; }
+    public Guid MembershipPlanId { get; set; }
 
     public string? LastAdjustReason { get; set; }
 
@@ -49,7 +49,7 @@ public partial class Membership
 
     public virtual ICollection<MembershipPayment> MembershipPayments { get; set; } = new List<MembershipPayment>();
 
-    public virtual MembershipPlan? MembershipPlan { get; set; }
+    public virtual MembershipPlan MembershipPlan { get; set; } = null!;
 
     public virtual Season Season { get; set; } = null!;
 

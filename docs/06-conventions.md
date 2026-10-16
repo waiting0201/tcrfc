@@ -17,15 +17,20 @@
 | 一線隊 | 一線隊 | First Team | **`D1`** | 對外顯示用「一線隊／First Team」，`D1` 僅作代號 |
 | **合作球隊**（v3.0） | 台中藍鯨 | **Taichung Blue Whale**（簡稱；全名 `Taichung Blue Whale Women's Football Club`） | **`TCBW`** | 隸屬**臺中市女子足球協會**，2014-04-12 成立。**與台中磐石是不同法人**。中文一律寫「**台中藍鯨**」，不單用「藍鯨」。英文名 **B-5 已於 2026-10-05 定案**（見 §1.1） |
 | **藍鯨一線隊**（v3.0） | 藍鯨一線隊 | Blue Whale First Team | **`BW1`** | **不是第二個 `D1`**——`Team.code` 全站唯一，不得改複合鍵 |
-| **藍鯨青年隊**（v3.0） | U15／U12 女子隊 | Youth Teams | `U15`/`U12` | ⚠️ **與磐石學院的 `U15`／`U12` 是不同球隊**，以 `club_id` 區隔 |
-| 學院梯隊 | U15／U14／U12 梯隊 | Academy Teams | `U15`/`U14`/`U12` | 日後可增 U18／U10 |
+| **藍鯨青年隊**（v3.0） | U15／U12 女子隊 | Youth Teams | **`BW-U15`**／**`BW-U12`** | 代號帶 `BW-` 前綴（`Team.code` 全站唯一，不可能與磐石同名）；`U15`／`U12` 是 `age_band` 年齡層，不是代號 |
+| 學院梯隊（v3.29） | U10／U12／U14／U16／U18 梯隊 | Academy Teams | `U10`/`U12`/`U14`/`U16`/`U18` | 依客戶 4.3 發展路徑：培育階段（U10、U12）→ 發展階段（U14、U16）→ 職業階段（U18、一線隊）；實際建立哪幾隊以 C1 為準。**`U15` 已非磐石學院代號**（資料庫從未建過）；已發出的訂閱網址代號不得改指他隊，停用＝不公開 |
 | 學院 | 台中磐石足球學院 | TCRFC Academy | | |
 | 女子足球 | 台中藍鯨女子隊 | Women's Football | — | ⚠️ **v3.0 改寫**：藍鯨是本系統的第二個俱樂部，**建立完整球隊資料**（`club_id` 區隔），由**獨立網域的藍鯨官網**呈現。主站 06 只剩一頁入口。**「不建球隊資料」已作廢** |
 | **俱樂部（型別）**（v3.0） | 俱樂部 | Club | `Club` | **不是第六種商業對象**——它是內容主體，不計曝光、無金流、無分潤 |
 | **會籍**（v3.0） | 會籍 | Membership | `Membership` | **一人每俱樂部一份**。`Member`（會員帳號）是一人一組，兩者不可混用 |
 | 課程與活動 | 課程與活動 | Programs | 後台 `P1–P4` | 原編 `D1–D4`，已因撞名改號 |
 | 慈善 | 慈善與社會影響 | Charity & Impact | | |
-| 球迷會 | 台中磐石球迷會 | Fan Club | `fan_club` | 是會員層級，不是獨立名單 |
+| 球迷會 | 台中磐石球迷會 | Fan Club | — | ＝會籍的介紹與加入頁，**不是獨立名單**；`fan_club` 層級代碼已廢除（v3.29） |
+| **註冊帳號**（v3.29） | 註冊帳號（免費） | Registered account | `Member`（無 `Membership`） | **不是會籍**：可登入、報名、購物、看方案；不發會員卡、不享權益、不列入抽獎。介面不稱「一般會員」「免費會員」 |
+| **磐石會員**（v3.29） | 磐石會員 | Rock Member（開發端暫譯，待客戶確認） | `tier = standard` | 台中磐石基礎付費方案，建議年費 NT$400 |
+| **尊尚會員**（v3.29） | 尊尚會員 | Prestige Member（開發端暫譯，待客戶確認） | `tier = premium` | 台中磐石高階付費方案，建議年費 NT$2,400，包含磐石會員全部權益。**藍鯨的方案名稱由藍鯨自訂**，不沿用這兩個詞 |
+| **商店會員折扣**（v3.29） | 商店會員折扣／會員折扣 | Shop member discount | `shop_discount_percent` | 方案設定比例、商品勾選適用的折扣。**≠ 折扣碼、≠ 逐品項會員價**（兩者仍不做）。也不要與特約店家折扣混用 |
+| 會員 | 會員 | Member | — | ＝在該俱樂部持有有效會籍者；只限某一級時用方案名稱「磐石會員」「尊尚會員」。**「球迷會員」一詞已廢除**（抽獎稱「會員抽獎」Member Draw） |
 | 漫畫 | 台中磐石漫畫 | TCRFC Manga / Comics | | 全部免費公開 |
 
 ### 後台介面用語（規劃書 §4.0 後台設計通則，v3.7）
@@ -80,7 +85,7 @@
 | `reveal`／遮罩（K1 會員名單、K3 球衣收件資訊） | 「顯示完整資料」／「重新遮罩」；列表與詳情預設一律「已遮罩」，顯示完整資料前要二次確認並提醒系統會記錄 |
 | `pii.reveal`（權限碼） | **不顯示**；說明文字寫「檢視完整個資」（沒有此權限者，會員搜尋只比對會員編號） |
 | `crossClub` | 「顯示我有權限的所有俱樂部的會員」 |
-| `tier`：`registered`／`fan_club`（K1／K2） | 「一般會員」／「球迷會員」（付費）；權益表的兩欄稱「一般會員」「付費球迷會員」 |
+| `tier`：`standard`／`premium`（K1／K2，v3.29） | 「磐石會員」／「尊尚會員」（藍鯨以其自訂方案名稱顯示）；權益表以方案為欄。**註冊帳號不是會籍，名單與會員卡不出現「一般會員」「免費會員」** |
 | `effectiveStatus`（會籍） | 「會籍狀態」：有效／已到期／待確認／已取消（以**到期日**為準，人工狀態欄不直接顯示） |
 | `displayStatus`：`unverified`／`suspended`／`deleted` | 「尚未驗證信箱」／「已停用」／「已刪除或已合併」 |
 | `signupSource`：`web`／`line`／`admin`／`app` | 「官網註冊」／「LINE 註冊」／「現場入會」／「App 註冊」 |
@@ -91,7 +96,9 @@
 | `size-summary`（K3） | 「尺寸備貨統計」；`ship`／`pickup` ＝「寄送」／「到場領取」；`pending`／`shipped`／`received` ＝「待處理」／「已寄出」／「已領取」 |
 | `activate`／renewal（K2） | 「手動開通」「續會」（客服核對款項後開通，**不是金流**；續會＝用下一球季的方案再開通一次） |
 | `expire-batch`／`dryRun`（K2） | 「球季末批次到期」／「先試算」 |
-| `freeValue`／`paidValue`（K4 權益） | 「一般會員」「付費球迷會員」兩欄（如「✓」「✗」「9 折」） |
+| `benefitCode`／`value`（K4 權益，v3.29） | 「權益項目」與各方案的對應內容（如「✓」「✗」「10%」）；每個方案一欄，欄名即方案名稱 |
+| `shopDiscountPercent`（K2）／`memberDiscountEligible`（S1） | 「商店會員折扣（%）」／「適用會員折扣」 |
+| 店家 `applicableTier`：`all`／`premium`（K4） | 「所有會員」／「限尊尚層級」 |
 | `isShared` 特約店家（K4） | 「兩隊共用」；只有系統管理員能編輯 |
 | 座標 `lat`／`lng`（K4） | 「緯度」「經度」——人工確認後儲存；旁邊的輔助按鈕寫「由地址定位」，勾選項寫「儲存時由地址定位」；定位結果 `located`＝「已依地址填入座標，請確認」、`not_found`＝「查無此地址，請手動輸入座標」、`unavailable`＝「定位服務暫時無法使用，請手動輸入座標」 |
 | `promote`（P3／P4 報名） | 「遞補」（候補轉已確認，佔名額）；`waitlist` ＝「候補」；`sign-in sheet` ＝「簽到表」 |
@@ -103,7 +110,7 @@
 | `isLatest`（F1 漫畫集數） | 「最新一集」——系統依已發布且發布日已到的最大集數自動判定，**不是人工勾選**；閱讀數寫「閱讀數」 |
 | 藍鯨不設漫畫（F1） | 切到藍鯨站台時側欄不顯示、頁面只說明「台中藍鯨不設漫畫，這個功能只在台中磐石使用」，不呼叫端點 |
 | `registered`／`waitlist`／`attended`／`cancelled`（F2 報名） | 「已報名」／「候補」／「已到場」／「已取消」；額滿自動進候補；「遞補」＝候補轉已報名 |
-| `isPaidMembersOnly`（F2） | 「限付費會員報名」 |
+| `isPaidMembersOnly`（F2） | 「限持有效會籍者報名」 |
 | 新聞挑選器（`news/lookup`） | 「挑選報導」（關聯報導、贊助故事、活動回顧共用；可用標題關鍵字搜尋所有文章，不再有「最近 100 篇」限制） |
 | `sku`（S1 規格） | 「規格編號」（不可含空白、全站不可重複）；規格顯示「尺寸／顏色」 |
 | `status`：`draft`／`published`／`sold_out`（S1 商品） | 「下架（草稿）」／「上架」／「缺貨」——缺貨由庫存自動判定，不能手動設定；`outOfStockBehavior`＝「缺貨時的前台顯示」（顯示為缺貨／從商店隱藏） |
@@ -181,8 +188,9 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
    - 完整中文版縮小後中文會糊掉，任何情境用它都要留足高度（footer 目前 120px）
 5. **英文名一律 `Taichung Rock FC`**（全稱 `TAICHUNG ROCK FOOTBALL CLUB`）。舊稿的 `Taichung Cornerstone RFC` 已全數汰換，看到一律視為錯誤。
 
-**五大核心價值**（同時是全站內容標籤）
-`Players First 以球員為本`｜`Excellence 追求卓越`｜`Global Pathways 國際發展`｜`Community 社區共好`｜`Integrity 誠信專業`
+**四大核心價值**（同時是全站內容標籤；客戶 2.3，主站 v3.29）
+`Inspiring players 啟發球員`｜`Shaping champions 塑造冠軍`｜`Local pride 在地驕傲`｜`Global influence 撼動全球`（`value_tag` code：`inspiring_players`／`shaping_champions`／`local_pride`／`global_influence`）
+> 歷史：v3.28 以前是五項（Players First／Excellence／Global Pathways／Community／Integrity）。新聞分類 7.7「Community 社區活動」與慈善理念是不同概念，不要誤改。
 
 ---
 
@@ -200,7 +208,7 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 | 在地扎根 · 放眼世界 | LOCAL ROOTS. GLOBAL PATHWAYS. | 規劃書 |
 | 台中磐石足球學院／學院 | TCRFC Academy／the Academy | 規劃書 §3.4 |
 | 一線隊 | First Team | 規劃書 |
-| U15／U14／U12 梯隊 | U15／U14／U12 squads（泛稱 age-group teams） | 規劃書 §3.4（Our Teams） |
+| U10／U12／U14／U16／U18 梯隊 | U10／U12／U14／U16／U18 squads（泛稱 age-group teams） | 規劃書 §3.4（Our Teams） |
 | 台中藍鯨（主站與藍鯨站英文內文） | 簡稱 **`Taichung Blue Whale`**（導覽、內文、標題）；全名 **`Taichung Blue Whale Women's Football Club`**（Schema、llms、頁尾、首次提及）。程式取 `BW_NAME_EN`／`BW_FULL_NAME_EN`（`club-copy.ts`） | **B-5 於 2026-10-05 客戶定案**。舊站變體 `Taichung Bluewhale`、`…Women's Football Team`、大小寫不一一律不用；`check-bw-en-name.mjs` 只允許這兩種寫法、擋其他變體。（初版曾寫「待確認、句內放中文名」，已隨定案更正；E-210 為更早的對照表與 B-5 牴觸事件） |
 | 臺中市女子足球協會 | Taichung City Women's Football Association | **以藍鯨規劃書英文版為準**（2026-10-05 使用者定案；前台與種子統一此寫法，不再用 `Taichung Women's Football Association`） |
 | 台灣足球策略發展協會 | Taiwan Football Strategic Development Association | **待客戶確認**（初稿，直譯；慈善平台的收款主體） |
@@ -219,16 +227,16 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 | 贊助簡報下載 | Sponsorship Deck | 規劃書 |
 | 加入球隊／學院與兒童訓練報名／營隊報名／國際球員洽詢／合作與贊助洽詢／媒體洽詢／一般聯絡 | Join as a Player／Academy & Children's Training／Camp Registration／International Player Enquiries／Partnership & Sponsorship／Media Enquiries／General Contact | 規劃書 §3.10 |
 | 漫畫／球迷會／官方商品與線上商店／特約店家 | Manga／Fan Club／Merchandise & Online Store／Partner Perks | 規劃書 §3.8 |
-| 會員中心／一般會員／付費球迷會員／會籍／會員卡 | Member Centre／Registered member／Paid Fan Club member／Membership／Membership card | 規劃書英文版 |
+| 會員中心／註冊帳號／磐石會員／尊尚會員／會籍／會員卡 | Member Centre／Registered account／Rock Member／Prestige Member／Membership／Membership card | 規劃書英文版（Rock／Prestige 為開發端暫譯，待客戶確認） |
 | 購物車／結帳／訂單查詢 | Cart／Checkout／Order lookup | 規劃書 §2 |
 | 慈善與社會影響 | Charity & Impact | 規劃書 §3.11 |
 | 常見問題 | FAQ | 規劃書 |
 | 新聞／新聞稿／媒體專區 | News／Press release／Press & Media | 規劃書 |
 | 里程碑／榮譽 | Milestones／Honours（英式拼寫，與規劃書英文版一致） | 規劃書英文版 |
-| 五大核心價值 | Players First／Excellence／Global Pathways／Community／Integrity | 本檔 §4 |
+| 四大核心價值 | Inspiring players／Shaping champions／Local pride／Global influence | 本檔 §4 |
 | 教練／總教練／助理教練／守門員教練／體能教練／領隊／球探 | Coach／Head Coach／Assistant Coach／Goalkeeper Coach／Fitness Coach／Team Manager／Scout | 初稿；**已有 `staff_i18n` en 職稱時以資料為準** |
 | 位置：門將／後衛／中場／前鋒 | Goalkeeper／Defender／Midfielder／Forward | 初稿 |
-| 隱私權政策／Cookie 政策／會員條款／監護人同意 | Privacy Policy／Cookie Policy／Membership Terms／Guardian Consent | **內文不翻，維持「pending legal review」佔位**（英文版翻譯規則見 [`05-i18n-seo.md`](05-i18n-seo.md) §1） |
+| 隱私權政策／Cookie 政策／會員條款／監護人同意 | Privacy Policy／Cookie Policy／Membership Terms／Guardian Consent | **使用者裁決（2026-10-16）：隱私權政策英文版由開發端翻譯並上線**（已翻好、匯入本機）；Cookie 政策／會員條款／監護人同意比照辦理。英文為開發端譯文，**法務核定（B-9）仍待辦**，核定前不得宣稱為正式法律文本。原「內文不翻、pending legal review 佔位」作廢（英文版翻譯規則見 [`05-i18n-seo.md`](05-i18n-seo.md) §1） |
 
 **翻譯過程新增、尚待客戶確認的寫法（2026-10-05，開發端初稿，非官方名稱）**：
 賽程場地——台北田徑場 Taipei Athletics Stadium、台南市立足球場 Tainan Municipal Football Stadium、楠梓足球場 Nanzih Football Field、汐止綜合運動場 Xizhi Sports Complex、輔仁大學足球場 Fu Jen Catholic University Football Field（地名拼音＋通用場地詞）；
@@ -241,7 +249,7 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 新聞標題（第二輪）——預備隊 Taichung Rock FC Reserves、台中磐石國際足球盃 Taichung Rock FC International Cup、維羅納 Hellas Verona、臺中市政府運動局 Taichung City Government Sports Bureau、東京農業大學 Tokyo University of Agriculture、港超聯 Hong Kong Premier League；**標題內沒有英文來源的球隊／人名／學校（銘傳大學、陽信北競、南市台鋼、大同足球、台電／台灣電力、台中Futuro、新北航源、桃園國際、高雄先鋒、潭秀非營利幼兒園、南投縣雙龍國小、龜記茗品，及陳曉明、周宇杰、廖奕盛、王義友、孫恩祈、梁顥騰、高冠宇、楊朝景等）原樣保留中文，待客戶補英文名**；
 聯賽縮寫——規劃書英文版用 TFPL 指企業甲級聯賽，**但全名未出現，不得自行拼寫**。單元導覽短標籤「新聞」用 News（單元全名為 News & Stories）。
 
-**藍鯨站英文用詞（2026-10-05，B-5 定案後）**：台灣木蘭足球聯賽 Taiwan Mulan Football League、總統盃 President's Cup、CTFA／AFC club licence（AFC Club Licence；年份舊站 2019／規劃書 2023 待核對）、台中北屯太原足球場 Taichung Beitun Taiyuan Football Field、台中豐原體育場 Taichung Fengyuan Stadium、藍鯨盃 Blue Whale Cup、藍鯨 04 單元 Youth／Youth Teams（U15／U12 girls' teams，**不得出現 Academy**）。**待客戶確認的藍鯨專名（保守寫法）**：台中足球學校 Taichung Blue Whale Football School、運動 i 台灣 2.0 運動熱區 "Sport i Taiwan 2.0" Sports Hot Zone、小藍鯨社區足球學校 "Little Blue Whale" community football school、臺中市女子足球協會（藍鯨規劃書英文版 Taichung City Women's Football Association，前台與種子用 Taichung City Women's Football Association，**需統一**）、教育部體育署 Sports Administration, Ministry of Education、陽信盃國際邀請賽（保留中文名＋描述）。人名（堀野博幸、包欣玄、蘇育萱等約 25 位）、學校（五權國中、惠文高中）、夥伴機構名沒有英文來源維持中文。
+**藍鯨站英文用詞（2026-10-05，B-5 定案後）**：台灣木蘭足球聯賽 Taiwan Mulan Football League、總統盃 President's Cup、CTFA／AFC club licence（AFC Club Licence；年份舊站 2019／規劃書 2023 待核對）、台中北屯太原足球場 Taichung Beitun Taiyuan Football Field、台中豐原體育場 Taichung Fengyuan Stadium、藍鯨盃 Blue Whale Cup、藍鯨 04 單元 Youth／Youth Teams（U15／U12 girls' teams，代號 `BW-U15`／`BW-U12`，**不得出現 Academy**）。**待客戶確認的藍鯨專名（保守寫法）**：台中足球學校 Taichung Blue Whale Football School、運動 i 台灣 2.0 運動熱區 "Sport i Taiwan 2.0" Sports Hot Zone、小藍鯨社區足球學校 "Little Blue Whale" community football school、臺中市女子足球協會（藍鯨規劃書英文版 Taichung City Women's Football Association，前台與種子用 Taichung City Women's Football Association，**需統一**）、教育部體育署 Sports Administration, Ministry of Education、陽信盃國際邀請賽（保留中文名＋描述）。人名（堀野博幸、包欣玄、蘇育萱等約 25 位）、學校（五權國中、惠文高中）、夥伴機構名沒有英文來源維持中文。
 
 ⚠️ 人名、地名：球員與教練英文名一律取資料庫（`players_i18n`／`staff_i18n`）已有值；沒有的**不得自行音譯**，顯示中文原名。
 地址只翻成通用的英文地址格式不做，維持中文原文＋必要時加 Taichung 城市名。

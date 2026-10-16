@@ -132,8 +132,9 @@ internal sealed class MemberTestScope(WebApplicationFactory<Program> factory) : 
         return new TestMember(email, session.MemberNo, session.AccessToken, client, memberId);
     }
 
-    /// <summary>走完整個付款流程（建立訂單 → 請款 → 確認）把會員升為球迷會員，回傳訂單編號。用本機假金流。</summary>
-    public static async Task<string> BuyFanClubAsync(TestMember member, string planCode = "single", string club = "tcrfc")
+    /// <summary>走完整個付款流程（建立訂單 → 請款 → 確認）讓會員取得會籍（v3.29：註冊帳號不是會籍，會籍只由購買方案而來），回傳訂單編號。用本機假金流。
+    /// <paramref name="planCode"/>：磐石的 <c>standard</c>（磐石會員）或 <c>premium</c>（尊尚會員）。</summary>
+    public static async Task<string> BuyMembershipAsync(TestMember member, string planCode = "standard", string club = "tcrfc")
     {
         using var create = new HttpRequestMessage(HttpMethod.Post, $"/api/v1/{club}/member/membership-orders") { Content = BizTest.Json(new { planCode }) };
         create.Headers.Add("Idempotency-Key", "test-" + Guid.NewGuid().ToString("N"));

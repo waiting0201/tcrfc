@@ -62,7 +62,7 @@ public sealed record HomeSectionDto
     public Guid? FeaturedBannerId { get; init; }
 }
 
-/// <summary>首頁「五大核心價值」的一項（規劃書 §1.2、§3.1）。圖示由前台依 <see cref="Code"/> 對應；名稱中英文同時回傳（區塊要求「中英名稱」並陳）。</summary>
+/// <summary>首頁「核心價值」（四項）的一項（規劃書 v3.29 §1.2、§3.1）。圖示由前台依 <see cref="Code"/> 對應；名稱中英文同時回傳（區塊要求「中英名稱」並陳）。</summary>
 public sealed record CoreValueDto
 {
     public required string Code { get; init; }

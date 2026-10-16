@@ -20,13 +20,12 @@ public static class MembershipPublicEndpoints
         .Produces<IReadOnlyList<MembershipPlanPublicDto>>()
         .Produces(StatusCodes.Status404NotFound);
 
-        // GET /api/v1/{club}/membership/benefits?planCode=&lang=zh
+        // GET /api/v1/{club}/membership/benefits?lang=zh —— 權益對照表，以方案為欄（v3.29；不再有 planCode 參數）
         app.MapGet("/api/v1/{club}/membership/benefits", async (
-            string club, string? planCode, string? lang, IClubResolver clubs, MembershipPublicRepository repository, CancellationToken ct) =>
+            string club, string? lang, IClubResolver clubs, MembershipPublicRepository repository, CancellationToken ct) =>
         {
             var scope = await clubs.ResolveAsync(club, ct);
-            var table = await repository.GetBenefitsAsync(scope, planCode, RequestLocale.ToDbLocale(lang), ct);
-            return table is null ? Results.NotFound() : Results.Ok(table);
+            return Results.Ok(await repository.GetBenefitsAsync(scope, RequestLocale.ToDbLocale(lang), ct));
         })
         .WithName("GetMembershipBenefits")
         .WithTags("MembershipPublic")

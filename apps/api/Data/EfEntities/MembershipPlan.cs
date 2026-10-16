@@ -37,6 +37,12 @@ public partial class MembershipPlan
 
     public Guid? UpdatedBy { get; set; }
 
+    /// <summary>層級：<c>standard</c>（磐石會員）／<c>premium</c>（尊尚會員）；會籍的層級隨方案。</summary>
+    public string Tier { get; set; } = null!;
+
+    /// <summary>商店會員折扣比例（0–100 的整數百分比；0＝無折扣）。</summary>
+    public int ShopDiscountPercent { get; set; }
+
     public virtual Club Club { get; set; } = null!;
 
     public virtual AdminUser? CreatedByNavigation { get; set; }

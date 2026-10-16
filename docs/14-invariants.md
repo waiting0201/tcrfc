@@ -12,7 +12,16 @@
 
 ## 速查
 
+- 🔵 **核心價值是四項，不是五項**（使用者 2026-10-16 裁決，依客戶 2.3；主站 v3.29）：`inspiring_players` 啟發球員／`shaping_champions` 塑造冠軍／`local_pride` 在地驕傲／`global_influence` 撼動全球，同時是全站內容標籤 `value_tag_links.value_tag`。舊五標籤遷移：`players_first`→`inspiring_players`、`excellence`→`shaping_champions`、`community`→`local_pride`、`global_pathways`→`global_influence`、**`integrity` 無對應，連結列直接刪除**。看到 `players_first`／`excellence`／`global_pathways`／`community`／`integrity` 或「五大核心價值」一律是舊規格。4.4 課綱頁客戶原文的「培養菁英 Shaping elites」是頁面原文，不是核心價值定義，照留。
+
 - 🔴 **盤點、匯入、回報裡的任何數字（份數、筆數、題數），寫下之前一律用工具重數，不得沿用前一份文件或前一個 agent 的數字，也不得目測估算**（`E-325`，2026-10-16 同日再犯：盤點表寫里程碑 51 筆，實際 49 筆）。① 合計要與另一種切法（依類型、依單元、依年份）的加總對上；② 要拿數字做減法推「剩幾份」之前，先 `find`／`grep -c` 重數；③ 派 agent 盤點時，在指示裡要求「每個數字附上計數方式」，收到回報後抽查至少一個數字；④ 寫進資料遷移的筆數斷言，以原文重數的結果為準。
+
+- 🔴 **會員折扣與會籍的四條後端不變量**（2026-10-16，主站 v3.29，`apps/api/README.md` 末段「客戶文件對齊」）：
+  ① **單價只有一個計價函式 `MemberDiscountService.Compute`**（購物車、結帳、後台現場建單共用）：`min(原價或促銷價, 原價 × (100 − 折扣率) / 100 四捨五入到元)`，**與促銷價不疊加、取低**，需商品勾選 `member_discount_eligible`＋賣方俱樂部有效會籍＋方案折扣率 > 0；每次**直接查庫、不讀快取**。前台、後台、App 不得自己算折扣價——只顯示 API 回的 `unitPrice`／`memberDiscountAmount`。
+  ② **訂單快照存折後值**：`order_items.unit_price_snapshot`／`line_total`、`orders.subtotal`／`total` 都是折後金額，`member_discount_amount` 只記少收多少；所以 LINE Pay 請款、電子發票明細、退款（`unit_price_snapshot × 數量`）本來就一致，**不要另外再扣一次折扣**。
+  ③ **註冊帳號不是會籍**：註冊、Email 驗證、LINE 註冊、後台都不得建立 `Membership`／`MemberCard`（`EnsureRegisteredAsync` 已刪）；會籍只由開通方案而來，層級隨方案；**會籍期間內不提供升級**（API 409 `upgrade_not_supported`，後台同）。`GET /member/memberships` 的 `memberships` 對僅註冊帳號是空陣列，「待確認」放 `openOrders`。
+  ④ **凍結的抽獎名單不改寫**：`draw_rosters.tier_snapshot` 舊制值 `fan_club`／`registered` 保留（名單雜湊含層級字串，改寫＝雜湊對不上）；新名單寫 `standard`／`premium`。看到「把舊快照也遷移成新 code」的想法一律不要做。
+  沿用的舊錯誤碼：`already_fan_club`／`not_fan_club`／`fan_club_required`／`login_required`（訊息已改「會籍／會員」，代碼不改，避免前台與 App 對不上）；`season_not_available` 已隨 `join` 端點刪除。
 
 - 🔵 **「系統管理員」只指帳號上的身分 `is_super_admin`，不是角色**（使用者 2026-10-12 拍板，主站 v3.26／慈善 v2.6／App v3.19）。種子角色 `system_admin` 的顯示名稱是「**全模組管理**」——**代碼刻意不改**，改名只動 `name_zh`／`name_en`。全模組管理拿不到 `sysadmin_only` 權限碼（`PermissionChecker` 濾掉），所以掛這個角色的人**進不了**帳號、角色、俱樂部、稽核、搜尋與分享設定等頁。文件與畫面上寫「僅系統管理員」＝只有開關打開的帳號；寫「系統管理員與客服／行政可完整檢視個資」時，全模組管理同樣可以（受限權限碼不是 `sysadmin_only`）。
 
@@ -34,6 +43,7 @@
   ⑥ 公開 repo 的 Actions log 人人可看：腳本**不得印伺服器主機名稱**（只印資料庫名），密碼不進命令列／log／summary。
 
 - 🔴 **把寫入型 SQL 檔交給 `mcr.microsoft.com/mssql-tools`（sqlcmd 13）一律 `source deploy/lib/sqlcmd-guard.sh`**：用 `sqlcmd_nocount_wrapper` 包一層 `SET NOCOUNT ON` 再 `:r`，成敗以「結束碼 0 且 `sqlcmd_log_has_error` 為假」判斷，並在事後查結果真的在庫裡。sqlcmd 13 遇到 `(N rows affected)` 會中途 `SqlState 24000 Invalid cursor state`、之後批次全失敗、**結束碼仍是 0**——已在內容匯入與正式庫 migration 各出事一次（`docs/18` `E-295`）。MCR 沒有獨立的 `mssql-tools18` 映像檔，不要為此換映像檔
+- 🔴 **任何把 SQL 檔餵給 sqlcmd 的腳本：用 `-i` 讀檔，絕不用 stdin（`<`、heredoc、管線）；含中文的檔交給 sqlcmd 13（`mssql-tools`）前一律先 `sqlcmd_to_utf16` 轉 UTF-16LE＋BOM 副本**（`docs/18` `E-296`→`E-330`，同一類錯第二次）。sqlcmd 把多位元組 UTF-8 字元落在讀取緩衝邊界時切壞、每個位元組變一個 U+FFFD（`台灣電力`→`台���電力`），**結束碼 0、無警告**；sqlcmd 13 連 `-i`／`:r` 讀 UTF-8 檔都會，位置只取決於檔案內容（同檔每次壞同處）。守則：①正式庫腳本（`prod-db-init.sh`／`prod-seed-import.sh`／`db-migrate.sh`）已全數轉 UTF-16，新增餵檔路徑照做；②寫入後必須掃全庫 U+FFFD（`prod-db-init.sh verify` 已含；手動用 `db/tools/scan-replacement-chars.sql`）；③手動套用含中文的 `db/migrations/*.sql` 用 sqlcmd 18／go-sqlcmd 加 `-f 65001`，不要用 sqlcmd 13 直接讀；④CI 的 `deploy/check-sqlcmd-input.py` 擋 stdin 與漏轉 UTF-16
 - 🔴 **改資料庫結構，`db/*-schema.sql`（DDL）與 EF 模型＋migration 必須在同一次交付一起改**（`docs/18` `E-321`，2026-10-13）。結構有**兩個真實來源**：正式庫由 `prod-db-init.sh` **原樣跑 DDL** 建表再把全部 migration 標記為已套用（一支都沒執行），本機庫與程式則吃 EF 模型／migration。漏改 DDL＝正式庫沒有新欄位；漏寫 migration＝既有庫升級不到。由 CI 的 `schema-drift` job（`deploy/schema-drift-check.sh`，DDL 原樣建庫 vs EF 模型 `dbcontext script`，兩個 context 都涵蓋）把關，**不要用「改排除清單」讓它通過**——排除只准排整個物件類別（目前只有視圖）。已知盲點：只在 DDL 的 `CHECK`／預設值、以 `migrationBuilder.Sql` 加但沒進模型的物件，這道檢查看不出（`docs/20` §3「schema-drift」）。**本機庫是否落後 DDL**用 `./deploy/schema-drift-check.sh --mode local-vs-ddl` 體檢（`setup-club-db.sh` 遇到已有資料表會略過 DDL）。⚠️ **InitialBaseline 的 `Up()`／`Down()` 是空的，「從空庫跑全部 migration」長不出完整庫，不能拿來當比對基準。**
   - **migration 以明確名稱建立約束（`ADD CONSTRAINT [CK_…]`、欄位上的 `CONSTRAINT CK_… CHECK`）且在 DDL 建的庫上會真的執行時，DDL 必須寫同一個名稱**（2026-10-13）。DDL 匿名、migration 具名＝「今天的 DDL 新建的庫」與「套過該 migration 的庫（本機、之後的正式庫）」名稱不同；`schema-drift` 預設模式看不到（EF 不描述 CHECK），只有 `--mode local-vs-ddl` 抓得到。實例：`CK_members_guardian_relationship`、`CK_role_permissions_scope_type` 已補名。舊 migration 裡另有約 40 個具名 CHECK 在 DDL 是匿名，但那些 `Up()` 在 DDL 庫上是無操作（欄位已有 CHECK 就跳過），各環境一致，不需改
 
@@ -160,10 +170,11 @@
   的資料前提——沒有這個欄位，「排除未同意的素材」無從查詢起，見 [`12-database-schema.md`](12-database-schema.md#12-踩雷點) 第 32 點。
   ✅ **（2026-09-24 客戶裁決）後台不建同意書檔案留存或覈實流程**，只保留這個狀態欄位由操作者手動設定，見 [`15-out-of-scope-record.md`](15-out-of-scope-record.md)。
 - 🔴 **`GEO-02` 強制排除的學員照片以「頁面＋圖片目錄」兩層防護**（2026-09-30 主 session 裁決）：會收件或整頁為未成年影像的頁面（`academy/teams/`、`academy/life/`、`programs/{childrens-training,summer-camp,specialist}/`）整頁排除；只在頁首當背景用學員照片的學院行銷頁**不整頁排除**（避免學院頁無法收錄），改排除圖片目錄 `/assets/img/academy/`、`/assets/img/programs/`（不分語系、兩俱樂部皆適用，`GeoCrawlerDefaults.StaticExcludePaths`）。排除套在 `User-agent: *`，圖片搜尋也不索引。前台新增學員照片目錄時須同次補進清單。
-- **隊別代號**：`D1`（磐石一線隊）／**`BW1`（藍鯨一線隊）**／`U15`／`U14`／`U12`。
+- **隊別代號**：`D1`（磐石一線隊）／**`BW1`（藍鯨一線隊）**／磐石學院梯隊 `U10`／`U12`／`U14`／`U16`／`U18`（2026-10-16 依客戶 4.3 發展路徑：培育 U10、U12，發展 U14、U16，職業 U18＋一線隊）／藍鯨青年隊 **`BW-U15`／`BW-U12`**。
   代號**維持全站唯一**（它是行事曆訂閱網址與 `/zh/schedule/d1/` 的識別鍵，**不得改成「俱樂部 × 代號」複合鍵**）。對外顯示磐石寫 `First Team / 一線隊`、藍鯨寫 `Blue Whale First Team / 藍鯨一線隊`。
   **`Team.type` 的 `women` 值已於 v3.0 廢除**，改用獨立的 `Team.gender`（`men`／`women`／`mixed`）——性別是球隊屬性不是隊型。`type = first_team` 由「全站僅一筆」改為「**每個俱樂部至多一筆**」。
-  ⚠️ **藍鯨的 `U15`／`U12` 與磐石學院的 `U15`／`U12` 是不同球隊**，以 `club_id` 區隔。
+  ⚠️ **藍鯨青年隊的代號帶 `BW-` 前綴**（`age_band` 才是 U15／U12），因為 `Team.code` 全站 UNIQUE，從來無法與磐石同名；舊寫法「同名、以 `club_id` 區隔」是錯的。
+  🔴 **`U15` 的處置（2026-10-16）**：磐石不再有 U15。查核 `db/prod`、`db/seed`、`db/migrations`：**資料庫從未建立過磐石的 U15／U14／U12 Team 列**（正式種子只有 `D1`、`BW1`、`BW-U15`、`BW-U12`），所以 `team=U15` 的訂閱一直回 404、`/schedule/u15/` 一直 302 回 `/schedule/`，**沒有流通中的有效網址要遷移**；`U14`、`U12` 代碼不變。**實作前先在正式庫 `SELECT code, club_id FROM teams`**：若有人從後台手建過 `U15`，保留該列、不改 code，核對有無賽事與訂閱，無則設為不公開（`calendar_team_settings.is_public = 0`）。**規則**：已對外發出訂閱網址的代碼不得改指其他球隊；停用梯隊用「不公開」，不改代碼、不刪除後重用。
 - **品牌色**：桃紅 `#E0218A`（PANTONE 225 C／C5 M90 Y0 K0）＋ 品牌黑 `#231916`（K100，**暖調近黑，不是深藍**）。
   唯一來源是 [`reference/TCR_logo_CMYK.ai`](../reference/TCR_logo_CMYK.ai)。小字情境改用 AA 安全版 `#D61E83`。
   **台中藍鯨的品牌色（2026-09-14 定案，客戶指示「配色按照 logo 去抓」）**：隊徽藍 `#2196D5`（對白 3.29:1，**只能用於大字與色塊**）
@@ -187,7 +198,7 @@
 - **站內商店（v2.6，主站自建電商，規模比照舊 Wix 商店）**：前台 8.3、後台 `S1–S6`（S1 商品與規格／S2 庫存／S3 訂單／S4 出貨物流／S5 退貨退款／S6 設定與報表），**商品與規格 一律在 `S1` 維護**（規劃書中沒有 `ProductShowcase`；⚠️ **`E4` 現在是「廣告主與版位管理」**，看到舊文件寫「E4 商品櫥窗」一律視為錯誤）。
   商品、購物車、結帳、**LINE Pay 付款**、**電子發票**、物流、訂單查詢、退換貨**全部站內，收款主體是俱樂部**。**支援非會員結帳**（`Order.member_id` 可為空）；**不需要 SSO**（會員帳號即商店帳號）。`OrderItem` 是**值複製快照**，改名改價不得動歷史訂單。
   **付款只有 LINE Pay**（不做信用卡、超商代碼、ATM、貨到付款）；**必開電子發票**（載具／統編／捐贈碼，抬頭俱樂部，退貨作廢或折讓；**LINE Pay 本身不開發票，須另接發票服務**）。
-  **本期不做**：會員價與折扣碼（**付費會籍權益不含商品折扣**）、運費級距（只有固定運費＋免運門檻）、訂閱制、跨境多幣別、多商家、二手寄售、點數折抵、票務、以商品綁定會籍或抽獎資格、物流商 API、商品評論。
+  **本期不做**：折扣碼與逐品項會員價（**v3.29 例外：會籍方案的商店會員折扣**，見會員系統條目）、運費級距（只有固定運費＋免運門檻）、訂閱制、跨境多幣別、多商家、二手寄售、點數折抵、票務、以商品綁定會籍或抽獎資格、物流商 API、商品評論。
   **商店只賣實體商品**：**會籍、課程費、捐款都不走商店結帳**；**不得販售捐款品項**、**不得販售抽獎機會或以消費增加中獎機會**。與慈善平台**商店號、金流帳號、發票字軌一律分離**。
   **不做**：訂閱制、跨境與多幣別、多商家平台、二手寄售、點數折抵、票務與門票套票、物流商 API 串接。**Shopify 不再是導流目標**，舊官網 Wix 商店是過渡通路、上線後停售並 301 轉址。
 - **三條「不做」現在都有適用範圍，別再當全域禁令用**（v2.5、v2.6）：
@@ -200,12 +211,12 @@
     🔴 **App 離線時不得量測廣告曝光**（App 規劃書 §2.4 硬規則 1）：連不上即時端點、改用預載素材或備援素材時，顯示照常但**不產生曝光與點擊計數事件**；只有「線上已量到、尚未送出就斷線」的事件可暫存並帶原始發生時間補送（伺服器拒收超過 24 小時者）。預載只為加速載入，不是離線計數的依據（2026-10-05，`E-164` 再犯時寫入）。
   - **推播與通知中心**：主站網頁不做（含 LINE 推播）；**行動 App 做原生推播與 App 內通知中心**。系統信維持五封。
 - **報名歸戶只解除兩項**（v2.5）：App 提供**表單自動帶入**與**我的報名**（僅限會員本人資料）；**學員家長綁定網頁、App、後台三方皆維持不做**。`Registration.member_id` 可為空——非會員仍可報名。
-- **會員系統只做會籍，但 v3.0 起是「一人每俱樂部一份」**：免費與付費兩層，會員享特約店家折扣，付費會員（＝球迷會員 `fan_club`，不是另一種身分）另獲球衣與**抽獎資格**。
+- **會員系統只做會籍，但 v3.0 起是「一人每俱樂部一份」**；**v3.29（客戶 8.2，2026-10-16）起：註冊帳號（免費）不是會籍**（無會員卡、無權益、不列入抽獎），會籍＝購買方案。磐石為兩級付費方案：`standard` 磐石會員 NT$400／`premium` 尊尚會員 NT$2,400（皆為客戶標的「建議年費」）；**藍鯨的方案由藍鯨自訂，不沿用磐石的兩級**。持有效會籍者即會員（不是另一種身分；「球迷會員」一詞廢除，抽獎稱「會員抽獎」），`fan_club`／`registered` 代碼廢除。兩級共通：抽獎資格、特約店家折扣（`applicable_tier`：`all`／`premium`）、商店會員折扣。會員投票、優先購票、課程會員價、社群群組、名字展示、推薦獎勵**尚未決定是否做成系統功能**（主站 §10 第 39–41 點），目前只是權益說明文字，不得逕行實作。**使用者 2026-10-16 拍板**：尊尚方案 `jersey_quota = 1`（磐石會員 0）；**不提供會籍期間內升級**（只能到期續約時改選，各端都不做升級與補差價）；**商店會員折扣與促銷價不疊加、取較低價**；特約店家適用層級由店家逐家設定（`partner_stores.applicable_tier`，欄位原本就有）。尊尚會員含數位權益（幕後內容、專屬社群），削弱 App IAP「權益以實體為主」的論證。
   **`Member` 是一人一組帳號、不分俱樂部**（Email 是登入鍵、LINE 綁定 1:1、個資法上的當事人是人不是會籍）；**俱樂部維度在新的 `Membership` 型別上**。`Member` 的 `tier`／`membership_start_on`／`membership_end_on` 三欄**已移入 `Membership`**——**不要用「`Member` 保留三欄當快取」的折衷**，那是兩個真實來源。
-  **會員卡改為每份會籍一張**（`MemberCard.membership_id` 必填）。**「一張卡只有一組 token」沒有變**，但它約束的是**卡與 token 的 1:1**，不是人與卡的 1:1（`card_quota` 家庭方案本來就可以是 3 張）；驗證頁 `/m/<token>` 的回傳欄位**一欄未改**，**不得新增「適用球隊」欄位**。
+  **會員卡改為每份會籍一張**（`MemberCard.membership_id` 必填）。**「一張卡只有一組 token」沒有變**，但它約束的是**卡與 token 的 1:1**，不是人與卡的 1:1（`card_quota` 大於 1 的方案本來就可以有多張卡）；驗證頁 `/m/<token>` 的回傳欄位**一欄未改**，**不得新增「適用球隊」欄位**。
   **兩隊球季不同步**，到期日與續會提醒各自計算——這讓人工開通全年散布且件數翻倍。
   會籍採球季制，會費走 LINE Pay 收款連結與現場收款，**不走商店結帳**；**藍鯨會籍採代收代付**（收款主體仍是俱樂部）。**不做**報名歸戶、表單自動帶入、學員家長綁定、通知中心、LINE 推播、Google 登入。
-- **付費會員抽獎（v2.3，後台 K5）**：資格是**布林值**——基準時間會籍有效即**自動具備，會員零操作**，一人一號，不因消費／簽到／分享／參加次數增加機會（**所以不是點數**）。
+- **會員抽獎（v2.3，後台 K5）**：資格是**布林值**——基準時間會籍有效即**自動具備，會員零操作**，一人一號，不因消費／簽到／分享／參加次數增加機會（**所以不是點數**）。
   系統**只做名單快照、序號配發、CSV 匯出**；**實體開獎由人工在現場或直播進行**，中獎人後台回填。中獎**只以最新消息公布**（7.1 ＋標籤，遮罩），系統信維持五封。
   獎品為**實體物品**人工寄送或現場領取（**所以不碰票務與掃碼核銷**）。`DrawRoster` 是**不可變快照**，值複製非外鍵，不得改成即時 query。
 - **慈善捐款平台**：**主辦與收款主體是「台灣足球策略發展協會」，不是台中磐石**（v1.4）——前台標誌、發票與收據抬頭、系統信署名、對帳單一律為協會，俱樂部只剩導流來源與後台宿主，分潤裡的留存方是**協會留存**（`association_amount`）。**協會品牌資產尚未提供，一律留佔位，不得沿用 TCRFC 標誌、不得自行造標**；英文全名待確認。
@@ -227,7 +238,7 @@
 - ⛔ **並行派工時，agent 不得執行會改動整個工作樹的 git 指令**（2026-10-06，[`18`](18-work-errors.md) `E-214` 同類第二次升級）：`git stash`、`checkout`／`switch`、`reset`、`restore .`、`clean`、`pull`、`rebase` 會把**另一個 agent 正在寫的檔案**一併收走或覆寫，失敗時無聲遺失。要比對改動前的基準，用 `git diff`、`git show HEAD:<檔案>`，或另開 `git worktree`；**主 session 派出兩個以上 agent 時，派工提示必須寫明這一條**。
 - ⛔ **瀏覽器實機驗收用的本機 `apps/api` 由使用者啟動，agent 不自行啟動**（2026-09-25 使用者裁定）：agent 在指令中帶資料庫密碼啟動 API，曾被 session 的安全防護擋下。之後的做法是：使用者在自己的終端機把 API 跑在 `http://127.0.0.1:5299`（指令見 `apps/api/README.md`「直接用 dotnet 跑」），agent 只連上去驗收。agent 開始實走前，先用 `curl -s http://127.0.0.1:5299/api/v1/tcrfc/schedule` 確認 API 真的在回資料（`/healthz` 不碰資料庫，不算數）；沒在跑就標「未驗證」並回報，**不得自行啟動、不得以任何方式讀取或傳遞資料庫密碼**。`dotnet test` 不受影響（現在跑在 `tcrfc_club` 上，照舊由 agent 執行；但測試會動到同一個庫，使用者實走進行中請先確認再跑，見下方 `S0-13`）。
 - ⛔ **本機 API 設定檔 `apps/api/appsettings.Development.json` 不入版控**（2026-09-30 使用者裁決）：內含 SA 密碼與 JWT 金鑰，已列入 `.gitignore` 與 `apps/api/.dockerignore`（不得被 COPY 進映像檔）；納管的只有佔位範本 `appsettings.Development.example.json`。實際檔由 `apps/api/scripts/init-local-settings.sh` 從 `.env` 與 `deploy/dev/club.env` 產生（不覆寫既有檔、不印出密碼）。環境變數仍優先於檔案，Docker 與正式環境不變。`dotnet test` 只從該檔補 `CLUB_SQL_CONNECTION_STRING`（`TestLocalSettings`），「只准連 `tcrfc_club`」檢查不變。⚠️ 此檔勿加入 `REDIS_HOST`／`AZURE_BLOB_CONNECTION_STRING`：測試主機用 `Environment=Development` 也會讀它，會改變各 fixture 刻意清空這些值的假設。
-- ⛔ **未成年學員不輸出結構化資料（`Person` JSON-LD）**（2026-09-25，`S1-12f`）：學院梯隊（U15／U14／U12，藍鯨 U15／U12）等未成年學員的姓名與照片，不得整理成 JSON-LD 給搜尋引擎或 AI。這是 `GEO-02`「未成年素材是個資防線、不得放寬」的延伸；`schemaEligible` 只判斷欄位齊不齊，**不判斷該不該公開**，不能拿它當這條的防線。成人（一線隊、教練、職員）照常輸出，但仍要走肖像同意。
+- ⛔ **未成年學員不輸出結構化資料（`Person` JSON-LD）**（2026-09-25，`S1-12f`）：學院梯隊（U10／U12／U14／U16／U18，藍鯨 U15／U12）等未成年學員的姓名與照片，不得整理成 JSON-LD 給搜尋引擎或 AI。這是 `GEO-02`「未成年素材是個資防線、不得放寬」的延伸；`schemaEligible` 只判斷欄位齊不齊，**不判斷該不該公開**，不能拿它當這條的防線。成人（一線隊、教練、職員）照常輸出，但仍要走肖像同意。
 - ⛔ **整合測試寫入資料庫的資料，一律在 `finally` 清掉，並斷言清理成功**（2026-09-25，`E-62`）。沒清的資料會跨次累積，累積到某個門檻就讓別支測試失敗（例：搜尋無結果排行取前 50 名）。無法刪除的單例設定（如 `settings`）要在測試前記下原值、測試後還原。**測試失敗時不得只用 `git stash` 對照就判定為「既有失敗」**——`stash` 不會還原資料庫。
 - ✅ **`S0-13`（2026-09-25 建立、2026-09-30 使用者裁決改寫）：本機只保留兩個資料庫——網站 `tcrfc_club`、慈善 `tcrfc_charity`；不再有獨立測試庫。** 沿革：2026-09-25 曾為 `dotnet test` 另建 `tcrfc_club_test`（因測試與本機開發／無頭瀏覽器實走共用 `tcrfc_club_dev` 時，同一天發生三次互相干擾：測試把實走中帳號的 2FA 狀態、`settings` 的 SEO 值重置回種子）；2026-09-30 使用者裁決合併，`tcrfc_club_dev`、`tcrfc_club_test`、`tcrfc_charity_dev` 一律廢除，**自動測試直接跑在 `tcrfc_club` 上**。🔴 **已知代價（使用者已被告知並接受）**：測試會改動後台看到的資料，中途失敗可能留下殘骸；需要時重灌種子即可，**測試與無頭瀏覽器實走不要同時進行**。**現行做法**：`set -a; source .env; set +a` → `./db/seed/setup-club-db.sh [--recreate]`（一鍵 DDL＋種子，見 `db/seed/README.md`「本機網站庫與整合測試」）→ `CLUB_SQL_CONNECTION_STRING` 的 `Database` 指向 `tcrfc_club` → `dotnet test`。**兩道防呆（只准連本專案庫）**：①`deploy/local-ddl.sh` 白名單只有 `tcrfc_club`／`tcrfc_charity`，`db/seed/apply-seed.sh`／`setup-club-db.sh` 只認 `tcrfc_club`，`apply-charity-seed.sh` 只認 `tcrfc_charity`；`DROP DATABASE` 只在 `--recreate` 路徑且只對 `tcrfc_club`；②`apps/api/Tcrfc.Api.Tests/Fixtures/TestDatabaseGuard.cs`——`CLUB_SQL_CONNECTION_STRING` 的資料庫名稱沒有精確等於 `tcrfc_club` 時（含容器內其他專案的資料庫、`tcrfc_charity`、舊名稱），六個 fixture 一律在 `InitializeAsync()` 直接拒絕啟動。**正式環境（Azure SQL）與 CI 用完即丟的容器不受影響**（CI 內同樣建 `tcrfc_club`）。細節見 `apps/api/README.md`「怎麼跑」、`deploy/README.md`「本機只保留兩個資料庫」（含遷移與刪舊庫步驟）。
 - ⛔ **依訪客 IP 計算的濫用防護（限流），只信任明確列舉的固定 IP，不信任整個網段**（2026-09-25 立，`S1-10`；**2026-09-29 由 S1-17 修正——舊版本行文已過期，見下段**）：
@@ -280,7 +291,7 @@
   **藍鯨的品牌資產與名單在磐石的營運團隊手上**（藍鯨由磐石在 running），是**盤點問題不是外部依賴**。**但品質規則不放寬**：標誌必須是**向量主檔**，**不得自行造標、不得從網頁截圖描摹、不得把點陣圖放大充當向量**。未到位前對應區塊不顯示，**不得放假圖或空 Logo 格**。
   ✅ **2026-09-14 已自既有官網取得隊徽的點陣主檔**（下載原圖，3299×3243 去背 PNG＠300dpi，存於 [`brand/blue-whale/`](../brand/blue-whale/README.md)）——**下載原圖不違反上面三條**（不是截圖、不是描摹、不是放大）。可用於文件、網頁與 App 圖示；**大尺寸印刷、單色版、反白版仍須向量原始檔**。
   **新增第十種角色「合作球隊管理」**。⚠️ **v3.0 改寫其會員權限**：由「絕不接觸 K 模組」改為「**可存取自家 `club_id` 的會籍與訂單，但 `Member` 主檔欄位一律遮罩，對方俱樂部的任何會籍列絕對不可見**」——藍鯨有自己的會員後，原規則會讓系統無法使用。**無推播權、無廣告權、無 `J` 系統管理權。**
-  **第一階段這個角色可以先不指派使用者**（藍鯨由磐石的團隊在維護，用自己既有的帳號）。**但資料範圍權限仍要做**——`club_id` 已鋪到 50 張表，是系統地基，補在後面等於重寫查詢層；**角色定義先建好、先不指派即可，不擋上線**。
+  **第一階段這個角色可以先不指派使用者**（藍鯨由磐石的團隊在維護，用自己既有的帳號）。**但資料範圍權限仍要做**——`club_id` 已鋪到 49 張表，是系統地基，補在後面等於重寫查詢層；**角色定義先建好、先不指派即可，不擋上線**。
   **不接第三方廣告聯播網、不用廣告識別碼、不做行為定向、不做開屏廣告**；`AdEvent` 原始事件只留 90 天，之後只留日聚合。
   **會員卡只在 App 內出示**（離線可用、標示最後同步時間、**v3.0 起卡面帶該俱樂部標誌，中性雙標誌單卡已作廢**）。**App 抽獎只顯示個人資格布林**（v3.0 起**逐俱樂部顯示**），不顯示序號、不做查詢與名單頁、**不得讀取 `DrawRoster`**；**推播不得用於個別中獎通知**（後台 M3 須系統層阻擋）。
   `PartnerStore` 與 `Venue` 已加座標欄位但**資料要人工標**。後台模組 `M` 與會員卡驗證頁 `/m/<token>` 無關。
@@ -375,7 +386,7 @@
 
 - **資料庫綱要的執行層決定**（見 [`docs/12-database-schema.md`](12-database-schema.md)）：
   - ✅ **`docs/12` 的 v3.0 同步已於 2026-09-20 完成**（§4 總覽、**15 張 ERD**、§6 明細、§11 唯一鍵與索引、§14 檢核表），**可以轉 DDL**。
-    `club_id`：**50 張必填、9 張可為空（＝兩隊共同）、43 張不加**，與主站 §5.4 逐名一致。
+    `club_id`：**49 張必填、9 張可為空（＝兩隊共同）**（不加張數以主站 §5.4 逐名清單為準；v3.22 起必填由 50 降為 49），與主站 §5.4 逐名一致。
   - **不建任何日誌表**（`AuditLog`／`LoginLog`／`ExportLog`／`OperationLog`）——與規劃書「操作稽核記錄保存 ≥ 12 個月」及「匯出須寫稽核」**衝突**，落差列於 `docs/12` §13.1。
     **B1（2026-09-30）暫行做法**：會員名單／續會名單／球衣出貨清單／試訓名單的匯出、解除個資遮罩、合併帳號、調整會籍等敏感操作，寫**應用程式結構化日誌**（`SensitiveActionLogger`：帳號、俱樂部、對象、筆數、用途，**不含個資**），匯出一律必填「用途」。這不是稽核表；客戶若要求可查詢的稽核紀錄要另行裁決。
     **會員個資（K1／K3）**：名單一律遮罩，完整值只有「會員詳情 `reveal=true`」與有 `member.pii.reveal` 的角色看得到；沒有解除權限者的搜尋只比對會員編號；LINE 識別碼與 QR 憑證字串**永不出現在任何後台回應**；受限帳號只看得到自己授權俱樂部的會籍列，直接打對方的 id 是 404。

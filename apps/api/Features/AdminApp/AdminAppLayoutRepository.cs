@@ -378,7 +378,7 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
             AdminInput.OptionalHttpUrl(link, "連結", 500, "linkUrl");
         }
 
-        AdminInput.OneOf(r.AudienceTier ?? "all", Tcrfc.Api.Features.AppPublic.PushAudienceSpec.Tiers, "目標對象", "「全部」「球迷會員」「一般會員」或「未登入」", "audienceTier");
+        AdminInput.OneOf(r.AudienceTier ?? "all", Tcrfc.Api.Features.AppPublic.PushAudienceSpec.Tiers, "目標對象", "「全部」「持有效會籍者」「尊尚會員」或「無有效會籍者」", "audienceTier");
         if (r.StartsAt is not null && r.EndsAt is not null && r.EndsAt <= r.StartsAt)
         {
             throw new AdminValidationException("顯示期間的結束時間必須晚於開始時間。", "endsAt");
@@ -425,7 +425,7 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
         return new AdminAppAnnouncementDto
         {
             Id = a.Id, LinkUrl = a.LinkUrl, StartsAt = a.StartsAt, EndsAt = a.EndsAt, AudienceTier = a.AudienceTier,
-            AudienceTierLabel = a.AudienceTier switch { "fan_club" => "球迷會員", "registered" => "一般會員", "anonymous" => "未登入", _ => "全部" },
+            AudienceTierLabel = a.AudienceTier switch { "member" => "持有效會籍者", "premium" => "尊尚會員", "anonymous" => "無有效會籍者", _ => "全部" },
             AudienceClubCode = a.AudienceClub?.Code, IsEnabled = a.IsEnabled,
             IsActiveNow = a.IsEnabled && (a.StartsAt is null || a.StartsAt <= now) && (a.EndsAt is null || a.EndsAt > now),
             MessageZh = a.AppAnnouncementsI18ns.FirstOrDefault(x => x.Locale == RequestLocale.DefaultDbLocale)?.Message,

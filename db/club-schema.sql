@@ -154,13 +154,15 @@ CREATE TABLE ui_string_translations (
   CONSTRAINT PK_ui_string_translations PRIMARY KEY CLUSTERED (ui_string_id, locale)
 );
 
--- 五大核心價值標籤的多型關聯，可掛任何內容型別。
+-- 四大核心價值標籤的多型關聯，可掛任何內容型別。
+-- 🔄 2026-10-16（主站 v3.29，客戶 2.3）：五項改四項——啟發球員 inspiring_players／塑造冠軍 shaping_champions／在地驕傲 local_pride／撼動全球 global_influence。
+-- 舊五個 code 的遷移見 db/migrations/20261016_client-doc-alignment_2-contract.sql（integrity 無對應，連結列刪除）。
 CREATE TABLE value_tag_links (
   entity_type     nvarchar(32)     NOT NULL,
   entity_id       uniqueidentifier NOT NULL,
   value_tag       nvarchar(32)     NOT NULL
                     CONSTRAINT CK_value_tag_links_value_tag CHECK (value_tag IN
-                      ('players_first','excellence','global_pathways','community','integrity')),
+                      ('inspiring_players','shaping_champions','local_pride','global_influence')),
   CONSTRAINT PK_value_tag_links PRIMARY KEY CLUSTERED (entity_type, entity_id, value_tag)
 );
 
@@ -1946,6 +1948,8 @@ CREATE TABLE members (
 );
 
 -- 會籍（v3.0 新增）：member_id × club_id × season_id、層級、起訖、狀態。一人每俱樂部一份。
+-- 🔄 2026-10-16（主站 v3.29，客戶 8.2）：註冊帳號不是會籍——不再有 tier = 'registered' 的列；tier 只有 standard（磐石會員）／premium（尊尚會員），
+-- 隨方案（membership_plans.tier）；membership_plan_id 改必填（會籍只由購買並開通方案而來）。
 CREATE TABLE memberships (
   id                        uniqueidentifier NOT NULL CONSTRAINT DF_memberships_id DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
@@ -1953,14 +1957,14 @@ CREATE TABLE memberships (
   club_id                   uniqueidentifier NOT NULL,
   season_id                 uniqueidentifier NOT NULL,
   tier                      nvarchar(16)     NOT NULL
-                              CONSTRAINT CK_memberships_tier CHECK (tier IN ('registered','fan_club')),
+                              CONSTRAINT CK_memberships_tier CHECK (tier IN ('standard','premium')),
   membership_start_on       date             NULL,
   membership_end_on         date             NULL,
   -- B1（2026-09-30，S2-5）：status 值域收斂為 pending（升級申請待確認）／active／expired／cancelled，
   -- 對應 §3.14 升級頁的「待確認／已開通／已到期」與後台手動取消。membership_plan_id：規劃書 §5.1 Membership
   -- 「方案」欄的落點（目前方案；歷次付款仍各自記在 membership_payments.membership_plan_id）。
   -- last_adjust_reason／last_adjusted_at：K2「手動調整層級（含異動原因紀錄）」——不建日誌表，只留最近一次。
-  membership_plan_id        uniqueidentifier NULL,
+  membership_plan_id        uniqueidentifier NOT NULL,
   status                    nvarchar(16)     NOT NULL CONSTRAINT DF_memberships_status DEFAULT 'active'
                               CONSTRAINT CK_memberships_status CHECK (status IN ('pending','active','expired','cancelled')),
   last_adjust_reason        nvarchar(255)    NULL,
@@ -1997,6 +2001,8 @@ CREATE TABLE member_cards (
 -- 會籍方案：費用、season、期間、card_quota、jersey_quota、季中計價規則。
 -- code 為 docs/12b §11.1 唯一鍵 (club_id, season_id, code) 直接指名的欄位，ERD 主表屬性未逐一畫出，本檔據此補上。
 -- 🔄 2026-10-06（稽核 D 類）：季中計價規則 mid_season_rule 是給人看的規則說明文字，移入 membership_plans_i18n。
+-- 🔄 2026-10-16（主站 v3.29）：新增 tier（層級 standard／premium，會籍的層級隨方案）與 shop_discount_percent（商店會員折扣比例，0–100 整數百分比；
+-- 0＝無折扣）。fee 即「建議年費」（磐石會員 400、尊尚會員 2400，種子）；jersey_quota 磐石會員 0、尊尚會員 1。
 CREATE TABLE membership_plans (
   id                uniqueidentifier NOT NULL CONSTRAINT DF_membership_plans_id DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -2015,6 +2021,9 @@ CREATE TABLE membership_plans (
   updated_at        datetime2(3)     NOT NULL CONSTRAINT DF_membership_plans_updated_at DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
+  tier              nvarchar(16)     NOT NULL CONSTRAINT CK_membership_plans_tier CHECK (tier IN ('standard','premium')),
+  shop_discount_percent int          NOT NULL CONSTRAINT DF_membership_plans_shop_discount_percent DEFAULT 0
+                      CONSTRAINT CK_membership_plans_shop_discount_percent CHECK (shop_discount_percent BETWEEN 0 AND 100),
   CONSTRAINT PK_membership_plans PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_membership_plans_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -2106,25 +2115,30 @@ CREATE TABLE membership_orders (
 );
 
 -- 權益對照條目（由父表 membership_plans 推導）：分組、排序。不帶 club_id。
+-- 🔄 2026-10-16（主站 v3.29）：權益對照表改為「以方案為欄」——每個方案各有一組條目，同一俱樂部各方案以 benefit_code 對齊成對照表
+-- （(membership_plan_id, benefit_code) 唯一）；該方案的對應值在 membership_benefits_i18n.value。
+-- benefit_group 值域改為 member_card／discount／gift／event／content（會員卡／折扣與優惠／禮品／活動／內容與溝通）。
 CREATE TABLE membership_benefits (
   id                    uniqueidentifier NOT NULL CONSTRAINT DF_membership_benefits_id DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   membership_plan_id    uniqueidentifier NOT NULL,
-  -- B1（2026-09-30）：benefit_group 值域 member_card／store_discount／jersey／event（規劃書 K4 分組
-  -- 「會員卡／店家折扣／球衣／活動」）；status 為上下架（draft／published）。
+  -- B1（2026-09-30）：status 為上下架（draft／published）。benefit_group 值域已於 2026-10-16 改為
+  -- member_card／discount／gift／event／content（見上）。
   benefit_group         nvarchar(64)     NOT NULL
-                          CONSTRAINT CK_membership_benefits_benefit_group CHECK (benefit_group IN ('member_card','store_discount','jersey','event')),
+                          CONSTRAINT CK_membership_benefits_benefit_group CHECK (benefit_group IN ('member_card','discount','gift','event','content')),
   sort_order            int              NOT NULL CONSTRAINT DF_membership_benefits_sort_order DEFAULT 0,
   status                nvarchar(16)     NOT NULL CONSTRAINT DF_membership_benefits_status DEFAULT 'draft' CONSTRAINT CK_membership_benefits_status CHECK (status IN ('draft','published')),
   created_at            datetime2(3)     NOT NULL CONSTRAINT DF_membership_benefits_created_at DEFAULT SYSUTCDATETIME(),
   updated_at            datetime2(3)     NOT NULL CONSTRAINT DF_membership_benefits_updated_at DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
+  benefit_code          nvarchar(64)     NOT NULL,
   CONSTRAINT PK_membership_benefits PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_membership_benefits_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
--- group_label 為顯示文案（対 benefit_group 代碼的翻譯），free_value／paid_value 為免費／付費層值。
+-- group_label 為顯示文案（対 benefit_group 代碼的翻譯），value 為「該方案」的對應值（勾「✓」、叉「✗」或文字如「10%」「一件」）。
+-- 🔄 2026-10-16：原 free_value／paid_value（免費／付費兩欄對照）移除——免費註冊帳號不是會籍，對照表改以方案為欄。
 CREATE TABLE membership_benefits_i18n (
   membership_benefit_id uniqueidentifier NOT NULL,
   locale                 nvarchar(10)    NOT NULL,
@@ -2132,8 +2146,7 @@ CREATE TABLE membership_benefits_i18n (
   name                   nvarchar(128)   NULL,
   description            nvarchar(max)   NULL,
   group_label            nvarchar(64)    NULL,
-  free_value             nvarchar(255)   NULL,
-  paid_value             nvarchar(255)   NULL,
+  value                  nvarchar(255)   NULL,
   CONSTRAINT PK_membership_benefits_i18n PRIMARY KEY CLUSTERED (membership_benefit_id, locale)
 );
 
@@ -2180,7 +2193,7 @@ CREATE TABLE partner_stores (
   phone               nvarchar(32)     NULL,
   map_url             nvarchar(500)    NULL,
   website_url         nvarchar(500)    NULL,
-  applicable_tier     nvarchar(16)     NOT NULL CONSTRAINT DF_partner_stores_applicable_tier DEFAULT 'all' CONSTRAINT CK_partner_stores_applicable_tier CHECK (applicable_tier IN ('all','fan_club')),
+  applicable_tier     nvarchar(16)     NOT NULL CONSTRAINT DF_partner_stores_applicable_tier DEFAULT 'all' CONSTRAINT CK_partner_stores_applicable_tier CHECK (applicable_tier IN ('all','premium')),
   start_on            date             NULL,
   end_on              date             NULL,
   sort_order          int              NOT NULL CONSTRAINT DF_partner_stores_sort_order DEFAULT 0,
@@ -2265,7 +2278,8 @@ CREATE TABLE draw_rosters (
   serial_no                       int              NOT NULL,
   member_no_snapshot               nvarchar(32)    NOT NULL,
   name_snapshot                    nvarchar(64)    NULL,
-  tier_snapshot                     nvarchar(16)   NULL CONSTRAINT CK_draw_rosters_tier_snapshot CHECK (tier_snapshot IN ('registered','fan_club')),
+  -- 2026-10-16（v3.29）：新名單快照 standard／premium；舊制的 fan_club／registered 快照維持原值（凍結名單不改寫，名單雜湊含層級字串）。
+  tier_snapshot                     nvarchar(16)   NULL CONSTRAINT CK_draw_rosters_tier_snapshot CHECK (tier_snapshot IN ('standard','premium','fan_club','registered')),
   membership_end_on_snapshot         date          NULL,
   is_winner                        bit              NOT NULL CONSTRAINT DF_draw_rosters_is_winner DEFAULT 0,
   is_backup                        bit              NOT NULL CONSTRAINT DF_draw_rosters_is_backup DEFAULT 0,
@@ -2481,6 +2495,8 @@ CREATE TABLE products (
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   size_chart      nvarchar(max) NULL CONSTRAINT CK_products_size_chart_json CHECK (ISJSON(size_chart, OBJECT) = 1 OR ISJSON(size_chart, ARRAY) = 1),
+  -- 2026-10-16（主站 v3.29，S1）：逐商品勾選「適用會員折扣」；折扣比例在 membership_plans.shop_discount_percent。預設 0（不適用）。
+  member_discount_eligible bit    NOT NULL CONSTRAINT DF_products_member_discount_eligible DEFAULT 0,
   CONSTRAINT PK_products PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_products_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -2644,6 +2660,10 @@ CREATE TABLE orders (
   updated_at                 datetime2(3)    NOT NULL CONSTRAINT DF_orders_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                 uniqueidentifier NULL,
   updated_by                 uniqueidentifier NULL,
+  -- 2026-10-16（主站 v3.29，S3）：商店會員折扣的訂單快照。member_discount_amount＝這張訂單因會員折扣而「少收」的總額（含在 subtotal 之內，
+  -- 即 subtotal 已是折後金額；與促銷價不疊加、取低）；member_discount_plan_id＝套用折扣當時的會籍方案（值複製，不隨方案日後變更；刻意不建外鍵——快照不得擋住方案的刪除）。
+  member_discount_amount     int             NOT NULL CONSTRAINT DF_orders_member_discount_amount DEFAULT 0,
+  member_discount_plan_id    uniqueidentifier NULL,
   CONSTRAINT PK_orders PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_orders_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -2665,6 +2685,8 @@ CREATE TABLE order_items (
   updated_at                 datetime2(3)    NOT NULL CONSTRAINT DF_order_items_updated_at DEFAULT SYSUTCDATETIME(),
   created_by                 uniqueidentifier NULL,
   updated_by                 uniqueidentifier NULL,
+  -- 2026-10-16：這一列因會員折扣少收的金額（單價差 × 數量；unit_price_snapshot / line_total 已是折後值，發票與退款一律以它們為準）。
+  member_discount_amount     int             NOT NULL CONSTRAINT DF_order_items_member_discount_amount DEFAULT 0,
   CONSTRAINT PK_order_items PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_order_items_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -3226,7 +3248,7 @@ CREATE TABLE push_messages (
   image_width            int              NULL,
   image_height           int              NULL,
   deep_link              nvarchar(500)    NULL,
-  audience_tier          nvarchar(16)     NOT NULL CONSTRAINT DF_push_messages_audience_tier DEFAULT 'all' CONSTRAINT CK_push_messages_audience_tier CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
+  audience_tier          nvarchar(16)     NOT NULL CONSTRAINT DF_push_messages_audience_tier DEFAULT 'all' CONSTRAINT CK_push_messages_audience_tier CHECK (audience_tier IN ('all','member','premium','anonymous')),
   audience_club_id       uniqueidentifier NULL,
   scheduled_at           datetime2(3)     NULL,
   status                 nvarchar(16)     NOT NULL CONSTRAINT DF_push_messages_status DEFAULT 'draft'
@@ -3381,7 +3403,7 @@ CREATE TABLE app_announcements (
   link_url               nvarchar(500)    NULL,
   starts_at              datetime2(3)     NULL,
   ends_at                datetime2(3)     NULL,
-  audience_tier          nvarchar(16)     NOT NULL CONSTRAINT DF_app_announcements_audience_tier DEFAULT 'all' CONSTRAINT CK_app_announcements_audience_tier CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
+  audience_tier          nvarchar(16)     NOT NULL CONSTRAINT DF_app_announcements_audience_tier DEFAULT 'all' CONSTRAINT CK_app_announcements_audience_tier CHECK (audience_tier IN ('all','member','premium','anonymous')),
   audience_club_id       uniqueidentifier NULL,
   is_enabled             bit              NOT NULL CONSTRAINT DF_app_announcements_is_enabled DEFAULT 1,
   created_at             datetime2(3)     NOT NULL CONSTRAINT DF_app_announcements_created_at DEFAULT SYSUTCDATETIME(),
@@ -3508,6 +3530,7 @@ ALTER TABLE memberships           ADD CONSTRAINT UQ_memberships_member_club_seas
 ALTER TABLE calendar_team_settings ADD CONSTRAINT UQ_calendar_team_settings_team UNIQUE (team_id);
 ALTER TABLE member_cards          ADD CONSTRAINT UQ_member_cards_token            UNIQUE (token);
 ALTER TABLE membership_plans      ADD CONSTRAINT UQ_membership_plans_club_season_code UNIQUE (club_id, season_id, code);
+ALTER TABLE membership_benefits   ADD CONSTRAINT UQ_membership_benefits_plan_code      UNIQUE (membership_plan_id, benefit_code);
 ALTER TABLE partner_stores        ADD CONSTRAINT UQ_partner_stores_club_slug      UNIQUE (club_id, slug);
 ALTER TABLE member_draws          ADD CONSTRAINT UQ_member_draws_club_code        UNIQUE (club_id, draw_code);
 ALTER TABLE draw_rosters          ADD CONSTRAINT UQ_draw_rosters_draw_ver_serial    UNIQUE (member_draw_id, roster_version, serial_no);

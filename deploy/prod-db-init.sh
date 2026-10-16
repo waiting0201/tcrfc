@@ -303,11 +303,15 @@ cmd_init() {
   confirm "INIT ${DB_NAME}"
 
   # 步驟 1：DDL
-  SQLCMD_DOCKER_EXTRA=(-v "$(dirname "${DDL_FILE}"):/work/ddl:ro")
+  # 🔴 E-330：DDL 與參照資料含中文，sqlcmd 13 讀 UTF-8 會在緩衝邊界把字元切壞（結束碼 0、無警告）。轉 UTF-16LE＋BOM 副本再餵（原檔不動）。
+  mkdir -p "${WORK_DIR}/u16-ddl" "${WORK_DIR}/u16-ref"
+  sqlcmd_to_utf16 "${DDL_FILE}" "${WORK_DIR}/u16-ddl/$(basename "${DDL_FILE}")" || die "轉換 DDL 為 UTF-16 失敗"
+  sqlcmd_to_utf16 "${REF_FILE}" "${WORK_DIR}/u16-ref/$(basename "${REF_FILE}")" || die "轉換參照資料為 UTF-16 失敗"
+  SQLCMD_DOCKER_EXTRA=(-v "${WORK_DIR}/u16-ddl:/work/ddl:ro")
   run_sql_file "/work/ddl/$(basename "${DDL_FILE}")" "步驟 1/3：建表（${DB_NAME}）"
 
   # 步驟 2：參照資料
-  SQLCMD_DOCKER_EXTRA=(-v "$(dirname "${REF_FILE}"):/work/ref:ro")
+  SQLCMD_DOCKER_EXTRA=(-v "${WORK_DIR}/u16-ref:/work/ref:ro")
   if [[ "${TARGET}" == "club" ]]; then
     SQLCMD_DOCKER_EXTRA+=(-e CLUB_DOMAIN_TCRFC -e CLUB_DOMAIN_BW)
     CLUB_DOMAIN_TCRFC="${domain_tcrfc}" CLUB_DOMAIN_BW="${domain_bw}" \
@@ -388,6 +392,11 @@ cmd_verify_loaded() {
   [[ "${TARGET}" == "charity" ]] && zh_col="name_zh"
   check_eq "中文編碼（locales.${zh_col} 首字碼位，繁＝32321）" "32321" \
     "$(sql_scalar "SELECT ISNULL(MAX(UNICODE(LEFT(${zh_col}, 1))), 0) FROM locales WHERE code = N'zh-Hant'")" || failures=$((failures + 1))
+
+  # 🔴 E-330：任何 nvarchar／nchar／json 欄位含 U+FFFD（亂碼）即失敗。sqlcmd 13 讀 UTF-8 會在緩衝邊界切壞多位元組字元且不報錯，
+  # 只有事後掃資料才抓得到；點名哪一列用 db/tools/scan-replacement-chars.sql。
+  check_eq "含 U+FFFD（亂碼）的欄位數" "0" \
+    "$(sql_scalar "$(sqlcmd_fffd_column_count_sql)")" || failures=$((failures + 1))
 
   # 不得有測試帳號：*.test／*.local（sa@system.local 例外，2026-10-03 使用者裁決）命名，或任何帳號的密碼雜湊仍等於種子雜湊
   local bad

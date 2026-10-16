@@ -327,12 +327,12 @@ TAGS = [
     ("community", "社區", "Community"),
     ("fans", "球迷", "Fans"),
 ]
-# news category code → (tag slugs, value tags)；value tag 值域見 value_tag_links CHECK
+# news category code → (tag slugs, value tags)；value tag 值域見 value_tag_links CHECK（2026-10-16 起四項：inspiring_players／shaping_champions／local_pride／global_influence）
 NEWS_TAG_RULES = {
     "match": (["match"], []),
-    "international": (["international"], ["global_pathways"]),
-    "community": (["community"], ["community"]),
-    "camps-events": (["youth-development"], ["players_first"]),
+    "international": (["international"], ["global_influence"]),
+    "community": (["community"], ["local_pride"]),
+    "camps-events": (["youth-development"], ["inspiring_players"]),
     "club": ([], []),
 }
 FEATURED_TCRFC_COUNT = 2  # 依 published_at 最新的兩篇設為精選
@@ -343,7 +343,7 @@ BW_TEST_NEWS = [
     {"slug": "bw-test-news-match", "category": "match", "date": "2026-09-25",
      "title": TEST + "台中藍鯨賽事報導範例", "summary": TEST_BODY, "tags": ["match"], "value_tags": []},
     {"slug": "bw-test-news-community", "category": "community", "date": "2026-09-28",
-     "title": TEST + "台中藍鯨社區活動範例", "summary": TEST_BODY, "tags": ["community"], "value_tags": ["community"]},
+     "title": TEST + "台中藍鯨社區活動範例", "summary": TEST_BODY, "tags": ["community"], "value_tags": ["local_pride"]},
 ]
 
 # ============================================================================
@@ -473,9 +473,9 @@ LLMS = {
         "key_pages": (_TCRFC_KEY_PAGES_ZH, _TCRFC_KEY_PAGES_EN),
         "facts_summary": (
             "2024 年創立；目前參加企業甲級聯賽；主場為西屯足球場（台中市北屯區崇平路二段景谷巷 11 弄 41 號）；"
-            "一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系。",
+            "一線隊與足球學院（U10／U12／U14／U16／U18）並行的發展體系。",
             "Founded in 2024. Competes in the Enterprise Premier League (企業甲級聯賽). Home ground: Xitun Football Field, Taichung. "
-            "Squads: the first team plus the Academy (U15 / U14 / U12).",
+            "Squads: the first team plus the Academy (U10 / U12 / U14 / U16 / U18).",
         ),
         "license": (_LICENSE_ZH, _LICENSE_EN),
         "contact": (
@@ -1191,19 +1191,21 @@ BEGIN
 END
 """)
 
-    emit("-- ── 43. membership_plans／membership_plans_i18n：K2 會籍方案（tcrfc 2026-27 單人＋家庭、bw 2025 單人，【測試】價格） ──")
-    PLANS_TEST = [  # club, season, code, fee, cards, jerseys, rule, starts, ends, order, zh, en, note zh
-        ("tcrfc", "2026-27", "single", 1200, 1, 1, "【測試】季中入會照比例計價", "2026-09-13", "2027-05-02", 0, "【測試】球迷會員（單人）", "Fan Club Member (Single)", "【測試】含會員卡一張、入會球衣一件。"),
-        ("tcrfc", "2026-27", "family", 3000, 3, 3, "【測試】季中入會不折價", "2026-09-13", "2027-05-02", 1, "【測試】球迷會員（家庭）", "Fan Club Member (Family)", "【測試】1 位成人＋2 位小童，含會員卡三張、球衣三件。"),
-        ("bw", "2025", "single", 800, 1, 1, "【測試】季中入會照比例計價", "2025-04-23", "2025-06-15", 0, "【測試】藍鯨球迷會員（單人）", "Blue Whale Fan Club (Single)", "【測試】含會員卡一張、入會球衣一件。"),
+    emit("-- ── 43. membership_plans／membership_plans_i18n：K2 會籍方案（tcrfc 2026-27 磐石會員＋尊尚會員〔客戶 8.2〕、bw 2025 單人〔【測試】〕） ──")
+    # 2026-10-16（主站 v3.29）：磐石的兩級方案取自客戶 8.2 球迷會方案（建議年費 NT$400／NT$2,400；尊尚禮盒含球衣一件、磐石會員 0；兩級商店會員折扣各 10%，
+    # 規劃書 §3.8 8.3 英文版範例）。季中入會計價規則客戶沒有給，留空。藍鯨方案由藍鯨自訂，這裡仍是【測試】資料。
+    PLANS_TEST = [  # club, season, code, tier, discount%, fee, cards, jerseys, rule, starts, ends, order, zh, en, note zh
+        ("tcrfc", "2026-27", "standard", "standard", 10, 400, 1, 0, None, "2026-09-13", "2027-05-02", 0, "磐石會員", "Rock Member", None),
+        ("tcrfc", "2026-27", "premium", "premium", 10, 2400, 1, 1, None, "2026-09-13", "2027-05-02", 1, "尊尚會員", "Prestige Member", None),
+        ("bw", "2025", "single", "standard", 0, 800, 1, 1, "【測試】季中入會照比例計價", "2025-04-23", "2025-06-15", 0, "【測試】藍鯨會員（單人）", "Blue Whale Member (Single)", "【測試】含會員卡一張、入會球衣一件。"),
     ]
-    for ccode, season, code, fee, cards, jerseys, rule, starts, ends, order, zh, en, note in PLANS_TEST:
+    for ccode, season, code, tier, discount, fee, cards, jerseys, rule, starts, ends, order, zh, en, note in PLANS_TEST:
         pid = new_id("membership_plan", ccode, season, code)
         block(f"""
 IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = {clubs[ccode]} AND season_id = {season_sq(clubs[ccode], season)} AND code = {esc(code)})
 BEGIN
-  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
-  VALUES ({esc(pid)}, {clubs[ccode]}, {season_sq(clubs[ccode], season)}, {esc(code)}, {fee}, {cards}, {jerseys}, {order}, {esc(starts)}, {esc(ends)}, N'published');
+  INSERT INTO membership_plans (id, club_id, season_id, code, tier, shop_discount_percent, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
+  VALUES ({esc(pid)}, {clubs[ccode]}, {season_sq(clubs[ccode], season)}, {esc(code)}, {esc(tier)}, {discount}, {fee}, {cards}, {jerseys}, {order}, {esc(starts)}, {esc(ends)}, N'published');
   INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES ({esc(pid)}, N'zh-Hant', {esc(zh)}, {esc(note)}, {esc(rule)});
   INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES ({esc(pid)}, N'en', {esc(en)}, NULL);
 END
@@ -1229,15 +1231,15 @@ IF NOT EXISTS (SELECT 1 FROM members WHERE member_no = {esc(no)})
           {"SYSUTCDATETIME()" if verified else "NULL"}, {"DATEADD(day, -3, SYSUTCDATETIME())" if verified else "NULL"}, {esc(note)}, {esc(locale)});
 """)
     # member no, club, season, plan code, tier, start, end, status, payment (method, amount, paid_on) | None
+    # 2026-10-16（主站 v3.29）：註冊帳號不是會籍——不再有 tier = registered 的會籍；M900006 是「僅註冊帳號」（沒有任何會籍）、M900007 是已取消的磐石會員（與 M900001 同電話，重複帳號比對示範）。
     MEMBERSHIPS_TEST = [
-        ("M900001", "tcrfc", "2026-27", "single", "fan_club", "2026-09-20", "2027-05-02", "active", ("linepay", 1200, "2026-09-20")),
-        ("M900001", "bw", "2025", "single", "fan_club", "2025-04-25", "2025-06-15", "expired", ("onsite", 800, "2025-04-25")),
-        ("M900002", "tcrfc", "2026-27", "family", "fan_club", "2026-09-22", "2027-05-02", "active", ("onsite", 3000, "2026-09-22")),
-        ("M900003", "tcrfc", "2026-27", None, "registered", "2026-09-13", "2027-05-02", "active", None),
-        ("M900004", "tcrfc", "2026-27", None, "registered", "2026-09-25", "2027-05-02", "pending", None),
-        ("M900005", "tcrfc", "2026-27", "single", "fan_club", "2026-09-14", "2026-10-15", "active", ("linepay", 1200, "2026-09-14")),
-        ("M900006", "bw", "2025", None, "registered", "2025-04-23", "2025-06-15", "active", None),
-        ("M900007", "tcrfc", "2026-27", None, "registered", "2026-09-27", "2027-05-02", "active", None),
+        ("M900001", "tcrfc", "2026-27", "premium", "premium", "2026-09-20", "2027-05-02", "active", ("linepay", 2400, "2026-09-20")),
+        ("M900001", "bw", "2025", "single", "standard", "2025-04-25", "2025-06-15", "expired", ("onsite", 800, "2025-04-25")),
+        ("M900002", "tcrfc", "2026-27", "premium", "premium", "2026-09-22", "2027-05-02", "active", ("onsite", 2400, "2026-09-22")),
+        ("M900003", "tcrfc", "2026-27", "standard", "standard", "2026-09-13", "2027-05-02", "active", ("onsite", 400, "2026-09-13")),
+        ("M900004", "tcrfc", "2026-27", "standard", "standard", "2026-09-25", "2027-05-02", "pending", None),
+        ("M900005", "tcrfc", "2026-27", "premium", "premium", "2026-09-14", "2026-10-15", "active", ("linepay", 2400, "2026-09-14")),
+        ("M900007", "tcrfc", "2026-27", "standard", "standard", "2026-09-27", "2027-05-02", "cancelled", None),  # 已取消：與 M900001 同電話的重複帳號示範仍在 tcrfc 範圍內
     ]
     for no, ccode, season, plan, tier, start, end, status, pay in MEMBERSHIPS_TEST:
         msid = new_id("membership", no, ccode, season)
@@ -1260,13 +1262,7 @@ IF NOT EXISTS (SELECT 1 FROM membership_payments WHERE membership_id = {esc(msid
   INSERT INTO membership_payments (id, membership_id, club_id, collecting_club_id, membership_plan_id, method, amount, paid_on, note, activated_start_on, activated_end_on)
   VALUES ({esc(new_id("membership_payment", msid))}, {esc(msid)}, {cs}, {clubs["tcrfc"]}, {plan_sql}, {esc(method)}, {amount}, {esc(paid_on)}, N'【測試】種子付款紀錄', {esc(start)}, {esc(end)});
 """)
-    # 家庭方案的副卡（card_quota=3，主卡已在上面建立）
-    block(f"""
-IF (SELECT COUNT(*) FROM member_cards WHERE membership_id = {esc(new_id("membership", "M900002", "tcrfc", "2026-27"))}) < 2
-  INSERT INTO member_cards (id, membership_id, club_id, holder_name, token, status, issued_at)
-  VALUES ({esc(new_id("member_card", "M900002-extra-1"))}, {esc(new_id("membership", "M900002", "tcrfc", "2026-27"))}, {clubs["tcrfc"]}, N'【測試】副卡持有人（小童）',
-          {esc(hashlib.sha256(b"seed-card-token|M900002-extra-1").hexdigest()[:43])}, N'active', SYSUTCDATETIME());
-""")
+    # 2026-10-16：家庭方案（多張副卡）已移除；磐石兩級方案皆每份會籍一張卡（card_quota = 1）。
     JERSEYS_TEST = [  # member no, club, season, recipient, size, method, status, shipped, address
         ("M900001", "tcrfc", "2026-27", "【測試】會員甲", "L", "ship", "pending", None, "【測試】台中市西屯區測試路 1 號"),
         ("M900002", "tcrfc", "2026-27", "【測試】會員乙", "M", "pickup", "pending", None, None),
@@ -1318,8 +1314,8 @@ END
     STORES_TEST = [  # slug, club_code|None, category, region, zh name, en name, zh addr, en addr, lat, lng, tier, status, offer zh, offer en
         ("test-store-cafe", "tcrfc", "餐飲", "台中市西屯區", "【測試】示範咖啡館", "Test Cafe", "【測試】台中市西屯區測試路 10 號", "No. 10 Test Rd., Xitun Dist., Taichung", 24.1810, 120.6060, "all", "published",
          "【測試】出示會員卡飲品九折", "Test: 10% off drinks with member card"),
-        ("test-store-sports", "tcrfc", "運動用品", "台中市北屯區", "【測試】示範運動用品店", "Test Sports Shop", "【測試】台中市北屯區測試路 20 號", None, 24.1830, 120.7080, "fan_club", "published",
-         "【測試】付費會員全店九五折", "Test: 5% off for fan club members"),
+        ("test-store-sports", "tcrfc", "運動用品", "台中市北屯區", "【測試】示範運動用品店", "Test Sports Shop", "【測試】台中市北屯區測試路 20 號", None, 24.1830, 120.7080, "premium", "published",
+         "【測試】尊尚會員全店九五折", "Test: 5% off for Prestige members"),
         ("test-store-gym", "tcrfc", "健身", "台中市南屯區", "【測試】示範健身房", None, "【測試】台中市南屯區測試路 30 號", None, None, None, "all", "draft",
          "【測試】體驗課程一堂免費（草稿，尚未上架）", None),
         ("test-store-food", "tcrfc", "餐飲", "台中市西區", "【測試】示範小吃店", "Test Snack Shop", "【測試】台中市西區測試路 40 號", None, 24.1400, 120.6640, "all", "published",
@@ -1343,29 +1339,49 @@ BEGIN
 END
 """)
 
-    emit("-- ── 48. membership_benefits／membership_benefits_i18n：K4 權益對照表（掛在 tcrfc 單人方案，六條【測試】條目，分組涵蓋四類） ──")
-    BENEFITS_TEST = [  # group, order, zh name, en name, zh desc, free, paid
-        ("member_card", 0, "電子會員卡", "Digital member card", "【測試】手機出示即可", "✓", "✓"),
-        ("store_discount", 1, "全會員適用的特約店家折扣", "Partner store discounts (all members)", "【測試】標示「全會員適用」的店家", "✓", "✓"),
-        ("store_discount", 2, "限付費會員的特約店家折扣", "Partner store discounts (fan club only)", "【測試】標示「限付費」的店家", "✗", "✓"),
-        ("jersey", 3, "入會球衣", "Membership jersey", "【測試】依方案含球衣件數", "✗", "一件"),
-        ("event", 4, "球迷活動優先報名", "Priority sign-up for fan events", "【測試】球迷見面會等活動", "✗", "✓"),
-        ("event", 5, "球迷會員抽獎資格", "Fan club prize draw eligibility", "【測試】會籍有效期間自動具備", "✗", "✓"),
+    emit("-- ── 48. membership_benefits／membership_benefits_i18n：K4 權益對照表（tcrfc 磐石會員＋尊尚會員，取自客戶 8.2 球迷會方案；權益名稱與內容照客戶原文） ──")
+    # 2026-10-16（主站 v3.29）：權益對照表以方案為欄——每個方案各有一組條目，以 benefit_code 對齊；尊尚會員「包含磐石會員全部權益」，
+    # 所以磐石會員的五條也同樣掛在尊尚會員底下（值同為 ✓／10%）。名稱／內容中文照客戶 8.2 原文（含「球會」「WhatsApp」等用字），英文為開發端翻譯。
+    # 「特約店家折扣」「抽獎資格」兩條不在客戶表裡，是規劃書 §3.14 明列的兩級方案共同權益（系統承接），為了讓對照表完整而一併列出。
+    # tuple: (code, group, order, zh name, en name, zh desc, en desc, standard value | None, premium value | None)
+    BENEFITS_TCRFC = [
+        ("member_card", "member_card", 0, "電子會員卡", "Digital membership card", "專屬會員電子卡", "Exclusive digital membership card", "✓", "✓"),
+        ("includes_standard", "member_card", 1, "包含磐石會員全部權益", "Includes all Rock Member benefits", "磐石會員內容完整保留", "All Rock Member benefits are kept in full", None, "✓"),
+        ("welcome_gift", "gift", 2, "歡迎禮", "Welcome gift", "老帽、行李牌", "Cap and luggage tag", "✓", "✓"),
+        ("premium_gift_box", "gift", 3, "限量尊尚禮盒", "Limited-edition Prestige gift box", "球衣、老帽、行李牌或限量紀念品", "Jersey, cap, luggage tag or a limited-edition keepsake", None, "✓"),
+        ("referral_reward", "gift", 4, "推薦獎勵", "Referral rewards", "成功推薦新學員或會員，可獲商店券、活動抵扣或升級禮遇", "Successfully refer a new student or member to earn a shop voucher, an event credit or an upgrade perk", None, "✓"),
+        ("shop_discount", "discount", 5, "購物折扣", "Shopping discount", "球會服飾、周邊及指定活動享 10% 折扣", "10% off club apparel, merchandise and selected events", "10%", "10%"),
+        ("training_discount", "discount", 6, "訓練／課程優惠", "Training and programme offers", "學院課程、假期營隊、個人訓練或合作商戶享 10%–15% 優惠", "10%–15% off Academy programmes, holiday camps, individual training or at partner merchants", None, "10%–15%"),
+        ("partner_discount", "discount", 7, "特約店家折扣", "Partner store discounts", "依各特約店家設定的適用層級享有優惠", "Offers at partner stores, according to the tier each store applies to", "✓", "✓"),
+        ("member_vote", "event", 8, "會員投票", "Member voting", "可參與年度最佳球員、最佳進球等投票", "Vote in polls such as Player of the Year and Goal of the Year", "✓", "✓"),
+        ("priority_signup", "event", 9, "優先報名", "Priority registration", "球迷活動、夏令營或講座可提早報名", "Register early for fan events, summer camps and talks", "✓", "✓"),
+        ("priority_tickets", "event", 10, "優先購票／保留名額", "Priority tickets and reserved places", "對外賽事、表演賽、晚宴、海外交流或特別活動", "For public matches, exhibition matches, dinners, overseas exchanges and special events", None, "✓"),
+        ("exclusive_events", "event", 11, "專屬活動", "Exclusive events", "每年至少一次教練分享會、球員見面會、訓練參觀或會員日", "At least one coach talk, player meet-up, training visit or members' day each year", None, "✓"),
+        ("draw_eligibility", "event", 12, "抽獎資格", "Prize draw eligibility", "會籍有效期間自動具備，不需登記", "Automatic while the membership is valid, no sign-up needed", "✓", "✓"),
+        ("behind_the_scenes", "content", 13, "幕後內容", "Behind-the-scenes content", "戰術分析、青訓發展報告、教練訪談", "Tactical analysis, youth development reports and coach interviews", None, "✓"),
+        ("priority_channel", "content", 14, "優先溝通渠道", "Priority communication channel", "會員專屬 WhatsApp／社群群組或季度問答會", "A members-only WhatsApp / community group or quarterly Q&A sessions", None, "✓"),
+        ("name_display", "content", 15, "名字展示", "Name display", "可選擇在官方網站或年度感謝牆列名", "Optionally have your name listed on the official website or the annual thank-you wall", None, "✓"),
     ]
-    single_plan_sq = f"(SELECT id FROM membership_plans WHERE club_id = {tc} AND season_id = {season_sq(tc, '2026-27')} AND code = N'single')"
-    group_labels = {"member_card": ("會員卡", "Member card"), "store_discount": ("店家折扣", "Store discounts"), "jersey": ("球衣", "Jersey"), "event": ("活動", "Events")}
-    for group, order, zh, en, desc, free, paid in BENEFITS_TEST:
-        bid = new_id("membership_benefit", "tcrfc-single", str(order))
-        gl_zh, gl_en = group_labels[group]
-        block(f"""
-IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = {single_plan_sq} AND sort_order = {order})
+    group_labels = {"member_card": ("會員卡", "Membership card"), "discount": ("折扣與優惠", "Discounts & offers"), "gift": ("禮品", "Gifts"),
+                    "event": ("活動", "Events"), "content": ("內容與溝通", "Content & community")}
+    for plan_code, value_index in (("standard", 7), ("premium", 8)):
+        plan_sq = f"(SELECT id FROM membership_plans WHERE club_id = {tc} AND season_id = {season_sq(tc, '2026-27')} AND code = {esc(plan_code)})"
+        for row in BENEFITS_TCRFC:
+            code, group, order, zh, en, desc_zh, desc_en = row[:7]
+            value = row[value_index]
+            if value is None:
+                continue
+            bid = new_id("membership_benefit", f"tcrfc-{plan_code}", code)
+            gl_zh, gl_en = group_labels[group]
+            block(f"""
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = {plan_sq} AND benefit_code = {esc(code)})
 BEGIN
-  INSERT INTO membership_benefits (id, membership_plan_id, benefit_group, sort_order, status)
-  VALUES ({esc(bid)}, {single_plan_sq}, {esc(group)}, {order}, N'published');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES ({esc(bid)}, N'zh-Hant', {esc(zh)}, {esc(desc)}, {esc(gl_zh)}, {esc(free)}, {esc(paid)});
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES ({esc(bid)}, N'en', {esc(en)}, NULL, {esc(gl_en)}, {esc(free)}, {esc(paid)});
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES ({esc(bid)}, {plan_sq}, {esc(code)}, {esc(group)}, {order}, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES ({esc(bid)}, N'zh-Hant', {esc(zh)}, {esc(desc_zh)}, {esc(gl_zh)}, {esc(value)});
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES ({esc(bid)}, N'en', {esc(en)}, {esc(desc_en)}, {esc(gl_en)}, {esc(value)});
 END
 """)
 
@@ -1404,7 +1420,7 @@ END
 
     emit("-- ── 50. F2 球迷會活動：tcrfc 3 場（付費限定／公開／草稿）＋報名、bw 1 場 ──")
     FAN_EVENTS = [  # slug, club, name zh, en, description, days offset, capacity, paid_only, status
-        ("test-fan-meet", "tcrfc", "【測試】球迷見面會（付費會員限定）", "[Test] Fan meet-up (fan club members only)", "【測試】球員與付費球迷會員面對面，名額 30 人。", 14, 30, 1, "published"),
+        ("test-fan-meet", "tcrfc", "【測試】球迷見面會（付費會員限定）", "[Test] Fan meet-up (members only)", "【測試】球員與會員面對面，名額 30 人。", 14, 30, 1, "published"),
         ("test-match-day-party", "tcrfc", "【測試】主場賽事日球迷派對", "[Test] Match-day fan party", "【測試】主場賽事日的球迷同樂活動，不限名額。", 30, None, 0, "published"),
         ("test-past-event", "tcrfc", "【測試】上季球迷活動回顧（草稿）", "[Test] Last season fan event (draft)", "【測試】已結束的活動，回顧圖集與文章尚未整理。", -30, 50, 0, "draft"),
         ("test-bw-fan-day", "bw", "【測試】藍鯨球迷日", "[Test] Blue Whale fan day", "【測試】藍鯨方的球迷活動示範。", 20, 40, 0, "published"),
@@ -1623,7 +1639,7 @@ END
     emit("-- ── 54. K5 抽獎名單：蒐集告知確認、tcrfc 1 場已抽出（名單 2 人、1 位中獎）＋1 場草稿 ──")
     setting_value("tcrfc", "member.draw_notice_confirmed", "2026-09-30T00:00:00.0000000Z", "member")
     DRAW_ROSTER = [(1, "M900001", "【測試】會員甲", "2027-05-02"), (2, "M900002", "【測試】會員乙", "2027-05-02")]
-    roster_text = "TEST-DRAW-01|1\n" + "".join(f"{s}|{m}|{n}|fan_club|{e}\n" for s, m, n, e in DRAW_ROSTER)
+    roster_text = "TEST-DRAW-01|1\n" + "".join(f"{s}|{m}|{n}|premium|{e}\n" for s, m, n, e in DRAW_ROSTER)
     roster_hash = hashlib.sha256(roster_text.encode("utf-8")).hexdigest()
     d1 = new_id("member_draw", "tcrfc", "TEST-DRAW-01")
     block(f"""
@@ -1632,11 +1648,11 @@ BEGIN
   INSERT INTO member_draws (id, club_id, draw_code, snapshot_at, drawn_at, draw_occasion, claim_deadline_on, status, roster_version, total_count, roster_hash, locked_at)
   VALUES ({esc(d1)}, {tc}, N'TEST-DRAW-01', '2026-09-25T16:00:00', '2026-09-26T10:00:00', N'home_match', '2026-12-31', N'drawn', 1, 2, {esc(roster_hash)}, SYSUTCDATETIME());
   INSERT INTO member_draws_i18n (member_draw_id, locale, name, prize_description, rules, notes) VALUES
-    ({esc(d1)}, N'zh-Hant', N'【測試】主場賽事日球迷抽獎', N'【測試】簽名球衣一件', N'【測試】活動辦法占位文字：資格為基準時間當下持有本俱樂部有效球迷會員會籍；同時具備兩隊會籍者可分別參加兩隊抽獎。', N'【測試】注意事項占位文字');
+    ({esc(d1)}, N'zh-Hant', N'【測試】主場賽事日球迷抽獎', N'【測試】簽名球衣一件', N'【測試】活動辦法占位文字：資格為基準時間當下持有本俱樂部有效會籍；同時具備兩隊會籍者可分別參加兩隊抽獎。', N'【測試】注意事項占位文字');
   INSERT INTO member_draws_i18n (member_draw_id, locale, name, prize_description, rules, notes) VALUES
     ({esc(d1)}, N'en', N'[Test] Match-day fan prize draw', N'[Test] One signed jersey', NULL, NULL);
   INSERT INTO draw_roster_versions (id, member_draw_id, roster_version, snapshot_at, total_count, roster_hash) VALUES ({esc(new_id("draw_roster_version", "TEST-DRAW-01", "1"))}, {esc(d1)}, 1, '2026-09-25T16:00:00', 2, {esc(roster_hash)});
-  {"".join(f"INSERT INTO draw_rosters (id, club_id, member_draw_id, roster_version, serial_no, member_no_snapshot, name_snapshot, tier_snapshot, membership_end_on_snapshot, is_winner, prize_name, claim_method, fulfilment_status, recipient_name, recipient_phone, recipient_address) VALUES ({esc(new_id('draw_roster', 'TEST-DRAW-01', str(s)))}, {tc}, {esc(d1)}, 1, {s}, {esc(m)}, {esc(n)}, N'fan_club', {esc(e)}, {1 if s == 1 else 0}, {esc('【測試】簽名球衣' if s == 1 else None)}, {esc('ship' if s == 1 else None)}, {esc('pending' if s == 1 else None)}, {esc('【測試】會員甲' if s == 1 else None)}, {esc('0900-000-001' if s == 1 else None)}, {esc('【測試】台中市西屯區測試路 1 號' if s == 1 else None)});" for s, m, n, e in DRAW_ROSTER)}
+  {"".join(f"INSERT INTO draw_rosters (id, club_id, member_draw_id, roster_version, serial_no, member_no_snapshot, name_snapshot, tier_snapshot, membership_end_on_snapshot, is_winner, prize_name, claim_method, fulfilment_status, recipient_name, recipient_phone, recipient_address) VALUES ({esc(new_id('draw_roster', 'TEST-DRAW-01', str(s)))}, {tc}, {esc(d1)}, 1, {s}, {esc(m)}, {esc(n)}, N'premium', {esc(e)}, {1 if s == 1 else 0}, {esc('【測試】簽名球衣' if s == 1 else None)}, {esc('ship' if s == 1 else None)}, {esc('pending' if s == 1 else None)}, {esc('【測試】會員甲' if s == 1 else None)}, {esc('0900-000-001' if s == 1 else None)}, {esc('【測試】台中市西屯區測試路 1 號' if s == 1 else None)});" for s, m, n, e in DRAW_ROSTER)}
 END
 """)
     d2 = new_id("member_draw", "tcrfc", "TEST-DRAW-02")
@@ -1868,9 +1884,9 @@ END
     block(f"""
 IF NOT EXISTS (SELECT 1 FROM push_messages WHERE id = {esc(pm2)})
 BEGIN
-  INSERT INTO push_messages (id, kind, audience_tier, status) VALUES ({esc(pm2)}, N'announcement', N'fan_club', N'draft');
+  INSERT INTO push_messages (id, kind, audience_tier, status) VALUES ({esc(pm2)}, N'announcement', N'member', N'draft');
   INSERT INTO push_messages_i18n (push_message_id, locale, title, body)
-  VALUES ({esc(pm2)}, N'zh-Hant', N'【測試】球迷會員專屬公告（草稿）', N'【測試】草稿內容。'), ({esc(pm2)}, N'en', NULL, NULL);
+  VALUES ({esc(pm2)}, N'zh-Hant', N'【測試】會員專屬公告（草稿）', N'【測試】草稿內容。'), ({esc(pm2)}, N'en', NULL, NULL);
 END
 """)
     for i, (platform, ver, rtype, metric, summary, status) in enumerate([
@@ -1899,8 +1915,8 @@ IF NOT EXISTS (SELECT 1 FROM app_diagnostic_reports WHERE id = {esc(new_id("app_
     emit("-- ── 60. 本機驗收測資：球衣登記用會員 M900101／M900102、漫畫閱讀器用第 101／102 集（僅本機開發庫，不進正式庫） ──")
     tc = clubs["tcrfc"]
     JERSEY_DEV_MEMBERS = [  # member no, name, email, phone, plan code, card holder note
-        ("M900101", "【測試】球衣登記單人", "jersey-single@example.com", "0900-000-101", "single", 1200),
-        ("M900102", "【測試】球衣登記家庭", "jersey-family@example.com", "0900-000-102", "family", 3000),
+        ("M900101", "【測試】球衣登記（尊尚會員）", "jersey-single@example.com", "0900-000-101", "premium", 2400),
+        ("M900102", "【測試】球衣登記（尊尚會員二）", "jersey-family@example.com", "0900-000-102", "premium", 2400),
     ]
     for no, name, email, phone, plan, fee in JERSEY_DEV_MEMBERS:
         mid = new_id("member", no)
@@ -1913,7 +1929,7 @@ BEGIN
   VALUES ({esc(mid)}, {esc(no)}, {esc(name)}, {esc(email)}, {esc(TEST_HASH)}, {esc(phone)}, N'1990-01-01', N'web', N'active',
           SYSUTCDATETIME(), NULL, N'【測試】本機驗收用：球衣登記（見 backoffice_seed.py 區段 60）。', N'zh-Hant');
   INSERT INTO memberships (id, member_id, club_id, season_id, tier, membership_start_on, membership_end_on, status, membership_plan_id)
-  VALUES ({esc(msid)}, {esc(mid)}, {tc}, {season_sq(tc, '2026-27')}, N'fan_club', N'2026-09-20', N'2027-05-02', N'active', {plan_sql});
+  VALUES ({esc(msid)}, {esc(mid)}, {tc}, {season_sq(tc, '2026-27')}, N'premium', N'2026-09-20', N'2027-05-02', N'active', {plan_sql});
   INSERT INTO member_cards (id, membership_id, club_id, holder_name, token, status, issued_at)
   VALUES ({esc(new_id("member_card", msid))}, {esc(msid)}, {tc}, {esc(name)},
           {esc(hashlib.sha256(("seed-card-token|" + msid).encode()).hexdigest()[:43])}, N'active', SYSUTCDATETIME());

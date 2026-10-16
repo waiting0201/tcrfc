@@ -18,8 +18,10 @@ const { facts, primaryVenue } = useSiteFacts(clubKey.value)
 
 // S1-17：嵌入地圖與導航連結改用 site-facts 的地址算出來（不再另外寫死一份 URL 編碼字串）。
 // 只有主場地址有真實資料可用時才嵌入（tcrfc 有；bw 現況兩座場地皆無地址，見 site-facts.ts
-// 既有註解，`v-if="facts.contact.address"` 因此對 bw 自然不渲染，不是本輪新增的判斷）。
-const mapQuery = computed(() => encodeURIComponent(facts.value.contact.address ?? primaryVenue.value.nameZh))
+// 既有註解，`showMap` 因此對 bw 自然不渲染，不是本輪新增的判斷）。
+// v3.29：聯絡地址（site.contact_address）與場地地址是兩件事，地圖與場地卡只用「場地地址」，沒有時退回場地名稱。
+const venueAddress = computed(() => primaryVenue.value.address)
+const mapQuery = computed(() => encodeURIComponent(venueAddress.value ?? primaryVenue.value.nameZh))
 const mapEmbedSrc = computed(() => `https://www.google.com/maps?q=${mapQuery.value}&output=embed`)
 const mapNavHref = computed(() => `https://www.google.com/maps/search/?api=1&query=${mapQuery.value}`)
 
@@ -29,7 +31,7 @@ const { venues } = await usePublicVenues()
 const hasApiVenues = computed(() => venues.value.length > 0)
 const apiPrimaryVenue = computed(() => venues.value.find((v) => v.isHome) ?? venues.value[0] ?? null)
 const apiEmbedSrc = computed(() => (apiPrimaryVenue.value ? venueEmbedSrc(apiPrimaryVenue.value) : null))
-const showMap = computed(() => (hasApiVenues.value ? !!apiEmbedSrc.value : !!facts.value.contact.address))
+const showMap = computed(() => (hasApiVenues.value ? !!apiEmbedSrc.value : !!venueAddress.value))
 const embedSrc = computed(() => (hasApiVenues.value ? apiEmbedSrc.value : mapEmbedSrc.value))
 const primaryNavHref = computed(() => (apiPrimaryVenue.value ? venueMapHref(apiPrimaryVenue.value) : null) ?? mapNavHref.value)
 const primaryName = computed(() => apiPrimaryVenue.value?.name ?? (isEn.value ? (primaryVenue.value.nameEn ?? primaryVenue.value.nameZh) : primaryVenue.value.nameZh))
@@ -96,7 +98,7 @@ useSeoMeta({
       <article class="venue-card">
         <p class="venue-card__label">{{ tx('主場', 'Home ground') }}</p>
         <h3 class="venue-card__name"><template v-if="isEn">{{ primaryVenue.nameEn ?? primaryVenue.nameZh }}</template><template v-else>{{ primaryVenue.nameZh }}<span class="en">{{ primaryVenue.nameEn }}</span></template></h3>
-        <p class="venue-card__addr">{{ facts.contact.address }}</p>
+        <p class="venue-card__addr">{{ venueAddress ?? tx('地址資訊準備中，稍後將於本頁公布。', 'Address details are being prepared and will be published here soon.') }}</p>
       </article>
 
       <article class="venue-card">

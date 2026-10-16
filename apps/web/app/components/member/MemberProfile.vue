@@ -242,12 +242,12 @@ async function deleteAccount() {
         <h3 id="mp-del-title" class="mc-h3">{{ tx('刪除帳號', 'Delete account') }}</h3>
         <p class="mc-note">
           <template v-if="isEn">
-            After deletion, your name, email, phone number, date of birth and LINE link are cleared, all digital membership cards are voided immediately, any unfinished upgrade requests are cancelled, and this <strong>cannot be undone</strong>.
+            After deletion, your name, email, phone number, date of birth and LINE link are cleared, all digital membership cards are voided immediately, any unfinished membership requests are cancelled, and this <strong>cannot be undone</strong>.
             Under tax and accounting regulations, <strong>membership and payment records that have already been created are kept</strong> (without personally identifying data).
             For more details, see the <a :href="lp('/zh/privacy/')">Privacy Policy</a>.
           </template>
           <template v-else>
-            刪除後，您的姓名、Email、電話、生日與 LINE 綁定會被清除，所有電子會員卡立即作廢，未完成的升級申請會取消，且<strong>無法復原</strong>。
+            刪除後，您的姓名、Email、電話、生日與 LINE 綁定會被清除，所有電子會員卡立即作廢，未完成的會籍申請會取消，且<strong>無法復原</strong>。
             依稅法與會計法規，已成立的<strong>會籍與付款紀錄會保留</strong>（不含可識別身分的個資）。
             更多說明請見<a :href="lp('/zh/privacy/')">隱私權政策</a>。
           </template>

@@ -16,7 +16,7 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
 {
     private static readonly string Today = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd");
 
-    /// <summary>建立測試會員並以 single 方案（含 1 件球衣）開通，回傳（會員、會籍 id）。</summary>
+    /// <summary>建立測試會員並開通指定方案（磐石 premium 含 1 件球衣、standard 不含；藍鯨 single 含 1 件），回傳（會員、會籍 id）。</summary>
     private async Task<(Guid MemberId, Guid MembershipId)> NewFanMemberAsync(HttpClient client, string club, string tag, string season, string plan)
     {
         var member = await B1Test.CreateMemberAsync(client, club, tag);
@@ -50,7 +50,7 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
     public async Task 球衣_登記受方案件數限制_狀態流轉與寄送規則()
     {
         using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
-        var (memberId, membershipId) = await NewFanMemberAsync(service, "tcrfc", "jersey", "2026-27", "single");
+        var (memberId, membershipId) = await NewFanMemberAsync(service, "tcrfc", "jersey", "2026-27", "premium");
         try
         {
             // 寄送必須有電話與地址
@@ -67,7 +67,7 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
             Assert.Equal("待處理", created.StatusLabel);
             Assert.False(created.IsMasked); // 客服可見完整收件資訊（出貨需要）
 
-            // single 方案只含 1 件 → 第二件 409
+            // premium 方案只含 1 件 → 第二件 409
             Assert.Equal(HttpStatusCode.Conflict, (await service.PostAsync("/api/v1/admin/tcrfc/jerseys", BizTest.Json(new
             {
                 membershipId, recipientName = "【測試】第二件", size = "M", deliveryMethod = "pickup",
@@ -98,15 +98,24 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
-    public async Task 球衣_免費會籍不含球衣_依尺寸統計備貨量_批次狀態略過無法處理的()
+    public async Task 球衣_磐石會員方案不含球衣_依尺寸統計備貨量_批次狀態略過無法處理的()
     {
         using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        // 磐石兩級方案含球衣 0／1 件；要登記 3 件的備貨統計，用一個臨時方案（含球衣 3，finally 刪除）
+        var seasonId = await B1Test.SeasonIdAsync("tcrfc", "2026-27");
+        var planCode = BizTest.Unique("t-jersey3");
+        var tempPlan = await BizTest.ReadAsync<AdminPlanDetailDto>(await admin.PostAsync("/api/v1/admin/tcrfc/membership-plans", BizTest.Json(new
+        {
+            seasonId, code = planCode, tier = "premium", shopDiscountPercent = 0, fee = 100, cardQuota = 1, jerseyQuota = 3, sortOrder = 9, status = "published",
+            content = new { zh = new { name = "【測試】含三件球衣" } },
+        })));
         var free = await B1Test.CreateMemberAsync(service, "tcrfc", "jerseyfree");
-        var (memberId, membershipId) = await NewFanMemberAsync(service, "tcrfc", "jerseybatch", "2026-27", "family");
+        var (memberId, membershipId) = await NewFanMemberAsync(service, "tcrfc", "jerseybatch", "2026-27", planCode);
         try
         {
-            var season = await B1Test.SeasonIdAsync("tcrfc", "2026-27");
-            var freeMembership = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/memberships", BizTest.Json(new { memberId = free.Id, seasonId = season })));
+            // 磐石會員（standard）方案不含球衣：登記 409
+            var freeMembership = await B1Test.ActivateAsync(service, "tcrfc", free.Id, "2026-27", "standard", 400);
             Assert.Equal(HttpStatusCode.Conflict, (await service.PostAsync("/api/v1/admin/tcrfc/jerseys", BizTest.Json(new
             {
                 membershipId = freeMembership.Membership.MembershipId, recipientName = "x", size = "M", deliveryMethod = "pickup",
@@ -137,6 +146,7 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
         finally
         {
             await B1Test.DeleteMembersAsync(memberId, free.Id);
+            await admin.DeleteAsync($"/api/v1/admin/tcrfc/membership-plans/{tempPlan.Id}");
         }
     }
 
@@ -210,10 +220,10 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
 
             var tag = BizTest.Unique("s");
             var created = await BizTest.ReadAsync<AdminPartnerStoreDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/partner-stores",
-                BizTest.Multipart(StorePayload(tag, tier: "fan_club", status: "published", lat: 24.18m, lng: 120.606m))));
+                BizTest.Multipart(StorePayload(tag, tier: "premium", status: "published", lat: 24.18m, lng: 120.606m))));
             ids.Add(created.Id);
             Assert.False(created.IsShared);
-            Assert.Equal("限付費會員", created.ApplicableTierLabel);
+            Assert.Equal("限尊尚層級", created.ApplicableTierLabel);
             Assert.Equal("上架", created.StatusLabel);
             Assert.Equal("【測試】台中市西屯區測試路 1 號", created.Zh.Address);
             Assert.Equal("No. 1 Test Rd.", created.En!.Address);
@@ -285,14 +295,14 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
     public async Task 權益條目_建立更新排序刪除_分組驗證_方案必須屬於目前俱樂部()
     {
         using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
-        var planId = await B1Test.PlanIdAsync("tcrfc", "2026-27", "family");
+        var planId = await B1Test.PlanIdAsync("tcrfc", "2026-27", "premium");
         var ids = new List<Guid>();
         try
         {
-            object Payload(string name, string group = "event", string status = "published", Guid? plan = null) => new
+            object Payload(string name, string group = "event", string status = "published", Guid? plan = null, string? code = null) => new
             {
-                planId = plan ?? planId, group, status,
-                content = new { zh = new { name, description = "【測試】說明", freeValue = "✗", paidValue = "✓" }, en = new { name = "Test benefit", freeValue = "✗", paidValue = "✓" } },
+                planId = plan ?? planId, code, group, status,
+                content = new { zh = new { name, description = "【測試】說明", value = "✓" }, en = new { name = "Test benefit", value = "✓" } },
             };
 
             Assert.Equal(HttpStatusCode.BadRequest, (await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("x", group: "shop")))).StatusCode);
@@ -300,26 +310,36 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
             var bwPlan = await B1Test.PlanIdAsync("bw", "2025", "single");
             Assert.Equal(HttpStatusCode.BadRequest, (await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("x", plan: bwPlan)))).StatusCode);
 
+            // v3.29：分組改為 member_card／discount／gift／event／content；舊分組代碼（store_discount／jersey）已淘汰；條目代碼小寫英數底線
+            Assert.Equal(HttpStatusCode.BadRequest, (await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("x", group: "jersey")))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("x", group: "store_discount")))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("x", code: "Bad Code")))).StatusCode);
+
             var a = await BizTest.ReadAsync<AdminBenefitDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("【測試】條目甲"))));
-            var b = await BizTest.ReadAsync<AdminBenefitDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("【測試】條目乙", group: "jersey"))));
+            var b = await BizTest.ReadAsync<AdminBenefitDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("【測試】條目乙", group: "gift"))));
             ids.AddRange([a.Id, b.Id]);
+            Assert.StartsWith("item_", a.Code); // 省略代碼＝伺服器產生
+            Assert.Equal("✓", a.Zh.Value);
+            // 同一方案內條目代碼唯一：沿用既有代碼 → 409；更新時代碼不可變更 → 400
+            Assert.Equal(HttpStatusCode.Conflict, (await service.PostAsync("/api/v1/admin/tcrfc/membership-benefits", BizTest.Json(Payload("【測試】重複", code: a.Code)))).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await service.PutAsync($"/api/v1/admin/tcrfc/membership-benefits/{a.Id}", BizTest.Json(Payload("x", code: "other_code")))).StatusCode);
             Assert.Equal("活動", a.GroupLabel);
             Assert.Equal(a.SortOrder + 1, b.SortOrder); // 省略排序＝排在方案最後
             Assert.Equal("Test benefit", a.En!.Name);
 
             var updated = await BizTest.ReadAsync<AdminBenefitDetailDto>(await service.PutAsync($"/api/v1/admin/tcrfc/membership-benefits/{a.Id}",
-                BizTest.Json(Payload("【測試】條目甲改", group: "store_discount", status: "draft"))));
-            Assert.Equal("店家折扣", updated.GroupLabel);
+                BizTest.Json(Payload("【測試】條目甲改", group: "discount", status: "draft"))));
+            Assert.Equal("折扣與優惠", updated.GroupLabel);
             Assert.Equal("下架", updated.StatusLabel);
             // 不能搬到別的方案
             Assert.Equal(HttpStatusCode.BadRequest, (await service.PutAsync($"/api/v1/admin/tcrfc/membership-benefits/{a.Id}",
-                BizTest.Json(Payload("x", plan: await B1Test.PlanIdAsync("tcrfc", "2026-27", "single"))))).StatusCode);
+                BizTest.Json(Payload("x", plan: await B1Test.PlanIdAsync("tcrfc", "2026-27", "standard"))))).StatusCode);
 
             Assert.Equal(HttpStatusCode.NoContent, (await service.PutAsync("/api/v1/admin/tcrfc/membership-benefits/order", BizTest.Json(new { planId, ids = new[] { b.Id, a.Id } }))).StatusCode);
             var list = await BizTest.ReadAsync<List<AdminBenefitListItemDto>>(await service.GetAsync($"/api/v1/admin/tcrfc/membership-benefits?planId={planId}"));
             Assert.True(list.FindIndex(x => x.Id == b.Id) < list.FindIndex(x => x.Id == a.Id));
             var groups = await BizTest.ReadAsync<List<AdminBenefitGroupDto>>(await service.GetAsync("/api/v1/admin/tcrfc/membership-benefits/groups"));
-            Assert.Equal(4, groups.Count);
+            Assert.Equal(5, groups.Count);
         }
         finally
         {

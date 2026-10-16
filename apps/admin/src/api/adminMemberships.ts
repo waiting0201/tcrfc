@@ -17,11 +17,18 @@ const club$ = (club: string) => `/api/v1/admin/${club}`
 
 export type PlanStatus = 'published' | 'draft'
 
+/** 方案層級：磐石會員／尊尚會員。會籍的層級隨方案，不能另外調整。 */
+export type PlanTier = 'standard' | 'premium'
+
 export interface MembershipPlanListItemDto {
   id: string
   seasonId: string
   seasonCode: string
   code: string
+  tier: PlanTier
+  tierLabel?: string | null
+  /** 商店會員折扣比例（0–100 的整數百分比，0＝無折扣）。 */
+  shopDiscountPercent: number
   fee: number
   cardQuota: number
   jerseyQuota: number
@@ -52,6 +59,8 @@ export interface MembershipPlanDetailDto extends MembershipPlanListItemDto {
 export interface SavePlanPayload {
   seasonId: string
   code: string
+  tier: PlanTier
+  shopDiscountPercent: number
   fee: number
   cardQuota: number
   jerseyQuota: number
@@ -108,7 +117,7 @@ export function reorderMembershipPlans(club: string, ids: string[]): Promise<voi
 
 // ── 會籍 ──────────────────────────────────────────────
 
-export type MembershipTier = 'registered' | 'fan_club'
+export type MembershipTier = PlanTier
 export type MembershipStatus = 'pending' | 'active' | 'expired' | 'cancelled'
 
 export interface MembershipListItemDto {
@@ -211,10 +220,6 @@ export function activateMembership(club: string, payload: ActivateMembershipPayl
   return apiRequest<MembershipDetailDto>(`${memberships(club)}/activate`, { method: 'POST', body: payload })
 }
 
-export function createFreeMembership(club: string, payload: { memberId: string; seasonId: string }): Promise<MembershipDetailDto> {
-  return apiRequest<MembershipDetailDto>(memberships(club), { method: 'POST', body: payload })
-}
-
 export interface AdjustMembershipPayload {
   tier?: MembershipTier
   status?: MembershipStatus
@@ -261,7 +266,7 @@ export function downloadRenewalExport(
   return downloadExport(`${memberships(club)}/renewal-export${query}`, '續會名單.csv')
 }
 
-// ── 待確認申請（網頁會員送出的升級／續會申請） ──────────
+// ── 待確認申請（網頁會員送出的加入／續會申請） ──────────
 
 export type ApplicationStatus = 'created' | 'pending_payment' | 'paid' | 'activated' | 'expired' | 'activation_failed' | 'cancelled' | 'refunded'
 

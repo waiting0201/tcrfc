@@ -360,7 +360,7 @@ erDiagram
   }
 ```
 
-> 🔴 **`team` 是兩隊各自的隊伍**：磐石 `D1`／`U15`／`U14`／`U12`，藍鯨 `BW1` 與其青年隊，以 `club_id` 區隔。
+> 🔴 **`team` 是兩隊各自的隊伍**：磐石 `D1` 與學院梯隊 `U10`／`U12`／`U14`／`U16`／`U18`，藍鯨 `BW1` 與青年隊 `BW-U15`／`BW-U12`（帶 `BW-` 前綴，`age_band` 才是 U15／U12），以 `club_id` 區隔。
 > **`team.code` 維持全站唯一，不得改成 `(club_id, code)`**——它是行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，已在外流通。
 > **藍鯨一線隊是 `BW1` 不是第二個 `D1`**；`first_team` 由「全站僅一筆」改為「**每俱樂部至多一筆**」。
 > 🔴 **性別用獨立的 `team.gender`（`men`／`women`／`mixed`）**，`type` 的 `women` 值已廢除。
@@ -761,6 +761,7 @@ erDiagram
     uuid member_id FK
     uuid club_id FK
     uuid season_id FK
+    uuid membership_plan_id FK
     enum tier
     date membership_start_on
     date membership_end_on
@@ -780,6 +781,8 @@ erDiagram
     uuid id PK
     uuid club_id FK
     uuid season_id FK
+    enum tier
+    tinyint shop_discount_percent
     int fee
     int card_quota
     int jersey_quota
@@ -804,6 +807,7 @@ erDiagram
   membership_benefit {
     uuid id PK
     uuid membership_plan_id FK
+    string_64 benefit_code
     string_64 benefit_group
     int sort_order
   }
@@ -858,9 +862,9 @@ erDiagram
 > 🔴 **`tier`／`membership_start_on`／`membership_end_on` 在 `membership` 上，不在 `member` 上**（v3.0）。看到還畫在 `member` 的是舊規格。
 > 🔴 **`member` 不帶 `club_id`**——Email 是登入鍵、LINE 綁定 1:1、個資法上的當事人是「人」不是「會籍」。俱樂部維度在 `membership`。
 > 🔴 **每份會籍一張卡**：持兩隊會籍者有兩張卡，各帶該俱樂部標誌與品牌色。`member_card.membership_id` **必填**。
-> ⚠️ **付費會員＝球迷會員**（`membership.tier = 'fan_club'`），**不是兩種身分**，球迷會不另建名單。
+> ⚠️ **註冊帳號不是會籍**（v3.29）：`membership` 列只在購買並開通方案時建立，`tier` 為 `standard`／`premium`；「會員」＝在該俱樂部持有有效會籍者，**不是兩種身分**，不另建名單。`membership.membership_plan_id` NOT NULL。
 > ⚠️ **`membership_payment.collecting_club_id` 是收款法人**——藍鯨會籍採代收代付，收款方仍是俱樂部；**系統不做分潤計算**。
-> ⚠️ **家庭會籍只是 `card_quota`／`jersey_quota` 不同，不建立學員綁定關係**——網頁、App、後台三方皆不做。
+> ⚠️ **含多張卡的方案（`card_quota > 1`）只是 `card_quota`／`jersey_quota` 不同，不建立學員綁定關係**——網頁、App、後台三方皆不做。
 > ⚠️ **`partner_store.club_id` 可為空＝兩隊共同**（適用範圍可設單一俱樂部或兩隊共同，主站 §3.14）；`membership_benefit` **不帶 `club_id`**，由父表 `membership_plan` 推導。
 > ⚠️ `partner_store` **與 `product` 是完全不同的東西**：前者是會員到店出示卡片的折扣店家（**無金流**），後者是本站自己賣的商品（**有金流**）。
 
@@ -937,6 +941,7 @@ erDiagram
     slug slug UK
     uuid collection_id FK
     bool is_new_arrival
+    bool member_discount_eligible
     json size_chart
     int sort_order
     enum status
@@ -1021,6 +1026,8 @@ erDiagram
     string_500 recipient_address
     int subtotal
     int shipping_fee
+    int member_discount_amount
+    uuid member_discount_plan_id
     int total
     string_64 linepay_transaction_id
     enum payment_status
@@ -1044,6 +1051,7 @@ erDiagram
     string_64 sku_snapshot
     int unit_price_snapshot
     int quantity
+    int member_discount_amount
     int line_total
   }
   shipment {

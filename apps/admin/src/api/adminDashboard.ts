@@ -69,6 +69,8 @@ export interface DashboardUpcomingItem {
 export interface DashboardMembers {
   activeMemberships: number
   activePaidMemberships: number
+  /** 有效的尊尚層級會籍數。 */
+  activePremiumMemberships: number
   expiringIn30Days: number
   pendingUpgrades: number
 }

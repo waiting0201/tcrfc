@@ -63,7 +63,7 @@ public sealed class AdminMembersTests(AdminWriteApiFixture fixture)
         var page = await ListAsync(partner, "bw", "?pageSize=100");
         var numbers = page.Items.Select(i => i.MemberNo).ToList();
         Assert.Contains("M900001", numbers); // 雙會籍：在 bw 有會籍
-        Assert.Contains("M900006", numbers);
+        Assert.DoesNotContain("M900006", numbers); // 僅註冊帳號（沒有任何會籍）不在俱樂部的會員名單裡（v3.29）
         Assert.DoesNotContain("M900002", numbers); // 只有 tcrfc 會籍
         var dual = page.Items.First(i => i.MemberNo == "M900001");
         Assert.All(dual.Memberships, m => Assert.Equal("bw", m.ClubCode));
@@ -127,7 +127,7 @@ public sealed class AdminMembersTests(AdminWriteApiFixture fixture)
             Assert.All(wide.Items.SelectMany(i => i.Memberships), m => Assert.Equal("bw", m.ClubCode));
 
             // 與會籍篩選同時使用時不生效（層級、狀態等條件本來就只針對有會籍者）。
-            var withTier = await ListAsync(service, "tcrfc", $"?keyword={member.MemberNo}&includeNoMembership=true&tier=fan_club");
+            var withTier = await ListAsync(service, "tcrfc", $"?keyword={member.MemberNo}&includeNoMembership=true&tier=premium");
             Assert.Empty(withTier.Items);
         }
         finally
@@ -151,8 +151,14 @@ public sealed class AdminMembersTests(AdminWriteApiFixture fixture)
         var suspended = await ListAsync(service, "tcrfc", "?status=suspended&pageSize=100");
         Assert.Contains(suspended.Items, i => i.MemberNo == "M900005");
 
-        var fan = await ListAsync(service, "tcrfc", "?tier=fan_club&pageSize=100");
-        Assert.All(fan.Items, i => Assert.Contains(i.Memberships, m => m.Tier == "fan_club"));
+        var premium = await ListAsync(service, "tcrfc", "?tier=premium&pageSize=100");
+        Assert.Contains(premium.Items, i => i.MemberNo == "M900001");
+        Assert.All(premium.Items, i => Assert.Contains(i.Memberships, m => m.Tier == "premium"));
+        var standard = await ListAsync(service, "tcrfc", "?tier=standard&pageSize=100");
+        Assert.Contains(standard.Items, i => i.MemberNo == "M900003");
+        Assert.DoesNotContain(standard.Items, i => i.MemberNo == "M900006"); // 僅註冊帳號沒有會籍，不在任何層級裡
+        Assert.Equal(HttpStatusCode.BadRequest, (await service.GetAsync("/api/v1/admin/tcrfc/members?tier=fan_club")).StatusCode); // 舊層級代碼已淘汰
+        Assert.Equal(HttpStatusCode.BadRequest, (await service.GetAsync("/api/v1/admin/tcrfc/members?tier=registered")).StatusCode);
 
         Assert.Equal(HttpStatusCode.BadRequest, (await service.GetAsync("/api/v1/admin/tcrfc/members?tier=gold")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await service.GetAsync("/api/v1/admin/tcrfc/members?expiringWithinDays=0")).StatusCode);
@@ -165,9 +171,7 @@ public sealed class AdminMembersTests(AdminWriteApiFixture fixture)
         var member = await B1Test.CreateMemberAsync(service, "tcrfc", "expiring");
         try
         {
-            var seasonId = await B1Test.SeasonIdAsync("tcrfc", "2026-27");
-            var reg = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/memberships",
-                BizTest.Json(new { memberId = member.Id, seasonId })));
+            var reg = await B1Test.ActivateAsync(service, "tcrfc", member.Id, "2026-27", "standard", 400);
             var end = DateOnly.FromDateTime(DateTime.UtcNow).AddDays(5).ToString("yyyy-MM-dd");
             var adjust = await service.PutAsync($"/api/v1/admin/tcrfc/memberships/{reg.Membership.MembershipId}/adjust",
                 BizTest.Json(new { endOn = end, reason = "測試：縮短到期日" }));
@@ -289,9 +293,7 @@ public sealed class AdminMembersTests(AdminWriteApiFixture fixture)
         var member = await B1Test.CreateMemberAsync(service, "tcrfc", "reissue");
         try
         {
-            var seasonId = await B1Test.SeasonIdAsync("tcrfc", "2026-27");
-            var membership = await BizTest.ReadAsync<AdminMembershipDetailDto>(await service.PostAsync("/api/v1/admin/tcrfc/memberships",
-                BizTest.Json(new { memberId = member.Id, seasonId })));
+            var membership = await B1Test.ActivateAsync(service, "tcrfc", member.Id, "2026-27", "standard", 400);
             var card = Assert.Single(membership.Cards);
             var before = await ReadTokenAsync(card.Id);
 
@@ -362,10 +364,8 @@ public sealed class AdminMembersTests(AdminWriteApiFixture fixture)
         var source = await B1Test.CreateMemberAsync(admin, "tcrfc", "mergeS");
         try
         {
-            var tcrfcSeason = await B1Test.SeasonIdAsync("tcrfc", "2026-27");
-            var bwSeason = await B1Test.SeasonIdAsync("bw", "2025");
-            await BizTest.ReadAsync<AdminMembershipDetailDto>(await admin.PostAsync("/api/v1/admin/tcrfc/memberships", BizTest.Json(new { memberId = target.Id, seasonId = tcrfcSeason })));
-            await BizTest.ReadAsync<AdminMembershipDetailDto>(await admin.PostAsync("/api/v1/admin/bw/memberships", BizTest.Json(new { memberId = source.Id, seasonId = bwSeason })));
+            await B1Test.ActivateAsync(admin, "tcrfc", target.Id, "2026-27", "standard", 400);
+            await B1Test.ActivateAsync(admin, "bw", source.Id, "2025", "single", 800);
 
             // 客服沒有合併權限（sysadmin_only）
             Assert.Equal(HttpStatusCode.Forbidden, (await service.PostAsync("/api/v1/admin/tcrfc/members/merge",
@@ -405,10 +405,9 @@ public sealed class AdminMembersTests(AdminWriteApiFixture fixture)
         var b = await B1Test.CreateMemberAsync(admin, "tcrfc", "conflictB");
         try
         {
-            var season = await B1Test.SeasonIdAsync("tcrfc", "2026-27");
             foreach (var m in new[] { a, b })
             {
-                await BizTest.ReadAsync<AdminMembershipDetailDto>(await admin.PostAsync("/api/v1/admin/tcrfc/memberships", BizTest.Json(new { memberId = m.Id, seasonId = season })));
+                await B1Test.ActivateAsync(admin, "tcrfc", m.Id, "2026-27", "standard", 400);
             }
 
             var response = await admin.PostAsync("/api/v1/admin/tcrfc/members/merge", BizTest.Json(new { targetMemberId = a.Id, sourceMemberId = b.Id }));

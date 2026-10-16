@@ -2961,6 +2961,7 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **錯在哪**：`apply-seed.sh` 跑到區段 39（achievements）以 `PK_achievements` 重複中止，之後的區段（會籍方案、`M900001` 起會員、權益、藍鯨英文回填、區段 60）全沒灌進去，造成 `E-293` 的 59 項測試失敗。庫內 `achievements_i18n.competition_name` 為「【測試】示範��誼賽」（「友」變成兩個 U+FFFD），冪等判斷（`IF NOT EXISTS … competition_name = N'【測試】示範友誼賽'`）比不到，就重複 INSERT 同一個 id。全庫掃描另在 `sponsor_packages_i18n.content`（「容」）與 `app_announcements_i18n.message`（「】」）各找到一列同樣的亂碼。產生器輸出的 SQL 是正確的 UTF-8，壞的是寫入過程。
 - **根因（可改掉的行為）**：腳本用 `docker exec -i … sqlcmd -f 65001 < 檔案` 以管線（stdin）餵 1.5MB 的 SQL，sqlcmd 對管線分塊讀取，**一個 3 位元組字元剛好跨塊就被拆成兩半、各自解成 U+FFFD**（「友」＝兩個 �，與觀察吻合）。斷點隨管線時序而變，所以同一個檔、不同次跑壞在不同列，且多數次完全正常，極難重現。`-f 65001` 只管檔案碼頁，管不到串流的切塊。「冪等判斷用字串比對」讓一次亂碼變成下次的 PK 重複。
 - **下次怎麼避免**：餵 sqlcmd 大檔一律 `docker cp` 進容器後用 `-i`，不用 stdin；寫完後掃全庫 nvarchar 欄位找 U+FFFD。`db/prod` 匯入、慈善庫、其他腳本若有 `docker exec -i … < 檔案` 同樣寫法，同類處理。本次已一併改 `apply-charity-seed.sh`（未實跑，範圍限定 `tcrfc_club`）；**仍是 stdin 串流寫法、尚未改**：`db/seed/reset-admin-accounts.sh`（檔小）、`deploy/local-ddl.sh`、`apps/api/scripts/native-json-test.sh`（DDL 多為 ASCII，風險低，但同一類）。
+- **⚠️ 第二次（2026-10-16）見 `E-330`**：同一類錯在正式庫路徑再發生，且根因比「stdin 分塊」更深——**sqlcmd 13 讀 UTF-8 檔本身（`-i`、`:r`）就會在緩衝邊界切壞多位元組字元**。本條「改 `docker cp`＋`-i`」只對 sqlcmd 18 成立，已升級為 `docs/14` 速查與 `deploy/check-sqlcmd-input.py`。
 - **防呆**：✅ `apply-seed.sh` 改為 `docker cp` ＋ `-i`，並在套完後掃全庫 nvarchar 欄位，含 U+FFFD 即 exit 1。其他三支腳本無（待補；第二次再犯就把「大檔餵 sqlcmd」收成共用函式）。
 - **連帶**：`E-293` 記的「種子為何缺失的最初成因未能確定」，此條即為成因：先前某次套用在區段 39 因本條中止，其後區段從未套用；之後本機庫又被測試清理，疊加成 59 項失敗。
 - **殘骸（2026-10-13 清除）**：修正前寫入的亂碼另有三處未被冪等種子覆寫（種子只在列不存在時 INSERT）——`faqs_i18n.answer`（bw `bw-beginners`）、`articles_i18n.title`（`2025-12-07-match-022` 英文標題）、`page_versions.snapshot`（`club/player-development`），由套完後的 U+FFFD 掃描抓到。以種子產生的 SQL 為原值、條件限「目前含 U+FFFD」逐列 UPDATE（`docker cp`＋`-i`），重跑 `apply-seed.sh` 掃描通過。**同類殘骸的修法**：不要整庫重建，對掃描點名的列從 `.generated/club-seed.local.sql` 取原值定點更新。
@@ -3199,3 +3200,47 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **修正**：`ci.yml` 主站基準健檢步驟補 `JWT_SIGNING_KEY_CLUB`（同一 job 其他步驟：慈善健檢兩把金鑰俱全；`dotnet test` 步驟本來就沒有 `JWT_SIGNING_KEY_CLUB`，測試主機自行提供金鑰，未動）；`ef_script()` 改為輸出收進 log，失敗時印出（濾掉 NU19xx 警告）並 `die`。
 - **防呆**：CI 現在 push master 也跑（E-326）。⚠️ `schema-drift` 在 CI 的實際失敗原因，本機（macOS，乾淨 worktree，同一組假環境變數）無法重現，已確認本機成功；真正原因待下一輪 CI 的 dotnet 輸出揭曉。第二輪 CI（`0317f94`）輸出只有「Build started… Build failed. Use dotnet build to see the errors.」——`dotnet ef` 自行建置（Debug）失敗時不印編譯錯誤。第三輪改為腳本先 `dotnet build -c Release`（與 api job 相同、CI 上已知成功的設定）並印出錯誤，`dotnet ef` 以 `--configuration Release --no-build` 沿用。第三輪（`bf32736`）`schema-drift` 通過。Debug 建置在 CI 失敗的確切編譯錯誤未取得（改法繞過了它）；若日後其他步驟在 CI 以 Debug 建置失敗，先懷疑同一原因。`api` job 的 JWT 修正因該輪沒有 api 變動被略過，待下次 api 變動時由 CI 驗證。
 
+
+### E-328 `docs/14` 與主站規劃書寫「藍鯨的 U15／U12 與磐石學院同名、以 club_id 區隔」，實際藍鯨代號早就是 `BW-U15`／`BW-U12`（2026-10-16 規格同步時發現，主 session）
+
+- **錯在哪**：`Team.code` 在規格與 `docs/14` 都寫「全站唯一」，同一處又寫「藍鯨 U15／U12 與磐石學院的 U15／U12 是不同球隊，以 `club_id` 區隔」——兩句話互相牴觸（全站 UNIQUE 不可能同名）。種子早在 `generate-club-seed-sql.py` 用 `BW-` 前綴避開，但規格與導航層沒有同步，直到要決定 U15 怎麼處理才被查出。
+- **根因（可改掉的行為）**：寫不變量時引用規格的描述，沒有回頭 grep 種子與 `db/prod` 看實際代號；兩句相衝的敘述也沒有在同一段對讀。
+- **下次怎麼避免**：寫「代號／值域」類的不變量前，先 `grep` `db/seed`、`db/prod` 取實際值；同一條不變量內若出現「唯一」與「同名」就是矛盾，立刻查。
+- **修正**：主站 5.1／C1、藍鯨規劃書、`docs/14` 速查、`docs/06`、`docs/12` 系列一併改為 `BW-U15`／`BW-U12`，並寫明 `U15` 在磐石從未建檔（`docs/14` 隊別代號條）。
+- **防呆**：無（可考慮之後加一支檢查：規格內出現的 `Team.code` 字面值必須能在種子找到，尚未做）。
+
+
+### E-329 內容匯入把「聯絡地址」寫進主場場地列，導致 `SiteFactsTests` 兩項失敗（2026-10-16，backend-engineer，C-1 第二批文稿匯入）
+- **錯在哪**：客戶「聯絡資訊」的地址沒有對應的設定鍵（前台聯絡頁的地址讀 `site.home_venue_ids` 第一筆場地的地址），匯入檔 `20261016_intake-docs-import-2.sql` 初版把西屯足球場的中文地址換成客戶地址、英文地址補上。本機 `tcrfc_club` 同時是測試庫，`SiteFactsTests` 斷言種子地址，且用「主場英文地址為空」驗證「缺英文時回退中文」，兩項因此紅燈。
+- **根因（可改掉的行為）**：把客戶資料寫進既有欄位前，沒有先 grep 測試有沒有鎖定該欄位的種子值；也把「前台目前借用場地地址顯示聯絡地址」當成可以順手改資料的理由，沒有把它當成需要決定的規格缺口。
+- **下次怎麼避免**：資料遷移要改動「種子已有值」的欄位（不是補空值）時，先 `grep` 測試目錄是否斷言該值，並在匯入前先跑相關測試；規格沒有落點的資料列為待決事項，不借用別的欄位。
+- **修正**：移除地址段落，本機場地地址還原為種子值，地址列入待客戶與主 session 決定的清單；重跑後 `SiteFactsTests` 只剩缺種子測試帳號的失敗。
+- **防呆**：無（本機測試庫與開發庫合一，改種子值的遷移只能靠事前跑測試發現）。
+
+### E-330 正式庫出現 U+FFFD 亂碼：`台灣電力` 變 `台���電力`，正式內容種子與 `db/prod` 來源檔都是對的（2026-10-16，E-296 第二次，主 session 指派 backend-engineer）
+- **錯在哪**：正式 API `GET /api/v1/tcrfc/news/2025-12-07-match-022?lang=en` 回傳亂碼標題，`/api/v1/bw/faqs?lang=zh` 另有 2 個 U+FFFD；本機庫（以正式庫同步回來）掃出同樣 3 列：`faqs_i18n.answer`（`7a2b5380-…`，bw-beginners）、`articles_i18n.title`（`64090cca-…`，en）、`page_versions.snapshot`（`de9c548a-…`，bw `club/player-development`）。**這三列與 `E-296` 殘骸（2026-10-13 在本機清除）完全相同**。
+- **根因（可改掉的行為）**：以為 `E-296` 的結論是「別用 stdin，改 `-i` 讀檔就沒事」，只改了本機 `apply-seed.sh`（sqlcmd 18），沒有去驗證**正式庫路徑**（`prod-db-init.sh`／`prod-seed-import.sh`／`db-migrate.sh`，用 `mcr.microsoft.com/mssql-tools` 的 **sqlcmd 13**）。本機演練重現（同一份 `db/prod/club-content-seed.sql`，`PRODINIT_REHEARSAL=1` 走完 init→import）：**sqlcmd 13 即使用 `-i`／`:r` 讀 UTF-8 檔，仍會把落在內部讀取緩衝邊界的多位元組字元每個位元組各變成一個 U+FFFD**（「灣」→ 3 個 �；與 `E-296` 的「友」→ 2 個不同，是同一機制的不同切點）。**位置只取決於檔案內容，所以同一個檔每次壞在同樣的列**（連跑兩次相同，且與正式庫壞的 `page_versions` 列相同）；結束碼 0、輸出無任何警告，`-e` 回顯看起來也正常。演練中 init（DDL＋參照資料）也壞了 `permissions.name_zh`、`form_fields_i18n.label`——不是只有內容匯入。`E-296` 的防呆（`apply-seed.sh` 掃 U+FFFD）只蓋本機種子腳本，正式庫腳本沒有；`prod-db-init.sh verify` 的「中文編碼」只抽驗 `locales` 一個字，抓不到。
+- **下次怎麼避免**：①**含非 ASCII 的 SQL 檔交給 sqlcmd 13 之前一律轉 UTF-16LE＋BOM**（`deploy/lib/sqlcmd-guard.sh` 的 `sqlcmd_to_utf16`；sqlcmd 以 2 位元組為單位讀，不會切到字元），原檔與 sha256 不動；②**任何「修了某一條路徑」的錯誤紀錄，要列出同一類的所有路徑並逐條驗證**，不是只修發現問題的那條；③寫入後掃全庫 U+FFFD 是必做，不是選做。
+- **修正**：`deploy/prod-seed-import.sh`（內容種子）、`deploy/prod-db-init.sh`（DDL、參照資料）、`deploy/db-migrate.sh`（`idempotent.sql`）改餵 UTF-16LE 副本；本機演練 `tcrfc_rehearsal_club`／`tcrfc_rehearsal_charity` 重跑 init＋import，掃描 0 個 U+FFFD（修前 5 欄 15 個）。`deploy/local-ddl.sh`、`db/seed/reset-admin-accounts.sh` 的 `docker exec -i … < 檔` 改 `docker cp`＋`-i`（`E-296` 當時列為「待補」的三支之二；`apps/api/scripts/native-json-test.sh` 已不存在）。殘骸以 `db/migrations/20261016_fix-replacement-chars.sql` 定點修復（正確值逐字取自 `db/prod/club-content-seed.sql`）。
+- **防呆**：✅ ①`prod-db-init.sh verify`（`prod-seed-import.sh verify` 也會呼叫）新增「含 U+FFFD 的欄位數必須為 0」，涵蓋 nvarchar／nchar／json 全庫；②`deploy/check-sqlcmd-input.py` 掛進 CI `prod-seed` job：靜態檢查任何 sh／yml 的 sqlcmd 不得以 stdin（`<`、heredoc、管線）讀 SQL，且三支正式庫腳本必須呼叫 `sqlcmd_to_utf16`；③`db/tools/scan-replacement-chars.sql` 唯讀掃描並點名表、欄、主鍵，正式庫每次匯入／遷移後可執行。**仍無防呆**：使用者手動以 sqlcmd 套用的 `db/migrations/*.sql`（含中文）取決於他用的 sqlcmd 版本，已寫進遷移檔頭與 `docs/14`，套用後必須跑掃描。
+
+### E-331 遷移把凍結抽獎名單的歷史層級快照改寫成新代碼——改了會讓名單雜湊對不上（2026-10-16，主站 v3.29 客戶文件對齊，backend-engineer 自查抓到）
+- **錯在哪**：`20261016_client-doc-alignment_2-contract.sql` 與 EF `ClientDocAlignmentContract` 第一版把 `draw_rosters.tier_snapshot` 的舊值 `fan_club`→`standard`、`registered`→空，並把 CHECK 收緊成只剩新值，DDL 也寫成 `('standard','premium')`。`draw_rosters` 是凍結名單（鎖定後不改、有 `roster_hash`），**名單雜湊的輸入就含每列的層級字串**（`AdminDrawsRepository.ComputeHash`）；改寫歷史快照＝重算雜湊與當時鎖定時記下的對不上，稽核資產被破壞。第一版已在本機庫套用過（無資料列，所以沒傷到），事後用修復 SQL 還原約束。
+- **根因（可改掉的行為）**：照 `STATUS.md` CF-1b 的條列直接寫遷移，**沒有先讀 `docs/12b` 待落清單 #9（明寫「凍結名單原則：優先放寬」）與該欄位的讀寫程式**；等到為了對照 `docs/12b` 寫「實作差異」才發現。
+- **下次怎麼避免**：遷移要改「快照／凍結」類資料（名單、訂單快照、稽核）之前，先 `grep` 該欄位被誰讀、有沒有雜湊／簽章把它納入輸入；有就**只放寬約束、不改寫資料**，顯示層另外處理舊值。
+- **修正**：CHECK 改為 `('standard','premium','fan_club','registered')`（DDL、expand、EF 同步），contract 不再動 `draw_rosters`；`MemberLabels.SnapshotTier` 讓舊快照顯示「球迷會員（舊制）」「一般會員（舊制）」；規則寫進 `docs/14` 速查（會員折扣與會籍四條不變量 ④）。
+- **防呆**：⚠️ 只有文件（`docs/14`、`docs/12b`「實作差異」）；`AdminDrawsTests` 的雜湊重算涵蓋新名單，**舊制快照沒有自動測試**（待補：種一列 `fan_club` 快照再重算雜湊）。
+
+### E-332 把會寫資料的整合測試先跑在使用者剛從正式庫同步回來的本機 `tcrfc_club` 副本上（2026-10-16，主站 v3.29 客戶文件對齊，backend-engineer）
+- **錯在哪**：指示說本機 `tcrfc_club` 是正式庫同步的副本、「可以用它查」現況，我把「可以查」延伸成「可以拿它跑 `dotnet test`」，頭幾輪（`MembershipPublicTests`、`MemberCenterTests`、`MemberAuthTests`、`AdminMembershipsTests`、`MembershipOrderTests`、`CulturePublicTests`、`AdminCultureTests` 這幾個類別的首次執行）直接打到那份副本。整合測試會建立／刪除會員、改方案狀態；事後逐項核對（`members` 0 列、無 `mtest-`／`b1-` 殘留、方案狀態已還原），**沒有造成殘留**，但那是運氣加清理程式寫得好，不是我事先確認過。
+- **根因（可改掉的行為）**：沒有先想「這份庫是別人的資料（正式庫副本）還是可丟的測試庫」。`TestDatabaseGuard` 只認庫名 `tcrfc_club`，所以測試會欣然連到任何叫這個名字的庫——庫名守衛擋不了「這是別人的副本」。
+- **下次怎麼避免**：資料庫副本類資料只做 `SELECT`；要跑整合測試先另起一個一次性容器（`docker run … mssql/server:2022-latest --user root`，埠 14331），在裡面建名為 `tcrfc_club` 的庫（`LOCAL_MSSQL_CONTAINER=<容器> MSSQL_DEV_SA_PASSWORD=… db/seed/setup-club-db.sh --recreate`），測試用 `CLUB_SQL_CONNECTION_STRING` 指過去；遷移演練同理用拋棄式複本（`BACKUP … COPY_ONLY` → `RESTORE` 成 `tcrfc_cfprobe_*`），用完 `DROP`。
+- **修正**：後續全部測試、`schema-drift-check`、`prod-db-init.sh` 演練都改在 `sqlserver-cftest` 容器；使用者本機庫只套用了 EF 遷移與兩支資料遷移（刻意，供使用者接手驗證）。
+- **防呆**：無（`TestDatabaseGuard` 守的是庫名，不是「這是誰的庫」）。
+
+### E-333 改了 App 的 UI 文案 key 值，沒有搜遍 UI 測試裡寫死的中文字面值，冒煙測試因此失敗（2026-10-16，CF-5，mobile-app-engineer）
+- **錯在哪**：iOS 把 `auth.club` 由「加入的俱樂部」改成「註冊的俱樂部」，只搜了 key 與單元測試，沒有搜 `TcrfcAppUITests/SmokeTests.swift` 內以字面值 `text("加入的俱樂部")` 斷言的地方；單元測試全綠，跑冒煙測試才紅（`testSignedOutMemberTabOffersLoginAndRegister`）。
+- **根因（可改掉的行為）**：改文案時只 grep 識別字（key），沒有同時 grep 舊文案的**中文字面值**；UI 測試與 Android `SmokeTest.kt` 都是用字面值斷言，不經過 key。
+- **下次怎麼避免**：改任何 `Localizable.strings`／`strings.xml` 的值之前，先在 `TcrfcAppUITests`、`androidTest` 與 `fixtures-src` 搜舊字面值（`grep -rn "舊文字" mobile/ios mobile/android --exclude-dir=build`），改完立即跑冒煙測試。
+- **修正**：`SmokeTests.swift` 斷言改為「註冊的俱樂部」，單項重跑通過；Android `SmokeTest.kt` 的字面值（U14 男足、尊尚會員）同步改，但 **instrumented 測試本次沒有模擬器可跑，未驗證**。
+- **防呆**：無（冒煙測試本身就是防呆；缺口是 Android instrumented 沒進本機例行檢查）。

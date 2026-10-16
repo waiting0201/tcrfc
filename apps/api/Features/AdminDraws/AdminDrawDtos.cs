@@ -138,7 +138,7 @@ public sealed record UpsertAdminDrawRequest
 
 public sealed record AdminDrawNoticeDto
 {
-    /// <summary>會員條款與註冊同意事項是否已增列抽獎蒐集告知（「會籍有效期間將自動列入球迷會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」）。
+    /// <summary>會員條款與註冊同意事項是否已增列抽獎蒐集告知（「會籍有效期間將自動列入會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」）。
     /// <b>未完成此項告知前不得舉辦抽獎</b>——尚未確認時不能產生合格名單。</summary>
     public required bool Confirmed { get; init; }
     public DateTime? ConfirmedAt { get; init; }

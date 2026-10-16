@@ -201,15 +201,16 @@ public sealed class AppContractBatch5Tests(AdminWriteApiFixture fixture)
         var enPlans = (await JsonAsync(await client.GetAsync("/api/v1/tcrfc/membership/plans?lang=en"))).EnumerateArray().ToList();
         Assert.All(enPlans, p => Assert.Contains(p.GetProperty("isFallbackLocale").ValueKind, new[] { JsonValueKind.True, JsonValueKind.False }));
 
+        // v3.29：權益對照表以方案為欄——欄（方案）與列（條目）各自帶未翻譯標示
         var benefits = await JsonAsync(await client.GetAsync("/api/v1/tcrfc/membership/benefits?lang=zh"));
-        Assert.False(benefits.GetProperty("isFallbackLocale").GetBoolean());
+        Assert.All(benefits.GetProperty("plans").EnumerateArray(), p => Assert.False(p.GetProperty("isFallbackLocale").GetBoolean()));
         foreach (var g in benefits.GetProperty("groups").EnumerateArray())
         {
             Assert.All(g.GetProperty("items").EnumerateArray(), i => Assert.False(i.GetProperty("isFallbackLocale").GetBoolean()));
         }
 
         var enBenefits = await JsonAsync(await client.GetAsync("/api/v1/tcrfc/membership/benefits?lang=en"));
-        Assert.Contains(enBenefits.GetProperty("isFallbackLocale").ValueKind, new[] { JsonValueKind.True, JsonValueKind.False });
+        Assert.All(enBenefits.GetProperty("plans").EnumerateArray(), p => Assert.Contains(p.GetProperty("isFallbackLocale").ValueKind, new[] { JsonValueKind.True, JsonValueKind.False }));
     }
 
     // ═════════════ 後台 J4 簡稱 ═════════════

@@ -86,7 +86,8 @@ function socialHandle(url: string): string {
            重複寫死字面值。 -->
       <div v-if="tcrfcFacts.contact.address" class="contact-item">
         <p class="contact-item__label">{{ tx('地址', 'Address') }}</p>
-        <p class="contact-item__value">{{ tcrfcFacts.contact.address }}</p>
+        <!-- v3.29：聯絡地址是獨立設定（site.contact_address，客戶 10 聯絡資訊），與場地地址無關；英文版讀英文地址，缺漏回退中文 -->
+        <p class="contact-item__value">{{ isEn ? (tcrfcFacts.contact.addressEn || tcrfcFacts.contact.address) : tcrfcFacts.contact.address }}</p>
         <p v-if="isTcrfc" class="field-hint"><template v-if="isEn">Home ground: {{ tcrfcVenue.nameEn ?? tcrfcVenue.nameZh }}. For the exact location of each venue, see <a :href="lp('/zh/join/location/')">Location &amp; Map</a>.</template><template v-else>主場：{{ tcrfcVenue.nameZh }}。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</template></p>
       </div>
 

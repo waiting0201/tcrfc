@@ -213,6 +213,8 @@ useSeoMeta({
           <span v-else class="price__was">{{ tx('暫無販售', 'Not available') }}</span>
           <span v-if="product?.isNewArrival" class="badge">{{ tx('新上市', 'New') }}</span>
         </div>
+        <!-- v3.29 商店會員折扣：只提示「這項商品適用」；折扣價由結帳時 API 依會籍計算，前台不自己算 -->
+        <p v-if="product?.memberDiscountEligible" class="mc-note mc-note--small">{{ tx('適用會員折扣：持有有效會籍者結帳時自動享有，與促銷價不疊加、取較低價。', 'Member discount applies: members with a valid membership get it automatically at checkout. It is not combined with sale prices (the lower price applies).') }}</p>
         <p class="product-info__stock" role="status">{{ soldOutAll ? tx('已售完', 'Sold out') : stockNow }}</p>
         <p v-if="product?.collectionName" class="mc-note mc-note--small">{{ tx('系列：', 'Collection: ') }}{{ product.collectionName }}</p>
         <!-- B-18：商品標籤，點擊回商品列表依該標籤篩選（?tag=） -->

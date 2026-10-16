@@ -78,6 +78,8 @@ export interface ProductListItemDto {
   collectionId?: string | null
   collectionName?: string | null
   isNewArrival: boolean
+  /** 是否適用商店會員折扣（折扣比例在會籍方案，與促銷價不疊加、取較低價）。 */
+  memberDiscountEligible: boolean
   sortOrder: number
   status: ShopPublishStatus
   displayStatus: ProductDisplayStatus
@@ -154,6 +156,8 @@ export interface SaveProductPayload {
   slug?: string
   collectionId?: string | null
   isNewArrival: boolean
+  /** 整份取代：省略＝不適用，所以一律明確帶出。 */
+  memberDiscountEligible: boolean
   sortOrder?: number
   status: ShopPublishStatus
   outOfStockBehavior?: OutOfStockBehavior
@@ -355,6 +359,8 @@ export interface OrderItemDto {
   unitPrice: number
   quantity: number
   lineTotal: number
+  /** 這一列因會員折扣少收的金額（單價與小計已是折後值）；沒有為 0。 */
+  memberDiscountAmount: number
   refundedQuantity: number
 }
 export interface ShipmentDto {
@@ -379,6 +385,8 @@ export interface OrderDetailDto {
   cancelledAt?: string | null
   cancelReason?: string | null
   subtotal: number
+  /** 整張訂單因會員折扣少收的總額（已含在小計的折後金額內）；沒有為 0。 */
+  memberDiscountAmount: number
   shippingFee: number
   total: number
   linepayTransactionId?: string | null

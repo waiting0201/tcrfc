@@ -163,7 +163,7 @@ public sealed record UpsertAdminAppAnnouncementRequest
     public DateTimeOffset? StartsAt { get; init; }
     public DateTimeOffset? EndsAt { get; init; }
 
-    /// <summary>目標對象：<c>all</c>／<c>fan_club</c>／<c>registered</c>／<c>anonymous</c>。</summary>
+    /// <summary>目標對象：<c>all</c>（全部）／<c>member</c>（持有效會籍者）／<c>premium</c>（僅尊尚層級）／<c>anonymous</c>（無有效會籍者，含未登入裝置與僅註冊帳號）。</summary>
     public string? AudienceTier { get; init; }
 
     /// <summary>俱樂部代碼（<c>tcrfc</c>／<c>bw</c>），空＝兩隊。</summary>
@@ -215,7 +215,7 @@ public sealed record UpsertAdminPushMessageRequest
     /// <summary>深連結（<c>tcrfc://…</c>）或官網網址；可用深連結對照表的項目。</summary>
     public string? DeepLink { get; init; }
 
-    /// <summary>會籍層級：<c>all</c>／<c>fan_club</c>／<c>registered</c>／<c>anonymous</c>。</summary>
+    /// <summary>會籍層級：<c>all</c>／<c>member</c>／<c>premium</c>／<c>anonymous</c>（定義同推播分眾）。</summary>
     public string? AudienceTier { get; init; }
 
     /// <summary>俱樂部歸屬（代碼），空＝全部。用於一般公告，<b>不得用於商業訊息的差別投放</b>。</summary>

@@ -75,11 +75,11 @@ useSeoMeta({
     </div>
     <p v-if="isEn" class="mc-note" style="margin-top:2rem;">
       <strong>Show your digital membership card</strong> in store to enjoy the offer; the store checks it by eye and no extra steps are needed. Offers and conditions are provided by the store, and the notice displayed in store takes precedence.
-      <template v-if="store.applicableTier === 'fan_club'">This offer is for <strong>Paid Fan Club members</strong> with a valid membership only.</template>
+      <template v-if="store.applicableTier === 'premium'">This offer is for members of the <strong>top tier</strong> with a valid membership only.</template>
     </p>
     <p v-else class="mc-note" style="margin-top:2rem;">
       到店<strong>出示電子會員卡</strong>即可享優惠，店家目視查驗，不需額外手續。優惠內容與適用條件由店家提供，實際以店家現場公告為準。
-      <template v-if="store.applicableTier === 'fan_club'">此優惠限<strong>付費球迷會員</strong>（有效期內）使用。</template>
+      <template v-if="store.applicableTier === 'premium'">此優惠限持有效期內<strong>高階層級</strong>會籍者使用。</template>
     </p>
     <p><a class="btn btn--dark btn--sm" :href="lp('/zh/perks/')">{{ tx('回到特約店家清單', 'Back to the partner store list') }}</a>{{ tx('　', ' ') }}<a class="btn btn--primary btn--sm" :href="lp('/zh/member/')">{{ tx('會員中心', 'Member Centre') }}</a></p>
   </div>

@@ -15,9 +15,8 @@ public partial class MembershipBenefitsI18n
 
     public string? GroupLabel { get; set; }
 
-    public string? FreeValue { get; set; }
-
-    public string? PaidValue { get; set; }
+    /// <summary>該方案的對應值（勾「✓」、叉「✗」或文字，如「10%」「一件」）。</summary>
+    public string? Value { get; set; }
 
     public virtual MembershipBenefit MembershipBenefit { get; set; } = null!;
 }

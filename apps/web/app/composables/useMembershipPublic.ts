@@ -16,14 +16,14 @@ export async function useMembershipPlans() {
   return { plans: computed(() => data.value ?? []), failed: computed(() => Boolean(error.value)) }
 }
 
-/** 權益對照表（K4）。**一份資料多處使用**：加入頁、8.2 球迷會頁、會員中心升級頁共用 `ContentMembershipBenefits`。 */
-export async function useMembershipBenefits(planCode?: string) {
+/** 權益對照表（K4，v3.29 起以方案為欄，端點不再有 `planCode` 參數）。**一份資料多處使用**：加入頁、8.2 球迷會頁、會員中心方案頁共用 `ContentMembershipBenefits`。 */
+export async function useMembershipBenefits() {
   const config = useRuntimeConfig()
   const { locale } = useLocale()
   const club = config.public.club
   const { data, error } = await useFetch<MembershipBenefits>(`/api/backend/${club}/membership/benefits`, {
-    query: { lang: locale.value, ...(planCode ? { planCode } : {}) },
-    key: `membership-benefits-${club}-${locale.value}-${planCode ?? 'default'}`,
+    query: { lang: locale.value },
+    key: `membership-benefits-${club}-${locale.value}`,
   })
   return { benefits: computed(() => data.value ?? null), failed: computed(() => Boolean(error.value)) }
 }

@@ -196,17 +196,7 @@ public static class AdminMembershipsEndpoints
         .WithName("AdminActivateMembership").Produces<AdminMembershipDetailDto>()
         .Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status409Conflict);
 
-        // POST /memberships —— 建立免費（一般會員）會籍。
-        group.MapPost("", async (
-            string club, RegisterMembershipRequest request, HttpContext httpContext, IAdminClubAuthorizer authorizer,
-            AdminMembershipsRepository repository, CancellationToken cancellationToken) =>
-        {
-            var scope = await authorizer.AuthorizeAsync(httpContext, club, MembershipCreate, cancellationToken);
-            var created = await repository.RegisterAsync(scope, request, cancellationToken);
-            return Results.Created($"/api/v1/admin/{club}/memberships/{created.Membership.MembershipId}", created);
-        })
-        .WithName("AdminRegisterMembership").Produces<AdminMembershipDetailDto>(StatusCodes.Status201Created)
-        .Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status409Conflict);
+        // v3.29：不再有 POST /memberships（建立免費會籍）——註冊帳號不是會籍，會籍只由開通方案而來（上面的 /activate）。
 
         // PUT /memberships/{id}/adjust —— 手動調整層級／狀態／起訖日（原因必填）。
         group.MapPut("/{id:guid}/adjust", async (

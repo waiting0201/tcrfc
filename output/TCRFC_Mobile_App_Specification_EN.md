@@ -1,8 +1,18 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.21
-> **Date**: 2026-09-04 (v3.21 revision: 2026-10-14)
+> **Document version**: v3.22
+> **Date**: 2026-09-04 (v3.22 revision: 2026-10-16)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.22 revision summary — membership becomes two paid plans and a registered account is not a membership; Taichung Rock academy squad codes follow the development pathway**
+> **Aligned with main-site specification v3.29 (the client's fan-club plans in 8.2 and academy pathway in 4.3).**
+> ① **A registered account is not a membership**: an account that has only registered can sign in, book and follow squads, but has no digital membership card and is not counted in prize draws; memberships belong to each club and are obtained by buying a plan. Taichung Rock's plans are Rock Member and Prestige Member (development-side working names; the client has not supplied English names); Blue Whale's plans are defined by Blue Whale.
+> ② **The membership plan page, the benefits table and the applicable tier of partner stores** follow the plans: the benefits table has one column per plan, and a partner store's applicable tier is "all members" or "Prestige tier only".
+> ③ **Push audience segmentation by membership tier** is based on an active membership and the plan tier.
+> ④ **Taichung Rock academy squad codes are `U10`, `U12`, `U14`, `U16` and `U18`**, and Blue Whale youth team codes are `BW-U15` and `BW-U12`.
+> ⑤ **The in-app purchase (IAP) determination argument** takes in the digital benefits of Prestige Member (behind-the-scenes content and an exclusive community).
+> ⑥ **No upgrade during the membership term**: a Rock Member cannot switch to Prestige Member within the season and can only choose another plan when renewing after expiry; the app has no upgrade flow. The Prestige gift box includes one jersey (plan `jersey_quota` = 1).
+> Landing points: §1.1, §2.1, §2.4, §3.5–§3.8, §4.1, §5.5, §6, §10, §16.
 
 > **v3.21 revision summary — first-run onboarding has two steps; the language follows the device**
 > First-run onboarding (S23) has two steps: choose who to follow, then explain and request push permission. The app language is taken from the device language (defaulting to Traditional Chinese where it is neither Traditional Chinese nor English) and is not asked during onboarding; users can change it at any time in Settings (S21). Where: 2.5, 3.0.
@@ -254,7 +264,7 @@ How the three specifications divide:
 | **Revenue splitting and settlement statements between the clubs** | An offline contract. The system records the beneficiary and offers aggregation and export, **but builds no settlement type** — that is a charity-platform feature and must not be transplanted here |
 | **A separate app per club** | One app is the core premise of this version. Two apps mean two reviews, two certificate sets, and two maintenance streams |
 | **Course fees paid online** | Website P3 states course payment is offline. Refund rules for courses are far more complex than for membership; including them would turn section 5 into two problems |
-| **Parent–student linking** | Creates a durable adult-to-minor association, a step up in sensitivity. Family memberships deliberately avoided this design |
+| **Parent–student linking** | Creates a durable adult-to-minor association, a step up in sensitivity. Multi-card plans deliberately avoided this design |
 | **Splash advertising** | The placement most likely to generate negative reviews, and it harms both launch experience and review impressions |
 | **Live score updates** | Fixture data is maintained entirely by hand; "live" is not achievable and claiming it would only break trust |
 | **Third-party ad networks** | See 7.8. Selling directly is a deliberate choice, not a limitation |
@@ -316,7 +326,7 @@ Five fixed bottom tabs, never more than three levels deep:
 2. **Follow preferences change defaults, never visibility.** A user following Rock can still switch to Blue Whale in the fixtures tab — following is ordering and defaults, not permission.
 3. **Both crests appear on club-related screens and nowhere else.** The membership card, settings, and partner stores carry no club crest.
 
-**Design principle**: signed-out users must be able to browse fixtures, news, squads, partner stores, and program information in full. **The sign-in wall stands in exactly four places**: the membership card, my bookings, renewal, and prize-draw eligibility. The partner-store directory itself stays public — it is the main driver of paid conversion — with the applicable-tier label telling users which offers require a paid membership.
+**Design principle**: signed-out users must be able to browse fixtures, news, squads, partner stores, and program information in full. **The sign-in wall stands in exactly four places**: the membership card, my bookings, renewal, and prize-draw eligibility. The partner-store directory itself stays public — it is the main driver of paid conversion — with the applicable-tier label telling users which offers require which tier of membership.
 
 ### 2.2 Screen inventory
 
@@ -331,7 +341,7 @@ Five fixed bottom tabs, never more than three levels deep:
 | S07 | Article | `Article` | No | Yes (read) |
 | S08 | Member centre | `Member` | Yes | Partial |
 | S09 | Digital membership card | `Member` | Yes | Yes |
-| S10 | Plans and upgrade | `MembershipPlan` / `MembershipBenefit` | No | No |
+| S10 | Membership plans | `MembershipPlan` / `MembershipBenefit` | No | No |
 | S11 | Payment flow | LINE Pay | Yes | No |
 | S12 | Jersey registration | `Member` | Yes | No |
 | S13 | Partner store list / map | `PartnerStore` | No | Partial |
@@ -361,7 +371,7 @@ Five fixed bottom tabs, never more than three levels deep:
 | Partner store detail | `tcrfc://store/{id}` | `/zh/perks/{slug}` |
 | Program detail | `tcrfc://program/{slug}` | `/zh/programs/{slug}` |
 | Membership card | `tcrfc://membercard` | (no public equivalent) |
-| Membership upgrade | `tcrfc://upgrade` | `/zh/member/upgrade/` |
+| Membership plans page | `tcrfc://upgrade` | `/zh/member/upgrade/` |
 
 **The deep-link scheme stays `tcrfc://` even though the app name becomes neutral** — for three reasons:
 
@@ -431,7 +441,7 @@ Each of the website's G-01 to G-12 features, and how the app handles it:
 | G-02 | Site search | **App version**: limited to news, players, partner stores, and FAQ; static pages excluded. **Player search covers both clubs** |
 | G-03 | Breadcrumbs | **Not built**: replaced by the navigation back stack |
 | G-04 | Footer | **Not built**: functions move into the More tab |
-| G-05 | Site-wide CTAs | **App version**: join, upgrade, book a program |
+| G-05 | Site-wide CTAs | **App version**: join, view membership plans, book a program |
 | G-06 | Social links | Carried over (IG / FB / YouTube) |
 | G-07 | Cookie consent | **Not applicable**: the app uses no cookies; handled instead by the disclosure in 12.1 |
 | G-08 | Accessibility | Carried over and strengthened: see section 13 |
@@ -488,9 +498,10 @@ Block order from top to bottom (order and visibility controlled by admin M2):
 |---|---|---|
 | `D1` | Taichung Rock | **First Team** |
 | `BW1` | **Taichung Blue Whale** | **Blue Whale First Team** |
-| `U15` / `U14` / `U12` | Taichung Rock | Academy squads |
+| `U10` / `U12` / `U14` / `U16` / `U18` | Taichung Rock | Academy squads (those already set up in C1) |
+| `BW-U15` / `BW-U12` | Taichung Blue Whale | Youth teams |
 
-Adding U18 or U10 later requires only a new record in admin C1, with no app release.
+Adding a squad later requires only a new record in admin C1, with no app release.
 
 **`Team.code` stays globally unique rather than becoming a club-plus-code composite key** — it is the identifier behind calendar subscription URLs and existing website paths (`/zh/schedule/d1/`), and a composite key would break both, including calendar feeds users have already subscribed to. The Blue Whale first team therefore takes a new code, `BW1`, rather than a second `D1`.
 
@@ -571,7 +582,7 @@ Player likeness consent must be confirmed first (see 16.2): **consent is require
 | Offline | Opened articles remain readable offline for 30 days |
 | Push | Subscribable by category (see 6.3) |
 
-**One hard rule**: the winners announcement post (category 7.1 tagged `Fan Club Prize Draw`) **must never be included in any push category**. The website has committed to no individual winner notification, and a category push covering it would circumvent that commitment. This must be enforced at system level in admin M3, not left to human vigilance.
+**One hard rule**: the winners announcement post (category 7.1 tagged `Member Draw`) **must never be included in any push category**. The website has committed to no individual winner notification, and a category push covering it would circumvent that commitment. This must be enforced at system level in admin M3, not left to human vigilance.
 
 **Why `club_id` rather than new categories**: the eight categories are content themes (match reports, academy news, and so on); club is a separate dimension. Folding it into categories would produce sixteen of them, and "a Blue Whale match report" could not belong to both.
 
@@ -590,7 +601,7 @@ All fields and rules carry over from website 3.14; the app adds no member data f
 |---|---|
 | Member profile | Name, mobile, email, date of birth, language preference; change password, delete account |
 | **Follow preferences** | The list of followed squads — the same data as S23. **Independent of membership** — you may follow the club whose membership you have not bought |
-| **Membership status** | **Listed per club**: club, tier, member number, expiry date, state (pending / active / expired). **A club you have no membership with shows a join entry point rather than being hidden** |
+| **Membership status** | **Listed per club**: club, tier, member number, expiry date, state (pending / active / expired). **A club you have no membership with shows a join entry point rather than being hidden**; an account that has only registered and holds no membership has no membership card, and the Member tab shows a join entry point |
 | Renewal prompt | A banner in the Member tab from 30 days before expiry, plus a push (see 6.2). **The two clubs' seasons are not aligned, so each fires separately**; the push copy must name the club |
 | Jersey registration | Size, collection method (post or in person), delivery details; status shown as pending / dispatched / collected. **Registered per membership** — two memberships means two jerseys |
 | My bookings | See 3.9 |
@@ -608,7 +619,7 @@ Card face: **the club's logo**, member number, QR code, name, tier, expiry date,
 | Rule | Description |
 |---|---|
 | QR contents | The public verification URL `/m/<token>`, identical to the website |
-| **One card, one token** | **Unchanged.** This constrains **card-to-token as 1:1** — issuing two tokens for one card creates two revocable states and revoking will always miss one. **It has never meant one card per person**: `MembershipPlan.card_quota` on a family plan has always allowed three |
+| **One card, one token** | **Unchanged.** This constrains **card-to-token as 1:1** — issuing two tokens for one card creates two revocable states and revoking will always miss one. **It has never meant one card per person**: `MembershipPlan.card_quota` greater than 1 has always allowed several cards on a plan |
 | Verification response | **Unchanged**: first character of the name, member number, tier, valid or expired. **No "applicable club" field may be added** — the token already implies the club, so scanning it shows that club's status.<br>⚠️ Conversely, **"one card showing two memberships" is not an option**: without displaying "Rock valid / Blue Whale expired" staff cannot decide, and displaying it *is* adding an applicable-team field |
 | Offline | The card face and QR are presentable offline, but validity reflects the last sync; a warning is required after seven days without one |
 | Token regeneration | Members may regenerate it; the old token is invalidated immediately |
@@ -616,17 +627,17 @@ Card face: **the club's logo**, member number, QR code, name, tier, expiry date,
 
 **No scan-to-redeem**: stores still verify by eye; the app provides no store-side scanner, no counting, no store reports, and stores need no account — identical to website 8.4.
 
-### 3.7 Joining and upgrading
+### 3.7 Joining a membership
 
 | Block | Content |
 |---|---|
-| Tier explanation | The difference between a registered member (free) and a fan club member (paid). **Two tiers remain; no tier is added for the second club** |
+| Tier explanation | A registered account (no membership yet) compared with each plan; Taichung Rock has two tiers, Rock Member and Prestige Member, and Blue Whale follows its own plans. **Tiers are set by each club's plans; no tier is added for the second club** |
 | **Coverage statement** | States plainly that **membership is one per club and runs on its own term**, so the club must be chosen before purchase; and that **the collecting party is always Taichung Rock FC** (Blue Whale memberships are collected on its behalf, see 5.2). **It must not be worded as "one membership covers both clubs"** |
-| Plan comparison | Fee, season period, `card_quota`, `jersey_quota`, family plans |
-| **Benefits table** | Grouping (card / store discounts / jersey / events), free-tier value, paid-tier value |
+| Plan comparison | Suggested annual fee, season period, `card_quota`, `jersey_quota`, shop member-discount ratio |
+| **Benefits table** | Grouping (card / discounts and offers / gifts / events / content and communication), the corresponding value for each plan |
 | Payment | See section 5 |
 
-**The benefits table is the fourth use of one dataset** (the first three being the website join page, the fan club page 8.2, and the Member Centre upgrade page). **Admin K4 remains the single point of maintenance**; the app **must not hard-code any benefit text**, and must not render it as an image — it needs both languages and must be readable by screen readers.
+**The benefits table is the fourth use of one dataset** (the first three being the website join page, the fan club page 8.2, and the Member Centre plans page). **Admin K4 remains the single point of maintenance**; the app **must not hard-code any benefit text**, and must not render it as an image — it needs both languages and must be readable by screen readers.
 
 **Visible without signing in**: the benefits table and plan comparison are the key to conversion and carry no sign-in wall.
 
@@ -642,7 +653,7 @@ This is where the app differs most sharply in value from the website. A member o
 | **One-tap calling** | Dials the store directly |
 | Filters | The existing dimensions: category (food and drink / sports equipment / health / education / lifestyle services) and area |
 | Detail | Name, photo or logo, category, address, phone, opening hours, map link, website or social link, offer, **applicable tier** |
-| Tier labelling | "All members" and "Paid members only" must be clearly distinguished, with an upgrade CTA shown to non-paying users on the latter |
+| Tier labelling | "All members" and "Prestige tier only" must be clearly distinguished, with a view-plans CTA shown to members of other tiers and to those with no membership (there is no upgrade during the term; another plan can be chosen when renewing after expiry) |
 
 **Public, with no sign-in wall** — as on website 8.4, this is the main driver of conversion.
 
@@ -667,7 +678,7 @@ Only three small items were moved out of scope in website v2.0, and only two of 
 |---|---|---|
 | **Form pre-filling** | Yes | An operation on the member's own data; low sensitivity. Typing on a phone is painful, so the value here is an order of magnitude above the website |
 | **My bookings (attribution)** | Yes | Shows the member's own bookings: program, session, time, place, payment state. Again the member's own data only |
-| **Parent–student linking** | **No** | Creates a durable adult-to-minor association, a step up in sensitivity. Family memberships deliberately avoided it ("a family membership is only a different `card_quota` / `jersey_quota`; **no student linking relationship is required**"). Student details still live in `Registration` as before; only the `Member`-to-student association table is not created |
+| **Parent–student linking** | **No** | Creates a durable adult-to-minor association, a step up in sensitivity. Multi-card plans deliberately avoided it. Student details still live in `Registration` as before; only the `Member`-to-student association table is not created |
 
 **Implementation**: `Registration` gains a `member_id` (**nullable** — non-members may still book, and this rule must not change), and the admin P3 booking list gains a "member" column. **No new type is introduced.**
 
@@ -691,11 +702,11 @@ Only three small items were moved out of scope in website v2.0, and only two of 
 
 ### 3.10 Prize-draw information (read-only)
 
-The website has explicitly excluded an entire list of public prize-draw features. **The design goal here is to let a paying member know they are eligible without breaching any item on that list.**
+The website has explicitly excluded an entire list of public prize-draw features. **The design goal here is to let a member know they are eligible without breaching any item on that list.**
 
 **The app does exactly four things**:
 
-> **v3.0: draws are run per club.** The presentation is unchanged, but it is now shown **per club** — the boolean answers "is your membership *at this club* valid at this draw's cut-off?". A member holding both paid memberships sees themselves eligible for both draws.
+> **v3.0: draws are run per club.** The presentation is unchanged, but it is now shown **per club** — the boolean answers "is your membership *at this club* valid at this draw's cut-off?". A member holding both memberships sees themselves eligible for both draws.
 
 | # | Displayed | Source |
 |---|---|---|
@@ -797,7 +808,7 @@ Language, push permission and categories, location permission explanation, clear
 | One card | One membership card token, shared by the app and the website |
 | One set of benefits | Admin K4 remains the single point of maintenance for the benefits table |
 
-**A paying member is a fan club member**, not a second identity, and the fan club keeps no separate roster — as on the website.
+**A holder of a membership is a member**, not a second identity, and no separate roster is kept; **a registered account is not a membership** — as on the website.
 
 ### 4.2 Sign-in methods
 
@@ -955,7 +966,9 @@ Also: Refunded (initiated only from the admin)
 
 > **This is the single largest launch risk for this app.**
 
-Apple requires in-app purchase for **digital content and services** sold inside an app. The benefits of a paid membership are **predominantly physical** — a joining jersey (a physical item), partner-store discounts (spending in physical premises), physical prizes in the draw, and priority booking for physical events — which gives a substantial basis for arguing they are physical goods and services, permitting external payment.
+Apple requires in-app purchase for **digital content and services** sold inside an app. The benefits of a paid membership are **predominantly physical** — welcome gifts and the Prestige gift box (physical items), the member discount in the shop and partner-store discounts (spending in physical premises), physical prizes in the draw, and priority booking and exclusive events (physical events) — which gives a substantial basis for arguing they are physical goods and services, permitting external payment.
+
+⚠️ **Prestige Member also includes digital benefits** — behind-the-scenes content (tactical analysis, youth development reports, coach interviews) and an exclusive community group — which weaken the argument that the benefits are predominantly physical; if these benefits are unlocked or presented inside the app, the likelihood of a ruling that IAP is required rises. In planning, they should stay on the website and the social platforms and not be unlocked inside the app by membership status, and this should be stated in the submission notes.
 
 **But this is a review judgement, not a written rule, and two paths must be prepared in advance:**
 
@@ -1017,7 +1030,7 @@ Three dimensions only, with **behavioural targeting deliberately excluded**:
 
 | Dimension | Description |
 |---|---|
-| Membership tier | All / `fan_club` only / `registered` only / signed-out devices |
+| Membership tier | All / holders of an active membership / Prestige tier only / those with no active membership (including signed-out devices) |
 | Followed squad | `PushTopicSubscription` (device × `team_code`), **sent only where `is_push_enabled` is true** (see 10.1) |
 | **Club** | All / Rock only / Blue Whale only. For general announcements; **must not be used for differentiated commercial messaging** |
 | Language | `zh` / `en`; push copy must exist in both, sent per the device language |
@@ -1274,7 +1287,7 @@ E. Commercial                        (extends the existing module)
 - Send history: batch, time, operator, devices reached, sent / delivered / opened counts
 - Rule settings for automated pushes (reminder lead time, expiry reminder days, and so on)
 
-**System-level blocking**: M3 must block any push targeting a winners list, and must block automatic pushes for articles tagged `Fan Club Prize Draw` (see 6.8).
+**System-level blocking**: M3 must block any push targeting a winners list, and must block automatic pushes for articles tagged `Member Draw` (see 6.8).
 
 ### 8.4 M4 Push devices
 
@@ -1525,11 +1538,11 @@ One real company may be several of these at once; **create a separate record for
 | Case | Correct handling |
 |---|---|
 | Prize-draw roster | `DrawRoster` is an **immutable snapshot** and **the app must not read it**. The app reads only live membership status from `Member` and the public fields of `MemberDraw` |
-| Draw eligibility | A **boolean** derived at `Member` level; there is no "draw entry", "draw ticket", or "points" type |
+| Draw eligibility | A **boolean** derived from whether the `Membership` is active; there is no "draw entry", "draw ticket", or "points" type |
 | Program sessions | Belong to `Session` and **do not enter `CalendarEvent`**. "My bookings" may display times but must not write to any calendar type |
-| Fan club members | Not a separate roster; a `fan_club` tier marker on `Member` |
-| Family memberships | Only a different `card_quota` / `jersey_quota` on `MembershipPlan`; **no student linking relationship is created** |
-| **Club vs squad** | `Club` is the legal entity and brand (Rock, Blue Whale); `Team` is a squad (D1, BW1, U15…). **One `Club` has many `Team`s.** Deep links and calendar subscriptions use `Team.code`; crests and sectioning use `Club` |
+| Members | Not a separate roster; anyone holding an active `Membership` at that club |
+| Multi-card plans | Only a different `card_quota` / `jersey_quota` on `MembershipPlan`; **no student linking relationship is created** |
+| **Club vs squad** | `Club` is the legal entity and brand (Rock, Blue Whale); `Team` is a squad (D1, BW1, U12, BW-U15…). **One `Club` has many `Team`s.** Deep links and calendar subscriptions use `Team.code`; crests and sectioning use `Club` |
 | **`Club` vs the five commercial parties** | `Club` is a **content principal**, not a sixth commercial party. It counts no impressions, carries no payments or revenue share, and is never merged with `Partner` / `Sponsor` — Blue Whale is a co-principal, not a sponsor or partner of the club |
 | **Membership vs club** | Membership is `Membership`, **one per person per club**, with `club_id` required; `Member` carries no `club_id` (email is the sign-in key, the LINE binding is 1:1, and under personal-data law the data subject is the person, not the membership). The member centre lists membership status club by club, and **each membership has its own card** |
 | Advertising vs sponsor exposure | `AdEvent` records impressions of `AdCreative` only. The sponsor logo wall **generates no `AdEvent` whatsoever** |
@@ -1731,7 +1744,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | Phase | Contents | Prerequisites |
 |---|---|---|
 | **A — Foundation** | **`Club` and `Competition` records**, **both clubs' fixtures and results (12 months)**, **first-run onboarding and follow preferences (S23)**, news list, squads (read-only), partners and sponsors, FAQ, deep links and Universal Links, both languages, `AppDevice` registration, settings | **Blue Whale's written authorisation, brand assets, and fixture data** (16.2, items 1–4) |
-| **B — Membership** | Registration and sign-in, member centre, **digital membership card (one per membership)**, **partner stores and the nearby map**, plans and benefits, **joining and upgrading through an external browser**, read-only prize-draw information | Store coordinates (16.2, item 9) |
+| **B — Membership** | Registration and sign-in, member centre, **digital membership card (one per membership)**, **partner stores and the nearby map**, plans and benefits, **joining and renewing through an external browser**, read-only prize-draw information | Store coordinates (16.2, item 9) |
 | **C — Engagement and revenue** | Push notifications, advertising slots and measurement, match-day reminders, **program booking (pre-filling and my bookings)** | The three additions to the member terms (16.2, item 12), first advertisers (16.2, item 7) |
 | **D — Content-dependent** | Player photographs and biographies, full article text and offline reading | The 113 draft articles unblocked (16.2, item 23), player assets (16.2, item 22) |
 | **E — In-app payment** | **In-app LINE Pay payment (section 5)**; external-browser payment is retained as the fallback | IAP determination and the club's LINE Pay merchant account (16.2, items 5–6) |
@@ -1753,8 +1766,8 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | Item | Decision |
 |---|---|
 | **Co-principal** (v2.0) | The app is a joint platform for **Taichung Rock × Taichung Blue Whale**. **Content and brand are shared; the collecting and legal entity is the club alone** (1.1) |
-| Squads | `D1` (Rock first team) / **`BW1` (Blue Whale first team, new in v2.0)** / `U15` / `U14` / `U12`. **No `D2` is added.** `Team.code` **stays globally unique**, and the list is generated in the admin |
-| **Membership** (rewritten in v3.0) | **One per person per club** (the `Membership` type, defined in the main-site specification §5). Two tiers remain, free and paid; **no tier is added for the second club**. **One card per membership**; "one card, one token" and "no applicable-team field on the verification page" both **stand unchanged** |
+| Squads | `D1` (Rock first team) / **`BW1` (Blue Whale first team, new in v2.0)** / Taichung Rock academy squads `U10` / `U12` / `U14` / `U16` / `U18` / Blue Whale youth teams `BW-U15`, `BW-U12`. **No `D2` is added.** `Team.code` **stays globally unique**, and the list is generated in the admin |
+| **Membership** (rewritten in v3.0) | **One per person per club** (the `Membership` type, defined in the main-site specification §5). A registered account is not a membership; tiers are set by each club's plans (Taichung Rock has two, Rock Member and Prestige Member), and **no tier is added for the second club**. **One card per membership**; "one card, one token" and "no applicable-team field on the verification page" both **stand unchanged** |
 | **Blue Whale's role** (rewritten in v3.0) | **Content provider, co-signatory of the brand, and membership beneficiary — but not a collecting party.** Holds accounts in the shared admin limited to its own content; **may reach its own memberships and orders, but the `Member` master record is masked and no membership row belonging to the other club is ever visible** |
 | **App name and accounts** (v2.0) | The store display name is the neutral **"Taichung Football"**; **the developer account, certificates, and collection account all sit with the club**. The deep-link scheme stays `tcrfc://` |
 | Admin and database | **Shares the website admin and database**, adding module `M` and extending `E` (E4–E6) |
@@ -1801,7 +1814,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | 7 | **Advertising pricing**: CPM, flight buyout, or bundled into sponsorship packages? This determines whether `AdCampaign` needs an amount field; priced separately, it also creates an invoicing and tax workflow |
 | 8 | **Expected daily active devices**: needed to size the event volume and reporting cost (the assumptions in 7.6 must be replaced with real estimates) |
 | 9 | **The definitive slot list and rate card** |
-| 10 | **Membership fee amounts and plan design** (a website open item): affects the amounts shown in section 5 and the IAP argument |
+| 10 | **Membership fee amounts and plan design** (a website open item): whether the suggested annual fees for Rock Member and Prestige Member are settled affects the amounts shown in section 5 and the IAP argument (Prestige Member's digital benefits are covered in 5.5) |
 | 10b | **How membership revenue is shared between the clubs** (v2.0): whether, at what ratio, and how often. **The system does not process this — it is contractual** — but it should be settled to avoid later dispute |
 | 10c | **Whether Blue Whale's sponsors appear in the app** (v2.0): requires the consent of both Blue Whale and those sponsors (3.11) |
 | 10d | **Who maintains Blue Whale fixtures** (v2.0) before `J` is extended, and how often. **Fixture reliability is this app's core proposition, and delays in proxy data entry damage it directly** |
@@ -1810,7 +1823,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 
 | # | Item |
 |---|---|
-| 11 | **App Store age rating**: with U12/U14/U15 content and photographs of minors, does the app fall into a children's category? If so, advertising restrictions tighten considerably (this specification is already aligned) |
+| 11 | **App Store age rating**: with content from the academy squads (U10–U18) and photographs of minors, does the app fall into a children's category? If so, advertising restrictions tighten considerably (this specification is already aligned) |
 | 12 | **The three additions to the member terms** (push token, booking attribution, location purpose) require legal sign-off |
 | 13 | **Whether guardian consent for photographs of minors covers "store screenshots"**, a newly public exposure surface |
 | 14 | **Whether player likeness consent covers the app and the store listing** |

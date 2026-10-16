@@ -114,7 +114,7 @@ export const NEWS_CATEGORY_EN: Record<string, NewsCategoryCopyEn> = {
   international: {
     num: '7.5',
     label: 'International',
-    lede: 'Partnerships with overseas clubs, players training abroad and transfers: a first-hand record of Taichung Rock FC players looking to the world, in line with Global Pathways.',
+    lede: 'Partnerships with overseas clubs, players training abroad and transfers: a first-hand record of Taichung Rock FC players looking to the world, in line with our core value of Global influence.',
     description: (c) => `${CLUB_NAME_EN} international news: partnership agreements with overseas clubs, players training abroad and transfers.${countSuffix(c)}`,
   },
   'camps-events': {

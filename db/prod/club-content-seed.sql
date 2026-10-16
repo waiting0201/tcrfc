@@ -4648,7 +4648,7 @@ IF NOT EXISTS (
 BEGIN
   BEGIN TRANSACTION;
   INSERT INTO settings_i18n (setting_id, locale, value)
-  SELECT s.id, N'zh-Hant', N'一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系' FROM settings s
+  SELECT s.id, N'zh-Hant', N'一線隊與足球學院（U10／U12／U14／U16／U18）並行的發展體系' FROM settings s
   WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.squad_structure_summary';
   COMMIT TRANSACTION;
 END
@@ -4661,7 +4661,7 @@ IF NOT EXISTS (
 BEGIN
   BEGIN TRANSACTION;
   INSERT INTO settings_i18n (setting_id, locale, value)
-  SELECT s.id, N'en', N'A development pathway with the first team and the Academy (U15 / U14 / U12) running in parallel' FROM settings s
+  SELECT s.id, N'en', N'A development pathway with the first team and the Academy (U10 / U12 / U14 / U16 / U18) running in parallel' FROM settings s
   WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.squad_structure_summary';
   COMMIT TRANSACTION;
 END
@@ -4674,7 +4674,7 @@ BEGIN
   BEGIN TRANSACTION;
   SET @id = N'd6901be4-64cd-52aa-85fa-7f4f175be7ff';
   INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'site.squad_codes', N'U15,U14,U12', N'site');
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'site.squad_codes', N'U10,U12,U14,U16,U18', N'site');
   COMMIT TRANSACTION;
 END
 GO
@@ -4911,6 +4911,44 @@ BEGIN
   INSERT INTO settings_i18n (setting_id, locale, value)
   SELECT s.id, N'zh-Hant', N'【測試】平日 09:00–18:00' FROM settings s
   WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.setting_key = N'site.contact_hours';
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.contact_address';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'a05c50b6-3c97-568e-acda-866a8876ad82';
+  INSERT INTO settings (id, club_id, setting_key, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'site.contact_address', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (
+  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.contact_address' AND si.locale = N'zh-Hant'
+)
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO settings_i18n (setting_id, locale, value)
+  SELECT s.id, N'zh-Hant', N'台中市北屯區昌平路二段敬固巷11弄41號' FROM settings s
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.contact_address';
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (
+  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.contact_address' AND si.locale = N'en'
+)
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO settings_i18n (setting_id, locale, value)
+  SELECT s.id, N'en', N'No. 41, Alley 11, Jinggu Lane, Section 2, Changping Road, Beitun District, Taichung City, Taiwan' FROM settings s
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.contact_address';
   COMMIT TRANSACTION;
 END
 GO
@@ -5173,10 +5211,10 @@ BEGIN
   BEGIN TRANSACTION;
   SET @id = N'f51f3fe3-399a-5f55-8ac5-0679d72e48cc';
   INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'about/philosophy', N'published', '2026-09-30T00:00:00');
-  INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部', N'台中磐石足球俱樂部的足球理念與五大核心價值：以球員為本、追求卓越、國際發展、社區共好、誠信專業。');
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'd2d351b2-be49-5430-a4a9-f5a0a7cee541', @id, N'text', N'{"body":{"zh":"同時作為全站內容標籤，貫穿俱樂部各項訓練規劃與對外溝通。","en":"They also serve as content tags across the site, running through all of the club''s training plans and external communications."}}', 0);
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'89624843-cf98-507d-9561-99cfab4a2903', @id, N'steps', N'{"items":[{"title":{"zh":"以球員為本","en":"Players First"},"description":{"zh":"所有訓練規劃與資源配置，皆以球員的長期發展與福祉為核心考量。","en":"All training plans and resource allocation put players'' long-term development and wellbeing first."}},{"title":{"zh":"追求卓越","en":"Excellence"},"description":{"zh":"建立專業化訓練與教練體系，協助選手邁向職業舞台所需的實力與態度。","en":"We build a professional training and coaching system to help players develop the ability and mindset needed to reach the professional stage."}},{"title":{"zh":"國際發展","en":"Global Pathways"},"description":{"zh":"從台中出發、放眼世界，透過海外交流建立選手與職業舞台接軌的路徑。","en":"Starting from Taichung and looking to the world, we build pathways to the professional stage through international exchange."}},{"title":{"zh":"社區共好","en":"Community"},"description":{"zh":"紮根台中在地，成為社區認同與榮耀的來源，與球迷共同成長。","en":"Rooted in Taichung, we aim to be a source of local pride and identity, growing together with our fans."}},{"title":{"zh":"誠信專業","en":"Integrity"},"description":{"zh":"以誠信治理與專業制度，支撐俱樂部長期穩健發展。","en":"Honest governance and professional systems support the club''s long-term, steady development."}}]}', 1);
-  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'06b3c71a-0ddd-5f14-8a99-901a7e5d0ada', @id, 1, N'{"seo":{"zh":{"seoTitle":"足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部","seoDescription":"台中磐石足球俱樂部的足球理念與五大核心價值：以球員為本、追求卓越、國際發展、社區共好、誠信專業。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"同時作為全站內容標籤，貫穿俱樂部各項訓練規劃與對外溝通。","en":"They also serve as content tags across the site, running through all of the club''s training plans and external communications."}}},{"blockType":"steps","content":{"items":[{"title":{"zh":"以球員為本","en":"Players First"},"description":{"zh":"所有訓練規劃與資源配置，皆以球員的長期發展與福祉為核心考量。","en":"All training plans and resource allocation put players'' long-term development and wellbeing first."}},{"title":{"zh":"追求卓越","en":"Excellence"},"description":{"zh":"建立專業化訓練與教練體系，協助選手邁向職業舞台所需的實力與態度。","en":"We build a professional training and coaching system to help players develop the ability and mindset needed to reach the professional stage."}},{"title":{"zh":"國際發展","en":"Global Pathways"},"description":{"zh":"從台中出發、放眼世界，透過海外交流建立選手與職業舞台接軌的路徑。","en":"Starting from Taichung and looking to the world, we build pathways to the professional stage through international exchange."}},{"title":{"zh":"社區共好","en":"Community"},"description":{"zh":"紮根台中在地，成為社區認同與榮耀的來源，與球迷共同成長。","en":"Rooted in Taichung, we aim to be a source of local pride and identity, growing together with our fans."}},{"title":{"zh":"誠信專業","en":"Integrity"},"description":{"zh":"以誠信治理與專業制度，支撐俱樂部長期穩健發展。","en":"Honest governance and professional systems support the club''s long-term, steady development."}}]}}]}', N'152257a532d7ddcc78db424ea3e236d8e52d31e5573616a6780ffac68e325a6f');
+  INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部', N'台中磐石足球俱樂部的足球理念與四大核心價值：啟發球員、塑造冠軍、在地驕傲、撼動全球。');
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'd2d351b2-be49-5430-a4a9-f5a0a7cee541', @id, N'text', N'{"body":{"zh":"台中磐石足球俱樂部的足球理念，可概括為：以台中在地化為根基，以本土球員培育為核心，以完整青訓、職業化管理、運動科學及國際交流為方法，推動可持續的台灣足球發展。這不是只追求短期成績的球隊定位，而是試圖把俱樂部建成連結社區、學校、青訓與成人競技隊的足球發展平台。以專業模式培育球員，協助其追求卓越、發揮潛能。透過實際行動展示職業足球理念，推動台灣足球的永續發展。\n\n在地化與社區責任\n以台中為發展基地，建立地方認同，並把俱樂部定位為推動社區足球、青少年足球與城市運動文化的力量。\n\n完整發展路徑\n建立由兒童、學校青訓到成年隊的培養通道，避免球員在特定年齡階段失去銜接機會。\n\n科學化與個別化訓練\n用檢測、數據與個人化負荷設計取代只憑經驗的訓練，提升球員體能表現、訓練效率與競技穩定度。\n\n國際視野\n學習歐洲、日本與亞洲職業俱樂部的制度與方法，但依台灣教育文化、訓練時間與球員生活現實做在地調整。\n\n建設足球生態\n俱樂部不只負責比賽成績，也必須把制度、資源、訓練與基層發展真正帶進球場，主動承擔足球生態建設責任。","en":"The football philosophy of Taichung Rock Football Club can be summed up as follows: rooted in Taichung, centred on developing local players, and using a complete youth system, professional management, sports science and international exchange as its methods, to promote the sustainable development of football in Taiwan. This is not a club positioning built only on short-term results, but an attempt to build the club into a football development platform that connects the community, schools, youth development and the adult competitive team. We develop players through a professional model, helping them pursue excellence and fulfil their potential, and we demonstrate professional football principles through concrete action to promote the lasting development of Taiwan football.\n\nLocal roots and community responsibility\nTaking Taichung as our base, we build local identity and position the club as a force for community football, youth football and the city''s sporting culture.\n\nA complete development pathway\nWe build a pipeline from children''s and school youth football up to the adult team, so that players do not lose the link to the next stage at any particular age.\n\nScientific and individualised training\nWe replace experience-only training with testing, data and individualised load design, improving players'' physical performance, training efficiency and competitive consistency.\n\nInternational outlook\nWe learn from the systems and methods of professional clubs in Europe, Japan and elsewhere in Asia, and adapt them locally to Taiwan''s education and culture, training hours and the realities of players'' lives.\n\nBuilding the football ecosystem\nThe club is responsible not only for match results. It must also bring systems, resources, training and grassroots development into football in a real way, and actively take on the responsibility of building the football ecosystem."}}', 0);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'89624843-cf98-507d-9561-99cfab4a2903', @id, N'steps', N'{"items":[{"title":{"zh":"啟發球員","en":"Inspiring players"},"description":{"zh":"足球的價值不只是贏球。台中磐石相信，更重要的是讓每一位球員看見自己的可能。\n\n從第一次碰球的孩子，到站上成人賽場的球員，我們希望給每個人一條清楚的路、一個能持續成長的環境。紀律、責任、團隊合作、面對挫折、尊重對手，這些東西跟技術一樣重要，甚至更難練。\n\n真正的冠軍，不只存在於比分牌上。","en":"Football''s value goes beyond winning. Taichung Rock believes that what matters more is helping every player see what they could become.\n\nFrom a child touching a ball for the first time to a player stepping onto the adult pitch, we want to give everyone a clear path and an environment in which they can keep growing. Discipline, responsibility, teamwork, facing setbacks and respecting opponents matter as much as technique, and are often harder to train.\n\nTrue champions do not exist only on the scoreboard."}},{"title":{"zh":"塑造冠軍","en":"Shaping champions"},"description":{"zh":"冠軍不是一夜練成的，也不只由名次決定。\n\n它來自每天準時到場、每一次不敷衍的訓練、每一個撐下去的決定，還有在團隊裡彼此扛起的責任。贏了之後的謙遜、輸了之後的韌性、壓力來了的冷靜，這些東西，才是我們真正想培養的。\n\n從青訓到一線隊，台中磐石希望建立一套共同的訓練語言和比賽標準。冠軍不是終點，是每天願意比昨天再好一點點的態度。","en":"A champion is not made overnight, nor decided by league position alone.\n\nIt comes from turning up on time every day, from training that is never half-hearted, from every decision to keep going, and from the responsibility players shoulder for one another in the team. Humility in victory, resilience in defeat and calm under pressure: these are what we truly want to develop.\n\nFrom the youth teams to the First Team, Taichung Rock wants to build a shared training language and shared match standards. A championship is not an endpoint; it is the attitude of being willing to get a little better than yesterday, every day."}},{"title":{"zh":"在地驕傲","en":"Local pride"},"description":{"zh":"台中磐石選擇以台中為家，不只是地點上的選擇，而是一個承諾。\n\n一支真正有力量的球隊，跟所在的城市、社區、學校、家庭和球迷是連在一起的。我們持續投入青少年足球、校園合作和社區活動，讓更多孩子有機會碰到球，讓更多家庭走進球場，讓更多台中人覺得，這支隊是我們自己的。\n\n在地驕傲不只是球衣上的城市名稱。是球員為台中拚的那口氣，是看台上的那聲吶喊，也是大家一起相信的那件事：台中的足球，可以更好。","en":"Taichung Rock chose Taichung as its home, and that is a commitment, not just a choice of location.\n\nA team with real strength is bound up with its city, its communities, its schools, its families and its fans. We keep investing in youth football, school partnerships and community activities, so that more children get the chance to play, more families come into the stadium, and more people in Taichung feel that this team is their own.\n\nLocal pride is more than the name of the city on a shirt. It is the effort players give for Taichung, the cheer from the stands, and something we all believe together: football in Taichung can be better."}},{"title":{"zh":"撼動全球","en":"Global influence"},"description":{"zh":"我們從台中出發，但眼光不只放在台中。\n\n足球是跨越語言和國界的語言。台中磐石透過國際合作、海外交流和教練培訓，讓球員看見世界不同的足球文化，也讓世界慢慢認識台中。\n\n跟不同國家和職業俱樂部的交流，不是為了貼標籤，而是真的想知道高水平足球在要求什麼，細節、紀律、恢復、戰術、人才培育，每一個環節都是功課。我們希望把這些帶回來，轉化成適合台灣球員的東西。\n\n讓每一位從台中磐石出發的球員，都有機會站上更大的舞台。讓每一場在台中踢出的比賽，都成為台灣足球走向世界的下一步。","en":"We start from Taichung, but our eyes are not only on Taichung.\n\nFootball is a language that crosses languages and borders. Through international cooperation, overseas exchange and coach education, Taichung Rock lets players see different football cultures around the world, and lets the world slowly get to know Taichung.\n\nExchange with clubs in other countries, including professional clubs, is not about attaching labels; it is about genuinely finding out what high-level football demands. Detail, discipline, recovery, tactics and talent development are all lessons to learn. We hope to bring these back and turn them into something that suits Taiwanese players.\n\nMay every player who sets out from Taichung Rock have the chance to step onto a bigger stage, and may every match played in Taichung become the next step for Taiwan football towards the world."}}]}', 1);
+  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'06b3c71a-0ddd-5f14-8a99-901a7e5d0ada', @id, 1, N'{"seo":{"zh":{"seoTitle":"足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部","seoDescription":"台中磐石足球俱樂部的足球理念與四大核心價值：啟發球員、塑造冠軍、在地驕傲、撼動全球。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"台中磐石足球俱樂部的足球理念，可概括為：以台中在地化為根基，以本土球員培育為核心，以完整青訓、職業化管理、運動科學及國際交流為方法，推動可持續的台灣足球發展。這不是只追求短期成績的球隊定位，而是試圖把俱樂部建成連結社區、學校、青訓與成人競技隊的足球發展平台。以專業模式培育球員，協助其追求卓越、發揮潛能。透過實際行動展示職業足球理念，推動台灣足球的永續發展。\n\n在地化與社區責任\n以台中為發展基地，建立地方認同，並把俱樂部定位為推動社區足球、青少年足球與城市運動文化的力量。\n\n完整發展路徑\n建立由兒童、學校青訓到成年隊的培養通道，避免球員在特定年齡階段失去銜接機會。\n\n科學化與個別化訓練\n用檢測、數據與個人化負荷設計取代只憑經驗的訓練，提升球員體能表現、訓練效率與競技穩定度。\n\n國際視野\n學習歐洲、日本與亞洲職業俱樂部的制度與方法，但依台灣教育文化、訓練時間與球員生活現實做在地調整。\n\n建設足球生態\n俱樂部不只負責比賽成績，也必須把制度、資源、訓練與基層發展真正帶進球場，主動承擔足球生態建設責任。","en":"The football philosophy of Taichung Rock Football Club can be summed up as follows: rooted in Taichung, centred on developing local players, and using a complete youth system, professional management, sports science and international exchange as its methods, to promote the sustainable development of football in Taiwan. This is not a club positioning built only on short-term results, but an attempt to build the club into a football development platform that connects the community, schools, youth development and the adult competitive team. We develop players through a professional model, helping them pursue excellence and fulfil their potential, and we demonstrate professional football principles through concrete action to promote the lasting development of Taiwan football.\n\nLocal roots and community responsibility\nTaking Taichung as our base, we build local identity and position the club as a force for community football, youth football and the city''s sporting culture.\n\nA complete development pathway\nWe build a pipeline from children''s and school youth football up to the adult team, so that players do not lose the link to the next stage at any particular age.\n\nScientific and individualised training\nWe replace experience-only training with testing, data and individualised load design, improving players'' physical performance, training efficiency and competitive consistency.\n\nInternational outlook\nWe learn from the systems and methods of professional clubs in Europe, Japan and elsewhere in Asia, and adapt them locally to Taiwan''s education and culture, training hours and the realities of players'' lives.\n\nBuilding the football ecosystem\nThe club is responsible not only for match results. It must also bring systems, resources, training and grassroots development into football in a real way, and actively take on the responsibility of building the football ecosystem."}}},{"blockType":"steps","content":{"items":[{"title":{"zh":"啟發球員","en":"Inspiring players"},"description":{"zh":"足球的價值不只是贏球。台中磐石相信，更重要的是讓每一位球員看見自己的可能。\n\n從第一次碰球的孩子，到站上成人賽場的球員，我們希望給每個人一條清楚的路、一個能持續成長的環境。紀律、責任、團隊合作、面對挫折、尊重對手，這些東西跟技術一樣重要，甚至更難練。\n\n真正的冠軍，不只存在於比分牌上。","en":"Football''s value goes beyond winning. Taichung Rock believes that what matters more is helping every player see what they could become.\n\nFrom a child touching a ball for the first time to a player stepping onto the adult pitch, we want to give everyone a clear path and an environment in which they can keep growing. Discipline, responsibility, teamwork, facing setbacks and respecting opponents matter as much as technique, and are often harder to train.\n\nTrue champions do not exist only on the scoreboard."}},{"title":{"zh":"塑造冠軍","en":"Shaping champions"},"description":{"zh":"冠軍不是一夜練成的，也不只由名次決定。\n\n它來自每天準時到場、每一次不敷衍的訓練、每一個撐下去的決定，還有在團隊裡彼此扛起的責任。贏了之後的謙遜、輸了之後的韌性、壓力來了的冷靜，這些東西，才是我們真正想培養的。\n\n從青訓到一線隊，台中磐石希望建立一套共同的訓練語言和比賽標準。冠軍不是終點，是每天願意比昨天再好一點點的態度。","en":"A champion is not made overnight, nor decided by league position alone.\n\nIt comes from turning up on time every day, from training that is never half-hearted, from every decision to keep going, and from the responsibility players shoulder for one another in the team. Humility in victory, resilience in defeat and calm under pressure: these are what we truly want to develop.\n\nFrom the youth teams to the First Team, Taichung Rock wants to build a shared training language and shared match standards. A championship is not an endpoint; it is the attitude of being willing to get a little better than yesterday, every day."}},{"title":{"zh":"在地驕傲","en":"Local pride"},"description":{"zh":"台中磐石選擇以台中為家，不只是地點上的選擇，而是一個承諾。\n\n一支真正有力量的球隊，跟所在的城市、社區、學校、家庭和球迷是連在一起的。我們持續投入青少年足球、校園合作和社區活動，讓更多孩子有機會碰到球，讓更多家庭走進球場，讓更多台中人覺得，這支隊是我們自己的。\n\n在地驕傲不只是球衣上的城市名稱。是球員為台中拚的那口氣，是看台上的那聲吶喊，也是大家一起相信的那件事：台中的足球，可以更好。","en":"Taichung Rock chose Taichung as its home, and that is a commitment, not just a choice of location.\n\nA team with real strength is bound up with its city, its communities, its schools, its families and its fans. We keep investing in youth football, school partnerships and community activities, so that more children get the chance to play, more families come into the stadium, and more people in Taichung feel that this team is their own.\n\nLocal pride is more than the name of the city on a shirt. It is the effort players give for Taichung, the cheer from the stands, and something we all believe together: football in Taichung can be better."}},{"title":{"zh":"撼動全球","en":"Global influence"},"description":{"zh":"我們從台中出發，但眼光不只放在台中。\n\n足球是跨越語言和國界的語言。台中磐石透過國際合作、海外交流和教練培訓，讓球員看見世界不同的足球文化，也讓世界慢慢認識台中。\n\n跟不同國家和職業俱樂部的交流，不是為了貼標籤，而是真的想知道高水平足球在要求什麼，細節、紀律、恢復、戰術、人才培育，每一個環節都是功課。我們希望把這些帶回來，轉化成適合台灣球員的東西。\n\n讓每一位從台中磐石出發的球員，都有機會站上更大的舞台。讓每一場在台中踢出的比賽，都成為台灣足球走向世界的下一步。","en":"We start from Taichung, but our eyes are not only on Taichung.\n\nFootball is a language that crosses languages and borders. Through international cooperation, overseas exchange and coach education, Taichung Rock lets players see different football cultures around the world, and lets the world slowly get to know Taichung.\n\nExchange with clubs in other countries, including professional clubs, is not about attaching labels; it is about genuinely finding out what high-level football demands. Detail, discipline, recovery, tactics and talent development are all lessons to learn. We hope to bring these back and turn them into something that suits Taiwanese players.\n\nMay every player who sets out from Taichung Rock have the chance to step onto a bigger stage, and may every match played in Taichung become the next step for Taiwan football towards the world."}}]}}]}', N'152257a532d7ddcc78db424ea3e236d8e52d31e5573616a6780ffac68e325a6f');
   COMMIT TRANSACTION;
 END
 GO
@@ -5268,6 +5306,28 @@ END
 GO
 
 DECLARE @id uniqueidentifier;
+SELECT @id = id FROM pages WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'academy/curriculum';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'0ec0b31c-18ba-5b6a-b19e-a72c129f52ca';
+  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'academy/curriculum', N'published', '2026-09-30T00:00:00');
+  INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'訓練課程與課綱 Training & Curriculum｜台中磐石足球學院｜台中磐石足球俱樂部', N'台中磐石足球學院的訓練理念、培訓方式與訓練架構、賽事規劃與參賽原則、足球與教育的結合、行為規範，以及各梯隊的訓練時間與地點。');
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'2acd8dfe-62c7-5cd4-a46a-ab87ef64eb2d', @id, N'text', N'{"body":{"zh":"我們認為青少年足球培育是一項長期且循序漸進的發展工程，從個人技術、小組配合到整體戰術逐步建立能力，並依不同年齡階段均衡發展技術、戰術、生理與心理。同時鼓勵球員主動思考、勇於面對與解決問題，培養成熟的球場判斷力與團隊精神。","en":"We believe that youth football development is a long-term, step-by-step undertaking: ability is built from individual technique and small-group combinations up to overall team tactics, and the technical, tactical, physical and psychological sides are developed in balance at each age stage. We also encourage players to think for themselves and to face and solve problems, building mature on-pitch judgement and team spirit."}}', 0);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'70c4cc5c-ec17-5f4e-9029-996db9c2bb0f', @id, N'text', N'{"body":{"zh":"台中磐石會提供一個自由、自主且快樂的足球環境，讓球員在不受體育班制度限制的情況下持續發展，也不因學制而被迫中斷足球道路。","en":"Taichung Rock provides a free, self-directed and enjoyable football environment, so that players can keep developing without being bound by the sports-class system, and without having their football path interrupted by the school system."}}', 1);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'0627ee92-26bb-5b3b-b1d7-92c09e6641f0', @id, N'steps', N'{"items":[{"title":{"zh":"啟發球員","en":"Inspiring players"}},{"title":{"zh":"培養菁英","en":"Shaping elites"}},{"title":{"zh":"在地驕傲","en":"Local pride"}},{"title":{"zh":"撼動全球","en":"Global influence"}}]}', 2);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'2bf4ab64-c48b-5c63-b5bb-abc8ac772018', @id, N'text', N'{"body":{"zh":"採用週期化訓練（年度→月度→週計畫），主題式戰術發展，結合技術、戰術、體能與心理四大面向，並定期評估與個人化回饋，追蹤球員進步軌跡，以此方式循序漸進提升每一位選手。","en":"We use periodised training (annual, monthly and weekly plans) with theme-based tactical development that combines the four dimensions of technique, tactics, fitness and psychology. Regular assessment and individualised feedback track each player''s progress, so that every player improves step by step."}}', 3);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'675c8de6-f695-5c95-b63b-fbda6a98b949', @id, N'steps', N'{"items":[{"title":{"zh":"國內賽事","en":"Domestic competitions"},"description":{"zh":"參加中華足協主辦認可之盃賽或聯賽，U11/12勝利聯賽","en":"Cups and leagues organised or recognised by the CTFA, and the U11/12 Victory League"}},{"title":{"zh":"國際賽事","en":"International competitions"},"description":{"zh":"預計 安排一次海外賽事","en":"One overseas competition is planned"}},{"title":{"zh":"移地訓練","en":"Training camps away from home"},"description":{"zh":"依照訓練計畫安排國內與海外移地訓練","en":"Domestic and overseas training camps arranged according to the training plan"}}]}', 4);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'906a8611-fd21-5a3d-b6fe-52b2b2f45f6d', @id, N'text', N'{"body":{"zh":"本俱樂部核心理念視青訓發展為長期計劃，「未來仍持續參與本俱樂部青訓課程與球隊動之球員」為優先考量出國參賽對象。我們相信，出國比賽只是長期培訓的一個里程碑，真正重要的是孩子在平日訓練中持續累積的態度、習慣與能力發展。我們也希望在整體培訓規劃下，讓每一位孩子都能有機會參與比賽與國際交流，累積寶貴的實戰與成長經驗。\n\n凡加入本俱樂部培訓體系之青訓球員，賽事代表權皆歸屬於「台中磐石足球俱樂部」。為確保團隊戰術演練之完整性與整體培訓品質，球員須代表本俱樂部參與國內各項賽事（含足協主辦或認可之賽事）。在學期間，賽事註冊與出賽皆以本俱樂部名義為唯一代表，暫不開放跨單位或代表學校參賽，敬請家長與球員理解與配合。","en":"The club''s core philosophy treats youth development as a long-term plan, and players who \"will continue to take part in the club''s youth programmes and team activities\" are given priority for overseas competitions. We believe that playing abroad is only one milestone in long-term development; what truly matters is the attitude, habits and ability that children build up in everyday training. Within the overall training plan, we also hope every child gets the chance to take part in matches and international exchange and to gain valuable match and growth experience.\n\nEvery youth player who joins the club''s training system is represented in competition by \"Taichung Rock Football Club\". To keep team tactical work complete and the overall training quality high, players must represent the club in domestic competitions (including those organised or recognised by the CTFA). While they are in school, competition registration and appearances are made solely in the club''s name; representing other organisations or schools is not open for now. We ask parents and players for your understanding and cooperation."}}', 5);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'c7e62e1b-cac4-5d82-84be-847a5bd1b53b', @id, N'text', N'{"body":{"zh":"未來將與教育單位合作，向政府申請實驗教育計畫，將足球專業訓練與學業教育整合，術科與學科並重，在生活實作學習環境中，培育更具競爭力的新世代。","en":"In future we will work with education partners and apply to the government for an experimental education programme, integrating professional football training with academic education, giving equal weight to practical and academic subjects, and developing a more competitive new generation in a learning environment of hands-on living."}}', 6);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'fee13939-219c-5d83-ba17-89a2ab6d2c43', @id, N'steps', N'{"items":[{"title":{"zh":"球員規範","en":"Players'' code"},"description":{"zh":"尊重教練、隊友與對手，展現良好運動家精神，準時參加訓練與比賽，請假須提前告知，積極投入訓練，主動學習與自我要求","en":"Respect coaches, teammates and opponents and show good sportsmanship; attend training and matches on time and give notice in advance when absent; commit actively to training; learn proactively and set high standards for yourself."}},{"title":{"zh":"家長規範","en":"Parents'' code"},"description":{"zh":"場邊支持但不干預指揮，信任教練團專業判斷，不在比賽或訓練時對球員或裁判情緒性喊叫\n以身作則，示範良好運動家精神。","en":"Support from the sideline without interfering with coaching instructions; trust the coaching staff''s professional judgement; do not shout emotionally at players or referees during matches or training.\nLead by example and demonstrate good sportsmanship."}},{"title":{"zh":"共同原則","en":"Shared principles"},"description":{"zh":"遵守訓練與比賽紀律，維護團隊正向氛圍，理解發展性足球理念：過程重於結果，成長重於勝負。","en":"Observe discipline in training and matches and maintain a positive team atmosphere; understand the developmental football philosophy: process matters more than outcome, and growth matters more than winning or losing."}}]}', 7);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'44fb3b1d-0755-5293-bdd7-4005b8d46f2a', @id, N'table', N'{"headers":[{"zh":"梯隊","en":"Squad"},{"zh":"星期與時段","en":"Day and time"},{"zh":"地點","en":"Venue"}],"rows":[["U12","週三晚間19:00-20:30","協和國小"],["U12","週五晚間19:30-21:00","太原足球場"]]}', 8);
+  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'a183be9b-cbb7-54f2-8e9b-5e6755a670fd', @id, 1, N'{"seo":{"zh":{"seoTitle":"訓練課程與課綱 Training & Curriculum｜台中磐石足球學院｜台中磐石足球俱樂部","seoDescription":"台中磐石足球學院的訓練理念、培訓方式與訓練架構、賽事規劃與參賽原則、足球與教育的結合、行為規範，以及各梯隊的訓練時間與地點。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"我們認為青少年足球培育是一項長期且循序漸進的發展工程，從個人技術、小組配合到整體戰術逐步建立能力，並依不同年齡階段均衡發展技術、戰術、生理與心理。同時鼓勵球員主動思考、勇於面對與解決問題，培養成熟的球場判斷力與團隊精神。","en":"We believe that youth football development is a long-term, step-by-step undertaking: ability is built from individual technique and small-group combinations up to overall team tactics, and the technical, tactical, physical and psychological sides are developed in balance at each age stage. We also encourage players to think for themselves and to face and solve problems, building mature on-pitch judgement and team spirit."}}},{"blockType":"text","content":{"body":{"zh":"台中磐石會提供一個自由、自主且快樂的足球環境，讓球員在不受體育班制度限制的情況下持續發展，也不因學制而被迫中斷足球道路。","en":"Taichung Rock provides a free, self-directed and enjoyable football environment, so that players can keep developing without being bound by the sports-class system, and without having their football path interrupted by the school system."}}},{"blockType":"steps","content":{"items":[{"title":{"zh":"啟發球員","en":"Inspiring players"}},{"title":{"zh":"培養菁英","en":"Shaping elites"}},{"title":{"zh":"在地驕傲","en":"Local pride"}},{"title":{"zh":"撼動全球","en":"Global influence"}}]}},{"blockType":"text","content":{"body":{"zh":"採用週期化訓練（年度→月度→週計畫），主題式戰術發展，結合技術、戰術、體能與心理四大面向，並定期評估與個人化回饋，追蹤球員進步軌跡，以此方式循序漸進提升每一位選手。","en":"We use periodised training (annual, monthly and weekly plans) with theme-based tactical development that combines the four dimensions of technique, tactics, fitness and psychology. Regular assessment and individualised feedback track each player''s progress, so that every player improves step by step."}}},{"blockType":"steps","content":{"items":[{"title":{"zh":"國內賽事","en":"Domestic competitions"},"description":{"zh":"參加中華足協主辦認可之盃賽或聯賽，U11/12勝利聯賽","en":"Cups and leagues organised or recognised by the CTFA, and the U11/12 Victory League"}},{"title":{"zh":"國際賽事","en":"International competitions"},"description":{"zh":"預計 安排一次海外賽事","en":"One overseas competition is planned"}},{"title":{"zh":"移地訓練","en":"Training camps away from home"},"description":{"zh":"依照訓練計畫安排國內與海外移地訓練","en":"Domestic and overseas training camps arranged according to the training plan"}}]}},{"blockType":"text","content":{"body":{"zh":"本俱樂部核心理念視青訓發展為長期計劃，「未來仍持續參與本俱樂部青訓課程與球隊動之球員」為優先考量出國參賽對象。我們相信，出國比賽只是長期培訓的一個里程碑，真正重要的是孩子在平日訓練中持續累積的態度、習慣與能力發展。我們也希望在整體培訓規劃下，讓每一位孩子都能有機會參與比賽與國際交流，累積寶貴的實戰與成長經驗。\n\n凡加入本俱樂部培訓體系之青訓球員，賽事代表權皆歸屬於「台中磐石足球俱樂部」。為確保團隊戰術演練之完整性與整體培訓品質，球員須代表本俱樂部參與國內各項賽事（含足協主辦或認可之賽事）。在學期間，賽事註冊與出賽皆以本俱樂部名義為唯一代表，暫不開放跨單位或代表學校參賽，敬請家長與球員理解與配合。","en":"The club''s core philosophy treats youth development as a long-term plan, and players who \"will continue to take part in the club''s youth programmes and team activities\" are given priority for overseas competitions. We believe that playing abroad is only one milestone in long-term development; what truly matters is the attitude, habits and ability that children build up in everyday training. Within the overall training plan, we also hope every child gets the chance to take part in matches and international exchange and to gain valuable match and growth experience.\n\nEvery youth player who joins the club''s training system is represented in competition by \"Taichung Rock Football Club\". To keep team tactical work complete and the overall training quality high, players must represent the club in domestic competitions (including those organised or recognised by the CTFA). While they are in school, competition registration and appearances are made solely in the club''s name; representing other organisations or schools is not open for now. We ask parents and players for your understanding and cooperation."}}},{"blockType":"text","content":{"body":{"zh":"未來將與教育單位合作，向政府申請實驗教育計畫，將足球專業訓練與學業教育整合，術科與學科並重，在生活實作學習環境中，培育更具競爭力的新世代。","en":"In future we will work with education partners and apply to the government for an experimental education programme, integrating professional football training with academic education, giving equal weight to practical and academic subjects, and developing a more competitive new generation in a learning environment of hands-on living."}}},{"blockType":"steps","content":{"items":[{"title":{"zh":"球員規範","en":"Players'' code"},"description":{"zh":"尊重教練、隊友與對手，展現良好運動家精神，準時參加訓練與比賽，請假須提前告知，積極投入訓練，主動學習與自我要求","en":"Respect coaches, teammates and opponents and show good sportsmanship; attend training and matches on time and give notice in advance when absent; commit actively to training; learn proactively and set high standards for yourself."}},{"title":{"zh":"家長規範","en":"Parents'' code"},"description":{"zh":"場邊支持但不干預指揮，信任教練團專業判斷，不在比賽或訓練時對球員或裁判情緒性喊叫\n以身作則，示範良好運動家精神。","en":"Support from the sideline without interfering with coaching instructions; trust the coaching staff''s professional judgement; do not shout emotionally at players or referees during matches or training.\nLead by example and demonstrate good sportsmanship."}},{"title":{"zh":"共同原則","en":"Shared principles"},"description":{"zh":"遵守訓練與比賽紀律，維護團隊正向氛圍，理解發展性足球理念：過程重於結果，成長重於勝負。","en":"Observe discipline in training and matches and maintain a positive team atmosphere; understand the developmental football philosophy: process matters more than outcome, and growth matters more than winning or losing."}}]}},{"blockType":"table","content":{"headers":[{"zh":"梯隊","en":"Squad"},{"zh":"星期與時段","en":"Day and time"},{"zh":"地點","en":"Venue"}],"rows":[["U12","週三晚間19:00-20:30","協和國小"],["U12","週五晚間19:30-21:00","太原足球場"]]}}]}', N'2144f75a7e3095343361b56d8d81550cde81a8ac375a4e3fdbdd8a937576d1a8');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
 SELECT @id = id FROM pages WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'womens';
 IF @id IS NULL
 BEGIN
@@ -5303,11 +5363,11 @@ BEGIN
   BEGIN TRANSACTION;
   SET @id = N'9036139f-2074-5362-9a87-d7c52a7d9898';
   INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'charity/commitment', N'published', '2026-09-30T00:00:00');
-  INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部', N'台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。');
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'7bd26630-2dc8-5476-986f-33a29431da0f', @id, N'text', N'{"body":{"zh":"台中磐石足球俱樂部自 2024 年成立以來，將「Community 社區共好」列為五大核心價值之一，相信足球能為社區帶來的影響不只在球場上。我們相信優質的足球資源不該只集中在少數人身上，因此持續尋找機會，把訓練、場地與人才帶到需要的地方。","en":"Since Taichung Rock FC was founded in 2024, Community has been one of our five core values. We believe the impact football can have on a community goes well beyond the pitch. We also believe that good football resources should not be concentrated in the hands of a few, so we keep looking for opportunities to bring training, facilities and talent to the places that need them."}}', 0);
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'6a39f2f4-54ad-5ab1-9691-703930b83c05', @id, N'text', N'{"body":{"zh":"以下四大領域為規劃書明列的公益投入方向，各領域詳細計畫請見 11.2 慈善計畫。","en":"The four areas below are our public-interest priorities. For the programs in each area, see 11.2 Charity Programs."}}', 1);
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'f9375502-6364-590d-afac-de942b17da3d', @id, N'steps', N'{"items":[{"title":{"zh":"青少年扶助","en":"Youth Support"},"description":{"zh":"支持經濟弱勢或資源不足地區的青少年參與足球運動，降低參與門檻。","en":"Supporting young people from economically disadvantaged or under-resourced areas to take part in football, and lowering the barriers to participation."}},{"title":{"zh":"偏鄉足球","en":"Rural Football"},"description":{"zh":"將教練資源與訓練機會帶到偏遠地區的學校與社區，拉近城鄉足球資源落差。","en":"Bringing coaching resources and training opportunities to schools and communities in remote areas, narrowing the gap in football resources between cities and the countryside."}},{"title":{"zh":"弱勢家庭","en":"Family Support"},"description":{"zh":"與在地社福單位合作，提供弱勢家庭孩子參與足球活動的機會與必要物資。","en":"Working with local social welfare organisations to give children from disadvantaged families the chance to take part in football activities, along with the necessary supplies."}},{"title":{"zh":"公益義賽","en":"Charity Matches"},"description":{"zh":"舉辦或參與公益義賽，將活動收益或關注度轉化為對特定公益團體的實質支持。","en":"Organising or taking part in charity matches, turning event proceeds or attention into real support for specific charities."}}]}', 2);
-  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'2f7f2f0a-431a-5988-9155-b86848f4bc7d', @id, 1, N'{"seo":{"zh":{"seoTitle":"慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部","seoDescription":"台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"台中磐石足球俱樂部自 2024 年成立以來，將「Community 社區共好」列為五大核心價值之一，相信足球能為社區帶來的影響不只在球場上。我們相信優質的足球資源不該只集中在少數人身上，因此持續尋找機會，把訓練、場地與人才帶到需要的地方。","en":"Since Taichung Rock FC was founded in 2024, Community has been one of our five core values. We believe the impact football can have on a community goes well beyond the pitch. We also believe that good football resources should not be concentrated in the hands of a few, so we keep looking for opportunities to bring training, facilities and talent to the places that need them."}}},{"blockType":"text","content":{"body":{"zh":"以下四大領域為規劃書明列的公益投入方向，各領域詳細計畫請見 11.2 慈善計畫。","en":"The four areas below are our public-interest priorities. For the programs in each area, see 11.2 Charity Programs."}}},{"blockType":"steps","content":{"items":[{"title":{"zh":"青少年扶助","en":"Youth Support"},"description":{"zh":"支持經濟弱勢或資源不足地區的青少年參與足球運動，降低參與門檻。","en":"Supporting young people from economically disadvantaged or under-resourced areas to take part in football, and lowering the barriers to participation."}},{"title":{"zh":"偏鄉足球","en":"Rural Football"},"description":{"zh":"將教練資源與訓練機會帶到偏遠地區的學校與社區，拉近城鄉足球資源落差。","en":"Bringing coaching resources and training opportunities to schools and communities in remote areas, narrowing the gap in football resources between cities and the countryside."}},{"title":{"zh":"弱勢家庭","en":"Family Support"},"description":{"zh":"與在地社福單位合作，提供弱勢家庭孩子參與足球活動的機會與必要物資。","en":"Working with local social welfare organisations to give children from disadvantaged families the chance to take part in football activities, along with the necessary supplies."}},{"title":{"zh":"公益義賽","en":"Charity Matches"},"description":{"zh":"舉辦或參與公益義賽，將活動收益或關注度轉化為對特定公益團體的實質支持。","en":"Organising or taking part in charity matches, turning event proceeds or attention into real support for specific charities."}}]}}]}', N'e342fcf08724a24b4205016e65ba48fa298470e1bb5bb9c7b0cd0bb72054bc2c');
+  INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部', N'台中磐石足球俱樂部的慈善理念與四大投入領域：青少年足球培育、國際教育與運動交流、兒少教育資源、社區與家庭足球。');
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'7bd26630-2dc8-5476-986f-33a29431da0f', @id, N'text', N'{"body":{"zh":"台中磐石足球俱樂部立足台中，致力推廣足球運動、培育本地選手、深化社區互動及推動青少年足球。俱樂部相信，足球不只是競賽，更是讓兒童與青少年建立自信、紀律、團隊精神及國際視野的重要教育媒介。","en":"Taichung Rock FC is rooted in Taichung and is committed to promoting football, developing local players, deepening community engagement and advancing youth football. The club believes that football is more than competition: it is an important educational medium through which children and young people build confidence, discipline, teamwork and an international outlook."}}', 0);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'6a39f2f4-54ad-5ab1-9691-703930b83c05', @id, N'text', N'{"body":{"zh":"台中磐石以實際行動支持基層足球與在地教育：一方面協助具潛力的青少年球員取得跨國交流與訓練機會；另一方面結合企業夥伴，把學習資源帶進校園與幼兒園。俱樂部期望在追求競技成績的同時，承擔社會責任，成為社區中積極、正面的力量。","en":"Taichung Rock FC supports grassroots football and local education through concrete action: on one hand, helping promising young players gain international exchange and training opportunities; on the other, working with corporate partners to bring learning resources into schools and kindergartens. While pursuing competitive success, the club aims to take on social responsibility and be an active, positive force in the community."}}', 1);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'f9375502-6364-590d-afac-de942b17da3d', @id, N'steps', N'{"items":[{"title":{"zh":"青少年足球培育","en":"Youth football development"},"description":{"zh":"提供基層球員訓練、競賽與國際交流機會。\n全額支持潭秀國中與嶺東高中聯隊共 18 名球員、2 名教練赴日本參加第七屆 Felice CUP U16。","en":"Providing grassroots players with training, competition and international exchange opportunities.\nFully funded 18 players and 2 coaches from the joint 潭秀國中 and 嶺東高中 squad to attend the 7th Felice CUP U16 in Japan."}},{"title":{"zh":"國際教育與運動交流","en":"International education and sports exchange"},"description":{"zh":"透過海外賽事及訓練，擴展青年球員視野與競技經驗。\nFelice CUP U16 於日本茨城縣舉行，行程包含 J 聯盟教練指導及後續賽事。","en":"Broadening young players'' horizons and competitive experience through overseas tournaments and training.\nThe Felice CUP U16 was held in Ibaraki Prefecture, Japan, and included coaching by J.League coaches followed by tournament matches."}},{"title":{"zh":"兒少教育資源","en":"Educational resources for children"},"description":{"zh":"以書籍及學習資源支持幼兒教育與成長。\n與 Subkarma 捐贈《Cabbage & Tyler》英語幼童學習書籍予潭秀非營利幼兒園。","en":"Supporting early childhood education and growth with books and learning resources.\nTogether with Subkarma, donated the English children''s learning books Cabbage & Tyler to 潭秀非營利幼兒園."}},{"title":{"zh":"社區與家庭足球","en":"Community and family football"},"description":{"zh":"透過賽事與互動活動，增加兒少及家庭接觸足球的機會。\n2025 台中磐石盃設 U6、U8、U10、U12 組別，並規劃親子與球員互動活動，吸引超過 45 支少年隊伍參加。","en":"Increasing children''s and families'' access to football through matches and interactive events.\nThe 2025 Taichung Rock FC Cup had U6, U8, U10 and U12 divisions, with parent-child and player-interaction activities planned, and attracted more than 45 youth teams."}}]}', 2);
+  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'2f7f2f0a-431a-5988-9155-b86848f4bc7d', @id, 1, N'{"seo":{"zh":{"seoTitle":"慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部","seoDescription":"台中磐石足球俱樂部的慈善理念與四大投入領域：青少年足球培育、國際教育與運動交流、兒少教育資源、社區與家庭足球。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"台中磐石足球俱樂部立足台中，致力推廣足球運動、培育本地選手、深化社區互動及推動青少年足球。俱樂部相信，足球不只是競賽，更是讓兒童與青少年建立自信、紀律、團隊精神及國際視野的重要教育媒介。","en":"Taichung Rock FC is rooted in Taichung and is committed to promoting football, developing local players, deepening community engagement and advancing youth football. The club believes that football is more than competition: it is an important educational medium through which children and young people build confidence, discipline, teamwork and an international outlook."}}},{"blockType":"text","content":{"body":{"zh":"台中磐石以實際行動支持基層足球與在地教育：一方面協助具潛力的青少年球員取得跨國交流與訓練機會；另一方面結合企業夥伴，把學習資源帶進校園與幼兒園。俱樂部期望在追求競技成績的同時，承擔社會責任，成為社區中積極、正面的力量。","en":"Taichung Rock FC supports grassroots football and local education through concrete action: on one hand, helping promising young players gain international exchange and training opportunities; on the other, working with corporate partners to bring learning resources into schools and kindergartens. While pursuing competitive success, the club aims to take on social responsibility and be an active, positive force in the community."}}},{"blockType":"steps","content":{"items":[{"title":{"zh":"青少年足球培育","en":"Youth football development"},"description":{"zh":"提供基層球員訓練、競賽與國際交流機會。\n全額支持潭秀國中與嶺東高中聯隊共 18 名球員、2 名教練赴日本參加第七屆 Felice CUP U16。","en":"Providing grassroots players with training, competition and international exchange opportunities.\nFully funded 18 players and 2 coaches from the joint 潭秀國中 and 嶺東高中 squad to attend the 7th Felice CUP U16 in Japan."}},{"title":{"zh":"國際教育與運動交流","en":"International education and sports exchange"},"description":{"zh":"透過海外賽事及訓練，擴展青年球員視野與競技經驗。\nFelice CUP U16 於日本茨城縣舉行，行程包含 J 聯盟教練指導及後續賽事。","en":"Broadening young players'' horizons and competitive experience through overseas tournaments and training.\nThe Felice CUP U16 was held in Ibaraki Prefecture, Japan, and included coaching by J.League coaches followed by tournament matches."}},{"title":{"zh":"兒少教育資源","en":"Educational resources for children"},"description":{"zh":"以書籍及學習資源支持幼兒教育與成長。\n與 Subkarma 捐贈《Cabbage & Tyler》英語幼童學習書籍予潭秀非營利幼兒園。","en":"Supporting early childhood education and growth with books and learning resources.\nTogether with Subkarma, donated the English children''s learning books Cabbage & Tyler to 潭秀非營利幼兒園."}},{"title":{"zh":"社區與家庭足球","en":"Community and family football"},"description":{"zh":"透過賽事與互動活動，增加兒少及家庭接觸足球的機會。\n2025 台中磐石盃設 U6、U8、U10、U12 組別，並規劃親子與球員互動活動，吸引超過 45 支少年隊伍參加。","en":"Increasing children''s and families'' access to football through matches and interactive events.\nThe 2025 Taichung Rock FC Cup had U6, U8, U10 and U12 divisions, with parent-child and player-interaction activities planned, and attracted more than 45 youth teams."}}]}}]}', N'e342fcf08724a24b4205016e65ba48fa298470e1bb5bb9c7b0cd0bb72054bc2c');
   COMMIT TRANSACTION;
 END
 GO
@@ -6395,9 +6455,9 @@ WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND a.article_cat
 GO
 
 INSERT INTO value_tag_links (entity_type, entity_id, value_tag)
-SELECT N'article', a.id, N'global_pathways' FROM articles a
+SELECT N'article', a.id, N'global_influence' FROM articles a
 WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND a.article_category_id = (SELECT id FROM article_categories WHERE code = N'international')
-  AND NOT EXISTS (SELECT 1 FROM value_tag_links x WHERE x.entity_type = N'article' AND x.entity_id = a.id AND x.value_tag = N'global_pathways');
+  AND NOT EXISTS (SELECT 1 FROM value_tag_links x WHERE x.entity_type = N'article' AND x.entity_id = a.id AND x.value_tag = N'global_influence');
 GO
 
 INSERT INTO article_tags (article_id, tag_id)
@@ -6407,9 +6467,9 @@ WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND a.article_cat
 GO
 
 INSERT INTO value_tag_links (entity_type, entity_id, value_tag)
-SELECT N'article', a.id, N'community' FROM articles a
+SELECT N'article', a.id, N'local_pride' FROM articles a
 WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND a.article_category_id = (SELECT id FROM article_categories WHERE code = N'community')
-  AND NOT EXISTS (SELECT 1 FROM value_tag_links x WHERE x.entity_type = N'article' AND x.entity_id = a.id AND x.value_tag = N'community');
+  AND NOT EXISTS (SELECT 1 FROM value_tag_links x WHERE x.entity_type = N'article' AND x.entity_id = a.id AND x.value_tag = N'local_pride');
 GO
 
 INSERT INTO article_tags (article_id, tag_id)
@@ -6419,9 +6479,9 @@ WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND a.article_cat
 GO
 
 INSERT INTO value_tag_links (entity_type, entity_id, value_tag)
-SELECT N'article', a.id, N'players_first' FROM articles a
+SELECT N'article', a.id, N'inspiring_players' FROM articles a
 WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND a.article_category_id = (SELECT id FROM article_categories WHERE code = N'camps-events')
-  AND NOT EXISTS (SELECT 1 FROM value_tag_links x WHERE x.entity_type = N'article' AND x.entity_id = a.id AND x.value_tag = N'players_first');
+  AND NOT EXISTS (SELECT 1 FROM value_tag_links x WHERE x.entity_type = N'article' AND x.entity_id = a.id AND x.value_tag = N'inspiring_players');
 GO
 
 UPDATE articles SET is_featured = 1
@@ -6463,7 +6523,7 @@ BEGIN
   INSERT INTO articles (id, club_id, slug, article_category_id, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'bw-test-news-community', (SELECT id FROM article_categories WHERE code = N'community'), N'published', N'2026-09-28T00:00:00');
   INSERT INTO articles_i18n (article_id, locale, title, summary) VALUES (@id, N'zh-Hant', N'【測試】台中藍鯨社區活動範例', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
   INSERT INTO article_tags (article_id, tag_id) VALUES (@id, (SELECT id FROM tags WHERE slug = N'community'));
-  INSERT INTO value_tag_links (entity_type, entity_id, value_tag) VALUES (N'article', @id, N'community');
+  INSERT INTO value_tag_links (entity_type, entity_id, value_tag) VALUES (N'article', @id, N'local_pride');
   COMMIT TRANSACTION;
 END
 GO
@@ -7070,7 +7130,7 @@ IF NOT EXISTS (
 BEGIN
   BEGIN TRANSACTION;
   INSERT INTO settings_i18n (setting_id, locale, value)
-  SELECT s.id, N'zh-Hant', N'2024 年創立；目前參加企業甲級聯賽；主場為西屯足球場（台中市北屯區崇平路二段景谷巷 11 弄 41 號）；一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系。' FROM settings s
+  SELECT s.id, N'zh-Hant', N'2024 年創立；目前參加企業甲級聯賽；主場為西屯足球場（台中市北屯區崇平路二段景谷巷 11 弄 41 號）；一線隊與足球學院（U10／U12／U14／U16／U18）並行的發展體系。' FROM settings s
   WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'geo.llms_facts_summary';
   COMMIT TRANSACTION;
 END
@@ -7083,7 +7143,7 @@ IF NOT EXISTS (
 BEGIN
   BEGIN TRANSACTION;
   INSERT INTO settings_i18n (setting_id, locale, value)
-  SELECT s.id, N'en', N'Founded in 2024. Competes in the Enterprise Premier League (企業甲級聯賽). Home ground: Xitun Football Field, Taichung. Squads: the first team plus the Academy (U15 / U14 / U12).' FROM settings s
+  SELECT s.id, N'en', N'Founded in 2024. Competes in the Enterprise Premier League (企業甲級聯賽). Home ground: Xitun Football Field, Taichung. Squads: the first team plus the Academy (U10 / U12 / U14 / U16 / U18).' FROM settings s
   WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'geo.llms_facts_summary';
   COMMIT TRANSACTION;
 END
@@ -8215,25 +8275,25 @@ BEGIN
 END
 GO
 
--- ── 43. membership_plans／membership_plans_i18n：K2 會籍方案（tcrfc 2026-27 單人＋家庭、bw 2025 單人，【測試】價格） ──
-IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single')
+-- ── 43. membership_plans／membership_plans_i18n：K2 會籍方案（tcrfc 2026-27 磐石會員＋尊尚會員〔客戶 8.2〕、bw 2025 單人〔【測試】〕） ──
+IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
-  VALUES (N'17b2fc21-71fd-541c-a642-b29ce43a5248', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'single', 1200, 1, 1, 0, N'2026-09-13', N'2027-05-02', N'published');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'17b2fc21-71fd-541c-a642-b29ce43a5248', N'zh-Hant', N'【測試】球迷會員（單人）', N'【測試】含會員卡一張、入會球衣一件。', N'【測試】季中入會照比例計價');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'17b2fc21-71fd-541c-a642-b29ce43a5248', N'en', N'Fan Club Member (Single)', NULL);
+  INSERT INTO membership_plans (id, club_id, season_id, code, tier, shop_discount_percent, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
+  VALUES (N'6c071fc7-9b5d-5896-a608-98ed7a3e1b66', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'standard', N'standard', 10, 400, 1, 0, 0, N'2026-09-13', N'2027-05-02', N'published');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'6c071fc7-9b5d-5896-a608-98ed7a3e1b66', N'zh-Hant', N'磐石會員', NULL, NULL);
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'6c071fc7-9b5d-5896-a608-98ed7a3e1b66', N'en', N'Rock Member', NULL);
   COMMIT TRANSACTION;
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'family')
+IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
-  VALUES (N'3a03b84d-5772-54cf-ba29-a356f1c47180', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'family', 3000, 3, 3, 1, N'2026-09-13', N'2027-05-02', N'published');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'3a03b84d-5772-54cf-ba29-a356f1c47180', N'zh-Hant', N'【測試】球迷會員（家庭）', N'【測試】1 位成人＋2 位小童，含會員卡三張、球衣三件。', N'【測試】季中入會不折價');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'3a03b84d-5772-54cf-ba29-a356f1c47180', N'en', N'Fan Club Member (Family)', NULL);
+  INSERT INTO membership_plans (id, club_id, season_id, code, tier, shop_discount_percent, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
+  VALUES (N'0d831d16-fff8-50ed-8b14-01a0d7222b82', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'premium', N'premium', 10, 2400, 1, 1, 1, N'2026-09-13', N'2027-05-02', N'published');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'0d831d16-fff8-50ed-8b14-01a0d7222b82', N'zh-Hant', N'尊尚會員', NULL, NULL);
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'0d831d16-fff8-50ed-8b14-01a0d7222b82', N'en', N'Prestige Member', NULL);
   COMMIT TRANSACTION;
 END
 GO
@@ -8241,10 +8301,10 @@ GO
 IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025') AND code = N'single')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
-  VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025'), N'single', 800, 1, 1, 0, N'2025-04-23', N'2025-06-15', N'published');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', N'zh-Hant', N'【測試】藍鯨球迷會員（單人）', N'【測試】含會員卡一張、入會球衣一件。', N'【測試】季中入會照比例計價');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', N'en', N'Blue Whale Fan Club (Single)', NULL);
+  INSERT INTO membership_plans (id, club_id, season_id, code, tier, shop_discount_percent, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
+  VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025'), N'single', N'standard', 0, 800, 1, 1, 0, N'2025-04-23', N'2025-06-15', N'published');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', N'zh-Hant', N'【測試】藍鯨會員（單人）', N'【測試】含會員卡一張、入會球衣一件。', N'【測試】季中入會照比例計價');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', N'en', N'Blue Whale Member (Single)', NULL);
   COMMIT TRANSACTION;
 END
 GO
@@ -8494,9 +8554,9 @@ BEGIN
   BEGIN TRANSACTION;
   INSERT INTO partner_stores (id, club_id, slug, category, region, address, lat, lng, phone, website_url, map_url, applicable_tier, start_on, sort_order, status)
   VALUES (N'a9ae9a9e-2eb9-52cc-9a28-a3f320ed7c1c', (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-store-sports', N'運動用品', N'台中市北屯區', N'【測試】台中市北屯區測試路 20 號', 24.183, 120.708, N'04-0000-0000', N'https://example.com/test-store-sports',
-          N'https://maps.example.com/test-store-sports', N'fan_club', N'2026-01-01', 1, N'published');
-  INSERT INTO partner_stores_i18n (partner_store_id, locale, name, address, offer_content) VALUES (N'a9ae9a9e-2eb9-52cc-9a28-a3f320ed7c1c', N'zh-Hant', N'【測試】示範運動用品店', NULL, N'【測試】付費會員全店九五折');
-  INSERT INTO partner_stores_i18n (partner_store_id, locale, name, address, offer_content) VALUES (N'a9ae9a9e-2eb9-52cc-9a28-a3f320ed7c1c', N'en', N'Test Sports Shop', NULL, N'Test: 5% off for fan club members');
+          N'https://maps.example.com/test-store-sports', N'premium', N'2026-01-01', 1, N'published');
+  INSERT INTO partner_stores_i18n (partner_store_id, locale, name, address, offer_content) VALUES (N'a9ae9a9e-2eb9-52cc-9a28-a3f320ed7c1c', N'zh-Hant', N'【測試】示範運動用品店', NULL, N'【測試】尊尚會員全店九五折');
+  INSERT INTO partner_stores_i18n (partner_store_id, locale, name, address, offer_content) VALUES (N'a9ae9a9e-2eb9-52cc-9a28-a3f320ed7c1c', N'en', N'Test Sports Shop', NULL, N'Test: 5% off for Prestige members');
   COMMIT TRANSACTION;
 END
 GO
@@ -8549,81 +8609,302 @@ BEGIN
 END
 GO
 
--- ── 48. membership_benefits／membership_benefits_i18n：K4 權益對照表（掛在 tcrfc 單人方案，六條【測試】條目，分組涵蓋四類） ──
-IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single') AND sort_order = 0)
+-- ── 48. membership_benefits／membership_benefits_i18n：K4 權益對照表（tcrfc 磐石會員＋尊尚會員，取自客戶 8.2 球迷會方案；權益名稱與內容照客戶原文） ──
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard') AND benefit_code = N'member_card')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_benefits (id, membership_plan_id, benefit_group, sort_order, status)
-  VALUES (N'fad9b2d3-ab65-5ffd-8d02-fcea2a3879c4', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single'), N'member_card', 0, N'published');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'fad9b2d3-ab65-5ffd-8d02-fcea2a3879c4', N'zh-Hant', N'電子會員卡', N'【測試】手機出示即可', N'會員卡', N'✓', N'✓');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'fad9b2d3-ab65-5ffd-8d02-fcea2a3879c4', N'en', N'Digital member card', NULL, N'Member card', N'✓', N'✓');
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'330abaf0-fd98-56eb-a9c9-cb80870393b8', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard'), N'member_card', N'member_card', 0, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'330abaf0-fd98-56eb-a9c9-cb80870393b8', N'zh-Hant', N'電子會員卡', N'專屬會員電子卡', N'會員卡', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'330abaf0-fd98-56eb-a9c9-cb80870393b8', N'en', N'Digital membership card', N'Exclusive digital membership card', N'Membership card', N'✓');
   COMMIT TRANSACTION;
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single') AND sort_order = 1)
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard') AND benefit_code = N'welcome_gift')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_benefits (id, membership_plan_id, benefit_group, sort_order, status)
-  VALUES (N'a73e1cfd-53db-5ab0-b362-31591babc5ef', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single'), N'store_discount', 1, N'published');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'a73e1cfd-53db-5ab0-b362-31591babc5ef', N'zh-Hant', N'全會員適用的特約店家折扣', N'【測試】標示「全會員適用」的店家', N'店家折扣', N'✓', N'✓');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'a73e1cfd-53db-5ab0-b362-31591babc5ef', N'en', N'Partner store discounts (all members)', NULL, N'Store discounts', N'✓', N'✓');
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'27522294-e69e-5aa2-be5d-8078cd87b64c', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard'), N'welcome_gift', N'gift', 2, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'27522294-e69e-5aa2-be5d-8078cd87b64c', N'zh-Hant', N'歡迎禮', N'老帽、行李牌', N'禮品', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'27522294-e69e-5aa2-be5d-8078cd87b64c', N'en', N'Welcome gift', N'Cap and luggage tag', N'Gifts', N'✓');
   COMMIT TRANSACTION;
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single') AND sort_order = 2)
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard') AND benefit_code = N'shop_discount')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_benefits (id, membership_plan_id, benefit_group, sort_order, status)
-  VALUES (N'cee7d3dd-e99d-5cfa-9a41-8145e27f131a', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single'), N'store_discount', 2, N'published');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'cee7d3dd-e99d-5cfa-9a41-8145e27f131a', N'zh-Hant', N'限付費會員的特約店家折扣', N'【測試】標示「限付費」的店家', N'店家折扣', N'✗', N'✓');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'cee7d3dd-e99d-5cfa-9a41-8145e27f131a', N'en', N'Partner store discounts (fan club only)', NULL, N'Store discounts', N'✗', N'✓');
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'a76b72da-4cb7-5283-aa35-35f0b11ecdda', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard'), N'shop_discount', N'discount', 5, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'a76b72da-4cb7-5283-aa35-35f0b11ecdda', N'zh-Hant', N'購物折扣', N'球會服飾、周邊及指定活動享 10% 折扣', N'折扣與優惠', N'10%');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'a76b72da-4cb7-5283-aa35-35f0b11ecdda', N'en', N'Shopping discount', N'10% off club apparel, merchandise and selected events', N'Discounts & offers', N'10%');
   COMMIT TRANSACTION;
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single') AND sort_order = 3)
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard') AND benefit_code = N'partner_discount')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_benefits (id, membership_plan_id, benefit_group, sort_order, status)
-  VALUES (N'f287b0e7-0227-5abc-af58-9d2019b12538', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single'), N'jersey', 3, N'published');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'f287b0e7-0227-5abc-af58-9d2019b12538', N'zh-Hant', N'入會球衣', N'【測試】依方案含球衣件數', N'球衣', N'✗', N'一件');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'f287b0e7-0227-5abc-af58-9d2019b12538', N'en', N'Membership jersey', NULL, N'Jersey', N'✗', N'一件');
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'7ff3423d-e749-5d76-9488-66926ecc6c25', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard'), N'partner_discount', N'discount', 7, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'7ff3423d-e749-5d76-9488-66926ecc6c25', N'zh-Hant', N'特約店家折扣', N'依各特約店家設定的適用層級享有優惠', N'折扣與優惠', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'7ff3423d-e749-5d76-9488-66926ecc6c25', N'en', N'Partner store discounts', N'Offers at partner stores, according to the tier each store applies to', N'Discounts & offers', N'✓');
   COMMIT TRANSACTION;
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single') AND sort_order = 4)
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard') AND benefit_code = N'member_vote')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_benefits (id, membership_plan_id, benefit_group, sort_order, status)
-  VALUES (N'7673129f-90c6-509e-abab-60bde8e2f783', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single'), N'event', 4, N'published');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'7673129f-90c6-509e-abab-60bde8e2f783', N'zh-Hant', N'球迷活動優先報名', N'【測試】球迷見面會等活動', N'活動', N'✗', N'✓');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'7673129f-90c6-509e-abab-60bde8e2f783', N'en', N'Priority sign-up for fan events', NULL, N'Events', N'✗', N'✓');
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'dc7464b4-5a0b-558c-a0dc-72afdb0e3c85', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard'), N'member_vote', N'event', 8, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'dc7464b4-5a0b-558c-a0dc-72afdb0e3c85', N'zh-Hant', N'會員投票', N'可參與年度最佳球員、最佳進球等投票', N'活動', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'dc7464b4-5a0b-558c-a0dc-72afdb0e3c85', N'en', N'Member voting', N'Vote in polls such as Player of the Year and Goal of the Year', N'Events', N'✓');
   COMMIT TRANSACTION;
 END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single') AND sort_order = 5)
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard') AND benefit_code = N'priority_signup')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_benefits (id, membership_plan_id, benefit_group, sort_order, status)
-  VALUES (N'18853fa3-3204-516f-9348-7e87423b1b4e', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single'), N'event', 5, N'published');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'18853fa3-3204-516f-9348-7e87423b1b4e', N'zh-Hant', N'球迷會員抽獎資格', N'【測試】會籍有效期間自動具備', N'活動', N'✗', N'✓');
-  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
-  VALUES (N'18853fa3-3204-516f-9348-7e87423b1b4e', N'en', N'Fan club prize draw eligibility', NULL, N'Events', N'✗', N'✓');
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'f0e269a1-c166-5a89-bbcd-165f661260ff', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard'), N'priority_signup', N'event', 9, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'f0e269a1-c166-5a89-bbcd-165f661260ff', N'zh-Hant', N'優先報名', N'球迷活動、夏令營或講座可提早報名', N'活動', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'f0e269a1-c166-5a89-bbcd-165f661260ff', N'en', N'Priority registration', N'Register early for fan events, summer camps and talks', N'Events', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard') AND benefit_code = N'draw_eligibility')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'9f077687-d2ea-5601-a358-bfa1343384e5', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'standard'), N'draw_eligibility', N'event', 12, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'9f077687-d2ea-5601-a358-bfa1343384e5', N'zh-Hant', N'抽獎資格', N'會籍有效期間自動具備，不需登記', N'活動', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'9f077687-d2ea-5601-a358-bfa1343384e5', N'en', N'Prize draw eligibility', N'Automatic while the membership is valid, no sign-up needed', N'Events', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'member_card')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'0cdd0d7a-3b94-5091-b646-8e1c1f655b51', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'member_card', N'member_card', 0, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'0cdd0d7a-3b94-5091-b646-8e1c1f655b51', N'zh-Hant', N'電子會員卡', N'專屬會員電子卡', N'會員卡', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'0cdd0d7a-3b94-5091-b646-8e1c1f655b51', N'en', N'Digital membership card', N'Exclusive digital membership card', N'Membership card', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'includes_standard')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'18ffa4f2-af2d-5d42-aae3-3f4c36cb7047', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'includes_standard', N'member_card', 1, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'18ffa4f2-af2d-5d42-aae3-3f4c36cb7047', N'zh-Hant', N'包含磐石會員全部權益', N'磐石會員內容完整保留', N'會員卡', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'18ffa4f2-af2d-5d42-aae3-3f4c36cb7047', N'en', N'Includes all Rock Member benefits', N'All Rock Member benefits are kept in full', N'Membership card', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'welcome_gift')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'4bb34c86-e3a5-5d3c-9b2c-364cbb577f37', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'welcome_gift', N'gift', 2, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'4bb34c86-e3a5-5d3c-9b2c-364cbb577f37', N'zh-Hant', N'歡迎禮', N'老帽、行李牌', N'禮品', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'4bb34c86-e3a5-5d3c-9b2c-364cbb577f37', N'en', N'Welcome gift', N'Cap and luggage tag', N'Gifts', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'premium_gift_box')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'89b5f643-70b9-5fd8-af1f-2db8930ef652', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'premium_gift_box', N'gift', 3, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'89b5f643-70b9-5fd8-af1f-2db8930ef652', N'zh-Hant', N'限量尊尚禮盒', N'球衣、老帽、行李牌或限量紀念品', N'禮品', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'89b5f643-70b9-5fd8-af1f-2db8930ef652', N'en', N'Limited-edition Prestige gift box', N'Jersey, cap, luggage tag or a limited-edition keepsake', N'Gifts', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'referral_reward')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'd3df5c07-656b-5b3e-ba5c-358fd0cb0b10', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'referral_reward', N'gift', 4, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'd3df5c07-656b-5b3e-ba5c-358fd0cb0b10', N'zh-Hant', N'推薦獎勵', N'成功推薦新學員或會員，可獲商店券、活動抵扣或升級禮遇', N'禮品', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'd3df5c07-656b-5b3e-ba5c-358fd0cb0b10', N'en', N'Referral rewards', N'Successfully refer a new student or member to earn a shop voucher, an event credit or an upgrade perk', N'Gifts', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'shop_discount')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'0466914f-d034-5a28-99ea-a3078d7185c9', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'shop_discount', N'discount', 5, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'0466914f-d034-5a28-99ea-a3078d7185c9', N'zh-Hant', N'購物折扣', N'球會服飾、周邊及指定活動享 10% 折扣', N'折扣與優惠', N'10%');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'0466914f-d034-5a28-99ea-a3078d7185c9', N'en', N'Shopping discount', N'10% off club apparel, merchandise and selected events', N'Discounts & offers', N'10%');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'training_discount')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'a89da892-f08a-51fd-b240-55cbca736cf2', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'training_discount', N'discount', 6, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'a89da892-f08a-51fd-b240-55cbca736cf2', N'zh-Hant', N'訓練／課程優惠', N'學院課程、假期營隊、個人訓練或合作商戶享 10%–15% 優惠', N'折扣與優惠', N'10%–15%');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'a89da892-f08a-51fd-b240-55cbca736cf2', N'en', N'Training and programme offers', N'10%–15% off Academy programmes, holiday camps, individual training or at partner merchants', N'Discounts & offers', N'10%–15%');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'partner_discount')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'f5cd6592-a164-5bb6-aac8-2bd97ecf6373', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'partner_discount', N'discount', 7, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'f5cd6592-a164-5bb6-aac8-2bd97ecf6373', N'zh-Hant', N'特約店家折扣', N'依各特約店家設定的適用層級享有優惠', N'折扣與優惠', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'f5cd6592-a164-5bb6-aac8-2bd97ecf6373', N'en', N'Partner store discounts', N'Offers at partner stores, according to the tier each store applies to', N'Discounts & offers', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'member_vote')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'a823e851-c2ba-5a68-b202-a8d15bd4fe0c', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'member_vote', N'event', 8, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'a823e851-c2ba-5a68-b202-a8d15bd4fe0c', N'zh-Hant', N'會員投票', N'可參與年度最佳球員、最佳進球等投票', N'活動', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'a823e851-c2ba-5a68-b202-a8d15bd4fe0c', N'en', N'Member voting', N'Vote in polls such as Player of the Year and Goal of the Year', N'Events', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'priority_signup')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'34f6e0c8-400f-5cab-a68f-725926eec3db', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'priority_signup', N'event', 9, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'34f6e0c8-400f-5cab-a68f-725926eec3db', N'zh-Hant', N'優先報名', N'球迷活動、夏令營或講座可提早報名', N'活動', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'34f6e0c8-400f-5cab-a68f-725926eec3db', N'en', N'Priority registration', N'Register early for fan events, summer camps and talks', N'Events', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'priority_tickets')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'04bfd7b9-9755-5c2d-a1e7-ba0ec1ae874e', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'priority_tickets', N'event', 10, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'04bfd7b9-9755-5c2d-a1e7-ba0ec1ae874e', N'zh-Hant', N'優先購票／保留名額', N'對外賽事、表演賽、晚宴、海外交流或特別活動', N'活動', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'04bfd7b9-9755-5c2d-a1e7-ba0ec1ae874e', N'en', N'Priority tickets and reserved places', N'For public matches, exhibition matches, dinners, overseas exchanges and special events', N'Events', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'exclusive_events')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'e4bbe84f-c742-57c9-956b-1bf1dbc48ffc', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'exclusive_events', N'event', 11, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'e4bbe84f-c742-57c9-956b-1bf1dbc48ffc', N'zh-Hant', N'專屬活動', N'每年至少一次教練分享會、球員見面會、訓練參觀或會員日', N'活動', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'e4bbe84f-c742-57c9-956b-1bf1dbc48ffc', N'en', N'Exclusive events', N'At least one coach talk, player meet-up, training visit or members'' day each year', N'Events', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'draw_eligibility')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'aef115ee-e7e0-584b-9aa8-cdd463a38303', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'draw_eligibility', N'event', 12, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'aef115ee-e7e0-584b-9aa8-cdd463a38303', N'zh-Hant', N'抽獎資格', N'會籍有效期間自動具備，不需登記', N'活動', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'aef115ee-e7e0-584b-9aa8-cdd463a38303', N'en', N'Prize draw eligibility', N'Automatic while the membership is valid, no sign-up needed', N'Events', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'behind_the_scenes')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'd1823f66-871e-5fa4-8ce0-4ca84bfbafde', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'behind_the_scenes', N'content', 13, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'd1823f66-871e-5fa4-8ce0-4ca84bfbafde', N'zh-Hant', N'幕後內容', N'戰術分析、青訓發展報告、教練訪談', N'內容與溝通', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'd1823f66-871e-5fa4-8ce0-4ca84bfbafde', N'en', N'Behind-the-scenes content', N'Tactical analysis, youth development reports and coach interviews', N'Content & community', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'priority_channel')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'ea966c33-a818-5bde-98fc-454743e4a035', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'priority_channel', N'content', 14, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'ea966c33-a818-5bde-98fc-454743e4a035', N'zh-Hant', N'優先溝通渠道', N'會員專屬 WhatsApp／社群群組或季度問答會', N'內容與溝通', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'ea966c33-a818-5bde-98fc-454743e4a035', N'en', N'Priority communication channel', N'A members-only WhatsApp / community group or quarterly Q&A sessions', N'Content & community', N'✓');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium') AND benefit_code = N'name_display')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_code, benefit_group, sort_order, status)
+  VALUES (N'91d6f005-723c-51bd-9e48-6a0c26f33033', (SELECT id FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'premium'), N'name_display', N'content', 15, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'91d6f005-723c-51bd-9e48-6a0c26f33033', N'zh-Hant', N'名字展示', N'可選擇在官方網站或年度感謝牆列名', N'內容與溝通', N'✓');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, value)
+  VALUES (N'91d6f005-723c-51bd-9e48-6a0c26f33033', N'en', N'Name display', N'Optionally have your name listed on the official website or the annual thank-you wall', N'Content & community', N'✓');
   COMMIT TRANSACTION;
 END
 GO
@@ -8772,8 +9053,8 @@ BEGIN
   INSERT INTO fan_events (id, club_id, slug, starts_at, ends_at, registration_deadline_at, capacity, is_paid_members_only, status)
   VALUES (N'423e5f41-a890-5d46-b02b-efcfac8cfcbd', (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-fan-meet', DATEADD(day, 14, SYSUTCDATETIME()), DATEADD(hour, 3, DATEADD(day, 14, SYSUTCDATETIME())),
           DATEADD(day, 12, SYSUTCDATETIME()), 30, 1, N'published');
-  INSERT INTO fan_events_i18n (fan_event_id, locale, name, description, location) VALUES (N'423e5f41-a890-5d46-b02b-efcfac8cfcbd', N'zh-Hant', N'【測試】球迷見面會（付費會員限定）', N'【測試】球員與付費球迷會員面對面，名額 30 人。', N'【測試】台中市西屯區測試路 1 號');
-  INSERT INTO fan_events_i18n (fan_event_id, locale, name, description, location) VALUES (N'423e5f41-a890-5d46-b02b-efcfac8cfcbd', N'en', N'[Test] Fan meet-up (fan club members only)', NULL, NULL);
+  INSERT INTO fan_events_i18n (fan_event_id, locale, name, description, location) VALUES (N'423e5f41-a890-5d46-b02b-efcfac8cfcbd', N'zh-Hant', N'【測試】球迷見面會（付費會員限定）', N'【測試】球員與會員面對面，名額 30 人。', N'【測試】台中市西屯區測試路 1 號');
+  INSERT INTO fan_events_i18n (fan_event_id, locale, name, description, location) VALUES (N'423e5f41-a890-5d46-b02b-efcfac8cfcbd', N'en', N'[Test] Fan meet-up (members only)', NULL, NULL);
   COMMIT TRANSACTION;
 END
 GO
@@ -10520,14 +10801,14 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrf
 GO
 
 INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
-SELECT b.id, N'en', N'Our Philosophy | About TCRFC | Taichung Rock FC', N'The football philosophy and five core values of Taichung Rock FC: Players First, Excellence, Global Pathways, Community and Integrity.'
+SELECT b.id, N'en', N'Our Philosophy | About TCRFC | Taichung Rock FC', N'The football philosophy and four core values of Taichung Rock FC: Inspiring players, Shaping champions, Local pride and Global influence.'
 FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'about/philosophy'
   AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
     e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Our Philosophy | About TCRFC | Taichung Rock FC' ELSE e.seo_title END,
-    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The football philosophy and five core values of Taichung Rock FC: Players First, Excellence, Global Pathways, Community and Integrity.' ELSE e.seo_description END
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The football philosophy and four core values of Taichung Rock FC: Inspiring players, Shaping champions, Local pride and Global influence.' ELSE e.seo_description END
 FROM pages_i18n e
 JOIN pages b ON b.id = e.page_id
 JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
@@ -10625,6 +10906,21 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrf
 GO
 
 INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
+SELECT b.id, N'en', N'Training & Curriculum | Academy | Taichung Rock FC', N'The Taichung Rock FC Academy''s training philosophy, training structure, competition plan and participation principles, football and education, codes of conduct, and training times and venues for each squad.'
+FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'academy/curriculum'
+  AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Training & Curriculum | Academy | Taichung Rock FC' ELSE e.seo_title END,
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The Taichung Rock FC Academy''s training philosophy, training structure, competition plan and participation principles, football and education, codes of conduct, and training times and venues for each squad.' ELSE e.seo_description END
+FROM pages_i18n e
+JOIN pages b ON b.id = e.page_id
+JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'academy/curriculum';
+GO
+
+INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
 SELECT b.id, N'en', N'Women''s Football | Taichung Rock FC', N'An introduction to the Taichung Blue Whale women''s team and the entry point to its official website. For the full squad, coaching staff, fixtures and results, please visit the Taichung Blue Whale official website.'
 FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'womens'
@@ -10655,14 +10951,14 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrf
 GO
 
 INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
-SELECT b.id, N'en', N'Our Commitment and Focus Areas | Charity & Impact | Taichung Rock FC', N'The charitable philosophy and four focus areas of Taichung Rock FC: youth support, rural football, disadvantaged families and charity matches, putting our core value of Community into practice.'
+SELECT b.id, N'en', N'Our Commitment and Focus Areas | Charity & Impact | Taichung Rock FC', N'The charitable philosophy and four focus areas of Taichung Rock FC: youth football development, international education and sports exchange, educational resources for children, and community and family football.'
 FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'charity/commitment'
   AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
     e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Our Commitment and Focus Areas | Charity & Impact | Taichung Rock FC' ELSE e.seo_title END,
-    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The charitable philosophy and four focus areas of Taichung Rock FC: youth support, rural football, disadvantaged families and charity matches, putting our core value of Community into practice.' ELSE e.seo_description END
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The charitable philosophy and four focus areas of Taichung Rock FC: youth football development, international education and sports exchange, educational resources for children, and community and family football.' ELSE e.seo_description END
 FROM pages_i18n e
 JOIN pages b ON b.id = e.page_id
 JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
@@ -13955,18 +14251,18 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw')
 GO
 
 INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note)
-SELECT b.id, N'en', N'Blue Whale Fan Club (Single)', N'[Test] Includes one membership card and one welcome jersey.'
+SELECT b.id, N'en', N'Blue Whale Member (Single)', N'[Test] Includes one membership card and one welcome jersey.'
 FROM membership_plans b JOIN membership_plans_i18n z ON z.membership_plan_id = b.id AND z.locale = N'zh-Hant'
-WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨球迷會員（單人）'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨會員（單人）'
   AND NOT EXISTS (SELECT 1 FROM membership_plans_i18n e WHERE e.membership_plan_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
-    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale Fan Club (Single)' ELSE e.name END,
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale Member (Single)' ELSE e.name END,
     e.benefit_note = CASE WHEN e.benefit_note IS NULL OR e.benefit_note = N'' OR e.benefit_note = z.benefit_note THEN N'[Test] Includes one membership card and one welcome jersey.' ELSE e.benefit_note END
 FROM membership_plans_i18n e
 JOIN membership_plans b ON b.id = e.membership_plan_id
 JOIN membership_plans_i18n z ON z.membership_plan_id = b.id AND z.locale = N'zh-Hant'
-WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨球迷會員（單人）';
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨會員（單人）';
 GO
 
 INSERT INTO products_i18n (product_id, locale, name, narrative, tags)

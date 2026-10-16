@@ -11,7 +11,7 @@ using Tcrfc.Api.Security;
 namespace Tcrfc.Api.Features.AdminFanEvents;
 
 /// <summary>
-/// F2 球迷會活動（主站規劃書 §4.6 F2）：活動 CRUD、報名名單（可限定僅付費會員報名）、活動回顧（關聯圖集與文章）。
+/// F2 球迷會活動（主站規劃書 §4.6 F2）：活動 CRUD、報名名單（可限定僅持有效會籍者報名）、活動回顧（關聯圖集與文章）。
 /// 會員名單、會籍方案與福利對照表都在 K 模組，這裡不另建。<c>fan_events.club_id</c> 必填，跨俱樂部 id 一律 404。
 /// 報名名單含聯絡方式，視同個資：有 <c>member.pii.reveal</c> 才看得到完整值，其餘遮罩（F2 的角色不因此取得會員模組權限）。
 /// 名額只算「已報名＋已到場」；額滿後後台代填的報名自動進候補。
@@ -334,7 +334,7 @@ public sealed class AdminFanEventsRepository(
         {
             if (ev.IsPaidMembersOnly)
             {
-                throw new AdminValidationException("這場活動限付費球迷會員報名，請選擇會員。", "memberId");
+                throw new AdminValidationException("這場活動限會員報名，請選擇會員。", "memberId");
             }
 
             name = AdminInput.RequireText(request.ApplicantName, "報名人姓名", 64, "applicantName");
@@ -346,9 +346,9 @@ public sealed class AdminFanEventsRepository(
             }
         }
 
-        if (ev.IsPaidMembersOnly && member is not null && !await HasPaidMembershipAsync(scope, member.Id, cancellationToken))
+        if (ev.IsPaidMembersOnly && member is not null && !await HasActiveMembershipAsync(scope, member.Id, cancellationToken))
         {
-            throw new AdminValidationException("這場活動限付費球迷會員報名，這位會員目前沒有有效的球迷會員會籍。", "memberId");
+            throw new AdminValidationException("這場活動限會員報名，這位會員目前沒有有效的會籍。", "memberId");
         }
 
         var registered = await db.FanEventRegistrations.AsNoTracking().CountAsync(r => r.FanEventId == eventId && OccupyingStatuses.Contains(r.Status), cancellationToken);
@@ -412,10 +412,10 @@ public sealed class AdminFanEventsRepository(
         return ToRegistrationDto(row, await CanRevealAsync(scope, cancellationToken));
     }
 
-    private Task<bool> HasPaidMembershipAsync(AdminClubScope scope, Guid memberId, CancellationToken cancellationToken)
+    private Task<bool> HasActiveMembershipAsync(AdminClubScope scope, Guid memberId, CancellationToken cancellationToken)
     {
         var today = TaiwanClock.Today;
-        return db.Memberships.AsNoTracking().AnyAsync(m => m.MemberId == memberId && m.ClubId == scope.ClubId && m.Tier == "fan_club" && m.Status == "active"
+        return db.Memberships.AsNoTracking().AnyAsync(m => m.MemberId == memberId && m.ClubId == scope.ClubId && m.Status == "active"
             && (m.MembershipStartOn == null || m.MembershipStartOn <= today) && (m.MembershipEndOn == null || m.MembershipEndOn >= today), cancellationToken);
     }
 

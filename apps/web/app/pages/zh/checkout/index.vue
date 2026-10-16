@@ -367,6 +367,7 @@ async function onSubmit() {
             <span>{{ it.productName || it.productSlug }}｜{{ it.variantLabel }} ×{{ it.quantity }}</span><strong>{{ formatPrice(it.lineTotal) }}</strong>
           </p>
           <p class="summary__line"><span>{{ tx('商品小計', 'Subtotal') }}</span><strong>{{ formatPrice(cart?.subtotal) }}</strong></p>
+          <p v-if="(cart?.memberDiscountTotal ?? 0) > 0" class="summary__line summary__note" style="margin-top:0"><span>{{ tx('已享會員折扣（已含在小計內）', 'Member discount applied (included in the subtotal)') }}</span><strong>−{{ formatPrice(cart?.memberDiscountTotal) }}</strong></p>
           <p class="summary__line"><span>{{ tx('運費', 'Shipping') }}</span><strong>{{ shippingFee > 0 ? formatPrice(shippingFee) : tx('免運', 'Free') }}</strong></p>
           <p class="summary__line summary__total"><span>{{ tx('應付金額', 'Total due') }}</span><span>{{ formatPrice(total) }}</span></p>
           <p v-if="isEn" class="summary__note">The final amount is calculated by our system when you submit your order. Payment is collected by {{ subject }}. Charity donations are received by the Taiwan Football Strategic Development Association on a separate platform and are checked out separately from this shop.</p>

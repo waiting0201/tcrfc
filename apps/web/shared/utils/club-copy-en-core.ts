@@ -169,14 +169,16 @@ export function getHomeCtaTrioEn(): CtaCardCopy[] {
   ]
 }
 
-/** 五大核心價值說明文字（對應 shared/utils/core-values.ts 的 DESCRIPTIONS，依 code 取用）。 */
+/** 四大核心價值說明全文（客戶 2.3 原文的英文版，開發端翻譯初稿；對應 shared/utils/core-values.ts 的 DESCRIPTIONS，依 code 取用，段落以空行分隔）。 */
 export const CORE_VALUE_DESCRIPTIONS_EN: Readonly<Record<string, string>> = {
-  players_first: "All training plans and resource allocation put players' long-term development and wellbeing first.",
-  excellence: 'We build a professional training and coaching system to help players develop the ability and mindset needed to reach the professional stage.',
-  global_pathways: 'Starting from Taichung and looking to the world, we build pathways to the professional stage through international exchange.',
-  community: 'Rooted in Taichung, we aim to be a source of local pride and identity, growing together with our fans.',
-  integrity: "Honest governance and professional systems support the club's long-term, steady development.",
+  inspiring_players: "Football's value goes beyond winning. Taichung Rock believes that what matters more is helping every player see what they could become.\n\nFrom a child touching a ball for the first time to a player stepping onto the adult pitch, we want to give everyone a clear path and an environment in which they can keep growing. Discipline, responsibility, teamwork, facing setbacks and respecting opponents matter as much as technique, and are often harder to train.\n\nTrue champions do not exist only on the scoreboard.",
+  shaping_champions: "A champion is not made overnight, nor decided by league position alone.\n\nIt comes from turning up on time every day, from training that is never half-hearted, from every decision to keep going, and from the responsibility players shoulder for one another in the team. Humility in victory, resilience in defeat and calm under pressure: these are what we truly want to develop.\n\nFrom the youth teams to the First Team, Taichung Rock wants to build a shared training language and shared match standards. A championship is not an endpoint; it is the attitude of being willing to get a little better than yesterday, every day.",
+  local_pride: "Taichung Rock chose Taichung as its home, and that is a commitment, not just a choice of location.\n\nA team with real strength is bound up with its city, its communities, its schools, its families and its fans. We keep investing in youth football, school partnerships and community activities, so that more children get the chance to play, more families come into the stadium, and more people in Taichung feel that this team is their own.\n\nLocal pride is more than the name of the city on a shirt. It is the effort players give for Taichung, the cheer from the stands, and something we all believe together: football in Taichung can be better.",
+  global_influence: "We start from Taichung, but our eyes are not only on Taichung.\n\nFootball is a language that crosses languages and borders. Through international cooperation, overseas exchange and coach education, Taichung Rock lets players see different football cultures around the world, and lets the world slowly get to know Taichung.\n\nExchange with clubs in other countries, including professional clubs, is not about attaching labels; it is about genuinely finding out what high-level football demands. Detail, discipline, recovery, tactics and talent development are all lessons to learn. We hope to bring these back and turn them into something that suits Taiwanese players.\n\nMay every player who sets out from Taichung Rock have the chance to step onto a bigger stage, and may every match played in Taichung become the next step for Taiwan football towards the world.",
 }
+
+/** 2.3 足球理念本文英文版（對應 core-values.ts 的 PHILOSOPHY_BODY_TCRFC）。 */
+export const PHILOSOPHY_BODY_EN = "The football philosophy of Taichung Rock Football Club can be summed up as follows: rooted in Taichung, centred on developing local players, and using a complete youth system, professional management, sports science and international exchange as its methods, to promote the sustainable development of football in Taiwan. This is not a club positioning built only on short-term results, but an attempt to build the club into a football development platform that connects the community, schools, youth development and the adult competitive team. We develop players through a professional model, helping them pursue excellence and fulfil their potential, and we demonstrate professional football principles through concrete action to promote the lasting development of Taiwan football.\n\nLocal roots and community responsibility\nTaking Taichung as our base, we build local identity and position the club as a force for community football, youth football and the city's sporting culture.\n\nA complete development pathway\nWe build a pipeline from children's and school youth football up to the adult team, so that players do not lose the link to the next stage at any particular age.\n\nScientific and individualised training\nWe replace experience-only training with testing, data and individualised load design, improving players' physical performance, training efficiency and competitive consistency.\n\nInternational outlook\nWe learn from the systems and methods of professional clubs in Europe, Japan and elsewhere in Asia, and adapt them locally to Taiwan's education and culture, training hours and the realities of players' lives.\n\nBuilding the football ecosystem\nThe club is responsible not only for match results. It must also bring systems, resources, training and grassroots development into football in a real way, and actively take on the responsibility of building the football ecosystem."
 
 // ---------------------------------------------------------------------------
 // 02 ABOUT 系列（欄位沿用 `HeroCopy`／`SeoCopy`：`h1Zh` 放英文 H1，`h1En` 恆為 null）
@@ -199,7 +201,7 @@ export function getAboutIndexHeroEn(facts: SiteFacts): HeroCopy {
 export const ABOUT_NAV_DESC_EN = {
   ourStory: "How Taichung Rock FC has developed since its founding.",
   visionMission: "Taichung Rock FC's core vision and the club's mission.",
-  philosophy: 'Our football philosophy and five core values.',
+  philosophy: 'Our football philosophy and four core values.',
   ourPeople: "Meet Taichung Rock FC's coaching staff and administrative team.",
   ecosystem: "An overview of our four systems: the First Team, the Academy, programs and women's football.",
   history: "A visual record of Taichung Rock FC's journey.",
@@ -240,7 +242,7 @@ export const VISION_ITEMS_EN: VisionItem[] = [
 
 export const PHILOSOPHY_SEO_EN: SeoCopy = {
   title: 'Our Philosophy | About TCRFC | Taichung Rock FC',
-  description: 'The football philosophy and five core values of Taichung Rock FC: Players First, Excellence, Global Pathways, Community and Integrity.',
+  description: 'The football philosophy and four core values of Taichung Rock FC: Inspiring players, Shaping champions, Local pride and Global influence.',
 }
 
 export const PHILOSOPHY_HERO_EN: HeroCopy = {

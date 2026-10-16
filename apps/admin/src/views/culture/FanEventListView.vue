@@ -119,7 +119,7 @@ const go = (row: FanEventListItemDto) => router.push(`/culture/fan-events/${row.
           <el-table-column label="活動名稱" min-width="180">
             <template #default="{ row }">
               <div>{{ row.nameZh || '（未命名）' }}</div>
-              <el-tag v-if="row.isPaidMembersOnly" size="small" type="warning">限付費會員</el-tag>
+              <el-tag v-if="row.isPaidMembersOnly" size="small" type="warning">限會員</el-tag>
             </template>
           </el-table-column>
           <el-table-column label="活動時間" min-width="150"><template #default="{ row }">{{ formatDateTime(row.startsAt) || '尚未設定' }}</template></el-table-column>
@@ -144,7 +144,7 @@ const go = (row: FanEventListItemDto) => router.push(`/culture/fan-events/${row.
           <template #title="{ row }">{{ row.nameZh || '（未命名）' }}</template>
           <template #meta="{ row }">
             <el-tag :type="row.status === 'published' ? 'success' : 'info'" size="small">{{ row.statusLabel }}</el-tag>
-            <el-tag v-if="row.isPaidMembersOnly" size="small" type="warning">限付費會員</el-tag>
+            <el-tag v-if="row.isPaidMembersOnly" size="small" type="warning">限會員</el-tag>
             <span>{{ formatDateTime(row.startsAt) || '尚未設定時間' }}</span>
             <span>報名 {{ capacityText(row) }}</span>
           </template>

@@ -482,7 +482,8 @@ public sealed class ArticlesRepository(
         var rows = await connection.QueryAsync<string>(new CommandDefinition(
             sql, new { EntityType = ArticleEntityType, ArticleId = articleId }, cancellationToken: cancellationToken));
 
-        return rows.AsList();
+        // 容忍收縮型遷移之前殘留的舊代碼（players_first 等，見 db/migrations/20261016_client-doc-alignment_2-contract.sql）：不在四大核心價值目錄內的一律不輸出。
+        return rows.Where(Home.CoreValueCatalog.Codes.Contains).ToList();
     }
 
     /// <summary>Dapper 具現化用的原始列——跟本檔其餘 <c>*Row</c> record 同一種寫法（位置參數建構子），

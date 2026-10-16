@@ -254,7 +254,7 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 .impact-facts{ display:flex; flex-direction:column; gap:.35rem; }
 .impact-facts div{ display:flex; gap:.5rem; font-size:.85rem; }
 .impact-facts dt{ font-weight:700; color:var(--muted); flex:none; min-width:5.5em; }
-.impact-facts dd{ color:var(--text); }
+.impact-facts dd{ color:var(--text); white-space:pre-line; overflow-wrap:anywhere; }
 .impact-facts a{ color:var(--brand-aa); text-decoration:underline; }
 
 @media (max-width:520px){

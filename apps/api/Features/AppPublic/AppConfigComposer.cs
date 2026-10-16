@@ -11,7 +11,7 @@ namespace Tcrfc.Api.Features.AppPublic;
 /// <c>app_settings</c> 的 <c>maintenance.all／ios／android</c>（維護模式，全域與分平台）、<c>app_feature_flags</c>（功能開關，
 /// 平台值 <c>all</c> 對兩個平台都生效、單一平台的值優先）。
 /// </summary>
-public sealed class AppConfigComposer(ClubDbContext dbContext)
+public sealed class AppConfigComposer(ClubDbContext dbContext, Tcrfc.Api.Images.IImagePublicUrlResolver imageUrls)
 {
     public const string MaintenanceKeyPrefix = "maintenance.";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
@@ -55,7 +55,7 @@ public sealed class AppConfigComposer(ClubDbContext dbContext)
             };
         }
 
-        return new AppConfigDocument { GeneratedAt = DateTime.UtcNow, Ios = Build("ios"), Android = Build("android") };
+        return new AppConfigDocument { GeneratedAt = DateTime.UtcNow, Ios = Build("ios"), Android = Build("android"), MediaBaseUrl = imageUrls.ResolveBase() };
     }
 
     public static AppConfigEvaluation Evaluate(AppPlatformConfig config, string? appVersion)

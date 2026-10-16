@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Features.AdminMembers;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -37,7 +38,7 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         var rows = await query.OrderByDescending(p => p.Season.StartOn).ThenBy(p => p.SortOrder).ThenBy(p => p.RowSeq)
             .Select(p => new
             {
-                p.Id, p.SeasonId, SeasonCode = p.Season.Code, p.Code, p.Fee, p.CardQuota, p.JerseyQuota, p.StartsOn, p.EndsOn,
+                p.Id, p.SeasonId, SeasonCode = p.Season.Code, p.Code, p.Tier, p.ShopDiscountPercent, p.Fee, p.CardQuota, p.JerseyQuota, p.StartsOn, p.EndsOn,
                 p.SortOrder, p.Status, p.UpdatedAt,
                 NameZh = p.MembershipPlansI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = p.MembershipPlansI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
@@ -47,7 +48,8 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
 
         return rows.Select(r => new AdminPlanListItemDto
         {
-            Id = r.Id, SeasonId = r.SeasonId, SeasonCode = r.SeasonCode, Code = r.Code, Fee = r.Fee, CardQuota = r.CardQuota,
+            Id = r.Id, SeasonId = r.SeasonId, SeasonCode = r.SeasonCode, Code = r.Code, Tier = r.Tier, TierLabel = MemberLabels.TierName(r.Tier, false, r.NameZh), ShopDiscountPercent = r.ShopDiscountPercent,
+            Fee = r.Fee, CardQuota = r.CardQuota,
             JerseyQuota = r.JerseyQuota, StartsOn = r.StartsOn, EndsOn = r.EndsOn, SortOrder = r.SortOrder, Status = r.Status,
             StatusLabel = StatusLabel(r.Status), NameZh = r.NameZh, NameEn = r.NameEn, MembershipCount = r.MembershipCount, UpdatedAt = r.UpdatedAt,
         }).ToList();
@@ -104,6 +106,11 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         if (inUse && season.Id != plan.SeasonId)
         {
             throw new AdminValidationException("已經有會員使用這個方案，不能更換球季。請新增一個新球季的方案。", "seasonId");
+        }
+
+        if (inUse && request.Tier != plan.Tier)
+        {
+            throw new AdminValidationException("已經有會員使用這個方案，不能變更層級（會員的層級隨方案）。請新增一個新的方案。", "tier");
         }
 
         if (v.Code != plan.Code || season.Id != plan.SeasonId)
@@ -190,6 +197,12 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
             throw new AdminValidationException("費用不可為負數。", "fee");
         }
 
+        AdminInput.OneOf(request.Tier, MemberLabels.Tier.Keys.ToHashSet(), "層級", "「磐石會員」或「尊尚會員」", "tier");
+        if (request.ShopDiscountPercent is < 0 or > 100)
+        {
+            throw new AdminValidationException("商店會員折扣比例請填 0 到 100 的整數（0 代表沒有折扣）。", "shopDiscountPercent");
+        }
+
         if (request.CardQuota is < 1 or > 10)
         {
             throw new AdminValidationException("發卡數請填 1 到 10。", "cardQuota");
@@ -215,6 +228,8 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
 
     private static void Apply(MembershipPlan plan, UpsertAdminPlanRequest request)
     {
+        plan.Tier = request.Tier;
+        plan.ShopDiscountPercent = request.ShopDiscountPercent;
         plan.Fee = request.Fee;
         plan.CardQuota = request.CardQuota;
         plan.JerseyQuota = request.JerseyQuota;
@@ -277,7 +292,8 @@ public sealed class AdminMembershipPlansRepository(ClubDbContext db)
         var en = plan.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == "en");
         return new AdminPlanDetailDto
         {
-            Id = plan.Id, SeasonId = plan.SeasonId, SeasonCode = plan.Season.Code, Code = plan.Code, Fee = plan.Fee,
+            Id = plan.Id, SeasonId = plan.SeasonId, SeasonCode = plan.Season.Code, Code = plan.Code, Tier = plan.Tier,
+            TierLabel = MemberLabels.TierName(plan.Tier, false, zh?.Name), ShopDiscountPercent = plan.ShopDiscountPercent, Fee = plan.Fee,
             CardQuota = plan.CardQuota, JerseyQuota = plan.JerseyQuota, MidSeasonRule = zh?.MidSeasonRule, MidSeasonRuleEn = en?.MidSeasonRule,
             StartsOn = plan.StartsOn, EndsOn = plan.EndsOn, SortOrder = plan.SortOrder, Status = plan.Status,
             StatusLabel = StatusLabel(plan.Status),

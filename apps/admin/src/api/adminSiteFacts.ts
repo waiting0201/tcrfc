@@ -43,6 +43,9 @@ export interface AdminSiteFactsDto {
   squadCodes: string[]
   homeVenues: AdminSiteFactVenueDto[]
   contactPhone?: string | null
+  /** 聯絡地址（辦公室／通訊處），與場地地址無關；整份取代，省略＝清空。 */
+  contactAddressZh?: string | null
+  contactAddressEn?: string | null
   contactHoursZh?: string | null
   contactHoursEn?: string | null
   /** 台中藍鯨官方網站網址（主站規劃書 §3.6「06 女子足球」入口頁「前往台中藍鯨官網」按鈕的連結
@@ -86,6 +89,8 @@ export interface UpdateSiteFactsRequest {
   squadCodes?: string[] | null
   homeVenues?: UpdateSiteFactVenueRequest[] | null
   contactPhone?: string | null
+  contactAddressZh?: string | null
+  contactAddressEn?: string | null
   contactHoursZh?: string | null
   contactHoursEn?: string | null
   blueWhaleSiteUrl?: string | null

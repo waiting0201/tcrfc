@@ -38,7 +38,7 @@ public static class HomeEndpoints
         .Produces<IReadOnlyList<HomeSectionDto>>()
         .Produces(StatusCodes.Status404NotFound);
 
-        // GET /api/v1/{club}/home/core-values —— 首頁「五大核心價值」（規劃書 §1.2／§3.1）。固定目錄，不查庫；仍先驗證俱樂部存在。
+        // GET /api/v1/{club}/home/core-values —— 首頁「核心價值」四項（規劃書 v3.29 §1.2／§3.1）。固定目錄，不查庫；仍先驗證俱樂部存在。
         app.MapGet("/api/v1/{club}/home/core-values", async (
             string club, IClubResolver clubResolver, CancellationToken cancellationToken) =>
         {

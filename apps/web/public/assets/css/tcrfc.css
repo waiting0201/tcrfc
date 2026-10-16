@@ -599,6 +599,11 @@ input{ font:inherit; }
 
 @media (max-width:1080px){ .values-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media (max-width:640px){ .values-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } .value-card{ min-height:auto; } }
+/* v3.29：核心價值改為四項。--4 是首頁的四欄卡片；--2 是 2.3 足球理念頁放全文用的兩欄。 */
+.values-grid--4{ grid-template-columns:repeat(4,minmax(0,1fr)); }
+.values-grid--2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (max-width:1080px){ .values-grid--4{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:640px){ .values-grid--4, .values-grid--2{ grid-template-columns:minmax(0,1fr); } }
 
 /* ============================================================
    6. Four pillars

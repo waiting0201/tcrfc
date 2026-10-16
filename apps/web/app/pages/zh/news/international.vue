@@ -52,7 +52,7 @@ useSeoMeta({
     <p class="page-hero__eyebrow">7.5 International</p>
     <h1>{{ tx('國際動態', 'International') }}<span v-if="!isEn" class="en">International</span></h1>
     <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('international', clubKey).lede }}</p>
-    <p v-else-if="club !== 'bw'" class="page-hero__lede">海外球會合作、球員海外受訓與轉會——台中磐石選手放眼世界的第一手紀錄，呼應「Global Pathways 國際發展」。</p>
+    <p v-else-if="club !== 'bw'" class="page-hero__lede">海外球會合作、球員海外受訓與轉會——台中磐石選手放眼世界的第一手紀錄，呼應「撼動全球 Global influence」。</p>
     <p v-else class="page-hero__lede">海外球會合作、球員海外受訓與轉會——台中藍鯨選手放眼世界的第一手紀錄。</p>
   </div>
 </section>

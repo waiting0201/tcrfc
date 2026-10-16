@@ -25,6 +25,9 @@ public partial class MembershipBenefit
 
     public Guid? UpdatedBy { get; set; }
 
+    /// <summary>條目代碼：同一俱樂部各方案以代碼對齊成權益對照表（同一方案內唯一）。</summary>
+    public string BenefitCode { get; set; } = null!;
+
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
     public virtual ICollection<MembershipBenefitsI18n> MembershipBenefitsI18ns { get; set; } = new List<MembershipBenefitsI18n>();

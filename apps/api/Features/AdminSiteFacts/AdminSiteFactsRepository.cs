@@ -27,6 +27,7 @@ namespace Tcrfc.Api.Features.AdminSiteFacts;
 /// - <c>site.squad_codes</c>（單一值，逗號分隔代碼清單，非人類語言）
 /// - <c>site.contact_phone</c>（單一值，電話號碼，非人類語言）
 /// - <c>site.contact_hours</c>（逐語系——營業時間是人類可讀文字，例如「平日 09:00–18:00」）
+/// - <c>site.contact_address</c>（逐語系，v3.29：聯絡地址，獨立設定、與場地無關；中文為主、英文可空）
 /// - <c>site.home_venue_ids</c>（單一值，逗號分隔 <c>venues.id</c> 清單，依顯示順序，第一筆＝主要主場）
 /// - <c>site.contact_email</c>、<c>site.social_facebook|instagram|youtube|line</c>（單一值，C-2）
 /// - <c>site.contact_departments</c>（單一值，JSON 陣列，見 <see cref="SiteContactSupport"/>）
@@ -53,6 +54,7 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext, IQueryCach
     private const string KeySquadCodes = "site.squad_codes";
     private const string KeyContactPhone = "site.contact_phone";
     private const string KeyContactHours = "site.contact_hours";
+    private const string KeyContactAddress = "site.contact_address";
     private const string KeyHomeVenueIds = "site.home_venue_ids";
 
     /// <summary>台中藍鯨官方網站網址（主站規劃書 §3.6「06 女子足球」入口頁），見
@@ -66,7 +68,7 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext, IQueryCach
     [
         KeyFoundedYear, KeyFoundingDate, KeyFoundingDateDisplay, KeyFoundingTitle,
         KeyLeagueName, KeyLeagueShortName, KeySquadStructureSummary, KeySquadCodes,
-        KeyContactPhone, KeyContactHours, KeyHomeVenueIds, KeyBlueWhaleSiteUrl,
+        KeyContactPhone, KeyContactHours, KeyContactAddress, KeyHomeVenueIds, KeyBlueWhaleSiteUrl,
         .. SiteContactSupport.Keys,
     ];
 
@@ -117,6 +119,13 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext, IQueryCach
 
         ValidateBlueWhaleSiteUrl(request.BlueWhaleSiteUrl);
 
+        var contactAddressZh = AdminInput.OptionalText(request.ContactAddressZh, "聯絡地址（中文）", 200, "contactAddressZh");
+        var contactAddressEn = AdminInput.OptionalText(request.ContactAddressEn, "聯絡地址（英文）", 300, "contactAddressEn");
+        if (contactAddressZh is null && contactAddressEn is not null)
+        {
+            throw new AdminSiteFactsValidationException("填了英文聯絡地址時，中文也必須填寫。", "contactAddressZh");
+        }
+
         var contactEmail = AdminInput.OptionalEmail(request.ContactEmail, "聯絡 Email", "contactEmail");
         var facebook = ValidateSocialUrl(request.FacebookUrl, "Facebook 連結", "facebookUrl", ["facebook.com", "fb.com", "fb.me"]);
         var instagram = ValidateSocialUrl(request.InstagramUrl, "Instagram 連結", "instagramUrl", ["instagram.com", "instagr.am"]);
@@ -146,6 +155,7 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext, IQueryCach
         UpsertValue(settings, KeySquadCodes, scope.ClubId, JoinCodes(request.SquadCodes), operatorId);
         UpsertValue(settings, KeyContactPhone, scope.ClubId, request.ContactPhone, operatorId);
         UpsertI18nOptional(settings, KeyContactHours, scope.ClubId, request.ContactHoursZh, request.ContactHoursEn, operatorId);
+        UpsertI18nOptional(settings, KeyContactAddress, scope.ClubId, contactAddressZh, contactAddressEn, operatorId);
         UpsertValue(settings, KeyBlueWhaleSiteUrl, scope.ClubId, request.BlueWhaleSiteUrl, operatorId);
         UpsertValue(settings, SiteContactSupport.KeyContactEmail, scope.ClubId, contactEmail, operatorId);
         UpsertValue(settings, SiteContactSupport.KeySocialFacebook, scope.ClubId, facebook, operatorId);
@@ -420,6 +430,8 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext, IQueryCach
             SquadCodes = SplitCodes(Value(KeySquadCodes)),
             HomeVenues = homeVenues,
             ContactPhone = Value(KeyContactPhone),
+            ContactAddressZh = I18n(KeyContactAddress, RequestLocale.DefaultDbLocale),
+            ContactAddressEn = I18n(KeyContactAddress, "en"),
             ContactHoursZh = I18n(KeyContactHours, RequestLocale.DefaultDbLocale),
             ContactHoursEn = I18n(KeyContactHours, "en"),
             BlueWhaleSiteUrl = Value(KeyBlueWhaleSiteUrl),

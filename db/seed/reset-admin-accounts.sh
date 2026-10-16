@@ -64,10 +64,14 @@ fi
 echo
 echo "==> 套用到 ${TARGET_DATABASE}"
 
-docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
+# 🔴 E-296／E-330：不用 stdin 串流餵 sqlcmd（多位元組字元跨塊被切壞）。docker cp 進容器後用 -i。
+CONTAINER_SQL="/tmp/tcrfc-reset-admin-$$.sql"
+trap 'docker exec -u 0 "${CONTAINER_ID}" rm -f "${CONTAINER_SQL}" >/dev/null 2>&1 || true' EXIT
+docker cp "${OUT_FILE}" "${CONTAINER_ID}:${CONTAINER_SQL}"
+docker exec "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
   -d "${TARGET_DATABASE}" -f 65001 -b \
-  < "${OUT_FILE}"
+  -i "${CONTAINER_SQL}"
 
 echo
 echo "完成——種子測試帳號的密碼／2FA 狀態／鎖定計數已還原成初始值。"

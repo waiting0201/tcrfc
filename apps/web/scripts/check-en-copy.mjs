@@ -26,6 +26,7 @@ const ZH_SOURCE = resolve(UTILS, 'club-copy.ts')
 
 /** 沒有中文孿生、但屬於英文版自己的合法共用項（名稱 → 理由）。 */
 const NO_ZH_TWIN = new Map([
+  ['PHILOSOPHY_BODY_EN', '2.3 足球理念本文英文版；中文孿生是 core-values.ts 的 `PHILOSOPHY_BODY_TCRFC`（客戶原文，與四大核心價值說明同檔，不在 club-copy.ts）'],
   ['CLUB_NAME_EN', '英文版俱樂部名稱常數；中文版名稱由 `ClubAssets.nameZh` 提供，不在 club-copy.ts'],
   ['getUnitLabelEn', '單元英文標籤；中文孿生是 site-units.ts 的 `getUnitLabelZh`，不在 club-copy.ts'],
 ])

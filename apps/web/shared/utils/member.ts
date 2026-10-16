@@ -91,9 +91,23 @@ export interface MyMembership {
   cards: MemberCard[]
 }
 
+/** 尚未開通的會籍申請（待確認／待付款）。v3.29：註冊帳號沒有會籍列，送出申請後、開通前的狀態放在這裡。 */
+export interface MemberOpenOrder {
+  orderNo: string
+  status: string
+  statusLabel: string
+  clubCode: string
+  planCode: string
+  planName: string | null
+  seasonCode: string
+}
+
 export interface MyMemberships {
+  /** 持有的會籍；僅註冊帳號時為空陣列（沒有會員卡，v3.29）。 */
   memberships: MyMembership[]
+  /** 目前球季沒有會籍的俱樂部：畫面顯示「購買會籍」入口，不隱藏。 */
   joinableClubs: Array<{ code: string, name: string }>
+  openOrders?: MemberOpenOrder[]
 }
 
 export interface MemberJerseyItem {
@@ -141,6 +155,11 @@ export interface MembershipOrder {
 // ── 公開讀取：方案、權益、特約店家 ────────────────────────────────────────────
 export interface MembershipPlan {
   code: string
+  /** 層級代碼：磐石 `standard`（磐石會員）／`premium`（尊尚會員）；藍鯨方案由藍鯨自訂。 */
+  tier: string
+  tierLabel: string
+  /** 商店會員折扣比例（0–100 的整數百分比；0＝無折扣）。折扣價由 API 計算，前台只顯示。 */
+  shopDiscountPercent: number
   name: string
   benefitNote: string | null
   fee: number
@@ -152,11 +171,18 @@ export interface MembershipPlan {
   endsOn: string | null
 }
 
+/** 權益對照表某條權益在某個方案的對應值（「✓」「✗」或文字）；該方案沒有這一條時 `value` 為 null。 */
+export interface MembershipBenefitPlanValue {
+  planCode: string
+  value: string | null
+}
+
 export interface MembershipBenefitItem {
+  code: string
   name: string
   description: string | null
-  freeValue: string | null
-  paidValue: string | null
+  /** 與 `MembershipBenefits.plans` 同序、每個方案一格。 */
+  values: MembershipBenefitPlanValue[]
 }
 
 export interface MembershipBenefitGroup {
@@ -165,9 +191,18 @@ export interface MembershipBenefitGroup {
   items: MembershipBenefitItem[]
 }
 
+/** 權益對照表的一欄（目前可購買的方案）。 */
+export interface MembershipBenefitPlanColumn {
+  code: string
+  tier: string
+  tierLabel: string
+  name: string | null
+  fee: number
+}
+
+/** 權益對照表（v3.29 起以方案為欄）：沒有可購買方案時 `plans` 與 `groups` 皆為空。 */
 export interface MembershipBenefits {
-  planCode: string | null
-  planName: string | null
+  plans: MembershipBenefitPlanColumn[]
   groups: MembershipBenefitGroup[]
 }
 
@@ -182,7 +217,7 @@ export interface PartnerStore {
   phone: string | null
   businessHours: string | null
   offerContent: string | null
-  applicableTier: 'all' | 'fan_club'
+  applicableTier: 'all' | 'premium'
   applicableTierLabel: string | null
   mapUrl: string | null
   websiteUrl: string | null

@@ -16,11 +16,11 @@ using Tcrfc.Api.Security;
 namespace Tcrfc.Api.Features.AdminDraws;
 
 /// <summary>
-/// K5 抽獎名單管理（主站規劃書 §4.11 K5、§3.14「球迷會員抽獎」）。<b>定位</b>：付費會籍的權益之一。系統<b>只負責</b>產生合格名單、凍結快照、
+/// K5 抽獎名單管理（主站規劃書 §4.11 K5、§3.14「會員抽獎」）。<b>定位</b>：會籍的權益之一（兩級方案皆具備，註冊帳號不列入）。系統<b>只負責</b>產生合格名單、凍結快照、
 /// 配發序號、匯出清單；<b>實體抽獎於現場或直播由人工進行，系統不做任何隨機抽出演算法、不產生任何隨機結果</b>，中獎人由後台以序號回填。
 /// 各俱樂部各自舉辦（<c>member_draws.club_id</c> 必填，不合辦）。
 /// <list type="bullet">
-/// <item><b>資格</b>：條件固定為「基準時間當下持有<b>本活動主辦俱樂部</b>的球迷會員（<c>fan_club</c>）會籍、該會籍有效、帳號狀態為啟用」，<b>不可由後台自訂</b>；
+/// <item><b>資格</b>：條件固定為「基準時間當下持有<b>本活動主辦俱樂部</b>的<b>有效會籍（任一層級，v3.29；註冊帳號不是會籍）</b>、帳號狀態為啟用」，<b>不可由後台自訂</b>；
 /// 會員完全不需要操作。同時持有兩隊會籍者在兩份名單各佔一號（活動辦法須明示「可分別參加兩隊抽獎」）。</item>
 /// <item><b>快照</b>：依會員編號升冪配發連號序號 1…N，一人一號，複製當下的姓名、會員編號、層級與到期日；鎖定後<b>不得逐列新增或刪除</b>，有誤只能整份作廢重產
 /// （<c>roster_version</c>＋1，舊版保留供稽核）。記錄基準時間、合格人數、名單雜湊與執行人。</item>
@@ -258,7 +258,7 @@ public sealed partial class AdminDrawsRepository(
     {
         var asOfDate = TaiwanClock.ToDate(asOf);
         var rows = await db.Memberships.AsNoTracking()
-            .Where(ms => ms.ClubId == clubId && ms.Tier == "fan_club" && (ms.Status == "active" || ms.Status == "expired")
+            .Where(ms => ms.ClubId == clubId && (ms.Status == "active" || ms.Status == "expired")
                 && (ms.MembershipStartOn == null || ms.MembershipStartOn <= asOfDate) && (ms.MembershipEndOn == null || ms.MembershipEndOn >= asOfDate)
                 && ms.Member.Status == "active")
             .Select(ms => new Eligible(ms.MemberId, ms.Member.MemberNo, ms.Member.Name, ms.Tier, ms.MembershipEndOn)).ToListAsync(cancellationToken);
@@ -299,7 +299,7 @@ public sealed partial class AdminDrawsRepository(
         var voidReason = regenerate ? AdminInput.RequireText(request.VoidReason, "作廢原因", 255, "reason") : null;
         if (!(await GetNoticeAsync(scope, cancellationToken)).Confirmed)
         {
-            throw new AdminConflictException("尚未完成蒐集告知", "會員條款與註冊同意事項還沒有增列抽獎的蒐集告知（「會籍有效期間將自動列入球迷會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」），完成前不能舉辦抽獎。");
+            throw new AdminConflictException("尚未完成蒐集告知", "會員條款與註冊同意事項還沒有增列抽獎的蒐集告知（「會籍有效期間將自動列入會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」），完成前不能舉辦抽獎。");
         }
 
         var asOf = draw.SnapshotAt ?? throw new AdminValidationException("請先設定資格基準時間。", "snapshotAt");
@@ -312,7 +312,7 @@ public sealed partial class AdminDrawsRepository(
         var eligible = await QueryEligibleAsync(scope.ClubId, asOf, cancellationToken);
         if (eligible.Count == 0)
         {
-            throw new AdminConflictException("沒有合格會員", "基準時間當下這個俱樂部沒有任何合格的球迷會員，無法產生名單。");
+            throw new AdminConflictException("沒有合格會員", "基準時間當下這個俱樂部沒有任何持有效會籍的會員，無法產生名單。");
         }
 
         var now = DateTime.UtcNow;
@@ -418,7 +418,7 @@ public sealed partial class AdminDrawsRepository(
             Items = rows.Select(r => new AdminRosterEntryDto
             {
                 SerialNo = r.SerialNo, MemberNo = r.MemberNoSnapshot, Name = reveal ? r.NameSnapshot : PiiMasking.MaskName(r.NameSnapshot), Tier = r.TierSnapshot,
-                TierLabel = r.TierSnapshot is null ? null : MemberLabels.Of(MemberLabels.Tier, r.TierSnapshot), MembershipEndOn = r.MembershipEndOnSnapshot,
+                TierLabel = r.TierSnapshot is null ? null : MemberLabels.Of(MemberLabels.SnapshotTier, r.TierSnapshot), MembershipEndOn = r.MembershipEndOnSnapshot,
                 IsWinner = r.IsWinner, IsBackup = r.IsBackup, PrizeName = r.PrizeName, IsMasked = !reveal,
             }).ToList(),
             Page = page, PageSize = pageSize, TotalCount = total,
@@ -858,7 +858,7 @@ public sealed partial class AdminDrawsRepository(
         => (await db.DrawRosters.AsNoTracking().Where(r => r.MemberDrawId == draw.Id && r.RosterVersion == draw.RosterVersion && r.IsWinner).OrderBy(r => r.SerialNo).ToListAsync(cancellationToken))
             .Select(r => new AdminAnnouncementWinnerDto { SerialNo = r.SerialNo, MemberNo = r.MemberNoSnapshot, MaskedName = PiiMasking.MaskName(r.NameSnapshot), PrizeName = r.PrizeName }).ToList();
 
-    /// <summary>產生公布稿草稿並交接 B2：分類 7.1 Club News（代碼 <c>club</c>）、加掛標籤「球迷會員抽獎／Member Draw」，一律是<b>草稿</b>，由公關潤稿後發布。
+    /// <summary>產生公布稿草稿並交接 B2：分類 7.1 Club News（代碼 <c>club</c>）、加掛標籤「會員抽獎／Member Draw」，一律是<b>草稿</b>，由公關潤稿後發布。
     /// 內容只含遮罩後的中獎名單（抽獎序號＋會員編號＋姓名遮罩），不含手機、Email、地址、生日或完整姓名。</summary>
     public async Task<AdminAnnouncementDraftDto?> CreateAnnouncementDraftAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
@@ -903,7 +903,7 @@ public sealed partial class AdminDrawsRepository(
             {
                 Zh = new AdminArticleLocaleContent { Title = BuildAnnouncementTitle(name), Summary = $"「{name}」抽獎結果，名單依規定遮罩。", Body = JsonSerializer.Serialize(new { blocks }, BodyJson) },
             },
-            Tags = [new AdminArticleTagInput { Slug = MemberDrawTagSlug, NameZh = "球迷會員抽獎", NameEn = "Member Draw" }],
+            Tags = [new AdminArticleTagInput { Slug = MemberDrawTagSlug, NameZh = "會員抽獎", NameEn = "Member Draw" }],
         };
         await articles.CreateAsync(scope, articleId, request, null, null, null, ImageFieldUpdate.Keep, scope.Identity.AdminUserId, cancellationToken);
         draw.AnnouncementArticleId = articleId;

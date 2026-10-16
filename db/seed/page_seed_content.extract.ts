@@ -5,12 +5,17 @@
 // （由 apps/api 測試 AdminPageTemplatesTests 對資料庫逐頁核對）。
 // 用法：cd apps/web && npx vite-node ../../db/seed/page_seed_content.extract.ts > ../../db/seed/page_seed_content.json
 // （前台備用文案改了才需要重跑；json 是 backoffice_seed.py 與 en_backfill_seed.py 的輸入。）
+// 🔴 2026-10-16：about/philosophy（四大核心價值）與 academy/curriculum（4.4）的來源已改為前台 shared/utils 的 core-values.ts／academy-curriculum.ts，
+//    重跑結果與後端手改過的 page_seed_content.json 逐字一致（已用 diff 驗證）；之後改這兩頁請改前台來源檔再重跑，不要直接改 json。
 import * as c from '../../apps/web/shared/utils/club-copy'
 import * as e1 from '../../apps/web/shared/utils/club-copy-en-core'
 import * as e2 from '../../apps/web/shared/utils/club-copy-en-club'
 import * as e3 from '../../apps/web/shared/utils/club-copy-en-biz'
 import * as h from '../../apps/web/shared/utils/bw-history-en'
 import { getSiteFacts } from '../../apps/web/shared/utils/site-facts'
+import { buildCoreValueViews, PHILOSOPHY_BODY_TCRFC } from '../../apps/web/shared/utils/core-values'
+import { ACADEMY_CURRICULUM_BLOCKS } from '../../apps/web/shared/utils/academy-curriculum'
+import { CHARITY_COMMITMENT_BLOCKS, CHARITY_COMMITMENT_SEO_DESCRIPTION } from '../../apps/web/shared/utils/charity-commitment'
 
 const ft = getSiteFacts('tcrfc'), fb = getSiteFacts('bw')
 const bi = (zh: string, en: string | null = null) => ({ zh, en })
@@ -31,13 +36,8 @@ const modules = [
 const prep = bi('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.')
 const modulesBlock = { type: 'steps', content: { items: modules.map(([zh, en]) => ({ title: bi(zh, en), description: prep })) } }
 
-const coreValues = [
-  ['以球員為本', 'Players First', '所有訓練規劃與資源配置，皆以球員的長期發展與福祉為核心考量。', e1.CORE_VALUE_DESCRIPTIONS_EN.players_first],
-  ['追求卓越', 'Excellence', '建立專業化訓練與教練體系，協助選手邁向職業舞台所需的實力與態度。', e1.CORE_VALUE_DESCRIPTIONS_EN.excellence],
-  ['國際發展', 'Global Pathways', '從台中出發、放眼世界，透過海外交流建立選手與職業舞台接軌的路徑。', e1.CORE_VALUE_DESCRIPTIONS_EN.global_pathways],
-  ['社區共好', 'Community', '紮根台中在地，成為社區認同與榮耀的來源，與球迷共同成長。', e1.CORE_VALUE_DESCRIPTIONS_EN.community],
-  ['誠信專業', 'Integrity', '以誠信治理與專業制度，支撐俱樂部長期穩健發展。', e1.CORE_VALUE_DESCRIPTIONS_EN.integrity],
-]
+// 2026-10-16（v3.29）：四大核心價值＝客戶 2.3 原文（中：core-values.ts；英：club-copy-en-core.ts），不再手寫在本檔。
+const coreValues = buildCoreValueViews(null).map(v => [v.nameZh, v.nameEn, v.paragraphs.join('\n\n'), e1.CORE_VALUE_DESCRIPTIONS_EN[v.code]])
 
 const pathway = [['在地', 'Local Roots'], ['國內職業', 'Domestic Pro'], ['海外訓練', 'Overseas Training'], ['海外俱樂部', 'Clubs Abroad']]
 const pathwayBlock = { type: 'steps', content: { items: pathway.map(([zh, en]) => ({ title: bi(zh, en) })) } }
@@ -64,18 +64,6 @@ const partnersB = [
 ]
 const cardsBlock = (rows: any[]) => ({ type: 'steps', content: { items: rows.map(([zh, en, dzh, den]) => ({ title: bi(zh, en), description: bi(dzh, den) })) } })
 
-const commitment = bi(
-  `台中磐石足球俱樂部自 ${ft.foundedYear} 年成立以來，將「Community 社區共好」列為五大核心價值之一，相信足球能為社區帶來的影響不只在球場上。我們相信優質的足球資源不該只集中在少數人身上，因此持續尋找機會，把訓練、場地與人才帶到需要的地方。`,
-  `Since Taichung Rock FC was founded in ${ft.foundedYear}, Community has been one of our five core values. We believe the impact football can have on a community goes well beyond the pitch. We also believe that good football resources should not be concentrated in the hands of a few, so we keep looking for opportunities to bring training, facilities and talent to the places that need them.`)
-const focusIntro = bi('以下四大領域為規劃書明列的公益投入方向，各領域詳細計畫請見 11.2 慈善計畫。',
-  'The four areas below are our public-interest priorities. For the programs in each area, see 11.2 Charity Programs.')
-const focus = [
-  ['青少年扶助', 'Youth Support', '支持經濟弱勢或資源不足地區的青少年參與足球運動，降低參與門檻。', 'Supporting young people from economically disadvantaged or under-resourced areas to take part in football, and lowering the barriers to participation.'],
-  ['偏鄉足球', 'Rural Football', '將教練資源與訓練機會帶到偏遠地區的學校與社區，拉近城鄉足球資源落差。', 'Bringing coaching resources and training opportunities to schools and communities in remote areas, narrowing the gap in football resources between cities and the countryside.'],
-  ['弱勢家庭', 'Family Support', '與在地社福單位合作，提供弱勢家庭孩子參與足球活動的機會與必要物資。', 'Working with local social welfare organisations to give children from disadvantaged families the chance to take part in football activities, along with the necessary supplies.'],
-  ['公益義賽', 'Charity Matches', '舉辦或參與公益義賽，將活動收益或關注度轉化為對特定公益團體的實質支持。', 'Organising or taking part in charity matches, turning event proceeds or attention into real support for specific charities.'],
-]
-
 const text = (zh: string, en: string | null) => ({ type: 'text', content: { body: bi(zh, en) } })
 const quote = (zh: string, en: string | null, azh: string, aen: string) => ({ type: 'quote', content: { text: bi(zh, en), attribution: bi(azh, aen) } })
 const stepsFromVision = (zhItems: any[], enItems: any[]) => ({ type: 'steps', content: { items: zhItems.map((it, i) => ({ title: bi(it.titleZh, enItems[i].titleZh), description: bi(it.textZh, enItems[i].textZh) })) } })
@@ -91,7 +79,7 @@ const nameZh = { tcrfc: '台中磐石足球俱樂部', bw: '台中藍鯨女子�
 add('tcrfc', 'about/our-story', seo(c.getOurStorySeo('tcrfc', ft), e1.getOurStorySeoEn(ft)), [text(storyT.zh, storyT.en)])
 add('tcrfc', 'about/vision-mission', seo(c.VISION_MISSION_SEO.tcrfc, e1.VISION_MISSION_SEO_EN), [stepsFromVision(c.VISION_ITEMS.tcrfc, e1.VISION_ITEMS_EN)])
 add('tcrfc', 'about/philosophy', seo(c.PHILOSOPHY_SEO.tcrfc, e1.PHILOSOPHY_SEO_EN), [
-  text('同時作為全站內容標籤，貫穿俱樂部各項訓練規劃與對外溝通。', 'They also serve as content tags across the site, running through all of the club\'s training plans and external communications.'),
+  text(PHILOSOPHY_BODY_TCRFC, e1.PHILOSOPHY_BODY_EN),
   { type: 'steps', content: { items: coreValues.map(([zh, en, dzh, den]) => ({ title: bi(zh, en), description: bi(dzh, den) })) } }])
 add('tcrfc', 'about/governance', seo(c.GOVERNANCE_SEO.tcrfc, e1.GOVERNANCE_SEO_EN), [text(govNote.zh, govNote.en)])
 add('tcrfc', 'about/history', seo(c.getHistorySeo('tcrfc', ft), e1.getHistorySeoEn(ft)), [text(
@@ -109,6 +97,11 @@ add('tcrfc', 'club/player-stories', seo(c.getPlayerStoriesSeo('tcrfc'), e2.getPl
     { title: bi('楊朝景'), description: bi('海外 · 中場 MF · 背號 11 · 現效力香港九龍城', 'Overseas · Midfielder (MF) · No. 11 · currently playing for Kowloon City in Hong Kong') },
   ] } },
   text(c.getPlayerStoriesEmptyNote('tcrfc'), 'There are no player stories in the Academy or Women\'s categories yet.')])
+// 4.4 訓練課程與課綱（v3.29，磐石 13 頁之一；藍鯨不設）：區塊內容＝客戶 4.4 原文（academy-curriculum.ts，同時是前台備援）。SEO 為種子專用字串。
+add('tcrfc', 'academy/curriculum', seo(
+  { title: '訓練課程與課綱 Training & Curriculum｜台中磐石足球學院｜台中磐石足球俱樂部', description: '台中磐石足球學院的訓練理念、培訓方式與訓練架構、賽事規劃與參賽原則、足球與教育的結合、行為規範，以及各梯隊的訓練時間與地點。' },
+  { title: 'Training & Curriculum | Academy | Taichung Rock FC', description: "The Taichung Rock FC Academy's training philosophy, training structure, competition plan and participation principles, football and education, codes of conduct, and training times and venues for each squad." }),
+  ACADEMY_CURRICULUM_BLOCKS as any[])
 add('tcrfc', 'womens', seo(
   { title: "女子足球 Women's Football｜台中磐石足球俱樂部", description: '台中藍鯨女子隊的介紹與官網入口。完整球員名單、教練陣容、賽程與成績請至台中藍鯨官方網站。' }, e2.CLUB_WOMENS_SEO_EN),
   [text(c.OUR_STORY_BODY_BW, e2.WOMENS_STORY_BODY_EN)])
@@ -117,9 +110,9 @@ add('tcrfc', 'partners/become-a-partner', seo(
   { title: 'Become a Partner | Partners & Sponsors | Taichung Rock FC', description: 'Learn about the six values of partnering with Taichung Rock FC: brand exposure, audience reach, social impact and an international development network.' }),
   [cardsBlock(partnersT), text(audienceNote.zh, audienceNote.en)])
 add('tcrfc', 'charity/commitment', seo(
-  { title: '慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部', description: '台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。' },
-  { title: 'Our Commitment and Focus Areas | Charity & Impact | Taichung Rock FC', description: 'The charitable philosophy and four focus areas of Taichung Rock FC: youth support, rural football, disadvantaged families and charity matches, putting our core value of Community into practice.' }),
-  [text(commitment.zh, commitment.en), text(focusIntro.zh, focusIntro.en), cardsBlock(focus)])
+  { title: '慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部', description: CHARITY_COMMITMENT_SEO_DESCRIPTION.zh },
+  { title: 'Our Commitment and Focus Areas | Charity & Impact | Taichung Rock FC', description: CHARITY_COMMITMENT_SEO_DESCRIPTION.en }),
+  CHARITY_COMMITMENT_BLOCKS as any[])
 
 // ---- bw
 add('bw', 'about/our-story', seo(c.getOurStorySeo('bw', fb), e1.getOurStorySeoEnBw(fb)), [text(c.OUR_STORY_BODY_BW, e1.OUR_STORY_BODY_EN_BW)])

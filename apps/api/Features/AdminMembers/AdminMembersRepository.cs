@@ -107,7 +107,7 @@ public sealed class AdminMembersRepository(
 
         if (!string.IsNullOrWhiteSpace(filter.Tier))
         {
-            AdminInput.OneOf(filter.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「一般會員」或「球迷會員」");
+            AdminInput.OneOf(filter.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「磐石會員」或「尊尚會員」");
             ms = ms.Where(x => x.Tier == filter.Tier);
             membershipRestricted = true;
             scopeOnly = false;
@@ -326,8 +326,7 @@ public sealed class AdminMembersRepository(
                 x.MemberId, x.Id, x.ClubId, ClubCode = x.Club.Code, x.SeasonId, SeasonCode = x.Season.Code,
                 x.Tier, x.Status, x.MembershipStartOn, x.MembershipEndOn, x.MembershipPlanId,
                 ClubName = x.Club.ClubsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
-                PlanName = x.MembershipPlan == null ? null
-                    : x.MembershipPlan.MembershipPlansI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+                PlanName = x.MembershipPlan.MembershipPlansI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
             })
             .ToListAsync(cancellationToken);
 
@@ -345,7 +344,7 @@ public sealed class AdminMembersRepository(
                     SeasonId = r.SeasonId,
                     SeasonCode = r.SeasonCode,
                     Tier = r.Tier,
-                    TierLabel = MemberLabels.Of(MemberLabels.Tier, r.Tier)!,
+                    TierLabel = MemberLabels.TierName(r.Tier, false, r.PlanName),
                     Status = r.Status,
                     EffectiveStatus = effective,
                     EffectiveStatusLabel = MemberLabels.Of(MemberLabels.MembershipStatus, effective)!,

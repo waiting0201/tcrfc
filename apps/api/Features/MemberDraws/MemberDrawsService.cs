@@ -9,7 +9,7 @@ namespace Tcrfc.Api.Features.MemberDraws;
 /// <summary>
 /// 會員可見的抽獎資訊（App 規劃書 §3.10，唯讀）。🔴 <b>不讀 <c>draw_rosters</c>、<c>draw_roster_versions</c></b>（名單快照是後台稽核資產，不對前台開放）：
 /// 個人資格由 <c>memberships</c> 的狀態與期間即時推得，條件與後台名單產生（<c>AdminDrawsRepository.QueryEligibleAsync</c>）相同——
-/// 俱樂部的球迷會員（<c>fan_club</c>）會籍、狀態 <c>active</c>／<c>expired</c>、期間涵蓋基準時間（台北日期）、會員帳號啟用。
+/// 俱樂部的有效會籍（任一層級，v3.29；註冊帳號不是會籍）、狀態 <c>active</c>／<c>expired</c>、期間涵蓋基準時間（台北日期）、會員帳號啟用。
 /// 只列已鎖定名單之後的活動（<c>roster_locked</c>／<c>drawn</c>／<c>announced</c>／<c>closed</c>）；草稿與作廢不列。
 /// </summary>
 public sealed class MemberDrawsService(ClubDbContext db, IImagePublicUrlResolver imageUrls)
@@ -53,9 +53,9 @@ public sealed class MemberDrawsService(ClubDbContext db, IImagePublicUrlResolver
             })
             .ToListAsync(cancellationToken);
 
-        // 你的會籍（只取需要判斷的欄位）：俱樂部 → 該俱樂部的球迷會籍期間清單
+        // 你的會籍（只取需要判斷的欄位）：俱樂部 → 該俱樂部的會籍期間清單（任一層級）
         var memberships = await db.Memberships.AsNoTracking()
-            .Where(ms => ms.MemberId == memberId && ms.Tier == "fan_club" && (ms.Status == "active" || ms.Status == "expired"))
+            .Where(ms => ms.MemberId == memberId && (ms.Status == "active" || ms.Status == "expired"))
             .Select(ms => new { ms.ClubId, ms.MembershipStartOn, ms.MembershipEndOn })
             .ToListAsync(cancellationToken);
 

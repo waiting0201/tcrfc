@@ -41,26 +41,23 @@ export interface NewsTag {
 }
 
 /**
- * 核心價值標籤（S1-5）。值域逐字對應後端 `value_tag_links.value_tag` 的 CHECK 約束
- * （`AdminArticlesRepository.AllowedCoreValueTags`），中文名稱取自規劃書 §1.2／
- * docs/06-conventions.md §1「五大核心價值」。
+ * 核心價值標籤（S1-5）。值域逐字對應後端 `CoreValueCatalog` 與 `value_tag_links.value_tag` 的 CHECK 約束，
+ * 中文名稱取自規劃書 §1.2／docs/06-conventions.md §1「四大核心價值」（主站 v3.29，客戶 2.3）。
  */
-export type CoreValueTag = 'players_first' | 'excellence' | 'global_pathways' | 'community' | 'integrity'
+export type CoreValueTag = 'inspiring_players' | 'shaping_champions' | 'local_pride' | 'global_influence'
 
 export const CORE_VALUE_TAG_ORDER: CoreValueTag[] = [
-  'players_first',
-  'excellence',
-  'global_pathways',
-  'community',
-  'integrity',
+  'inspiring_players',
+  'shaping_champions',
+  'local_pride',
+  'global_influence',
 ]
 
 export const CORE_VALUE_TAG_LABEL: Record<CoreValueTag, string> = {
-  players_first: '以球員為本',
-  excellence: '追求卓越',
-  global_pathways: '國際發展',
-  community: '社區共好',
-  integrity: '誠信專業',
+  inspiring_players: '啟發球員',
+  shaping_champions: '塑造冠軍',
+  local_pride: '在地驕傲',
+  global_influence: '撼動全球',
 }
 
 /**

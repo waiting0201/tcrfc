@@ -53,6 +53,10 @@ public sealed record AdminSiteFactsDto
     /// <summary>聯絡電話。目前兩俱樂部皆未核實，維持 <c>null</c>，不放佔位假資料。</summary>
     public string? ContactPhone { get; init; }
 
+    /// <summary>聯絡地址（中文／英文，v3.29）：規劃書 §4.9 I「聯絡資訊」的獨立設定，<b>與場地地址無關</b>（場地是球場所在，聯絡地址是辦公室／通訊處）。整份取代：省略＝清空。</summary>
+    public string? ContactAddressZh { get; init; }
+    public string? ContactAddressEn { get; init; }
+
     public string? ContactHoursZh { get; init; }
     public string? ContactHoursEn { get; init; }
 
@@ -122,6 +126,10 @@ public sealed record UpdateSiteFactsRequest
     public IReadOnlyList<string>? SquadCodes { get; init; }
     public IReadOnlyList<UpdateSiteFactVenueRequest>? HomeVenues { get; init; }
     public string? ContactPhone { get; init; }
+    /// <summary>聯絡地址（中文／英文，v3.29）：規劃書 §4.9 I「聯絡資訊」的獨立設定，<b>與場地地址無關</b>（場地是球場所在，聯絡地址是辦公室／通訊處）。整份取代：省略＝清空。</summary>
+    public string? ContactAddressZh { get; init; }
+    public string? ContactAddressEn { get; init; }
+
     public string? ContactHoursZh { get; init; }
     public string? ContactHoursEn { get; init; }
     public string? BlueWhaleSiteUrl { get; init; }

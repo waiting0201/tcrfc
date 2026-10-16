@@ -327,20 +327,20 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
     }
 
     [AzuriteFact]
-    public async Task 球迷活動報名_名額候補_限付費會員_個資遮罩_已有報名不能刪除()
+    public async Task 球迷活動報名_名額候補_限會員_個資遮罩_已有報名不能刪除()
     {
         using var editor = await BizTest.ClientAsync(fixture, "content.editor@tcrfc.test");
         using var sa = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
         var paid = await BizTest.ScalarGuidAsync(
             """
             SELECT TOP 1 m.id FROM members m JOIN memberships ms ON ms.member_id = m.id JOIN clubs c ON c.id = ms.club_id
-            WHERE c.code = 'tcrfc' AND ms.tier = 'fan_club' AND ms.status = 'active' AND (ms.membership_end_on IS NULL OR ms.membership_end_on >= CAST(SYSUTCDATETIME() AS date))
+            WHERE c.code = 'tcrfc' AND ms.status = 'active' AND (ms.membership_end_on IS NULL OR ms.membership_end_on >= CAST(SYSUTCDATETIME() AS date))
               AND m.status = 'active' ORDER BY m.member_no
             """);
         var free = await BizTest.ScalarGuidAsync(
             """
             SELECT TOP 1 m.id FROM members m WHERE m.status = 'active' AND NOT EXISTS
-              (SELECT 1 FROM memberships ms JOIN clubs c ON c.id = ms.club_id WHERE ms.member_id = m.id AND c.code = 'tcrfc' AND ms.tier = 'fan_club' AND ms.status = 'active') ORDER BY m.member_no
+              (SELECT 1 FROM memberships ms JOIN clubs c ON c.id = ms.club_id WHERE ms.member_id = m.id AND c.code = 'tcrfc' AND ms.status = 'active' AND (ms.membership_end_on IS NULL OR ms.membership_end_on >= CAST(SYSUTCDATETIME() AS date))) ORDER BY m.member_no
             """);
         var ev = await C1Test.ReadAsync<AdminFanEventDetailDto>(await editor.PostAsync("/api/v1/admin/tcrfc/fan-events", BizTest.Multipart(
             new { status = "published", startsAt = DateTime.UtcNow.AddDays(10).ToString("o"), capacity = 1, isPaidMembersOnly = true, content = new { zh = new { name = "【測試】限量活動" } } })));
@@ -348,7 +348,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
         try
         {
             var url = $"/api/v1/admin/tcrfc/fan-events/{eventId}/registrations";
-            // 限付費會員：非會員、免費會員都不行
+            // 限會員（v3.29：持有效會籍者，任一層級）：非會員、僅註冊帳號都不行
             Assert.Equal(HttpStatusCode.BadRequest, (await C1Test.PostJsonAsync(editor, url, new { applicantName = "路人", phone = "0900-000-111" })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await C1Test.PostJsonAsync(editor, url, new { memberId = free })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await C1Test.PostJsonAsync(editor, url, new { memberId = Guid.NewGuid() })).StatusCode);

@@ -250,8 +250,8 @@ const periodRangeText = computed(() =>
           </el-col>
           <el-col :xs="24" :sm="12" :lg="6">
             <el-card shadow="never" class="dashboard__stat-card">
-              <div class="dashboard__stat-label">有效的付費會籍</div>
-              <div class="dashboard__stat-value">{{ dashboard.members.activePaidMemberships }}</div>
+              <div class="dashboard__stat-label">有效的尊尚會籍</div>
+              <div class="dashboard__stat-value">{{ dashboard.members.activePremiumMemberships }}</div>
             </el-card>
           </el-col>
           <el-col :xs="24" :sm="12" :lg="6">
@@ -262,7 +262,7 @@ const periodRangeText = computed(() =>
           </el-col>
           <el-col :xs="24" :sm="12" :lg="6">
             <el-card shadow="never" class="dashboard__stat-card">
-              <div class="dashboard__stat-label">待處理的升級申請</div>
+              <div class="dashboard__stat-label">待確認的會籍</div>
               <div class="dashboard__stat-value">{{ dashboard.members.pendingUpgrades }}</div>
             </el-card>
           </el-col>

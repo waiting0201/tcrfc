@@ -138,7 +138,7 @@
       "exceptions": [
         "MemberConflictException"
       ],
-      "messageEn": "You are already a fan club member this season.",
+      "messageEn": "You already hold an active membership for this season. Memberships cannot be upgraded during the term; you can choose another plan when renewing after it expires.",
       "retryable": false
     },
     {
@@ -281,7 +281,7 @@
       "exceptions": [
         "MemberForbiddenException"
       ],
-      "messageEn": "This event is for paid fan club members only, and you do not have an active membership.",
+      "messageEn": "This event is for members only, and you do not have an active membership.",
       "retryable": false
     },
     {
@@ -710,7 +710,7 @@
       "exceptions": [
         "MemberUnauthenticatedException"
       ],
-      "messageEn": "This event is for paid fan club members only. Please sign in first.",
+      "messageEn": "This event is for members only. Please sign in first.",
       "retryable": false
     },
     {
@@ -743,7 +743,7 @@
       "exceptions": [
         "MemberConflictException"
       ],
-      "messageEn": "Only active fan club memberships can register jerseys.",
+      "messageEn": "Only active memberships can register jerseys.",
       "retryable": false
     },
     {
@@ -956,17 +956,6 @@
       "retryable": false
     },
     {
-      "code": "season_not_available",
-      "httpStatus": [
-        409
-      ],
-      "exceptions": [
-        "MemberConflictException"
-      ],
-      "messageEn": "This club has no season open for joining right now. Please try again later.",
-      "retryable": false
-    },
-    {
       "code": "session_expired",
       "httpStatus": [
         401
@@ -1030,6 +1019,17 @@
         "MemberUnauthenticatedException"
       ],
       "messageEn": "Please sign in first.",
+      "retryable": false
+    },
+    {
+      "code": "upgrade_not_supported",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ],
+      "messageEn": "A membership cannot be upgraded during its term. You can choose another plan when renewing after it expires.",
       "retryable": false
     },
     {

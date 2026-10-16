@@ -170,6 +170,19 @@ fi
 # 做法與 deploy/prod-db-init.sh 步驟 3 相同——DDL 已是最新結構（含約束命名與欄位順序），不該再讓 `dotnet ef database update`
 # 把 migration 重跑一遍（重跑只會用 AddColumn 把欄位加到表尾、用自動命名的預設值，弄壞「本機＝正式庫」的結構一致性）。
 # ${1}=資料庫 ${2}=migration 目錄 ${3}=ModelSnapshot.cs。已有歷史表就略過（冪等）。
+# 🔴 E-296／E-330：不可用 `docker exec -i … sqlcmd < 檔案`（stdin 串流）餵檔——sqlcmd 分塊讀取，多位元組 UTF-8 字元跨塊會被切壞成 U+FFFD。
+# 一律 docker cp 進容器後用 -i 讀檔（密碼與既有寫法一致，沿用本檔的 -P）。${1}=資料庫 ${2}=主機上的 SQL 檔 ${3...}=額外 sqlcmd 旗標
+sqlcmd_apply_file() {
+  local db="$1" file="$2" in_ctr="/tmp/tcrfc-localddl-$$-$(basename "$2")"
+  shift 2
+  docker cp "${file}" "${CONTAINER_ID}:${in_ctr}"
+  docker exec "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
+    -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" -f 65001 "$@" -i "${in_ctr}"
+  local rc=$?
+  docker exec -u 0 "${CONTAINER_ID}" rm -f "${in_ctr}" >/dev/null 2>&1 || true
+  return "${rc}"
+}
+
 mark_migrations_applied() {
   local db="$1" mig_dir="$2" snapshot="$3" version ids hist
   assert_allowed_database "${db}"
@@ -189,8 +202,7 @@ mark_migrations_applied() {
     done <<<"${ids}"
     echo "END"
   } >"${hist}"
-  docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
-    -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" -b < "${hist}"
+  sqlcmd_apply_file "${db}" "${hist}" -b
   rm -f "${hist}"
   echo "    已標記 $(printf '%s\n' "${ids}" | grep -c .) 支 migration 為已套用（ProductVersion ${version}）：${db}"
 }
@@ -203,9 +215,7 @@ run_sqlcmd() {
   docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
     -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
     -Q "IF DB_ID('${db}') IS NULL CREATE DATABASE [${db}];"
-  docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
-    -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" \
-    < "${sql_file}"
+  sqlcmd_apply_file "${db}" "${sql_file}"
   if [[ "${db}" == "tcrfc_club" ]]; then
     mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/Data/Migrations" "${REPO_ROOT}/apps/api/Data/Migrations/ClubDbContextModelSnapshot.cs"
   else
@@ -249,9 +259,7 @@ apply_one_db() { # ${1}=資料庫（白名單內）${2}=本機 DDL 檔 ${3}=是�
   if [[ "${needs_ddl}" -eq 1 ]]; then
     echo "    套用 DDL：${ddl}"
     # -b：DDL 出錯就中止（不要在半套結構上繼續標記 migration 為已套用）；-I：QUOTED_IDENTIFIER ON（篩選索引／計算欄位需要）
-    docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
-      -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" -b -I \
-      < "${ddl}"
+    sqlcmd_apply_file "${db}" "${ddl}" -b -I
     if [[ "${db}" == "${CLUB_DATABASE_NAME}" ]]; then
       mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/Data/Migrations" "${REPO_ROOT}/apps/api/Data/Migrations/ClubDbContextModelSnapshot.cs"
     else

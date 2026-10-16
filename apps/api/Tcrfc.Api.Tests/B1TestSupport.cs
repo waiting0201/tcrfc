@@ -1,10 +1,11 @@
 using System.Net.Http.Json;
 using Tcrfc.Api.Features.AdminMembers;
+using Tcrfc.Api.Features.AdminMemberships;
 
 namespace Tcrfc.Api.Tests;
 
 /// <summary>B1（P4 試訓／K1–K4 會員系統／L3–L4 行事曆進階）測試共用工具：查 id、建立與清除測試會員。
-/// 測試資料一律在 finally 清掉；不動種子（會員編號 M9000xx、方案 single／family 等是唯讀依據）。</summary>
+/// 測試資料一律在 finally 清掉；不動種子（會員編號 M9000xx、方案 standard／premium〔磐石〕與 single〔藍鯨〕等是唯讀依據）。</summary>
 internal static class B1Test
 {
     public static Task<Guid> ScalarAsync(string sql, params (string Name, object? Value)[] parameters) => BizTest.ScalarGuidAsync(sql, parameters);
@@ -42,6 +43,22 @@ internal static class B1Test
             phone = phone ?? "0900-000-777", locale = "zh-Hant",
         }));
         return await BizTest.ReadAsync<AdminMemberDetailDto>(response);
+    }
+
+    /// <summary>
+    /// 後台手動開通一份會籍（v3.29：註冊帳號不是會籍，後台也沒有「建立免費會籍」；會籍只由開通方案而來）。
+    /// 起訖日取該球季的起訖（過去的球季如藍鯨 2025 也能開通，補登歷史會籍）。回傳開通後的會籍詳情。
+    /// </summary>
+    public static async Task<AdminMembershipDetailDto> ActivateAsync(HttpClient client, string club, Guid memberId, string seasonCode, string planCode, int amount = 0)
+    {
+        var planId = await PlanIdAsync(club, seasonCode, planCode);
+        var startOn = await BizTest.ScalarStringAsync("SELECT CONVERT(varchar(10), s.start_on, 23) FROM seasons s JOIN clubs c ON c.id = s.club_id WHERE c.code = @C AND s.code = @S", ("@C", club), ("@S", seasonCode));
+        var endOn = await BizTest.ScalarStringAsync("SELECT CONVERT(varchar(10), s.end_on, 23) FROM seasons s JOIN clubs c ON c.id = s.club_id WHERE c.code = @C AND s.code = @S", ("@C", club), ("@S", seasonCode));
+        var response = await client.PostAsync($"/api/v1/admin/{club}/memberships/activate", BizTest.Json(new
+        {
+            memberId, planId, paymentMethod = "onsite", amount, paidOn = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"), startOn, endOn,
+        }));
+        return await BizTest.ReadAsync<AdminMembershipDetailDto>(response);
     }
 
     public static async Task DeleteMembersAsync(params Guid[] memberIds)

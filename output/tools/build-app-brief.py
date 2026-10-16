@@ -334,7 +334,7 @@ C['zh'] = dict(
     stand='這份文件把行動 App 攤開來看：使用者打開 App 之後會看到哪些畫面、每個畫面上放什麼、'
           '哪些內容由後台維護。畫面為<b>功能示意</b>，用來確認架構與流程是否正確，'
           '尚未進入視覺設計。',
-    stamps=[('依據　', '行動 App 功能規劃書 v3.7'), ('分頁　', '5 個　×　畫面 23 個'),
+    stamps=[('依據　', '行動 App 功能規劃書 v3.22'), ('分頁　', '5 個　×　畫面 23 個'),
             ('語言　', '繁中／英文雙語'), ('後台模組　', 'M1–M5　＋　E4–E6（共用官網後台）')],
 
     eyebrow1='App map', h2_1='五個分頁：功能切分，不是球隊切分',
@@ -349,7 +349,7 @@ C['zh'] = dict(
             ('廣告版位', '自售版位，必須標示「廣告」。'),
             ('贊助商 Logo 牆', '<b>不計曝光、不進廣告報表</b>。')]),
         ('2', '賽程', True, [
-            ('兩隊全部球隊', '磐石一線隊、<b>藍鯨一線隊</b>、U15／U14／U12，也可看「全部」。'),
+            ('兩隊全部球隊', '磐石一線隊與學院各梯隊（U10 至 U18）、<b>藍鯨一線隊</b>與青年隊，也可看「全部」。'),
             ('12 個月完整賽程', '未來一整年、聯賽與盃賽都在裡面，依月份分組。'),
             ('依賽事名稱篩選', '企甲、各項盃賽可單獨篩出。'),
             ('單場詳情', '場地導航、加入行事曆、開賽提醒。'),
@@ -416,7 +416,7 @@ C['zh'] = dict(
                     '賽程可靠度是這個 App 的核心賣點，資料一延遲就直接傷到它。'
                     '<br><br><b>後台維護</b>　C1 球隊　／　C4 賽事　／　新增「賽事系列」設定'),
 
-    st03=dict(h='電子會員卡', u='付費會員在店家櫃檯感受最直接的一項', tag='離線可出示',
+    st03=dict(h='電子會員卡', u='會員在店家櫃檯感受最直接的一項', tag='離線可出示',
               lede='<b>每份會籍一張卡</b>——買了兩隊的人有兩張，各自帶該俱樂部的標誌與品牌色，左右滑動切換。'
                    '這樣藍鯨的合作店家看到的就是藍鯨的卡，<b>不會有「這張卡在我這裡到底能不能用」的疑問</b>。',
               items=[('1', '卡面就是那一隊的識別', '磐石的卡用磐石的標誌與桃紅，藍鯨的卡用藍鯨的。'),
@@ -434,21 +434,21 @@ C['zh'] = dict(
 
     st04=dict(h='特約店家與附近地圖', u='會員人在外面時最有用的一頁', tag='需要定位授權',
               lede='「附近有沒有可以打折的店」——這件事網頁做不好，手機做得很好。'
-                   '這是<b>付費會籍價值兌現最直接的時刻</b>，所以清單本身完全公開，未登入也看得完整。',
+                   '這是<b>會籍價值兌現最直接的時刻</b>，所以清單本身完全公開，未登入也看得完整。',
               items=[('1', '依距離排序', '由近至遠，顯示實際距離。<b>定位在手機上算完就丟，不上傳、不儲存。</b>'),
                      ('2', '清單／地圖切換', '地圖上以類別圖示標示。'),
                      ('3', '一鍵導航與撥號', '直接開啟手機地圖或撥號。'),
-                     ('4', '適用層級標示', '「全會員適用」與「限付費會員」要明顯區隔，後者對免費會員顯示升級入口。'),
+                     ('4', '適用層級標示', '「所有會員適用」與「限尊尚層級」要明顯區隔，後者對其他層級與尚無會籍者顯示查看方案入口。'),
                      ('!', '拒絕定位不會讓功能中斷', '退回依地區手動篩選，並保留手動輸入地址查詢。<b>不會因為不給定位就變成一片空白。</b>')],
               admin='<b>還缺一項資料</b><br>目前店家只有地址文字、<b>沒有經緯度座標</b>，距離排序做不了。'
                     '後台會提供「由地址定位」的輔助按鈕，<b>人工確認後儲存</b>——不做每次開 App 就即時查詢，那既慢又貴，也會把使用者位置送出去。'
                     '<br><br><b>後台維護</b>　K4 特約店家（新增座標欄位）'),
 
-    st05=dict(h='加入付費會籍', u='付款在 LINE Pay 完成，之後自動返回', tag='付款頁為站外',
-              lede='付費會籍可以在 App 裡用 <b>LINE Pay</b> 直接完成，付款成功後<b>系統自動開通</b>，'
+    st05=dict(h='加入會籍', u='付款在 LINE Pay 完成，之後自動返回', tag='付款頁為站外',
+              lede='會籍可以在 App 裡用 <b>LINE Pay</b> 直接完成，付款成功後<b>系統自動開通</b>，'
                    '不用等人工確認。權益對照表與方案比較<b>未登入就看得到</b>——它是入會轉換的關鍵，不設登入牆。',
               items=[('1', '先選俱樂部，再選方案', '<b>會籍是每個俱樂部各一份</b>，兩隊球季不同步，各自計期、各自續會。'
-                            '層級維持免費與付費兩層，<b>不因為多一支球隊就多一個層級</b>。'),
+                            '台中磐石有磐石會員與尊尚會員兩級，藍鯨的方案由藍鯨自訂；<b>不因為多一支球隊就多一個層級</b>。'),
                      ('2', '收款方一律是俱樂部', '買藍鯨的會籍，錢一樣進<b>台中磐石足球俱樂部</b>的帳戶、開同一張發票'
                             '（<b>代收代付</b>）。付款畫面明確寫出收款方與這份會籍是哪一隊的，不會讓人搞不清楚。'),
                      ('3', '按鈕上直接寫金額', '避免誤按。'),
@@ -502,31 +502,31 @@ C['zh'] = dict(
     eyebrow4='Access', h2_4='誰看得到什麼',
     p4='特約店家的<b>清單是全公開的</b>，未登入也看得完整——因為它是吸引人加入會員最有效的誘因。'
        '真正的門檻在「到店出示會員卡兌換」這個動作。',
-    acc_th=['功能', '未登入', '免費會員', '付費會員'],
+    acc_th=['功能', '未登入', '僅註冊帳號', '持有會籍'],
     acc_rows=[('<b>兩隊</b>賽程、賽果、賽事詳情', 'y', 'y', 'y'),
               ('追蹤球隊、首次啟動引導', 'y', 'y', 'y'),
               ('加入行事曆、場地導航、開賽提醒', 'y', 'y', 'y'),
               ('新聞與故事、離線閱讀', 'y', 'y', 'y'),
               ('球隊與球員名單', 'y', 'y', 'y'),
               ('特約店家清單、附近地圖、導航撥號', 'y', 'y', 'y'),
-              ('店家優惠<b>實際兌換</b>', 'n', 'p:部分', 'y'),
+              ('店家優惠<b>實際兌換</b>', 'n', 'n', 'p:依店家適用層級'),
               ('課程與營隊瀏覽、報名', 'y', 'y', 'y'),
               ('課程表單自動帶入、我的報名', 'n', 'y', 'y'),
               ('會籍方案與權益對照表', 'y', 'y', 'y'),
-              ('<b>電子會員卡</b>（每份會籍一張，離線可出示）', 'n', 'y', 'y'),
-              ('球衣登記（<b>依會籍分別登記</b>）', 'n', 'n', 'y'),
+              ('<b>電子會員卡</b>（每份會籍一張，離線可出示）', 'n', 'n', 'y'),
+              ('球衣登記（<b>依會籍分別登記</b>，方案含球衣者）', 'n', 'n', 'y'),
               ('<b>抽獎資格</b>（<b>逐俱樂部</b>）', 'n', 'n', 'y'),
               ('通知中心與偏好設定', 'y', 'y', 'y')],
-    acc_note_h='這張表為什麼還是只有三欄',
+    acc_note_h='這張表為什麼是三欄',
     acc_note='因為<b>帳號只有一組</b>，會籍才是分俱樂部的。同一個人可以只買磐石、只買藍鯨，或兩隊都買——'
-             '<b>「只買一隊」是預期狀態，不是例外</b>。但層級仍然只有免費與付費兩層，'
+             '<b>「只買一隊」是預期狀態，不是例外</b>。但註冊帳號不是會籍，沒有會員卡；層級由各俱樂部的方案決定，'
              '<b>不會因為多一支球隊就多一種會員身分</b>。<br>'
-             '表格裡的「付費會員」讀作「<b>在該俱樂部持有有效付費會籍</b>」：'
-             '只買磐石的人，在藍鯨的合作店家就是免費會員，這一點介面上必須隨時講清楚，'
+             '表格裡的「持有會籍」讀作「<b>在該俱樂部持有有效會籍</b>」：'
+             '只買磐石的人，在藍鯨的合作店家就只是註冊帳號，這一點介面上必須隨時講清楚，'
              '<b>不得出現只寫「會籍有效」而不說哪一隊的畫面</b>。',
 
     colophon='台中磐石足球俱樂部　×　台中藍鯨女子隊　·　行動 App 功能說明（客戶版）<br>'
-             '依據《TCRFC 行動 App 功能規劃書》v3.7　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
+             '依據《TCRFC 行動 App 功能規劃書》v3.22　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
              '本文件的用色為說明文件用色，非 App 最終視覺。',
 
 
@@ -542,7 +542,7 @@ C['zh'] = dict(
                 ('bs','10/04（六）19:00'),('cta2',('行事曆','導航'))]),
         ('ad',[('bt','廣告'),('img','s')]),
         ('blk',[('bt','最新消息'),('img','s')]),
-        ('blk',[('bt','我的會員卡'),('bs','球迷會員')])]),
+        ('blk',[('bt','我的會員卡'),('bs','尊尚會員')])]),
       ('S02','賽程列表','兩隊全部球隊，12 個月完整賽程。',1,True,[
         ('chips',(['全部','磐石','藍鯨'],0)),
         ('chipsd',(['企甲','盃賽 01'],0)),
@@ -557,7 +557,7 @@ C['zh'] = dict(
         ('pl',[('bt','賽果'),('bs','賽後填入比分、進球者、卡牌、出賽名單與賽後報導連結')])]),
       ('S04','球隊名單','先分兩間俱樂部，再列所屬球隊。',4,False,[
         ('chips',(['台中磐石','台中藍鯨'],0)),
-        ('chips',(['一線隊','U15','U14'],0)),
+        ('chips',(['一線隊','U18','U16'],0)),
         ('blk',[('bt','守門員'),('bs','01　王○○'),('bs','21　李○○')]),
         ('blk',[('bt','後衛'),('bs','03　張○○'),('bs','05　陳○○')]),
         ('tiny','照片素材待提供')]),
@@ -578,7 +578,7 @@ C['zh'] = dict(
       ('S08','會員中心','會籍逐俱樂部列出，沒買的那一隊顯示加入入口。',2,False,[
         ('blk',[('bt','陳○○'),('bs','TCR-2026-004128')]),
         ('bt','我的會籍'),
-        ('lrow',[('台中磐石　球迷會員','有效至 2027/06/30'),
+        ('lrow',[('台中磐石　尊尚會員','有效至 2027/06/30'),
                  ('台中藍鯨','尚未加入　·　立即加入')]),
         ('lrow',[('球衣登記','磐石 已寄出'),('我的報名','2 筆'),
                  ('抽獎資格','磐石 具備')]),
@@ -586,15 +586,16 @@ C['zh'] = dict(
       ('S09','電子會員卡','每份會籍一張，左右滑動切換，沒訊號也能出示。',2,True,[
         ('card',('TCRFC','台中磐石','有效至　2027/06/30',False,True)),
         ('swipe',(['台中磐石','台中藍鯨'],0))]),
-      ('S10','會籍方案與升級','先選俱樂部再選方案；未登入就看得到。',2,False,[
-        ('blk',[('bt','一般會員'),('bs','免費'),('bs','· 最新消息與賽程')]),
-        ('blk',[('bt','球迷會員'),('bs','NT$ 1,200 ／ 球季'),
-                ('bs','· 該俱樂部的會員卡一張<br>· 球衣一件<br>· 店家折扣<br>· 抽獎資格')]),
+      ('S10','會籍方案','先選俱樂部再選方案；未登入就看得到。',2,False,[
+        ('blk',[('bt','磐石會員'),('bs','建議年費 NT$ 400'),
+                ('bs','· 專屬電子會員卡<br>· 歡迎禮（老帽、行李牌）<br>· 購物折扣 10%')]),
+        ('blk',[('bt','尊尚會員'),('bs','建議年費 NT$ 2,400'),
+                ('bs','· 含磐石會員權益<br>· 限量尊尚禮盒<br>· 優先購票／專屬活動')]),
         ('chips',(['台中磐石','台中藍鯨'],0)),
-        ('cta','加入球迷會員')]),
+        ('cta','加入會籍')]),
       ('S11','付款流程','LINE Pay 完成後自動開通。',2,True,[
         ('pl',[('bs','收款方：台中磐石足球俱樂部')]),
-        ('blk',[('bt','LINE Pay'),('bt','NT$ 1,200'),('ctad','確認付款'),('tiny','取消')]),
+        ('blk',[('bt','LINE Pay'),('bt','NT$ 2,400'),('ctad','確認付款'),('tiny','取消')]),
         ('okb','✓ 會籍已開通')]),
       ('S12','球衣登記','尺寸、領取方式與寄送狀態。',2,False,[
         ('bt','球衣尺寸'),
@@ -607,14 +608,14 @@ C['zh'] = dict(
       ('S13','特約店家清單／地圖','依距離排序，定位只在手機上算。',4,True,[
         ('chips',(['清單','地圖'],0)),
         ('tiny','依距離排序'),
-        ('blk',[('bt','好味小館　和平店'),('bs','餐飲 · 0.4 km · 全會員 9 折'),
+        ('blk',[('bt','好味小館　和平店'),('bs','餐飲 · 0.4 km · 所有會員 9 折'),
                 ('cta2',('導航','撥號'))]),
-        ('blk',[('bt','運動家健身'),('bs','健康 · 1.2 km · 限付費會員')])]),
+        ('blk',[('bt','運動家健身'),('bs','健康 · 1.2 km · 限尊尚層級')])]),
       ('S14','特約店家詳情','適用層級要明顯區隔。',4,False,[
         ('img','t'),('bt','好味小館　和平店'),
         ('kv',[('類別','餐飲'),('地址','台中市和平區…'),('電話','04-2xxx-xxxx'),
                ('營業','11:00–21:00')]),
-        ('blk',[('bt','會員優惠'),('bs','全會員 9 折　·　付費會員 85 折')]),
+        ('blk',[('bt','會員優惠'),('bs','所有會員 9 折　·　尊尚會員 85 折')]),
         ('cta2',('導航','撥號'))]),
       ('S15','課程列表','梯次狀態自動顯示可否報名。',4,False,[
         ('chips',(['全部','兒童','營隊'],0)),
@@ -692,19 +693,19 @@ C['zh'] = dict(
         fx_home='主', fx_away='客',
         fx_seas='整季加入行事曆',
         card_no='會員編號', card_nov='TCR-2026-004128', card_nm='陳○○',
-        card_tier='球迷會員', card_exp='有效至　2027/06/30',
+        card_tier='尊尚會員', card_exp='有效至　2027/06/30',
         card_sync='最後同步　2026/09/10 14:22', card_hint='台中磐石',
         card_hint2='台中藍鯨', card_exp2='尚未加入',
         card_swipe='左右滑動切換　·　每份會籍一張卡',
         store_list='清單', store_map='地圖', store_near='依距離排序',
-        store_1='好味小館　和平店', store_1d='餐飲　·　0.4 km　·　全會員 9 折',
-        store_2='運動家健身　北屯店', store_2d='健康　·　1.2 km　·　限付費會員',
+        store_1='好味小館　和平店', store_1d='餐飲　·　0.4 km　·　所有會員 9 折',
+        store_2='運動家健身　北屯店', store_2d='健康　·　1.2 km　·　限尊尚層級',
         store_nav='導航', store_call='撥號',
-        pay_t='台中磐石　球迷會員', pay_p='NT$ 1,200 ／ 球季',
-        pay_b1='該俱樂部的會員卡一張', pay_b2='球衣一件', pay_b3='特約店家折扣', pay_b4='抽獎資格',
+        pay_t='台中磐石　尊尚會員', pay_p='NT$ 2,400 ／ 球季',
+        pay_b1='專屬電子會員卡', pay_b2='限量尊尚禮盒', pay_b3='優先購票與專屬活動', pay_b4='特約店家折扣與抽獎資格',
         pay_who='收款方：台中磐石足球俱樂部',
-        pay_cta='以 LINE Pay 付款 NT$ 1,200',
-        pay_lp='LINE Pay', pay_lpc='台中磐石足球俱樂部', pay_lpa='NT$ 1,200',
+        pay_cta='以 LINE Pay 付款 NT$ 2,400',
+        pay_lp='LINE Pay', pay_lpc='台中磐石足球俱樂部', pay_lpa='NT$ 2,400',
         pay_ok='確認付款', pay_cancel='取消', pay_back='付款完成後自動返回 App',
         ok='✓ 會籍已開通',
     ),
@@ -720,7 +721,7 @@ C['en'] = dict(
     stand='This document lays the mobile app out screen by screen: what a user sees after opening it, '
           'what sits on each screen, and which content is maintained in the admin. The screens are '
           '<b>functional sketches</b> for confirming structure and flow; visual design has not started.',
-    stamps=[('Based on　', 'Mobile App Specification v3.7'), ('Tabs　', '5　×　23 screens'),
+    stamps=[('Based on　', 'Mobile App Specification v3.22'), ('Tabs　', '5　×　23 screens'),
             ('Languages　', 'Chinese / English'), ('Admin modules　', 'M1–M5　＋　E4–E6 (shared admin)')],
 
     eyebrow1='App map', h2_1='Five tabs, split by function rather than by club',
@@ -737,7 +738,7 @@ C['en'] = dict(
             ('Advertising slot', 'Sold by the club; must be labelled "Advertisement".'),
             ('Sponsor logo wall', '<b>No impressions counted, never in advertising reports.</b>')]),
         ('2', 'Fixtures', True, [
-            ('Every squad, both clubs', 'Rock first team, <b>Blue Whale first team</b>, U15 / U14 / U12, plus an "all" view.'),
+            ('Every squad, both clubs', 'Rock first team and academy squads (U10 to U18), <b>Blue Whale first team</b> and youth teams, plus an "all" view.'),
             ('12-month calendar', 'A full year ahead, league and cup alike, grouped by month.'),
             ('Filter by competition', 'The Premier League and each tournament can be filtered individually.'),
             ('Match detail', 'Venue navigation, add to calendar, kick-off reminder.'),
@@ -815,7 +816,7 @@ C['en'] = dict(
                     'core proposition, and any delay damages it directly.<br><br><b>Maintained in</b>　'
                     'C1 squads　/　C4 fixtures　/　new competition records'),
 
-    st03=dict(h='Digital membership card', u='What a paid member feels most directly at a counter',
+    st03=dict(h='Digital membership card', u='What a member feels most directly at a counter',
               tag='Works offline',
               lede='<b>One card per membership</b> — someone holding both clubs’ memberships has two cards, each '
                    'carrying that club’s crest and colours, switched by swiping. A Blue Whale partner store therefore '
@@ -836,12 +837,12 @@ C['en'] = dict(
     st04=dict(h='Partner stores and the nearby map', u='The most useful screen when a member is out',
               tag='Needs location permission',
               lede='"Is there somewhere nearby that gives me a discount?" — a website answers this badly and a phone '
-                   'answers it well. This is <b>where a paid membership pays for itself</b>, so the directory itself '
+                   'answers it well. This is <b>where a membership pays for itself</b>, so the directory itself '
                    'is fully public and complete without signing in.',
               items=[('1', 'Sorted by distance', 'Nearest first, with the actual distance shown. <b>Location is computed on the phone and discarded; never uploaded, never stored.</b>'),
                      ('2', 'List / map toggle', 'Category icons mark each store on the map.'),
                      ('3', 'One-tap navigation and calling', 'Opens the phone’s maps app or dials directly.'),
-                     ('4', 'Applicable tier', '"All members" and "paid members only" must be clearly distinguished, with an upgrade route shown to free members.'),
+                     ('4', 'Applicable tier', '"All members" and "Prestige tier only" must be clearly distinguished, with a view-plans route shown to other tiers and to anyone without a membership.'),
                      ('!', 'Refusing location does not break it', 'It falls back to filtering by area, and manual address lookup remains available. <b>Declining never produces a blank screen.</b>')],
               admin='<b>One piece of data is still missing</b><br>Stores currently hold text addresses and '
                     '<b>no coordinates</b>, so distance sorting cannot be built. The admin will offer a "locate from '
@@ -849,12 +850,12 @@ C['en'] = dict(
                     'which is slow, costly, and sends the user’s position out.<br><br><b>Maintained in</b>　'
                     'K4 partner stores (new coordinate fields)'),
 
-    st05=dict(h='Joining a paid membership', u='Payment completes in LINE Pay, then returns automatically',
+    st05=dict(h='Joining a membership', u='Payment completes in LINE Pay, then returns automatically',
               tag='Payment page is off-site',
-              lede='A paid membership can be completed in the app with <b>LINE Pay</b>, and <b>the system activates it '
+              lede='A membership can be completed in the app with <b>LINE Pay</b>, and <b>the system activates it '
                    'automatically</b> once payment succeeds. The benefits table and plan comparison are '
                    '<b>visible without signing in</b> — they are the key to conversion and carry no sign-in wall.',
-              items=[('1', 'Choose the club, then the plan', '<b>Membership is one per club</b>; the two seasons are not aligned, so each runs and renews on its own term. Two tiers remain, free and paid; <b>a second club does not add a tier</b>.'),
+              items=[('1', 'Choose the club, then the plan', '<b>Membership is one per club</b>; the two seasons are not aligned, so each runs and renews on its own term. Taichung Rock has two plans, Rock Member and Prestige Member, and Blue Whale sets its own; <b>a second club does not add a tier</b>.'),
                      ('2', 'The collecting party is always the club', 'A Blue Whale membership is still paid into <b>Taichung Rock FC</b>’s account against the same invoice (<b>collected on its behalf</b>). The screen names both the collecting party and which club this membership is for.'),
                      ('3', 'The amount is on the button', 'So nobody taps by accident.'),
                      ('→', 'The order is created before leaving', 'Form contents are saved before handing off to LINE Pay, so a failed payment <b>never asks the user to retype anything</b>.'),
@@ -916,31 +917,31 @@ C['en'] = dict(
     eyebrow4='Access', h2_4='Who can see what',
     p4='The partner-store <b>directory is entirely public</b> and complete without signing in — because it is the '
        'most effective reason anyone has to join. The real threshold is the act of showing a card in the shop.',
-    acc_th=['Feature', 'Signed out', 'Free member', 'Paid member'],
+    acc_th=['Feature', 'Signed out', 'Registered account only', 'Holds a membership'],
     acc_rows=[('<b>Both clubs’</b> fixtures, results, match detail', 'y', 'y', 'y'),
               ('Following squads, first-run onboarding', 'y', 'y', 'y'),
               ('Add to calendar, navigation, kick-off reminders', 'y', 'y', 'y'),
               ('News and stories, offline reading', 'y', 'y', 'y'),
               ('Squads and players', 'y', 'y', 'y'),
               ('Store directory, nearby map, navigation and calling', 'y', 'y', 'y'),
-              ('<b>Redeeming</b> a store offer', 'n', 'p:Some', 'y'),
+              ('<b>Redeeming</b> a store offer', 'n', 'n', 'p:By store tier'),
               ('Browsing and booking programs', 'y', 'y', 'y'),
               ('Form pre-filling, my bookings', 'n', 'y', 'y'),
               ('Membership plans and the benefits table', 'y', 'y', 'y'),
-              ('<b>Digital membership card</b> (one per membership, works offline)', 'n', 'y', 'y'),
-              ('Jersey registration (<b>per membership</b>)', 'n', 'n', 'y'),
+              ('<b>Digital membership card</b> (one per membership, works offline)', 'n', 'n', 'y'),
+              ('Jersey registration (<b>per membership</b>, where the plan includes one)', 'n', 'n', 'y'),
               ('<b>Prize-draw eligibility</b> (<b>club by club</b>)', 'n', 'n', 'y'),
               ('Notification centre and preferences', 'y', 'y', 'y')],
-    acc_note_h='Why this table still has only three columns',
+    acc_note_h='Why this table has three columns',
     acc_note='because <b>the account is single</b>; it is the membership that is per club. The same person may hold '
              'Rock only, Blue Whale only, or both — <b>"one club only" is the expected state, not an exception</b>. '
-             'Tiers remain free and paid, and <b>a second club adds no third kind of member</b>.<br>'
-             '"Paid member" in this table reads as <b>holding a valid paid membership at that club</b>: someone who '
-             'bought Rock only is a free member at Blue Whale’s partner stores. The interface must say so at all '
+             'A registered account is not a membership and has no card; tiers come from each club’s plans, and <b>a second club adds no extra kind of member</b>.<br>'
+             '"Holds a membership" in this table reads as <b>holding a valid membership at that club</b>: someone who '
+             'bought Rock only is just a registered account at Blue Whale’s partner stores. The interface must say so at all '
              'times — <b>no screen may state "membership valid" without naming the club</b>.',
 
     colophon='Taichung Rock FC　×　Taichung Blue Whale　·　Mobile App Feature Overview (Client Edition)<br>'
-             'Based on the TCRFC Mobile App Functional Specification v3.7　·　five tabs　·　'
+             'Based on the TCRFC Mobile App Functional Specification v3.22　·　five tabs　·　'
              'Chinese and English, with the architecture ready for a third language<br>'
              'The colours here belong to this document, not to the app’s final visual design.',
 
@@ -958,7 +959,7 @@ C['en'] = dict(
                 ('bs','Sat 04 Oct 19:00'),('cta2',('Calendar','Navigate'))]),
         ('ad',[('bt','Advertisement'),('img','s')]),
         ('blk',[('bt','Latest news'),('img','s')]),
-        ('blk',[('bt','My membership card'),('bs','Fan Club')])]),
+        ('blk',[('bt','My membership card'),('bs','Prestige Member')])]),
       ('S02','Fixture list','Every squad of both clubs, 12 months ahead.',1,True,[
         ('chips',(['All','Rock','Whale'],0)),
         ('chipsd',(['Premier','Tournament 01'],0)),
@@ -973,7 +974,7 @@ C['en'] = dict(
         ('pl',[('bt','Result'),('bs','Score, scorers, cards, line-up and a link to the report, added after the match')])]),
       ('S04','Squad','Split by club first, then by squad.',4,False,[
         ('chips',(['Taichung Rock','Blue Whale'],0)),
-        ('chips',(['First Team','U15','U14'],0)),
+        ('chips',(['First Team','U18','U16'],0)),
         ('blk',[('bt','Goalkeepers'),('bs','01　Wang ○○'),('bs','21　Li ○○')]),
         ('blk',[('bt','Defenders'),('bs','03　Chang ○○'),('bs','05　Chen ○○')]),
         ('tiny','Photographs outstanding')]),
@@ -994,7 +995,7 @@ C['en'] = dict(
       ('S08','Member centre','Memberships listed club by club; the club not joined shows a join entry.',2,False,[
         ('blk',[('bt','Chen ○○'),('bs','TCR-2026-004128')]),
         ('bt','My memberships'),
-        ('lrow',[('Taichung Rock　Fan Club','Valid to 30 Jun 2027'),
+        ('lrow',[('Taichung Rock　Prestige Member','Valid to 30 Jun 2027'),
                  ('Taichung Blue Whale','Not joined　·　Join now')]),
         ('lrow',[('Jersey registration','Rock — dispatched'),('My bookings','2'),
                  ('Prize-draw eligibility','Rock — eligible')]),
@@ -1002,15 +1003,16 @@ C['en'] = dict(
       ('S09','Digital membership card','One per membership, swipe to switch, presentable with no signal.',2,True,
         [('card',('TCRFC','Taichung Rock','Valid to　30 Jun 2027',False,True)),
          ('swipe',(['Taichung Rock','Taichung Blue Whale'],0))]),
-      ('S10','Plans and upgrade','Choose the club, then the plan; visible without signing in.',2,False,[
-        ('blk',[('bt','Registered member'),('bs','Free'),('bs','· News and fixtures')]),
-        ('blk',[('bt','Fan Club member'),('bs','NT$1,200 / season'),
-                ('bs','· One card for that club<br>· One jersey<br>· Store discounts<br>· Prize-draw eligibility')]),
+      ('S10','Membership plans','Choose the club, then the plan; visible without signing in.',2,False,[
+        ('blk',[('bt','Rock Member'),('bs','Suggested NT$400 / year'),
+                ('bs','· Dedicated digital member card<br>· Welcome gift (cap, luggage tag)<br>· 10% shopping discount')]),
+        ('blk',[('bt','Prestige Member'),('bs','Suggested NT$2,400 / year'),
+                ('bs','· Everything in Rock Member<br>· Limited Prestige gift box<br>· Priority tickets / exclusive events')]),
         ('chips',(['Taichung Rock','Taichung Blue Whale'],0)),
-        ('cta','Join the Fan Club')]),
+        ('cta','Join a membership')]),
       ('S11','Payment flow','Activated automatically once LINE Pay succeeds.',2,True,[
         ('pl',[('bs','Collected by Taichung Rock FC')]),
-        ('blk',[('bt','LINE Pay'),('bt','NT$1,200'),('ctad','Confirm payment'),('tiny','Cancel')]),
+        ('blk',[('bt','LINE Pay'),('bt','NT$2,400'),('ctad','Confirm payment'),('tiny','Cancel')]),
         ('okb','✓ Membership activated')]),
       ('S12','Jersey registration','Size, collection method, dispatch status.',2,False,[
         ('bt','Jersey size'),
@@ -1025,12 +1027,12 @@ C['en'] = dict(
         ('tiny','Sorted by distance'),
         ('blk',[('bt','Hao Wei Diner　Heping'),('bs','Food · 0.4 km · 10% off, all members'),
                 ('cta2',('Navigate','Call'))]),
-        ('blk',[('bt','Athlete Gym'),('bs','Health · 1.2 km · paid members only')])]),
+        ('blk',[('bt','Athlete Gym'),('bs','Health · 1.2 km · Prestige tier only')])]),
       ('S14','Store detail','The applicable tier must be unmistakable.',4,False,[
         ('img','t'),('bt','Hao Wei Diner　Heping'),
         ('kv',[('Category','Food'),('Address','Heping, Taichung…'),('Phone','04-2xxx-xxxx'),
                ('Hours','11:00–21:00')]),
-        ('blk',[('bt','Member offer'),('bs','10% off all members　·　15% off paid members')]),
+        ('blk',[('bt','Member offer'),('bs','10% off all members　·　15% off Prestige Members')]),
         ('cta2',('Navigate','Call'))]),
       ('S15','Program list','Session status decides whether booking is open.',4,False,[
         ('chips',(['All','Children','Camps'],0)),
@@ -1114,20 +1116,20 @@ C['en'] = dict(
         fx_home='H', fx_away='A',
         fx_seas='Add the season to my calendar',
         card_no='Member number', card_nov='TCR-2026-004128', card_nm='Chen ○○',
-        card_tier='Fan Club', card_exp='Valid to　30 Jun 2027',
+        card_tier='Prestige Member', card_exp='Valid to　30 Jun 2027',
         card_sync='Last synced　10 Sep 2026 14:22', card_hint='Taichung Rock',
         card_hint2='Taichung Blue Whale', card_exp2='Not joined',
         card_swipe='Swipe to switch　·　one card per membership',
         store_list='List', store_map='Map', store_near='Sorted by distance',
         store_1='Hao Wei Diner　Heping', store_1d='Food　·　0.4 km　·　10% off, all members',
-        store_2='Athlete Gym　Beitun', store_2d='Health　·　1.2 km　·　paid members only',
+        store_2='Athlete Gym　Beitun', store_2d='Health　·　1.2 km　·　Prestige tier only',
         store_nav='Navigate', store_call='Call',
-        pay_t='Taichung Rock　Fan Club', pay_p='NT$1,200 / season',
-        pay_b1='One card for that club', pay_b2='One jersey', pay_b3='Partner store discounts',
-        pay_b4='Prize-draw eligibility',
+        pay_t='Taichung Rock　Prestige Member', pay_p='NT$2,400 / season',
+        pay_b1='Dedicated digital member card', pay_b2='Limited Prestige gift box', pay_b3='Priority tickets and exclusive events',
+        pay_b4='Partner discounts and prize draw',
         pay_who='Collected by Taichung Rock FC',
-        pay_cta='Pay NT$1,200 with LINE Pay',
-        pay_lp='LINE Pay', pay_lpc='Taichung Rock FC', pay_lpa='NT$1,200',
+        pay_cta='Pay NT$2,400 with LINE Pay',
+        pay_lp='LINE Pay', pay_lpc='Taichung Rock FC', pay_lpa='NT$2,400',
         pay_ok='Confirm payment', pay_cancel='Cancel', pay_back='Returns to the app automatically',
         ok='✓ Membership activated',
     ),
@@ -1359,7 +1361,7 @@ def build(c):
       <div class="bs">{store_2d}</div>
       <div class="cta" style="margin-top:1.2mm">{upg}</div></div>
     <div class="blk pl"><div class="bs" style="text-align:center">{more}</div></div>
-    """.format(upg=('升級為付費會員' if c['lang'] != 'en' else 'Upgrade to a paid membership'),
+    """.format(upg=('查看會籍方案' if c['lang'] != 'en' else 'View membership plans'),
                more=('⌖　' + ('依你的位置排序' if c['lang'] != 'en' else 'Ordered by your location')),
                **ph)
     ph04 = phone(sc04, chip=c['chip'], tabs=ph['home_tabs'], on=4)

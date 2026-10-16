@@ -494,8 +494,9 @@ public sealed class AdminDashboardRepository(
         return new AdminDashboardMembersDto
         {
             ActiveMemberships = await memberships.CountAsync(m => m.Status == "active", cancellationToken),
-            ActivePaidMemberships = await memberships.CountAsync(m => m.Status == "active" && m.Tier == "fan_club", cancellationToken),
-            ExpiringIn30Days = await memberships.CountAsync(m => m.Status == "active" && m.Tier == "fan_club"
+            ActivePaidMemberships = await memberships.CountAsync(m => m.Status == "active", cancellationToken),
+            ActivePremiumMemberships = await memberships.CountAsync(m => m.Status == "active" && m.Tier == "premium", cancellationToken),
+            ExpiringIn30Days = await memberships.CountAsync(m => m.Status == "active"
                 && m.MembershipEndOn != null && m.MembershipEndOn >= today && m.MembershipEndOn <= in30, cancellationToken),
             PendingUpgrades = await memberships.CountAsync(m => m.Status == "pending", cancellationToken),
         };

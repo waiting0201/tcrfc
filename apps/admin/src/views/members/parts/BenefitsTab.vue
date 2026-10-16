@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
  * 「會員權益」分頁：權益對照表（掛在方案底下），在對話框內新增／編輯，不另開頁。
- * 「一般會員」「付費球迷會員」兩欄是前台對照表的兩欄內容（例如 ✓、✗、9 折）。
+ * 前台對照表以方案為欄：每個方案各有自己的條目，條目帶「該方案的對應值」（例如 ✓、✗、10%）。
+ * 要讓兩個方案的同一條權益排在對照表同一列，新增時選「沿用其他方案的權益」。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -41,6 +42,8 @@ const club = computed(() => activeClubId.value)
 const plans = ref<MembershipPlanListItemDto[]>([])
 const groups = ref<BenefitGroupOptionDto[]>([])
 const rows = ref<MembershipBenefitListItemDto[]>([])
+/** 全部權益（不受篩選影響），用來提供「沿用其他方案的權益」選項。 */
+const allBenefits = ref<MembershipBenefitListItemDto[]>([])
 const filters = ref({ planId: '', group: '', status: '' })
 const loading = ref(true)
 const loadError = ref<string | null>(null)
@@ -67,9 +70,10 @@ async function load() {
   }
 }
 async function loadRefs() {
-  const [p, g] = await Promise.allSettled([listMembershipPlans(club.value), listBenefitGroups(club.value)])
+  const [p, g, b] = await Promise.allSettled([listMembershipPlans(club.value), listBenefitGroups(club.value), listMembershipBenefits(club.value)])
   plans.value = p.status === 'fulfilled' ? p.value : []
   groups.value = g.status === 'fulfilled' ? g.value : []
+  allBenefits.value = b.status === 'fulfilled' ? b.value : []
 }
 onMounted(() => {
   loadRefs()
@@ -83,6 +87,21 @@ watch(club, () => {
 function clearFilters() {
   filters.value = { planId: '', group: '', status: '' }
   load()
+}
+/** 可沿用的權益：其他方案已有、所選方案還沒有的條目（以代碼去重）。 */
+const alignOptions = computed(() => {
+  const taken = new Set(allBenefits.value.filter((b) => b.planId === form.planId).map((b) => b.code))
+  const seen = new Map<string, MembershipBenefitListItemDto>()
+  for (const b of allBenefits.value) if (!taken.has(b.code) && !seen.has(b.code)) seen.set(b.code, b)
+  return [...seen.values()]
+})
+watch(() => form.planId, () => { if (!editingId.value) form.code = '' })
+function onAlign(code: string | undefined) {
+  const src = alignOptions.value.find((o) => o.code === code)
+  if (!src) return
+  form.group = src.group
+  if (!form.nameZh) form.nameZh = src.nameZh ?? ''
+  if (!form.nameEn) form.nameEn = src.nameEn ?? ''
 }
 const planLabel = (p: MembershipPlanListItemDto) => `${p.seasonCode}｜${p.nameZh || p.code}`
 
@@ -134,25 +153,26 @@ const dialogError = ref<string | null>(null)
 const formErrors = provideFormErrors()
 const form = reactive({
   planId: '',
+  /** 條目代碼：新增時空白＝系統產生；編輯時沿用原值；沿用其他方案的權益時帶該條代碼。 */
+  code: '',
   group: 'member_card' as BenefitGroup,
   status: 'published' as StoreStatus,
   nameZh: '',
   nameEn: '',
   descZh: '',
   descEn: '',
-  freeZh: '',
-  freeEn: '',
-  paidZh: '',
-  paidEn: '',
+  valueZh: '',
+  valueEn: '',
 })
 const readOnly = computed(() => (editingId.value ? !canUpdate.value : !canCreate.value))
 
 function resetForm() {
   Object.assign(form, {
     planId: filters.value.planId || '',
+    code: '',
     group: groups.value[0]?.code ?? 'member_card',
     status: 'published',
-    nameZh: '', nameEn: '', descZh: '', descEn: '', freeZh: '', freeEn: '', paidZh: '', paidEn: '',
+    nameZh: '', nameEn: '', descZh: '', descEn: '', valueZh: '', valueEn: '',
   })
 }
 function openCreate() {
@@ -175,16 +195,15 @@ async function openEdit(row: MembershipBenefitListItemDto) {
     const d = await getMembershipBenefit(club.value, row.id)
     Object.assign(form, {
       planId: d.planId,
+      code: d.code,
       group: d.group,
       status: d.status,
       nameZh: d.zh.name ?? '',
       nameEn: d.en?.name ?? '',
       descZh: d.zh.description ?? '',
       descEn: d.en?.description ?? '',
-      freeZh: d.zh.freeValue ?? '',
-      freeEn: d.en?.freeValue ?? '',
-      paidZh: d.zh.paidValue ?? '',
-      paidEn: d.en?.paidValue ?? '',
+      valueZh: d.zh.value ?? '',
+      valueEn: d.en?.value ?? '',
     })
   } catch (error) {
     dialogError.value = errorMessage(error, '資料載入失敗，請關閉後重試')
@@ -204,23 +223,22 @@ async function save() {
   }
   const payload: SaveBenefitPayload = {
     planId: form.planId,
+    ...(form.code ? { code: form.code } : {}),
     group: form.group,
     status: form.status,
     content: {
       zh: {
         name: form.nameZh.trim(),
         description: nullIfBlank(form.descZh),
-        freeValue: nullIfBlank(form.freeZh),
-        paidValue: nullIfBlank(form.paidZh),
+        value: nullIfBlank(form.valueZh),
       },
       en: enOrUndefined(
         {
           name: form.nameEn.trim(),
           description: nullIfBlank(form.descEn) as string,
-          freeValue: nullIfBlank(form.freeEn) as string,
-          paidValue: nullIfBlank(form.paidEn) as string,
+          value: nullIfBlank(form.valueEn) as string,
         },
-        'name', 'description', 'freeValue', 'paidValue',
+        'name', 'description', 'value',
       ),
     },
   }
@@ -231,7 +249,7 @@ async function save() {
     else await createMembershipBenefit(club.value, payload)
     ElMessage.success('已儲存')
     dialogOpen.value = false
-    await load()
+    await Promise.all([load(), loadRefs()])
   } catch (error) {
     // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放對話框頂部
     if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
@@ -261,7 +279,7 @@ async function save() {
         <el-button v-if="canCreate" type="primary" @click="openCreate">+ 新增權益</el-button>
       </div>
       <p class="ben-tab__hint">
-        權益對照表掛在各方案底下，前台會依方案顯示「一般會員」與「付費球迷會員」兩欄的內容。
+        權益對照表掛在各方案底下，前台以方案為欄（磐石會員、尊尚會員）並排顯示各自的對應值。
         {{ canUpdate ? (canReorder ? '' : '要調整順序，請先只選一個方案（不要再加分組或狀態篩選）。') : '' }}
       </p>
     </el-card>
@@ -276,8 +294,7 @@ async function save() {
           <el-table-column label="方案" min-width="150"><template #default="{ row }">{{ row.seasonCode }}｜{{ row.planName || row.planCode }}</template></el-table-column>
           <el-table-column label="分組" width="110" prop="groupLabel" />
           <el-table-column label="權益名稱" min-width="150"><template #default="{ row }">{{ row.nameZh || '（未命名）' }}</template></el-table-column>
-          <el-table-column label="一般會員" width="110"><template #default="{ row }">{{ row.freeValueZh || '—' }}</template></el-table-column>
-          <el-table-column label="付費球迷會員" width="120"><template #default="{ row }">{{ row.paidValueZh || '—' }}</template></el-table-column>
+          <el-table-column label="該方案的對應值" width="140"><template #default="{ row }">{{ row.valueZh || '—' }}</template></el-table-column>
           <el-table-column label="狀態" width="90">
             <template #default="{ row }"><el-tag :type="row.status === 'published' ? 'success' : 'info'" size="small">{{ row.statusLabel || (row.status === 'published' ? '已發布' : '草稿') }}</el-tag></template>
           </el-table-column>
@@ -299,8 +316,7 @@ async function save() {
           <template #meta="{ row }">
             <span>{{ row.seasonCode }}｜{{ row.planName || row.planCode }}</span>
             <span>{{ row.groupLabel }}</span>
-            <span>一般：{{ row.freeValueZh || '—' }}</span>
-            <span>付費：{{ row.paidValueZh || '—' }}</span>
+            <span>對應值：{{ row.valueZh || '—' }}</span>
             <el-tag :type="row.status === 'published' ? 'success' : 'info'" size="small">{{ row.statusLabel || (row.status === 'published' ? '已發布' : '草稿') }}</el-tag>
           </template>
           <template #actions="{ row }">
@@ -338,10 +354,15 @@ async function save() {
             </el-col>
           </el-row>
           <p v-if="editingId" class="ben-tab__hint">權益建立後，不能更換所屬方案。</p>
+          <FormField v-if="!editingId" field="code" label="沿用其他方案的權益（選填）">
+            <el-select v-model="form.code" clearable filterable placeholder="不沿用，建立新的權益列" style="width: 100%" @change="onAlign">
+              <el-option v-for="o in alignOptions" :key="o.code" :label="o.nameZh || '（未命名）'" :value="o.code" />
+            </el-select>
+            <p class="ben-tab__hint">想讓這一條和另一個方案的某條權益排在對照表同一列，請在這裡選它；不選就是新的一列。</p>
+          </FormField>
           <BilingualShortField field="name" label="權益名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="(v) => (form.nameZh = v)" @update:en="(v) => (form.nameEn = v)" />
           <BilingualTextareaField field="description" label="說明" :zh="form.descZh" :en="form.descEn" :rows="2" @update:zh="(v) => (form.descZh = v)" @update:en="(v) => (form.descEn = v)" />
-          <BilingualShortField field="freeValue" label="一般會員的內容（例如 ✓、✗、9 折）" :zh="form.freeZh" :en="form.freeEn" @update:zh="(v) => (form.freeZh = v)" @update:en="(v) => (form.freeEn = v)" />
-          <BilingualShortField field="paidValue" label="付費球迷會員的內容" :zh="form.paidZh" :en="form.paidEn" @update:zh="(v) => (form.paidZh = v)" @update:en="(v) => (form.paidEn = v)" />
+          <BilingualShortField field="value" label="該方案的對應值（例如 ✓、✗、10%、一件）" :zh="form.valueZh" :en="form.valueEn" @update:zh="(v) => (form.valueZh = v)" @update:en="(v) => (form.valueEn = v)" />
           <p class="ben-tab__hint">英文名稱有填，才會產生英文版；分組名稱的英文由系統自動帶入。</p>
           <FormField field="status" label="狀態">
             <el-radio-group v-model="form.status"><el-radio value="published">已發布</el-radio><el-radio value="draft">草稿</el-radio></el-radio-group>

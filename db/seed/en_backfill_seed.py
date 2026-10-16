@@ -320,7 +320,7 @@ WHERE e.locale = N'en' AND {key};
     # ── 會員抽獎（【測試】；member_draws_i18n 是正式庫禁用表，prod 內容種子會自動剔除這兩批）──
     fill("member_draws", "member_draws_i18n", "member_draw_id", club(f"z.name = {esc('【測試】主場賽事日球迷抽獎')}"), {
         "name": "[Test] Match-day fan prize draw", "prize_description": "[Test] One signed jersey",
-        "rules": "[Test] Placeholder rules: eligibility is based on holding a valid fan club membership with this club at the "
+        "rules": "[Test] Placeholder rules: eligibility is based on holding a valid membership with this club at the "
                  "reference time; members holding memberships with both clubs may enter each club's draw separately.",
         "notes": "[Test] Placeholder notes."})
     fill("member_draws", "member_draws_i18n", "member_draw_id", club(f"z.name = {esc('【測試】直播球迷抽獎（草稿）')}"), {
@@ -632,8 +632,8 @@ WHERE e.locale = N'en' AND {key};
     fill("fan_events", "fan_events_i18n", "fan_event_id", bwc(f"z.name = {esc('【測試】藍鯨球迷日')}"), {
         "name": "[Test] Blue Whale fan day", "description": "[Test] Demo fan event hosted by Blue Whale.",
         "location": "[Test] No. 1, Test Road, Xitun District, Taichung City"})
-    fill("membership_plans", "membership_plans_i18n", "membership_plan_id", bwc(f"z.name = {esc('【測試】藍鯨球迷會員（單人）')}"), {
-        "name": "Blue Whale Fan Club (Single)", "benefit_note": "[Test] Includes one membership card and one welcome jersey."})
+    fill("membership_plans", "membership_plans_i18n", "membership_plan_id", bwc(f"z.name = {esc('【測試】藍鯨會員（單人）')}"), {
+        "name": "Blue Whale Member (Single)", "benefit_note": "[Test] Includes one membership card and one welcome jersey."})
     fill("products", "products_i18n", "product_id", bwc(f"z.name = {esc('【測試】藍鯨球衣')}"), {
         "name": "[Test] Blue Whale jersey", "narrative": "[Test] Placeholder product narrative.", "tags": "[Test],Demo"})
     fill("partner_stores", "partner_stores_i18n", "partner_store_id", bwc(f"z.name = {esc('【測試】藍鯨示範店家')}"), {

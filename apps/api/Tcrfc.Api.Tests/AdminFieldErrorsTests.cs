@@ -172,7 +172,7 @@ public sealed class AdminFieldErrorsTests(AdminWriteApiFixture fixture)
         ])));
         Assert.Equal(["tags[1].slug"], (await ReadAsync(badTag)).Errors!.Keys);
 
-        var badValue = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(Article(UniqueSlug(), coreValues: ["integrity", "not-a-value"])));
+        var badValue = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(Article(UniqueSlug(), coreValues: ["inspiring_players", "not-a-value"])));
         var (_, valueErrors) = await ReadAsync(badValue);
         Assert.Equal(["coreValueTags[1]"], valueErrors!.Keys);
         Assert.DoesNotContain("not-a-value", valueErrors["coreValueTags[1]"]); // 不回顯內部代碼

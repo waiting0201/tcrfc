@@ -13,11 +13,14 @@ namespace Tcrfc.Api.Tests;
 public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
 {
     /// <summary>
-    /// 本機驗收測資（<c>backoffice_seed.py</c> 區段 60）新增的兩位球迷會員（M900101／M900102，球衣登記用）同樣符合抽獎資格，
+    /// 本機驗收測資（<c>backoffice_seed.py</c> 區段 60）新增的兩位會員（M900101／M900102，球衣登記用）同樣符合抽獎資格，
     /// 所以「種子合格名單」是 M900001／M900002 加上這兩位。<c>DevAcceptanceSeedTests</c> 守門種子仍存在；
     /// 這裡斷言總數時一律加上它，序號與雜湊相關斷言只看原本兩位（會員編號排序，新增的兩位排在後面）。
     /// </summary>
     private const int DevAcceptanceEligible = 2;
+
+    /// <summary>種子合格會員（v3.29：任一層級的有效會籍皆有抽獎資格）：M900001／M900002（尊尚會員）、M900003（磐石會員）；M900004 待確認、M900005 已到期、M900006／M900007 僅註冊帳號，皆不合格。</summary>
+    private const int SeedEligible = 3;
 
     private const string Draws = "/api/v1/admin/tcrfc/draws";
 
@@ -33,7 +36,7 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
         internalNote = extraNote,
         content = new
         {
-            zh = new { name = "【測試】球迷抽獎", prizeDescription = "【測試】簽名球衣兩件", rules = rules ? "【測試】活動辦法：資格為基準時間當下持有有效球迷會員會籍；同時具備兩隊會籍者可分別參加兩隊抽獎。" : null, notes = "注意事項" },
+            zh = new { name = "【測試】球迷抽獎", prizeDescription = "【測試】簽名球衣兩件", rules = rules ? "【測試】活動辦法：資格為基準時間當下持有有效會籍（磐石會員或尊尚會員）；同時具備兩隊會籍者可分別參加兩隊抽獎。" : null, notes = "注意事項" },
             en = new { name = "[Test] Fan prize draw" },
         },
     };
@@ -168,15 +171,15 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
                 await CleanupAsync(noSnapshot.DrawCode);
             }
 
-            // 試算：不寫資料、不配號；種子的合格會員是 M900001／M900002（停用的 M900005、一般會員不算）
+            // 試算：不寫資料、不配號；種子的合格會員是 M900001／M900002／M900003（已到期的 M900005、待確認的 M900004、僅註冊帳號不算）
             var preview = await BizTest.ReadAsync<AdminRosterPreviewDto>(await C1Test.PostEmptyAsync(service, $"{Draws}/{draw.Id}/roster/preview"));
-            Assert.Equal(2 + DevAcceptanceEligible, preview.EligibleCount);
+            Assert.Equal(SeedEligible + DevAcceptanceEligible, preview.EligibleCount);
             Assert.Equal(0, await ShopTest.CountAsync("SELECT COUNT(*) FROM draw_rosters WHERE member_draw_id = @D", ("@D", draw.Id)));
 
             // 產生並鎖定
             var locked = await BizTest.ReadAsync<AdminDrawDetailDto>(await C1Test.PostJsonAsync(service, $"{Draws}/{draw.Id}/roster", new { }));
             Assert.Equal("名單已鎖定", locked.StatusLabel);
-            Assert.Equal(2 + DevAcceptanceEligible, locked.TotalCount);
+            Assert.Equal(SeedEligible + DevAcceptanceEligible, locked.TotalCount);
             Assert.Equal(64, locked.RosterHash?.Length);
             Assert.NotNull(locked.LockedByName);
             Assert.Single(locked.Versions);
@@ -193,12 +196,13 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
                 Assert.Equal(HttpStatusCode.Forbidden, (await pr.GetAsync($"{Draws}/{draw.Id}/roster?reveal=true")).StatusCode); // 沒有解除遮罩權限
             }
 
-            Assert.Equal(new[] { 1, 2 }, roster.Items.Where(r => string.CompareOrdinal(r.MemberNo, "M900100") < 0).Select(r => r.SerialNo).ToArray());
-            Assert.Equal(new[] { "M900001", "M900002" }, roster.Items.Select(r => r.MemberNo).Where(n => string.CompareOrdinal(n, "M900100") < 0).ToArray()); // 依會員編號升冪
-            Assert.All(roster.Items, r => Assert.Equal("球迷會員", r.TierLabel));
+            Assert.Equal(new[] { 1, 2, 3 }, roster.Items.Where(r => string.CompareOrdinal(r.MemberNo, "M900100") < 0).Select(r => r.SerialNo).ToArray());
+            Assert.Equal(new[] { "M900001", "M900002", "M900003" }, roster.Items.Select(r => r.MemberNo).Where(n => string.CompareOrdinal(n, "M900100") < 0).ToArray()); // 依會員編號升冪
+            Assert.Equal("尊尚會員", roster.Items.First(r => r.MemberNo == "M900001").TierLabel);
+            Assert.Equal("磐石會員", roster.Items.First(r => r.MemberNo == "M900003").TierLabel); // 兩級會籍都有抽獎資格
             Assert.Equal("【測試】會員甲", roster.Items[0].Name); // 客服可看完整姓名快照
             // 名單雜湊可由名單內容重算
-            var expectedHash = AdminDrawsRepository.ComputeHash(code, 1, roster.Items.Select(r => (r.SerialNo, r.MemberNo, r.Name, "fan_club", r.MembershipEndOn)).ToList());
+            var expectedHash = AdminDrawsRepository.ComputeHash(code, 1, roster.Items.Select(r => (r.SerialNo, r.MemberNo, r.Name, r.Tier, r.MembershipEndOn)).ToList());
             Assert.Equal(expectedHash, locked.RosterHash);
 
             // 鎖定後：不能逐列新增或刪除（沒有這種端點）、不能改基準時間與活動代碼
@@ -219,10 +223,10 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             Assert.False(oldVersion.IsCurrent);
             Assert.True(regenerated.Versions.Single(v => v.Version == 2).IsCurrent);
             Assert.NotEqual(locked.RosterHash, regenerated.RosterHash); // 雜湊含版本
-            Assert.Equal(2 + DevAcceptanceEligible, await ShopTest.CountAsync("SELECT COUNT(*) FROM draw_rosters WHERE member_draw_id = @D AND roster_version = 1", ("@D", draw.Id)));
-            Assert.Equal(2 + DevAcceptanceEligible, await ShopTest.CountAsync("SELECT COUNT(*) FROM draw_rosters WHERE member_draw_id = @D AND roster_version = 2", ("@D", draw.Id)));
+            Assert.Equal(SeedEligible + DevAcceptanceEligible, await ShopTest.CountAsync("SELECT COUNT(*) FROM draw_rosters WHERE member_draw_id = @D AND roster_version = 1", ("@D", draw.Id)));
+            Assert.Equal(SeedEligible + DevAcceptanceEligible, await ShopTest.CountAsync("SELECT COUNT(*) FROM draw_rosters WHERE member_draw_id = @D AND roster_version = 2", ("@D", draw.Id)));
             var oldRoster = await BizTest.ReadAsync<PagedResult<AdminRosterEntryDto>>(await service.GetAsync($"{Draws}/{draw.Id}/roster?version=1"));
-            Assert.Equal(2 + DevAcceptanceEligible, oldRoster.TotalCount);
+            Assert.Equal(SeedEligible + DevAcceptanceEligible, oldRoster.TotalCount);
             Assert.Equal(1, (await BizTest.ReadAsync<PagedResult<AdminRosterEntryDto>>(await service.GetAsync($"{Draws}/{draw.Id}/roster?keyword=M900002"))).TotalCount);
             Assert.Equal(1, (await BizTest.ReadAsync<PagedResult<AdminRosterEntryDto>>(await service.GetAsync($"{Draws}/{draw.Id}/roster?keyword=1"))).Items.Count(r => r.SerialNo == 1));
         }
@@ -250,7 +254,7 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             Assert.Equal(0, preview.EligibleCount);
             var none = await C1Test.PostJsonAsync(admin, $"/api/v1/admin/bw/draws/{draw.Id}/roster", new { });
             Assert.Equal(HttpStatusCode.Conflict, none.StatusCode);
-            Assert.Contains("沒有任何合格", await C1Test.BodyAsync(none));
+            Assert.Contains("沒有任何持有效會籍的會員", await C1Test.BodyAsync(none));
 
             // 把基準時間拉回 2025 年球季期間：藍鯨的 M900001 才合格（同一個人在磐石與藍鯨是兩份名單）
             var earlier = await admin.PutAsync($"/api/v1/admin/bw/draws/{draw.Id}", BizTest.Multipart(DrawPayload(code, snapshot: DateTime.Parse("2025-05-01T00:00:00Z").ToUniversalTime())));
@@ -509,7 +513,7 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             Assert.Equal((2, "M900002"), (winner.SerialNo, winner.MemberNo));
             Assert.Contains('○', winner.MaskedName!);
             Assert.DoesNotContain("會員乙", await C1Test.BodyAsync(await pr.GetAsync($"{Draws}/{draw.Id}/announcement-preview")));
-            Assert.Equal(2 + DevAcceptanceEligible, preview.EligibleCount);
+            Assert.Equal(SeedEligible + DevAcceptanceEligible, preview.EligibleCount);
             // 公關／媒體有「檢視（遮罩）」：名單看得到，但姓名一律遮罩、完整值需要 member.pii.reveal（沒有）；不因此取得任何會員模組權限
             var maskedRoster = await pr.GetAsync($"{Draws}/{draw.Id}/roster");
             Assert.Equal(HttpStatusCode.OK, maskedRoster.StatusCode);
@@ -588,7 +592,7 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             var article = await BizTest.ReadAsync<AdminArticleDetailDto>(await admin.GetAsync($"/api/v1/admin/tcrfc/news/{draft.ArticleId}"));
             Assert.Equal("club", article.CategoryCode);
             Assert.Equal("draft", article.Status);
-            Assert.Contains(article.Tags, t => t.Slug == "member-draw" && t.NameZh == "球迷會員抽獎" && t.NameEn == "Member Draw");
+            Assert.Contains(article.Tags, t => t.Slug == "member-draw" && t.NameZh == "會員抽獎" && t.NameEn == "Member Draw");
             Assert.Contains("中獎名單公布", article.Zh.Title);
             Assert.Contains("M900001", article.Zh.Body);
             Assert.DoesNotContain("會員甲", article.Zh.Body);
@@ -651,7 +655,7 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.Conflict, (await C1Test.PostJsonAsync(service, $"{url}/roster", new { voidReason = "x" })).StatusCode);
             // 作廢版本的資料保留，不能刪除活動
             Assert.Equal(HttpStatusCode.Conflict, (await service.DeleteAsync(url)).StatusCode);
-            Assert.Equal(2 + DevAcceptanceEligible, await ShopTest.CountAsync("SELECT COUNT(*) FROM draw_rosters WHERE member_draw_id = @D", ("@D", draw.Id)));
+            Assert.Equal(SeedEligible + DevAcceptanceEligible, await ShopTest.CountAsync("SELECT COUNT(*) FROM draw_rosters WHERE member_draw_id = @D", ("@D", draw.Id)));
         }
         finally
         {

@@ -58,6 +58,9 @@ const ALLOWED_FILES = new Set([
   // 頁面文字——實際渲染邏輯已改讀 ACADEMY_TEAM_TABS／academyTeamCodesLabel()。
   'app/pages/zh/academy/teams.vue',
   'app/pages/zh/index.vue',
+  // 2026-10-16（v3.29）：客戶 4.4 訓練課程與課綱原文，「各梯隊訓練時間與地點」表格逐列列出客戶文件寫的訓練場地
+  // （例如太原足球場）。那是各梯隊的訓練地點，不是「俱樂部主場」這項單一事實；內容同時是 B1 固定頁的種子來源。
+  'shared/utils/academy-curriculum.ts',
 ])
 
 // ---------------------------------------------------------------------------
@@ -81,6 +84,10 @@ const FORBIDDEN_LITERALS = [
   'U15、U14、U12',
   'U15／U12',
   'U15、U12',
+  // v3.29：磐石學院梯隊改為 U10／U12／U14／U16／U18（唯一維護處 site-facts.ts squadCodes）
+  'U10／U12／U14／U16／U18',
+  'U10、U12、U14、U16、U18',
+  'U10 / U12 / U14 / U16 / U18',
 ]
 
 function collectFiles(dir) {

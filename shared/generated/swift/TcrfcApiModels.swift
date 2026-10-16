@@ -346,17 +346,20 @@ public struct AppConfigResponse: Codable, Equatable, Sendable {
     public var generatedAt: JSONValue
     public var ios: AppPlatformConfig
     public var android: AppPlatformConfig
+    public var mediaBaseUrl: String?
     public var evaluation: AppConfigEvaluation?
 
     public init(
         generatedAt: JSONValue,
         ios: AppPlatformConfig,
         android: AppPlatformConfig,
+        mediaBaseUrl: String? = nil,
         evaluation: AppConfigEvaluation? = nil
     ) {
         self.generatedAt = generatedAt
         self.ios = ios
         self.android = android
+        self.mediaBaseUrl = mediaBaseUrl
         self.evaluation = evaluation
     }
 }
@@ -878,42 +881,74 @@ public struct BenefitGroupPublicDto: Codable, Equatable, Sendable {
 }
 
 public struct BenefitItemPublicDto: Codable, Equatable, Sendable {
+    public var code: String
     public var name: String?
     public var isFallbackLocale: Bool
     public var description: String?
-    public var freeValue: String?
-    public var paidValue: String?
+    public var values: [BenefitPlanValueDto]
 
     public init(
+        code: String,
         name: String? = nil,
         isFallbackLocale: Bool,
         description: String? = nil,
-        freeValue: String? = nil,
-        paidValue: String? = nil
+        values: [BenefitPlanValueDto]
     ) {
+        self.code = code
         self.name = name
         self.isFallbackLocale = isFallbackLocale
         self.description = description
-        self.freeValue = freeValue
-        self.paidValue = paidValue
+        self.values = values
+    }
+}
+
+public struct BenefitPlanColumnDto: Codable, Equatable, Sendable {
+    public var code: String
+    public var tier: String
+    public var tierLabel: String
+    public var name: String?
+    public var isFallbackLocale: Bool
+    public var fee: Int
+
+    public init(
+        code: String,
+        tier: String,
+        tierLabel: String,
+        name: String? = nil,
+        isFallbackLocale: Bool,
+        fee: Int
+    ) {
+        self.code = code
+        self.tier = tier
+        self.tierLabel = tierLabel
+        self.name = name
+        self.isFallbackLocale = isFallbackLocale
+        self.fee = fee
+    }
+}
+
+public struct BenefitPlanValueDto: Codable, Equatable, Sendable {
+    public var planCode: String
+    public var value: String?
+
+    public init(
+        planCode: String,
+        value: String? = nil
+    ) {
+        self.planCode = planCode
+        self.value = value
     }
 }
 
 public struct BenefitTablePublicDto: Codable, Equatable, Sendable {
-    public var planCode: String?
-    public var planName: String?
-    public var isFallbackLocale: Bool
+    public var plans: [BenefitPlanColumnDto]
     public var groups: [BenefitGroupPublicDto]
 
     public init(
-        planCode: String? = nil,
-        planName: String? = nil,
-        isFallbackLocale: Bool,
+        plans: [BenefitPlanColumnDto],
         groups: [BenefitGroupPublicDto]
     ) {
-        self.planCode = planCode
-        self.planName = planName
-        self.isFallbackLocale = isFallbackLocale
+        self.plans = plans
         self.groups = groups
     }
 }
@@ -2425,6 +2460,34 @@ public struct MemberLoginRequest: Codable, Equatable, Sendable {
     }
 }
 
+public struct MemberOpenOrderDto: Codable, Equatable, Sendable {
+    public var orderNo: String
+    public var status: String
+    public var statusLabel: String
+    public var clubCode: String
+    public var planCode: String
+    public var planName: String?
+    public var seasonCode: String
+
+    public init(
+        orderNo: String,
+        status: String,
+        statusLabel: String,
+        clubCode: String,
+        planCode: String,
+        planName: String? = nil,
+        seasonCode: String
+    ) {
+        self.orderNo = orderNo
+        self.status = status
+        self.statusLabel = statusLabel
+        self.clubCode = clubCode
+        self.planCode = planCode
+        self.planName = planName
+        self.seasonCode = seasonCode
+    }
+}
+
 public struct MemberPendingOrderDto: Codable, Equatable, Sendable {
     public var orderNo: String
     public var status: String
@@ -2832,6 +2895,9 @@ public struct MembershipOrderDto: Codable, Equatable, Sendable {
 
 public struct MembershipPlanPublicDto: Codable, Equatable, Sendable {
     public var code: String
+    public var tier: String
+    public var tierLabel: String
+    public var shopDiscountPercent: Int
     public var name: String?
     public var isFallbackLocale: Bool
     public var benefitNote: String?
@@ -2845,6 +2911,9 @@ public struct MembershipPlanPublicDto: Codable, Equatable, Sendable {
 
     public init(
         code: String,
+        tier: String,
+        tierLabel: String,
+        shopDiscountPercent: Int,
         name: String? = nil,
         isFallbackLocale: Bool,
         benefitNote: String? = nil,
@@ -2857,6 +2926,9 @@ public struct MembershipPlanPublicDto: Codable, Equatable, Sendable {
         endsOn: String
     ) {
         self.code = code
+        self.tier = tier
+        self.tierLabel = tierLabel
+        self.shopDiscountPercent = shopDiscountPercent
         self.name = name
         self.isFallbackLocale = isFallbackLocale
         self.benefitNote = benefitNote
@@ -2962,13 +3034,16 @@ public struct MyMembershipDto: Codable, Equatable, Sendable {
 public struct MyMembershipsDto: Codable, Equatable, Sendable {
     public var memberships: [MyMembershipDto]
     public var joinableClubs: [MemberJoinableClubDto]
+    public var openOrders: [MemberOpenOrderDto]
 
     public init(
         memberships: [MyMembershipDto],
-        joinableClubs: [MemberJoinableClubDto]
+        joinableClubs: [MemberJoinableClubDto],
+        openOrders: [MemberOpenOrderDto]
     ) {
         self.memberships = memberships
         self.joinableClubs = joinableClubs
+        self.openOrders = openOrders
     }
 }
 
@@ -4930,6 +5005,8 @@ public struct ShopCartDto: Codable, Equatable, Sendable {
     public var items: [ShopCartItemDto]
     public var itemCount: Int
     public var subtotal: Int
+    public var memberDiscountTotal: Int
+    public var memberDiscountPercent: Int?
     public var shipping: ShopCartShippingDto
     public var canCheckout: Bool
 
@@ -4939,6 +5016,8 @@ public struct ShopCartDto: Codable, Equatable, Sendable {
         items: [ShopCartItemDto],
         itemCount: Int,
         subtotal: Int,
+        memberDiscountTotal: Int,
+        memberDiscountPercent: Int? = nil,
         shipping: ShopCartShippingDto,
         canCheckout: Bool
     ) {
@@ -4947,6 +5026,8 @@ public struct ShopCartDto: Codable, Equatable, Sendable {
         self.items = items
         self.itemCount = itemCount
         self.subtotal = subtotal
+        self.memberDiscountTotal = memberDiscountTotal
+        self.memberDiscountPercent = memberDiscountPercent
         self.shipping = shipping
         self.canCheckout = canCheckout
     }
@@ -4965,6 +5046,8 @@ public struct ShopCartItemDto: Codable, Equatable, Sendable {
     public var listPrice: Int
     public var unitPrice: Int
     public var onSale: Bool
+    public var memberDiscountApplied: Bool
+    public var memberDiscountAmount: Int
     public var quantity: Int
     public var lineTotal: Int
     public var availableQty: Int
@@ -4985,6 +5068,8 @@ public struct ShopCartItemDto: Codable, Equatable, Sendable {
         listPrice: Int,
         unitPrice: Int,
         onSale: Bool,
+        memberDiscountApplied: Bool,
+        memberDiscountAmount: Int,
         quantity: Int,
         lineTotal: Int,
         availableQty: Int,
@@ -5004,6 +5089,8 @@ public struct ShopCartItemDto: Codable, Equatable, Sendable {
         self.listPrice = listPrice
         self.unitPrice = unitPrice
         self.onSale = onSale
+        self.memberDiscountApplied = memberDiscountApplied
+        self.memberDiscountAmount = memberDiscountAmount
         self.quantity = quantity
         self.lineTotal = lineTotal
         self.availableQty = availableQty
@@ -5160,6 +5247,7 @@ public struct ShopOrderDto: Codable, Equatable, Sendable {
     public var deliveryMethod: String
     public var deliveryMethodLabel: String
     public var subtotal: Int
+    public var memberDiscountAmount: Int
     public var shippingFee: Int
     public var total: Int
     public var items: [ShopOrderItemDto]
@@ -5190,6 +5278,7 @@ public struct ShopOrderDto: Codable, Equatable, Sendable {
         deliveryMethod: String,
         deliveryMethodLabel: String,
         subtotal: Int,
+        memberDiscountAmount: Int,
         shippingFee: Int,
         total: Int,
         items: [ShopOrderItemDto],
@@ -5219,6 +5308,7 @@ public struct ShopOrderDto: Codable, Equatable, Sendable {
         self.deliveryMethod = deliveryMethod
         self.deliveryMethodLabel = deliveryMethodLabel
         self.subtotal = subtotal
+        self.memberDiscountAmount = memberDiscountAmount
         self.shippingFee = shippingFee
         self.total = total
         self.items = items
@@ -5277,6 +5367,7 @@ public struct ShopOrderItemDto: Codable, Equatable, Sendable {
     public var unitPrice: Int
     public var quantity: Int
     public var lineTotal: Int
+    public var memberDiscountAmount: Int
 
     public init(
         productName: String,
@@ -5284,7 +5375,8 @@ public struct ShopOrderItemDto: Codable, Equatable, Sendable {
         sku: String,
         unitPrice: Int,
         quantity: Int,
-        lineTotal: Int
+        lineTotal: Int,
+        memberDiscountAmount: Int
     ) {
         self.productName = productName
         self.variantLabel = variantLabel
@@ -5292,6 +5384,7 @@ public struct ShopOrderItemDto: Codable, Equatable, Sendable {
         self.unitPrice = unitPrice
         self.quantity = quantity
         self.lineTotal = lineTotal
+        self.memberDiscountAmount = memberDiscountAmount
     }
 }
 
@@ -5367,6 +5460,7 @@ public struct ShopProductDetailDto: Codable, Equatable, Sendable {
     public var collectionName: String?
     public var tags: [String]
     public var isNewArrival: Bool
+    public var memberDiscountEligible: Bool
     public var sizeChart: JSONValue?
     public var images: [ShopImageDto]
     public var variants: [ShopVariantDto]
@@ -5387,6 +5481,7 @@ public struct ShopProductDetailDto: Codable, Equatable, Sendable {
         collectionName: String? = nil,
         tags: [String],
         isNewArrival: Bool,
+        memberDiscountEligible: Bool,
         sizeChart: JSONValue? = nil,
         images: [ShopImageDto],
         variants: [ShopVariantDto],
@@ -5406,6 +5501,7 @@ public struct ShopProductDetailDto: Codable, Equatable, Sendable {
         self.collectionName = collectionName
         self.tags = tags
         self.isNewArrival = isNewArrival
+        self.memberDiscountEligible = memberDiscountEligible
         self.sizeChart = sizeChart
         self.images = images
         self.variants = variants
@@ -5425,6 +5521,7 @@ public struct ShopProductListItemDto: Codable, Equatable, Sendable {
     public var collectionName: String?
     public var tags: [String]
     public var isNewArrival: Bool
+    public var memberDiscountEligible: Bool
     public var imageUrl: String?
     public var imageThumbUrl: String?
     public var imageWidth: Int?
@@ -5446,6 +5543,7 @@ public struct ShopProductListItemDto: Codable, Equatable, Sendable {
         collectionName: String? = nil,
         tags: [String],
         isNewArrival: Bool,
+        memberDiscountEligible: Bool,
         imageUrl: String? = nil,
         imageThumbUrl: String? = nil,
         imageWidth: Int? = nil,
@@ -5466,6 +5564,7 @@ public struct ShopProductListItemDto: Codable, Equatable, Sendable {
         self.collectionName = collectionName
         self.tags = tags
         self.isNewArrival = isNewArrival
+        self.memberDiscountEligible = memberDiscountEligible
         self.imageUrl = imageUrl
         self.imageThumbUrl = imageThumbUrl
         self.imageWidth = imageWidth

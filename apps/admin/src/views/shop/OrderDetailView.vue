@@ -261,17 +261,18 @@ function onRefundCreated(id: string | null) {
       <el-card shadow="never" header="訂購品項" class="order-detail__block">
         <el-table :data="order.items" row-key="id">
           <el-table-column label="商品" min-width="180"><template #default="{ row }"><div>{{ row.productName }}</div><div class="order-detail__muted">{{ row.variantLabel }}・{{ row.sku }}</div></template></el-table-column>
-          <el-table-column label="單價" width="100"><template #default="{ row }">{{ formatMoney(row.unitPrice) }}</template></el-table-column>
+          <el-table-column label="單價" width="100"><template #default="{ row }">{{ formatMoney(row.unitPrice) }}<div v-if="row.memberDiscountAmount > 0" class="order-detail__muted">已含會員折扣</div></template></el-table-column>
           <el-table-column label="數量" width="70" prop="quantity" />
           <el-table-column label="小計" width="110"><template #default="{ row }">{{ formatMoney(row.lineTotal) }}</template></el-table-column>
           <el-table-column label="已退" width="70"><template #default="{ row }">{{ row.refundedQuantity || '—' }}</template></el-table-column>
         </el-table>
         <div class="order-detail__sum">
           <div>商品小計 {{ formatMoney(order.subtotal) }}</div>
+          <div v-if="order.memberDiscountAmount > 0">其中會員折扣 −{{ formatMoney(order.memberDiscountAmount) }}（單價與小計已是折扣後的金額）</div>
           <div>運費 {{ formatMoney(order.shippingFee) }}</div>
           <div><strong>訂單總額 {{ formatMoney(order.total) }}</strong></div>
         </div>
-        <p class="order-detail__hint">品項是下單當下的複本，之後商品改名或改價不會影響這張訂單。</p>
+        <p class="order-detail__hint">品項是下單當下的複本，之後商品改名或改價不會影響這張訂單。收款、電子發票明細與退款，都以折扣後的金額為準。</p>
       </el-card>
 
       <el-card shadow="never" class="order-detail__block">
@@ -299,6 +300,7 @@ function onRefundCreated(id: string | null) {
       <el-row :gutter="16">
         <el-col :xs="24" :md="12">
           <el-card shadow="never" header="發票" class="order-detail__block">
+            <p v-if="order.invoice && order.memberDiscountAmount > 0" class="order-detail__hint">發票明細的單價與金額是會員折扣後的金額（折扣 {{ formatMoney(order.memberDiscountAmount) }}）。</p>
             <p v-if="!order.invoice" class="order-detail__hint">尚無發票紀錄。電子發票尚未串接（取得商店號後啟用），目前不會自動開立。</p>
             <dl v-else class="order-detail__dl">
               <div><dt>發票號碼</dt><dd>{{ order.invoice.invoiceNo || '—' }}</dd></div>

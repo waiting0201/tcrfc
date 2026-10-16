@@ -53,6 +53,12 @@ public partial class Order
 
     public Guid? UpdatedBy { get; set; }
 
+    /// <summary>因商店會員折扣少收的總額（已含在 <see cref="Subtotal"/> 內，即小計已是折後金額）。</summary>
+    public int MemberDiscountAmount { get; set; }
+
+    /// <summary>套用會員折扣當時的會籍方案（值複製）；沒有套用折扣為空。</summary>
+    public Guid? MemberDiscountPlanId { get; set; }
+
     public string PaymentMethod { get; set; } = null!;
 
     public string? CustomerNote { get; set; }

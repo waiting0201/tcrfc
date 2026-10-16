@@ -35,6 +35,9 @@ public partial class OrderItem
 
     public Guid? UpdatedBy { get; set; }
 
+    /// <summary>這一列因會員折扣少收的金額（單價差 × 數量；單價與小計快照已是折後值）。</summary>
+    public int MemberDiscountAmount { get; set; }
+
     public virtual Club Club { get; set; } = null!;
 
     public virtual AdminUser? CreatedByNavigation { get; set; }

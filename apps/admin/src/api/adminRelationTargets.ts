@@ -48,7 +48,7 @@ export interface RelationTargetOption {
 const HOME_AWAY_LABEL: Record<string, string> = { home: '主場', away: '客場' }
 
 /**
- * 球員選擇器選項。標籤刻意不帶隊別代號（`teamCode` 是 `D1`／`U15` 這種內部代號，
+ * 球員選擇器選項。標籤刻意不帶隊別代號（`teamCode` 是 `D1`／`U12` 這種內部代號，
  * docs/06-conventions.md §1「後台介面用語」不得出現在畫面文字），只用姓名與背號辨識。
  * 一次抓滿（`pageSize=200`，全系統目前不到 30 位球員），選擇器本身用 `filterable`
  * 讓使用者在瀏覽器端打字篩選，不需要伺服器端搜尋 API。

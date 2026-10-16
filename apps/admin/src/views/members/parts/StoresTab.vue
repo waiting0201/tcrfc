@@ -129,7 +129,7 @@ async function handleDelete(row: PartnerStoreListItemDto) {
 }
 
 const period = (row: PartnerStoreListItemDto) => (row.startOn || row.endOn ? `${row.startOn ?? '—'} ～ ${row.endOn ?? '—'}` : '長期合作')
-const tierText = (row: PartnerStoreListItemDto) => row.applicableTierLabel || (row.applicableTier === 'fan_club' ? '限付費球迷會員' : '全部會員')
+const tierText = (row: PartnerStoreListItemDto) => row.applicableTierLabel || (row.applicableTier === 'premium' ? '限尊尚會員' : '所有會員')
 const edit = (row: PartnerStoreListItemDto) => router.push(`/members/partner-stores/${row.id}/edit`)
 </script>
 
@@ -147,8 +147,8 @@ const edit = (row: PartnerStoreListItemDto) => router.push(`/members/partner-sto
           <el-option v-for="r in regions" :key="r" :label="r" :value="r" />
         </el-select>
         <el-select v-model="filters.tier" placeholder="適用層級" clearable class="stores-tab__select" @change="load">
-          <el-option label="全部會員" value="all" />
-          <el-option label="限付費球迷會員" value="fan_club" />
+          <el-option label="所有會員" value="all" />
+          <el-option label="限尊尚會員" value="premium" />
         </el-select>
         <el-select v-model="filters.status" placeholder="狀態" clearable class="stores-tab__select" @change="load">
           <el-option label="已發布" value="published" />

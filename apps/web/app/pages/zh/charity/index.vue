@@ -38,7 +38,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">11 Charity &amp; Impact</p>
     <h1><template v-if="isEn">Charity &amp; Impact</template><template v-else>{{ tx('慈善與社會影響', 'Charity & Impact') }}<span class="en">Charity &amp; Impact</span></template></h1>
-    <p class="page-hero__lede"><template v-if="isEn">Guided by its core value of <strong>Community</strong>, Taichung Rock FC uses football as a medium for public-interest work. This is where you will find the club's charitable philosophy, charity programs, impact stories and impact data, as well as the entry point for corporate partnerships and fan donations.</template><template v-else>台中磐石足球俱樂部秉持「<strong>Community 社區共好</strong>」核心價值，以足球為媒介投入公益。這裡集結俱樂部的慈善理念、公益計畫、事蹟紀錄與影響力數據，也是企業合作與球迷捐款的入口。</template></p>
+    <p class="page-hero__lede"><template v-if="isEn">Guided by its core value of <strong>Local pride</strong>, Taichung Rock FC uses football as a medium for public-interest work. This is where you will find the club's charitable philosophy, charity programs, impact stories and impact data, as well as the entry point for corporate partnerships and fan donations.</template><template v-else>台中磐石足球俱樂部秉持「<strong>Local pride 在地驕傲</strong>」核心價值，以足球為媒介投入公益。這裡集結俱樂部的慈善理念、公益計畫、事蹟紀錄與影響力數據，也是企業合作與球迷捐款的入口。</template></p>
   </div>
 </section>
 

@@ -13,7 +13,8 @@ import {
 const club$ = (club: string) => `/api/v1/admin/${club}`
 
 export type StoreStatus = 'published' | 'draft'
-export type StoreTier = 'all' | 'fan_club'
+/** 適用層級：all＝所有會員、premium＝限尊尚會員（逐家設定）。 */
+export type StoreTier = 'all' | 'premium'
 
 export interface PartnerStoreListItemDto {
   id: string
@@ -137,10 +138,13 @@ export function reorderPartnerStores(club: string, ids: string[]): Promise<void>
 
 // ── 權益對照表 ────────────────────────────────────────
 
-export type BenefitGroup = 'member_card' | 'store_discount' | 'jersey' | 'event'
+/** 分組：會員卡／折扣與優惠／禮品／活動／內容與溝通。 */
+export type BenefitGroup = 'member_card' | 'discount' | 'gift' | 'event' | 'content'
 
 export interface MembershipBenefitListItemDto {
   id: string
+  /** 條目代碼：各方案以代碼對齊成權益對照表。畫面上不顯示，只在「沿用其他方案的權益」時帶入。 */
+  code: string
   planId: string
   planCode: string
   planName?: string | null
@@ -152,16 +156,16 @@ export interface MembershipBenefitListItemDto {
   statusLabel?: string | null
   nameZh?: string | null
   nameEn?: string | null
-  freeValueZh?: string | null
-  paidValueZh?: string | null
+  /** 該方案的對應值（✓、✗ 或文字如 10%）。 */
+  valueZh?: string | null
+  valueEn?: string | null
   updatedAt: string
 }
 
 export interface BenefitLocaleContent {
   name: string
   description?: string | null
-  freeValue?: string | null
-  paidValue?: string | null
+  value?: string | null
 }
 
 export interface MembershipBenefitDetailDto extends MembershipBenefitListItemDto {
@@ -176,6 +180,8 @@ export interface BenefitGroupOptionDto {
 
 export interface SaveBenefitPayload {
   planId: string
+  /** 新增時省略＝由系統產生；沿用其他方案的權益時帶該條的代碼。更新時不可變更（帶原值）。 */
+  code?: string
   group: BenefitGroup
   sortOrder?: number
   status: StoreStatus

@@ -6,13 +6,13 @@
 // 不出 500、不放假資料（比照 useHomeSections／useFaqEmbed 既有 fail-open 慣例）。
 import type { PublicPartner, PublicSponsor, PublicSponsorPackage, PublicProposal } from '#shared/utils/partners'
 
-export async function usePartnerList(options: { home?: boolean } = {}) {
+export async function usePartnerList(options: { home?: boolean, type?: string } = {}) {
   const config = useRuntimeConfig()
   const { locale } = useLocale()
   const club = config.public.club
   const { data, error } = await useFetch<PublicPartner[]>(`/api/backend/${club}/partners`, {
-    query: { lang: locale.value, ...(options.home ? { home: true } : {}) },
-    key: `partners-${club}-${locale.value}-${options.home ? 'home' : 'all'}`,
+    query: { lang: locale.value, ...(options.home ? { home: true } : {}), ...(options.type ? { type: options.type } : {}) },
+    key: `partners-${club}-${locale.value}-${options.home ? 'home' : 'all'}${options.type ? `-${options.type}` : ''}`,
   })
   return { partners: computed(() => data.value ?? []), failed: computed(() => Boolean(error.value)) }
 }

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // app/pages/zh/academy/pathway.vue — 由 site/src/pages/zh/academy/pathway/index.html 轉來（S0-9 靜態頁搬遷）
 //
+// 2026-10-16（v3.29，客戶 4.3）：磐石三階段改為培育（U10、U12）→ 發展（U14、U16）→ 職業（U18、一線隊）。
 // S2-8（2026-09-29）：改為細粒度 unit '4.3'（原本粗粒度 '04' 零俱樂部分支，藍鯨容器
 // 會直接顯示磐石內容，屬於既有缺口，見 units.ts 檔頭說明）。本頁全部既有內容都是
 // 「準備中」通用佔位文字，沒有磐石專屬真實事實，改為兩俱樂部共用同一份文案（只換
@@ -11,7 +12,8 @@ const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
-const stage3 = computed(() => getAcademyPathwayStage3(clubKey.value))
+// 三階段：磐石＝培育（U10、U12）→ 發展（U14、U16）→ 職業（U18、一線隊）；藍鯨維持 U12 → U15 → 一線隊（club-copy.ts）
+const stages = computed(() => getAcademyPathwayStages(clubKey.value))
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
 
@@ -51,43 +53,13 @@ const hero = computed(() => (isEn.value ? getAcademyPathwayHeroEn(clubKey.value)
   <div class="container">
 
     <ol class="path-track">
-      <li class="path-step">
+      <li v-for="(stage, idx) in stages" :key="stage.eyebrow" class="path-step">
         <details>
           <summary>
-            <span class="path-step__num" aria-hidden="true">01</span>
+            <span class="path-step__num" aria-hidden="true">{{ String(idx + 1).padStart(2, '0') }}</span>
             <span class="path-step__body">
-              <span class="path-step__en">Stage 1 · U12</span>
-              <span class="path-step__zh">{{ tx('起步階段', 'Foundation Stage') }}</span>
-            </span>
-            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
-          </summary>
-          <div class="path-step__detail">
-            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
-          </div>
-        </details>
-      </li>
-      <li class="path-step">
-        <details>
-          <summary>
-            <span class="path-step__num" aria-hidden="true">02</span>
-            <span class="path-step__body">
-              <span class="path-step__en">Stage 2 · U15</span>
-              <span class="path-step__zh">{{ tx('深化階段', 'Development Stage') }}</span>
-            </span>
-            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
-          </summary>
-          <div class="path-step__detail">
-            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
-          </div>
-        </details>
-      </li>
-      <li class="path-step">
-        <details>
-          <summary>
-            <span class="path-step__num" aria-hidden="true">03</span>
-            <span class="path-step__body">
-              <span class="path-step__en">{{ tx(stage3.stageEn, 'Stage 3') }}</span>
-              <span class="path-step__zh">{{ tx(stage3.zh, stage3.en) }}</span>
+              <span class="path-step__en">{{ stage.eyebrow }}</span>
+              <span class="path-step__zh">{{ tx(stage.zh, stage.en) }}</span>
             </span>
             <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>
@@ -112,7 +84,7 @@ const hero = computed(() => (isEn.value ? getAcademyPathwayHeroEn(clubKey.value)
       <a class="cta-card" :href="lp('/zh/academy/curriculum/')">
         <span class="cta-card__num">4.4</span>
         <span class="cta-card__title">{{ tx('訓練課程與課綱', 'Training & Curriculum') }}</span>
-        <p class="cta-card__desc">{{ tx('五大訓練面向與週期規劃', 'Five training pillars and how the training cycle is planned') }}</p>
+        <p class="cta-card__desc">{{ isTcrfc ? tx('訓練理念、培訓架構與賽事規劃', 'Training philosophy, structure and competition plan') : tx('五大訓練面向與週期規劃', 'Five training pillars and how the training cycle is planned') }}</p>
       </a>
       <!-- 4.7 加入學院對藍鯨已整頁關閉（既有 units.ts，S1-15），不連結一個會 404 的頁面。 -->
       <a v-if="isTcrfc" class="cta-card" :href="lp('/zh/academy/join/')">

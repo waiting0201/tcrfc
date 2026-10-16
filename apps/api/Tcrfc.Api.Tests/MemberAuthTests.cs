@@ -83,7 +83,7 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
     }
 
     [Fact]
-    public async Task Email驗證_完成後成為一般會員並有會員卡_無效或錯用途的權杖被擋()
+    public async Task Email驗證_完成後可登入但不建立會籍與會員卡_無效或錯用途的權杖被擋()
     {
         using var client = _scope.Client();
         var email = _scope.NewEmail("verify");
@@ -106,11 +106,9 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
         var session = await MemberTestScope.LoginAsync(client, email, "Abcdefg1");
         using var me = _scope.Client(session.AccessToken);
         var memberships = await ReadJsonAsync(await me.GetAsync("/api/v1/member/memberships"));
-        var first = memberships.GetProperty("memberships")[0];
-        Assert.Equal("tcrfc", first.GetProperty("club").GetProperty("code").GetString());
-        Assert.Equal("registered", first.GetProperty("tier").GetString());
-        Assert.Equal("active", first.GetProperty("status").GetString());
-        Assert.Equal(1, first.GetProperty("cards").GetArrayLength());
+        // 🔴 v3.29（客戶 8.2）：註冊帳號不是會籍——驗證 Email 後可登入、可報名購物，但沒有會籍、沒有電子會員卡
+        Assert.Equal(0, memberships.GetProperty("memberships").GetArrayLength());
+        Assert.Equal(0, (await ReadJsonAsync(await me.GetAsync("/api/v1/member/cards"))).GetArrayLength());
 
         // 重設密碼用途的權杖不能拿來驗證 Email
         await client.PostAsync("/api/v1/member/auth/forgot-password", Json(new { email, club = "tcrfc" }));
@@ -346,6 +344,7 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
     {
         var m = await _scope.CreateVerifiedMemberAsync("delete");
         using var client = _scope.Client();
+        await MemberTestScope.BuyMembershipAsync(m, "standard"); // 註冊帳號沒有會員卡；買了方案才有卡可以驗證作廢
         var cards = await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/cards"));
         var cardToken = cards[0].GetProperty("token").GetString()!;
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/v1/m/{cardToken}")).StatusCode);
@@ -484,7 +483,7 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
         Assert.Equal("line", profile.GetProperty("signupSource").GetString());
         Assert.False(profile.GetProperty("emailVerified").GetBoolean());
         var memberships = await ReadJsonAsync(await lineClient.GetAsync("/api/v1/member/memberships"));
-        Assert.Equal("tcrfc", memberships.GetProperty("memberships")[0].GetProperty("club").GetProperty("code").GetString()); // LINE 已證明身分，直接成為一般會員
+        Assert.Equal(0, memberships.GetProperty("memberships").GetArrayLength()); // 註冊帳號（含 LINE 註冊）不是會籍，v3.29
 
         // LINE 帳號沒有密碼：不能用密碼登入
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.PostAsync("/api/v1/member/auth/login", Json(new { email, password = "Abcdefg1" }))).StatusCode);

@@ -19,7 +19,7 @@ public sealed record FanEventListItemDto
     public int? Capacity { get; init; }
     /// <summary>剩餘名額；null＝不限。已報名（含已到場）佔名額，候補不佔。</summary>
     public int? SpotsLeft { get; init; }
-    /// <summary>true＝限付費球迷會員報名。</summary>
+    /// <summary>true＝限持有效會籍者報名（欄位名沿用，v3.29 語意：任一層級的有效會籍皆可，註冊帳號不算）。</summary>
     public required bool IsPaidMembersOnly { get; init; }
     /// <summary>目前是否開放報名（已發布、截止與開始時間未過）。額滿時仍為 true——額滿後報名會進候補，見 <c>IsFull</c>。</summary>
     public required bool IsRegistrationOpen { get; init; }

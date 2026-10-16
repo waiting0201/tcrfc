@@ -18,6 +18,48 @@ namespace Tcrfc.Api.Tests;
 public sealed class BusinessPublicEndpointsTests(AdminWriteApiFixture fixture)
 {
     [Fact]
+    public async Task 夥伴_5_5合作學校列表的資料來源_類型教育夥伴_套合作期間濾法_未填起訖視為進行中()
+    {
+        using var client = await BizTest.ClientAsync(fixture, null);
+        var clubId = await BizTest.ScalarGuidAsync("SELECT id FROM clubs WHERE code = N'tcrfc'");
+        var active = (Id: Guid.NewGuid(), Slug: BizTest.Unique("t-edu-active"));
+        var ended = (Id: Guid.NewGuid(), Slug: BizTest.Unique("t-edu-ended"));
+        var future = (Id: Guid.NewGuid(), Slug: BizTest.Unique("t-edu-future"));
+        var brand = (Id: Guid.NewGuid(), Slug: BizTest.Unique("t-edu-brand"));
+        try
+        {
+            foreach (var (p, type, startOn, endOn) in new[]
+            {
+                (active, "教育夥伴", (string?)null, (string?)null), // 未填起訖＝進行中
+                (ended, "教育夥伴", "2020-01-01", "2020-12-31"),
+                (future, "教育夥伴", "2999-01-01", null),
+                (brand, "品牌夥伴", null, null),
+            })
+            {
+                await BizTest.ExecuteSqlAsync("INSERT INTO partners (id, club_id, slug, partner_type, start_on, end_on) VALUES (@Id, @C, @S, @T, @A, @B)",
+                    ("@Id", p.Id), ("@C", clubId), ("@S", p.Slug), ("@T", type), ("@A", startOn), ("@B", endOn));
+                await BizTest.ExecuteSqlAsync("INSERT INTO partners_i18n (partner_id, locale, name) VALUES (@Id, N'zh-Hant', N'【測試】學校')", ("@Id", p.Id));
+            }
+
+            // 前台 5.5 合作學校列表：GET /partners?type=教育夥伴（E1 合作夥伴中類型為「教育」者）
+            var schools = await BizTest.ReadAsync<List<PartnerDto>>(await client.GetAsync("/api/v1/tcrfc/partners?type=" + Uri.EscapeDataString("教育夥伴")));
+            Assert.All(schools, p => Assert.Equal("教育夥伴", p.PartnerType));
+            Assert.Contains(schools, p => p.Slug == active.Slug);
+            Assert.DoesNotContain(schools, p => p.Slug == ended.Slug); // 合作期間已結束
+            Assert.DoesNotContain(schools, p => p.Slug == future.Slug); // 合作期間尚未開始
+            Assert.DoesNotContain(schools, p => p.Slug == brand.Slug); // 類型不符
+            Assert.DoesNotContain(await BizTest.ReadAsync<List<PartnerDto>>(await client.GetAsync("/api/v1/bw/partners?type=" + Uri.EscapeDataString("教育夥伴"))), p => p.Slug == active.Slug); // 藍鯨看不到磐石的夥伴
+        }
+        finally
+        {
+            foreach (var id in new[] { active.Id, ended.Id, future.Id, brand.Id })
+            {
+                await BizTest.ExecuteSqlAsync("DELETE FROM partners_i18n WHERE partner_id = @Id; DELETE FROM partners WHERE id = @Id", ("@Id", id));
+            }
+        }
+    }
+
+    [Fact]
     public async Task 夥伴_只列合作期間涵蓋今天的_類型與首頁篩選_英文回退_共同參與的公益計畫()
     {
         using var client = await BizTest.ClientAsync(fixture, null);

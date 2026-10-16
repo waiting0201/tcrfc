@@ -101,7 +101,7 @@ public sealed class NewsPublicFilterAndViewCountTests(AdminWriteApiFixture fixtu
             CategoryCode = "club",
             Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "公開詳情頁完整欄位測試" } },
             Tags = [new AdminArticleTagInput { Slug = tagSlug, NameZh = "詳情頁測試標籤" }],
-            CoreValueTags = ["excellence"],
+            CoreValueTags = ["shaping_champions"],
         };
         var createResponse = await adminClient.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(createRequest));
         createResponse.EnsureSuccessStatusCode();
@@ -118,7 +118,7 @@ public sealed class NewsPublicFilterAndViewCountTests(AdminWriteApiFixture fixtu
             var detail = await publicClient.GetFromJsonAsync<ArticleDetailDto>($"/api/v1/tcrfc/news/{created.Slug}", TestJson.Options);
             Assert.NotNull(detail);
             Assert.Contains(detail!.Tags, t => t.Slug == tagSlug);
-            Assert.Contains("excellence", detail.CoreValueTags);
+            Assert.Contains("shaping_champions", detail.CoreValueTags);
         }
         finally
         {

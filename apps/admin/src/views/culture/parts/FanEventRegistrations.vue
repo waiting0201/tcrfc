@@ -153,7 +153,7 @@ async function saveAdd() {
   if (addForm.isMember) {
     if (!addForm.memberId) return (addError.value = '請先搜尋並選擇會員')
   } else {
-    if (props.isPaidMembersOnly) return (addError.value = '這場活動限付費會員，請改選「會員報名」')
+    if (props.isPaidMembersOnly) return (addError.value = '這場活動限會員，請改選「會員報名」')
     if (!addForm.applicantName.trim()) return (addError.value = '請輸入姓名')
     if (!addForm.phone.trim() && !addForm.email.trim()) return (addError.value = '電話與 Email 至少要填一項')
   }
@@ -273,7 +273,7 @@ async function saveAdd() {
               <el-option v-for="m in memberOptions" :key="m.id" :label="`${m.memberNo} ${m.name || ''}`" :value="m.id" />
             </el-select>
           </FormField>
-          <p v-if="isPaidMembersOnly" class="regs__hint">這場活動限付費會員，沒有有效球迷會員會籍的會員會被系統擋下。</p>
+          <p v-if="isPaidMembersOnly" class="regs__hint">這場活動限會員，沒有有效會籍（磐石或尊尚皆可）的會員會被系統擋下。</p>
         </template>
         <template v-else>
           <p v-if="isPaidMembersOnly" class="regs__hint">這場活動限付費會員，不能代填非會員。</p>

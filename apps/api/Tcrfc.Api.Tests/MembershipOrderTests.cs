@@ -77,19 +77,19 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         using var anonymous = _scope.Client();
 
         // 未登入 401；沒有冪等鍵 400；方案不存在 404
-        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.SendAsync(Create("single", Key()))).StatusCode);
-        var noKey = await m.Client.SendAsync(Create("single", null));
+        Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.SendAsync(Create("standard", Key()))).StatusCode);
+        var noKey = await m.Client.SendAsync(Create("standard", null));
         Assert.Equal(HttpStatusCode.BadRequest, noKey.StatusCode);
         Assert.Equal("idempotency_key_required", (await ReadJsonAsync(noKey)).GetProperty("code").GetString());
-        Assert.Equal(HttpStatusCode.BadRequest, (await m.Client.SendAsync(Create("single", "short"))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await m.Client.SendAsync(Create("standard", "short"))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await m.Client.SendAsync(Create("no-such-plan", Key()))).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await m.Client.SendAsync(Create("single", Key(), club: "nope"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await m.Client.SendAsync(Create("standard", Key(), club: "nope"))).StatusCode);
 
-        // 夾帶金額欄位 → 忽略，金額一律是方案費用 1200
-        var response = await m.Client.SendAsync(Create("single", Key(), extra: new { planCode = "single", amount = 1, fee = 1 }));
+        // 夾帶金額欄位 → 忽略，金額一律是方案費用 400（磐石會員）
+        var response = await m.Client.SendAsync(Create("standard", Key(), extra: new { planCode = "standard", amount = 1, fee = 1 }));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var order = await ReadJsonAsync(response);
-        Assert.Equal(1200, order.GetProperty("amount").GetInt32());
+        Assert.Equal(400, order.GetProperty("amount").GetInt32());
         Assert.Equal("created", order.GetProperty("status").GetString());
         Assert.Equal("待確認", order.GetProperty("statusLabel").GetString());
         Assert.StartsWith("MO", order.GetProperty("orderNo").GetString());
@@ -102,7 +102,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
 
         // Email 尚未驗證 → 403（模擬：驗證後又被改成未驗證）
         await BizTest.ExecuteSqlAsync("UPDATE members SET email_verified_at = NULL WHERE email = @E", ("@E", m.Email));
-        var unverified = await m.Client.SendAsync(Create("family", Key()));
+        var unverified = await m.Client.SendAsync(Create("premium", Key()));
         Assert.Equal(HttpStatusCode.Forbidden, unverified.StatusCode);
         Assert.Equal("email_not_verified", (await ReadJsonAsync(unverified)).GetProperty("code").GetString());
     }
@@ -112,26 +112,26 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     {
         var m = await _scope.CreateVerifiedMemberAsync("order-idem");
         var key = Key();
-        var first = await m.Client.SendAsync(Create("single", key));
-        var second = await m.Client.SendAsync(Create("single", key));
+        var first = await m.Client.SendAsync(Create("standard", key));
+        var second = await m.Client.SendAsync(Create("standard", key));
         Assert.Equal(HttpStatusCode.Created, first.StatusCode);
         Assert.Equal(HttpStatusCode.OK, second.StatusCode); // 重送回原訂單，不是新建
         Assert.Equal((await ReadJsonAsync(first)).GetProperty("orderNo").GetString(), (await ReadJsonAsync(second)).GetProperty("orderNo").GetString());
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_orders WHERE member_id = @M", ("@M", m.MemberId)));
 
-        var reused = await m.Client.SendAsync(Create("family", key)); // 同一鍵、不同內容
+        var reused = await m.Client.SendAsync(Create("premium", key)); // 同一鍵、不同內容
         Assert.Equal(HttpStatusCode.Conflict, reused.StatusCode);
         Assert.Equal("idempotency_key_reused", (await ReadJsonAsync(reused)).GetProperty("code").GetString());
 
-        var open = await m.Client.SendAsync(Create("single", Key())); // 新的鍵但已有未完成訂單
+        var open = await m.Client.SendAsync(Create("standard", Key())); // 新的鍵但已有未完成訂單
         Assert.Equal(HttpStatusCode.Conflict, open.StatusCode);
         Assert.Equal("open_order_exists", (await ReadJsonAsync(open)).GetProperty("code").GetString());
-        Assert.Equal(HttpStatusCode.Created, (await m.Client.SendAsync(Create("family", Key()))).StatusCode); // 不同方案不衝突
+        Assert.Equal(HttpStatusCode.Created, (await m.Client.SendAsync(Create("premium", Key()))).StatusCode); // 不同方案不衝突
 
         // 並行同一個冪等鍵：只成立一張
         var racer = await _scope.CreateVerifiedMemberAsync("order-race");
         var raceKey = Key();
-        var results = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => racer.Client.SendAsync(Create("single", raceKey))));
+        var results = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => racer.Client.SendAsync(Create("standard", raceKey))));
         Assert.All(results, r => Assert.True(r.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK, r.StatusCode.ToString()));
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_orders WHERE member_id = @M", ("@M", racer.MemberId)));
     }
@@ -145,7 +145,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         {
             var racer = await _scope.CreateVerifiedMemberAsync($"order-race-{round}");
             var raceKey = Key();
-            var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => racer.Client.SendAsync(Create("single", raceKey)))));
+            var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => racer.Client.SendAsync(Create("standard", raceKey)))));
             var codes = results.Select(r => (int)r.StatusCode).ToList();
             Assert.True(results.All(r => r.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK), $"第 {round} 輪：{string.Join(",", codes)}");
             Assert.Equal(1, results.Count(r => r.StatusCode == HttpStatusCode.Created));
@@ -158,7 +158,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     {
         var a = await _scope.CreateVerifiedMemberAsync("order-owner");
         var b = await _scope.CreateVerifiedMemberAsync("order-other");
-        var orderNo = (await ReadJsonAsync(await a.Client.SendAsync(Create("single", Key())))).GetProperty("orderNo").GetString();
+        var orderNo = (await ReadJsonAsync(await a.Client.SendAsync(Create("standard", Key())))).GetProperty("orderNo").GetString();
 
         Assert.Equal(HttpStatusCode.NotFound, (await b.Client.GetAsync($"/api/v1/member/membership-orders/{orderNo}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await b.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/cancel", null)).StatusCode);
@@ -172,7 +172,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         var cancelled = await ReadJsonAsync(await a.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/cancel", null));
         Assert.Equal("cancelled", cancelled.GetProperty("status").GetString());
         Assert.Equal(HttpStatusCode.OK, (await a.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/cancel", null)).StatusCode); // 冪等
-        Assert.Equal(HttpStatusCode.Created, (await a.Client.SendAsync(Create("single", Key()))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await a.Client.SendAsync(Create("standard", Key()))).StatusCode);
     }
 
     // ═════════════ 付款與開通 ═════════════
@@ -181,7 +181,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     public async Task 付款流程_請款_確認_開通_會籍與付款紀錄與會員卡都建立_重複確認不重複開通()
     {
         var m = await _scope.CreateVerifiedMemberAsync("order-pay");
-        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("family", Key())))).GetProperty("orderNo").GetString()!;
+        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("premium", Key())))).GetProperty("orderNo").GetString()!;
 
         // 請款：待付款、有付款網址與 15 分鐘期限；重複請款回同一個網址（冪等）
         var pay = await ReadJsonAsync(await m.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/pay", null));
@@ -195,7 +195,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         // 確認：交易識別不符 400；用戶端無法自己宣稱付款成功
         Assert.Equal(HttpStatusCode.BadRequest, (await m.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/confirm", BizTest.Json(new { transactionId = "FAKE-OTHER" }))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await m.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/confirm", BizTest.Json(new { transactionId = "" }))).StatusCode);
-        Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier = 'fan_club'", ("@M", m.MemberId)));
+        Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier IN ('standard', 'premium')", ("@M", m.MemberId)));
 
         var confirmed = await m.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/confirm", BizTest.Json(new { transactionId = "FAKE-" + orderNo }));
         Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
@@ -205,16 +205,18 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         Assert.False(done.GetProperty("activatedAt").ValueKind == JsonValueKind.Null);
         Assert.Equal(JsonValueKind.Null, done.GetProperty("paymentUrl").ValueKind);
 
-        // 會籍：球迷會員、有效至球季末；付款紀錄記受益與收款主體與來源訂單；有會員卡；家庭方案發卡額度 3
+        // 會籍：尊尚會員（premium，隨方案）、有效至球季末；付款紀錄記受益與收款主體與來源訂單；有會員卡；兩級方案皆每份會籍一張卡
         var membership = (await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"))).GetProperty("memberships")[0];
-        Assert.Equal("fan_club", membership.GetProperty("tier").GetString());
+        Assert.Equal("premium", membership.GetProperty("tier").GetString());
+        Assert.Equal("尊尚會員", membership.GetProperty("tierLabel").GetString());
         Assert.Equal("active", membership.GetProperty("status").GetString());
         Assert.Equal("2027-05-02", membership.GetProperty("endOn").GetString());
-        Assert.Equal(3, membership.GetProperty("cardQuota").GetInt32());
+        Assert.Equal(1, membership.GetProperty("cardQuota").GetInt32());
+        Assert.Equal(1, membership.GetProperty("jerseyQuota").GetInt32());
         Assert.Equal(1, membership.GetProperty("cards").GetArrayLength());
         Assert.Equal(1, await CountAsync("""
             SELECT COUNT(*) FROM membership_payments p JOIN membership_orders o ON o.id = p.membership_order_id
-            WHERE o.order_no = @N AND p.amount = 3000 AND p.method = 'linepay' AND p.club_id = o.club_id AND p.collecting_club_id = o.collecting_club_id
+            WHERE o.order_no = @N AND p.amount = 2400 AND p.method = 'linepay' AND p.club_id = o.club_id AND p.collecting_club_id = o.collecting_club_id
             """, ("@N", orderNo)));
         Assert.NotNull(MemberTestDoubles.Email.LastTo(m.Email, "membership_activated")); // 會籍開通確認信
 
@@ -223,30 +225,33 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_payments p JOIN membership_orders o ON o.id = p.membership_order_id WHERE o.order_no = @N", ("@N", orderNo)));
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M", ("@M", m.MemberId)));
 
-        // 本球季已是球迷會員，不能再買
-        var again = await m.Client.SendAsync(Create("single", Key()));
+        // 本球季已持有這個方案的有效會籍，不能再買；改買另一個方案＝會籍期間內升級／改選，v3.29 明確不提供
+        var again = await m.Client.SendAsync(Create("premium", Key()));
         Assert.Equal(HttpStatusCode.Conflict, again.StatusCode);
         Assert.Equal("already_fan_club", (await ReadJsonAsync(again)).GetProperty("code").GetString());
+        var switchPlan = await m.Client.SendAsync(Create("standard", Key()));
+        Assert.Equal(HttpStatusCode.Conflict, switchPlan.StatusCode);
+        Assert.Equal("upgrade_not_supported", (await ReadJsonAsync(switchPlan)).GetProperty("code").GetString());
         // 已開通的訂單不能取消
         Assert.Equal(HttpStatusCode.Conflict, (await m.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/cancel", null)).StatusCode);
     }
 
     [Fact]
-    public async Task 免費會員升級_沿用同一份會籍列_不產生第二份()
+    public async Task 註冊帳號沒有會籍_購買方案才建立一份會籍與一張卡_不產生第二份()
     {
-        var m = await _scope.CreateVerifiedMemberAsync("order-upgrade"); // 驗證後已有 registered 會籍
-        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier = 'registered'", ("@M", m.MemberId)));
-        await MemberTestScope.BuyFanClubAsync(m, "single");
+        var m = await _scope.CreateVerifiedMemberAsync("order-first-membership"); // 🔴 v3.29：驗證後沒有任何會籍
+        Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M", ("@M", m.MemberId)));
+        await MemberTestScope.BuyMembershipAsync(m, "standard");
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M", ("@M", m.MemberId)));
-        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier = 'fan_club' AND status = 'active'", ("@M", m.MemberId)));
-        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM member_cards c JOIN memberships ms ON ms.id = c.membership_id WHERE ms.member_id = @M", ("@M", m.MemberId))); // 沿用既有那張卡
+        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier = 'standard' AND status = 'active'", ("@M", m.MemberId)));
+        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM member_cards c JOIN memberships ms ON ms.id = c.membership_id WHERE ms.member_id = @M", ("@M", m.MemberId)));
     }
 
     [Fact]
     public async Task 逾時與取消_待付款超過15分鐘讀到時換算為已逾時_不能再確認_也不能付款()
     {
         var m = await _scope.CreateVerifiedMemberAsync("order-expire");
-        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("single", Key())))).GetProperty("orderNo").GetString()!;
+        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("standard", Key())))).GetProperty("orderNo").GetString()!;
         await m.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/pay", null);
         await BizTest.ExecuteSqlAsync("UPDATE membership_orders SET expires_at = DATEADD(MINUTE, -1, SYSUTCDATETIME()) WHERE order_no = @N", ("@N", orderNo));
 
@@ -257,9 +262,9 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         Assert.Equal("expired", read.GetProperty("status").GetString());
         Assert.Equal("已逾時", read.GetProperty("statusLabel").GetString());
         Assert.Equal(HttpStatusCode.Conflict, (await m.Client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/pay", null)).StatusCode);
-        Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier = 'fan_club'", ("@M", m.MemberId)));
+        Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier IN ('standard', 'premium')", ("@M", m.MemberId)));
         // 逾時的訂單不佔用「同方案一張未完成」的名額：可以重新建立
-        Assert.Equal(HttpStatusCode.Created, (await m.Client.SendAsync(Create("single", Key()))).StatusCode);
+        Assert.Equal(HttpStatusCode.Created, (await m.Client.SendAsync(Create("standard", Key()))).StatusCode);
     }
 
     [Fact]
@@ -274,7 +279,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = m.Client.DefaultRequestHeaders.Authorization;
 
-        var created = await client.SendAsync(Create("single", Key()));
+        var created = await client.SendAsync(Create("standard", Key()));
         Assert.Equal(HttpStatusCode.Created, created.StatusCode);
         var order = await ReadJsonAsync(created);
         Assert.False(order.GetProperty("canPayOnline").GetBoolean()); // 畫面據此隱藏「線上付款」，維持收款連結／現場收款＋客服開通
@@ -296,7 +301,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         var m = await _scope.CreateVerifiedMemberAsync("order-gwfail");
         using var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = m.Client.DefaultRequestHeaders.Authorization;
-        var orderNo = (await ReadJsonAsync(await client.SendAsync(Create("single", Key())))).GetProperty("orderNo").GetString()!;
+        var orderNo = (await ReadJsonAsync(await client.SendAsync(Create("standard", Key())))).GetProperty("orderNo").GetString()!;
         Assert.Equal(HttpStatusCode.InternalServerError, (await client.PostAsync($"/api/v1/member/membership-orders/{orderNo}/pay", null)).StatusCode);
         Assert.Equal("created", (await ReadJsonAsync(await client.GetAsync($"/api/v1/member/membership-orders/{orderNo}"))).GetProperty("status").GetString());
     }
@@ -333,7 +338,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     public async Task 內部開通端點_憑證保護_未設定憑證時整個端點停用503()
     {
         var m = await _scope.CreateVerifiedMemberAsync("internal-cred");
-        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("single", Key())))).GetProperty("orderNo").GetString()!;
+        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("standard", Key())))).GetProperty("orderNo").GetString()!;
 
         using var disabled = WithCredential(null);
         using var disabledClient = disabled.CreateClient();
@@ -362,7 +367,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     public async Task 內部開通端點_冪等_重複與並行呼叫只開通一次()
     {
         var m = await _scope.CreateVerifiedMemberAsync("internal-idem");
-        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("single", Key())))).GetProperty("orderNo").GetString()!;
+        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("standard", Key())))).GetProperty("orderNo").GetString()!;
         await BizTest.ExecuteSqlAsync("UPDATE membership_orders SET status = 'paid', paid_at = SYSUTCDATETIME(), payment_method = 'linepay' WHERE order_no = @N", ("@N", orderNo));
 
         using var factory = WithCredential(Credential);
@@ -374,7 +379,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         Assert.All(bodies, b => Assert.Equal("activated", b.GetProperty("status").GetString()));
 
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_payments p JOIN membership_orders o ON o.id = p.membership_order_id WHERE o.order_no = @N", ("@N", orderNo)));
-        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier = 'fan_club'", ("@M", m.MemberId)));
+        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier IN ('standard', 'premium')", ("@M", m.MemberId)));
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_orders WHERE order_no = @N AND status = 'activated' AND activation_source = 'internal'", ("@N", orderNo)));
 
         var again = await ReadJsonAsync(await client.SendAsync(Activate(orderNo, Credential)));
@@ -386,7 +391,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     public async Task 已付款但開通出錯_訂單標為開通失敗並回409_不靜默失敗()
     {
         var m = await _scope.CreateVerifiedMemberAsync("internal-fail");
-        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("single", Key())))).GetProperty("orderNo").GetString()!;
+        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("standard", Key())))).GetProperty("orderNo").GetString()!;
         // 模擬方案期間已結束（付款後才發現）：開通必須失敗並留下可追蹤的狀態。
         // 不依賴方案原本的 ends_on（本機庫被手動改過、新建庫是種子值）：先快照原值，finally 原樣還原。
         var (planId, originalEndsOn) = await PlanOfOrderAsync(orderNo);
@@ -400,7 +405,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
             Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
             Assert.Equal("activation_failed", (await ReadJsonAsync(response)).GetProperty("code").GetString());
             Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_orders WHERE order_no = @N AND status = 'activation_failed' AND failure_reason IS NOT NULL", ("@N", orderNo)));
-            Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier = 'fan_club'", ("@M", m.MemberId)));
+            Assert.Equal(0, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M AND tier IN ('standard', 'premium')", ("@M", m.MemberId)));
             Assert.Equal("activation_failed", (await ReadJsonAsync(await m.Client.GetAsync($"/api/v1/member/membership-orders/{orderNo}"))).GetProperty("status").GetString());
         }
         finally
@@ -415,24 +420,33 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     public async Task 客服在K2開通後_會員先前送出的升級申請一併結案_狀態顯示已開通()
     {
         var m = await _scope.CreateVerifiedMemberAsync("order-k2");
-        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("single", Key())))).GetProperty("orderNo").GetString()!;
-        var memberships = (await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"))).GetProperty("memberships")[0];
-        Assert.Equal("created", memberships.GetProperty("pendingOrder").GetProperty("status").GetString()); // 網頁顯示「待確認」
+        var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("standard", Key())))).GetProperty("orderNo").GetString()!;
+        // 註冊帳號沒有會籍列：送出的申請放在頂層 openOrders，網頁顯示「待確認」
+        var mine = await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"));
+        Assert.Equal(0, mine.GetProperty("memberships").GetArrayLength());
+        var open = Assert.Single(mine.GetProperty("openOrders").EnumerateArray());
+        Assert.Equal(orderNo, open.GetProperty("orderNo").GetString());
+        Assert.Equal("created", open.GetProperty("status").GetString());
+        Assert.Equal("待確認", open.GetProperty("statusLabel").GetString());
+        Assert.Equal("standard", open.GetProperty("planCode").GetString());
+        Assert.Equal("磐石會員", open.GetProperty("planName").GetString());
 
         using var admin = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
-        var planId = await B1Test.PlanIdAsync("tcrfc", "2026-27", "single");
+        var planId = await B1Test.PlanIdAsync("tcrfc", "2026-27", "standard");
         var activate = await admin.PostAsync("/api/v1/admin/tcrfc/memberships/activate", BizTest.Json(new
         {
-            memberId = m.MemberId, planId, paymentMethod = "linepay", amount = 1200, paidOn = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"),
+            memberId = m.MemberId, planId, paymentMethod = "linepay", amount = 400, paidOn = DateOnly.FromDateTime(DateTime.UtcNow).ToString("yyyy-MM-dd"),
         }));
         Assert.Equal(HttpStatusCode.OK, activate.StatusCode);
 
         var order = await ReadJsonAsync(await m.Client.GetAsync($"/api/v1/member/membership-orders/{orderNo}"));
         Assert.Equal("activated", order.GetProperty("status").GetString());
         Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_orders WHERE order_no = @N AND activation_source = 'admin' AND membership_id IS NOT NULL", ("@N", orderNo)));
-        var after = (await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"))).GetProperty("memberships")[0];
-        Assert.Equal("fan_club", after.GetProperty("tier").GetString());
+        var afterAll = await ReadJsonAsync(await m.Client.GetAsync("/api/v1/member/memberships"));
+        var after = afterAll.GetProperty("memberships")[0];
+        Assert.Equal("standard", after.GetProperty("tier").GetString());
         Assert.Equal(JsonValueKind.Null, after.GetProperty("pendingOrder").ValueKind);
+        Assert.Equal(0, afterAll.GetProperty("openOrders").GetArrayLength()); // 申請已結案
     }
 
     [Fact]
@@ -444,6 +458,6 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("plan_closed", (await ReadJsonAsync(response)).GetProperty("code").GetString());
         // 磐石的方案代碼不能拿去藍鯨用（方案一律限定本俱樂部）
-        Assert.Equal(HttpStatusCode.NotFound, (await m.Client.SendAsync(Create("family", Key(), club: "bw"))).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await m.Client.SendAsync(Create("premium", Key(), club: "bw"))).StatusCode);
     }
 }

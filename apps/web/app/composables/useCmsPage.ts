@@ -38,6 +38,8 @@ export interface CmsPageData {
   ogImageHeight: number | null
   ogImageAlt: string | null
   blocks: PageBlockNode[]
+  /** 與後台區塊順序一一對應的節點清單（空區塊＝空陣列，不會被丟掉）。固定版型頁需要「第 N 個欄位」時用（例如 4.4 訓練課程與課綱的區段小標）。 */
+  slots: PageBlockNode[][]
 }
 
 export async function useCmsPage(slug: string | string[]) {
@@ -54,8 +56,12 @@ export async function useCmsPage(slug: string | string[]) {
       for (const s of slugs) {
         const raw = await $fetch<RawCmsPage>(`/api/backend/${club}/pages/${s}`, { query: { lang: locale.value } }).catch(() => null)
         if (!raw) continue
-        const blocks = normalizePageBlocks(raw.blocks, { locale: locale.value, mediaBaseUrl })
+        const normOpts = { locale: locale.value, mediaBaseUrl }
+        const blocks = normalizePageBlocks(raw.blocks, normOpts)
         if (!blocks.length) continue
+        const slots = [...(raw.blocks ?? [])]
+          .sort((a, b) => Number(a.sortOrder ?? 0) - Number(b.sortOrder ?? 0))
+          .map(b => normalizePageBlocks([b], normOpts))
         return {
           slug: s,
           seoTitle: raw.seoTitle || null,
@@ -68,6 +74,7 @@ export async function useCmsPage(slug: string | string[]) {
           ogImageHeight: raw.ogImageHeight ?? null,
           ogImageAlt: raw.ogImageAlt || null,
           blocks,
+          slots,
         }
       }
       return null
@@ -78,6 +85,7 @@ export async function useCmsPage(slug: string | string[]) {
   const page = computed(() => data.value)
   const active = computed(() => (page.value?.blocks.length ?? 0) > 0)
   const blocks = computed(() => page.value?.blocks ?? [])
+  const slots = computed(() => page.value?.slots ?? [])
   // 英文版：該語系尚無內容時後端回退繁中區塊，含中日文字時提示（normalize 已丟掉備援旗標）
   const hasZhFallback = computed(() => isEn.value && active.value && /[㐀-鿿]/.test(JSON.stringify(blocks.value)))
 
@@ -109,5 +117,5 @@ export async function useCmsPage(slug: string | string[]) {
     })
   }
 
-  return { page, active, blocks, hasZhFallback, applySeo }
+  return { page, active, blocks, slots, hasZhFallback, applySeo }
 }

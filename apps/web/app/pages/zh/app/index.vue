@@ -6,7 +6,7 @@
 // 是站務頁代號（比照隱私權／Cookie 政策的 'G-07'，check-site-units-coverage 的排除清單明文記載）。
 // 🔴 商店連結只讀 runtimeConfig（`NUXT_PUBLIC_APP_STORE_URL`／`NUXT_PUBLIC_PLAY_STORE_URL`），**不寫死、不臆造**：
 // App 尚未上架，兩者為空時顯示「即將上線」，只有 https 網址才會變成按鈕。功能描述只列 App 規劃書 §2.3
-// 對照表已有的畫面（賽程、新聞、球員、特約店家、課程、會員卡、會籍升級），不新增承諾。
+// 對照表已有的畫面（賽程、新聞、球員、特約店家、課程、會員卡、會籍方案），不新增承諾。
 // 頁面 SEO 適用主站規範（App 規劃書 §1.3「SEO／GEO」列）：有 title／description，canonical 由全站機制產生。
 definePageMeta({ nav: '', unit: 'G-08', enReady: true, enReadyBw: true })
 
@@ -30,7 +30,7 @@ const FEATURES: ReadonlyArray<{ title: string, desc: string }> = [
   { title: '新聞與球員', desc: '最新消息與球員資料，從官網同步。' },
   { title: '特約店家', desc: '瀏覽合作店家與優惠內容。' },
   { title: '課程', desc: '查看課程資訊與報名。' },
-  { title: '電子會員卡與會籍', desc: '會員卡隨身帶著，會籍升級也在 App 內申請。' },
+  { title: '電子會員卡與會籍', desc: '會員卡隨身帶著，也可在 App 內查看會籍方案。' },
 ]
 const features = computed(() => (isEn.value ? SHOP_APP_FEATURES_EN : FEATURES))
 </script>

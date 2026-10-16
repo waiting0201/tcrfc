@@ -103,8 +103,8 @@ public sealed record CreateArticleRequest
     public IReadOnlyList<AdminArticleTagInput>? Tags { get; init; }
 
     /// <summary>
-    /// 核心價值標籤（S1-5 新增）。值域見規劃書 §1.2 五大核心價值：<c>players_first</c>／
-    /// <c>excellence</c>／<c>global_pathways</c>／<c>community</c>／<c>integrity</c>
+    /// 核心價值標籤（S1-5 新增）。值域見規劃書 v3.29 §1.2 四大核心價值：<c>inspiring_players</c>／
+    /// <c>shaping_champions</c>／<c>local_pride</c>／<c>global_influence</c>
     /// （<c>value_tag_links.value_tag</c> 的 CHECK 約束）。省略＝不掛任何核心價值標籤。
     /// </summary>
     public IReadOnlyList<string>? CoreValueTags { get; init; }

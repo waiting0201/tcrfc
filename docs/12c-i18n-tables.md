@@ -7,7 +7,8 @@
 > 🔴 **本檔不得引入規劃書沒有的規格。** 每一個列出的欄位都標了信心度與規劃書行號依據；
 > 找不到依據的欄位一律不列，改在 §4／§5 說明推論理由或問題所在。
 >
-> 來源：主站規劃書 v3.28（`output/TCRFC_前後台功能規劃書.md`，1915 行）。行號皆指此檔。
+> 來源：主站規劃書 v3.29（`output/TCRFC_前後台功能規劃書.md`，1966 行）。行號皆指此檔。
+> **v3.29 補註（2026-10-16）**：行號仍為 v3.28 快照，未重算；v3.29 對側表的唯一影響是 `membership_benefit_i18n`（`free_value`／`paid_value` 合為 `value`，見 §2 該列）。
 
 ---
 
@@ -39,7 +40,7 @@
 | `faq_i18n` | 未逐欄明列；依 B4 原文（行1043）推定為 `question`、`answer` | `docs/12` §2.4／B4（行1042–1049） |
 | `match_i18n` | `opponent`、`venue` | `docs/12` §2.4（`Match.opponent_en`／`venue_en`，行1498） |
 | `member_draw_i18n` | `name`、`prize_description`、`rules`、`notes` | `docs/12` §2.4（K5，行1297） |
-| `membership_benefit_i18n` | `group_label`、`free_value`、`paid_value` | `docs/12` §2.4（行1288–1289） |
+| `membership_benefit_i18n` | `group_label`、`value`（v3.29：原 `free_value`／`paid_value` 合為單一 `value`；另有 `name`／`description`） | `docs/12` §2.4（行1288–1289） |
 | `partner_i18n` | 未逐欄明列；依 E1 原文（行1129）至少含 `name`。**E1a 補 `content`（合作內容，`nvarchar(max)`，行1129「合作內容」）** | `docs/12` §2.4（行1129） |
 | `sponsor_i18n` | 未逐欄明列；依 E2 原文（行1132）至少含 `name` | `docs/12` §2.4（行1132） |
 | `setting_i18n` | 未逐欄明列；文案類設定值 | `docs/12` §2.4、§4.0（`Setting` 列） |

@@ -1,11 +1,18 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.11
-> **Date**: 2026-09-10 (v1.11 revision: 2026-10-06)
+> **Document version**: v1.12
+> **Date**: 2026-09-10 (v1.12 revision: 2026-10-16)
 > **Content principal**: Taichung Blue Whale Women's Football Club
 > **English name**: short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club` (usage in §8.2)
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.11*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.12*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.12 revision summary — membership plans are defined by Blue Whale; the youth pathway and team codes come from Blue Whale's own youth teams**
+> **The Blue Whale site's pages and section structure are unchanged.** The main site has revised its core values, academy squads and fan-club plans (main-site specification v3.29); this specification clarifies what is carried over and what is not:
+> ① **The membership mechanism follows the main site** (a registered account is not a membership; a membership is a paid plan; the member discount in the shop is a ratio set on the plan). **Taichung Rock's two plans, Rock Member and Prestige Member, and their benefits are Taichung Rock's own plan content and are not used by Blue Whale**; plan names, number of tiers, fees and benefits are defined by Blue Whale.
+> ② **The youth pathway and the team tabs come from Blue Whale's own youth teams**, not Taichung Rock's U10–U18 academy pathway; the youth team codes are `BW-U15` and `BW-U12`.
+> ③ **The core-value label mechanism follows the main site** (four values); whether the label text is reused or set separately is open item 13 in §10.
+> Landing points: §3.4, §3.7, §5.1, §6, §10 items 9 and 13.
 
 > **v1.11 revision summary — the Blue Whale site's logo, favicon and brand colours are defined by front-end static assets and styles**
 > **No new functionality.** The Blue Whale site's logo, favicon and brand colours (the seven brand variables) are defined solely by front-end static assets and styles; the admin does not configure them (per main-site specification v3.20). Landing points: §8.1, the `Club` record in §3.
@@ -193,7 +200,7 @@ Maps to `Team.code = BW1`. Follows the main site's player cards, player pages an
 
 ### 3.4 【04】Youth
 
-U15 and U12 girls' teams. **Follows the main site's squad templates but not its admissions and programme-registration architecture** — Blue Whale's youth teams and Taichung Rock's academy are different organisational forms, and how admissions work is to be confirmed (§10).
+U15 and U12 girls' teams. **Follows the main site's squad templates but not its admissions and programme-registration architecture** — Blue Whale's youth teams and Taichung Rock's academy are different organisational forms, and how admissions work is to be confirmed (§10). The team tabs list only the youth teams Blue Whale has set up (codes `BW-U15`, `BW-U12`); the stages and age groups on the pathway page are written around Blue Whale's own youth teams, not Taichung Rock's three academy stages of foundation, development and professional.
 
 ### 3.5 【05】Programs
 
@@ -213,7 +220,7 @@ Follows the main site's logo wall and sponsorship-package templates.
 | Item | Notes |
 |---|---|
 | Competitions | Taiwan Mulan Football League, President's Cup, international invitationals, AFC competitions |
-| Team categories | `BW1` (first team), U15, U12 |
+| Team categories | `BW1` (first team), `BW-U15`, `BW-U12` |
 | Subscription | `/{lang}/schedule/bw1/` offers a webcal subscription |
 | Competition series | Expressed with the `Competition` type (main-site specification §5.1) — a four-value enum cannot name the Mulan League and each individual cup |
 
@@ -271,7 +278,7 @@ Uses the main site's tenth role, **Partner club manager** (main-site specificati
 
 ### 5.1 A Blue Whale membership is its own membership
 
-Follows main-site specification 3.14 in full (two tiers, season-based terms, the benefits comparison table, the digital card), except:
+Follows the main site's 3.14 membership mechanism (a registered account is not a membership, a membership is a paid plan, season-based terms, the benefits comparison table, the digital card), except:
 
 | Item | Notes |
 |---|---|
@@ -279,7 +286,8 @@ Follows main-site specification 3.14 in full (two tiers, season-based terms, the
 | Account | **Shared with the main site** — one account per person, email as the login key. An existing Taichung Rock member does not register again to add a Blue Whale membership |
 | Card | **A Blue Whale membership has its own card**, carrying Blue Whale's logo and brand colours. "One card, one token" and "no applicable-team field on the verification page" both **stand unchanged** |
 | Season | **Not aligned with Taichung Rock's** (the Mulan League and the TFPL run to different calendars). Expiry and renewal reminders are calculated separately |
-| Plans and pricing | Set by Blue Whale (`MembershipPlan.club_id = TCBW`), independent of Taichung Rock's |
+| Plans and pricing | Set by Blue Whale (`MembershipPlan.club_id = TCBW`): plan names, number of tiers, suggested annual fee and benefits are all decided by Blue Whale. **Taichung Rock's two plans, Rock Member and Prestige Member, are not used**; independent of Taichung Rock's |
+| Member discount in the shop | The mechanism follows the main site (the plan sets a discount ratio, applied to products marked as eligible for the member discount); **the discount recognises only the selling club's membership** — buying Blue Whale products looks at the Blue Whale membership |
 | Draws | Run by Blue Whale (`MemberDraw.club_id = TCBW`). ⚠️ The rules must state that **holding both clubs' memberships allows entry to both draws** |
 | Partner stores | Per the store's configured applicability — Blue Whale only, Taichung Rock only, or both |
 
@@ -313,7 +321,7 @@ Records that must be created:
 | Type | Content |
 |---|---|
 | `Club` | One record: `code = TCBW`, `is_payment_subject = false` (collection uses the main site's single configuration), this site's domain. Invoice-title and tax-ID fields are filled with the actual values |
-| `Team` | `BW1` (first team, `gender = women`, `type = first_team`), U15, U12 |
+| `Team` | `BW1` (first team, `gender = women`, `type = first_team`), `BW-U15`, `BW-U12` (youth teams, `type = academy`; codes carry the `BW-` prefix so they do not collide with Taichung Rock's academy squad codes) |
 | `Season` | Blue Whale's own seasons (not aligned with Taichung Rock's) |
 | `Competition` | Taiwan Mulan Football League, President's Cup, international invitationals, AFC competitions |
 | `Player` / `Staff` | First-team and youth squads (**likeness consent required**) |
@@ -433,11 +441,11 @@ Every value is **sampled from the crest** rather than chosen freely. The primary
 | 6 | **Full English copy**: the existing site is Chinese only. Who translates? Who supplies English player biographies, history and event descriptions? |
 | 7 | **Do the youth teams recruit?** Should U15 / U12 accept online applications, and how does that differ from the Taichung Rock academy? |
 | 8 | **Do outreach programmes take online registration and payment?** The Blue Whale Cup, the football festival, and so on |
-| 9 | **Blue Whale's membership plans and season dates**: price, `card_quota`, `jersey_quota`, mid-season pricing, season code and dates |
+| 9 | **Blue Whale's membership plans and season dates**: plan names and number of tiers, suggested annual fee, benefits, `card_quota`, `jersey_quota`, shop member-discount ratio, mid-season pricing, season code and dates |
 | 10 | **Fulfilment staffing and stock location for the Blue Whale shop**: who picks and packs, and where is the stock held? **This decides whether the shop opens at all, and what delivery estimate the site can promise** |
 | 11 | **First product range and stock levels** |
 | 12 | **Canonical attribution for shared content**: articles with a null `club_id` appear on both sites — which owns the canonical URL? The recommendation is the main site, with this site linking across |
-| 13 | **Blue Whale's wording for the five core values**: the `ValueTagLink` mechanism is built as on the main site under the §1.3 rule; what is open is **the label text itself** — adopt Taichung Rock's five, or let Blue Whale define its own |
+| 13 | **Blue Whale's wording for the core values**: the `ValueTagLink` mechanism is built as on the main site under the §1.3 rule; what is open is **the label text itself** — adopt Taichung Rock's four, or let Blue Whale define its own |
 | 14 | **The 301 redirect map from the old Google Sites site**: ten sections with Chinese-language URLs, to be compiled by hand |
 | 15 | **Which social accounts to present**: Facebook, Instagram `tcbw2014`, YouTube, the LINE official account and the existing email address — are they all retained and shown in the footer? |
 | 16 | **The actual invoice title and tax ID**: the `Club` record's invoicing fields need the correct values |

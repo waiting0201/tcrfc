@@ -140,6 +140,7 @@ data class AppConfigResponse(
     val generatedAt: JsonElement,
     val ios: AppPlatformConfig,
     val android: AppPlatformConfig,
+    val mediaBaseUrl: String? = null,
     val evaluation: AppConfigEvaluation? = null,
 )
 
@@ -347,18 +348,32 @@ data class BenefitGroupPublicDto(
 
 @Serializable
 data class BenefitItemPublicDto(
+    val code: String,
     val name: String? = null,
     val isFallbackLocale: Boolean,
     val description: String? = null,
-    val freeValue: String? = null,
-    val paidValue: String? = null,
+    val values: List<BenefitPlanValueDto>,
+)
+
+@Serializable
+data class BenefitPlanColumnDto(
+    val code: String,
+    val tier: String,
+    val tierLabel: String,
+    val name: String? = null,
+    val isFallbackLocale: Boolean,
+    val fee: Int,
+)
+
+@Serializable
+data class BenefitPlanValueDto(
+    val planCode: String,
+    val value: String? = null,
 )
 
 @Serializable
 data class BenefitTablePublicDto(
-    val planCode: String? = null,
-    val planName: String? = null,
-    val isFallbackLocale: Boolean,
+    val plans: List<BenefitPlanColumnDto>,
     val groups: List<BenefitGroupPublicDto>,
 )
 
@@ -962,6 +977,17 @@ data class MemberLoginRequest(
 )
 
 @Serializable
+data class MemberOpenOrderDto(
+    val orderNo: String,
+    val status: String,
+    val statusLabel: String,
+    val clubCode: String,
+    val planCode: String,
+    val planName: String? = null,
+    val seasonCode: String,
+)
+
+@Serializable
 data class MemberPendingOrderDto(
     val orderNo: String,
     val status: String,
@@ -1124,6 +1150,9 @@ data class MembershipOrderDto(
 @Serializable
 data class MembershipPlanPublicDto(
     val code: String,
+    val tier: String,
+    val tierLabel: String,
+    val shopDiscountPercent: Int,
     val name: String? = null,
     val isFallbackLocale: Boolean,
     val benefitNote: String? = null,
@@ -1173,6 +1202,7 @@ data class MyMembershipDto(
 data class MyMembershipsDto(
     val memberships: List<MyMembershipDto>,
     val joinableClubs: List<MemberJoinableClubDto>,
+    val openOrders: List<MemberOpenOrderDto>,
 )
 
 @Serializable
@@ -1946,6 +1976,8 @@ data class ShopCartDto(
     val items: List<ShopCartItemDto>,
     val itemCount: Int,
     val subtotal: Int,
+    val memberDiscountTotal: Int,
+    val memberDiscountPercent: Int? = null,
     val shipping: ShopCartShippingDto,
     val canCheckout: Boolean,
 )
@@ -1964,6 +1996,8 @@ data class ShopCartItemDto(
     val listPrice: Int,
     val unitPrice: Int,
     val onSale: Boolean,
+    val memberDiscountApplied: Boolean,
+    val memberDiscountAmount: Int,
     val quantity: Int,
     val lineTotal: Int,
     val availableQty: Int,
@@ -2040,6 +2074,7 @@ data class ShopOrderDto(
     val deliveryMethod: String,
     val deliveryMethodLabel: String,
     val subtotal: Int,
+    val memberDiscountAmount: Int,
     val shippingFee: Int,
     val total: Int,
     val items: List<ShopOrderItemDto>,
@@ -2079,6 +2114,7 @@ data class ShopOrderItemDto(
     val unitPrice: Int,
     val quantity: Int,
     val lineTotal: Int,
+    val memberDiscountAmount: Int,
 )
 
 @Serializable
@@ -2116,6 +2152,7 @@ data class ShopProductDetailDto(
     val collectionName: String? = null,
     val tags: List<String>,
     val isNewArrival: Boolean,
+    val memberDiscountEligible: Boolean,
     val sizeChart: JsonElement? = null,
     val images: List<ShopImageDto>,
     val variants: List<ShopVariantDto>,
@@ -2135,6 +2172,7 @@ data class ShopProductListItemDto(
     val collectionName: String? = null,
     val tags: List<String>,
     val isNewArrival: Boolean,
+    val memberDiscountEligible: Boolean,
     val imageUrl: String? = null,
     val imageThumbUrl: String? = null,
     val imageWidth: Int? = null,

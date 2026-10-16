@@ -176,6 +176,8 @@ public sealed partial class ShopOrderService(
             SellingClubId = scope.ClubId, CollectingClubId = collectingClubId, MemberId = memberId, LookupToken = SecureToken.Generate(),
             RecipientName = input.Name, RecipientPhone = input.Phone, RecipientAddress = input.Address, BuyerEmail = input.Email,
             Subtotal = subtotal, ShippingFee = shippingFee, Total = subtotal + shippingFee, PaymentStatus = "pending", PaymentMethod = "linepay",
+            // 會員折扣快照（v3.29）：subtotal 已是折後金額，這兩欄只記「少收多少、套用哪個方案」（值複製，不隨方案日後變更）。
+            MemberDiscountAmount = lines.Sum(l => l.MemberDiscountPerUnit * l.Quantity), MemberDiscountPlanId = lines.Select(l => l.MemberDiscountPlanId).FirstOrDefault(p => p is not null),
             OrderStatus = ShopLabels.Pending, DeliveryMethod = input.DeliveryMethod, IsManual = false, CustomerNote = input.Note, SettlementStatus = "pending",
             IdempotencyKey = idempotencyKey, RequestFingerprint = fingerprint, CreatedAt = now, UpdatedAt = now,
         };
@@ -187,7 +189,7 @@ public sealed partial class ShopOrderService(
             {
                 Id = Guid.NewGuid(), ClubId = scope.ClubId, OrderId = orderId, ProductVariantId = l.VariantId, ProductNameSnapshot = l.ProductName ?? l.ProductSlug,
                 VariantLabelSnapshot = string.IsNullOrEmpty(l.VariantLabel) ? null : l.VariantLabel, SkuSnapshot = l.Sku, UnitPriceSnapshot = l.UnitPrice, Quantity = l.Quantity,
-                LineTotal = l.UnitPrice * l.Quantity, CreatedAt = now, UpdatedAt = now,
+                LineTotal = l.UnitPrice * l.Quantity, MemberDiscountAmount = l.MemberDiscountPerUnit * l.Quantity, CreatedAt = now, UpdatedAt = now,
             });
         }
 
@@ -501,10 +503,10 @@ public sealed partial class ShopOrderService(
             OrderNo = o.OrderNo, ClubCode = scope.ClubCode, AccessToken = includeToken ? o.LookupToken : null, Status = StatusLabel(o.OrderStatus, en),
             PaymentStatus = o.PaymentStatus, PaymentStatusLabel = ShopLabelsPublic.PaymentStatusLabel(o.PaymentStatus, en), PaymentMethod = o.PaymentMethod,
             PaymentMethodLabel = ShopLabelsPublic.PaymentMethodLabel(o.PaymentMethod, en), DeliveryMethod = o.DeliveryMethod ?? "home_delivery",
-            DeliveryMethodLabel = ShopLabelsPublic.DeliveryLabel(o.DeliveryMethod ?? "home_delivery", en), Subtotal = o.Subtotal, ShippingFee = o.ShippingFee, Total = o.Total,
+            DeliveryMethodLabel = ShopLabelsPublic.DeliveryLabel(o.DeliveryMethod ?? "home_delivery", en), Subtotal = o.Subtotal, MemberDiscountAmount = o.MemberDiscountAmount, ShippingFee = o.ShippingFee, Total = o.Total,
             Items = o.OrderItems.OrderBy(i => i.RowSeq).Select(i => new ShopOrderItemDto
             {
-                ProductName = i.ProductNameSnapshot, VariantLabel = i.VariantLabelSnapshot, Sku = i.SkuSnapshot, UnitPrice = i.UnitPriceSnapshot, Quantity = i.Quantity, LineTotal = i.LineTotal,
+                ProductName = i.ProductNameSnapshot, VariantLabel = i.VariantLabelSnapshot, Sku = i.SkuSnapshot, UnitPrice = i.UnitPriceSnapshot, Quantity = i.Quantity, LineTotal = i.LineTotal, MemberDiscountAmount = i.MemberDiscountAmount,
             }).ToList(),
             RecipientName = mask ? PiiMasking.MaskName(o.RecipientName) : o.RecipientName, RecipientPhone = mask ? PiiMasking.MaskPhone(o.RecipientPhone) : o.RecipientPhone,
             RecipientAddress = mask ? PiiMasking.MaskAddress(o.RecipientAddress) : o.RecipientAddress, BuyerEmail = mask ? PiiMasking.MaskEmail(o.BuyerEmail) : o.BuyerEmail,

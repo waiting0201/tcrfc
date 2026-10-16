@@ -453,7 +453,7 @@ export function getAboutIndexHero(club: string, facts: SiteFacts): HeroCopy {
   }
 }
 
-/** about/index.vue 8 張導覽卡的描述，只有內容涉及俱樂部專屬架構（願景框架、五大核心價值、生態系）的 3 張需要藍鯨版本。 */
+/** about/index.vue 8 張導覽卡的描述，只有內容涉及俱樂部專屬架構（願景框架、四大核心價值、生態系）的 3 張需要藍鯨版本。 */
 export const ABOUT_NAV_DESC: ClubText<{
   ourStory: string
   visionMission: string
@@ -465,7 +465,7 @@ export const ABOUT_NAV_DESC: ClubText<{
   tcrfc: {
     ourStory: '認識台中磐石從創立至今的發展沿革。',
     visionMission: '台中磐石的核心願景與俱樂部使命。',
-    philosophy: '足球理念與五大核心價值。',
+    philosophy: '足球理念與四大核心價值。',
     ourPeople: '認識台中磐石的教練團與行政團隊。',
     ecosystem: '一線隊、學院、課程、女足四大體系總覽。',
     history: '圖文紀錄台中磐石的發展歷程。',
@@ -583,7 +583,7 @@ export const VISION_ITEMS: ClubText<VisionItem[]> = {
 export const PHILOSOPHY_SEO: ClubText<SeoCopy> = {
   tcrfc: {
     title: '足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部',
-    description: '台中磐石足球俱樂部的足球理念與五大核心價值：以球員為本、追求卓越、國際發展、社區共好、誠信專業。',
+    description: '台中磐石足球俱樂部的足球理念與四大核心價值：啟發球員、塑造冠軍、在地驕傲、撼動全球。',
   },
   bw: {
     title: '俱樂部口號與培訓精神｜關於台中藍鯨｜台中藍鯨女子足球隊',
@@ -713,7 +713,7 @@ export function getEcosystemNodes(club: string, facts: SiteFacts): EcoNode[] {
   }
   return [
     { num: '3', slug: 'club', enLabel: 'Football Club', zhLabel: '一線隊', descZh: `征戰${facts.league.nameZh}的球隊本體，代號 First Team / 一線隊。`, href: '/zh/club/' },
-    { num: '4', slug: 'academy', enLabel: 'Academy', zhLabel: '台中磐石足球學院', descZh: `${squadCodesLabel(facts)} 三個梯隊，銜接一線隊的青訓體系。`, href: '/zh/academy/' },
+    { num: '4', slug: 'academy', enLabel: 'Academy', zhLabel: '台中磐石足球學院', descZh: `${squadCodesLabel(facts)} 梯隊，銜接一線隊的青訓體系。`, href: '/zh/academy/' },
     { num: '5', slug: 'programs', enLabel: 'Programs', zhLabel: '課程與活動', descZh: '兒童足球訓練、夏／冬令營、專項訓練與校園社區計畫。', href: '/zh/programs/' },
     { num: '6', slug: 'womens', enLabel: "Women's Football", zhLabel: '女子足球', descZh: '台中藍鯨女子隊，設有獨立的官方網站。', badgeZh: '官網入口', href: '/zh/womens/' },
   ]
@@ -1003,7 +1003,7 @@ export function getAcademyOverviewHero(club: string, facts: SiteFacts): HeroCopy
   return {
     h1Zh: '學院總覽',
     h1En: 'Academy Overview',
-    lede: '台中磐石足球學院是台中磐石足球俱樂部的青訓體系，銜接俱樂部「在地扎根．放眼世界」的品牌主張與 Players First、Excellence、Global Pathways、Community、Integrity 五大核心價值，以分齡訓練陪伴學員成長。',
+    lede: '台中磐石足球學院是台中磐石足球俱樂部的青訓體系，銜接俱樂部「在地扎根．放眼世界」的品牌主張與 Inspiring players、Shaping champions、Local pride、Global influence 四大核心價值，以分齡訓練陪伴學員成長。',
   }
 }
 
@@ -1027,7 +1027,7 @@ export function getAcademyTeamsSeo(club: string, facts: SiteFacts): SeoCopy {
   }
   return {
     title: '學院隊伍 Our Teams｜台中磐石足球學院｜台中磐石足球俱樂部',
-    description: `台中磐石足球學院 ${squadCodesLabel(facts)} 及其他年齡層隊伍——各梯隊名單、教練、賽程與成績（資料收集中），並提供訂閱本隊行事曆功能。`,
+    description: `台中磐石足球學院 ${squadCodesLabel(facts)} 各梯隊——名單、教練、賽程與成績（資料收集中），並提供訂閱本隊行事曆功能。`,
   }
 }
 
@@ -1042,20 +1042,19 @@ export function getAcademyTeamsHero(club: string, facts: SiteFacts): HeroCopy {
   return {
     h1Zh: '學院隊伍',
     h1En: 'Our Teams',
-    lede: `台中磐石足球學院依年齡分為 ${squadCodesLabel(facts, '、')} 及其他年齡層梯隊，各隊皆設有專屬名單、教練、賽程與成績頁面，並可訂閱該隊行事曆，掌握每一場訓練與比賽。`,
+    lede: `台中磐石足球學院依年齡分為 ${squadCodesLabel(facts, '、')} 梯隊，各隊皆設有專屬名單、教練、賽程與成績頁面，並可訂閱該隊行事曆，掌握每一場訓練與比賽。`,
   }
 }
 
-/** 4.2 梯隊分頁定義：磐石四個分頁（U15／U14／U12／其他年齡層），藍鯨只有兩個實際隊伍
- * （docs/12 §2b 種子資料：`BW-U15`／`BW-U12`，沒有 U14、沒有「其他年齡層」）。
- * `teamCode: null` 代表「其他年齡層」這種沒有對應 `Team.code` 的靜態說明分頁，
- * 目前只有磐石版本用得到。 */
+/** 4.2 梯隊分頁定義：磐石五個分頁（U10／U12／U14／U16／U18，v3.29 起，沒有「其他年齡層」），
+ * 藍鯨只有兩個實際隊伍（`BW-U15`／`BW-U12`）。實際顯示以後台已建立的學院球隊為準（`usePublicTeams`），
+ * 本函式只在 API 打不到時墊背。`teamCode: null` 型別保留給日後無對應 `Team.code` 的說明分頁。 */
 export interface AcademyTeamTab {
   id: string
   labelZh: string
   teamCode: string | null
 }
-// 🔴 GEO-03（S1-12d）：年齡層代碼本身（'U15'／'U14'／'U12'）的單一來源是後端
+// 🔴 GEO-03（S1-12d）：年齡層代碼本身（磐石 'U10'…'U18'）的單一來源是後端
 // site-facts 端點的 `squadCodes`，這裡只疊加 API 篩選用的俱樂部代碼前綴與
 // 「其他年齡層」這個沒有對應 `Team.code` 的靜態分頁，不重新打一份年齡層清單。
 // 改為工廠函式（S1-12d 收尾第二輪）——`facts` 由呼叫端 `useSiteFacts(club)` 取得。
@@ -1065,7 +1064,6 @@ export function getAcademyTeamTabs(club: string, facts: SiteFacts): AcademyTeamT
   }
   return [
     ...facts.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: code })),
-    { id: 'other', labelZh: '其他年齡層', teamCode: null },
   ]
 }
 
@@ -1086,7 +1084,7 @@ export function getAcademyHubSeo(club: string, facts: SiteFacts): SeoCopy {
   }
   return {
     title: '台中磐石足球學院 TCRFC Academy｜台中磐石足球俱樂部',
-    description: '台中磐石足球學院是台中磐石足球俱樂部的青訓體系，提供 U12 至 U15 分齡訓練、清晰的發展路徑與教練團陪伴，銜接一線隊與海外舞台。',
+    description: `台中磐石足球學院是台中磐石足球俱樂部的青訓體系，提供 ${squadCodesLabel(facts)} 分齡訓練、清晰的發展路徑與教練團陪伴，銜接一線隊與海外舞台。`,
   }
 }
 
@@ -1134,8 +1132,8 @@ export function getAcademyHubCards(club: string, facts: SiteFacts): AcademyHubCa
   return [
     { num: '4.1', titleZh: '學院總覽', titleEn: 'Academy Overview', descZh: '認識學院定位、訓練基地與整體樣貌', href: '/zh/academy/overview/' },
     { num: '4.2', titleZh: '學院隊伍', titleEn: 'Our Teams', descZh: `${squadCodesLabel(facts)} 各梯隊名單、教練與賽程`, href: '/zh/academy/teams/' },
-    { num: '4.3', titleZh: '學院發展路徑', titleEn: 'Academy Pathway', descZh: '從 U12 到一線隊／海外的成長路徑', href: '/zh/academy/pathway/' },
-    { num: '4.4', titleZh: '訓練課程與課綱', titleEn: 'Training & Curriculum', descZh: '技術、戰術、體能、比賽判讀與品格五大面向', href: '/zh/academy/curriculum/' },
+    { num: '4.3', titleZh: '學院發展路徑', titleEn: 'Academy Pathway', descZh: '從培育、發展到職業階段的成長路徑', href: '/zh/academy/pathway/' },
+    { num: '4.4', titleZh: '訓練課程與課綱', titleEn: 'Training & Curriculum', descZh: '訓練理念、培訓架構、賽事規劃與各梯隊訓練時間地點', href: '/zh/academy/curriculum/' },
     { num: '4.5', titleZh: '學院教練團', titleEn: 'Coaches', descZh: '認識帶領各梯隊的教練團隊', href: '/zh/academy/coaches/' },
     { num: '4.6', titleZh: '學院生活', titleEn: 'Academy Life', descZh: '訓練、比賽與活動的日常紀錄', href: '/zh/academy/life/' },
     { num: '4.7', titleZh: '加入學院', titleEn: 'Join the Academy', descZh: '招生對象、遴選流程與線上申請', href: '/zh/academy/join/' },
@@ -1206,11 +1204,23 @@ export const JOIN_INDEX_HERO: ClubText<HeroCopy> = {
 // 4.5／4.6（真實教練／真實照片，關閉不開放）不同，見 shared/utils/units.ts 說明。
 // ---------------------------------------------------------------------------
 
-/** 4.3 發展路徑第三階段名稱。磐石「一線隊／海外」；藍鯨只承諾 U12 → U15 → 一線隊（藍鯨規劃書 04 為青年隊、
- * 本檔 `getAcademyPathwaySeo` bw 分支與 4.3 卡片說明皆不宣稱海外路徑），所以不得顯示「／海外」（E-233）。 */
-export function getAcademyPathwayStage3(club: string): { stageEn: string, zh: string, en: string } {
-  if (normalizeClub(club) === 'bw') return { stageEn: 'Stage 3 · First Team', zh: '一線隊', en: 'First Team' }
-  return { stageEn: 'Stage 3 · First Team / Overseas', zh: '一線隊／海外', en: 'First Team / Overseas' }
+/** 4.3 發展路徑三個階段。磐石（客戶 4.3、主站規劃書 §3.4）：培育階段（U10、U12）→ 發展階段（U14、U16）→ 職業階段（U18、一線隊），
+ * 不再宣稱「海外」。藍鯨只承諾 U12 → U15 → 一線隊（藍鯨規劃書 04 為青年隊，不重複宣稱海外路徑，E-233），維持原樣。
+ * `eyebrow` 是小標（含該階段的梯隊代碼），`zh`／`en` 是階段名稱。英文階段名稱為開發端翻譯初稿（C-6）。 */
+export interface AcademyPathwayStage { eyebrow: string, zh: string, en: string }
+export function getAcademyPathwayStages(club: string): AcademyPathwayStage[] {
+  if (normalizeClub(club) === 'bw') {
+    return [
+      { eyebrow: 'Stage 1 · U12', zh: '起步階段', en: 'Foundation Stage' },
+      { eyebrow: 'Stage 2 · U15', zh: '深化階段', en: 'Development Stage' },
+      { eyebrow: 'Stage 3 · First Team', zh: '一線隊', en: 'First Team' },
+    ]
+  }
+  return [
+    { eyebrow: 'Stage 1 · U10 · U12', zh: '培育階段', en: 'Foundation Stage' },
+    { eyebrow: 'Stage 2 · U14 · U16', zh: '發展階段', en: 'Development Stage' },
+    { eyebrow: 'Stage 3 · U18 · First Team', zh: '職業階段', en: 'Professional Stage' },
+  ]
 }
 
 export function getAcademyPathwaySeo(club: string): SeoCopy {
@@ -1222,7 +1232,7 @@ export function getAcademyPathwaySeo(club: string): SeoCopy {
   }
   return {
     title: '學院發展路徑 Academy Pathway｜台中磐石足球學院｜台中磐石足球俱樂部',
-    description: '台中磐石足球學院的階梯式發展路徑：U12 → U15 → 一線隊／海外，點擊各階段了解升上一階的方向（詳細內容資料收集中）。',
+    description: '台中磐石足球學院的階梯式發展路徑：培育階段（U10、U12）→ 發展階段（U14、U16）→ 職業階段（U18、一線隊），點擊各階段了解升上一階的方向（詳細內容資料收集中）。',
   }
 }
 
@@ -1237,7 +1247,7 @@ export function getAcademyPathwayHero(club: string): HeroCopy {
   return {
     h1Zh: '學院發展路徑',
     h1En: 'Academy Pathway',
-    lede: '從 U12 起步，經 U15 深化，到一線隊或海外舞台——台中磐石足球學院提供階梯式的發展路徑。點擊下方各階段，了解學員如何逐步銜接下一個層級。',
+    lede: '從培育階段的 U10、U12 起步，經發展階段的 U14、U16，到職業階段的 U18 與一線隊——台中磐石足球學院提供階梯式的發展路徑。點擊下方各階段，了解學員如何逐步銜接下一個層級。',
   }
 }
 
@@ -1250,7 +1260,7 @@ export function getAcademyCurriculumSeo(club: string): SeoCopy {
   }
   return {
     title: '訓練課程與課綱 Training & Curriculum｜台中磐石足球學院｜台中磐石足球俱樂部',
-    description: '台中磐石足球學院訓練涵蓋技術、戰術、體能、比賽判讀與品格五大面向，各面向課綱與週期規劃表資料收集中。',
+    description: '台中磐石足球學院的訓練理念、培訓方式與訓練架構、賽事規劃與參賽原則、足球與教育的結合、行為規範，以及各梯隊的訓練時間與地點。',
   }
 }
 
@@ -1265,7 +1275,7 @@ export function getAcademyCurriculumHero(club: string): HeroCopy {
   return {
     h1Zh: '訓練課程與課綱',
     h1En: 'Training & Curriculum',
-    lede: '技術、戰術、體能、比賽判讀、品格——台中磐石足球學院的訓練圍繞五大面向展開，每個面向都有對應的課綱與週期規劃表。',
+    lede: '週期化訓練結合技術、戰術、體能與心理四大面向——了解台中磐石足球學院的訓練理念、培訓架構、賽事規劃，以及各梯隊的訓練時間與地點。',
   }
 }
 

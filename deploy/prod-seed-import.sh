@@ -185,7 +185,10 @@ cmd_import() {
   # 「(N rows affected)」訊息時會報 SqlState 24000 Invalid cursor state、連線中斷、單一交易回滾，結束碼卻是 0。
   # NOCOUNT 是連線層級設定、不改變任何資料寫入；不動 db/prod/*.sql（其 sha256 在 manifest 內）。
   printf 'SET NOCOUNT ON;\nGO\n:r /work/content/%s\n' "$(basename "${CONTENT_FILE}")" >"${WORK_DIR}/import-wrapper.sql"
-  SQLCMD_DOCKER_EXTRA=(-v "$(dirname "${CONTENT_FILE}"):/work/content:ro" -v "${WORK_DIR}:/work/wrap:ro" -e IMPORT_BATCH)
+  # 🔴 E-330：內容種子含大量中文，sqlcmd 13 讀 UTF-8 會在緩衝邊界把字元切壞（結束碼 0、無警告）。一律轉 UTF-16LE＋BOM 副本再交給它（原檔與 sha256 不動）。
+  mkdir -p "${WORK_DIR}/content16"
+  sqlcmd_to_utf16 "${CONTENT_FILE}" "${WORK_DIR}/content16/$(basename "${CONTENT_FILE}")" || die "轉換內容種子為 UTF-16 失敗"
+  SQLCMD_DOCKER_EXTRA=(-v "${WORK_DIR}/content16:/work/content:ro" -v "${WORK_DIR}:/work/wrap:ro" -e IMPORT_BATCH)
   local import_hint="整份在同一個交易內，已回滾，庫維持匯入前的樣子；修正後可重跑 import ${TARGET}。"
   if [[ "${TARGET}" == "club" ]]; then
     SQLCMD_DOCKER_EXTRA+=(-e CHARITY_DOMAIN)

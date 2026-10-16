@@ -122,7 +122,7 @@ const shippingFee = computed(() => cart.value?.shipping.fee ?? 0)
                   <div>
                     <p class="cart-item__name"><a :href="lp(`/zh/shop/${it.productSlug}/`)">{{ it.productName || it.productSlug }}</a></p>
                     <p class="cart-item__variant">
-                      {{ it.variantLabel }} {{ isEn ? '·' : '・' }} {{ formatPrice(it.unitPrice) }}<template v-if="it.onSale">{{ isEn ? ` (was ${formatPrice(it.listPrice)})` : `（原價 ${formatPrice(it.listPrice)}）` }}</template>
+                      {{ it.variantLabel }} {{ isEn ? '·' : '・' }} {{ formatPrice(it.unitPrice) }}<template v-if="it.onSale">{{ isEn ? ` (was ${formatPrice(it.listPrice)})` : `（原價 ${formatPrice(it.listPrice)}）` }}</template><template v-else-if="it.memberDiscountApplied">{{ isEn ? ` (member price, was ${formatPrice(it.listPrice)})` : `（會員價，原價 ${formatPrice(it.listPrice)}）` }}</template>
                     </p>
                     <p v-if="it.issueMessage" class="sh-issue" role="alert">{{ it.issueMessage }}</p>
                     <button class="cart-item__remove" type="button" :disabled="busy === it.variantId" @click="remove(it.variantId)">{{ tx('移除', 'Remove') }}</button>
@@ -151,6 +151,9 @@ const shippingFee = computed(() => cart.value?.shipping.fee ?? 0)
         <div class="summary">
           <h2>{{ tx('金額摘要', 'Order summary') }}</h2>
           <p class="summary__line"><span>{{ tx('商品小計', 'Subtotal') }}</span><strong>{{ formatPrice(cart?.subtotal) }}</strong></p>
+          <!-- v3.29 商店會員折扣：小計已是折後金額，這行只標示「已享多少」；折扣價一律由 API 計算，前台不自己算 -->
+          <p v-if="(cart?.memberDiscountTotal ?? 0) > 0" class="summary__line summary__note" style="margin-top:0"><span>{{ tx('已享會員折扣（已含在小計內）', 'Member discount applied (included in the subtotal)') }}</span><strong>−{{ formatPrice(cart?.memberDiscountTotal) }}</strong></p>
+          <p v-else-if="cart?.memberDiscountPercent" class="summary__note" style="margin-top:0">{{ isEn ? `Your plan includes a ${cart.memberDiscountPercent}% shop member discount on eligible products; it is not combined with sale prices (the lower price applies).` : `您的會籍方案享商店會員折扣 ${cart.memberDiscountPercent}%（適用指定商品），與促銷價不疊加、取較低價。` }}</p>
           <p class="summary__line"><span>{{ tx('運費（宅配／超商取貨）', 'Shipping (home delivery / store pickup)') }}</span><strong>{{ shippingFee > 0 ? formatPrice(shippingFee) : tx('免運', 'Free') }}</strong></p>
           <p v-if="cart?.shipping.amountToFree" class="summary__note" style="margin-top:0">{{ isEn ? `Add ${formatPrice(cart.shipping.amountToFree)} more to get free shipping.` : `再購買 ${formatPrice(cart.shipping.amountToFree)} 即可免運。` }}</p>
           <p class="summary__line summary__total"><span>{{ tx('預估合計', 'Estimated total') }}</span><span>{{ formatPrice((cart?.subtotal ?? 0) + shippingFee) }}</span></p>

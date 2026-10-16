@@ -21,7 +21,7 @@ public sealed record AdminStoreContentInput
 }
 
 /// <summary>新增與更新共用（multipart：<c>payload</c> JSON ＋ 選填檔案欄位 <c>image</c>）。
-/// <c>ApplicableTier</c>：<c>all</c>（全會員）／<c>fan_club</c>（限付費）。<c>Status</c>：<c>published</c>（上架）／<c>draft</c>（下架）。
+/// <c>ApplicableTier</c>：<c>all</c>（所有會員）／<c>premium</c>（限尊尚層級）。<c>Status</c>：<c>published</c>（上架）／<c>draft</c>（下架）。
 /// <c>Lat</c>／<c>Lng</c> 兩個一起填或一起省略（手動填的座標永遠優先）。<c>AutoLocate</c>＝true 且沒填座標時，
 /// 儲存時由伺服器依中文地址自動定位（S2-5；失敗不阻擋存檔，結果見回應的 <c>autoLocateStatus</c>）。
 /// <c>BusinessHours</c> 是自由文字（例：「週一至週五 11:00–21:00」）。</summary>

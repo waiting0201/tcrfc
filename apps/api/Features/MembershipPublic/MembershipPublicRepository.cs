@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Features.AdminMembers;
 using Tcrfc.Api.Features.MemberCenter;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
@@ -18,33 +19,42 @@ namespace Tcrfc.Api.Features.MembershipPublic;
 /// </summary>
 public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrlResolver imageUrls)
 {
-    private static readonly string[] GroupOrder = ["member_card", "store_discount", "jersey", "event"];
+    private static readonly string[] GroupOrder = ["member_card", "discount", "gift", "event", "content"];
 
     private static readonly IReadOnlyDictionary<string, (string Zh, string En)> GroupLabels = new Dictionary<string, (string, string)>(StringComparer.Ordinal)
     {
         ["member_card"] = ("會員卡", "Membership card"),
-        ["store_discount"] = ("店家折扣", "Partner discounts"),
-        ["jersey"] = ("球衣", "Jersey"),
+        ["discount"] = ("折扣與優惠", "Discounts & offers"),
+        ["gift"] = ("禮品", "Gifts"),
         ["event"] = ("活動", "Events"),
+        ["content"] = ("內容與溝通", "Content & community"),
     };
 
     // ═══════════════════════════ 方案 ═══════════════════════════
 
     /// <summary>目前可購買的方案（已上架、球季尚未結束）。排序：球季起始日、排序值。</summary>
-    public async Task<IReadOnlyList<MembershipPlanPublicDto>> ListPlansAsync(ClubScope club, string dbLocale, CancellationToken cancellationToken)
+    private async Task<List<MembershipPlan>> LoadCurrentPlansAsync(ClubScope club, CancellationToken cancellationToken)
     {
         var today = TaiwanClock.Today;
-        var plans = await db.MembershipPlans.AsNoTracking().Include(p => p.Season).Include(p => p.MembershipPlansI18ns)
+        return await db.MembershipPlans.AsNoTracking().Include(p => p.Season).Include(p => p.MembershipPlansI18ns)
             .Where(p => p.ClubId == club.ClubId && p.Status == "published" && p.Season.EndOn >= today && (p.EndsOn == null || p.EndsOn >= today))
             .OrderBy(p => p.Season.StartOn).ThenBy(p => p.SortOrder).ThenBy(p => p.RowSeq)
             .AsSplitQuery().ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<MembershipPlanPublicDto>> ListPlansAsync(ClubScope club, string dbLocale, CancellationToken cancellationToken)
+    {
+        var plans = await LoadCurrentPlansAsync(club, cancellationToken);
+        var en = dbLocale == "en";
         return plans.Select(p =>
         {
             var requested = p.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == dbLocale);
             var fallback = p.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
+            var name = RequestLocale.Pick(requested?.Name, fallback?.Name);
             return new MembershipPlanPublicDto
             {
-                Code = p.Code, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), BenefitNote = RequestLocale.Pick(requested?.BenefitNote, fallback?.BenefitNote),
+                Code = p.Code, Tier = p.Tier, TierLabel = MemberLabels.TierName(p.Tier, en, name), ShopDiscountPercent = p.ShopDiscountPercent,
+                Name = name, IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), BenefitNote = RequestLocale.Pick(requested?.BenefitNote, fallback?.BenefitNote),
                 Fee = p.Fee, CardQuota = p.CardQuota, JerseyQuota = p.JerseyQuota, MidSeasonRule = RequestLocale.Pick(requested?.MidSeasonRule, fallback?.MidSeasonRule), SeasonCode = p.Season.Code,
                 StartsOn = p.StartsOn ?? p.Season.StartOn, EndsOn = p.EndsOn ?? p.Season.EndOn,
             };
@@ -53,45 +63,71 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
 
     // ═══════════════════════════ 權益對照表 ═══════════════════════════
 
-    /// <summary>權益對照表。<paramref name="planCode"/> 省略＝取目前最早的上架方案。方案不存在回 null（呼叫端 404）。</summary>
-    public async Task<BenefitTablePublicDto?> GetBenefitsAsync(ClubScope club, string? planCode, string dbLocale, CancellationToken cancellationToken)
+    /// <summary>
+    /// 權益對照表（以方案為欄，v3.29）：欄＝目前可購買的方案；列＝以 <c>benefit_code</c> 對齊各方案的已上架條目。
+    /// 列的顯示名稱／說明／分組取「排序最前的方案」的那一筆（各方案的同代碼條目文案通常相同，值才不同）；排序以該條目在各方案中最小的 <c>sort_order</c> 為準。
+    /// 沒有可購買方案回傳空表（不是 404）。
+    /// </summary>
+    public async Task<BenefitTablePublicDto> GetBenefitsAsync(ClubScope club, string dbLocale, CancellationToken cancellationToken)
     {
-        var today = TaiwanClock.Today;
-        var planQuery = db.MembershipPlans.AsNoTracking().Include(p => p.Season).Include(p => p.MembershipPlansI18ns)
-            .Where(p => p.ClubId == club.ClubId && p.Status == "published");
-        var plan = string.IsNullOrWhiteSpace(planCode)
-            ? await planQuery.Where(p => p.Season.EndOn >= today).OrderBy(p => p.Season.StartOn).ThenBy(p => p.SortOrder).ThenBy(p => p.RowSeq).AsSplitQuery().FirstOrDefaultAsync(cancellationToken)
-            : await planQuery.AsSplitQuery().FirstOrDefaultAsync(p => p.Code == planCode, cancellationToken);
-        if (plan is null)
+        var plans = await LoadCurrentPlansAsync(club, cancellationToken);
+        if (plans.Count == 0)
         {
-            return string.IsNullOrWhiteSpace(planCode) ? new BenefitTablePublicDto { Groups = [], IsFallbackLocale = false } : null;
+            return new BenefitTablePublicDto { Plans = [], Groups = [] };
         }
 
+        var en = dbLocale == "en";
+        var planIds = plans.Select(p => p.Id).ToList();
         var benefits = await db.MembershipBenefits.AsNoTracking().Include(b => b.MembershipBenefitsI18ns)
-            .Where(b => b.MembershipPlanId == plan.Id && b.Status == "published").OrderBy(b => b.SortOrder).ThenBy(b => b.RowSeq)
+            .Where(b => planIds.Contains(b.MembershipPlanId) && b.Status == "published")
             .AsSplitQuery().ToListAsync(cancellationToken);
-        var groups = benefits.GroupBy(b => b.BenefitGroup)
-            .OrderBy(g => Array.IndexOf(GroupOrder, g.Key) is var i and >= 0 ? i : int.MaxValue)
-            .Select(g =>
+        var planIndex = plans.Select((p, i) => (p.Id, i)).ToDictionary(x => x.Id, x => x.i);
+
+        var columns = plans.Select(p =>
+        {
+            var requested = p.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == dbLocale);
+            var fallback = p.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
+            var name = RequestLocale.Pick(requested?.Name, fallback?.Name);
+            return new BenefitPlanColumnDto
             {
-                var items = g.Select(b =>
+                Code = p.Code, Tier = p.Tier, TierLabel = MemberLabels.TierName(p.Tier, en, name), Name = name,
+                IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), Fee = p.Fee,
+            };
+        }).ToList();
+
+        var rows = benefits.GroupBy(b => b.BenefitCode, StringComparer.Ordinal).Select(g =>
+        {
+            var lead = g.OrderBy(b => planIndex[b.MembershipPlanId]).ThenBy(b => b.SortOrder).ThenBy(b => b.RowSeq).First();
+            var requested = lead.MembershipBenefitsI18ns.FirstOrDefault(i => i.Locale == dbLocale);
+            var fallback = lead.MembershipBenefitsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
+            var values = plans.Select(p =>
+            {
+                var own = g.FirstOrDefault(b => b.MembershipPlanId == p.Id);
+                var ownRequested = own?.MembershipBenefitsI18ns.FirstOrDefault(i => i.Locale == dbLocale);
+                var ownFallback = own?.MembershipBenefitsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
+                return new BenefitPlanValueDto { PlanCode = p.Code, Value = own is null ? null : RequestLocale.Pick(ownRequested?.Value, ownFallback?.Value) };
+            }).ToList();
+            return new
+            {
+                Group = lead.BenefitGroup, Order = g.Min(b => b.SortOrder), Seq = g.Min(b => b.RowSeq),
+                Item = new BenefitItemPublicDto
                 {
-                    var requested = b.MembershipBenefitsI18ns.FirstOrDefault(i => i.Locale == dbLocale);
-                    var fallback = b.MembershipBenefitsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
-                    return new BenefitItemPublicDto
-                    {
-                        Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), Description = RequestLocale.Pick(requested?.Description, fallback?.Description),
-                        FreeValue = RequestLocale.Pick(requested?.FreeValue, fallback?.FreeValue), PaidValue = RequestLocale.Pick(requested?.PaidValue, fallback?.PaidValue),
-                    };
-                }).ToList();
-                var en = dbLocale == "en";
-                var label = GroupLabels.TryGetValue(g.Key, out var l) ? (en ? l.En : l.Zh) : g.Key;
-                return new BenefitGroupPublicDto { Group = g.Key, GroupLabel = label, Items = items };
+                    Code = g.Key, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
+                    Description = RequestLocale.Pick(requested?.Description, fallback?.Description), Values = values,
+                },
+            };
+        }).ToList();
+
+        var groups = rows.GroupBy(r => r.Group)
+            .OrderBy(g => Array.IndexOf(GroupOrder, g.Key) is var i and >= 0 ? i : int.MaxValue)
+            .Select(g => new BenefitGroupPublicDto
+            {
+                Group = g.Key,
+                GroupLabel = GroupLabels.TryGetValue(g.Key, out var l) ? (en ? l.En : l.Zh) : g.Key,
+                Items = g.OrderBy(r => r.Order).ThenBy(r => r.Seq).Select(r => r.Item).ToList(),
             }).ToList();
 
-        var planRequested = plan.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == dbLocale);
-        var planFallback = plan.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
-        return new BenefitTablePublicDto { PlanCode = plan.Code, PlanName = RequestLocale.Pick(planRequested?.Name, planFallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, planRequested?.Name), Groups = groups };
+        return new BenefitTablePublicDto { Plans = columns, Groups = groups };
     }
 
     // ═══════════════════════════ 特約店家 ═══════════════════════════
@@ -118,7 +154,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
             query = query.Where(s => s.Region == region);
         }
 
-        if (tier is "all" or "fan_club")
+        if (tier is "all" or "premium")
         {
             query = query.Where(s => s.ApplicableTier == tier);
         }
@@ -155,7 +191,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
             Slug = s.Slug, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), Category = s.Category, Region = s.Region, Address = address,
             Lat = s.Lat, Lng = s.Lng, Phone = s.Phone, BusinessHours = ReadHours(s.BusinessHours),
             OfferContent = RequestLocale.Pick(requested?.OfferContent, fallback?.OfferContent), ApplicableTier = s.ApplicableTier,
-            ApplicableTierLabel = dbLocale == "en" ? (s.ApplicableTier == "fan_club" ? "Paid Fan Club members only" : "All members") : (s.ApplicableTier == "fan_club" ? "限付費會員" : "全會員適用"),
+            ApplicableTierLabel = AdminPartnerStores.AdminPartnerStoresRepository.TierLabel(s.ApplicableTier, dbLocale == "en"),
             MapUrl = s.MapUrl, WebsiteUrl = s.WebsiteUrl, ImageUrl = imageUrls.Resolve(s.ImageKey),
             ImageWidth = s.ImageKey is null ? null : s.ImageWidth, ImageHeight = s.ImageKey is null ? null : s.ImageHeight,
             ImageAlt = s.ImageKey is null ? null : RequestLocale.Pick(requested?.ImageAlt, fallback?.ImageAlt), IsShared = s.ClubId is null,

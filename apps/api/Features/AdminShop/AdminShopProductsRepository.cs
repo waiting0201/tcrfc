@@ -87,7 +87,7 @@ public sealed class AdminShopProductsRepository(
             return new AdminProductListItemDto
             {
                 Id = r.Product.Id, Slug = r.Product.Slug, CollectionId = r.Product.CollectionId, CollectionName = r.CollectionName,
-                IsNewArrival = r.Product.IsNewArrival, SortOrder = r.Product.SortOrder, Status = r.Product.Status, DisplayStatus = display,
+                IsNewArrival = r.Product.IsNewArrival, MemberDiscountEligible = r.Product.MemberDiscountEligible, SortOrder = r.Product.SortOrder, Status = r.Product.Status, DisplayStatus = display,
                 DisplayStatusLabel = ShopLabels.Of(ShopLabels.ProductStatus, display), OutOfStockBehavior = r.Product.OutOfStockBehavior,
                 OutOfStockBehaviorLabel = ShopLabels.Of(ShopLabels.OutOfStock, r.Product.OutOfStockBehavior), CoverThumbUrl = ThumbUrl(r.Cover),
                 NameZh = r.Zh, NameEn = r.En, VariantCount = vs.Count,
@@ -123,7 +123,7 @@ public sealed class AdminShopProductsRepository(
         var en = product.ProductsI18ns.FirstOrDefault(i => i.Locale == "en");
         return new AdminProductDetailDto
         {
-            Id = product.Id, Slug = product.Slug, CollectionId = product.CollectionId, CollectionName = collectionName, IsNewArrival = product.IsNewArrival,
+            Id = product.Id, Slug = product.Slug, CollectionId = product.CollectionId, CollectionName = collectionName, IsNewArrival = product.IsNewArrival, MemberDiscountEligible = product.MemberDiscountEligible,
             SortOrder = product.SortOrder, Status = product.Status, DisplayStatus = display, DisplayStatusLabel = ShopLabels.Of(ShopLabels.ProductStatus, display),
             OutOfStockBehavior = product.OutOfStockBehavior, OutOfStockBehaviorLabel = ShopLabels.Of(ShopLabels.OutOfStock, product.OutOfStockBehavior),
             SizeChart = ParseSizeChart(product.SizeChart),
@@ -151,7 +151,7 @@ public sealed class AdminShopProductsRepository(
         var now = DateTime.UtcNow;
         var row = new Product
         {
-            Id = Guid.NewGuid(), ClubId = scope.ClubId, Slug = slug, CollectionId = request.CollectionId, IsNewArrival = request.IsNewArrival,
+            Id = Guid.NewGuid(), ClubId = scope.ClubId, Slug = slug, CollectionId = request.CollectionId, IsNewArrival = request.IsNewArrival, MemberDiscountEligible = request.MemberDiscountEligible,
             SortOrder = request.SortOrder ?? (maxOrder ?? -1) + 1, Status = request.Status,
             OutOfStockBehavior = request.OutOfStockBehavior ?? "show_unavailable", SizeChart = SerializeSizeChart(request.SizeChart),
             CreatedAt = now, UpdatedAt = now, CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
@@ -186,6 +186,7 @@ public sealed class AdminShopProductsRepository(
         await EnsureCollectionAsync(scope, request.CollectionId, cancellationToken);
         row.CollectionId = request.CollectionId;
         row.IsNewArrival = request.IsNewArrival;
+        row.MemberDiscountEligible = request.MemberDiscountEligible;
         row.Status = request.Status;
         if (request.SortOrder is int order)
         {

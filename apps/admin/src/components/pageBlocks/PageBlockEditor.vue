@@ -531,6 +531,7 @@ function removeTableRow(rowIndex: number) {
     <!-- 表格 -->
     <template v-else-if="blockType === 'table'">
       <p class="page-block-editor__hint">欄位標題需要雙語，儲存格內容自行決定要不要雙語混用。</p>
+      <p v-if="tableC.headers.length === 0" class="page-block-editor__hint">這張表格還是空白的：請先按「新增欄位」建立欄位標題，再按「新增一列」填入內容。</p>
       <div class="page-block-editor__table-headers">
         <div v-for="(header, colIndex) in tableC.headers" :key="colIndex" class="page-block-editor__table-header-cell">
           <BilingualShortField

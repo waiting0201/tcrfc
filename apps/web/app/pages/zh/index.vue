@@ -73,7 +73,7 @@ const HOME_BLOCK_DEFAULTS = [
 ] as const
 const blockOrder = computed(() => orderBlocks(HOME_BLOCK_DEFAULTS))
 
-// S3-9：五大核心價值改接 `GET /api/backend/{club}/home/core-values`（固定五項：code／中英名稱／排序／「了解更多」頁面）。
+// S3-9：核心價值（v3.29 起四項）改接 `GET /api/backend/{club}/home/core-values`（固定四項：code／中英名稱／排序／「了解更多」頁面）。
 // 說明文字與圖示由前台依 `code` 對應（shared/utils/core-values.ts）；後端打不到或回空時退回同順序的備援。
 // 區塊本身仍只對磐石顯示（藍鯨版標籤文字尚待客戶確認，藍鯨規劃書 §10 第 13 點）；藍鯨不發這個請求。
 // B-14：藍鯨也發這個請求（拿掉寫死的 isTcrfc）。磐石維持「後端回空就用備援」；藍鯨沒有備援——
@@ -86,6 +86,8 @@ const showCoreValues = computed(() => isTcrfc.value
   : isSectionExplicitlyEnabled('core_values') && (coreValuesData.value?.length ?? 0) > 0)
 const coreValues = computed(() => buildCoreValueViews(coreValuesData.value))
 const coreValuesMore = computed(() => coreValueLearnMorePath(coreValuesData.value))
+/** 英文卡片說明只放第一段（全文在 2.3 足球理念頁）。 */
+const coreValueSummaryEn = (code: string) => splitParagraphs(CORE_VALUE_DESCRIPTIONS_EN[code] ?? '')[0] ?? ''
 
 // S3-5：官方商店入口（shop_entry）改接商店資料——「精選商品與 Collection 入口」。精選＝後台排序的前 3 件上架商品
 // （商品列表端點的預設排序）。只顯示名稱／圖片／價格，**不顯示庫存狀態**（首頁沒有 no-store，庫存不得出現在可被快取的畫面）。
@@ -289,7 +291,7 @@ function fixtureMetaLine(m: HomeMatch): string {
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
 const cutoffStr = computed(() => new Date(Date.now() + THIRTY_DAYS_MS).toISOString().slice(0, 10))
-/** 近期賽事（未來 30 天）：非一線隊（U15／U14／U12）——目前種子資料只有一線隊，
+/** 近期賽事（未來 30 天）：非一線隊（各學院梯隊）——目前種子資料只有一線隊，
  * 這裡先接上真實邏輯，真的有梯隊賽程時會自然出現，不用再改程式碼。 */
 const otherTeamUpcoming = computed(() =>
   allMatches.value
@@ -701,13 +703,11 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- 隊伍等級 chips：藍鯨青年隊只有 U15／U12（無 U14，見 db/seed 藍鯨隊伍名單），
-           U14 chip 只在磐石顯示，不對藍鯨顯示不存在的隊別。 -->
+      <!-- 隊伍等級 chips：梯隊代碼取自 siteFacts.squadCodes（單一來源；磐石 U10／U12／U14／U16／U18，
+           藍鯨 U15／U12），不在此寫死，避免對任一俱樂部顯示不存在的隊別。 -->
       <div class="team-chips" role="group" :aria-label="tx('選擇隊伍等級', 'Select a team')">
         <button class="team-chip" type="button" :data-team="firstTeamCode" :aria-pressed="teamPanel === 'D1'" @click="teamPanel = 'D1'">{{ tx('一線隊 First Team', 'First Team') }}</button>
-        <button class="team-chip" type="button" data-team="U15" :aria-pressed="teamPanel === 'other'" @click="teamPanel = 'other'">U15</button>
-        <button v-if="isTcrfc" class="team-chip" type="button" data-team="U14" :aria-pressed="false" @click="teamPanel = 'other'">U14</button>
-        <button class="team-chip" type="button" data-team="U12" :aria-pressed="false" @click="teamPanel = 'other'">U12</button>
+        <button v-for="code in siteFacts.squadCodes" :key="code" class="team-chip" type="button" :data-team="code" :aria-pressed="false" @click="teamPanel = 'other'">{{ code }}</button>
       </div>
 
       <div v-if="isSectionEnabled('upcoming_match')" class="match-grid" id="match-grid-d1" data-team-panel="D1" :hidden="teamPanel !== 'D1'">
@@ -797,31 +797,31 @@ onBeforeUnmount(() => {
   </section>
   </template>
   <template v-if="blk === 'core_values'">
-  <!-- SPEC 1.2 — Five core values
-       五大核心價值是磐石自訂的品牌框架，舊站沒有陳述對等的架構，依內容紀律
-       不得自行創作藍鯨版的「五大核心價值」，本區塊不顯示。 -->
+  <!-- SPEC 1.2 — Four core values（v3.29，客戶 2.3）
+       四大核心價值是磐石自訂的品牌框架，舊站沒有陳述對等的架構，依內容紀律
+       不得自行創作藍鯨版的「四大核心價值」，本區塊不顯示。 -->
   <section v-if="showCoreValues" class="band values-band" id="values" aria-labelledby="values-title">
-    <span class="ghost-num ghost-num--light" aria-hidden="true">05</span>
+    <span class="ghost-num ghost-num--light" aria-hidden="true">04</span>
     <div class="band-inner container">
       <div class="eyebrow-row">
         <div>
           <p class="kicker">OUR MISSION</p>
-          <!-- 藍鯨的標題與說明文字尚待客戶確認（藍鯨規劃書 §10 第 13 點），不沿用磐石的品牌主張文案：只顯示中性標題與 API 的五項名稱。 -->
+          <!-- 藍鯨的標題與說明文字尚待客戶確認（藍鯨規劃書 §10 第 13 點），不沿用磐石的品牌主張文案：只顯示中性標題與 API 的四項名稱。 -->
           <h2 v-if="!isTcrfc" class="section-title" id="values-title">{{ tx('核心價值', 'Core Values') }}</h2>
           <h2 v-else-if="isEn" class="section-title" id="values-title">Developing players who pursue excellence<br>through a professional model</h2>
           <h2 v-else class="section-title" id="values-title">透過專業模式<br>培育選手追求卓越</h2>
         </div>
         <p v-if="isTcrfc" class="section-lede">{{ tx('從台中出發：培育本土選手邁向職業、成為在地榮耀的來源，並以足球讓世界看見台灣。', 'Starting from Taichung: developing local players for the professional game, becoming a source of local pride, and letting the world see Taiwan football through the sport.') }}</p>
       </div>
-      <div class="values-grid">
+      <div class="values-grid values-grid--4">
         <div v-for="v in coreValues" :key="v.code" class="value-card">
           <p class="value-card__num">{{ v.num }}</p>
           <p class="value-card__en">{{ v.nameEn }}</p>
           <p v-if="!isEn" class="value-card__zh">{{ v.nameZh }}</p>
-          <p v-if="isTcrfc && (isEn ? CORE_VALUE_DESCRIPTIONS_EN[v.code] : v.desc)" class="value-card__desc">{{ isEn ? CORE_VALUE_DESCRIPTIONS_EN[v.code] : v.desc }}</p>
+          <p v-if="isTcrfc && (isEn ? coreValueSummaryEn(v.code) : v.desc)" class="value-card__desc">{{ isEn ? coreValueSummaryEn(v.code) : v.desc }}</p>
         </div>
       </div>
-      <p v-if="isTcrfc && coreValuesMore" class="sponsor-more"><a :href="lp(coreValuesMore)">{{ tx('了解足球理念與五大核心價值 →', 'Learn about our football philosophy and five core values →') }}</a></p>
+      <p v-if="isTcrfc && coreValuesMore" class="sponsor-more"><a :href="lp(coreValuesMore)">{{ tx('了解足球理念與四大核心價值 →', 'Learn about our football philosophy and four core values →') }}</a></p>
     </div>
   </section>
   </template>

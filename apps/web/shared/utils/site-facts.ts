@@ -100,11 +100,12 @@ export interface SiteFacts {
    * 電話與營業時間尚未有可公開的核實資料，維持 `null`（不放佔位假資料，比照
    * join/contact/index.vue 既有的「電話」「營業時間」欄位有標籤無內容的既有做法）。 */
   contact: {
-    /** tcrfc：本俱樂部辦公室地址與主場地址目前是同一個值（見既有
-     * join/contact/index.vue／join/location/index.vue 既有內容），直接取
-     * `venues[0].address`，不在這裡重複一份；bw 沒有實體地址（舊站盤點：
+    /** 聯絡地址（v3.29 起是獨立設定 `site.contact_address`，不等於場地地址；場地地址讀 `venues[].address`）。
+     * bw 沒有實體地址（舊站盤點：
      * content/blue-whale/gap-analysis.md §2 單元 10「沒有任何實體地址」），為 `null`。 */
     address: string | null
+    /** 英文聯絡地址；後端無英文值時為 null，呼叫端回退 `address`（中文）顯示。 */
+    addressEn?: string | null
     phone: string | null
     hours: string | null
     /** 英文營業時間；後端無英文值或尚未提供時為 null，呼叫端回退 `hours`（中文）顯示。 */
@@ -150,11 +151,14 @@ export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
         isHomeGround: true,
       },
     ],
-    squadStructureZh: '一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系',
-    squadStructureEn: 'A development system in which the First Team and the Academy squads (U15/U14/U12) run in parallel',
-    squadCodes: ['U15', 'U14', 'U12'],
+    // 2026-10-16（主站 v3.29，客戶 4.3）：磐石學院梯隊為 U10／U12／U14／U16／U18；後端 `site.squad_codes` 為準，本檔只在 API 打不到時墊背。
+    squadStructureZh: '一線隊與足球學院（U10／U12／U14／U16／U18）並行的發展體系',
+    squadStructureEn: 'A development pathway with the first team and the Academy (U10 / U12 / U14 / U16 / U18) running in parallel',
+    squadCodes: ['U10', 'U12', 'U14', 'U16', 'U18'],
     contact: {
-      address: '台中市北屯區崇平路二段景谷巷 11 弄 41 號',
+      // 聯絡地址是獨立設定 `site.contact_address`（客戶 10 聯絡資訊），與場地地址（上方 venues，崇平路二段景谷巷）是兩件事，不得互相借用。
+      address: '台中市北屯區昌平路二段敬固巷11弄41號',
+      addressEn: 'No. 41, Alley 11, Jinggu Lane, Section 2, Changping Road, Beitun District, Taichung City, Taiwan',
       phone: null,
       hours: null,
     },

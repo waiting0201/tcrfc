@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // app/components/member/MemberJerseys.vue — 球衣登記（主站 §3.14「球衣發放」）
 //
-// 付費會籍開通後，會員填寫尺寸與領取方式（寄送／到場領取；寄送須填收件人、電話與地址），家庭方案依
+// 會籍開通後（方案含球衣者），會員填寫尺寸與領取方式（寄送／到場領取；寄送須填收件人、電話與地址），家庭方案依
 // `jersey_quota` 逐件登記。發放狀態（待處理／已寄出／已領取）會員端可見；**只有「待處理」能修改**。
 // 件數上限由後端強制（並行也不會超收），前端只負責呈現與預先擋掉明顯錯誤。
 // 尺寸是自由文字（後端只限 16 字元內）：尺碼表尚未提供，故不做固定選單，避免寫死一份未經客戶確認的尺碼。
@@ -84,8 +84,8 @@ async function save() {
     <p v-if="groups === null" class="mc-empty">{{ tx('載入中…', 'Loading…') }}</p>
     <p v-else-if="loadError" class="mc-alert mc-alert--error" role="alert">{{ loadError }}</p>
     <p v-else-if="groups.length === 0" class="mc-empty">
-      <template v-if="isEn">You do not have a membership eligible for jersey registration. The welcome jersey is a benefit of <strong>Paid Fan Club</strong> membership. Once your membership is activated you can enter your size and how you will receive it here.</template>
-      <template v-else>目前沒有可登記球衣的會籍。入會球衣是<strong>付費球迷會員</strong>的權益，會籍開通後即可在此填寫尺寸與領取方式。</template>
+      <template v-if="isEn">You do not have a membership eligible for jersey registration. A welcome jersey is included in some membership plans (for example the Prestige Member plan). Once such a membership is activated you can enter your size and how you will receive it here.</template>
+      <template v-else>目前沒有可登記球衣的會籍。入會球衣是部分會籍方案（例如尊尚會員）的權益，會籍開通後即可在此填寫尺寸與領取方式。</template>
     </p>
 
     <section v-for="g in groups ?? []" :key="g.membershipId" class="mc-jersey-group">

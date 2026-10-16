@@ -397,6 +397,9 @@ public sealed class AdminCalendarAdvancedTests(AdminWriteApiFixture fixture)
             Assert.Contains($"UID:match-{match}@tcrfc", team);
             Assert.DoesNotContain("【測試】公開活動", team); // 沒有隊別的俱樂部活動只出現在全站 feed
             Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync("/api/v1/tcrfc/calendar/feed.ics?team=BW1")).StatusCode); // 別的俱樂部的隊別
+            // v3.29：磐石學院梯隊改為 U10／U12／U14／U16／U18；從未建立過的 U15 沒有 feed（沒有對外發出過訂閱網址，不需轉址），不存在的隊別一律 404
+            Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync("/api/v1/tcrfc/calendar/feed.ics?team=U15")).StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync("/api/v1/tcrfc/calendar/feed.ics?team=U10")).StatusCode); // 還沒建立的梯隊同樣 404（以 teams 表為準，不寫死代號）
             var en = await (await anonymous.GetAsync("/api/v1/tcrfc/calendar/feed.ics?lang=en")).Content.ReadAsStringAsync();
             Assert.Contains("X-WR-CALNAME:", en);
             var bw = await (await anonymous.GetAsync("/api/v1/bw/calendar/feed.ics")).Content.ReadAsStringAsync();

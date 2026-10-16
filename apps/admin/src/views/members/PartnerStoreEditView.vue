@@ -388,8 +388,8 @@ const backToList = () => router.push({ path: '/members/partner-stores', query: {
                     <el-col :span="24">
                       <FormField field="applicableTier" label="適用會員">
                         <el-radio-group v-model="form.applicableTier">
-                          <el-radio value="all">全部會員</el-radio>
-                          <el-radio value="fan_club">限付費球迷會員</el-radio>
+                          <el-radio value="all">所有會員（磐石與尊尚）</el-radio>
+                          <el-radio value="premium">限尊尚會員</el-radio>
                         </el-radio-group>
                       </FormField>
                     </el-col>

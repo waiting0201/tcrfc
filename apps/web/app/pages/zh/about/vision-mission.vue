@@ -52,7 +52,7 @@ cms.applySeo({ title: () => seo.value.title, description: () => seo.value.descri
       </div>
     </div>
 
-    <p v-if="clubKey === 'tcrfc'" class="vm-footnote"><template v-if="isEn">For our brand promise and five core values, see <a :href="lp('/zh/about/philosophy/')">2.3 Our Philosophy</a>.</template><template v-else>俱樂部品牌主張與五大核心價值可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 足球理念</a>。</template></p>
+    <p v-if="clubKey === 'tcrfc'" class="vm-footnote"><template v-if="isEn">For our brand promise and four core values, see <a :href="lp('/zh/about/philosophy/')">2.3 Our Philosophy</a>.</template><template v-else>俱樂部品牌主張與四大核心價值可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 足球理念</a>。</template></p>
     <p v-else class="vm-footnote"><template v-if="isEn">For our club slogan and training spirit, see <a :href="lp('/zh/about/philosophy/')">2.3 Club Slogan and Training Spirit</a>.</template><template v-else>俱樂部口號與培訓精神可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 俱樂部口號與培訓精神</a>。</template></p>
   </div>
 </section>

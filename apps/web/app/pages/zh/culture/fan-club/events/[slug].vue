@@ -76,7 +76,7 @@ useSeoMeta({
           <div v-if="ev.startsAt"><dt>{{ tx('活動時間', 'Date and time') }}</dt><dd>{{ formatTaipeiDateTime(ev.startsAt, locale) }}<template v-if="ev.endsAt"> – {{ formatTaipeiDateTime(ev.endsAt, locale) }}</template></dd></div>
           <div v-if="detail!.venueName || ev.location"><dt>{{ tx('地點', 'Location') }}</dt><dd>{{ detail!.venueName || ev.location }}<template v-if="detail!.venueName && ev.location && detail!.venueName !== ev.location">（{{ ev.location }}）</template></dd></div>
           <div><dt>{{ tx('名額', 'Places') }}</dt><dd>{{ isEn ? (ev.capacity === null ? 'No limit' : `${ev.capacity}${ev.spotsLeft !== null ? ` (${ev.spotsLeft} left)` : ''}`) + (ev.isFull ? '; full, you can join the waitlist' : '') : (ev.capacity === null ? '不限' : `${ev.capacity} 人${ev.spotsLeft !== null ? `（剩餘 ${ev.spotsLeft}）` : ''}`) + (ev.isFull ? '，已額滿可登記候補' : '') }}</dd></div>
-          <div v-if="ev.isPaidMembersOnly"><dt>{{ tx('報名資格', 'Eligibility') }}</dt><dd>{{ tx('限付費球迷會員', 'Paid Fan Club members only') }}</dd></div>
+          <div v-if="ev.isPaidMembersOnly"><dt>{{ tx('報名資格', 'Eligibility') }}</dt><dd>{{ tx('限持有效會籍者', 'Members with a valid membership only') }}</dd></div>
         </dl>
         <FanEventRegistration v-if="!isPast" :event="ev" :initial-my="detail!.myRegistration" @changed="refresh()" />
         <p v-else class="mc-alert mc-alert--info" role="status">{{ tx('此活動已結束。', 'This event has ended.') }}</p>

@@ -19,7 +19,7 @@ const router = useRouter()
 const filterQuery = computed(() => ({
   category: typeof route.query.category === 'string' ? route.query.category : '',
   region: typeof route.query.region === 'string' ? route.query.region : '',
-  tier: route.query.tier === 'all' || route.query.tier === 'fan_club' ? route.query.tier : '',
+  tier: route.query.tier === 'all' || route.query.tier === 'premium' ? route.query.tier : '',
 }))
 const { stores, failed, pending } = await usePartnerStores(() => filterQuery.value)
 const { filters } = await usePartnerStoreFilters()
@@ -35,7 +35,7 @@ useSeoMeta({
   title: computed(() => (isEn.value ? (isTcrfc.value ? CLUB_PERKS_SEO_EN : CLUB_PERKS_SEO_EN_BW).title : `特約店家 Partner Perks｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isEn.value
     ? (isTcrfc.value ? CLUB_PERKS_SEO_EN : CLUB_PERKS_SEO_EN_BW).description
-    : `${clubAssets.value.shortNameZh}會員的特約店家折扣清單。到店出示電子會員卡即可享有優惠，依店家標示適用一般會員或付費球迷會員。`)),
+    : `${clubAssets.value.shortNameZh}會員的特約店家折扣清單。到店出示電子會員卡即可享有優惠，依店家標示適用所有會員或限高階層級。`)),
 })
 </script>
 
@@ -68,7 +68,7 @@ useSeoMeta({
         <p class="kicker">STORE LIST</p>
         <h2 class="section-title" id="stores-title">{{ tx('合作店家', 'Partner stores') }}</h2>
       </div>
-      <a class="btn btn--dark btn--sm" :href="lp('/zh/member/#tab-register')">{{ tx('加入會員', 'Join as a member') }}</a>
+      <a class="btn btn--dark btn--sm" :href="lp('/zh/member/#tab-register')">{{ tx('加入會籍', 'Get a membership') }}</a>
     </div>
 
     <div class="store-filters" role="group" :aria-label="tx('店家篩選', 'Filter stores')">
@@ -90,8 +90,8 @@ useSeoMeta({
         <label class="store-filters__label" for="sf-tier">{{ tx('適用層級', 'Eligible tier') }}</label>
         <select id="sf-tier" :value="filterQuery.tier" @change="setFilter('tier', ($event.target as HTMLSelectElement).value)">
           <option value="">{{ tx('全部', 'All') }}</option>
-          <option value="all">{{ tx('全會員適用', 'All members') }}</option>
-          <option value="fan_club">{{ tx('限付費會員', 'Paid Fan Club members only') }}</option>
+          <option value="all">{{ tx('所有會員', 'All members') }}</option>
+          <option value="premium">{{ isTcrfc ? tx('限尊尚層級', 'Prestige Member tier only') : tx('限高階層級', 'Premium tier only') }}</option>
         </select>
       </div>
     </div>
@@ -113,7 +113,7 @@ useSeoMeta({
               <li v-if="st.phone">{{ st.phone }}</li>
               <li v-if="st.businessHours">{{ st.businessHours }}</li>
             </ul>
-            <p class="store-card__tier" :class="{ 'store-card__tier--paid': st.applicableTier === 'fan_club' }">{{ st.applicableTierLabel }}</p>
+            <p class="store-card__tier" :class="{ 'store-card__tier--paid': st.applicableTier === 'premium' }">{{ st.applicableTierLabel }}</p>
           </div>
         </a>
       </article>
@@ -141,8 +141,8 @@ useSeoMeta({
       <li>
         <span class="usage-steps__num">1</span>
         <div>
-          <h3>{{ tx('加入會員', 'Join as a member') }}</h3>
-          <p>{{ tx('以 Email 或 LINE 加入，完成驗證後即可在會員中心取得電子會員卡。', 'Sign up with your email or LINE. Once you have been verified, you can get your digital membership card in the Member Centre.') }}</p>
+          <h3>{{ tx('購買會籍', 'Get a membership') }}</h3>
+          <p>{{ tx('以 Email 或 LINE 註冊帳號後，在會員中心購買會籍方案；款項確認、會籍開通後即可取得電子會員卡。', 'Register an account with your email or LINE, then purchase a membership plan in the Member Centre. Once payment is confirmed and your membership is activated, you get your digital membership card.') }}</p>
         </div>
       </li>
       <li>
@@ -156,7 +156,7 @@ useSeoMeta({
         <span class="usage-steps__num">3</span>
         <div>
           <h3>{{ tx('享有折扣', 'Enjoy the discount') }}</h3>
-          <p>{{ tx('各店優惠內容與適用層級以本頁標示為準。標示「限付費會員」者，需為有效期內的球迷會員。', 'Each store\'s offer and eligible tier are as shown on this page. Offers marked "Paid Fan Club members only" require a Fan Club membership that is still valid.') }}</p>
+          <p>{{ tx('各店優惠內容與適用層級以本頁標示為準。標示「限高階層級」者，需持有效期內的高階層級會籍。', 'Each store\'s offer and eligible tier are as shown on this page. Offers marked as limited to the top tier require a valid membership of that tier.') }}</p>
         </div>
       </li>
     </ol>
@@ -179,11 +179,11 @@ useSeoMeta({
     <div class="perks-cta">
       <div>
         <h2 class="section-title" id="join-cta-title">{{ tx('還不是會員？', 'Not a member yet?') }}</h2>
-        <p class="section-lede">{{ tx('免費加入即可享標示「全會員適用」的店家折扣；升級付費球迷會員，另可獲得球衣與更多店家優惠。', 'Join for free to enjoy store discounts marked "All members"; upgrade to a Paid Fan Club member to also receive a jersey and more store offers.') }}</p>
+        <p class="section-lede">{{ tx('持有任一會籍方案即可享標示「所有會員」的店家折扣；標示「限高階層級」的優惠需持有高階層級會籍。', 'Any membership plan gives you the store discounts marked "All members"; offers marked for the top tier require a membership of that tier.') }}</p>
       </div>
       <div class="perks-cta__actions">
-        <a class="btn btn--primary" :href="lp('/zh/member/#tab-register')">{{ tx('加入會員', 'Join as a member') }}</a>
-        <a class="btn btn--dark" :href="lp('/zh/culture/fan-club/')">{{ tx('了解付費會籍', 'About paid membership') }}</a>
+        <a class="btn btn--primary" :href="lp('/zh/member/#tab-register')">{{ tx('加入會籍', 'Get a membership') }}</a>
+        <a class="btn btn--dark" :href="lp('/zh/culture/fan-club/')">{{ tx('了解會籍方案', 'About membership plans') }}</a>
       </div>
     </div>
   </div>

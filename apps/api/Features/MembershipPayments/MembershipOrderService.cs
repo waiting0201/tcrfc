@@ -69,11 +69,18 @@ public sealed partial class MembershipOrderService(
             throw new MemberConflictException("方案已結束", "這個方案的期間已經結束，無法購買。", "plan_closed");
         }
 
+        // 🔴 不提供會籍期間內升級（v3.29）：這個球季已有有效會籍（任一方案）就不能再買同一俱樂部同一球季的方案——
+        // 同方案＝已經是會員（already_fan_club）；不同方案（磐石會員→尊尚會員）＝升級，明確拒絕（upgrade_not_supported），到期後續約時才能改選。
         var current = await db.Memberships.AsNoTracking().FirstOrDefaultAsync(
             m => m.MemberId == me.MemberId && m.ClubId == club.ClubId && m.SeasonId == plan.SeasonId, cancellationToken);
-        if (current is { Tier: "fan_club" } && MemberLabels.EffectiveMembershipStatus(current.Status, current.MembershipEndOn, today) == "active")
+        if (current is not null && MemberLabels.EffectiveMembershipStatus(current.Status, current.MembershipEndOn, today) == "active")
         {
-            throw new MemberConflictException("已是球迷會員", "你在這個球季已經是球迷會員了。", "already_fan_club");
+            if (current.MembershipPlanId != plan.Id)
+            {
+                throw new MemberConflictException("無法升級", "會籍期間內不能升級方案，請等目前的會籍到期後，續約時再改選方案。", "upgrade_not_supported");
+            }
+
+            throw new MemberConflictException("已是會員", "你在這個球季已經持有這個方案的有效會籍了。", "already_fan_club");
         }
 
         // 同一方案同時只能有一張未完成的訂單（待付款逾時的先換算掉）。

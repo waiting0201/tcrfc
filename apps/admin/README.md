@@ -765,9 +765,9 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 
 ### 核心價值標籤
 
-固定 5 個值（`players_first`／`excellence`／`global_pathways`／`community`／`integrity`，逐字
-對照後端 `AllowedCoreValueTags` 與 docs/06-conventions.md §1「五大核心價值」的中文名稱），畫面用
-5 個獨立 `el-checkbox`（`:model-value` ＋ `@change`，比照 `RoleEditView.vue` 既有的寫法，
+固定 4 個值（v3.29 起：`inspiring_players`／`shaping_champions`／`local_pride`／`global_influence`，
+對照後端 `CoreValueCatalog` 與 docs/06-conventions.md §1「四大核心價值」：啟發球員／塑造冠軍／在地驕傲／撼動全球），畫面用
+4 個獨立 `el-checkbox`（`:model-value` ＋ `@change`，比照 `RoleEditView.vue` 既有的寫法，
 不用 `el-checkbox-group`——這個專案的 Element Plus 版本對 `el-checkbox-group` 的值/標籤 prop
 命名在既有程式碼裡沒有先例可循，用單顆 checkbox 的既有慣例比較不會踩到版本相關的陷阱）。
 
@@ -3058,3 +3058,18 @@ API 契約以 `apps/api/README.md`「後台欄位串接稽核的後端修正」�
 - `FanEventEditView.vue`「封面圖片」段、`MediaEditView.vue`「封面圖片（選填）」段（高解析圖類別無封面，該段不顯示）各加「圖片說明」`BilingualShortField field="coverAlt"`（`maxlength=200`），位置比照新聞封面：說明跟著圖片放在右側欄「基本設定」同一個分段，不增加卡片。
 - `api/adminFanEvents.ts`、`api/adminPress.ts` 的 `*LocaleContent` 補 `coverAlt?`；英文欄「全空才省略 `en`」的判斷納入 `coverAlt`。
 - 檢查：`npm run lint`（含 `lint:edit-layout`）與 `npm run build` 通過。
+
+## 客戶文件對齊（主站 v3.29，2026-10-16，CF-3）
+
+後端契約見 `apps/api/README.md` 末段「客戶文件對齊」。後台跟著改的畫面：
+
+- **K2 方案**（`MembershipPlanEditView`／`PlansTab`）：新增「會員層級」（磐石會員／尊尚會員，已有會籍使用時鎖定）、「商店會員折扣（%）」、「費用」改稱「建議年費」；清單多層級與折扣欄。
+- **K2 會籍**（`MembershipsTab`）：移除「建立一般會員會籍」按鈕與 `MembershipFreeDialog`（後端 `POST /memberships` 已移除，註冊帳號不是會籍）；層級篩選與「調整會籍」的層級選項改磐石／尊尚。**手動調整層級保留**（規劃書 K2 仍列），但不是升級流程。「待確認申請」文字去掉「升級」。
+- **K4 權益**（`BenefitsTab`）：每個方案各自的條目，只填一個「該方案的對應值」（取代原「一般會員／付費球迷會員」兩欄）；分組改五類（取自 API）；新增時可「沿用其他方案的權益」（帶入同一個內部代碼 `code`，前台對照表才會對齊成同一列；代碼不顯示給使用者）。
+- **K4 特約店家**（`PartnerStoreEditView`／`StoresTab`）：適用層級改「所有會員／限尊尚會員」（值 `all`／`premium`）。
+- **推播與公告分眾**（`pushLabels.ts`／`AnnouncementTab`）：所有人／所有會員／限尊尚會員／非會員（值 `all`／`member`／`premium`／`anonymous`）。
+- **S1 商品**：「適用會員折扣」開關（`memberDiscountEligible`，PUT 整份取代，一律明確帶出）。**S3 訂單**：詳情顯示整張與逐列的會員折扣、發票提示折扣後金額；現場建單選會員時說明會自動套用折扣。
+- **B2 新聞**：核心價值標籤改四項（`types/news.ts`）。**B1 頁面**：版型由後端提供（`academy/curriculum` 自動出現）；表格區塊遇到空白骨架時顯示建立欄位的提示。
+- **I 網站事實**：新增「聯絡地址」中英（`contactAddressZh`／`contactAddressEn`，與場地地址無關）；梯隊代碼說明改 U10–U18。**儀表板**：「有效的付費會籍」改「有效的尊尚會籍」（`activePremiumMemberships`），「待處理的升級申請」改「待確認的會籍」（該數字實際是 `status=pending` 的會籍數）。
+- **球迷活動**：「限付費會員」改「限會員」（任一層級的有效會籍）。
+- 檢查：`npm run typecheck`、`npm run lint`（0 errors，179 warnings 皆為既有的 `vue/html-indent`）、`npm test`、`npm run build` 通過；**畫面未實機驗收**（未啟動本機 API）。

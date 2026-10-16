@@ -549,7 +549,11 @@ cmd_apply() {
     # 結束碼卻是 0（2026-10-13 正式庫 8 支只套 3 支）。包一層 SET NOCOUNT ON 再 :r（idempotent.sql 原檔不動、SHA-256 鎖定不變），
     # 並以「結束碼 0 且輸出沒有錯誤字樣」判斷成敗（lib/sqlcmd-guard.sh）。
     sqlcmd_nocount_wrapper "${WORK_DIR}/apply-wrapper.${t}.sql" /work/idempotent.sql
-    SQLCMD_DOCKER_EXTRA=(-v "${DBM_SQL_DIR}/${t}:/work:ro" -v "${WORK_DIR}/apply-wrapper.${t}.sql:/wrap/apply.sql:ro")
+    # 🔴 E-330：idempotent.sql 含中文種子字串時，sqlcmd 13 讀 UTF-8 會在緩衝邊界把字元切壞（結束碼 0、無警告）。
+    # 轉成 UTF-16LE＋BOM 副本再交給 :r（原檔與 SHA-256 不動）。
+    mkdir -p "${WORK_DIR}/u16.${t}"
+    sqlcmd_to_utf16 "${DBM_SQL_DIR}/${t}/idempotent.sql" "${WORK_DIR}/u16.${t}/idempotent.sql" || die "${t}：轉換 idempotent.sql 為 UTF-16 失敗"
+    SQLCMD_DOCKER_EXTRA=(-v "${WORK_DIR}/u16.${t}:/work:ro" -v "${WORK_DIR}/apply-wrapper.${t}.sql:/wrap/apply.sql:ro")
     # -I：QUOTED_IDENTIFIER ON（有篩選索引／計算欄位的表，預設的 OFF 會讓 DDL 失敗）。
     # 🔴 不要加 -f 65001：Linux 的 mssql-tools sqlcmd 不支援 -f（本機演練實測：「Unknown Option」），預設已是 UTF-8；
     # 檔案的 BOM 由 generate 在產出時移除。
