@@ -3182,7 +3182,8 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：同一張表內的合計與分布沒有交叉加總；後續引用直接抄前一份文件的數字，沒有重新數檔案。
 - **下次怎麼避免**：寫盤點數字時，合計要與至少另一種切法（依類型、依單元）的加總對上；要拿盤點數字做減法推「剩幾份」之前，先用 `find` 重數一次。
 - **修正**：`docs/09`、`STATUS.md`、`CLAUDE.md` 改為 119／36。
-- **防呆**：無。
+- **同日再犯（2026-10-16）**：讀回 36 份文稿的 agent 在 `_inventory.md` 寫 2.8 里程碑「16＋20＋15＝51 筆」，實際 16＋19＋14＝49 筆，匯入時重數原文才更正。我轉述時也照抄成「約 51」，沒有抽查。
+- **防呆**：已升級為 [`docs/14`](14-invariants.md) 速查第一條「數字寫下前一律用工具重數」（同類第二次，依全域規定第 13 條不再另加一筆）。
 
 ### E-326 EF migration `ArticleCoverFocal` 用 scaffold 產生的 `AddColumn`／`AddCheckConstraint`，違反 docs/20 §5 冪等契約，`MigrationsOnBlankDatabaseTests` 在空白庫報 `cover_focal_x` 重複欄位（2026-10-16 發現，10-15 引入，S2-27）
 - **錯在哪**：10-15 新增封面焦點欄位時，同源的 `db/migrations/20261015_article-cover-focal_1-expand.sql` 有寫 `IF COL_LENGTH … IS NULL` 守衛，EF migration 卻保留 `dotnet ef migrations add` 產生的原樣。最新 `db/club-schema.sql` 已含這兩欄，空白庫＋DDL 再套 migration 就會重複加欄。正式庫因為走 SQL 檔、history 補登，沒有出事；新環境建庫會被擋。10-16 匯入文稿時跑全套測試才看到。
