@@ -3244,3 +3244,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：改任何 `Localizable.strings`／`strings.xml` 的值之前，先在 `TcrfcAppUITests`、`androidTest` 與 `fixtures-src` 搜舊字面值（`grep -rn "舊文字" mobile/ios mobile/android --exclude-dir=build`），改完立即跑冒煙測試。
 - **修正**：`SmokeTests.swift` 斷言改為「註冊的俱樂部」，單項重跑通過；Android `SmokeTest.kt` 的字面值（U14 男足、尊尚會員）同步改，但 **instrumented 測試本次沒有模擬器可跑，未驗證**。
 - **防呆**：無（冒煙測試本身就是防呆；缺口是 Android instrumented 沒進本機例行檢查）。
+
+### E-334 `local-ddl.sh` 改成 `docker cp` 後用 `-i` 讀檔，暫存檔權限 600，CI 容器內 sqlcmd 以 `mssql` 身分讀不到（0x80070005），`api` job 在建庫第一步就失敗（2026-10-16，commit 84f41a0，E-330 修正的副作用）
+- **錯在哪**：E-330 為了不用 stdin 餵 sqlcmd，把 `deploy/local-ddl.sh`、`db/seed/apply-seed.sh`、`db/seed/reset-admin-accounts.sh` 改成 `docker cp` 進容器後 `-i` 讀檔。`docker cp` 保留主機檔權限，`mktemp` 產生的檔是 600、屬主不是容器內的 `mssql`。SQL Server 2022 映像以非 root 的 `mssql` 執行，所以讀檔被拒。推送後 CI 的 `api` job 失敗；部署不受影響，因為 CI 紅燈不擋部署。
+- **根因（可改掉的行為）**：改了 CI 會執行的腳本，只在本機驗證。本機容器的執行身分與檔案權限和 CI 的服務容器不同，卻沒有在相同條件下跑一次（例如用 `mcr.microsoft.com/mssql/server` 的預設非 root 身分）；也沒有推到分支讓 CI 先跑。
+- **下次怎麼避免**：`docker cp` 進容器給另一個身分讀的檔，一律接著 `docker exec -u 0 … chmod 644`。改動 CI 會執行的腳本時，回報裡要寫明「CI 條件下是否驗證過」，沒驗過就先推分支或開 PR 讓 CI 跑，再進 master。
+- **修正**：三支腳本的 `docker cp` 之後都補 `chmod 644`。
+- **防呆**：無（`check-sqlcmd-input.py` 只查 stdin 餵檔，不查權限）。下次 CI 跑 `api` job 時驗證。

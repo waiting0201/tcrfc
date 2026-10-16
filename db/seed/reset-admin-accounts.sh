@@ -68,6 +68,7 @@ echo "==> 套用到 ${TARGET_DATABASE}"
 CONTAINER_SQL="/tmp/tcrfc-reset-admin-$$.sql"
 trap 'docker exec -u 0 "${CONTAINER_ID}" rm -f "${CONTAINER_SQL}" >/dev/null 2>&1 || true' EXIT
 docker cp "${OUT_FILE}" "${CONTAINER_ID}:${CONTAINER_SQL}"
+docker exec -u 0 "${CONTAINER_ID}" chmod 644 "${CONTAINER_SQL}"   # 容器內 sqlcmd 以 mssql 身分讀檔（E-334）
 docker exec "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
   -d "${TARGET_DATABASE}" -f 65001 -b \

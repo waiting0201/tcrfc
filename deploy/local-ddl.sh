@@ -176,6 +176,8 @@ sqlcmd_apply_file() {
   local db="$1" file="$2" in_ctr="/tmp/tcrfc-localddl-$$-$(basename "$2")"
   shift 2
   docker cp "${file}" "${CONTAINER_ID}:${in_ctr}"
+  # docker cp 保留主機檔權限（mktemp 是 600），容器內 sqlcmd 以 mssql 身分執行會讀不到（CI 0x80070005，E-334）
+  docker exec -u 0 "${CONTAINER_ID}" chmod 644 "${in_ctr}"
   docker exec "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
     -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C -d "${db}" -f 65001 "$@" -i "${in_ctr}"
   local rc=$?
