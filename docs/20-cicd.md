@@ -45,7 +45,7 @@
 |---|---|---|---|
 | push → `master` | `deploy.yml` | build（僅變動的應用）→ push ghcr → 部署 → 健康檢查 → 失敗自動回滾 → 清快取（選配） | build 用 hosted；部署用 self-hosted（label `tcrfc-vm`，`environment: production`） |
 | 手動（`workflow_dispatch`） | `deploy.yml` | **五個映像檔全部重建並推送**（不看變動範圍）。首次部署、映像檔遺失或要強制重建時用（2026-10-02 加，E-112）。映像檔標籤只有 `:master` 與 git SHA，**沒有 `:latest`**——`IMAGE_TAG` 預設 `master` | hosted |
-| `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ **`shared/` 契約漂移檢查**（`shared-contract` job，AP-8，見 §3；後台前端若日後有型別產生器再加另一個漂移檢查）＋ **正式庫種子一致性檢查**（`prod-seed` job，`E-157`，見 §3）＋ **資料庫結構一致性檢查**（`schema-drift` job，`E-321`，DDL vs EF 模型，見 §3） | 一律 hosted |
+| `pull_request` → `master`（含 fork）＋ **push → `master`**（2026-10-16 加，`E-326`） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ **`shared/` 契約漂移檢查**（`shared-contract` job，AP-8，見 §3；後台前端若日後有型別產生器再加另一個漂移檢查）＋ **正式庫種子一致性檢查**（`prod-seed` job，`E-157`，見 §3）＋ **資料庫結構一致性檢查**（`schema-drift` job，`E-321`，DDL vs EF 模型，見 §3） | 一律 hosted。⚠️ **現況：push master 時 `ci.yml` 與 `deploy.yml` 並行，CI 紅燈不會擋部署**（`deploy.yml` 沒有等 CI；改成「CI 通過才部署」是另一個決策，尚未做）。push 事件靠 `dorny/paths-filter` 與前一個 commit 比對決定跑哪些 job，concurrency 以 commit SHA 分組、不取消 |
 | 手動 | `db-migrate.yml` | 套用 EF Core migration，需 `production-db` 環境核准 | self-hosted |
 | 手動 | `prod-schema-snapshot.yml` ✅ | **唯讀**抽正式庫（`tcrfc_club`／`tcrfc_charity`）的結構快照，artifact 下載回本機與 DDL／本機庫比對（§5「`prod-schema-snapshot.yml`」）。無核准關卡、不寫資料庫 | self-hosted |
 | 手動 | `rollback.yml` ✅ | 輸入 SHA，把正式 VM 退回那一版（映像檔標籤；不重建、不 migrate），§6 | self-hosted |
@@ -72,10 +72,10 @@
 
 | 措施 | 做法 |
 |---|---|
-| 事件 | 只用 `pull_request`，**絕不用 `pull_request_target`**（後者會把 workflow 檔本身的權限用在 fork 的程式碼上，是最常見的公開 repo CI 漏洞） |
+| 事件 | 只用 `pull_request` 與 `push: master`（只有有寫入權限者能觸發，fork 推不進來；push 的 job 同樣 hosted、無 secrets、唯讀權限），**絕不用 `pull_request_target`**（後者會把 workflow 檔本身的權限用在 fork 的程式碼上，是最常見的公開 repo CI 漏洞） |
 | 權限 | `ci.yml` 頂層宣告 `permissions: contents: read`，不給 `packages: write`、不給部署相關權限 |
 | Secrets | fork 觸發的 `pull_request` run **本來就拿不到 repo secrets**（GitHub 內建行為）；本檔再加一道——`ci.yml` 全程不 `push` 映像檔、不觸碰 `production`／`production-db` 這兩個 Environment，即使不小心加了 secret 進 workflow 也用不到 |
-| Runner | fork PR **一律 `runs-on: ubuntu-latest`**（hosted）。`self-hosted` 這個 label 只出現在 `deploy.yml`／`db-migrate.yml`／`rollback.yml`／`prod-schema-snapshot.yml`，這四個都不被 `pull_request` 觸發 |
+| Runner | fork PR **一律 `runs-on: ubuntu-latest`**（hosted）。`self-hosted` 這個 label 只出現在 `deploy.yml`／`db-migrate.yml`／`rollback.yml`／`prod-schema-snapshot.yml`，這四個都不被 `pull_request` 觸發；`ci.yml` 雖也被 push 觸發，但不含 self-hosted |
 | 資源濫用防線 | Repo 設定把「Fork pull request workflows」改成 **Require approval for all outside collaborators**（比 GitHub 預設的「僅首次貢獻者」更嚴）——本專案目前沒有外部協作者，這條純粹防呆 |
 | 分支保護 | 建議 `master` 開 **Require pull request before merging**。目前是單人開發，非強制，但**觸及 `apps/api/Migrations/**` 或 `deploy/**` 的變更建議一律走 PR**，讓變更留下 diff 紀錄——這比擋 push 本身更重要 |
 
@@ -866,7 +866,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 |---|---|---|
 | [`.node-version`](../.node-version) | §3「快取」的 node-version 交叉參照 | ✅ 單一事實來源，見 [`17-deployment.md` §12](17-deployment.md#12-前端建置用的-nodejs-版本) |
 | [`scripts/check-node-version.mjs`](../scripts/check-node-version.mjs) | 同上 | ✅ 掛進四個 `package.json` 的 `lint`，S0-9h |
-| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | §1「觸發與分支」的 `ci.yml` | ✅ `pull_request` → 五個應用的 lint／build／docker build（`push: false`）／dotnet test |
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | §1「觸發與分支」的 `ci.yml` | ✅ `pull_request` ＋ push master（2026-10-16）→ 五個應用的 lint／build／docker build（`push: false`）／dotnet test |
 | `ci.yml` 的 `shared-contract` job、[`shared/scripts/`](../shared/scripts/) | §3「`shared-contract`」 | ✅ 2026-10-02（AP-8）：重新產生 `shared/` 後 `git diff --exit-code`；已用 actionlint 檢查 |
 | `ci.yml` 的 `prod-seed` job | §3「`prod-seed`」 | ✅ 2026-10-05（`E-157` 防呆）：`generate-prod-content-sql.py --check`／`generate-prod-reference-sql.py --check`；已用 actionlint 檢查，本機兩者皆「一致」 |
 | [`.github/workflows/_node-app.yml`](../.github/workflows/_node-app.yml) | 同上（內部用） | ✅ 四個 Node 應用共用的可重用 workflow（`push: false` 版） |

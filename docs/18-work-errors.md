@@ -3176,3 +3176,17 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：資料遷移的 WHERE 條件值（locale、代碼、狀態）一律先 grep 種子檔或 DDL 取實際值；可預知筆數的資料遷移要在 PRINT 後與預期比對，不符就 THROW。
 - **修正**：改為 `N'zh-Hant'`，並分開印出 body 與 title 的更新筆數。
 - **防呆**：無（筆數斷言尚未加入；本機套用時看 `body rows` 應為 83）。
+
+### E-325 收件夾文稿盤點把 `.gdoc` 的數量當成合計，寫成「113 篇／剩 30 份」，實際 119 份／剩 36 份（2026-10-16，主 session，C-1）
+- **錯在哪**：`docs/09` §2 的類型表寫 `.gdoc` 107＋`.gsheet` 6＝113，同段的單元分布（83＋11＋7＋5＋4＋3＋2＋2＋1＋1）加起來卻是 119。實際 `.gdoc` 113、`.gsheet` 6。「113」一路被抄進 `CLAUDE.md`、`STATUS.md` B-3／C-1，10-15 新聞讀完後再以 113−83 推出「剩 30 份」。使用者問 Drive 還有什麼沒傳時，重數檔案才發現。
+- **根因（可改掉的行為）**：同一張表內的合計與分布沒有交叉加總；後續引用直接抄前一份文件的數字，沒有重新數檔案。
+- **下次怎麼避免**：寫盤點數字時，合計要與至少另一種切法（依類型、依單元）的加總對上；要拿盤點數字做減法推「剩幾份」之前，先用 `find` 重數一次。
+- **修正**：`docs/09`、`STATUS.md`、`CLAUDE.md` 改為 119／36。
+- **防呆**：無。
+
+### E-326 EF migration `ArticleCoverFocal` 用 scaffold 產生的 `AddColumn`／`AddCheckConstraint`，違反 docs/20 §5 冪等契約，`MigrationsOnBlankDatabaseTests` 在空白庫報 `cover_focal_x` 重複欄位（2026-10-16 發現，10-15 引入，S2-27）
+- **錯在哪**：10-15 新增封面焦點欄位時，同源的 `db/migrations/20261015_article-cover-focal_1-expand.sql` 有寫 `IF COL_LENGTH … IS NULL` 守衛，EF migration 卻保留 `dotnet ef migrations add` 產生的原樣。最新 `db/club-schema.sql` 已含這兩欄，空白庫＋DDL 再套 migration 就會重複加欄。正式庫因為走 SQL 檔、history 補登，沒有出事；新環境建庫會被擋。10-16 匯入文稿時跑全套測試才看到。
+- **根因（可改掉的行為）**：①scaffold 出來的 migration 沒有照契約改寫成「先查現況再動」，就提交了；②提交前沒跑 `MigrationsOnBlankDatabaseTests`；③`ci.yml` 只在 PR 觸發，平常直接推 master，所以 CI 的這道防呆實際上沒有攔到。
+- **下次怎麼避免**：新增 EF migration 後，`Up` 一律改成與 `db/migrations/*.sql` 同源的 `migrationBuilder.Sql(@"IF … EXEC(N'…')")`，推送前至少跑 `dotnet test --filter MigrationsOnBlankDatabaseTests`。
+- **修正**：`Up` 改為與 SQL 檔同源的冪等 SQL（`Down` 不變，history ID 不變，已套用的正式庫不受影響）；單測通過。
+- **防呆**：`MigrationsOnBlankDatabaseTests`（已存在）。✅ 已處理（2026-10-16，使用者決定）：`ci.yml` 加 `push: branches: [master]` 觸發，直接推 master 也會跑 CI。⚠️ CI 與 `deploy.yml` 並行，紅燈不會擋部署（見 `docs/20` §1）。

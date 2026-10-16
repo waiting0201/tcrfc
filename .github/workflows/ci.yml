@@ -14,6 +14,12 @@ name: CI
 on:
   pull_request:
     branches: [master]
+  # 2026-10-16（E-326）：平常是直接推 master，只掛 pull_request 會讓 CI 從沒跑到。
+  # push 只有對 repo 有寫入權限的人能觸發（fork 無法 push 到本 repo），不增加攻擊面；
+  # 本檔所有 job 仍是 hosted runner、無 secrets、permissions: contents: read。
+  # CI 與 deploy.yml 並行，CI 紅燈不會擋部署（docs/20 §1）。
+  push:
+    branches: [master]
 
 # 🔴 公開 repo 的地基防護（docs/20-cicd.md §1「Fork PR 隔離」）：頂層只給 contents: read，
 # 不給 packages: write、不給任何部署相關權限。即使某個 job 寫錯，fork PR 觸發的這個 workflow
@@ -23,9 +29,11 @@ permissions:
 
 # 同一個 PR 有新的 commit 進來，取消還在跑的舊一輪——省 GitHub-hosted runner 的分鐘數
 # （雖然公開 repo 本身不計費，但排隊時間仍然是排隊時間）。
+# push master 事件沒有 pull_request.number：群組改用 commit SHA（每個 commit 各一組），
+# 且不取消——連推兩個 commit 時，前一個的 CI 結果不能被吃掉。
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # ── 偵測這次 PR 動到哪些應用，決定要跑哪些下游 job ─────────────────────────

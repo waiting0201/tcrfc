@@ -274,7 +274,7 @@ public static class PageTemplates
         list.Add(T(Tcrfc, "charity/commitment", "慈善理念", "Our Commitment",
             Text("commitment", "慈善理念說明"),
             Text("focusIntro", "投入領域說明", "四大投入領域上方的一句說明。"),
-            FixedSteps("focusAreas", "四大投入領域", 4, "固定四項：青少年扶助、偏鄉足球、弱勢家庭、公益義賽。")));
+            FixedSteps("focusAreas", "四大投入領域", 4, "固定四項，每項有領域名稱與說明（目前為客戶文稿的四個投入領域）。")));
 
         // ── 藍鯨（10 頁；不設 06 女子足球、11 慈善）──
         list.Add(T(Bw, "about/our-story", "我們的故事", "Our Story",

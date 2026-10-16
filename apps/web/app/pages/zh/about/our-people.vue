@@ -333,5 +333,5 @@ watchEffect(() => {
 }
 .people-modal__role{ font-size:.76rem; font-weight:800; letter-spacing:.06em; color:var(--brand-aa); text-transform:uppercase; }
 .people-modal__name{ font-size:1.4rem; font-weight:900; color:var(--heading); margin:.4rem 0 1.25rem; }
-.people-modal__bio{ text-align:left; font-size:.9rem; line-height:1.7; color:var(--muted); }
+.people-modal__bio{ text-align:left; font-size:.9rem; line-height:1.7; color:var(--muted); white-space:pre-line; overflow-wrap:anywhere; }
 </style>

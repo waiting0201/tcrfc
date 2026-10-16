@@ -36,12 +36,12 @@
 | **技術選型** | ✅ **已定案**（2026-09-18，見 [`docs/17`](docs/17-deployment.md)）：**Nuxt 4 SSR ＋ .NET／EF Core＋Dapper ＋ Azure SQL ＋ Azure Blob ＋ Redis**，跑在**單一 Azure VM（Japan East／東京）** 的 Docker 上（前台三個、後台兩個、API 一個、快取一個），Cloudflare 在前。**規劃書仍不記技術選型**（§1.3 明文排除），結果只在導航層；**App 客戶端另見 [`docs/19`](docs/19-app-tech-stack.md)**。`docs/12` §1.4 的**五件事已全部定案** |
 | **部署與金流前提** | 🔴 **LINE Pay 正式環境須登記付款伺服器的出口 IP**——這條外部約束是選「自架 VM ＋ 靜態 Public IP」的原因，也是規劃書 v3.8／v2.4 唯一新增的內容。**改機器＝改白名單，等同停機事件**。⚠️ 另有**五類資料不得讀快取**（庫存、金流冪等、會員卡驗證、會籍與訂單狀態、購物車），見 [`docs/14`](docs/14-invariants.md) |
 | 網站本體 | 🟡 **前後台功能與 API 串接已完成一輪**（2026-10-01）：`apps/web`（Nuxt 4，主站＋藍鯨）、`apps/admin`、`apps/web-charity`、`apps/admin-charity`、`apps/api`（1014 項測試全綠）。**金流、發票、寄信只有介面＋本機假實作**（卡 `B-7`／`B-10`／`B-16`）；**尚未對真實 API 實機驗收**；行動 App 客戶端（`mobile/ios`、`mobile/android`）Phase A／B 已完成、C／D 做完不需外部服務的部分，推播與上架未做。逐項見 [`STATUS.md`](STATUS.md) |
-| 內容 | 🔄 **已首批交件**（456MB／212 張原始照片／113 篇文稿）。盤點見 [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md)。**阻塞：文稿全為 `.gdoc` 捷徑，本機讀不到** |
+| 內容 | 🔄 **已首批交件**（456MB／212 張原始照片／119 份文稿）。盤點見 [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md)。**阻塞：文稿全為 `.gdoc` 捷徑，本機讀不到** |
 | 版本控制 | ✅ 已 `git init`。收件夾與大型素材未納管，覆寫或刪除前仍請先看過內容 |
 
 **客戶已同意製作。要交付的是五個平台**（主站前台／共用後台／藍鯨官網／慈善捐款平台／行動 App），
 **逐項工作、阻塞清單與前置關係全部在 [`STATUS.md`](STATUS.md)**——動手前先開那一份。
-**技術選型已定案、資料庫綱要已可轉 DDL**（2026-09-20）。擋在最前面的改為**前台改 Nuxt 的骨架重做**與**藍鯨的網域、賽程與名單**；內容線則卡在 113 篇 `.gdoc` 取不回來
+**技術選型已定案、資料庫綱要已可轉 DDL**（2026-09-20）。擋在最前面的改為**前台改 Nuxt 的骨架重做**與**藍鯨的網域、賽程與名單**；內容線則卡在 119 份 `.gdoc` 取不回來
 （流程見 [`docs/07-content-pipeline.md`](docs/07-content-pipeline.md)）。
 
 ---
