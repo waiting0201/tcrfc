@@ -22,6 +22,9 @@ public sealed record AdminMatchListItemDto
     public string? Kickoff { get; init; }
     public string? HomeAway { get; init; }
     public string? Opponent { get; init; }
+
+    /// <summary>對手球隊庫（<c>opponent_teams</c>）的 id；沒挑時為 <c>null</c>，此時對手只是 <see cref="Opponent"/> 文字。</summary>
+    public Guid? OpponentTeamId { get; init; }
     public string? CompetitionTag { get; init; }
     public string? Status { get; init; }
     public int? ScoreHome { get; init; }
@@ -46,6 +49,9 @@ public sealed record AdminMatchDetailDto
     public string? HomeAway { get; init; }
     public string? Opponent { get; init; }
     public string? OpponentEn { get; init; }
+
+    /// <summary>對手球隊庫的 id（可為空）。有值時 <see cref="Opponent"/>／<see cref="OpponentEn"/> 是儲存當下帶入的隊名後備文字。</summary>
+    public Guid? OpponentTeamId { get; init; }
     public string? Venue { get; init; }
     public string? VenueEn { get; init; }
     public required IReadOnlyList<AdminMatchGoalDto> Goals { get; init; }
@@ -95,8 +101,13 @@ public sealed record CreateAdminMatchRequest
     public required DateOnly MatchOn { get; init; }
     public string? Kickoff { get; init; }
     public string? HomeAway { get; init; }
-    public required string Opponent { get; init; }
+
+    /// <summary>對手隊名（繁中文字）。<see cref="OpponentTeamId"/> 有值時可省略——由球隊庫的隊名帶入；兩者都沒有則 400。</summary>
+    public string? Opponent { get; init; }
     public string? OpponentEn { get; init; }
+
+    /// <summary>對手球隊庫的 id（選填，須屬於同一個俱樂部，否則 400）。有值時儲存會把庫內隊名（繁中；英文在請求沒填英文覆寫時帶入庫內英文名）寫進 <c>matches.opponent</c> 作後備文字。</summary>
+    public Guid? OpponentTeamId { get; init; }
     public string? Venue { get; init; }
     public string? VenueEn { get; init; }
     public string? CompetitionTag { get; init; }
@@ -127,8 +138,9 @@ public sealed record UpdateAdminMatchRequest
     public required DateOnly MatchOn { get; init; }
     public string? Kickoff { get; init; }
     public string? HomeAway { get; init; }
-    public required string Opponent { get; init; }
+    public string? Opponent { get; init; }
     public string? OpponentEn { get; init; }
+    public Guid? OpponentTeamId { get; init; }
     public string? Venue { get; init; }
     public string? VenueEn { get; init; }
     public string? CompetitionTag { get; init; }
@@ -192,11 +204,15 @@ public sealed record AdminMatchCardDto
 
 /// <summary>出賽名單（<c>match_lineups</c>）。<see cref="IsStarter"/>：<c>true</c>＝先發，
 /// <c>false</c>＝替補（規劃書「出賽名單」原文沒有細分先發／替補的用詞，沿用 <c>match_lineups</c>
-/// 既有的 <c>is_starter</c> 欄位語意）。</summary>
+/// 既有的 <c>is_starter</c> 欄位語意）。
+/// <see cref="CameOn"/>（v3.31）：替補是否有上場。儲存規則：先發恆存 <c>false</c>（忽略請求值，出賽由 <c>is_starter</c> 判定）；
+/// 替補在這場賽事有進球（含烏龍球）或有牌者強制存 <c>true</c>（人一定上場了）；其餘照請求值。
+/// 出賽判定（球員賽季數據自動彙總）＝先發，或替補且 <c>came_on</c>。</summary>
 public sealed record AdminMatchLineupInput
 {
     public required Guid PlayerId { get; init; }
     public required bool IsStarter { get; init; }
+    public bool CameOn { get; init; }
 }
 
 public sealed record AdminMatchLineupDto
@@ -205,6 +221,9 @@ public sealed record AdminMatchLineupDto
     public required Guid PlayerId { get; init; }
     public string? PlayerName { get; init; }
     public required bool IsStarter { get; init; }
+
+    /// <summary>替補是否有上場（先發恆為 <c>false</c>）。</summary>
+    public required bool CameOn { get; init; }
 }
 
 /// <summary>CSV 整批匯入的單列錯誤——逐字比照 <c>Features/AdminFaqs/AdminFaqDtos.FaqCsvImportRowErrorDto</c>。</summary>

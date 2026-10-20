@@ -1,7 +1,7 @@
 # 04 — 資料模型與內容型別
 
 > 來源：規劃書 §5（主站 v3.29；**行 1328–1460**）。**行號依 v3.0（1691 行）重算。**
-> 🔴 **v3.0：多俱樂部架構。** 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub` 五個型別；**49 張必填 `club_id`、9 張可為空（＝兩隊共同）**。判定準則見規劃書 **§5.4（行 1533–1579）**；逐張清單見 [`12` §4](12-database-schema.md#4-資料表總覽)。
+> 🔴 **v3.0：多俱樂部架構。** 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub` 五個型別；**50 張必填 `club_id`、9 張可為空（＝兩隊共同）**。判定準則見規劃書 **§5.4（行 1533–1579）**；逐張清單見 [`12` §4](12-database-schema.md#4-資料表總覽)。
 > **慈善捐款平台的型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔。⚠️ **自慈善規劃書 v2.0 起它們屬於獨立的資料庫，完全不在本系統內**，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 > **行動 App 的新增型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`）不在本檔，見 [`11-mobile-app.md`](11-mobile-app.md)。
 > **實作用的資料表綱要見 [`12-database-schema.md`](12-database-schema.md)（入口）、[`12a-database-erd.md`](12a-database-erd.md)（ERD）與 [`12b-database-tables.md`](12b-database-tables.md)（欄位、索引）**——本檔說「有哪些型別、哪些關係不能搞錯」，`12` 說「落到資料表長什麼樣」。
@@ -19,8 +19,9 @@
 | `Team` | 球隊，含隊別代號 `D1`／**`BW1`**／磐石學院梯隊 `U10`／`U12`／`U14`／`U16`／`U18`（v3.29，依客戶 4.3 發展路徑，實際建立哪幾隊以 C1 為準）／藍鯨青年隊 `BW-U15`／`BW-U12`（`age_band` 才是 U15／U12）。🏛 必填。**`code` 全站唯一不得改複合鍵；已發出訂閱網址的代號不得改指其他球隊**；**v3.0 新增 `gender`，廢除 `type` 的 `women` 值** | Club、Player、Coach、Match、Season、CalendarEvent |
 | `Player` | 球員 | Team、Article、Stats、Pathway |
 | `Staff` | 教練與團隊成員 | Team、Program |
-| `Match` | 賽事。**v2.5 補** `opponent_en`／`venue_en`；`competition`／`status` 升格為正式欄位 | Team、Season、Article（賽後報導） |
-| `Standing` | 積分榜 | Season、Team |
+| `OpponentTeam` | **對手球隊（v3.31 新增）**：中英隊名＋隊徽。🏛 必填；賽事與積分榜選擇性引用，被引用者不可刪除 | Match、Standing、Club |
+| `Match` | 賽事。**v3.31 補** `opponent_team_id`（可空）；出賽名單 `MatchLineup` 分先發／替補，替補記 `came_on`。**v2.5 補** `opponent_en`／`venue_en`；`competition`／`status` 升格為正式欄位 | Team、Season、Article（賽後報導） |
+| `Standing` | 積分榜。**v3.31 補** `opponent_team_id`（可空） | Season、Team、OpponentTeam |
 | `Achievement` | 榮譽 | Team、Season |
 | `Milestone` | 里程碑 | — |
 | `Program` | 課程／營隊／專項 | Session、Staff、Venue、Partner |

@@ -49,6 +49,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
                 SeasonCode = s.Season.Code,
                 TeamName = s.StandingsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.TeamName).FirstOrDefault(),
                 TeamNameEn = s.StandingsI18ns.Where(i => i.Locale == "en").Select(i => i.TeamName).FirstOrDefault(),
+                s.OpponentTeamId,
                 s.Rank,
                 s.Played,
                 s.Points,
@@ -63,6 +64,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
             SeasonCode = r.SeasonCode,
             TeamName = r.TeamName ?? string.Empty,
             TeamNameEn = r.TeamNameEn,
+            OpponentTeamId = r.OpponentTeamId,
             Rank = r.Rank,
             Played = r.Played,
             Points = r.Points,
@@ -82,8 +84,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
     public async Task<AdminStandingDetailDto> CreateAsync(
         AdminClubScope scope, CreateAdminStandingRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var teamName = ValidateTeamName(request.TeamName);
-        var teamNameEn = ValidateTeamNameEn(request.TeamNameEn);
+        var (teamName, teamNameEn) = await ResolveTeamNamesAsync(scope, request.OpponentTeamId, request.TeamName, request.TeamNameEn, cancellationToken);
         var season = await ResolveSeasonAsync(scope, request.SeasonId, cancellationToken);
 
         var now = DateTime.UtcNow;
@@ -92,6 +93,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
             Id = Guid.NewGuid(),
             ClubId = scope.ClubId,
             SeasonId = season.Id,
+            OpponentTeamId = request.OpponentTeamId,
             Rank = request.Rank,
             Played = request.Played,
             Points = request.Points,
@@ -110,8 +112,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
     public async Task<AdminStandingDetailDto?> UpdateAsync(
         AdminClubScope scope, Guid id, UpdateAdminStandingRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var teamName = ValidateTeamName(request.TeamName);
-        var teamNameEn = ValidateTeamNameEn(request.TeamNameEn);
+        var (teamName, teamNameEn) = await ResolveTeamNamesAsync(scope, request.OpponentTeamId, request.TeamName, request.TeamNameEn, cancellationToken);
 
         var standing = await dbContext.Standings.Include(s => s.StandingsI18ns).FirstOrDefaultAsync(s => s.Id == id && s.ClubId == scope.ClubId, cancellationToken);
         if (standing is null)
@@ -122,6 +123,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         var season = await ResolveSeasonAsync(scope, request.SeasonId, cancellationToken);
 
         standing.SeasonId = season.Id;
+        standing.OpponentTeamId = request.OpponentTeamId;
         SetTeamNames(standing, teamName, teamNameEn);
         standing.Rank = request.Rank;
         standing.Played = request.Played;
@@ -338,7 +340,28 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
 
     private const int TeamNameMaxLength = 128;
 
-    private static string ValidateTeamName(string teamName)
+    /// <summary>球隊名稱：有 <paramref name="opponentTeamId"/> 就查球隊庫（須同一個俱樂部，否則 400 <c>opponentTeamId</c>），
+    /// 繁中隊名一律帶庫內名稱；英文請求有填用請求的、否則帶庫內英文名。沒有 id 時退回文字，文字必填。</summary>
+    private async Task<(string TeamName, string? TeamNameEn)> ResolveTeamNamesAsync(
+        AdminClubScope scope, Guid? opponentTeamId, string? teamName, string? teamNameEn, CancellationToken cancellationToken)
+    {
+        if (opponentTeamId is null)
+        {
+            return (ValidateTeamName(teamName), ValidateTeamNameEn(teamNameEn));
+        }
+
+        var team = await dbContext.OpponentTeams.AsNoTracking().Include(o => o.OpponentTeamsI18ns)
+            .FirstOrDefaultAsync(o => o.Id == opponentTeamId, cancellationToken);
+        if (team is null || team.ClubId != scope.ClubId)
+        {
+            throw new AdminStandingValidationException("找不到這個俱樂部的對手球隊，請重新整理後再試一次。", "opponentTeamId");
+        }
+
+        var requestedEn = ValidateTeamNameEn(teamNameEn);
+        return (team.Name, requestedEn ?? team.OpponentTeamsI18ns.FirstOrDefault(i => i.Locale == "en")?.Name);
+    }
+
+    private static string ValidateTeamName(string? teamName)
     {
         if (string.IsNullOrWhiteSpace(teamName))
         {
@@ -402,6 +425,7 @@ public sealed class AdminStandingsRepository(ClubDbContext dbContext)
         SeasonCode = standing.Season.Code,
         TeamName = standing.StandingsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.TeamName ?? string.Empty,
         TeamNameEn = standing.StandingsI18ns.FirstOrDefault(i => i.Locale == "en")?.TeamName,
+        OpponentTeamId = standing.OpponentTeamId,
         Rank = standing.Rank,
         Played = standing.Played,
         Points = standing.Points,

@@ -742,6 +742,49 @@ data class LookupShopOrderRequest(
 )
 
 @Serializable
+data class MatchCardDto(
+    val minute: Int? = null,
+    val playerId: String? = null,
+    val playerSlug: String? = null,
+    val playerName: String? = null,
+    val cardType: String,
+)
+
+@Serializable
+data class MatchDetailDto(
+    val goals: List<MatchGoalDto>? = null,
+    val cards: List<MatchCardDto>? = null,
+    val lineup: List<MatchLineupDto>? = null,
+    val id: String? = null,
+    val seasonCode: String? = null,
+    val teamCode: String? = null,
+    val clubCode: String? = null,
+    val competitionCode: String? = null,
+    val matchOn: String? = null,
+    val kickoff: String? = null,
+    val kickoffAt: JsonElement? = null,
+    val homeAway: String? = null,
+    val opponent: String? = null,
+    val opponentTeamId: String? = null,
+    val opponentName: String? = null,
+    val opponentCrest: OpponentCrestDto? = null,
+    val isFallbackLocale: Boolean? = null,
+    val venue: String? = null,
+    val competitionTag: String? = null,
+    val competitionName: String? = null,
+    val status: String? = null,
+    val scoreHome: Int? = null,
+    val scoreAway: Int? = null,
+    val roundNo: Int? = null,
+    val matchNo: Int? = null,
+    val originalMatchOn: String? = null,
+    val originalKickoff: String? = null,
+    val schemaEligible: Boolean? = null,
+    val scorers: List<MatchScorerDto>? = null,
+    val matchReport: MatchReportDto? = null,
+)
+
+@Serializable
 data class MatchDto(
     val id: String,
     val seasonCode: String,
@@ -753,6 +796,9 @@ data class MatchDto(
     val kickoffAt: JsonElement? = null,
     val homeAway: String? = null,
     val opponent: String? = null,
+    val opponentTeamId: String? = null,
+    val opponentName: String? = null,
+    val opponentCrest: OpponentCrestDto? = null,
     val isFallbackLocale: Boolean,
     val venue: String? = null,
     val competitionTag: String? = null,
@@ -765,6 +811,43 @@ data class MatchDto(
     val originalMatchOn: String? = null,
     val originalKickoff: String? = null,
     val schemaEligible: Boolean,
+    val scorers: List<MatchScorerDto>? = null,
+    val matchReport: MatchReportDto? = null,
+)
+
+@Serializable
+data class MatchGoalDto(
+    val minute: Int? = null,
+    val playerId: String? = null,
+    val playerSlug: String? = null,
+    val playerName: String? = null,
+    val shirtNumber: Int? = null,
+    val goalType: String? = null,
+    val side: String? = null,
+)
+
+@Serializable
+data class MatchLineupDto(
+    val playerId: String,
+    val playerSlug: String? = null,
+    val playerName: String? = null,
+    val shirtNumber: Int? = null,
+    val position: String? = null,
+    val isStarter: Boolean,
+    val cameOn: Boolean,
+)
+
+@Serializable
+data class MatchReportDto(
+    val slug: String,
+    val title: String,
+)
+
+@Serializable
+data class MatchScorerDto(
+    val minute: Int? = null,
+    val playerName: String? = null,
+    val goalType: String? = null,
 )
 
 @Serializable
@@ -1213,6 +1296,16 @@ data class NewsletterSubscribeResultDto(
 @Serializable
 data class NewsletterUnsubscribeResultDto(
     val changed: Boolean,
+)
+
+@Serializable
+data class OpponentCrestDto(
+    val url: String,
+    val url1280: String? = null,
+    val url640: String? = null,
+    val url320: String? = null,
+    val width: Int? = null,
+    val height: Int? = null,
 )
 
 @Serializable
@@ -2292,6 +2385,8 @@ data class StaffDto(
 data class StandingRowDto(
     val rank: Int? = null,
     val teamName: String,
+    val opponentTeamId: String? = null,
+    val crest: OpponentCrestDto? = null,
     val isFallbackLocale: Boolean,
     val played: Int? = null,
     val points: Int? = null,

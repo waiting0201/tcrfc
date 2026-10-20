@@ -7,7 +7,7 @@
 > 🔴 **本檔不得引入規劃書沒有的規格。** 每一個列出的欄位都標了信心度與規劃書行號依據；
 > 找不到依據的欄位一律不列，改在 §4／§5 說明推論理由或問題所在。
 >
-> 來源：主站規劃書 v3.30（`output/TCRFC_前後台功能規劃書.md`，1972 行）。行號皆指此檔。
+> 來源：主站規劃書 v3.31（`output/TCRFC_前後台功能規劃書.md`，1980 行）。行號皆指此檔。
 > **v3.29 補註（2026-10-16）**：行號仍為 v3.28 快照，未重算；v3.29 對側表的唯一影響是 `membership_benefit_i18n`（`free_value`／`paid_value` 合為 `value`，見 §2 該列）。
 
 ---
@@ -180,7 +180,13 @@
 
 | 欄位 | 型別 | 信心度 | 依據 |
 |---|---|---|---|
-| `team_name` | `string(128)` | 高 | 積分榜的對手隊名是自由文字（`docs/12a` §5.2），前台 `/en/schedule` 積分榜直接顯示；全域規定 4。**搬自 `standings.team_name`**（主表欄位已刪）。比照 `matches_i18n.opponent`：對手球隊英文名無來源者 `en` 列留空走回退，不自行音譯 |
+| `team_name` | `string(128)` | 高 | 積分榜的對手隊名（v3.31 起可選擇性對應 `opponent_teams`，未對應者仍為此文字，`docs/12a` §5.2），前台 `/en/schedule` 積分榜直接顯示；全域規定 4。**搬自 `standings.team_name`**（主表欄位已刪）。比照 `matches_i18n.opponent`：對手球隊英文名無來源者 `en` 列留空走回退，不自行音譯 |
+
+#### `OpponentTeam` → `opponent_teams_i18n`（v3.31 新增）
+
+| 欄位 | 型別 | 信心度 | 依據 |
+|---|---|---|---|
+| `name` | `string(128)` | 高 | 規劃書 4.3 C4「對手球隊：中英隊名與隊徽」；繁中隊名在主表 `opponent_teams.name`（回退來源），本側表存 `en` 列，缺則走回退。長度同 `matches_i18n.opponent`／`standings_i18n.team_name`。隊徽 `alt` 取隊名，不另存 `crest_alt` |
 
 #### `Achievement` → `achievements_i18n`（2026-10-06 稽核 D 類新建）
 

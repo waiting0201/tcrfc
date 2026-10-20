@@ -41,6 +41,7 @@ using Tcrfc.Api.Features.AdminForms;
 using Tcrfc.Api.Features.AdminHomeSections;
 using Tcrfc.Api.Features.AdminHonors;
 using Tcrfc.Api.Features.AdminMatches;
+using Tcrfc.Api.Features.AdminOpponentTeams;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.AdminPages;
 using Tcrfc.Api.Features.AdminPartners;
@@ -456,6 +457,7 @@ builder.Services.AddScoped<SiteFactsRepository>();
 
 // ── S1-12d 後續缺口補完：全站共用場地主檔唯讀清單（見 Features/AdminVenues 檔頭） ──────────
 builder.Services.AddScoped<AdminVenuesRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminOpponentTeams.AdminOpponentTeamsRepository>();
 
 // B1（S2-4／S2-5／S2-6）：P4 試訓、K1–K4 會員系統、L3／L4 行事曆進階。
 builder.Services.AddScoped<ClubSettingsStore>();
@@ -1064,6 +1066,7 @@ app.MapSiteFactsEndpoints();
 
 // ── S1-12d 後續缺口補完：全站共用場地主檔唯讀清單 ────────────────────────────
 app.MapAdminVenuesEndpoints();
+app.MapAdminOpponentTeamsEndpoints();
 app.MapAdminMembersEndpoints();
 app.MapAdminMembershipsEndpoints();
 app.MapAdminJerseysEndpoints();

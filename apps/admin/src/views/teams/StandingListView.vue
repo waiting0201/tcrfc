@@ -8,6 +8,7 @@
  * 寫入端點一律 403「沒有權限」。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
@@ -22,6 +23,7 @@ import {
   type AdminStandingListItemDto,
   type StandingCsvImportResultDto,
 } from '@/api/adminStandings'
+import { listAdminOpponentTeams, type AdminOpponentTeamListItem } from '@/api/adminOpponentTeams'
 import { AdminApiError } from '@/api/http'
 import FormField from '@/components/FormField.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
@@ -29,6 +31,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 
 const formErrors = provideFormErrors()
+const router = useRouter()
 
 const club = computed(() => activeClubId.value)
 
@@ -69,8 +72,21 @@ async function loadStandings() {
   }
 }
 
+// 對手球隊庫：載入失敗（例如沒有賽程檢視權限）時降級為只能手動輸入隊名
+const opponentTeams = ref<AdminOpponentTeamListItem[]>([])
+const newOpponentTeamHref = router.resolve('/teams/opponent-teams/new').href
+
+async function loadOpponentTeams() {
+  try {
+    opponentTeams.value = await listAdminOpponentTeams(club.value)
+  } catch {
+    opponentTeams.value = []
+  }
+}
+
 async function bootstrap() {
   seasonId.value = ''
+  void loadOpponentTeams()
   await loadSeasons()
   await loadStandings()
 }
@@ -85,6 +101,7 @@ const isEmpty = computed(() => !loading.value && !loadError.value && standings.v
 
 interface StandingFormState {
   id: string | null
+  opponentTeamId: string | null
   teamName: string
   teamNameEn: string
   rank: number | null
@@ -93,7 +110,7 @@ interface StandingFormState {
 }
 
 function emptyForm(): StandingFormState {
-  return { id: null, teamName: '', teamNameEn: '', rank: null, played: null, points: null }
+  return { id: null, opponentTeamId: null, teamName: '', teamNameEn: '', rank: null, played: null, points: null }
 }
 
 const dialogVisible = ref(false)
@@ -118,6 +135,7 @@ function openEditDialog(row: AdminStandingListItemDto) {
   dialogMode.value = 'edit'
   Object.assign(form, {
     id: row.id,
+    opponentTeamId: row.opponentTeamId ?? null,
     teamName: row.teamName,
     teamNameEn: row.teamNameEn ?? '',
     rank: row.rank ?? null,
@@ -131,7 +149,7 @@ function openEditDialog(row: AdminStandingListItemDto) {
 
 async function saveForm() {
   const errors: Record<string, string> = {}
-  if (!form.teamName.trim()) errors.teamName = '請輸入球隊名稱（中文）'
+  if (!form.opponentTeamId && !form.teamName.trim()) errors.teamName = '請選擇對手球隊，或直接輸入球隊名稱（中文）'
   else if (form.teamName.trim().length > 128) errors.teamName = '球隊名稱（中文）最多 128 字'
   if (form.teamNameEn.trim().length > 128) errors.teamNameEn = '球隊名稱（英文）最多 128 字'
   if (formErrors.replaceAll(errors)) {
@@ -144,8 +162,10 @@ async function saveForm() {
   try {
     const payload = {
       seasonId: seasonId.value,
-      teamName: form.teamName.trim(),
-      teamNameEn: form.teamNameEn.trim() || null,
+      // 選了對手球隊就以球隊庫的隊名為準，不送自由文字
+      opponentTeamId: form.opponentTeamId || null,
+      teamName: form.opponentTeamId ? null : form.teamName.trim(),
+      teamNameEn: form.opponentTeamId ? null : form.teamNameEn.trim() || null,
       rank: form.rank,
       played: form.played,
       points: form.points,
@@ -306,13 +326,36 @@ async function handleCsvFileChange(event: Event) {
         <FormField field="seasonId" label="賽季">
           <el-input :model-value="seasonCode" disabled />
         </FormField>
+        <FormField field="opponentTeamId" label="對手球隊（選填）">
+          <el-select
+            v-model="form.opponentTeamId"
+            filterable
+            clearable
+            placeholder="從對手球隊清單挑選，沒有的可略過、直接輸入隊名"
+            no-data-text="還沒有對手球隊"
+            style="width: 100%"
+            @change="formErrors.clear('teamName')"
+          >
+            <el-option v-for="t in opponentTeams" :key="t.id" :label="t.nameEn ? `${t.name}（${t.nameEn}）` : t.name" :value="t.id">
+              <span class="standing-list__team-option">
+                <img v-if="t.crestThumbUrl || t.crestUrl" :src="t.crestThumbUrl || t.crestUrl || ''" alt="" class="standing-list__crest">
+                <span>{{ t.name }}</span>
+              </span>
+            </el-option>
+          </el-select>
+          <p class="standing-list__hint standing-list__hint--below">
+            找不到對手？<a :href="newOpponentTeamHref" target="_blank" rel="noopener noreferrer">新增對手球隊（另開分頁）</a>，建好後
+            <el-button link type="primary" size="small" @click="loadOpponentTeams">重新載入清單</el-button>
+          </p>
+        </FormField>
+        <p v-if="form.opponentTeamId" class="standing-list__hint">球隊名稱以對手球隊清單為準；要改隊名或隊徽，請到「對手球隊」修改。</p>
         <BilingualShortField
+          v-else
           field-zh="teamName"
           field-en="teamNameEn"
           label="球隊名稱"
           :zh="form.teamName"
           :en="form.teamNameEn"
-          required
           :maxlength="128"
           placeholder="例如：台中磐石，或聯賽其他球隊名稱"
           @update:zh="(v: string) => (form.teamName = v)"
@@ -396,6 +439,23 @@ async function handleCsvFileChange(event: Event) {
   margin: 12px 0 0;
   font-size: 12px;
   color: var(--admin-text-tertiary);
+}
+
+.standing-list__hint--below {
+  margin: 6px 0 0;
+}
+
+.standing-list__team-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.standing-list__crest {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
 }
 
 .standing-list__form-error {

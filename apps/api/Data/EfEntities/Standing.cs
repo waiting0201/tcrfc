@@ -13,6 +13,9 @@ public partial class Standing
 
     public Guid SeasonId { get; set; }
 
+    /// <summary>對手球隊庫（opponent_teams）；可為空——沒挑時退回 standings_i18n.team_name 文字。</summary>
+    public Guid? OpponentTeamId { get; set; }
+
     public int? Rank { get; set; }
 
     public int? Played { get; set; }
@@ -28,6 +31,8 @@ public partial class Standing
     public Guid? UpdatedBy { get; set; }
 
     public virtual Club Club { get; set; } = null!;
+
+    public virtual OpponentTeam? OpponentTeam { get; set; }
 
     public virtual AdminUser? CreatedByNavigation { get; set; }
 

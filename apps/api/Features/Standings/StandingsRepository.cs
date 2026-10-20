@@ -3,6 +3,7 @@ using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.AdminMatches;
+using Tcrfc.Api.Features.Schedule;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -14,7 +15,9 @@ namespace Tcrfc.Api.Features.Standings;
 /// 🔴 全部以 <c>club_id</c> 硬過濾（積分榜與賽事都是兩隊各自的資料）。<b>不快取</b>：後台維護積分榜與賽果尚未接公開快取失效，資料量小、直接查庫。
 /// 球季的挑選：明確指定 <c>season</c>（代碼）→ 用它；否則取「今天落在起訖內」的球季，沒有就取<b>最新的有資料球季</b>。
 /// <b>球員數據的彙總規則</b>（賽事紀錄沒有出場分鐘與助攻，所以規則是保守且可說明的）：只計狀態為已結束（<c>played</c>）的賽事；
-/// 進球＝<c>match_goals</c> 筆數；黃／紅牌＝<c>match_cards</c> 筆數；<b>出賽＝先發名單的場次，加上雖列在替補但在該場有進球或牌的場次</b>。
+/// 進球＝<c>match_goals</c> 筆數；黃／紅牌＝<c>match_cards</c> 筆數；<b>出賽＝出賽名單中先發（<c>is_starter</c>）或有上場的替補（<c>came_on</c>）的場次</b>
+/// （v3.31）。舊規則「替補有進球或牌就算出賽」已移除——改由後台儲存賽事時把有進球／牌的替補強制標成 <c>came_on</c>（見 <c>AdminMatchesRepository.ReconcileCameOn</c>），
+/// 既有資料已由 migration <c>OpponentTeamsAndCameOn</c> 回填。<b>不在出賽名單裡</b>的球員即使有進球／牌，出賽仍是 0（進球與牌照算，不會消失）。
 /// 助攻沒有資料來源，自動彙總時為 null。後台若手動輸入了該球員該球季的數據（<c>player_season_stats</c>），以手動為準（<c>source = manual</c>）。
 /// </summary>
 public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolver imageUrls)
@@ -63,20 +66,41 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
         var raw = await db.Standings.AsNoTracking().Where(s => s.ClubId == scope.ClubId && s.SeasonId == season.Id)
             .Select(s => new
             {
-                s.Rank, s.Played, s.Points, s.UpdatedAt,
+                s.Rank, s.Played, s.Points, s.UpdatedAt, s.OpponentTeamId,
+                TeamNameZh = s.OpponentTeam != null ? s.OpponentTeam.Name : null,
+                TeamNameRequested = s.OpponentTeam != null ? s.OpponentTeam.OpponentTeamsI18ns.Where(i => i.Locale == dbLocale).Select(i => i.Name).FirstOrDefault() : null,
+                CrestKey = s.OpponentTeam != null ? s.OpponentTeam.CrestKey : null,
+                CrestWidth = s.OpponentTeam != null ? s.OpponentTeam.CrestWidth : null,
+                CrestHeight = s.OpponentTeam != null ? s.OpponentTeam.CrestHeight : null,
                 Requested = s.StandingsI18ns.Where(i => i.Locale == dbLocale).Select(i => i.TeamName).FirstOrDefault(),
                 Default = s.StandingsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.TeamName).FirstOrDefault(),
             }).ToListAsync(cancellationToken);
-        var rows = raw.Select(r => new
+        // 有對手球隊庫就用庫內隊名與隊徽（請求語系 → 繁中）；否則退回 standings_i18n 文字。
+        var rows = raw.Select(r =>
             {
-                r.Rank, r.Played, r.Points, r.UpdatedAt, TeamName = RequestLocale.Pick(r.Requested, r.Default) ?? string.Empty,
-                IsFallbackLocale = RequestLocale.IsFallback(dbLocale, r.Requested),
+                var linked = r.OpponentTeamId is not null && r.TeamNameZh is not null;
+                var requested = linked ? r.TeamNameRequested : r.Requested;
+                var crestUrl = linked ? imageUrls.Resolve(r.CrestKey) : null;
+                return new
+                {
+                    r.Rank, r.Played, r.Points, r.UpdatedAt, r.OpponentTeamId,
+                    TeamName = (linked ? RequestLocale.Pick(requested, r.TeamNameZh) : RequestLocale.Pick(requested, r.Default)) ?? string.Empty,
+                    IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested),
+                    Crest = crestUrl is null || r.CrestKey is null ? null : new OpponentCrestDto
+                    {
+                        Url = crestUrl,
+                        Url1280 = imageUrls.Resolve(ImageObjectKey.ForLongEdge(r.CrestKey, 1280)),
+                        Url640 = imageUrls.Resolve(ImageObjectKey.ForLongEdge(r.CrestKey, 640)),
+                        Url320 = imageUrls.Resolve(ImageObjectKey.ForLongEdge(r.CrestKey, 320)),
+                        Width = r.CrestWidth, Height = r.CrestHeight,
+                    },
+                };
             })
             .OrderBy(s => s.Rank == null).ThenBy(s => s.Rank).ThenBy(s => s.TeamName, StringComparer.Ordinal).ToList();
         return new StandingsDto
         {
             Season = Ref(season), Seasons = codes, UpdatedAt = rows.Count == 0 ? null : rows.Max(r => r.UpdatedAt),
-            Items = rows.Select(r => new StandingRowDto { Rank = r.Rank, TeamName = r.TeamName, IsFallbackLocale = r.IsFallbackLocale, Played = r.Played, Points = r.Points }).ToList(),
+            Items = rows.Select(r => new StandingRowDto { Rank = r.Rank, TeamName = r.TeamName, OpponentTeamId = r.OpponentTeamId, Crest = r.Crest, IsFallbackLocale = r.IsFallbackLocale, Played = r.Played, Points = r.Points }).ToList(),
         };
     }
 
@@ -95,30 +119,21 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
         var cards = await db.MatchCards.AsNoTracking().Where(c => matchIds.Contains(c.MatchId) && (onlyPlayerId == null || c.PlayerId == onlyPlayerId))
             .Select(c => new { c.MatchId, c.PlayerId, c.CardType }).ToListAsync(cancellationToken);
         var lineups = await db.MatchLineups.AsNoTracking().Where(l => matchIds.Contains(l.MatchId) && (onlyPlayerId == null || l.PlayerId == onlyPlayerId))
-            .Select(l => new { l.MatchId, l.PlayerId, l.IsStarter }).ToListAsync(cancellationToken);
+            .Select(l => new { l.MatchId, l.PlayerId, l.IsStarter, l.CameOn }).ToListAsync(cancellationToken);
 
-        // 出賽場次：先發，或雖是替補但在該場有進球／牌。
+        // 出賽場次（v3.31）：先發，或替補且有上場（came_on）。只看出賽名單，不再從進球／牌推論。
         var appeared = new HashSet<(Guid Player, Guid Match)>();
-        foreach (var l in lineups.Where(l => l.IsStarter))
+        foreach (var l in lineups.Where(l => l.IsStarter || l.CameOn))
         {
             appeared.Add((l.PlayerId, l.MatchId));
         }
 
-        foreach (var g in goals)
-        {
-            appeared.Add((g.PlayerId, g.MatchId));
-        }
-
-        foreach (var c in cards)
-        {
-            appeared.Add((c.PlayerId, c.MatchId));
-        }
-
-        // 烏龍球記在對手名下、不算該球員的進球（稽核 A-1）；出賽仍算（上面 appeared 已含）。
+        // 烏龍球記在對手名下、不算該球員的進球（稽核 A-1）。
         var countedGoals = goals.Where(g => !MatchGoalTypes.IsOwnGoal(g.GoalType)).ToList();
 
+        // 有進球／牌但不在出賽名單的球員仍要出現在結果（進球與牌照算），出賽為 0。
         var result = new Dictionary<Guid, Totals>();
-        foreach (var playerId in appeared.Select(a => a.Player).Distinct())
+        foreach (var playerId in appeared.Select(a => a.Player).Concat(goals.Select(g => g.PlayerId)).Concat(cards.Select(c => c.PlayerId)).Distinct())
         {
             result[playerId] = new Totals(
                 appeared.Count(a => a.Player == playerId), countedGoals.Count(g => g.PlayerId == playerId), null,

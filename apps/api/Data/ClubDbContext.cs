@@ -313,6 +313,10 @@ public partial class ClubDbContext : DbContext
     public virtual DbSet<Venue> Venues { get; set; }
 
     public virtual DbSet<VenuesI18n> VenuesI18ns { get; set; }
+
+    public virtual DbSet<OpponentTeam> OpponentTeams { get; set; }
+
+    public virtual DbSet<OpponentTeamsI18n> OpponentTeamsI18ns { get; set; }
     public virtual DbSet<AdCampaign> AdCampaigns { get; set; }
     public virtual DbSet<AdCreative> AdCreatives { get; set; }
     public virtual DbSet<AdDailyStat> AdDailyStats { get; set; }
@@ -3723,6 +3727,8 @@ public partial class ClubDbContext : DbContext
 
             entity.HasIndex(e => new { e.Status, e.MatchOn }, "IX_matches_status_matchon");
 
+            entity.HasIndex(e => e.OpponentTeamId, "IX_matches_opponent_team");
+
             entity.HasIndex(e => e.RowSeq, "UQ_matches_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -3748,6 +3754,7 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("kickoff");
             entity.Property(e => e.MatchNo).HasColumnName("match_no");
             entity.Property(e => e.MatchOn).HasColumnName("match_on");
+            entity.Property(e => e.OpponentTeamId).HasColumnName("opponent_team_id");
             entity.Property(e => e.Opponent)
                 .HasMaxLength(128)
                 .HasColumnName("opponent");
@@ -3797,6 +3804,10 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.Venue).WithMany(p => p.Matches)
                 .HasForeignKey(d => d.VenueId)
                 .HasConstraintName("FK_matches_venue");
+
+            entity.HasOne(d => d.OpponentTeam).WithMany(p => p.Matches)
+                .HasForeignKey(d => d.OpponentTeamId)
+                .HasConstraintName("FK_matches_opponent_team");
 
             entity.HasMany(d => d.Teams).WithMany(p => p.Matches)
                 .UsingEntity<Dictionary<string, object>>(
@@ -3937,6 +3948,9 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.IsStarter).HasColumnName("is_starter");
+            entity.Property(e => e.CameOn)
+                .HasDefaultValue(false)
+                .HasColumnName("came_on");
             entity.Property(e => e.MatchId).HasColumnName("match_id");
             entity.Property(e => e.PlayerId).HasColumnName("player_id");
             entity.Property(e => e.RowSeq)
@@ -7233,6 +7247,8 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("standings");
 
+            entity.HasIndex(e => e.OpponentTeamId, "IX_standings_opponent_team");
+
             entity.HasIndex(e => e.RowSeq, "UQ_standings_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -7246,6 +7262,7 @@ public partial class ClubDbContext : DbContext
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.OpponentTeamId).HasColumnName("opponent_team_id");
             entity.Property(e => e.Played).HasColumnName("played");
             entity.Property(e => e.Points).HasColumnName("points");
             entity.Property(e => e.Rank).HasColumnName("rank");
@@ -7276,6 +7293,10 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.StandingUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_standings_updated_by");
+
+            entity.HasOne(d => d.OpponentTeam).WithMany(p => p.Standings)
+                .HasForeignKey(d => d.OpponentTeamId)
+                .HasConstraintName("FK_standings_opponent_team");
         });
 
         modelBuilder.Entity<StoreInvoice>(entity =>
@@ -7716,6 +7737,84 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.VenueUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_venues_updated_by");
+        });
+
+        modelBuilder.Entity<OpponentTeam>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("opponent_teams");
+
+            entity.HasIndex(e => new { e.ClubId, e.SortOrder }, "IX_opponent_teams_club_sort");
+
+            entity.HasIndex(e => new { e.ClubId, e.Name }, "UQ_opponent_teams_club_name").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_opponent_teams_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.ClubId).HasColumnName("club_id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.CrestHeight).HasColumnName("crest_height");
+            entity.Property(e => e.CrestKey)
+                .HasMaxLength(500)
+                .HasColumnName("crest_key");
+            entity.Property(e => e.CrestWidth).HasColumnName("crest_width");
+            entity.Property(e => e.Name)
+                .HasMaxLength(128)
+                .HasColumnName("name");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder)
+                .HasDefaultValue(0)
+                .HasColumnName("sort_order");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.Club).WithMany()
+                .HasForeignKey(d => d.ClubId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_opponent_teams_club");
+
+            entity.HasOne<AdminUser>().WithMany()
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_opponent_teams_created_by");
+
+            entity.HasOne<AdminUser>().WithMany()
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_opponent_teams_updated_by");
+        });
+
+        modelBuilder.Entity<OpponentTeamsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.OpponentTeamId, e.Locale });
+
+            entity.ToTable("opponent_teams_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_opponent_teams_i18n_locale");
+
+            entity.Property(e => e.OpponentTeamId).HasColumnName("opponent_team_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Name)
+                .HasMaxLength(128)
+                .HasColumnName("name");
+
+            entity.HasOne(d => d.OpponentTeam).WithMany(p => p.OpponentTeamsI18ns)
+                .HasForeignKey(d => d.OpponentTeamId)
+                .HasConstraintName("FK_opponent_teams_i18n_opponent_team");
         });
 
         modelBuilder.Entity<VenuesI18n>(entity =>

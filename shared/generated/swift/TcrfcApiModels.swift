@@ -1865,18 +1865,46 @@ public struct LookupShopOrderRequest: Codable, Equatable, Sendable {
     }
 }
 
-public struct MatchDto: Codable, Equatable, Sendable {
-    public var id: String
-    public var seasonCode: String
-    public var teamCode: String
-    public var clubCode: String
+public struct MatchCardDto: Codable, Equatable, Sendable {
+    public var minute: Int?
+    public var playerId: String?
+    public var playerSlug: String?
+    public var playerName: String?
+    public var cardType: String
+
+    public init(
+        minute: Int? = nil,
+        playerId: String? = nil,
+        playerSlug: String? = nil,
+        playerName: String? = nil,
+        cardType: String
+    ) {
+        self.minute = minute
+        self.playerId = playerId
+        self.playerSlug = playerSlug
+        self.playerName = playerName
+        self.cardType = cardType
+    }
+}
+
+public struct MatchDetailDto: Codable, Equatable, Sendable {
+    public var goals: [MatchGoalDto]?
+    public var cards: [MatchCardDto]?
+    public var lineup: [MatchLineupDto]?
+    public var id: String?
+    public var seasonCode: String?
+    public var teamCode: String?
+    public var clubCode: String?
     public var competitionCode: String?
-    public var matchOn: String
+    public var matchOn: String?
     public var kickoff: String?
     public var kickoffAt: JSONValue?
     public var homeAway: String?
     public var opponent: String?
-    public var isFallbackLocale: Bool
+    public var opponentTeamId: String?
+    public var opponentName: String?
+    public var opponentCrest: OpponentCrestDto?
+    public var isFallbackLocale: Bool?
     public var venue: String?
     public var competitionTag: String?
     public var competitionName: String?
@@ -1887,20 +1915,28 @@ public struct MatchDto: Codable, Equatable, Sendable {
     public var matchNo: Int?
     public var originalMatchOn: String?
     public var originalKickoff: String?
-    public var schemaEligible: Bool
+    public var schemaEligible: Bool?
+    public var scorers: [MatchScorerDto]?
+    public var matchReport: MatchReportDto?
 
     public init(
-        id: String,
-        seasonCode: String,
-        teamCode: String,
-        clubCode: String,
+        goals: [MatchGoalDto]? = nil,
+        cards: [MatchCardDto]? = nil,
+        lineup: [MatchLineupDto]? = nil,
+        id: String? = nil,
+        seasonCode: String? = nil,
+        teamCode: String? = nil,
+        clubCode: String? = nil,
         competitionCode: String? = nil,
-        matchOn: String,
+        matchOn: String? = nil,
         kickoff: String? = nil,
         kickoffAt: JSONValue? = nil,
         homeAway: String? = nil,
         opponent: String? = nil,
-        isFallbackLocale: Bool,
+        opponentTeamId: String? = nil,
+        opponentName: String? = nil,
+        opponentCrest: OpponentCrestDto? = nil,
+        isFallbackLocale: Bool? = nil,
         venue: String? = nil,
         competitionTag: String? = nil,
         competitionName: String? = nil,
@@ -1911,8 +1947,13 @@ public struct MatchDto: Codable, Equatable, Sendable {
         matchNo: Int? = nil,
         originalMatchOn: String? = nil,
         originalKickoff: String? = nil,
-        schemaEligible: Bool
+        schemaEligible: Bool? = nil,
+        scorers: [MatchScorerDto]? = nil,
+        matchReport: MatchReportDto? = nil
     ) {
+        self.goals = goals
+        self.cards = cards
+        self.lineup = lineup
         self.id = id
         self.seasonCode = seasonCode
         self.teamCode = teamCode
@@ -1923,6 +1964,9 @@ public struct MatchDto: Codable, Equatable, Sendable {
         self.kickoffAt = kickoffAt
         self.homeAway = homeAway
         self.opponent = opponent
+        self.opponentTeamId = opponentTeamId
+        self.opponentName = opponentName
+        self.opponentCrest = opponentCrest
         self.isFallbackLocale = isFallbackLocale
         self.venue = venue
         self.competitionTag = competitionTag
@@ -1935,6 +1979,181 @@ public struct MatchDto: Codable, Equatable, Sendable {
         self.originalMatchOn = originalMatchOn
         self.originalKickoff = originalKickoff
         self.schemaEligible = schemaEligible
+        self.scorers = scorers
+        self.matchReport = matchReport
+    }
+}
+
+public struct MatchDto: Codable, Equatable, Sendable {
+    public var id: String
+    public var seasonCode: String
+    public var teamCode: String
+    public var clubCode: String
+    public var competitionCode: String?
+    public var matchOn: String
+    public var kickoff: String?
+    public var kickoffAt: JSONValue?
+    public var homeAway: String?
+    public var opponent: String?
+    public var opponentTeamId: String?
+    public var opponentName: String?
+    public var opponentCrest: OpponentCrestDto?
+    public var isFallbackLocale: Bool
+    public var venue: String?
+    public var competitionTag: String?
+    public var competitionName: String?
+    public var status: String?
+    public var scoreHome: Int?
+    public var scoreAway: Int?
+    public var roundNo: Int?
+    public var matchNo: Int?
+    public var originalMatchOn: String?
+    public var originalKickoff: String?
+    public var schemaEligible: Bool
+    public var scorers: [MatchScorerDto]?
+    public var matchReport: MatchReportDto?
+
+    public init(
+        id: String,
+        seasonCode: String,
+        teamCode: String,
+        clubCode: String,
+        competitionCode: String? = nil,
+        matchOn: String,
+        kickoff: String? = nil,
+        kickoffAt: JSONValue? = nil,
+        homeAway: String? = nil,
+        opponent: String? = nil,
+        opponentTeamId: String? = nil,
+        opponentName: String? = nil,
+        opponentCrest: OpponentCrestDto? = nil,
+        isFallbackLocale: Bool,
+        venue: String? = nil,
+        competitionTag: String? = nil,
+        competitionName: String? = nil,
+        status: String? = nil,
+        scoreHome: Int? = nil,
+        scoreAway: Int? = nil,
+        roundNo: Int? = nil,
+        matchNo: Int? = nil,
+        originalMatchOn: String? = nil,
+        originalKickoff: String? = nil,
+        schemaEligible: Bool,
+        scorers: [MatchScorerDto]? = nil,
+        matchReport: MatchReportDto? = nil
+    ) {
+        self.id = id
+        self.seasonCode = seasonCode
+        self.teamCode = teamCode
+        self.clubCode = clubCode
+        self.competitionCode = competitionCode
+        self.matchOn = matchOn
+        self.kickoff = kickoff
+        self.kickoffAt = kickoffAt
+        self.homeAway = homeAway
+        self.opponent = opponent
+        self.opponentTeamId = opponentTeamId
+        self.opponentName = opponentName
+        self.opponentCrest = opponentCrest
+        self.isFallbackLocale = isFallbackLocale
+        self.venue = venue
+        self.competitionTag = competitionTag
+        self.competitionName = competitionName
+        self.status = status
+        self.scoreHome = scoreHome
+        self.scoreAway = scoreAway
+        self.roundNo = roundNo
+        self.matchNo = matchNo
+        self.originalMatchOn = originalMatchOn
+        self.originalKickoff = originalKickoff
+        self.schemaEligible = schemaEligible
+        self.scorers = scorers
+        self.matchReport = matchReport
+    }
+}
+
+public struct MatchGoalDto: Codable, Equatable, Sendable {
+    public var minute: Int?
+    public var playerId: String?
+    public var playerSlug: String?
+    public var playerName: String?
+    public var shirtNumber: Int?
+    public var goalType: String?
+    public var side: String?
+
+    public init(
+        minute: Int? = nil,
+        playerId: String? = nil,
+        playerSlug: String? = nil,
+        playerName: String? = nil,
+        shirtNumber: Int? = nil,
+        goalType: String? = nil,
+        side: String? = nil
+    ) {
+        self.minute = minute
+        self.playerId = playerId
+        self.playerSlug = playerSlug
+        self.playerName = playerName
+        self.shirtNumber = shirtNumber
+        self.goalType = goalType
+        self.side = side
+    }
+}
+
+public struct MatchLineupDto: Codable, Equatable, Sendable {
+    public var playerId: String
+    public var playerSlug: String?
+    public var playerName: String?
+    public var shirtNumber: Int?
+    public var position: String?
+    public var isStarter: Bool
+    public var cameOn: Bool
+
+    public init(
+        playerId: String,
+        playerSlug: String? = nil,
+        playerName: String? = nil,
+        shirtNumber: Int? = nil,
+        position: String? = nil,
+        isStarter: Bool,
+        cameOn: Bool
+    ) {
+        self.playerId = playerId
+        self.playerSlug = playerSlug
+        self.playerName = playerName
+        self.shirtNumber = shirtNumber
+        self.position = position
+        self.isStarter = isStarter
+        self.cameOn = cameOn
+    }
+}
+
+public struct MatchReportDto: Codable, Equatable, Sendable {
+    public var slug: String
+    public var title: String
+
+    public init(
+        slug: String,
+        title: String
+    ) {
+        self.slug = slug
+        self.title = title
+    }
+}
+
+public struct MatchScorerDto: Codable, Equatable, Sendable {
+    public var minute: Int?
+    public var playerName: String?
+    public var goalType: String?
+
+    public init(
+        minute: Int? = nil,
+        playerName: String? = nil,
+        goalType: String? = nil
+    ) {
+        self.minute = minute
+        self.playerName = playerName
+        self.goalType = goalType
     }
 }
 
@@ -3064,6 +3283,31 @@ public struct NewsletterUnsubscribeResultDto: Codable, Equatable, Sendable {
         changed: Bool
     ) {
         self.changed = changed
+    }
+}
+
+public struct OpponentCrestDto: Codable, Equatable, Sendable {
+    public var url: String
+    public var url1280: String?
+    public var url640: String?
+    public var url320: String?
+    public var width: Int?
+    public var height: Int?
+
+    public init(
+        url: String,
+        url1280: String? = nil,
+        url640: String? = nil,
+        url320: String? = nil,
+        width: Int? = nil,
+        height: Int? = nil
+    ) {
+        self.url = url
+        self.url1280 = url1280
+        self.url640 = url640
+        self.url320 = url320
+        self.width = width
+        self.height = height
     }
 }
 
@@ -5844,6 +6088,8 @@ public struct StaffDto: Codable, Equatable, Sendable {
 public struct StandingRowDto: Codable, Equatable, Sendable {
     public var rank: Int?
     public var teamName: String
+    public var opponentTeamId: String?
+    public var crest: OpponentCrestDto?
     public var isFallbackLocale: Bool
     public var played: Int?
     public var points: Int?
@@ -5851,12 +6097,16 @@ public struct StandingRowDto: Codable, Equatable, Sendable {
     public init(
         rank: Int? = nil,
         teamName: String,
+        opponentTeamId: String? = nil,
+        crest: OpponentCrestDto? = nil,
         isFallbackLocale: Bool,
         played: Int? = nil,
         points: Int? = nil
     ) {
         self.rank = rank
         self.teamName = teamName
+        self.opponentTeamId = opponentTeamId
+        self.crest = crest
         self.isFallbackLocale = isFallbackLocale
         self.played = played
         self.points = points

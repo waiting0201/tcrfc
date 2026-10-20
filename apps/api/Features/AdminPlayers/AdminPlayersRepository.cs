@@ -157,6 +157,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("players", scope.ClubCode, cancellationToken);
+        // 賽事詳情（schedule）內含球員姓名與現役判定，球員改名／離隊要一併失效。
+        await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
         return (await GetByIdAsync(scope, player.Id, cancellationToken))!;
     }
 
@@ -233,6 +235,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("players", scope.ClubCode, cancellationToken);
+        // 賽事詳情（schedule）內含球員姓名與現役判定，球員改名／離隊要一併失效。
+        await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
     }
 

@@ -85,6 +85,8 @@ public static class UploadSlotPolicy
             ["member_draws"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
             // I 網站設定（2026-10-02）：I5 場地照片（venues.photo_key）。
             ["venues"] = new HashSet<string>(StringComparer.Ordinal) { "photo" },
+            // C4 對手球隊庫（2026-10-20）：隊徽（opponent_teams.crest_key）。
+            ["opponent_teams"] = new HashSet<string>(StringComparer.Ordinal) { "crest" },
         };
 
     public static void Validate(string entityType, string field)

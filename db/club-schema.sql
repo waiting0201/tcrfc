@@ -878,6 +878,8 @@ CREATE TABLE matches (
   updated_at          datetime2(3)     NOT NULL CONSTRAINT DF_matches_updated_at DEFAULT SYSUTCDATETIME(),
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
+  -- 主站規劃書 v3.31：對手球隊庫。可為空——沒挑時退回 opponent 文字（不做資料遷移）。
+  opponent_team_id    uniqueidentifier NULL,
   CONSTRAINT PK_matches PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_matches_row_seq UNIQUE CLUSTERED (row_seq),
   -- v3.14：五值行文落差已解決（docs/12 §12 第 35 點），欄寬 16 已足夠容納最長值 postponed／cancelled（各 9 字元）
@@ -943,6 +945,8 @@ CREATE TABLE match_lineups (
   updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_match_lineups_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  -- 主站規劃書 v3.31：替補是否有上場。出賽＝is_starter OR came_on；先發恆存 0；有進球／牌的替補由後台儲存時強制為 1。
+  came_on         bit              NOT NULL CONSTRAINT DF_match_lineups_came_on DEFAULT 0,
   CONSTRAINT PK_match_lineups PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_match_lineups_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -963,6 +967,8 @@ CREATE TABLE standings (
   updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_standings_updated_at DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
+  -- 主站規劃書 v3.31：對手球隊庫。可為空——沒挑時退回 standings_i18n.team_name 文字。
+  opponent_team_id uniqueidentifier NULL,
   CONSTRAINT PK_standings PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_standings_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -972,6 +978,35 @@ CREATE TABLE standings_i18n (
   locale          nvarchar(10)     NOT NULL,
   team_name       nvarchar(128)    NULL,
   CONSTRAINT PK_standings_i18n PRIMARY KEY CLUSTERED (standing_id, locale)
+);
+
+-- 對手球隊庫（主站規劃書 v3.31，後台 C4）。俱樂部範圍（club_id 必填）：賽程與積分榜挑選對手時帶出隊名與隊徽。
+-- name 是中文預設（基礎表欄位，比照 matches.opponent 先例）；英文在 opponent_teams_i18n（en 列，可省略＝回退中文）。
+-- 隊徽走圖片欄位組：crest_key（主檔物件鍵，1280／640／320／160 縮圖由鍵推導，不另存欄位）＋ crest_width／crest_height（主檔尺寸）。
+-- 同俱樂部隊名不得重複。被賽事或積分榜引用時不得刪除（FK 不連帶刪除）。
+CREATE TABLE opponent_teams (
+  id              uniqueidentifier NOT NULL CONSTRAINT DF_opponent_teams_id DEFAULT NEWID(),
+  row_seq         bigint IDENTITY(1,1) NOT NULL,
+  club_id         uniqueidentifier NOT NULL,
+  name            nvarchar(128)    NOT NULL,
+  crest_key       nvarchar(500)    NULL,
+  crest_width     int              NULL,
+  crest_height    int              NULL,
+  sort_order      int              NOT NULL CONSTRAINT DF_opponent_teams_sort_order DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL CONSTRAINT DF_opponent_teams_created_at DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL CONSTRAINT DF_opponent_teams_updated_at DEFAULT SYSUTCDATETIME(),
+  created_by      uniqueidentifier NULL,
+  updated_by      uniqueidentifier NULL,
+  CONSTRAINT PK_opponent_teams PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_opponent_teams_row_seq UNIQUE CLUSTERED (row_seq),
+  CONSTRAINT UQ_opponent_teams_club_name UNIQUE (club_id, name)
+);
+
+CREATE TABLE opponent_teams_i18n (
+  opponent_team_id uniqueidentifier NOT NULL,
+  locale          nvarchar(10)     NOT NULL,
+  name            nvarchar(128)    NULL,
+  CONSTRAINT PK_opponent_teams_i18n PRIMARY KEY CLUSTERED (opponent_team_id, locale)
 );
 
 -- 榮譽（年份、賽事、名次、隊伍）。
@@ -3568,6 +3603,9 @@ CREATE INDEX IX_articles_category_published          ON articles (article_catego
 CREATE INDEX IX_articles_club_status_published        ON articles (club_id, status, published_at DESC);
 CREATE INDEX IX_matches_season_matchon                ON matches (season_id, match_on);
 CREATE INDEX IX_matches_status_matchon                ON matches (status, match_on);
+CREATE INDEX IX_matches_opponent_team                 ON matches (opponent_team_id);
+CREATE INDEX IX_standings_opponent_team               ON standings (opponent_team_id);
+CREATE INDEX IX_opponent_teams_club_sort              ON opponent_teams (club_id, sort_order);
 CREATE INDEX IX_calendar_event_teams_team_source       ON calendar_event_teams (team_id, source_type);
 CREATE INDEX IX_registrations_session_status           ON registrations (session_id, status);
 CREATE INDEX IX_registrations_trial_status             ON registrations (trial_id, status);
@@ -3653,6 +3691,7 @@ CREATE INDEX IX_matches_i18n_locale                  ON matches_i18n (locale);
 CREATE INDEX IX_milestones_i18n_locale               ON milestones_i18n (locale);
 CREATE INDEX IX_programs_i18n_locale                 ON programs_i18n (locale);
 CREATE INDEX IX_standings_i18n_locale                ON standings_i18n (locale);
+CREATE INDEX IX_opponent_teams_i18n_locale           ON opponent_teams_i18n (locale);
 CREATE INDEX IX_achievements_i18n_locale             ON achievements_i18n (locale);
 CREATE INDEX IX_proposals_i18n_locale                ON proposals_i18n (locale);
 CREATE INDEX IX_partners_i18n_locale                 ON partners_i18n (locale);
@@ -3791,6 +3830,8 @@ ALTER TABLE match_lineups ADD CONSTRAINT FK_match_lineups_created_by FOREIGN KEY
 ALTER TABLE match_lineups ADD CONSTRAINT FK_match_lineups_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE matches ADD CONSTRAINT FK_matches_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
 ALTER TABLE matches ADD CONSTRAINT FK_matches_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE opponent_teams ADD CONSTRAINT FK_opponent_teams_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE opponent_teams ADD CONSTRAINT FK_opponent_teams_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE member_cards ADD CONSTRAINT FK_member_cards_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
 ALTER TABLE member_cards ADD CONSTRAINT FK_member_cards_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE member_draws ADD CONSTRAINT FK_member_draws_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
@@ -3942,6 +3983,9 @@ ALTER TABLE matches         ADD CONSTRAINT FK_matches_club          FOREIGN KEY 
 ALTER TABLE matches         ADD CONSTRAINT FK_matches_season        FOREIGN KEY (season_id) REFERENCES seasons(id);
 ALTER TABLE matches         ADD CONSTRAINT FK_matches_competition   FOREIGN KEY (competition_id) REFERENCES competitions(id);
 ALTER TABLE matches         ADD CONSTRAINT FK_matches_venue         FOREIGN KEY (venue_id) REFERENCES venues(id);
+ALTER TABLE matches         ADD CONSTRAINT FK_matches_opponent_team FOREIGN KEY (opponent_team_id) REFERENCES opponent_teams(id);
+ALTER TABLE opponent_teams  ADD CONSTRAINT FK_opponent_teams_club   FOREIGN KEY (club_id) REFERENCES clubs(id);
+ALTER TABLE opponent_teams_i18n ADD CONSTRAINT FK_opponent_teams_i18n_opponent_team FOREIGN KEY (opponent_team_id) REFERENCES opponent_teams(id) ON DELETE CASCADE;
 ALTER TABLE matches_i18n    ADD CONSTRAINT FK_matches_i18n_match    FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE;
 ALTER TABLE match_teams     ADD CONSTRAINT FK_match_teams_match     FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE;
 ALTER TABLE match_teams     ADD CONSTRAINT FK_match_teams_team      FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE;
@@ -3953,6 +3997,7 @@ ALTER TABLE match_lineups   ADD CONSTRAINT FK_match_lineups_match   FOREIGN KEY 
 ALTER TABLE match_lineups   ADD CONSTRAINT FK_match_lineups_player  FOREIGN KEY (player_id) REFERENCES players(id);
 ALTER TABLE standings       ADD CONSTRAINT FK_standings_club        FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE standings       ADD CONSTRAINT FK_standings_season      FOREIGN KEY (season_id) REFERENCES seasons(id);
+ALTER TABLE standings       ADD CONSTRAINT FK_standings_opponent_team FOREIGN KEY (opponent_team_id) REFERENCES opponent_teams(id);
 ALTER TABLE standings_i18n  ADD CONSTRAINT FK_standings_i18n_standing FOREIGN KEY (standing_id) REFERENCES standings(id) ON DELETE CASCADE;
 ALTER TABLE achievements    ADD CONSTRAINT FK_achievements_club     FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE achievements    ADD CONSTRAINT FK_achievements_season   FOREIGN KEY (season_id) REFERENCES seasons(id);

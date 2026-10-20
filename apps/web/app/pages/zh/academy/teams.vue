@@ -54,10 +54,10 @@ const teamTabs = computed(() => tabs.value.filter((t) => t.teamCode !== null))
 
 // S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
 const { locale, lp, isEn, tx } = useLocale()
-const [{ data: playersData }, { data: staffData }, { data: scheduleData }] = await Promise.all([
+const [{ data: playersData }, { data: staffData }, scheduleData] = await Promise.all([
   useFetch(`/api/backend/${club}/players`, { query: { pageSize: 200, lang: locale.value } }),
   useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 200, lang: locale.value } }),
-  useFetch(`/api/backend/${club}/schedule`, { query: { pageSize: 200, lang: locale.value } }),
+  useClubMatches(club, locale.value),
 ])
 
 function playersForTeam(teamCode: string) {
@@ -181,9 +181,9 @@ useSeoMeta({
           <p v-if="matchesForTeam(tab.teamCode!).length === 0">{{ tx('賽程與成績準備中，稍後將於本頁公布。', 'Fixtures and results are being prepared and will be published on this page soon.') }}</p>
           <ul v-else>
             <li v-for="m in matchesForTeam(tab.teamCode!)" :key="m.id">
-              {{ m.matchOn }}{{ tx('　', ' | ') }}{{ m.homeAway === 'home' ? tx('主場', 'Home') : m.homeAway === 'away' ? tx('客場', 'Away') : '' }}
-              {{ tx('對', 'vs') }} {{ m.opponent }}
-              <template v-if="mapMatchStatus(m.status).code === 'finished' && hasScore(m)">{{ tx('　', ' | ') }}{{ m.scoreHome }} : {{ m.scoreAway }}</template>
+              {{ m.matchOn }}{{ tx('　', ' | ') }}{{ !m.homeAway ? '' : haCode(m.homeAway) === 'home' ? tx('主場', 'Home') : tx('客場', 'Away') }}
+              {{ tx('對', 'vs') }} {{ m.opponentName || m.opponent }}
+              <template v-if="mapMatchStatus(m.status).code === 'finished' && hasScore(m)">{{ tx('　', ' | ') }}{{ matchScoreText(m) }}</template>
             </li>
           </ul>
           <button type="button" class="btn btn--dark btn--sm" style="margin-top:1.25rem;" disabled aria-disabled="true">

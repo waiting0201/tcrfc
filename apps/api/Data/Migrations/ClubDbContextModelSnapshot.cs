@@ -6482,6 +6482,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(128)")
                         .HasColumnName("opponent");
 
+                    b.Property<Guid?>("OpponentTeamId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("opponent_team_id");
+
                     b.Property<string>("OriginalKickoff")
                         .HasMaxLength(8)
                         .HasColumnType("nvarchar(8)")
@@ -6537,6 +6541,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "OpponentTeamId" }, "IX_matches_opponent_team");
 
                     b.HasIndex(new[] { "SeasonId", "MatchOn" }, "IX_matches_season_matchon");
 
@@ -6689,6 +6695,12 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
+
+                    b.Property<bool>("CameOn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("came_on");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -8086,6 +8098,112 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_newsletter_subscribers_row_seq"));
 
                     b.ToTable("newsletter_subscribers", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.OpponentTeam", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<Guid>("ClubId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("club_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<int?>("CrestHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("crest_height");
+
+                    b.Property<string>("CrestKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("crest_key");
+
+                    b.Property<int?>("CrestWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("crest_width");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("name");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<int>("SortOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "ClubId", "SortOrder" }, "IX_opponent_teams_club_sort");
+
+                    b.HasIndex(new[] { "ClubId", "Name" }, "UQ_opponent_teams_club_name")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_opponent_teams_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_opponent_teams_row_seq"));
+
+                    b.ToTable("opponent_teams", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.OpponentTeamsI18n", b =>
+                {
+                    b.Property<Guid>("OpponentTeamId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("opponent_team_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("name");
+
+                    b.HasKey("OpponentTeamId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_opponent_teams_i18n_locale");
+
+                    b.ToTable("opponent_teams_i18n", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Order", b =>
@@ -11877,6 +11995,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid?>("OpponentTeamId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("opponent_team_id");
+
                     b.Property<int?>("Played")
                         .HasColumnType("int")
                         .HasColumnName("played");
@@ -11914,6 +12036,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "OpponentTeamId" }, "IX_standings_opponent_team");
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_standings_row_seq")
                         .IsUnique();
@@ -14854,6 +14978,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasForeignKey("CreatedBy")
                         .HasConstraintName("FK_matches_created_by");
 
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.OpponentTeam", "OpponentTeam")
+                        .WithMany("Matches")
+                        .HasForeignKey("OpponentTeamId")
+                        .HasConstraintName("FK_matches_opponent_team");
+
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Season", "Season")
                         .WithMany("Matches")
                         .HasForeignKey("SeasonId")
@@ -14875,6 +15004,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("CompetitionNavigation");
 
                     b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("OpponentTeam");
 
                     b.Navigation("Season");
 
@@ -15419,6 +15550,39 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("CreatedByNavigation");
 
                     b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.OpponentTeam", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
+                        .WithMany()
+                        .HasForeignKey("ClubId")
+                        .IsRequired()
+                        .HasConstraintName("FK_opponent_teams_club");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_opponent_teams_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", null)
+                        .WithMany()
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_opponent_teams_updated_by");
+
+                    b.Navigation("Club");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.OpponentTeamsI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.OpponentTeam", "OpponentTeam")
+                        .WithMany("OpponentTeamsI18ns")
+                        .HasForeignKey("OpponentTeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_opponent_teams_i18n_opponent_team");
+
+                    b.Navigation("OpponentTeam");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Order", b =>
@@ -16621,6 +16785,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasForeignKey("CreatedBy")
                         .HasConstraintName("FK_standings_created_by");
 
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.OpponentTeam", "OpponentTeam")
+                        .WithMany("Standings")
+                        .HasForeignKey("OpponentTeamId")
+                        .HasConstraintName("FK_standings_opponent_team");
+
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Season", "Season")
                         .WithMany("Standings")
                         .HasForeignKey("SeasonId")
@@ -16635,6 +16804,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("Club");
 
                     b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("OpponentTeam");
 
                     b.Navigation("Season");
 
@@ -17782,6 +17953,15 @@ namespace Tcrfc.Api.Data.Migrations
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Milestone", b =>
                 {
                     b.Navigation("MilestonesI18ns");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.OpponentTeam", b =>
+                {
+                    b.Navigation("Matches");
+
+                    b.Navigation("OpponentTeamsI18ns");
+
+                    b.Navigation("Standings");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Order", b =>

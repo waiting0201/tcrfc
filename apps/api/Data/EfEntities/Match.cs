@@ -17,6 +17,9 @@ public partial class Match
 
     public Guid? VenueId { get; set; }
 
+    /// <summary>對手球隊庫（opponent_teams）；可為空——沒挑時退回 <see cref="Opponent"/> 文字。</summary>
+    public Guid? OpponentTeamId { get; set; }
+
     public DateOnly MatchOn { get; set; }
 
     public string? Kickoff { get; set; }
@@ -50,6 +53,8 @@ public partial class Match
     public Guid? UpdatedBy { get; set; }
 
     public virtual Club Club { get; set; } = null!;
+
+    public virtual OpponentTeam? OpponentTeam { get; set; }
 
     public virtual Competition? CompetitionNavigation { get; set; }
 

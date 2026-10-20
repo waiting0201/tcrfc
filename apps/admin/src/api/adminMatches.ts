@@ -42,6 +42,8 @@ export interface AdminMatchCardDto {
 export interface AdminMatchLineupInput {
   playerId: string
   isStarter: boolean
+  /** 替補是否有上場；先發忽略，替補有進球或吃牌時後端強制視為有上場。 */
+  cameOn?: boolean
 }
 
 export interface AdminMatchLineupDto {
@@ -49,6 +51,7 @@ export interface AdminMatchLineupDto {
   playerId: string
   playerName?: string | null
   isStarter: boolean
+  cameOn: boolean
 }
 
 // ── 賽事本身 ─────────────────────────────────────────────────────────────────────
@@ -65,6 +68,7 @@ export interface AdminMatchListItemDto {
   kickoff?: string | null
   homeAway?: string | null
   opponent?: string | null
+  opponentTeamId?: string | null
   competitionTag?: string | null
   status?: string | null
   scoreHome?: number | null
@@ -87,6 +91,7 @@ export interface AdminMatchDetailDto {
   kickoff?: string | null
   homeAway?: string | null
   opponent?: string | null
+  opponentTeamId?: string | null
   opponentEn?: string | null
   venue?: string | null
   venueEn?: string | null
@@ -118,7 +123,9 @@ export interface SaveMatchPayload {
   matchOn: string
   kickoff?: string | null
   homeAway?: string | null
-  opponent: string
+  /** 選了對手球隊時可省略（由球隊庫帶入）；兩者至少要有一個。 */
+  opponent?: string | null
+  opponentTeamId?: string | null
   opponentEn?: string | null
   venue?: string | null
   venueEn?: string | null

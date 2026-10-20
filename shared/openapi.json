@@ -4867,6 +4867,13 @@
             }
           },
           {
+            "name": "order",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "lang",
             "in": "query",
             "schema": {
@@ -4908,6 +4915,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request"
           },
           "404": {
             "description": "Not Found"
@@ -4953,7 +4963,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MatchDto"
+                  "$ref": "#/components/schemas/MatchDetailDto"
                 }
               }
             }
@@ -9814,18 +9824,66 @@
           }
         }
       },
-      "MatchDto": {
+      "MatchCardDto": {
         "required": [
-          "id",
-          "seasonCode",
-          "teamCode",
-          "clubCode",
-          "matchOn",
-          "isFallbackLocale",
-          "schemaEligible"
+          "cardType"
         ],
         "type": "object",
         "properties": {
+          "minute": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "playerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "playerSlug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "playerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "cardType": {
+            "type": "string"
+          }
+        }
+      },
+      "MatchDetailDto": {
+        "type": "object",
+        "properties": {
+          "goals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchGoalDto"
+            }
+          },
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchCardDto"
+            }
+          },
+          "lineup": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchLineupDto"
+            }
+          },
           "id": {
             "type": "string",
             "format": "uuid"
@@ -9868,6 +9926,29 @@
             "type": [
               "null",
               "string"
+            ]
+          },
+          "opponentTeamId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "opponentName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "opponentCrest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OpponentCrestDto"
+              }
             ]
           },
           "isFallbackLocale": {
@@ -9948,6 +10029,340 @@
           },
           "schemaEligible": {
             "type": "boolean"
+          },
+          "scorers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchScorerDto"
+            }
+          },
+          "matchReport": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MatchReportDto"
+              }
+            ]
+          }
+        }
+      },
+      "MatchDto": {
+        "required": [
+          "id",
+          "seasonCode",
+          "teamCode",
+          "clubCode",
+          "matchOn",
+          "isFallbackLocale",
+          "schemaEligible"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "seasonCode": {
+            "type": "string"
+          },
+          "teamCode": {
+            "type": "string"
+          },
+          "clubCode": {
+            "type": "string"
+          },
+          "competitionCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "matchOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "kickoff": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kickoffAt": {
+            "format": "date-time"
+          },
+          "homeAway": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "opponent": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "opponentTeamId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "opponentName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "opponentCrest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OpponentCrestDto"
+              }
+            ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
+          },
+          "venue": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "competitionTag": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "competitionName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "scoreHome": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scoreAway": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "roundNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "matchNo": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "originalMatchOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "originalKickoff": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "schemaEligible": {
+            "type": "boolean"
+          },
+          "scorers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MatchScorerDto"
+            }
+          },
+          "matchReport": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MatchReportDto"
+              }
+            ]
+          }
+        }
+      },
+      "MatchGoalDto": {
+        "type": "object",
+        "properties": {
+          "minute": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "playerId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "playerSlug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "playerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shirtNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "goalType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "side": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "MatchLineupDto": {
+        "required": [
+          "playerId",
+          "isStarter",
+          "cameOn"
+        ],
+        "type": "object",
+        "properties": {
+          "playerId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "playerSlug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "playerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "shirtNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "position": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isStarter": {
+            "type": "boolean"
+          },
+          "cameOn": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MatchReportDto": {
+        "required": [
+          "slug",
+          "title"
+        ],
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      },
+      "MatchScorerDto": {
+        "type": "object",
+        "properties": {
+          "minute": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "playerName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "goalType": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -11708,6 +12123,53 @@
         "properties": {
           "changed": {
             "type": "boolean"
+          }
+        }
+      },
+      "OpponentCrestDto": {
+        "required": [
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "url1280": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url640": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url320": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "width": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "height": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         }
       },
@@ -16826,6 +17288,23 @@
           },
           "teamName": {
             "type": "string"
+          },
+          "opponentTeamId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "crest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OpponentCrestDto"
+              }
+            ]
           },
           "isFallbackLocale": {
             "type": "boolean"

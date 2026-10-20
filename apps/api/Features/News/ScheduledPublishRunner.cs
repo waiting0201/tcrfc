@@ -97,6 +97,7 @@ public sealed class ScheduledPublishRunner(
         {
             await cache.InvalidateAsync(ArticlesListEntity, code, cancellationToken);
             await cache.InvalidateAsync(ArticleDetailEntity, code, cancellationToken);
+            await cache.InvalidateAsync("schedule", code, cancellationToken); // 賽事詳情含賽後報導
         }
 
         return affected.Count;

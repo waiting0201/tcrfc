@@ -1,8 +1,14 @@
 # TCRFC 台中磐石足球俱樂部 — 官方網站前後台功能規劃書
 
-> **文件版本**：v3.30
-> **建立日期**：2026-08-14（v3.30 修訂：2026-10-16）
+> **文件版本**：v3.31
+> **建立日期**：2026-08-14（v3.31 修訂：2026-10-20）
 > **品牌主張**：LOCAL ROOTS. GLOBAL PATHWAYS. 在地扎根 · 放眼世界
+
+> **v3.31 修訂摘要——C4 新增對手球隊；出賽名單分先發與替補；球員出賽場次依名單自動彙總**
+> **賽事資料的補強，不新增頁面或模組。**
+> ① **C4 新增「對手球隊」**：各俱樂部各自維護對手球隊清單，欄位為中英隊名與隊徽（隊徽適用 4.0 圖片上傳通則）；賽事的對手從清單選取，清單沒有的對手仍可直接輸入隊名；積分榜的隊伍可選擇性對應到對手球隊；已被賽事或積分榜引用的對手球隊不可刪除。前台賽事卡片在對手有隊徽時一併顯示。落點：3.13、4.3 C4、5.1 `OpponentTeam`／`Match`／`Standing`、5.4。
+> ② **出賽名單分先發與替補，替補另記「是否上場」**：落點：4.3 C4、5.1 `Match`。
+> ③ **C2 球員賽季數據的「出賽」由賽事名單自動彙總**：已結束的賽事中，先發算一場；替補有上場才算一場，替補有進球或吃牌者視為已上場；手動輸入仍優先。落點：4.3 C2。
 
 > **v3.30 修訂摘要——新聞內文以所見即所得的編輯器編寫，編輯區滿版**
 > **只改後台 B2 的內文編輯方式，前台、資料結構與 App 皆不變。**
@@ -736,7 +742,7 @@
 |---|---|
 | 左側時間欄 | 星期 + 日期（大字）、開賽時間；**依使用者當地時區顯示**，並於頁首標註「所有時間為當地時間，可能異動」 |
 | 賽事標籤 | 聯賽／盃賽／友誼賽名稱與識別色 |
-| 對戰區 | 主隊徽 + 隊名 `vs` 客隊徽 + 隊名；台中磐石一方以品牌色標示 |
+| 對戰區 | 主隊徽 + 隊名 `vs` 客隊徽 + 隊名；台中磐石一方以品牌色標示；對手有設定隊徽（C4 對手球隊）時顯示隊徽 |
 | 場地資訊 | 場地名稱、主場／客場標記、地圖連結 |
 | 狀態標記 | 未開始／進行中／已結束／延賽／取消（延賽須標示原定時間） |
 | 動作按鈕 | `賽事詳情`、`購票`（若有）、`加入行事曆 .ics`、`轉播資訊`（若有） |
@@ -1190,7 +1196,7 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 #### C2 球員
 - 基本資料：中英姓名、背號、位置、生日、身高體重、國籍、慣用腳、加入日期、照片
 - 生涯資料：經歷、前東家、成就
-- 賽季數據：出賽、進球、助攻、黃紅牌（可手動輸入或由賽事自動彙總）
+- 賽季數據：出賽、進球、助攻、黃紅牌（可手動輸入或由賽事自動彙總；手動輸入優先於自動彙總）。**自動彙總的出賽規則**：只計狀態為「已結束」的賽事；**先發算出賽一場，替補有上場才算一場**，替補在該場有進球或吃牌者自動視為已上場
 - 狀態：現役／離隊／外借／海外發展（對應 3.4 Pathways 標記）
 - 關聯：所屬球隊（可跨季）、相關新聞、球員故事
 
@@ -1199,9 +1205,10 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 - 團隊成員（2.4 Our People）：分組（管理層／行政／醫療／後勤）、職稱、簡介
 
 #### C4 賽程與賽果
-- 賽事資料：賽季、賽事名稱（聯賽／盃賽）、日期時間、主客場、對手、場地、狀態（未開始／進行中／已結束／延賽／取消）、**場次編號**（聯賽官方配發的場次序號，與「輪次」分開記錄；同一輪可能有多場比賽，各自有各自的官方編號）、**原定日期與原定時間**（僅狀態為「延賽」時填寫，記錄延賽前的原定日期時間，供賽事卡片與本畫面顯示）
-- 結果：比分、進球者與時間、卡牌、出賽名單、賽後報導連結（關聯 7.2）
-- **積分榜**：手動維護表格或匯入 CSV
+- 賽事資料：賽季、賽事名稱（聯賽／盃賽）、日期時間、主客場、對手（從對手球隊清單選取；清單沒有的對手可直接輸入隊名）、場地、狀態（未開始／進行中／已結束／延賽／取消）、**場次編號**（聯賽官方配發的場次序號，與「輪次」分開記錄；同一輪可能有多場比賽，各自有各自的官方編號）、**原定日期與原定時間**（僅狀態為「延賽」時填寫，記錄延賽前的原定日期時間，供賽事卡片與本畫面顯示）
+- 結果：比分（我方進球數與對方進球數）、進球者與時間、卡牌、**出賽名單（區分先發與替補；替補另記「是否上場」）**、賽後報導連結（關聯 7.2）
+- **對手球隊**：各俱樂部各自維護對手球隊清單；欄位為中英隊名與隊徽（隊徽適用 4.0 圖片上傳通則）。賽事的對手從此清單選取，清單沒有的對手仍可直接輸入隊名；**已被賽事或積分榜引用的對手球隊不可刪除**。前台賽事卡片在對手有隊徽時一併顯示
+- **積分榜**：手動維護表格或匯入 CSV；每列的隊伍可選擇性對應到對手球隊（對應後前台顯示該隊的隊徽）
 - **賽季管理**：新增、編輯、刪除賽季；欄位為賽季代碼（如 `2026/27`，同一俱樂部內唯一）、開始日、結束日。**賽季依俱樂部各自建立**（兩隊球季不同步）；**已被賽事、積分榜、榮譽、賽季數據、會籍等資料引用的賽季不可刪除**；「當季」依今天落在哪個賽季的起訖日判定
 - **資料維護方式：全部人工維護**（不串接外部聯賽 API）；提供整季賽程 **CSV 批次匯入**與後台單筆新增兩種方式，降低逐場輸入成本
 
@@ -1606,8 +1613,9 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 | `Team` | 球隊，含**隊別代號**：`D1`（台中磐石一線隊）／**`BW1`（台中藍鯨一線隊，v3.0 新增）**／磐石學院梯隊 `U10`／`U12`／`U14`／`U16`／`U18`（依 4.3 發展路徑，實際建立哪幾隊以 C1 為準）／藍鯨青年隊（代號帶 `BW-` 前綴，如 `BW-U15`、`BW-U12`）。🏛 必填。**`code` 維持全站唯一，不得改為「俱樂部 × 代號」複合鍵**——它是行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，已在外流通，**已發出訂閱網址的代號不得改指其他球隊**。**`gender`（`men`／`women`／`mixed`）為獨立欄位**（性別是球隊屬性不是隊型）；`type = first_team` 為「**每個俱樂部至多一筆**」 | Club、Player、Coach、Match、Season、CalendarEvent |
 | `Player` | 球員 | Team、Article、Stats、Pathway |
 | `Staff` | 教練與團隊成員 | Team、Program |
-| `Match` | 賽事。**v2.5 補欄位**：`opponent_en`、`venue_en`，並將 `competition`（聯賽／盃賽／友誼／其他）與 `status`（未開始／進行中／已結束／延賽／取消）由前台屬性升格為正式欄位。**v3.13 補欄位**：原定日期、原定時間（僅狀態為「延賽」時有值） | Team、Season、Article（賽後報導） |
-| `Standing` | 積分榜 | Season、Team |
+| `OpponentTeam` | **對手球隊（v3.31 新增）**：中英隊名、隊徽（圖片欄位組）。🏛 必填，各俱樂部各自維護。賽事與積分榜選擇性引用；已被引用者不可刪除 | Match、Standing、Club |
+| `Match` | 賽事。**v3.31 補欄位**：`opponent_team_id`（對手球隊，可為空；未選取時對手以直接輸入的隊名為準）；出賽名單明細（`MatchLineup`）區分先發與替補，替補另記「是否上場」。**v2.5 補欄位**：`opponent_en`、`venue_en`，並將 `competition`（聯賽／盃賽／友誼／其他）與 `status`（未開始／進行中／已結束／延賽／取消）由前台屬性升格為正式欄位。**v3.13 補欄位**：原定日期、原定時間（僅狀態為「延賽」時有值） | Team、Season、Article（賽後報導） |
+| `Standing` | 積分榜。**v3.31 補欄位**：`opponent_team_id`（對應的對手球隊，可為空） | Season、Team、OpponentTeam |
 | `Achievement` | 榮譽 | Team、Season |
 | `Milestone` | 里程碑 | — |
 | `Program` | 課程／營隊／專項 | Session、Staff、Venue、Partner |
@@ -1687,11 +1695,11 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 > **能經由父表推導的一律不加**——同一事實存兩處必然不同步。
 > **加了 `club_id` 就必須同時決定「唯一鍵、後台清單預設過濾、前台站台路由」三件事**，否則這個欄位是死的。
 
-**必填（49 張）**：`Club` 相關的全部球隊與賽事型別（`Team`／`Player`／`Match`／`Standing`／`Achievement`／`Milestone`／`Season`／`Competition`）、站台級內容（`Page`／`Banner`／`HomeSection`／`Redirect`／`Setting`／`EmailTemplate`／`Form`）、個資（`Registration`／`Trial`／`Enquiry`／`NewsletterSubscriber`／`FanEventRegistration`／`Membership`／`MemberCard`／`MembershipPayment`／`JerseyIssue`／`MemberDraw`／`DrawRoster`）、商業對象（`Partner`／`Sponsor`／`SponsorPackage`／`Proposal`）、課程（`Program`／`Session`）、商店（`Collection`／`Product`／`ProductVariant`／`Cart`／`Order`／`OrderItem`／`Shipment`／`RefundRequest`／`StoreInvoice`／`InventoryMovement`）、`EmailLog`、`FaqSearchMiss`、`CalendarCustomEvent`、`ComicCharacter`／`ComicEpisode`／`FanEvent`、**`MembershipPlan`**（兩隊的費用、發卡數與球季規則各自獨立，見 5.1）。
+**必填（50 張）**：`Club` 相關的全部球隊與賽事型別（`Team`／`Player`／`Match`／`OpponentTeam`／`Standing`／`Achievement`／`Milestone`／`Season`／`Competition`）、站台級內容（`Page`／`Banner`／`HomeSection`／`Redirect`／`Setting`／`EmailTemplate`／`Form`）、個資（`Registration`／`Trial`／`Enquiry`／`NewsletterSubscriber`／`FanEventRegistration`／`Membership`／`MemberCard`／`MembershipPayment`／`JerseyIssue`／`MemberDraw`／`DrawRoster`）、商業對象（`Partner`／`Sponsor`／`SponsorPackage`／`Proposal`）、課程（`Program`／`Session`）、商店（`Collection`／`Product`／`ProductVariant`／`Cart`／`Order`／`OrderItem`／`Shipment`／`RefundRequest`／`StoreInvoice`／`InventoryMovement`）、`EmailLog`、`FaqSearchMiss`、`CalendarCustomEvent`、`ComicCharacter`／`ComicEpisode`／`FanEvent`、**`MembershipPlan`**（兩隊的費用、發卡數與球季規則各自獨立，見 5.1）。
 
 **可為空＝兩隊共同（9 張）**：`Article`、`PressResource`、`Faq`、`Staff`、`Charity`、`CharityProgram`、`ImpactRecord`、`ImpactMetric`、**`PartnerStore`**（適用範圍可設為單一俱樂部或兩隊共同，見 3.14）。
 
-**不加**：由父表推導者（`PageBlock`／`OrderItem` 以外的明細表／`MatchGoal`／`PlayerSeasonStat`／**`MembershipBenefit`**——父表 `MembershipPlan` 已帶 `club_id`）、全系統共用者（`Locale`／`UiString`／`ValueTagLink`／`InvoiceDonationCode`），以及三個**刻意不加**的：
+**不加**：由父表推導者（`PageBlock`／`OrderItem` 以外的明細表／`MatchGoal`／`MatchLineup`／`PlayerSeasonStat`／**`MembershipBenefit`**——父表 `MembershipPlan` 已帶 `club_id`）、全系統共用者（`Locale`／`UiString`／`ValueTagLink`／`InvoiceDonationCode`），以及三個**刻意不加**的：
 
 | 型別 | 為什麼不加 |
 |---|---|

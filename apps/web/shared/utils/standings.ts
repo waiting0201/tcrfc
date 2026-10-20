@@ -6,6 +6,10 @@
 export interface StandingRow {
   rank: number | null
   teamName: string
+  /** 對手球隊庫 id；沒挑球隊庫的列為 null（隊名只是文字） */
+  opponentTeamId?: string | null
+  /** 隊徽（各尺寸網址）；沒有球隊庫或庫內沒有隊徽為 null */
+  crest?: { url: string, url1280?: string | null, url640?: string | null, url320?: string | null, width?: number | null, height?: number | null } | null
   played: number | null
   points: number | null
   /** 後端補上後：該列英文名稱缺漏、回退繁中（可選欄位，舊版 API 不回）。 */

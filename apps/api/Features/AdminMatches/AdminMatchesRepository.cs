@@ -92,6 +92,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
                 m.Kickoff,
                 m.HomeAway,
                 m.Opponent,
+                m.OpponentTeamId,
                 CompetitionTag = m.Competition,
                 m.Status,
                 m.ScoreHome,
@@ -115,6 +116,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
             Kickoff = r.Kickoff,
             HomeAway = r.HomeAway,
             Opponent = r.Opponent,
+            OpponentTeamId = r.OpponentTeamId,
             CompetitionTag = r.CompetitionTag,
             Status = r.Status,
             ScoreHome = r.ScoreHome,
@@ -148,13 +150,13 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         ValidateStatus(request.Status);
         ValidateHomeAway(request.HomeAway);
         ValidateCompetitionTag(request.CompetitionTag);
-        ValidateOpponent(request.Opponent);
         ValidatePostponedFields(request.Status, request.OriginalMatchOn, request.OriginalKickoff);
 
         var season = await ResolveSeasonAsync(scope, request.SeasonId, cancellationToken);
         var competition = await ResolveCompetitionAsync(scope, request.CompetitionId, cancellationToken);
         await ResolveVenueAsync(request.VenueId, cancellationToken);
         var teams = await ResolveTeamsAsync(scope, request.TeamIds, cancellationToken);
+        var (opponent, opponentEn) = await ResolveOpponentAsync(scope, request.OpponentTeamId, request.Opponent, request.OpponentEn, cancellationToken);
 
         if (!rowScope.AllowsAll(teams.Select(t => (t.Id, t.Type)).ToList()))
         {
@@ -177,7 +179,8 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
             MatchOn = request.MatchOn,
             Kickoff = request.Kickoff,
             HomeAway = request.HomeAway,
-            Opponent = request.Opponent,
+            Opponent = opponent,
+            OpponentTeamId = request.OpponentTeamId,
             Competition = request.CompetitionTag,
             Status = request.Status,
             ScoreHome = request.ScoreHome,
@@ -198,7 +201,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         }
 
         dbContext.Matches.Add(match);
-        ApplyI18n(match, request.Venue, request.OpponentEn, request.VenueEn);
+        ApplyI18n(match, request.Venue, opponentEn, request.VenueEn);
 
         if (request.Goals is not null)
         {
@@ -213,6 +216,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
             await ApplyLineupsAsync(match, teams, request.Lineups, cancellationToken);
         }
 
+        ReconcileCameOn(match);
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
         // S1-11：L1 行事曆總覽／13 賽事行事曆合併讀取也快取賽事資料，同一份寫入要讓兩個快取實體都失效。
@@ -226,7 +230,6 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         ValidateStatus(request.Status);
         ValidateHomeAway(request.HomeAway);
         ValidateCompetitionTag(request.CompetitionTag);
-        ValidateOpponent(request.Opponent);
         ValidatePostponedFields(request.Status, request.OriginalMatchOn, request.OriginalKickoff);
 
         var match = await dbContext.Matches
@@ -252,6 +255,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         var competition = await ResolveCompetitionAsync(scope, request.CompetitionId, cancellationToken);
         await ResolveVenueAsync(request.VenueId, cancellationToken);
         var teams = await ResolveTeamsAsync(scope, request.TeamIds, cancellationToken);
+        var (opponent, opponentEn) = await ResolveOpponentAsync(scope, request.OpponentTeamId, request.Opponent, request.OpponentEn, cancellationToken);
 
         // 新的球隊清單也要整批通過——防止把賽事改指派到範圍外的球隊藉此逃脫限制。
         if (!rowScope.AllowsAll(teams.Select(t => (t.Id, t.Type)).ToList()))
@@ -270,7 +274,8 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         match.MatchOn = request.MatchOn;
         match.Kickoff = request.Kickoff;
         match.HomeAway = request.HomeAway;
-        match.Opponent = request.Opponent;
+        match.Opponent = opponent;
+        match.OpponentTeamId = request.OpponentTeamId;
         match.Competition = request.CompetitionTag;
         match.Status = request.Status;
         match.ScoreHome = request.ScoreHome;
@@ -288,7 +293,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
             match.Teams.Add(team);
         }
 
-        ApplyI18n(match, request.Venue, request.OpponentEn, request.VenueEn);
+        ApplyI18n(match, request.Venue, opponentEn, request.VenueEn);
 
         if (request.Goals is not null)
         {
@@ -309,6 +314,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
             await ApplyLineupsAsync(match, teams, request.Lineups, cancellationToken);
         }
 
+        ReconcileCameOn(match);
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
         // S1-11：L1 行事曆總覽／13 賽事行事曆合併讀取也快取賽事資料，同一份寫入要讓兩個快取實體都失效。
@@ -813,12 +819,59 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
                 MatchId = match.Id,
                 PlayerId = player.Id,
                 IsStarter = input.IsStarter,
+                CameOn = !input.IsStarter && input.CameOn, // 先發恆存 false；有進球／牌的替補在 ReconcileCameOn 強制為 true
                 CreatedAt = now,
                 UpdatedAt = now,
             };
             match.MatchLineups.Add(lineup);
             dbContext.MatchLineups.Add(lineup);
         }
+    }
+
+    /// <summary>
+    /// 出賽名單的 <c>came_on</c> 對帳（v3.31）：全部進球／牌／名單套用完之後，以這場賽事<b>最終</b>的明細為準——
+    /// 先發恆存 false；替補只要在這場有進球（含烏龍球）或有牌就強制 true（人一定上場了）；其餘維持請求值。
+    /// 只更新或新增名單時、或只更新進球／牌時（名單省略＝維持不變）都要跑，所以放在儲存前統一呼叫一次。
+    /// </summary>
+    private static void ReconcileCameOn(Match match)
+    {
+        var involved = match.MatchGoals.Select(g => g.PlayerId).Concat(match.MatchCards.Select(c => c.PlayerId)).ToHashSet();
+        foreach (var lineup in match.MatchLineups)
+        {
+            if (lineup.IsStarter)
+            {
+                lineup.CameOn = false;
+            }
+            else if (involved.Contains(lineup.PlayerId))
+            {
+                lineup.CameOn = true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 對手：有 <paramref name="opponentTeamId"/> 時查球隊庫（須同一個俱樂部，否則 400 <c>opponentTeamId</c>），
+    /// 後備文字 <c>matches.opponent</c> 一律帶庫內繁中隊名（忽略請求的 <paramref name="opponent"/>）；英文覆寫請求有填就用請求的，否則帶庫內英文名。
+    /// 沒有 id 時退回文字，文字必填。
+    /// </summary>
+    private async Task<(string Opponent, string? OpponentEn)> ResolveOpponentAsync(
+        AdminClubScope scope, Guid? opponentTeamId, string? opponent, string? opponentEn, CancellationToken cancellationToken)
+    {
+        if (opponentTeamId is null)
+        {
+            ValidateOpponent(opponent);
+            return (opponent!, opponentEn);
+        }
+
+        var team = await dbContext.OpponentTeams.AsNoTracking().Include(o => o.OpponentTeamsI18ns)
+            .FirstOrDefaultAsync(o => o.Id == opponentTeamId, cancellationToken);
+        if (team is null || team.ClubId != scope.ClubId)
+        {
+            throw new AdminMatchValidationException("找不到這個俱樂部的對手球隊，請重新整理後再試一次。", "opponentTeamId");
+        }
+
+        var libraryEn = team.OpponentTeamsI18ns.FirstOrDefault(i => i.Locale == "en")?.Name;
+        return (team.Name, string.IsNullOrWhiteSpace(opponentEn) ? libraryEn : opponentEn);
     }
 
     /// <summary>🔴 跨俱樂部指派球隊在這裡擋下，逐字比照 <c>AdminPlayersRepository.ResolveTeamAsync</c>。
@@ -890,7 +943,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         }
     }
 
-    private static void ValidateOpponent(string opponent)
+    private static void ValidateOpponent(string? opponent)
     {
         if (string.IsNullOrWhiteSpace(opponent))
         {
@@ -939,6 +992,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
             HomeAway = match.HomeAway,
             Opponent = match.Opponent,
             OpponentEn = en?.Opponent,
+            OpponentTeamId = match.OpponentTeamId,
             Venue = zh?.Venue,
             VenueEn = en?.Venue,
             CompetitionTag = match.Competition,
@@ -971,6 +1025,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
                 PlayerId = l.PlayerId,
                 PlayerName = PlayerZhName(l.Player),
                 IsStarter = l.IsStarter,
+                CameOn = l.CameOn,
             }).ToList(),
             CreatedAt = match.CreatedAt,
             UpdatedAt = match.UpdatedAt,

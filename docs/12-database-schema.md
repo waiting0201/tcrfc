@@ -43,7 +43,7 @@
 |---|---|---|---|
 | 1 | 「女足是 `Page`，不建 `Team`／`Player`／`Match`」「`team.type` 預留 `women` 但不啟用」 | **已推翻。** 藍鯨是第二個俱樂部，`Team`（`BW1`）／`Player`／`Staff`／`Match`／`Season` 全部建立。**`type` 的 `women` 值廢除，改用獨立的 `Team.gender`（`men`／`women`／`mixed`）**；`first_team` 由「全站僅一筆」改為「每俱樂部至多一筆」 | 主站 v3.0 §3.6、4.3 C1、5.1 |
 | 2 | 沒有 `Club`／`Competition` 兩張表 | **必須新增。** `Team.club_id` 是必填外鍵，主站表不能指向本檔沒有的型別 | 主站 v3.0 §5.1 |
-| 3 | ✅ **已完成**（2026-09-20） | **50 張必填 `club_id`、9 張可為空（＝兩隊共同）、43 張不加**，與主站 §5.4 逐名一致（**v3.22 起必填為 49 張**：`MenuItem` 型別移除，資料表已於 2026-10-07 刪除，遷移 `ClubMenuItemsDropContract`） | 主站 v3.10 §5.4 |
+| 3 | ✅ **已完成**（2026-09-20） | **50 張必填 `club_id`、9 張可為空（＝兩隊共同）、43 張不加**，與主站 §5.4 逐名一致（**v3.22 起 49 張**：`MenuItem` 型別移除，資料表已於 2026-10-07 刪除，遷移 `ClubMenuItemsDropContract`；**v3.31 起 50 張**：新增 `OpponentTeam`） | 主站 v3.10 §5.4 |
 | 4 | `Member` 帶 `tier`／`membership_start_on`／`membership_end_on` | **三欄移入新的 `Membership` 表**（`member_id` × `club_id` × `season_id`）。`Member` 維持一人一帳號、**不加 `club_id`** | 主站 v3.0 §5.1 |
 | 5 | `MemberCard` 掛在 `Member` 上 | **`membership_id` 必填——每份會籍一張卡。**「一張卡一組 token」與「驗證頁不得加適用球隊欄位」**兩條未變** | 主站 v3.0 §5.1、§3.14 |
 | 6 | `RolePermission.scope_value json`（只存不查） | **刪除。** 改由新增的 `AdminUserClub`（含授權起訖）承載；`AdminRole` 加 `scope_mode`、`AdminUser` 加 `primary_club_id`、`Permission` 加 `is_club_scoped` | 主站 v3.0 §5.3、§6 |
@@ -86,7 +86,7 @@
 | 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
 | 排除範圍 | **行動 App 的十一個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
 | 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`，移出慈善 6 個 |
-| 資料表 | **115 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**；**E1a（2026-09-30）新增 `SponsorActivation`／`SponsorActivationImage`／`SponsorArticle`／`CharityProgramPartner`／`CharityProgramSponsor`／`CharityProgramArticle` 六張，107 → 113**（第 43 點）；**C1（2026-09-30）新增 `FanEventImage`／`FanEventArticle`／`DrawRosterVersion` 三張，113 → 116**（第 45 點）；**2026-10-08 移除 `AdminUserTeam`，116 → 115**。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
+| 資料表 | **116 張**（`CalendarEvent` 是**視圖**；**v3.31 新增 `OpponentTeam`，115 → 116**）＋ 約 41 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**；**E1a（2026-09-30）新增 `SponsorActivation`／`SponsorActivationImage`／`SponsorArticle`／`CharityProgramPartner`／`CharityProgramSponsor`／`CharityProgramArticle` 六張，107 → 113**（第 43 點）；**C1（2026-09-30）新增 `FanEventImage`／`FanEventArticle`／`DrawRosterVersion` 三張，113 → 116**（第 45 點）；**2026-10-08 移除 `AdminUserTeam`，116 → 115**。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
 | ER 圖 | 12 張 `erDiagram` ＋ 2 張 `flowchart`，每張 ≤ 12 實體 |
 
@@ -248,7 +248,7 @@ Article                          article_i18n
 
 | 規劃書欄位 | 本檔落點 |
 |---|---|
-| `Match.opponent_en`、`venue_en`（v2.5 新增，行 1251） | `match_i18n(match_id, locale, opponent, venue)`。**實作確認（2026-10-05，`E-220`）：結構早已齊備**——`matches_i18n` 自 DDL 初版即有 `opponent`／`venue`，`matches.opponent` 是繁中預設值（回退來源），英文值存 `matches_i18n` 的 `en` 列；後台 C4 的 `opponentEn`／`venueEn`（新增、修改、CSV 匯入）與公開 API 的 `isFallbackLocale`（英文 `opponent` 為空即 true）均已接。**目前缺的只是英文資料**：種子的 `en` 列只補了 `venue`，對手球隊英文名無來源（`content/schedule` 只有 `opponent_zh`），**不自行音譯**，待客戶提供後經後台或 CSV 匯入。**不需要 migration**。**對手是自由文字不是實體**，仍照側表走。⚠️ **場地不只是自由文字**——`matches` 另有 `venue_id`（`db/club-schema.sql` `FK_matches_venue`，指向既有 `venues` 共用主檔，`db/club-schema.sql` 初版即有，本表格原描述遺漏這一欄，2026-09-29 於 `S1-12d` 後續補完盤點時發現並更正）；`venue`／`venue_en` 側表欄位與 `venue_id` 刻意並存，前者是顯示用文字（可覆寫、可留空，適用清單裡沒有的客場場地），後者是選填的結構化場地參照，兩者不是互斥設計，見 `apps/admin/README.md`「I：網站設定與 C4 賽程賽果——場地清單串接」節 |
+| `Match.opponent_en`、`venue_en`（v2.5 新增，行 1251） | `match_i18n(match_id, locale, opponent, venue)`。**實作確認（2026-10-05，`E-220`）：結構早已齊備**——`matches_i18n` 自 DDL 初版即有 `opponent`／`venue`，`matches.opponent` 是繁中預設值（回退來源），英文值存 `matches_i18n` 的 `en` 列；後台 C4 的 `opponentEn`／`venueEn`（新增、修改、CSV 匯入）與公開 API 的 `isFallbackLocale`（英文 `opponent` 為空即 true）均已接。**目前缺的只是英文資料**：種子的 `en` 列只補了 `venue`，對手球隊英文名無來源（`content/schedule` 只有 `opponent_zh`），**不自行音譯**，待客戶提供後經後台或 CSV 匯入。**不需要 migration**。**對手可選自對手球隊清單（v3.31，`matches.opponent_team_id`）**；未選取時 `matches.opponent`／`matches_i18n.opponent` 仍是自由文字，照側表走。⚠️ **場地不只是自由文字**——`matches` 另有 `venue_id`（`db/club-schema.sql` `FK_matches_venue`，指向既有 `venues` 共用主檔，`db/club-schema.sql` 初版即有，本表格原描述遺漏這一欄，2026-09-29 於 `S1-12d` 後續補完盤點時發現並更正）；`venue`／`venue_en` 側表欄位與 `venue_id` 刻意並存，前者是顯示用文字（可覆寫、可留空，適用清單裡沒有的客場場地），後者是選填的結構化場地參照，兩者不是互斥設計，見 `apps/admin/README.md`「I：網站設定與 C4 賽程賽果——場地清單串接」節 |
 | K5 各欄「中／英」（行 1287） | `member_draw_i18n(name, prize_description, rules, notes)` |
 | `MembershipBenefit`「須 zh／en 雙欄位、不得做成圖片」（行 673） | `membership_benefit_i18n(group_label, value)`（v3.29：原 `free_value`／`paid_value` 合為 `value`） |
 | `Partner`／`Sponsor`「名稱（中／英）」（行 1259–1260） | `partner_i18n`、`sponsor_i18n` |
@@ -339,7 +339,7 @@ flowchart LR
 
 ## 4. 資料表總覽
 
-**115 張**（`CalendarEvent` 是視圖；D 批另加 4.13 的 25 張，本機庫共 187 張表），另有約 40 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
+**116 張**（`CalendarEvent` 是視圖；D 批另加 4.13 的 25 張，本機庫共 188 張表），另有約 41 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 **`club_id` 欄**：**●** 必填｜**○** 可為空（＝兩隊共同）｜**—** 不加。
 判定準則與逐表清單見主站規劃書 **§5.4**（行 1533–1579）。
@@ -350,7 +350,7 @@ flowchart LR
 > 🔴 **四類絕對不可為空**：有唯一路徑衝突者、承載個資者、有金流稅務歸屬者、**所有值複製快照表**
 > （快照的意義是凍結歸屬，NULL 是「未知」不是「共同」）。
 
-> **本檔的標註與主站 §5.4 逐名一致**：**49 張必填、9 張可為空**（v3.10 補齊三張；v3.22 移除 `MenuItem`，必填由 50 降為 49，與規劃書 §5.4 逐名一致）。
+> **本檔的標註與主站 §5.4 逐名一致**：**50 張必填、9 張可為空**（v3.10 補齊三張；v3.22 移除 `MenuItem`；v3.31 新增 `OpponentTeam`，與規劃書 §5.4 逐名一致）。
 > **`PaymentChannel`（標 ●⁺）的欄位名是 `owner_club_id` 不是 `club_id`**，依 v3.0 落差第 7 項。
 
 ### 4.0 共通機制（7）
@@ -396,7 +396,7 @@ flowchart LR
 > - **孤立頁面偵測**：不落地成表，後台即時查詢——掃已發布 `Page`／`Article` 彼此的 `page_blocks.content`／`articles_i18n.body`（JSON 轉字串）是否包含對方的公開網址子字串。**這是字串比對的啟發式做法，不是完整的連結圖或 DOM 解析**，也**不知道前台目前尚未資料庫化的靜態導覽選單**——判斷依據見 `apps/api/README.md`「S1-12」段。
 > - 🔴 **GEO-01 `llms.txt` 內容維護與 GEO-02 AI 爬蟲允許清單／排除路徑，依 `STATUS.md` 排程屬 `S1-12a`／`S1-12b`，本輪不做**——`robots.txt` 這裡做的只是「線上編輯自訂規則」這一項通用能力，不含 AI 爬蟲逐一設定，兩者不要混為一談。
 
-### 4.2 C 球隊管理（15）
+### 4.2 C 球隊管理（16）
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
@@ -408,17 +408,18 @@ flowchart LR
 | `Staff` | **○** | 教練與團隊成員：證照、專長、分組。**空＝兩隊共同**（行政與醫療多為共用）。**新增 `portrait_consent_status`**（同 `Player`，S1-8） | 🌐 |
 | `StaffTeam` | — | `(staff_id, team_id)` 帶職務 | |
 | `Match` | **●** | 賽事。`competition_id`（可空）、**`status`（`scheduled`／`live`／`played`／`postponed`／`cancelled`，五值，v3.14 補齊 `cancelled` 並加上 CHECK 約束，見 [§12 第 31 點](#12-踩雷點)）**；**`match_no`（場次編號，聯賽官方配發，與 `round_no`／輪次是兩回事，同一輪可能有多場、可為空）**；**`original_match_on`／`original_kickoff`（v3.13 新增，僅 `status = 'postponed'` 時有值，記錄延賽前的原定日期時間，皆可為空、無 CHECK 約束）**；對手與場地的英文走 `match_i18n` | 🌐 |
+| `OpponentTeam` | **●** | **對手球隊（v3.31 新增）**：`club_id` 必填、`name`（繁中隊名，`(club_id, name)` 唯一）、`sort_order`、`crest_key`／`crest_width`／`crest_height`（圖片欄位組，全可空；替代文字取隊名不另存）；英文隊名在側表 `opponent_teams_i18n.name`（`en` 列）。**被 `matches.opponent_team_id` 或 `standings.opponent_team_id` 引用者不可刪除**（FK `NO ACTION`，後台先檢查回 409） | 🌐 |
 | `MatchTeam` | — | 本方參賽隊 `(match_id, team_id)` | |
 | `MatchGoal` | — | 進球（球員、時間、類型） | |
 | `MatchCard` | — | 黃紅牌 | |
-| `MatchLineup` | — | 先發與替補名單 | |
-| `Standing` | **●** | 積分榜 `(season_id, rank, played, points)`。**對手隊名是自由文字不是 `Team`**，隊名在側表 `standings_i18n.team_name`（2026-10-06 起，稽核 D 類） | 🌐 |
+| `MatchLineup` | — | 出賽名單 `(match_id, player_id)`：**`is_starter`（先發／替補）、`came_on`（替補是否上場，v3.31；先發列恆為 0 不採用）** | |
+| `Standing` | **●** | 積分榜 `(season_id, rank, played, points)`。**對手隊名不是 `Team`**，隊名在側表 `standings_i18n.team_name`（2026-10-06 起，稽核 D 類）；**v3.31 新增 `opponent_team_id`（可空，FK → `opponent_teams`）**：對應到對手球隊時前台顯示其隊徽，未對應者維持純文字隊名 | 🌐 |
 | `Achievement` | **●** | 榮譽（年份、隊伍；賽事名 `competition_name`、名次 `placing` 在側表 `achievements_i18n`，2026-10-06 起，稽核 D 類） | 🌐 |
 | `Milestone` | **●** | 里程碑時間軸。E1a 補：圖片欄位組（`image_key`／`image_width`／`image_height`，替代文字在側表 `image_alt`）、`is_visible`（是否顯示於時間軸） | 🌐 |
 
 > ⚠️ **`Team` 是兩隊各自的隊伍**：磐石 `D1` 與學院梯隊 `U10`／`U12`／`U14`／`U16`／`U18`，藍鯨 `BW1` 與青年隊 `BW-U15`／`BW-U12`（帶 `BW-` 前綴，所以全站唯一的 `code` 從不撞名；`U15`／`U12` 是藍鯨的 `age_band`，不是 `code`）。
 > **兩隊都有「一線隊」，所以任何同時呈現兩隊賽事的畫面，每張卡片都必須標球隊。**
-> ⚠️ `Match.opponent`、`Standing` 的對手都是**字串**，不建對手球隊表——賽事全部人工維護。
+> ⚠️ `Match` 與 `Standing` 的對手可選擇性指向 `OpponentTeam`（v3.31）；**未選取時仍是字串**（`matches.opponent` 為回退值，選取時由服務端寫入當時隊名）。顯示名稱讀取時以對手球隊的隊名（繁中 `opponent_teams.name`、英文 `opponent_teams_i18n`）優先。
 > 🔄 **`Standing`／`Achievement` 改為有 `*_i18n` 側表**（2026-10-06，稽核 D 類「雙語缺口」，**推翻 2026-09-22 的裁決**）：
 > 當時的判準是「規劃書有沒有寫雙語標記」，漏了**全域規定 4（所有前台可見的內容型別都要有 zh／en 雙欄位）是通則、不需要規劃書逐表重申**
 > （與 `docs/12c` §5 第 8 點 `FormField` 的修正同一個錯），也漏了 `matches.opponent`／`matches_i18n.opponent` 的先例：
@@ -682,7 +683,7 @@ flowchart LR
 21. **i18n 側表不入 ER 圖不代表不存在**，[§4](#4-資料表總覽) 總覽表的 🌐 欄才是權威清單。快照表、後台角色表、UI 字串**不走側表**（[§2.3](#23-三個例外不走側表)）。
 22. **金額一律 `int` 存「元」**，只有百分比用 `decimal(5,2)`。台幣無角分，慈善分潤明訂無條件捨去至整數元；用 `decimal(10,2)` 會製造永遠對不上的尾差。
 23. **`EmailLog.type` 值域是 13 個不是 5 個**：會員系統五封（行 734–738）＋商店交易四封（行 382）＋慈善平台四封（慈善站 §9.2）。**不要誤縮成五封。** 中獎人的人工聯繫**不得寫入 `EmailLog`**。
-24. **`Standing` 的對手是自由文字**：`Team` 只放本會四隊，積分榜其餘球隊是 `team_name` 字串。硬要建對手球隊表會憑空長出規劃書沒有的維護負擔。
+24. **`Standing`／`Match` 的對手不是 `Team`**：`Team` 只放本會自己的隊伍；對手球隊是 `OpponentTeam`（v3.31，中英隊名＋隊徽，各俱樂部各自維護），兩處引用皆可空，未引用者退回 `team_name`／`opponent` 字串。**不要把對手球隊塞進 `Team`**（會出現在球隊清單、行事曆隊別與訂閱網址）。
 25. **`Registration` 同時服務 `session` 與 `trial`**，兩個外鍵**恰有一個非空**。不要為試訓另建報名表。
 26. **`Enquiry` 涵蓋 7 類表單 ＋ 提案下載**，**Lead 名單不另建表**。**沒有志工報名表**（v2.1 移出範圍）。
 27. **行事曆權限跟隨來源模組**：`RolePermission.scope_type = 'academy_only'`（依 `team.type = 'academy'` 判斷）。學院管理者可調整學院梯隊賽程，**但不能改一線隊賽程**；範圍由角色的資料範圍承載，不逐帳號指派球隊（主站 v3.23）。
@@ -993,7 +994,7 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 **主站規劃書 §5.1 現列 50 個型別**（行 1455–1518），本檔全數覆蓋或明確標示不在範圍。
 **慈善站的型別已隨獨立資料庫移出本檔**，見 [`16-charity-schema.md`](16-charity-schema.md)（`STATUS.md` S0-5）。
 
-### 14.1 主站 §5.1 的 50 個型別
+### 14.1 主站 §5.1 的 51 個型別
 
 `club_id` 欄同 [§4](#4-資料表總覽) 的圖例：**●** 必填｜**○** 可為空｜**—** 不加｜**?** 待確認。
 
@@ -1007,7 +1008,7 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 | 6 | `Player` | **●** | `Player` `PlayerSeasonStat` | 逐季數據拆表 |
 | 7 | `Staff` | **○** | `Staff` `StaffTeam` | 空＝兩隊共同（行政與醫療多為共用） |
 | 8 | `Match` | **●** | `Match` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | 賽果細項拆表；`competition_id` 可空 |
-| 9 | `Standing` | **●** | `Standing` | 對手是字串不是 `Team` |
+| 9 | `Standing` | **●** | `Standing` | 對手可選擇性對應 `OpponentTeam`（v3.31），不是 `Team` |
 | 10 | `Achievement` | **●** | `Achievement` | |
 | 11 | `Milestone` | **●** | `Milestone` | |
 | 12 | `Program` | **●** | `Program` `ProgramStaff` `ProgramPartner` | |
@@ -1049,8 +1050,9 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 | 48 | `EmailLog` | **●** | `EmailLog` `EmailTemplate` | **功能單元不是日誌**；`type` **9 個值**（會員 5 ＋ 商店 4） |
 | 49 | `CalendarEvent` | — | `CalendarEvent`（**視圖**）`CalendarCustomEvent` `CalendarEventTeam` `CalendarEventException` | `club_id` 由來源推導；見 [14.3](#143-本檔新增規劃書未列為型別的表) |
 | 50 | `EventType` | — | `EventType` | |
+| 51 | `OpponentTeam` | **●** | `OpponentTeam` | **對手球隊（v3.31）**；各俱樂部各自維護 |
 
-> **覆蓋率**：49／50 建表，`Donation` 依規劃書明文不在本系統。
+> **覆蓋率**：50／51 建表，`Donation` 依規劃書明文不在本系統。
 > **`Season` 不在 §5.1 的型別表內**但本檔升為實體表，理由見 [14.3](#143-本檔新增規劃書未列為型別的表)。
 
 ### 14.2 慈善捐款平台的型別
@@ -1104,7 +1106,6 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 | `DiscountCode` `MemberPrice` `ShippingTier` | v2.6 定案不做 |
 | `TicketOrder` `Seat` | **不做票務與門票套票** |
 | `VolunteerApplication` | v2.1 移出範圍 |
-| `OpponentTeam` | 賽事人工維護，對手是字串 |
 | App 十二型別 | 見 §13.2 |
 
 ---

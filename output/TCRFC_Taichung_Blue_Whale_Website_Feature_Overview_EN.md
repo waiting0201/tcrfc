@@ -1,7 +1,7 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.10
-> **Date**: 2026-09-14 (v1.10 revision: 2026-10-16)
+> **Document version**: v1.11
+> **Date**: 2026-09-14 (v1.11 revision: 2026-10-20)
 > **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.12
 > **Content principal**: Taichung Blue Whale Women's Football Club
 
@@ -127,7 +127,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | **Teams** | Teams | Blue Whale first team, U15, U12 | Blue Whale's teams |
 | | Players | Squad, numbers, positions, photographs, biographies | Blue Whale's players |
 | | Coaches and staff | Coaching and administrative staff | Blue Whale's staff |
-| | Fixtures & Results | **Fixtures, results, tables, season management** (bulk import supported) | Blue Whale's fixtures |
+| | Fixtures & Results | **Fixtures, results, opposition teams (name and crest), tables, season management** (bulk import supported) | Blue Whale's fixtures |
 | | Honours and milestones | Titles and notable records | Blue Whale's records |
 | **Programmes** | All | Courses, intakes, registrations, trials | Used if Blue Whale runs outreach |
 | **Business** | Partners | The partner wall | **Blue Whale's own partners** |

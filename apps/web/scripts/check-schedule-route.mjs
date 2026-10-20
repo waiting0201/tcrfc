@@ -47,6 +47,11 @@ for (const slug of ['bw1', 'bw-u15', 'bw-u12']) {
 eq(kindOf('bw', 'd1'), { kind: 'unknown' }, '藍鯨站不認得磐石的 d1')
 eq(kindOf('bw', 'u14'), { kind: 'unknown' }, '藍鯨站不認得磐石的 u14')
 
+const MATCH_ID = '3f2b8c1e-5a6d-4e7f-9a0b-1c2d3e4f5a6b'
+eq(resolveScheduleSlug(MATCH_ID, tabsOf('tcrfc'), []), { kind: 'match', matchId: MATCH_ID }, 'UUID → 賽事（不需要列表裡找得到，改由頁面打詳情端點確認）')
+eq(resolveScheduleSlug(MATCH_ID.toUpperCase(), tabsOf('bw')).kind, 'match', '大寫 UUID 亦視為賽事')
+eq(resolveScheduleSlug('not-a-uuid', tabsOf('tcrfc'), []), { kind: 'unknown' }, '非 UUID 的未知參數 → unknown')
+
 if (failed) {
   console.error(`\ncheck-schedule-route 失敗：${failed} 項`)
   process.exit(1)

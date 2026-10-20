@@ -15,6 +15,9 @@ public partial class MatchLineup
 
     public bool IsStarter { get; set; }
 
+    /// <summary>替補是否有上場（出賽判定＝先發或 came_on）。先發恆存 false；有進球／牌的替補由後台儲存時強制為 true。</summary>
+    public bool CameOn { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

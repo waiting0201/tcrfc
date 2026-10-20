@@ -15,6 +15,7 @@ export interface AdminStandingListItemDto {
   seasonCode: string
   teamName: string
   teamNameEn?: string | null
+  opponentTeamId?: string | null
   rank?: number | null
   played?: number | null
   points?: number | null
@@ -27,6 +28,7 @@ export interface AdminStandingDetailDto {
   seasonCode: string
   teamName: string
   teamNameEn?: string | null
+  opponentTeamId?: string | null
   rank?: number | null
   played?: number | null
   points?: number | null
@@ -36,8 +38,10 @@ export interface AdminStandingDetailDto {
 
 export interface SaveStandingPayload {
   seasonId: string
-  teamName: string
+  /** 選了對手球隊時可省略（由球隊庫帶入）；兩者至少要有一個。 */
+  teamName?: string | null
   teamNameEn?: string | null
+  opponentTeamId?: string | null
   rank?: number | null
   played?: number | null
   points?: number | null

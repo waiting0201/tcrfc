@@ -20,6 +20,9 @@ public sealed record AdminStandingListItemDto
 
     /// <summary>英文球隊名稱（<c>standings_i18n(en)</c>）；未填為 <c>null</c>，前台回退繁中。</summary>
     public string? TeamNameEn { get; init; }
+
+    /// <summary>對手球隊庫（<c>opponent_teams</c>）的 id；沒挑時為 <c>null</c>，此時球隊只是文字。</summary>
+    public Guid? OpponentTeamId { get; init; }
     public int? Rank { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }
@@ -33,6 +36,7 @@ public sealed record AdminStandingDetailDto
     public required string SeasonCode { get; init; }
     public required string TeamName { get; init; }
     public string? TeamNameEn { get; init; }
+    public Guid? OpponentTeamId { get; init; }
     public int? Rank { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }
@@ -43,10 +47,15 @@ public sealed record AdminStandingDetailDto
 public sealed record CreateAdminStandingRequest
 {
     public required Guid SeasonId { get; init; }
-    public required string TeamName { get; init; }
 
-    /// <summary>英文球隊名稱（選填，最長 128 字）。</summary>
+    /// <summary>球隊名稱（繁中文字）。<see cref="OpponentTeamId"/> 有值時可省略（由球隊庫帶入）；兩者都沒有則 400。</summary>
+    public string? TeamName { get; init; }
+
+    /// <summary>英文球隊名稱（選填，最長 128 字）。有 <see cref="OpponentTeamId"/> 且沒填時帶入庫內英文名。</summary>
     public string? TeamNameEn { get; init; }
+
+    /// <summary>對手球隊庫的 id（選填，須屬於同一個俱樂部，否則 400）。有值時儲存會以庫內隊名寫入 <c>standings_i18n</c> 作後備文字。</summary>
+    public Guid? OpponentTeamId { get; init; }
     public int? Rank { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }
@@ -55,8 +64,9 @@ public sealed record CreateAdminStandingRequest
 public sealed record UpdateAdminStandingRequest
 {
     public required Guid SeasonId { get; init; }
-    public required string TeamName { get; init; }
+    public string? TeamName { get; init; }
     public string? TeamNameEn { get; init; }
+    public Guid? OpponentTeamId { get; init; }
     public int? Rank { get; init; }
     public int? Played { get; init; }
     public int? Points { get; init; }

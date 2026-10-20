@@ -95,14 +95,17 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
                     new AdminMatchGoalInput { PlayerId = playerA.Value, Minute = 30, GoalType = "own_goal" },
                     new AdminMatchGoalInput { PlayerId = playerB.Value, Minute = 40, GoalType = "頭槌" },       // → header，算進球
                 ],
+                // v3.31：出賽＝先發或 came_on。兩人以替補列入名單、請求沒標上場，儲存時因有進球（含烏龍球）被強制 came_on。
+                Lineups = [new AdminMatchLineupInput { PlayerId = playerA.Value, IsStarter = false }, new AdminMatchLineupInput { PlayerId = playerB.Value, IsStarter = false }],
             }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.Created, create.StatusCode);
             var created = await create.Content.ReadFromJsonAsync<AdminMatchDetailDto>(TestJson.Options);
             matchId = created!.Id;
             Assert.Equal(["own_goal", "own_goal"], created.Goals.Where(g => g.GoalType == "own_goal").Select(g => g.GoalType));
             Assert.Contains(created.Goals, g => g.GoalType == "header");
+            Assert.All(created.Lineups, l => Assert.True(l.CameOn)); // 有進球的替補被強制標成上場
 
-            // 公開球員數據：甲只有 1 個進球（烏龍球 2 個不算），乙 1 個；兩人都有出賽（有進球紀錄的場次）。
+            // 公開球員數據：甲只有 1 個進球（烏龍球 2 個不算），乙 1 個；兩人都有出賽（替補且 came_on 被進球強制為 true）。
             var stats = await client.GetFromJsonAsync<JsonElement>("/api/v1/tcrfc/stats/players?season=2026-27", TestJson.Options);
             // 2090 年的賽事不在 2026-27 球季期間也無妨：彙總只看賽事所屬球季，不看日期。
             var a = stats.GetProperty("items").EnumerateArray().First(i => i.GetProperty("playerId").GetGuid() == playerA);

@@ -1167,5 +1167,7 @@ public sealed class AdminArticlesRepository(
         // 所以這裡只需要失效呼叫端自己俱樂部的快取命名空間，不需要遍歷其他俱樂部。
         await cache.InvalidateAsync(PublicListEntity, scope.ClubCode, cancellationToken);
         await cache.InvalidateAsync(PublicDetailEntity, scope.ClubCode, cancellationToken);
+        // 賽事詳情（schedule）含賽後報導，文章發布／關聯變更要一併失效。
+        await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
     }
 }

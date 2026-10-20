@@ -64,8 +64,8 @@ const related = computed(() => {
 // ── 賽事資訊（規劃書 3.7：7.2 比賽報導的特殊欄位「關聯賽事、比分」）────────────────
 // 資料來源是文章自己的關聯賽事（ArticleDetailDto.relations 裡 targetType='match' 的那筆，
 // 後台 B2「關聯」欄位選的），不再用正規表示式從標題硬拆。關聯只帶賽事 id，名稱／比分
-// 要回頭查 GET /{club}/schedule（公開端點）依 id 找出那一場——有關聯才發請求。
-// 查不到（沒關聯、賽事不在回傳範圍內）就整塊不顯示，不留空白列或示範文字。
+// 要回頭查 GET /{club}/schedule/{id}（公開單場端點；不再從列表找——列表分頁，較新的賽事會落在第一頁之外）——有關聯才發請求。
+// 查不到（沒關聯、賽事不存在）就整塊不顯示，不留空白列或示範文字。
 // 「出賽名單」目前沒有公開讀取端點（apps/api 只有後台 C4 有 match_lineups），該列不顯示。
 interface RelatedMatch {
   id: string
@@ -73,8 +73,10 @@ interface RelatedMatch {
   homeAway: string | null
   matchNo: number | null
   opponent: string | null
+  opponentName?: string | null
   competitionName: string | null
   status: string | null
+  /** 🔴 我方進球／對方進球（不是主隊／客隊），顯示順序用 matchScoreText() */
   scoreHome: number | null
   scoreAway: number | null
 }
@@ -87,22 +89,27 @@ const relatedMatchId = computed(() => {
   const rel = (articleExtras.value?.relations ?? []).find((r) => r.targetType === 'match')
   return rel ? String(rel.targetId).toLowerCase() : null
 })
-const { data: scheduleData } = await useFetch<{ items: RelatedMatch[] }>(`/api/backend/${club}/schedule`, {
-  query: { pageSize: 100, lang: locale.value },
-  immediate: relatedMatchId.value !== null,
-})
+const { data: relatedMatch } = await useFetch<RelatedMatch | null>(
+  () => `/api/backend/${club}/schedule/${relatedMatchId.value ?? 'none'}`,
+  {
+    query: { lang: locale.value },
+    key: `news-related-match-${club}-${locale.value}-${relatedMatchId.value ?? 'none'}`,
+    immediate: relatedMatchId.value !== null,
+    default: () => null,
+  },
+)
 const matchFields = computed(() => {
   const id = relatedMatchId.value
   if (!id) return null
-  const m = (scheduleData.value?.items ?? []).find((x) => x.id.toLowerCase() === id)
+  const m = relatedMatch.value
   if (!m) return null
   const self = isEn.value ? clubNameEn(clubKey) : getClubAssets(club).nameZh
-  const opp = m.opponent ?? '—'
-  const finished = m.scoreHome != null && m.scoreAway != null
+  const opp = m.opponentName || m.opponent || '—'
   return {
     competition: m.competitionName ?? '—',
-    fixture: m.homeAway === 'HOME' ? `${self} vs ${opp}` : `${opp} vs ${self}`,
-    score: finished ? `${m.scoreHome} : ${m.scoreAway}` : null,
+    fixture: isAwayMatch(m.homeAway) ? `${opp} vs ${self}` : `${self} vs ${opp}`,
+    // 比分依主客場排成「主隊 : 客隊」（scoreHome／scoreAway 是我方／對方進球）
+    score: matchScoreText(m),
     scheduleHref: `${lp('/zh/schedule/')}#${fixtureId(m.matchOn, m.homeAway, m.matchNo)}`,
     matchOn: m.matchOn,
   }

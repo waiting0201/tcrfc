@@ -1,9 +1,15 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.30
-> **Date**: 2026-08-14 (v3.30 revision: 2026-10-16)
+> **Document version**: v3.31
+> **Date**: 2026-08-14 (v3.31 revision: 2026-10-20)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.30*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.31*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.31 revision summary — C4 gains opposition teams; line-ups distinguish starters from substitutes; player appearances aggregate from line-ups**
+> **A refinement of match data; no new page or module.**
+> ① **C4 gains "Opposition teams"**: each club maintains its own list of opposition teams, with the fields team name (Chinese and English) and crest (the crest follows the 4.0 image-upload rules). A match's opponent is chosen from this list; an opponent not in the list can still be typed in as a team name. A league-table row can optionally be linked to an opposition team. An opposition team referenced by a match or a league-table row cannot be deleted. Fixture cards on the public site show the opponent's crest when one is set. Where: 3.13, 4.3 C4, 5.1 `OpponentTeam` / `Match` / `Standing`, 5.4.
+> ② **Line-ups distinguish starters from substitutes, and a substitute also records "came on"**. Where: 4.3 C4, 5.1 `Match`.
+> ③ **C2 season "appearances" aggregate from match line-ups**: only matches with status "finished" count; a starter counts as one appearance, a substitute counts only if they came on, and a substitute who scored or received a card in that match is treated as having come on; manual entry still takes precedence. Where: 4.3 C2.
 
 > **v3.30 revision summary — the news body is written in a what-you-see-is-what-you-get editor with a full-width editing area**
 > **Only the way the body is edited in admin B2 changes; the public site, the data structure and the app are unchanged.**
@@ -745,7 +751,7 @@ The calendar is organised primarily **by team**:
 |---|---|
 | Left time column | Weekday + date (large) and kick-off time; **displayed in the viewer's local time zone**, with a page-level note: "All times are local and subject to change" |
 | Competition tag | League / cup / friendly name with an identifying colour |
-| Match-up | Home crest + name `vs` away crest + name; TCRFC's side highlighted in brand colour |
+| Match-up | Home crest + name `vs` away crest + name; TCRFC's side highlighted in brand colour; the opponent's crest is shown when one is set (C4 opposition team) |
 | Venue | Venue name, home/away marker, map link |
 | Status | Upcoming / live / finished / postponed / cancelled (postponed fixtures show the original date) |
 | Actions | `Match info`, `Tickets` (if applicable), `Add to calendar (.ics)`, `Broadcast info` (if applicable) |
@@ -1202,7 +1208,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 #### C2 Players
 - Profile: name (Chinese and English), squad number, position, date of birth, height and weight, nationality, preferred foot, join date, photo
 - Career: history, previous clubs, achievements
-- Season stats: appearances, goals, assists, cards (entered manually or aggregated from match data)
+- Season stats: appearances, goals, assists, cards (entered manually or aggregated from match data; manual entry takes precedence). **Automatic appearance rule**: only matches with status "finished" count; **a starter counts as one appearance, a substitute counts only if they came on**, and a substitute who scored or received a card in that match is treated as having come on
 - Status: active / departed / on loan / developing overseas (mapping to the Pathways markers in 3.4)
 - Relationships: team (across seasons), related news, player stories
 
@@ -1211,9 +1217,10 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Staff (2.4 Our People): group (management / administration / medical / operations), title, bio
 
 #### C4 Fixtures & Results
-- Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed / cancelled), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number), **original date and original time** (populated only when status is "postponed"; records the date and time the fixture was originally scheduled for, so it can be shown here and on the fixture card)
-- Result: score, scorers with timings, cards, line-up, link to the match report (7.2)
-- **League table**: maintained manually or imported from CSV
+- Match record: season, competition (league / cup), date and time, home/away, opponent (chosen from the opposition-team list; an opponent not in the list can be typed in as a team name), venue, status (upcoming / live / finished / postponed / cancelled), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number), **original date and original time** (populated only when status is "postponed"; records the date and time the fixture was originally scheduled for, so it can be shown here and on the fixture card)
+- Result: score (our goals and the opponent's goals), scorers with timings, cards, **line-up (starters and substitutes distinguished; a substitute also records "came on")**, link to the match report (7.2)
+- **Opposition teams**: each club maintains its own list of opposition teams, with the fields team name (Chinese and English) and crest (the crest follows the 4.0 image-upload rules). A match's opponent is chosen from this list; an opponent not in the list can still be typed in as a team name. **An opposition team referenced by a match or a league-table row cannot be deleted.** Fixture cards on the public site show the opponent's crest when one is set
+- **League table**: maintained manually or imported from CSV; each row's team can optionally be linked to an opposition team (the public site then shows that team's crest)
 - **Season management**: add, edit and delete seasons, with the fields season code (e.g. `2026/27`, unique within a club), start date and end date. **Seasons are created per club** (the two clubs' seasons are not aligned); **a season referenced by matches, standings, honours, season stats, memberships or similar records cannot be deleted**; the "current season" is the season whose start-to-end range contains today
 - **Maintenance approach: entirely manual** (no external league API integration). Both **CSV bulk import** of a full season and single-match entry are provided to reduce data-entry effort
 
@@ -1617,8 +1624,9 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `Team` | Team, carrying the **team code**: `D1` (Taichung Rock First Team) / **`BW1` (Taichung Blue Whale First Team, new in v3.0)** / Rock academy squads `U10` / `U12` / `U14` / `U16` / `U18` (following the 4.3 pathway; which squads actually exist follows C1) / Blue Whale youth teams (codes carry a `BW-` prefix, e.g. `BW-U15`, `BW-U12`). 🏛 mandatory. **`code` stays globally unique and must not become a "club × code" composite** — it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation, and **a code for which a subscription URL has been issued is never reassigned to a different team**. **v3.0 adds `gender`** (`men` / `women` / `mixed`) and **retires `type`'s `women` value** (gender is an attribute of a team, not a kind of team); the "exactly one `first_team` site-wide" constraint becomes "**at most one per club**" | Club, Player, Coach, Match, Season, CalendarEvent |
 | `Player` | Player | Team, Article, Stats, Pathway |
 | `Staff` | Coaches and staff | Team, Program |
-| `Match` | Match. **v2.5 adds** `opponent_en` / `venue_en`, and promotes `competition` / `status` to formal fields. **v3.13 adds** original date and original time (populated only when status is "postponed") | Team, Season, Article (match report) |
-| `Standing` | League table | Season, Team |
+| `OpponentTeam` | **Opposition team (added in v3.31)**: team name (Chinese and English) and crest (image field group). 🏛 Mandatory; each club maintains its own. Referenced optionally by matches and league-table rows; a referenced team cannot be deleted | Match, Standing, Club |
+| `Match` | Match. **v3.31 adds** `opponent_team_id` (opposition team, may be empty; when none is chosen the opponent is the typed-in team name); the line-up detail (`MatchLineup`) distinguishes starters from substitutes, and a substitute also records "came on". **v2.5 adds** `opponent_en` / `venue_en`, and promotes `competition` / `status` to formal fields. **v3.13 adds** original date and original time (populated only when status is "postponed") | Team, Season, Article (match report) |
+| `Standing` | League table. **v3.31 adds** `opponent_team_id` (the linked opposition team, may be empty) | Season, Team, OpponentTeam |
 | `Achievement` | Honour | Team, Season |
 | `Milestone` | Milestone | — |
 | `Program` | Course / camp / specialist training | Session, Staff, Venue, Partner |
@@ -1699,7 +1707,7 @@ Under a multi-club architecture every table must answer "which club does this be
 > **If it can be derived from a parent, do not store it** — the same fact in two places will drift apart.
 > **Adding `club_id` obliges you to settle three things at once: the unique key, the admin list's default filter, and the public route.** Otherwise the column is dead.
 
-**Mandatory (49 tables)**: all team and fixture types (`Team` / `Player` / `Match` / `Standing` / `Achievement` / `Milestone` / `Season` / `Competition`), site-level content (`Page` / `Banner` / `HomeSection` / `Redirect` / `Setting` / `EmailTemplate` / `Form`), personal data (`Registration` / `Trial` / `Enquiry` / `NewsletterSubscriber` / `FanEventRegistration` / `Membership` / `MemberCard` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` / `DrawRoster`), commercial counterparties (`Partner` / `Sponsor` / `SponsorPackage` / `Proposal`), programmes (`Program` / `Session`), the shop (`Collection` / `Product` / `ProductVariant` / `Cart` / `Order` / `OrderItem` / `Shipment` / `RefundRequest` / `StoreInvoice` / `InventoryMovement`), plus `EmailLog`, `FaqSearchMiss`, `CalendarCustomEvent`, `ComicCharacter` / `ComicEpisode` / `FanEvent`, **`MembershipPlan`** (each club has its own fees, card quota, and season rules — see 5.1).
+**Mandatory (50 tables)**: all team and fixture types (`Team` / `Player` / `Match` / `OpponentTeam` / `Standing` / `Achievement` / `Milestone` / `Season` / `Competition`), site-level content (`Page` / `Banner` / `HomeSection` / `Redirect` / `Setting` / `EmailTemplate` / `Form`), personal data (`Registration` / `Trial` / `Enquiry` / `NewsletterSubscriber` / `FanEventRegistration` / `Membership` / `MemberCard` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` / `DrawRoster`), commercial counterparties (`Partner` / `Sponsor` / `SponsorPackage` / `Proposal`), programmes (`Program` / `Session`), the shop (`Collection` / `Product` / `ProductVariant` / `Cart` / `Order` / `OrderItem` / `Shipment` / `RefundRequest` / `StoreInvoice` / `InventoryMovement`), plus `EmailLog`, `FaqSearchMiss`, `CalendarCustomEvent`, `ComicCharacter` / `ComicEpisode` / `FanEvent`, **`MembershipPlan`** (each club has its own fees, card quota, and season rules — see 5.1).
 
 **Nullable, meaning "shared by both clubs" (9 tables)**: `Article`, `PressResource`, `Faq`, `Staff`, `Charity`, `CharityProgram`, `ImpactRecord`, `ImpactMetric`, **`PartnerStore`** (a store's applicable scope may be set to one club or both — see 3.14).
 

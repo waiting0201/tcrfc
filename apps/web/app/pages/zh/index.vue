@@ -195,14 +195,13 @@ const heroBanners = computed<HeroSlide[]>(() =>
 const heroSlides = computed<HeroSlide[]>(() => heroBanners.value)
 
 // ---- S1-14：賽事資料（最新賽事區／近期賽事，兩個規劃書區塊共用同一支 schedule API）----
-const { data: scheduleData } = await useFetch(`/api/backend/${config.public.club}/schedule`, {
-  query: { pageSize: 200, lang: locale.value },
-})
 
 interface HomeMatch {
   teamCode: string
   matchOn: string
   opponent: string | null
+  opponentName?: string | null
+  opponentCrest?: { url: string, url320?: string | null, url640?: string | null } | null
   venue: string | null
   competitionName: string | null
   competitionTag?: string | null
@@ -223,9 +222,25 @@ const homeTeamCodeSet = computed<Set<string> | null>(() => {
   return Array.isArray(codes) && codes.length > 0 ? new Set(codes) : null
 })
 
-const allMatches = computed<HomeMatch[]>(() => scheduleData.value?.items ?? [])
 // SSR 渲染當下的日期字串（純顯示用的分界，不是安全判斷，兩端各自算一次即可）。
 const todayStr = new Date().toISOString().slice(0, 10)
+const cutoffDateStr = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+// 三個小查詢取代過去的 `pageSize=200`（單頁上限 100，過去會被截成最舊的 100 筆而漏掉最新賽果）：
+//   ① 一線隊最近賽果（status=played&order=desc，取 10 筆再過濾無比分者）、② 一線隊下一場、③ 其他隊近 30 天賽程。
+const scheduleBase = `/api/backend/${config.public.club}/schedule`
+const [{ data: playedData }, { data: nextData }, { data: othersData }] = await Promise.all([
+  useFetch<{ items: HomeMatch[] }>(scheduleBase, { query: { team: getFirstTeamCode(clubKey.value), status: PLAYED_QUERY_STATUS, order: 'desc', pageSize: 10, lang: locale.value }, key: `home-played-${locale.value}` }),
+  useFetch<{ items: HomeMatch[] }>(scheduleBase, { query: { team: getFirstTeamCode(clubKey.value), status: UPCOMING_QUERY_STATUSES, from: todayStr, order: 'asc', pageSize: 5, lang: locale.value }, key: `home-next-${locale.value}` }),
+  useFetch<{ items: HomeMatch[] }>(scheduleBase, { query: { status: UPCOMING_QUERY_STATUSES, from: todayStr, to: cutoffDateStr, order: 'asc', pageSize: 100, lang: locale.value }, key: `home-others-${locale.value}` }),
+])
+const allMatches = computed<HomeMatch[]>(() => {
+  const first = getFirstTeamCode(clubKey.value)
+  return [
+    ...(playedData.value?.items ?? []),
+    ...(nextData.value?.items ?? []),
+    ...(othersData.value?.items ?? []).filter((m) => m.teamCode !== first),
+  ]
+})
 
 // 一線隊代號依俱樂部而定：磐石 D1、藍鯨 BW1（docs/14 踩雷點「BW1 不是第二個 D1」）——
 // 這裡原本寫死 'D1'，對 bw 資料一定比對不到任何一筆，是 S1-14 發現並修正的既有落差。
@@ -267,12 +282,13 @@ const latestResult = computed(() => d1Played.value.at(-1) ?? null)
 const previousResult = computed(() => d1Played.value.at(-2) ?? null)
 const nextFixture = computed(() => d1Upcoming.value[0] ?? null)
 
-/** 主場視角換算：homeAway 是「本俱樂部」的主客場，不是聯賽官方主隊。 */
+/** 🔴 `scoreHome`／`scoreAway` 就是「我方進球／對方進球」（主站 v3.31 C4，E-342），不論主客場都不對調；
+ * 這張卡片本來就是「我方 比分 對手」的固定版面。 */
 function clubScore(m: HomeMatch): number | null {
-  return m.homeAway === 'AWAY' ? m.scoreAway : m.scoreHome
+  return m.scoreHome
 }
 function opponentScore(m: HomeMatch): number | null {
-  return m.homeAway === 'AWAY' ? m.scoreHome : m.scoreAway
+  return m.scoreAway
 }
 // 英文版：API 的賽事名稱只有中文，改用賽事類型的英文標籤（與行事曆頁一致）；中文版照舊顯示賽事名稱。
 function compName(m: HomeMatch): string {
@@ -284,7 +300,7 @@ function resultMetaLine(m: HomeMatch): string {
 function fixtureMetaLine(m: HomeMatch): string {
   const [, mo, d] = m.matchOn.split('-')
   const wd = matchWeekday(m.matchOn).zh
-  const haLabel = m.homeAway === 'AWAY' ? tx('客場', 'Away') : m.homeAway === 'HOME' ? tx('主場', 'Home') : ''
+  const haLabel = m.homeAway ? (haCode(m.homeAway) === 'away' ? tx('客場', 'Away') : tx('主場', 'Home')) : ''
   const dateLabel = isEn.value ? `${Number(mo)}/${Number(d)} (${matchWeekday(m.matchOn).en})` : `${Number(mo)}/${Number(d)}（${wd}）`
   return [compName(m), dateLabel, haLabel].filter(Boolean).join(' · ')
 }
@@ -717,7 +733,7 @@ onBeforeUnmount(() => {
           <div class="match-card__fixture">
             <span class="match-card__team">{{ clubName }}</span>
             <span class="match-card__score">{{ clubScore(latestResult) }}<span class="sep">:</span>{{ opponentScore(latestResult) }}</span>
-            <span class="match-card__team match-card__team--away">{{ latestResult.opponent }}</span>
+            <span class="match-card__team match-card__team--away">{{ latestResult.opponentName || latestResult.opponent }}</span>
           </div>
         </article>
         <article v-else class="match-card match-card--placeholder">
@@ -730,7 +746,7 @@ onBeforeUnmount(() => {
           <div class="match-card__fixture">
             <span class="match-card__team">{{ clubName }}</span>
             <span class="match-card__score">{{ clubScore(previousResult) }}<span class="sep">:</span>{{ opponentScore(previousResult) }}</span>
-            <span class="match-card__team match-card__team--away">{{ previousResult.opponent }}</span>
+            <span class="match-card__team match-card__team--away">{{ previousResult.opponentName || previousResult.opponent }}</span>
           </div>
         </article>
 
@@ -740,7 +756,7 @@ onBeforeUnmount(() => {
           <div class="match-card__fixture">
             <span class="match-card__team">{{ clubName }}</span>
             <span class="match-card__vs">VS</span>
-            <span class="match-card__team match-card__team--away">{{ nextFixture.opponent }}</span>
+            <span class="match-card__team match-card__team--away">{{ nextFixture.opponentName || nextFixture.opponent }}</span>
           </div>
           <p class="match-card__scorers">{{ nextFixture.venue }}{{ tx('　賽程以官方公告為準', ' · Fixtures are subject to official announcements') }}</p>
         </article>
@@ -756,7 +772,7 @@ onBeforeUnmount(() => {
           <div class="match-card__fixture">
             <span class="match-card__team">{{ clubName }}</span>
             <span class="match-card__vs">VS</span>
-            <span class="match-card__team match-card__team--away">{{ m.opponent }}</span>
+            <span class="match-card__team match-card__team--away">{{ m.opponentName || m.opponent }}</span>
           </div>
         </article>
         <div v-if="otherTeamUpcoming.length === 0" class="match-card match-card--placeholder">

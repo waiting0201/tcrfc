@@ -201,6 +201,9 @@ erDiagram
   club ||--o{ team : "GHOST 必填"
   club ||--o{ competition : "GHOST 必填"
   club ||--o{ match : "GHOST 必填"
+  club ||--o{ opponent_team : "GHOST 必填"
+  opponent_team ||--o{ match : "可為空"
+  opponent_team ||--o{ standing : "可為空"
   season ||--o{ competition : ""
   competition ||--o{ competition_i18n : "zh-Hant 必存, en 可缺"
   competition ||--o{ match : "可為空"
@@ -283,6 +286,7 @@ erDiagram
     uuid match_id FK
     uuid player_id FK
     bool is_starter
+    bool came_on
   }
   player {
     uuid id PK
@@ -320,6 +324,7 @@ erDiagram
     uuid season_id FK
     uuid competition_id FK
     uuid venue_id FK
+    uuid opponent_team_id FK
     date match_on
     string_8 kickoff
     enum home_away
@@ -337,10 +342,20 @@ erDiagram
     uuid match_id FK
     uuid team_id FK
   }
+  opponent_team {
+    uuid id PK
+    uuid club_id FK
+    string_128 name
+    int sort_order
+    string_500 crest_key
+    int crest_width
+    int crest_height
+  }
   standing {
     uuid id PK
     uuid club_id FK
     uuid season_id FK
+    uuid opponent_team_id FK
     int rank
     int played
     int points
@@ -367,7 +382,8 @@ erDiagram
 > 🔴 **兩隊都有「一線隊」**，所以任何同時呈現兩隊賽事的畫面，**每張卡片都必須標球隊**。
 > ⚠️ **`competition`（賽事系列）與 `match.competition` 四值 enum 並存不互相取代**：後者是粗分類，前者是有名字的實際賽事。
 > 賽程卡片顯示 `competition` 名稱，篩選面板的「賽事類型」仍用 enum。
-> ⚠️ `match.opponent` 與 `standing.team_name` 是**自由文字**，不建對手球隊表——賽事全部人工維護、不串外部 API。
+> ⚠️ `match.opponent` 與 `standing.team_name` 是文字回退值；**v3.31 起可選擇性指向 `opponent_team`**（`opponent_team_id` 可空；繁中隊名在 `opponent_team.name`、英文在 `opponent_teams_i18n.name`、隊徽為圖片欄位組）。賽事全部人工維護、不串外部 API。
+> 🔴 **`match.score_home`／`score_away` 的語意是「我方進球／對方進球」，不是主隊／客隊**（欄位名沿用，見 `docs/14`）。`match_lineup.came_on` 只對替補（`is_starter = 0`）有意義，先發列恆為 0。
 > 🔵 **2026-10-06（稽核 D 類，雙語缺口）**：`standing.team_name`、`achievement.competition_name`／`placing`、`program.audience`、`proposal.title`、`membership_plan.mid_season_rule` 已從主表屬性移除，改在 `standings_i18n`／`achievements_i18n`／`programs_i18n`／`proposals_i18n`／`membership_plans_i18n`（側表依 §5.12 慣例不入圖，欄位清單見 `docs/12c`）。
 > 🔵 **`competition_i18n`（`name`／`organizer`）已補畫**——`docs/12c` §5 第 1 點的舊稿記錄「兩張 ERD 圖沒有補畫側表」，
 > 已於本次同步（S0-3b／S0-3c）解決，不再是待辦。

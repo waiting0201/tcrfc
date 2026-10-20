@@ -60,6 +60,8 @@ public static class ApiErrorMessages
         ["fan_club_required"] = "This event is for members only, and you do not have an active membership.",
         ["forbidden"] = "You do not have permission to do this.",
         ["geocoder_not_configured"] = "Address lookup is not enabled. Please enter the latitude and longitude directly.",
+        ["opponent_team_in_use"] = "This opponent team is still used by matches or standings and cannot be deleted.",
+        ["opponent_team_name_duplicate"] = "An opponent team with this name already exists.",
         ["geocoder_unavailable"] = "Address lookup is temporarily unavailable. Please try again later.",
         ["idempotency_key_required"] = "Please send an Idempotency-Key header (8 to 64 letters, digits, or - _ : .).",
         ["idempotency_key_reused"] = "This idempotency key was already used for a different order. Please generate a new one.",

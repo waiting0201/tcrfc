@@ -171,6 +171,8 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", matchValidation.Message),
             AdminMatchNoConflictException matchNoConflict =>
                 (StatusCodes.Status409Conflict, "場次編號重複", matchNoConflict.Message),
+            Tcrfc.Api.Features.AdminOpponentTeams.AdminOpponentTeamConflictException opponentTeamConflict =>
+                (StatusCodes.Status409Conflict, opponentTeamConflict.Title, opponentTeamConflict.Message),
             AdminStandingValidationException standingValidation =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", standingValidation.Message),
 

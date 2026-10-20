@@ -71,8 +71,8 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
     private static Task AddCardAsync(Guid matchId, Guid playerId, string type) =>
         BizTest.ExecuteSqlAsync("INSERT INTO match_cards (match_id, player_id, card_type, minute) VALUES (@M, @P, @T, 20)", ("@M", matchId), ("@P", playerId), ("@T", type));
 
-    private static Task AddLineupAsync(Guid matchId, Guid playerId, bool starter) =>
-        BizTest.ExecuteSqlAsync("INSERT INTO match_lineups (match_id, player_id, is_starter) VALUES (@M, @P, @B)", ("@M", matchId), ("@P", playerId), ("@B", starter));
+    private static Task AddLineupAsync(Guid matchId, Guid playerId, bool starter, bool cameOn = false) =>
+        BizTest.ExecuteSqlAsync("INSERT INTO match_lineups (match_id, player_id, is_starter, came_on) VALUES (@M, @P, @B, @O)", ("@M", matchId), ("@P", playerId), ("@B", starter), ("@O", cameOn));
 
     [Fact]
     public async Task 積分榜_依名次排序_空名次墊底_球季選擇_別隊看不到()
@@ -133,12 +133,13 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
         var m1 = await NewMatchAsync(clubId, seasonId, "played", 1);
         var m2 = await NewMatchAsync(clubId, seasonId, "played", 2);
         var future = await NewMatchAsync(clubId, seasonId, "scheduled", 3); // 未結束的賽事不計
-        // A：兩場先發、第一場進 1 球；B：兩場都在替補，第二場進球＋黃牌（才算出賽）；C：只在替補、沒有任何事件（不算出賽）；D：有自動數據但另有手動數據。
+        // A：兩場先發、第一場進 1 球；B：兩場都在替補，第二場有上場（came_on）並進球＋黃牌（出賽＝先發或 came_on，v3.31）；
+        // C：只在替補、沒有任何事件（不算出賽）；D：有自動數據但另有手動數據。
         await AddLineupAsync(m1, a, true);
         await AddLineupAsync(m2, a, true);
         await AddGoalAsync(m1, a);
         await AddLineupAsync(m1, b, false);
-        await AddLineupAsync(m2, b, false);
+        await AddLineupAsync(m2, b, false, cameOn: true);
         await AddGoalAsync(m2, b);
         await AddCardAsync(m2, b, "yellow");
         await AddLineupAsync(m1, c, false);
@@ -159,7 +160,7 @@ public sealed class FrontGapsPublicTests(AdminWriteApiFixture fixture)
         Assert.Equal(JsonValueKind.Null, pa.GetProperty("assists").ValueKind); // 賽事紀錄沒有助攻
         Assert.Equal("auto", pa.GetProperty("source").GetString());
         var pb = items[b];
-        Assert.Equal(1, pb.GetProperty("appearances").GetInt32()); // 只有第二場（有進球與牌）
+        Assert.Equal(1, pb.GetProperty("appearances").GetInt32()); // 只有第二場（came_on）；第一場是沒上場的替補
         Assert.Equal(1, pb.GetProperty("goals").GetInt32());
         Assert.Equal(1, pb.GetProperty("yellowCards").GetInt32());
         Assert.Equal(0, pb.GetProperty("redCards").GetInt32());

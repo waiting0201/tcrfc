@@ -59,10 +59,11 @@ useSportsTeamSchema(teamCode.value)
 // ---- 球員／教練／賽程：真實公開 API（03.1 的三個區塊）。積分榜與球員數據原本沒有公開端點，
 // S3-9（2026-10-01）起接上 `standings`／`stats/players`（見下方「S3-9」段與 apps/web/README.md「S3-5／S3-5a／S3-9」節） ----
 const club = config.public.club
-const [{ data: playersData }, { data: staffData }, { data: scheduleData }] = await Promise.all([
+// 賽事：賽果與賽程分開查再合併（單次 pageSize=100 會被截斷，見 app/composables/useClubMatches.ts）。
+const [{ data: playersData }, { data: staffData }, scheduleData] = await Promise.all([
   useFetch<{ items: PlayerDto[] }>(`/api/backend/${club}/players`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
   useFetch(`/api/backend/${club}/staff`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
-  useFetch(`/api/backend/${club}/schedule`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
+  useClubMatches(club, locale.value, teamCode.value),
 ])
 
 const players = computed(() => playersData.value?.items ?? [])
@@ -160,17 +161,18 @@ const nextScheduledFixture = computed(() =>
 )
 
 function homeAwayLabel(homeAway: string | null): string {
-  if (isEn.value) return clubHomeAwayLabelEn(homeAway)
-  if (homeAway === 'home') return '主場'
-  if (homeAway === 'away') return '客場'
-  return '—'
+  // API 回大寫 HOME／AWAY；比對不分大小寫。主客場未填顯示「—」。
+  if (!homeAway) return '—'
+  const code = haCode(homeAway)
+  if (isEn.value) return clubHomeAwayLabelEn(code)
+  return code === 'home' ? '主場' : '客場'
 }
 
 /** 賽程表「賽事」欄的對戰組合文字，依主客場把自家隊名排在正確的一邊。 */
-function matchupLabel(m: { homeAway: string | null; opponent: string | null }): string {
+function matchupLabel(m: { homeAway: string | null; opponent: string | null; opponentName?: string | null }): string {
   const self = isEn.value ? (isTcrfc.value ? CLUB_NAME_EN : BW_NAME_EN) : identity.value.shortNameZh
-  const opponent = m.opponent ?? 'TBC'
-  if (m.homeAway === 'away') return `${opponent} vs ${self}`
+  const opponent = m.opponentName || m.opponent || 'TBC'
+  if (isAwayMatch(m.homeAway)) return `${opponent} vs ${self}`
   return `${self} vs ${opponent}`
 }
 
@@ -312,13 +314,13 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
         </thead>
         <tbody>
           <tr v-for="m in fixtures" :key="m.id">
-            <td>{{ m.roundNo ?? '—' }}</td>
+            <td>{{ m.roundNo || '—' }}</td>
             <td>{{ formatMatchDate(m.matchOn) }}</td>
             <td>{{ m.kickoff ?? '—' }}</td>
-            <td><span :class="['sched-ha', m.homeAway === 'home' ? 'sched-ha--home' : 'sched-ha--away']">{{ homeAwayLabel(m.homeAway) }}</span></td>
+            <td><span :class="['sched-ha', haCode(m.homeAway) === 'home' ? 'sched-ha--home' : 'sched-ha--away']">{{ homeAwayLabel(m.homeAway) }}</span></td>
             <td>
               {{ matchupLabel(m) }}
-              <template v-if="mapMatchStatus(m.status).code === 'finished' && hasScore(m)">{{ isEn ? ` (${m.scoreHome} : ${m.scoreAway})` : `（${m.scoreHome} : ${m.scoreAway}）` }}</template>
+              <template v-if="mapMatchStatus(m.status).code === 'finished' && hasScore(m)">{{ isEn ? ` (${matchScoreText(m)})` : `（${matchScoreText(m)}）` }}</template>
               <template v-else-if="mapMatchStatus(m.status).code !== 'upcoming'">　{{ matchStatusText(m.status) }}</template>
             </td>
             <td>{{ m.venue ?? 'TBC' }}</td>
@@ -343,17 +345,17 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
         <li v-for="m in results" :key="m.id">
           <span class="results-list__date">{{ formatMatchDate(m.matchOn) }}</span>
           <span class="results-list__matchup">{{ matchupLabel(m) }}</span>
-          <span v-if="hasScore(m)" class="results-list__score">{{ m.scoreHome }} : {{ m.scoreAway }}</span>
+          <span v-if="hasScore(m)" class="results-list__score">{{ matchScoreText(m) }}</span>
           <span v-if="m.competitionName" class="results-list__comp">{{ isEn ? compTagLabelEn(m.competitionTag) : m.competitionName }}</span>
         </li>
       </ul>
     </template>
     <p v-else-if="nextScheduledFixture && isEn">
-      No matches have been completed this season yet. The next match is on {{ formatMatchDate(nextScheduledFixture.matchOn) }}, {{ homeAwayLabel(nextScheduledFixture.homeAway) }} against {{ nextScheduledFixture.opponent ?? 'TBC' }}.
+      No matches have been completed this season yet. The next match is on {{ formatMatchDate(nextScheduledFixture.matchOn) }}, {{ homeAwayLabel(nextScheduledFixture.homeAway) }} against {{ nextScheduledFixture.opponentName || nextScheduledFixture.opponent || 'TBC' }}.
     </p>
     <p v-else-if="nextScheduledFixture">
       本季目前尚無已完賽數據，下一場為 {{ formatMatchDate(nextScheduledFixture.matchOn) }}
-      {{ homeAwayLabel(nextScheduledFixture.homeAway) }}對{{ nextScheduledFixture.opponent ?? 'TBC' }}。
+      {{ homeAwayLabel(nextScheduledFixture.homeAway) }}對{{ nextScheduledFixture.opponentName || nextScheduledFixture.opponent || 'TBC' }}。
     </p>
     <p v-else>{{ tx('本季目前尚無已完賽數據，賽程尚未公布。', 'No matches have been completed this season yet, and the fixtures have not been published.') }}</p>
 
@@ -377,7 +379,12 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
         <tbody>
           <tr v-for="(r, i) in standingRows" :key="`${r.teamName}-${i}`">
             <td>{{ rankCell(r.rank) }}</td>
-            <td>{{ r.teamName }}</td>
+            <td>
+              <span class="sh-team-cell">
+                <img v-if="crestSrc(r.crest)" class="sh-team-crest" :src="crestSrc(r.crest)!" width="22" height="22" alt="" loading="lazy">
+                <span>{{ r.teamName }}</span>
+              </span>
+            </td>
             <td :class="{ 'is-null': r.played === null }">{{ statCell(r.played) }}</td>
             <td :class="{ 'is-null': r.points === null }">{{ statCell(r.points) }}</td>
           </tr>
@@ -601,4 +608,6 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
   .player-grid{ grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); }
   .coach-card__visual img{ width:46px; height:48px; }
 }
+.sh-team-cell{ display:inline-flex; align-items:center; gap:.5rem; min-width:0; }
+.sh-team-crest{ flex:none; width:22px; height:22px; object-fit:contain; }
 </style>

@@ -8,8 +8,9 @@ public static class MatchesEndpoints
 {
     public static void MapMatchesEndpoints(this IEndpointRouteBuilder app)
     {
-        // GET /api/v1/{club}/schedule?team=D1&season=2026-27&status=scheduled&competition=CTFA-1&from=2026-09-01&to=2026-12-31&lang=zh&page=1&pageSize=20
+        // GET /api/v1/{club}/schedule?team=D1&season=2026-27&status=scheduled&competition=CTFA-1&from=2026-09-01&to=2026-12-31&order=asc&lang=zh&page=1&pageSize=20
         // competition＝賽事系列代碼（GET /{club}/competitions 的 code）；from／to＝比賽日期區間（含，yyyy-MM-dd）。App 規劃書 §9.2「支援球隊、俱樂部、賽事系列與期間篩選」。
+        // status＝狀態代碼，可用逗號帶多個（如 scheduled,live,postponed）；order＝asc（預設，由舊到新）或 desc（由新到舊，賽果頁用 status=played&order=desc）。
         app.MapGet("/api/v1/{club}/schedule", async (
             string club,
             string? team,
@@ -18,6 +19,7 @@ public static class MatchesEndpoints
             string? competition,
             DateOnly? from,
             DateOnly? to,
+            string? order,
             string? lang,
             int? page,
             int? pageSize,
@@ -34,12 +36,20 @@ public static class MatchesEndpoints
                 throw new PublicValidationException("查詢區間不正確：開始日期不能晚於結束日期。");
             }
 
-            var result = await repository.ListAsync(scope, team, season, status, dbLocale, normalizedPage, normalizedPageSize, cancellationToken, competition, from, to);
+            var descending = order?.Trim().ToLowerInvariant() switch
+            {
+                null or "" or "asc" => false,
+                "desc" => true,
+                _ => throw new PublicValidationException("排序只能是 asc（由舊到新）或 desc（由新到舊）。"),
+            };
+
+            var result = await repository.ListAsync(scope, team, season, status, dbLocale, normalizedPage, normalizedPageSize, cancellationToken, competition, from, to, descending);
             return Results.Ok(result);
         })
         .WithName("ListSchedule")
         .WithTags("Schedule")
         .Produces<PagedResult<MatchDto>>()
+        .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status404NotFound);
 
         // GET /api/v1/{club}/schedule/{id}?lang=zh —— 單場賽事（深連結 tcrfc://match/{id}；App 規劃書 §9.2「賽事 列表／單筆」）。
@@ -58,7 +68,7 @@ public static class MatchesEndpoints
         })
         .WithName("GetMatch")
         .WithTags("Schedule")
-        .Produces<MatchDto>()
+        .Produces<MatchDetailDto>()
         .Produces(StatusCodes.Status404NotFound);
     }
 }

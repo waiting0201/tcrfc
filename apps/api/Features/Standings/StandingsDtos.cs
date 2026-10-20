@@ -12,6 +12,12 @@ public sealed record StandingRowDto
     public int? Rank { get; init; }
     public required string TeamName { get; init; }
 
+    /// <summary>對手球隊庫的 id；沒挑球隊庫的列為 <c>null</c>（隊名只是文字）。</summary>
+    public Guid? OpponentTeamId { get; init; }
+
+    /// <summary>隊徽（各尺寸網址）；沒有球隊庫或庫內沒有隊徽為 <c>null</c>。</summary>
+    public Features.Schedule.OpponentCrestDto? Crest { get; init; }
+
     /// <summary>未翻譯標示：請求語系不是繁中、且該隊在請求語系沒有名稱（<see cref="TeamName"/> 已回退成繁中）時為 true。前台據此標示「尚無英文版」。</summary>
     public required bool IsFallbackLocale { get; init; }
     public int? Played { get; init; }

@@ -298,9 +298,14 @@ export function venueMapUrl(venue: string): string {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venue} 台灣`)}`
 }
 
-/** data-ha 值：API 是大寫 HOME／AWAY，mockup 用小寫 */
-export function haCode(homeAway: string | null): 'home' | 'away' {
-  return homeAway === 'HOME' ? 'home' : 'away'
+/** data-ha 值：API 是大寫 HOME／AWAY，mockup 用小寫。比對不分大小寫（後端偶有 `home`／`away` 小寫資料）。 */
+export function haCode(homeAway: string | null | undefined): 'home' | 'away' {
+  return homeAway?.trim().toUpperCase() === 'HOME' ? 'home' : 'away'
+}
+
+/** 明確標為客場（`AWAY`，不分大小寫）。主客場未填（`null`）不算客場：版面一律我方在前。 */
+export function isAwayMatch(homeAway: string | null | undefined): boolean {
+  return homeAway?.trim().toUpperCase() === 'AWAY'
 }
 
 /** 賽事卡片錨點 id，與 mockup 逐字元相同：fx-{日期}-{h|a}-{場次編號}
@@ -310,6 +315,173 @@ export function haCode(homeAway: string | null): 'home' | 'away' {
  * 跟 mockup 對不起來）。matchNo 來自 matches.match_no（v3.11 補進規格與 DDL 的
  * 聯賽官方場次編號欄位），S0-9 搬遷當下 API 尚未吐出這個欄位時曾經退化成
  * `fx-{日期}-{h|a}`，該落差已隨本次補齊消除。 */
-export function fixtureId(dateStr: string, homeAway: string | null, matchNo: number | null): string {
-  return `fx-${dateStr}-${homeAway === 'HOME' ? 'h' : 'a'}-${matchNo}`
+export function fixtureId(dateStr: string, homeAway: string | null | undefined, matchNo: number | null): string {
+  return `fx-${dateStr}-${haCode(homeAway) === 'home' ? 'h' : 'a'}-${matchNo}`
+}
+
+// ---------------------------------------------------------------------------
+// 比分語意與顯示（主站 v3.31 C4，docs/14：`scoreHome`／`scoreAway` ＝ 我方進球／對方進球，E-342）
+// ---------------------------------------------------------------------------
+
+/** 對手隊徽（`opponentCrest`，各尺寸網址）。 */
+export interface MatchCrest {
+  url: string
+  url1280?: string | null
+  url640?: string | null
+  url320?: string | null
+  width?: number | null
+  height?: number | null
+}
+
+export interface MatchGoal {
+  minute: number | null
+  playerId: string | null
+  playerSlug: string | null
+  playerName: string | null
+  shirtNumber: number | null
+  /** `header`／`penalty`／`free_kick`／`own_goal`／`other`；`null`＝一般進球 */
+  goalType: string | null
+  /** `club`＝本隊進球；`opponent`＝對手進球（含我方球員烏龍） */
+  side: string | null
+}
+
+/** 列表端點的進球者（僅我方、排除烏龍）。 */
+export interface MatchScorer {
+  minute: number | null
+  playerName: string | null
+  goalType: string | null
+}
+
+export interface MatchCard {
+  minute: number | null
+  playerId: string | null
+  playerSlug: string | null
+  playerName: string | null
+  cardType: string | null
+}
+
+export interface MatchLineupEntry {
+  playerId: string | null
+  playerSlug: string | null
+  playerName: string | null
+  shirtNumber: number | null
+  position: string | null
+  isStarter: boolean
+  cameOn: boolean
+}
+
+/**
+ * 依主客場排出「主隊 : 客隊」的比分（左 : 右）。🔴 `scoreHome`／`scoreAway` 是**我方／對方**進球，
+ * 不是主隊／客隊：我方主場（`HOME`）我方在左；客場（`AWAY`）對手在左，比分要對調。沒有比分回傳 `null`。
+ */
+export function matchScoreDisplay(m: {
+  scoreHome?: number | null
+  scoreAway?: number | null
+  homeAway?: string | null
+} | null | undefined): { left: number; right: number; ours: number; theirs: number; ourSide: 'left' | 'right' } | null {
+  if (!m || m.scoreHome == null || m.scoreAway == null) return null
+  const ours = m.scoreHome
+  const theirs = m.scoreAway
+  return isAwayMatch(m.homeAway)
+    ? { left: theirs, right: ours, ours, theirs, ourSide: 'right' }
+    : { left: ours, right: theirs, ours, theirs, ourSide: 'left' }
+}
+
+/** 「主隊比 : 客隊比」純文字（例 `2 : 1`），沒有比分回傳 `null`。 */
+export function matchScoreText(m: Parameters<typeof matchScoreDisplay>[0]): string | null {
+  const s = matchScoreDisplay(m)
+  return s ? `${s.left} : ${s.right}` : null
+}
+
+/** 進球者摘要（列表 `scorers`）：同一球員合併、依首次進球時間排序；球員為 `null` 的進球不列名。 */
+export function groupScorers(scorers: readonly { minute: number | null; playerName: string | null; goalType: string | null }[] | null | undefined): { name: string; minutes: number[]; goalTypes: (string | null)[] }[] {
+  const byName = new Map<string, { name: string; minutes: number[]; goalTypes: (string | null)[]; first: number }>()
+  for (const g of scorers ?? []) {
+    if (!g.playerName) continue
+    const e = byName.get(g.playerName) ?? { name: g.playerName, minutes: [], goalTypes: [], first: g.minute ?? 999 }
+    if (g.minute != null) e.minutes.push(g.minute)
+    e.goalTypes.push(g.goalType)
+    e.first = Math.min(e.first, g.minute ?? 999)
+    byName.set(g.playerName, e)
+  }
+  return [...byName.values()].sort((a, b) => a.first - b.first).map(({ name, minutes, goalTypes }) => ({ name, minutes: minutes.sort((a, b) => a - b), goalTypes }))
+}
+
+/** 單場詳情 goals 的我方進球者摘要：只取 `side = club`（烏龍 side=opponent 不算）。 */
+export function ourScorers(goals: readonly MatchGoal[] | null | undefined) {
+  return groupScorers((goals ?? []).filter((g) => g.side === 'club'))
+}
+
+/** 出賽名單切成先發／替補；替補再分「有上場」與「未上場」。 */
+export function splitLineup<T extends { isStarter: boolean; cameOn: boolean }>(lineup: readonly T[] | null | undefined): { starters: T[]; subsUsed: T[]; subsUnused: T[] } {
+  const all = lineup ?? []
+  return {
+    starters: all.filter((p) => p.isStarter),
+    subsUsed: all.filter((p) => !p.isStarter && p.cameOn),
+    subsUnused: all.filter((p) => !p.isStarter && !p.cameOn),
+  }
+}
+
+/** 比賽「輪次」文字；`roundNo` 為 `null`／0 時回傳 `null`，呼叫端不渲染（不得印出「第 null 輪」）。 */
+export function roundLabel(roundNo: number | null | undefined, en: boolean): string | null {
+  if (roundNo == null || roundNo <= 0) return null
+  return en ? `Round ${roundNo}` : `第 ${roundNo} 輪`
+}
+
+/**
+ * 預設賽季＝當季：今天落在某季「最早～最晚賽事日期」之間的那一季；沒有就取「最晚賽事日期最大」的賽季
+ * （🔴 不是賽季代碼字典序最大——代碼 `2025` 與 `2026-27` 之類的混合寫法，字典序不等於時間序）。
+ * 沒有任何賽事回傳 `'all'`。`today` 為 `YYYY-MM-DD`。
+ */
+export function pickDefaultSeason(matches: readonly { seasonCode?: string | null; matchOn: string }[], today: string): string {
+  const ranges = new Map<string, { min: string; max: string }>()
+  for (const m of matches) {
+    if (!m.seasonCode) continue
+    const r = ranges.get(m.seasonCode)
+    if (!r) ranges.set(m.seasonCode, { min: m.matchOn, max: m.matchOn })
+    else {
+      if (m.matchOn < r.min) r.min = m.matchOn
+      if (m.matchOn > r.max) r.max = m.matchOn
+    }
+  }
+  if (ranges.size === 0) return 'all'
+  const entries = [...ranges.entries()]
+  const current = entries.filter(([, r]) => r.min <= today && today <= r.max).sort((a, b) => b[1].max.localeCompare(a[1].max))[0]
+  if (current) return current[0]
+  return entries.sort((a, b) => b[1].max.localeCompare(a[1].max))[0]![0]
+}
+
+/** 賽季清單排序：最新（最晚賽事日期）在前。 */
+export function sortSeasonsNewestFirst(matches: readonly { seasonCode?: string | null; matchOn: string }[]): string[] {
+  const max = new Map<string, string>()
+  for (const m of matches) {
+    if (!m.seasonCode) continue
+    if ((max.get(m.seasonCode) ?? '') < m.matchOn) max.set(m.seasonCode, m.matchOn)
+  }
+  return [...max.entries()].sort((a, b) => b[1].localeCompare(a[1])).map(([k]) => k)
+}
+
+/** `GET /{club}/schedule` 列表項目（前台用到的欄位）。🔴 `scoreHome`／`scoreAway` ＝ 我方／對方進球。 */
+export interface ListedMatch {
+  id: string
+  teamCode: string
+  seasonCode: string
+  matchOn: string
+  kickoff: string | null
+  homeAway: string | null
+  opponent: string | null
+  opponentTeamId?: string | null
+  opponentName?: string | null
+  opponentCrest?: MatchCrest | null
+  scorers?: MatchScorer[]
+  matchReport?: { slug: string, title: string } | null
+  venue: string | null
+  competitionTag: string | null
+  competitionName: string | null
+  status: string | null
+  scoreHome: number | null
+  scoreAway: number | null
+  roundNo: number | null
+  matchNo: number | null
+  isFallbackLocale?: boolean
 }

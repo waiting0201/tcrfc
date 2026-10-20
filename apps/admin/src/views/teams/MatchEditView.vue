@@ -31,13 +31,14 @@ import { useWritableTeamScope } from '@/composables/useWritableTeamScope'
 import { listAdminSeasons, listAdminCompetitions, type AdminSeasonListItemDto, type AdminCompetitionListItemDto } from '@/api/adminCompetitions'
 import { listAdminPlayers, type AdminPlayerListItemDto } from '@/api/adminPlayers'
 import { listAdminVenues, type AdminVenueListItemDto } from '@/api/adminVenues'
+import { listAdminOpponentTeams, type AdminOpponentTeamListItem } from '@/api/adminOpponentTeams'
+import { effectiveCameOn, shouldOfferMarkPlayed } from '@/utils/matchResult'
 import {
   createAdminMatch,
   getAdminMatch,
   updateAdminMatch,
   type AdminMatchGoalInput,
   type AdminMatchCardInput,
-  type AdminMatchLineupInput,
   type SaveMatchPayload,
 } from '@/api/adminMatches'
 import { AdminApiError } from '@/api/http'
@@ -72,7 +73,7 @@ const matchId = ref<string | undefined>(route.params.id as string | undefined)
 /** 畫面用的進球列：`legacyGoalType` 是舊資料裡對不上選項的自由文字（只用來提示，不送出）。 */
 type GoalRow = AdminMatchGoalInput & { legacyGoalType: string }
 type CardRow = AdminMatchCardInput
-type LineupRow = AdminMatchLineupInput
+type LineupRow = { playerId: string; isStarter: boolean; cameOn: boolean }
 
 const form = reactive({
   seasonId: '',
@@ -81,6 +82,7 @@ const form = reactive({
   matchOn: '',
   kickoff: '',
   homeAway: '' as string | '',
+  opponentTeamId: null as string | null,
   opponent: '',
   opponentEn: '',
   venueId: null as string | null,
@@ -109,6 +111,19 @@ const matchPlayers = ref<AdminPlayerListItemDto[]>([])
 // 全站場地清單（S1-12d 後續補完新增的唯讀端點），供「選擇既有場地」下拉選單使用；與俱樂部
 // 無關，載入失敗不影響其餘欄位（比照既有 loadPlayersForTeams 的靜默降級寫法）。
 const venues = ref<AdminVenueListItemDto[]>([])
+// 對手球隊庫（各俱樂部自己的）；載入失敗（例如沒有檢視權限）時降級為只能手動輸入隊名。
+const opponentTeams = ref<AdminOpponentTeamListItem[]>([])
+const newOpponentTeamHref = router.resolve('/teams/opponent-teams/new').href
+const pickedOpponentTeam = computed(() => opponentTeams.value.find((t) => t.id === form.opponentTeamId) ?? null)
+const displayOpponent = computed(() => pickedOpponentTeam.value?.name || form.opponent)
+
+async function loadOpponentTeams() {
+  try {
+    opponentTeams.value = await listAdminOpponentTeams(activeClubId.value)
+  } catch {
+    opponentTeams.value = []
+  }
+}
 
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
@@ -173,6 +188,7 @@ async function loadMatch() {
     } catch {
       venues.value = []
     }
+    await loadOpponentTeams()
 
     if (!isCreate.value && matchId.value) {
       const detail = await getAdminMatch(activeClubId.value, matchId.value)
@@ -182,6 +198,7 @@ async function loadMatch() {
       form.matchOn = detail.matchOn
       form.kickoff = detail.kickoff ?? ''
       form.homeAway = detail.homeAway ?? ''
+      form.opponentTeamId = detail.opponentTeamId ?? null
       form.opponent = detail.opponent ?? ''
       form.opponentEn = detail.opponentEn ?? ''
       form.venueId = detail.venueId ?? null
@@ -200,7 +217,7 @@ async function loadMatch() {
         return { playerId: g.playerId, minute: g.minute ?? null, goalType: parsed.value, legacyGoalType: parsed.legacyText }
       })
       form.cards = detail.cards.map((c) => ({ playerId: c.playerId, cardType: c.cardType, minute: c.minute ?? null }))
-      form.lineups = detail.lineups.map((l) => ({ playerId: l.playerId, isStarter: l.isStarter }))
+      form.lineups = detail.lineups.map((l) => ({ playerId: l.playerId, isStarter: l.isStarter, cameOn: l.cameOn }))
       await Promise.all([loadCompetitionsForSeason(form.seasonId), loadPlayersForTeams(form.teamIds)])
     }
     baselineJson.value = JSON.stringify(form)
@@ -247,7 +264,7 @@ watch(
 const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== baselineJson.value)
 useUnsavedChanges(isDirty)
 
-const pageTitle = computed(() => (isCreate.value ? '新增賽事' : `編輯賽事：${form.matchOn}｜${form.opponent || '（未命名對手）'}`))
+const pageTitle = computed(() => (isCreate.value ? '新增賽事' : `編輯賽事：${form.matchOn}｜${displayOpponent.value || '（未命名對手）'}`))
 const isPostponed = computed(() => form.status === 'postponed')
 
 // 🔴 既有的參賽球隊清單裡只要有一支不在這個帳號的可寫清單內（例如學院管理者打開一線隊也
@@ -267,7 +284,7 @@ function validate(): Record<string, string> {
   if (!form.seasonId) errors.seasonId = '請選擇賽季'
   if (form.teamIds.length === 0) errors.teamIds = '請至少選擇一支所屬球隊'
   if (!form.matchOn) errors.matchOn = '請選擇日期'
-  if (!form.opponent.trim()) errors.opponent = '請輸入對手'
+  if (!form.opponentTeamId && !form.opponent.trim()) errors.opponent = '請選擇對手球隊，或直接輸入對手隊名'
   if (isPostponed.value && !form.originalMatchOn) {
     errors.originalMatchOn = '狀態為「延賽」時必須填寫原定日期'
   }
@@ -280,6 +297,9 @@ function validate(): Record<string, string> {
   return errors
 }
 
+/** 有進球或吃牌的球員：替補出現在這裡就一定算有上場（後端同規則）。 */
+const eventPlayerIds = computed(() => new Set([...form.goals, ...form.cards].map((x) => x.playerId).filter(Boolean)))
+
 function buildPayload(): SaveMatchPayload {
   return {
     seasonId: form.seasonId,
@@ -288,8 +308,10 @@ function buildPayload(): SaveMatchPayload {
     matchOn: form.matchOn,
     kickoff: form.kickoff || null,
     homeAway: form.homeAway || null,
-    opponent: form.opponent.trim(),
-    opponentEn: form.opponentEn || null,
+    // 選了對手球隊就以球隊庫的隊名為準，不送自由文字
+    opponentTeamId: form.opponentTeamId || null,
+    opponent: form.opponentTeamId ? null : form.opponent.trim(),
+    opponentEn: form.opponentTeamId ? null : form.opponentEn || null,
     venueId: form.venueId || null,
     venue: form.venue || null,
     venueEn: form.venueEn || null,
@@ -303,7 +325,7 @@ function buildPayload(): SaveMatchPayload {
     originalKickoff: isPostponed.value ? form.originalKickoff || null : null,
     goals: form.goals.map((g) => ({ playerId: g.playerId, minute: g.minute, goalType: g.goalType || null })),
     cards: form.cards.map((c) => ({ playerId: c.playerId, cardType: c.cardType, minute: c.minute })),
-    lineups: form.lineups.map((l) => ({ playerId: l.playerId, isStarter: l.isStarter })),
+    lineups: form.lineups.map((l) => ({ playerId: l.playerId, isStarter: l.isStarter, cameOn: effectiveCameOn(l, eventPlayerIds.value) })),
   }
 }
 
@@ -313,6 +335,22 @@ async function handleSave() {
   if (formErrors.replaceAll(validate())) {
     await formErrors.focusFirst()
     return
+  }
+  // 已填比分卻還是「未開始」：前台賽果只顯示已結束的比賽，詢問是否一併改狀態
+  if (shouldOfferMarkPlayed(form)) {
+    try {
+      await ElMessageBox.confirm('已填比分，要把狀態改為「已結束」嗎？前台賽果只顯示已結束的比賽。', '更新比賽狀態', {
+        confirmButtonText: '改為已結束',
+        cancelButtonText: '維持原狀態',
+        type: 'info',
+        showClose: false,
+        closeOnClickModal: false,
+        closeOnPressEscape: false,
+      })
+      form.status = 'played'
+    } catch {
+      // 維持原狀態，照原樣儲存
+    }
   }
   saving.value = true
   try {
@@ -361,7 +399,7 @@ function addCard() {
   formErrors.clear('cards')
 }
 function addLineup() {
-  form.lineups.push({ playerId: '', isStarter: true })
+  form.lineups.push({ playerId: '', isStarter: true, cameOn: false })
   formErrors.clear('lineups')
 }
 </script>
@@ -414,14 +452,43 @@ function addLineup() {
             <template #main>
               <el-card shadow="never">
                 <FormSection>
+                  <FormField field="opponentTeamId" label="對手球隊">
+                    <el-select
+                      v-model="form.opponentTeamId"
+                      filterable
+                      clearable
+                      placeholder="從對手球隊清單挑選（清單沒有的可略過，直接輸入隊名）"
+                      no-data-text="還沒有對手球隊"
+                      style="width: 100%"
+                      @change="formErrors.clear('opponent')"
+                    >
+                      <el-option v-for="t in opponentTeams" :key="t.id" :label="t.nameEn ? `${t.name}（${t.nameEn}）` : t.name" :value="t.id">
+                        <span class="match-edit__team-option">
+                          <img v-if="t.crestThumbUrl || t.crestUrl" :src="t.crestThumbUrl || t.crestUrl || ''" alt="" class="match-edit__crest">
+                          <span v-else class="match-edit__crest match-edit__crest--empty" />
+                          <span>{{ t.name }}</span>
+                          <span v-if="t.nameEn" class="match-edit__team-en">{{ t.nameEn }}</span>
+                        </span>
+                      </el-option>
+                    </el-select>
+                    <p class="match-edit__hint match-edit__hint--below">
+                      找不到對手？
+                      <a :href="newOpponentTeamHref" target="_blank" rel="noopener noreferrer">新增對手球隊（另開分頁）</a>
+                      ，建好後
+                      <el-button link type="primary" size="small" @click="loadOpponentTeams">重新載入清單</el-button>
+                    </p>
+                  </FormField>
+                  <p v-if="pickedOpponentTeam" class="match-edit__picked">
+                    對手隊名以對手球隊清單為準：{{ pickedOpponentTeam.name }}<template v-if="pickedOpponentTeam.nameEn">（{{ pickedOpponentTeam.nameEn }}）</template>。要改隊名或隊徽，請到「對手球隊」修改。
+                  </p>
                   <BilingualShortField
+                    v-else
                     field="opponent"
                     field-zh="opponent"
                     field-en="opponentEn"
-                    label="對手"
+                    label="對手隊名（沒有選對手球隊時填寫）"
                     :zh="form.opponent"
                     :en="form.opponentEn"
-                    required
                     @update:zh="(v) => (form.opponent = v)"
                     @update:en="(v) => (form.opponentEn = v)"
                   />
@@ -501,6 +568,7 @@ function addLineup() {
                   <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addCard">+ 新增卡牌紀錄</el-button>
                 </FormSection>
                 <FormSection title="出賽名單">
+                  <p class="match-edit__hint">先發球員一律算出賽；替補要勾選「有上場」才算出賽，替補有進球或吃牌會自動算有上場。</p>
                   <FormField v-if="form.lineups.length > 0" field="lineups">
                     <el-table v-if="form.lineups.length > 0" :data="form.lineups" class="match-edit__table">
                       <el-table-column label="球員" min-width="200">
@@ -512,10 +580,23 @@ function addLineup() {
                       </el-table-column>
                       <el-table-column label="先發／替補" width="160">
                         <template #default="{ row }">
-                          <el-radio-group v-model="row.isStarter">
+                          <el-radio-group v-model="row.isStarter" @change="row.cameOn = false">
                             <el-radio :value="true">先發</el-radio>
                             <el-radio :value="false">替補</el-radio>
                           </el-radio-group>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="有上場" width="110">
+                        <template #default="{ row }">
+                          <el-checkbox
+                            v-if="!row.isStarter"
+                            :model-value="row.cameOn || eventPlayerIds.has(row.playerId)"
+                            :disabled="eventPlayerIds.has(row.playerId)"
+                            @update:model-value="(v: boolean | string | number) => (row.cameOn = v === true)"
+                          >
+                            有上場
+                          </el-checkbox>
+                          <span v-else class="match-edit__muted">—</span>
                         </template>
                       </el-table-column>
                       <el-table-column v-if="!isReadOnly" label="操作" width="80">
@@ -671,6 +752,43 @@ function addLineup() {
 .match-edit__hint {
   margin: 0 0 8px;
   font-size: 12px;
+  color: var(--admin-text-tertiary);
+}
+
+.match-edit__hint--below {
+  margin: 6px 0 0;
+}
+
+.match-edit__picked {
+  margin: 0 0 16px;
+  font-size: 13px;
+  color: var(--admin-text-secondary);
+  line-height: 1.6;
+}
+
+.match-edit__team-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.match-edit__crest {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  flex: none;
+}
+
+.match-edit__crest--empty {
+  display: inline-block;
+}
+
+.match-edit__team-en {
+  font-size: 12px;
+  color: var(--admin-text-tertiary);
+}
+
+.match-edit__muted {
   color: var(--admin-text-tertiary);
 }
 

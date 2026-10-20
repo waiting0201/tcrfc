@@ -10709,3 +10709,12 @@ Multipart：`payload`（JSON）、`file`（封面）、`ogImage`、內文圖片 
 - **`GET /api/v1/app/config` 與 Cloudflare 靜態設定（同一份 `AppConfigDocument`）新增頂層 `mediaBaseUrl: string | null`**：圖片公開網址的基底（無結尾斜線）。新聞內文 `bodyJson` 的 image／gallery 只帶物件鍵、API 不組網址，**網址 = `mediaBaseUrl + "/" + key`**；與 API 自己組的 `*Url` 欄位同一個規則（有設 `AZURE_BLOB_PUBLIC_BASE_URL` 時為 `{CDN}/{容器}`，沒設時為容器網址，本機 Azurite 為 `http://127.0.0.1:10000/devstoreaccount1/images`）。未設定圖片儲存（沒有連線字串）時為 `null`——客戶端此時不應嘗試組網址。實作：`IImagePublicUrlResolver.ResolveBase()`（預設實作由 `Resolve` 反推，不存在第二套組網址規則）→ `AppConfigComposer`。CDN 網域搬家時 App 不必改版。已跑 `shared/scripts/gen-all.sh`（`openapi.json`／Swift／Kotlin DTO 皆含 `mediaBaseUrl`）；`mobile/` 客戶端需在設定模型加欄位並以它組內文圖片網址（`shared/news-body-blocks.json` 的說明已指向此欄位）。
 - **測試**：`AppMediaBaseUrlTests`（新增，純邏輯 5 項：有／無 CDN 基底、基底＋`/`＋鍵＝`Resolve(鍵)`、無儲存為 null）；`AppPublicTests` 設定端點加 `mediaBaseUrl` 無結尾斜線斷言。
 - **慈善理念頁種子**（`charity/commitment`）：`db/seed/page_seed_content.extract.ts` 原本內嵌舊文案（「Community 社區共好」「五大核心價值」＋舊四領域），改為匯入新檔 `apps/web/shared/utils/charity-commitment.ts`（客戶 11.1 原文，與 `20261016_intake-docs-import.sql` 匯入正式庫的區塊逐字相同；區塊結構仍是 text,text,steps），重跑 extract 寫回 `page_seed_content.json`，`npm run lint:page-seed-sync` 通過。前台 `commitment.vue` 的備援文案不在後端範圍，應改讀該檔。
+
+---
+
+## 對手球隊庫與替補上場旗標（主站規劃書 v3.31，2026-10-20）
+
+- **Migration**：`OpponentTeamsAndCameOn`（`db/migrations/20261020_opponent-teams_1-expand.sql` 同源、冪等；🔴 先 migrate 再 deploy）。新表 `opponent_teams`／`opponent_teams_i18n`；`matches.opponent_team_id`、`standings.opponent_team_id`（可為空外鍵，不連帶刪除）；`match_lineups.came_on bit NOT NULL DEFAULT 0`（既有「替補但有進球／牌」的列回填為 1）。
+- **後台** `/api/v1/admin/{club}/opponent-teams`（`Features/AdminOpponentTeams`）：權限同賽程（`team.match.*`），俱樂部範圍；新增／修改 `multipart/form-data`（`payload` ＋ 選填檔案 `crest`）；被賽事或積分榜引用時刪除回 409 `opponent_team_in_use`，同俱樂部同名回 409 `opponent_team_name_duplicate`。賽事／積分榜帶 `opponentTeamId` 時，儲存會把庫內隊名寫進 `matches.opponent`／`standings_i18n` 作後備文字；球隊改名會同步這些後備文字。
+- **came_on**：先發恆存 false；替補在該場有進球（含烏龍球）或牌者儲存時強制 true（`AdminMatchesRepository.ReconcileCameOn`，進球／牌／名單任一更新都會對帳）。出賽＝先發或 came_on（`StandingsRepository.AutoTotalsAsync`；後台球員賽季數據的「自動」欄共用同一份）。
+- **公開賽程**：`GET /api/v1/{club}/schedule?order=asc|desc&status=a,b,c`；`GET /api/v1/{club}/schedule/{id}` 回 `MatchDetailDto`（列表欄位＋`goals`／`cards`／`lineup`，只含現役球員）。詳情含 `matchReport`（文章關聯 `article_relations.target_type=match`、分類 `match` 的最新已發布文章）。

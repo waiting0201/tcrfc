@@ -104,6 +104,8 @@
 // shared/utils/ 不像 app/utils/ 會被自動引入）。
 import { venueAddressByName } from '#shared/utils/schema-batch2'
 import { resolveScheduleSlug } from '#shared/utils/schedule-route'
+import { playerPath } from '#shared/utils/player'
+import type { MatchCard, MatchCrest, MatchGoal, MatchLineupEntry, MatchScorer } from '~/utils/schedule'
 
 definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule', enReady: true, enReadyBw: true })
 
@@ -132,7 +134,15 @@ const { facts: clubFacts, academyLabel: clubAcademyLabel } = useSiteFacts(club)
 // 前台只要把正確的語系傳過去即可，不需要在這裡自己做回退判斷。
 // 英文版（主站 /en/）：isEn／tx 見 app/composables/useLocale.ts；zh 版輸出逐字不變。
 const { locale, lp, isEn, tx } = useLocale()
-const { data } = await useFetch(`/api/backend/${club}/schedule`, { query: { pageSize: 200, lang: locale.value } })
+// 賽果與賽程分開查（賽果新→舊、賽程近→遠），各自逐頁取回——過去一次 `pageSize=200` 會被後端截成 100 筆「最舊」的，
+// 新賽季的賽果整批消失。被截斷時保留的是最接近現在的那一端（見 app/utils/schedule-fetch.ts）。
+const { data } = await useAsyncData(`schedule-all-${club}-${locale.value}`, async () => {
+  const [results, fixtures] = await Promise.all([
+    fetchMatchPages<MatchItem>(club, { status: PLAYED_QUERY_STATUS, order: 'desc', lang: locale.value }),
+    fetchMatchPages<MatchItem>(club, { status: UPCOMING_QUERY_STATUSES, order: 'asc', lang: locale.value }),
+  ])
+  return { items: [...results.items, ...fixtures.items] }
+})
 const matches = computed(() => data.value?.items ?? [])
 
 // 俱樂部活動（規劃書 v3.13 §3.13「資料來源」第二列：📣 俱樂部活動 Club Event，行事曆
@@ -155,6 +165,17 @@ interface MatchItem {
   kickoff: string | null
   homeAway: string | null
   opponent: string | null
+  /** 對手球隊庫 id；沒有挑球隊庫為 null（此時只有文字對手名）。 */
+  opponentTeamId?: string | null
+  /** 對手名稱（請求語系，球隊庫隊名優先）；舊用戶端欄位 `opponent` 與它相同。 */
+  opponentName?: string | null
+  opponentCrest?: MatchCrest | null
+  /** 🔴 我方進球／對方進球（不是主隊／客隊），顯示順序一律用 `matchScoreDisplay()`。 */
+  scoreHome?: number | null
+  scoreAway?: number | null
+  /** 我方進球者（列表欄位：僅我方、排除烏龍、僅已結束；非現役球員 playerName 為 null） */
+  scorers?: MatchScorer[]
+  matchReport?: { slug: string, title: string } | null
   venue: string | null
   competitionTag: string | null
   competitionName: string | null
@@ -171,6 +192,14 @@ interface MatchItem {
   /** `MatchDto.SeasonCode`——API 一直都有回這個欄位，前台介面原本沒有宣告、也從未使用
    * （S1-19 補完：賽季篩選改讀這個既有欄位，見 `availableSeasons`）。 */
   seasonCode: string
+}
+
+/** 單場詳情（`GET /{club}/schedule/{id}`）＝列表欄位 ＋ 進球、牌、出賽名單；`matchReport` 為賽後報導（有關聯才有）。 */
+interface MatchDetail extends MatchItem {
+  goals?: MatchGoal[]
+  cards?: MatchCard[]
+  lineup?: MatchLineupEntry[]
+  matchReport?: { slug: string, title: string } | null
 }
 
 /** 俱樂部活動卡片（`PublicCalendarEventDto` 的 `sourceType === 'custom'` 子集）。
@@ -278,9 +307,14 @@ const feedHttpsUrl = computed(() => `${feedSiteUrl.value}${feedPath.value}`)
 const feedWebcalUrl = computed(() => (feedSiteUrl.value ? feedHttpsUrl.value.replace(/^https?:\/\//, 'webcal://') : null))
 const feedScopeLabel = computed(() => (state.team === 'all' || state.team === 'club' ? tx('全站', 'whole site') : teamHeadLabel(state.team)))
 
+/** 賽果模式：月份與場次由新到舊；賽程模式由近到遠。 */
 const monthGroups = computed(() => {
+  const desc = state.mode === 'results'
+  const sign = desc ? -1 : 1
+  const sorted = (matches.value as MatchItem[]).slice().sort((a, b) =>
+    sign * (a.matchOn === b.matchOn ? (a.kickoff ?? '').localeCompare(b.kickoff ?? '') : a.matchOn.localeCompare(b.matchOn)))
   const map = new Map<string, MatchItem[]>()
-  for (const m of matches.value as MatchItem[]) {
+  for (const m of sorted) {
     const key = m.matchOn.slice(0, 7)
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(m)
@@ -345,11 +379,11 @@ function teamHeadLabel(filter: string): string {
 }
 
 /** 賽季篩選（規劃書 v3.13 §3.13「分頁與篩選」：賽季，預設當季，可回溯往季）。
- * 從既有 `matches` 回應的 `seasonCode` 動態算出，不需要新增後端端點——藍鯨兩個球季
- * 代碼是「2023」「2025」（`db/seed` 既有事實），字典序排序恰好等於時間序，磐石目前只有
- * 一季「2026-27」，字典序排序同樣成立。取不到任何賽季代碼時退回 `'all'`（全部）。 */
-const availableSeasons = computed(() => Array.from(new Set(matches.value.map((m) => m.seasonCode).filter(Boolean))).sort())
-const defaultSeason = computed(() => availableSeasons.value.at(-1) ?? 'all')
+ * 從既有 `matches` 回應的 `seasonCode` 動態算出，不需要新增後端端點。🔴 排序與預設都看賽事日期，
+ * 不看賽季代碼字典序（`pickDefaultSeason()`／`sortSeasonsNewestFirst()`，app/utils/schedule.ts）：
+ * 預設＝今天所在的賽季，沒有就取賽事日期最晚的賽季。取不到任何賽季時退回 `'all'`。 */
+const availableSeasons = computed(() => sortSeasonsNewestFirst(matches.value))
+const defaultSeason = computed(() => pickDefaultSeason(matches.value, taipeiTodayKey()))
 
 // 行事曆設定的預設檢視（list／month）、範圍（upcoming／this_month／next_30_days／season）與隊別；
 // 不在可選清單裡的值（例如設定指到已不公開的隊別）一律回退舊預設。
@@ -377,15 +411,23 @@ const routeSlug = computed(() => {
   const raw = scheduleRoute.params.slug
   return typeof raw === 'string' ? raw : ''
 })
+// 賽事 id 的深連結改打單場詳情端點（不再從列表裡找：列表只含部分賽事，找不到會被當成 unknown）。
 const scheduleTarget = computed(() => resolveScheduleSlug(
   routeSlug.value,
   teamTabs.value.map((t) => ({ id: t.id, filter: t.filter })),
-  matches.value,
+  [],
 ))
-const deepLinkedMatch = computed(() => {
-  const t = scheduleTarget.value
-  return t.kind === 'match' ? (matches.value.find((m) => m.id === t.matchId) ?? null) : null
+const deepLinkId = scheduleTarget.value.kind === 'match' ? scheduleTarget.value.matchId : null
+const { data: deepLinkDetail } = await useAsyncData<MatchDetail | null>(`schedule-deeplink-${club}-${locale.value}-${deepLinkId ?? 'none'}`, async () => {
+  if (!deepLinkId) return null
+  try {
+    return await $fetch<MatchDetail>(`/api/backend/${club}/schedule/${deepLinkId}`, { query: { lang: locale.value } })
+  }
+  catch {
+    return null
+  }
 })
+const deepLinkedMatch = computed(() => deepLinkDetail.value ?? null)
 if (scheduleTarget.value.kind === 'team') {
   state.team = scheduleTarget.value.filter
 }
@@ -395,7 +437,8 @@ else if (deepLinkedMatch.value) {
   if (m.seasonCode) state.season = m.seasonCode
   state.mode = mapMatchStatus(m.status).code === 'finished' ? 'results' : 'fixtures'
 }
-else if (scheduleTarget.value.kind === 'unknown') {
+else if (scheduleTarget.value.kind === 'unknown' || scheduleTarget.value.kind === 'match') {
+  // 認不得的參數、或賽事不存在（404）：302 回 /schedule/，不顯示錯誤頁
   await navigateTo(lp('/zh/schedule/'), { redirectCode: 302, replace: true })
 }
 const mounted = ref(false)
@@ -421,12 +464,49 @@ const filtersOpen = ref(false)
  * `<dialog>`（內建 focus trap、Escape 關閉、`::backdrop`）。 */
 const detailDialog = ref<HTMLDialogElement | null>(null)
 const detailMatch = ref<MatchItem | null>(null)
-function openDetail(m: MatchItem) {
+/** 單場詳情（進球、牌、名單、賽後報導）快取：賽事詳情彈窗與賽果卡片的進球者摘要共用。 */
+const detailCache = reactive<Record<string, MatchDetail>>({})
+const detailLoading = ref(false)
+const detailFailed = ref(false)
+let detailToken = 0
+async function loadDetail(id: string): Promise<MatchDetail | null> {
+  if (detailCache[id]) return detailCache[id]
+  try {
+    const d = await $fetch<MatchDetail>(`/api/backend/${club}/schedule/${id}`, { query: { lang: locale.value } })
+    detailCache[id] = d
+    return d
+  }
+  catch {
+    return null
+  }
+}
+const lineupSplit = computed(() => splitLineup(detailData.value?.lineup))
+const detailData = computed<MatchDetail | null>(() => (detailMatch.value ? (detailCache[detailMatch.value.id] ?? null) : null))
+function openDetail(m: MatchItem, prefetched?: MatchDetail | null) {
   detailMatch.value = m
+  detailFailed.value = false
+  if (prefetched) detailCache[m.id] = prefetched
+  const token = ++detailToken
+  if (detailCache[m.id]) {
+    detailLoading.value = false
+  }
+  else {
+    detailLoading.value = true
+    void loadDetail(m.id).then((d) => {
+      if (token !== detailToken) return
+      detailLoading.value = false
+      detailFailed.value = !d
+    })
+  }
   nextTick(() => detailDialog.value?.showModal())
 }
 function closeDetail() {
   detailDialog.value?.close()
+}
+function onDetailClosed() {
+  detailToken++
+  detailLoading.value = false
+  detailMatch.value = null
 }
 /** 點擊 `<dialog>` 自身（即點擊 `::backdrop` 覆蓋的區域，不是內容區）視同關閉——`<dialog>`
  * 原生只有 Escape 會關閉，點擊背景不會，這裡補上這個慣例互動。 */
@@ -489,7 +569,7 @@ onMounted(() => {
   if (deepLinkedMatch.value) {
     const m = deepLinkedMatch.value
     forcedVisibleIds.value = new Set([fixtureId(m.matchOn, m.homeAway, m.matchNo)])
-    openDetail(m)
+    openDetail(m, m)
   }
 })
 onBeforeUnmount(() => {
@@ -503,6 +583,47 @@ function postponedLine(originalMatchOn: string | null, originalKickoff: string |
 
 function cardStatusCode(m: MatchItem): string {
   return mapMatchStatus(m.status).code
+}
+/** 對手顯示名稱：球隊庫隊名（已依語系解析）優先，退回賽事上的對手文字。 */
+function oppName(m: Pick<MatchItem, 'opponent' | 'opponentName'>): string {
+  return m.opponentName || m.opponent || ''
+}
+/** 已結束（或進行中）且有比分才顯示比分；沒有比分整段不渲染（hasScore 把關，0 : 0 是真的 0 分）。 */
+function scoreOf(m: MatchItem) {
+  const code = cardStatusCode(m)
+  return code === 'finished' || code === 'live' ? matchScoreDisplay(m) : null
+}
+const POSITION_ZH: Record<string, string> = { GK: '守門員', DF: '後衛', MF: '中場', FW: '前鋒' }
+function positionLabel(p: string | null): string {
+  if (!p) return ''
+  return isEn.value ? clubPositionLabelEn(p) : (POSITION_ZH[p.toUpperCase()] ?? p)
+}
+function goalTypeLabel(g: MatchGoal): string {
+  switch (g.goalType) {
+    case 'own_goal': return tx('烏龍球', 'Own goal')
+    case 'penalty': return tx('點球', 'Penalty')
+    case 'header': return tx('頭球', 'Header')
+    case 'free_kick': return tx('自由球', 'Free kick')
+    default: return ''
+  }
+}
+function minuteLabel(minute: number | null): string {
+  return minute == null ? '—' : `${minute}'`
+}
+/** 球員頁只有一線隊有：梯隊球員、非現役（slug 為 null）一律純文字。 */
+function playerHref(m: MatchItem | null, slug: string | null): string | null {
+  return m && slug && m.teamCode === firstTeamCode.value ? lp(playerPath(slug)) : null
+}
+function scorerLine(s: { name: string, minutes: number[], goalTypes: (string | null)[] }): string {
+  const mins = s.minutes.map((x) => `${x}'`).join(isEn.value ? ', ' : '、')
+  const pens = s.goalTypes.filter((t) => t === 'penalty').length
+  const pen = pens > 0 ? (isEn.value ? ` (${pens > 1 ? `${pens} pens` : 'pen'})` : `（點球${pens > 1 ? ` ${pens}` : ''}）`) : ''
+  return mins ? `${s.name} ${mins}${pen}` : `${s.name}${pen}`
+}
+
+/** 賽果卡片的進球者摘要與賽後報導：直接用列表欄位 `scorers`／`matchReport`（僅我方進球、排除烏龍、僅已結束賽事）。 */
+function cardScorers(m: MatchItem) {
+  return groupScorers(m.scorers)
 }
 /** 賽事卡片左側時間欄的顯示值（規劃書 v3.13 §3.13「時區處理」），見
  * `app/utils/schedule.ts` 的 `matchTimeDisplay()` 檔頭說明：`viewerTimeZone` 為 `null`
@@ -729,7 +850,7 @@ function renderCalendar() {
     const key = m.matchOn.slice(0, 7)
     const day = Number.parseInt(m.matchOn.slice(8, 10), 10)
     if (!byMonth.has(key)) byMonth.set(key, [])
-    byMonth.get(key)!.push({ day, id: fixtureId(m.matchOn, m.homeAway, m.matchNo), opponent: m.opponent ?? '' })
+    byMonth.get(key)!.push({ day, id: fixtureId(m.matchOn, m.homeAway, m.matchNo), opponent: oppName(m) })
   }
   // A-9：自建活動也畫上月曆（台灣日期；重複活動每個發生日各自落在對應的格子，錨點用 occurrenceId）。
   for (const e of events) {
@@ -892,7 +1013,7 @@ const uidHost = computed(() => {
 function eventToVeventLines(m: MatchItem): string[] {
   const date = m.matchOn
   const kickoff = m.kickoff ?? '00:00'
-  const opponent = m.opponent ?? ''
+  const opponent = oppName(m)
   const venue = m.venue ?? ''
   const ha = haCode(m.homeAway) === 'home' ? tx('主場', 'Home') : tx('客場', 'Away')
   const start = toUtcIcs(date, kickoff)
@@ -935,7 +1056,7 @@ function downloadIcs(filename: string, veventBlocks: string[][]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 function onIcsClick(m: MatchItem) {
-  downloadIcs(`${club}-${m.matchOn}-vs-${m.opponent}.ics`, [eventToVeventLines(m)])
+  downloadIcs(`${club}-${m.matchOn}-vs-${oppName(m)}.ics`, [eventToVeventLines(m)])
 }
 
 const copiedId = ref<string | null>(null)
@@ -1003,9 +1124,9 @@ const sportsEvents = computed(() => {
     // GEO-05（S1-12c）：改讀後端算好的 schemaEligible，不再自己重新判斷一次「這六個欄位
     // 夠不夠」——必填欄位清單只在 apps/api 的 SchemaRequiredFields 宣告一次（E-39）。
     if (!m.schemaEligible) continue
-    const isHome = m.homeAway === 'HOME'
+    const isHome = haCode(m.homeAway) === 'home'
     const selfTeam = { '@type': 'SportsTeam', name: selfTeamName.value }
-    const oppTeam = { '@type': 'SportsTeam', name: m.opponent }
+    const oppTeam = { '@type': 'SportsTeam', name: oppName(m) }
     const homeTeam = isHome ? selfTeam : oppTeam
     const awayTeam = isHome ? oppTeam : selfTeam
     const roundLabel = m.roundNo ? (isEn.value ? `Round ${m.roundNo}: ` : `第${m.roundNo}輪：`) : ''
@@ -1193,7 +1314,7 @@ useClubEventSchema(clubEvents, {
                 :id="fixtureId(m.matchOn, m.homeAway, m.matchNo)" class="fixture-card"
                 :data-team="m.teamCode" :data-ha="haCode(m.homeAway)" :data-comp="m.competitionTag"
                 :data-status="mapMatchStatus(m.status).code" :data-date="m.matchOn" :data-kickoff="m.kickoff"
-                :data-opponent="m.opponent" :data-venue="m.venue" :data-round="m.roundNo"
+                :data-opponent="oppName(m)" :data-venue="m.venue" :data-round="m.roundNo"
                 :hidden="isCardHidden(m)"
               >
                 <div class="fixture-card__time">
@@ -1205,17 +1326,19 @@ useClubEventSchema(clubEvents, {
                 <div class="fixture-card__body">
                   <div class="fixture-card__meta">
                     <span :class="['tag', `tag--${m.competitionTag}`]">{{ isEn ? compTagLabelEn(m.competitionTag) : compTagLabel(m.competitionTag) }}</span>
-                    <span class="fixture-card__round">{{ isEn ? `Round ${m.roundNo}` : `第 ${m.roundNo} 輪` }}</span>
+                    <span v-if="roundLabel(m.roundNo, isEn)" class="fixture-card__round">{{ roundLabel(m.roundNo, isEn) }}</span>
                     <span :class="['status-pill', `status-pill--${mapMatchStatus(m.status).code}`]">{{ isEn ? mapMatchStatusEn(m.status).label : mapMatchStatus(m.status).label }}</span>
                   </div>
                   <p v-if="postponedLine(m.originalMatchOn, m.originalKickoff)" class="fixture-card__postponed">{{ postponedLine(m.originalMatchOn, m.originalKickoff) }}</p>
                   <div class="fixture-card__matchup">
-                    <template v-if="haCode(m.homeAway) === 'away'">
+                    <template v-if="isAwayMatch(m.homeAway)">
                       <span class="fx-side fx-side--them">
-                        <span class="fx-crest fx-crest--ph" aria-hidden="true">{{ (m.opponent ?? '').charAt(0) }}</span>
-                        <span class="fx-name">{{ m.opponent }}</span>
+                        <img v-if="crestSrc(m.opponentCrest)" class="fx-crest" :src="crestSrc(m.opponentCrest)!" width="26" height="28" :alt="oppName(m)" loading="lazy">
+                        <span v-else class="fx-crest fx-crest--ph" aria-hidden="true">{{ oppName(m).charAt(0) }}</span>
+                        <span class="fx-name">{{ oppName(m) }}</span>
                       </span>
-                      <span class="fx-vs">VS</span>
+                      <span v-if="scoreOf(m)" class="fx-score" :aria-label="tx('比分', 'Score')">{{ scoreOf(m)!.left }}<span class="fx-score__sep">:</span>{{ scoreOf(m)!.right }}</span>
+                      <span v-else class="fx-vs">VS</span>
                       <span class="fx-side fx-side--us">
                         <img class="fx-crest" :src="clubAssets.headerMark.src" width="26" height="28" alt="">
                         <span class="fx-name">{{ selfShortName }}</span>
@@ -1226,13 +1349,21 @@ useClubEventSchema(clubEvents, {
                         <img class="fx-crest" :src="clubAssets.headerMark.src" width="26" height="28" alt="">
                         <span class="fx-name">{{ selfShortName }}</span>
                       </span>
-                      <span class="fx-vs">VS</span>
+                      <span v-if="scoreOf(m)" class="fx-score" :aria-label="tx('比分', 'Score')">{{ scoreOf(m)!.left }}<span class="fx-score__sep">:</span>{{ scoreOf(m)!.right }}</span>
+                      <span v-else class="fx-vs">VS</span>
                       <span class="fx-side fx-side--them">
-                        <span class="fx-crest fx-crest--ph" aria-hidden="true">{{ (m.opponent ?? '').charAt(0) }}</span>
-                        <span class="fx-name">{{ m.opponent }}</span>
+                        <img v-if="crestSrc(m.opponentCrest)" class="fx-crest" :src="crestSrc(m.opponentCrest)!" width="26" height="28" :alt="oppName(m)" loading="lazy">
+                        <span v-else class="fx-crest fx-crest--ph" aria-hidden="true">{{ oppName(m).charAt(0) }}</span>
+                        <span class="fx-name">{{ oppName(m) }}</span>
                       </span>
                     </template>
                   </div>
+                  <p v-if="cardScorers(m).length > 0" class="fixture-card__scorers">
+                    <span class="fixture-card__scorers-label">{{ tx('進球', 'Goals') }}</span>{{ cardScorers(m).map(scorerLine).join(isEn ? '; ' : '；') }}
+                  </p>
+                  <p v-if="m.matchReport" class="fixture-card__report">
+                    <a :href="lp(`/zh/news/${m.matchReport!.slug}/`)">{{ tx('賽後報導', 'Match report') }}<span class="visually-hidden">：{{ m.matchReport!.title }}</span></a>
+                  </p>
                   <p class="fixture-card__venue">
                     <span :class="['ha-pill', haCode(m.homeAway) === 'home' ? 'ha-pill--home' : 'ha-pill--away']">{{ haCode(m.homeAway) === 'home' ? tx('主場 HOME', 'Home') : tx('客場 AWAY', 'Away') }}</span>
                     <template v-if="m.venue === 'TBC'">
@@ -1301,15 +1432,19 @@ useClubEventSchema(clubEvents, {
 
     <!-- 單場賽事詳情彈窗（規劃書 v3.13 §3.13「動作按鈕：賽事詳情」／「前台功能：事件
          詳情」）。原生 <dialog>：內建 focus trap、Escape 關閉、::backdrop。 -->
-    <dialog ref="detailDialog" class="match-detail" aria-labelledby="match-detail-title" @click="onDetailDialogClick" @close="detailMatch = null">
+    <dialog ref="detailDialog" class="match-detail" aria-labelledby="match-detail-title" @click="onDetailDialogClick" @close="onDetailClosed">
       <button type="button" class="match-detail__close" :aria-label="tx('關閉賽事詳情', 'Close match details')" @click="closeDetail">✕</button>
       <template v-if="detailMatch">
-        <p class="match-detail__comp">{{ isEn ? `${compTagLabelEn(detailMatch.competitionTag)} · Round ${detailMatch.roundNo} · ${mapMatchStatusEn(detailMatch.status).label}` : `${compTagLabel(detailMatch.competitionTag)} · 第 ${detailMatch.roundNo} 輪 · ${mapMatchStatus(detailMatch.status).label}` }}</p>
+        <p class="match-detail__comp">{{ [isEn ? compTagLabelEn(detailMatch.competitionTag) : compTagLabel(detailMatch.competitionTag), roundLabel(detailMatch.roundNo, isEn), isEn ? mapMatchStatusEn(detailMatch.status).label : mapMatchStatus(detailMatch.status).label].filter(Boolean).join(' · ') }}</p>
         <h3 id="match-detail-title" class="match-detail__title">
-          {{ haCode(detailMatch.homeAway) === 'home' ? selfShortName : detailMatch.opponent }}
+          {{ isAwayMatch(detailMatch.homeAway) ? oppName(detailMatch) : selfShortName }}
           <span class="match-detail__vs">vs</span>
-          {{ haCode(detailMatch.homeAway) === 'home' ? detailMatch.opponent : selfShortName }}
+          {{ isAwayMatch(detailMatch.homeAway) ? selfShortName : oppName(detailMatch) }}
         </h3>
+        <!-- 比分（大字）：🔴 scoreHome／scoreAway 是我方／對方進球，依主客場排成「主隊 : 客隊」（matchScoreDisplay） -->
+        <p v-if="scoreOf(detailMatch)" class="match-detail__score" :aria-label="`${tx('比分', 'Score')} ${scoreOf(detailMatch)!.left} : ${scoreOf(detailMatch)!.right}`">
+          <span aria-hidden="true">{{ scoreOf(detailMatch)!.left }}<span class="match-detail__score-sep">:</span>{{ scoreOf(detailMatch)!.right }}</span>
+        </p>
         <p class="match-detail__time">{{ isEn ? timeOf(detailMatch).weekdayEn : timeOf(detailMatch).weekdayZh }} {{ detailMatch.matchOn }}<template v-if="timeOf(detailMatch).kickoff"> · {{ timeOf(detailMatch).kickoff }}</template></p>
         <p v-if="postponedLine(detailMatch.originalMatchOn, detailMatch.originalKickoff)" class="fixture-card__postponed">{{ postponedLine(detailMatch.originalMatchOn, detailMatch.originalKickoff) }}</p>
         <p class="match-detail__venue">
@@ -1317,10 +1452,85 @@ useClubEventSchema(clubEvents, {
           <template v-if="detailMatch.venue === 'TBC'">
             <span class="tbc-note">{{ tx('場地未定 · VENUE TBC', 'Venue TBC') }}</span>
           </template>
-          <template v-else>
-            <span>{{ detailMatch.venue }}</span><a class="fixture-card__map" :href="venueMapUrl(detailMatch.venue ?? '')" target="_blank" rel="noopener">{{ tx('地圖', 'Map') }}<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
+          <template v-else-if="detailMatch.venue">
+            <span>{{ detailMatch.venue }}</span><a class="fixture-card__map" :href="venueMapUrl(detailMatch.venue)" target="_blank" rel="noopener">{{ tx('地圖', 'Map') }}<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
           </template>
+          <span v-else>—</span>
         </p>
+
+        <!-- 賽後內容：進球、牌、出賽名單、賽後報導（賽事結束後才有資料；載入中／失敗各有提示） -->
+        <p v-if="detailLoading" class="match-detail__status" role="status">{{ tx('載入賽事資料中…', 'Loading match details…') }}</p>
+        <p v-else-if="detailFailed" class="match-detail__status" role="alert">{{ tx('暫時無法載入進球與出賽名單，請稍後再試。', 'Goals and line-ups could not be loaded right now. Please try again later.') }}</p>
+        <template v-else-if="detailData">
+          <section v-if="(detailData.goals ?? []).length > 0" class="match-detail__sec" aria-labelledby="md-goals">
+            <h4 id="md-goals" class="match-detail__sec-title">{{ tx('進球', 'Goals') }}</h4>
+            <ol class="match-detail__events">
+              <li v-for="(g, gi) in detailData.goals" :key="`g${gi}`" :class="{ 'is-opponent': g.side === 'opponent' }">
+                <span class="match-detail__min">{{ minuteLabel(g.minute) }}</span>
+                <span class="match-detail__ev">
+                  <template v-if="g.side === 'opponent' && g.goalType !== 'own_goal'">{{ tx('對方進球', 'Opponent goal') }}</template>
+                  <template v-else>
+                    <a v-if="playerHref(detailMatch, g.playerSlug)" :href="playerHref(detailMatch, g.playerSlug)!">{{ g.playerName || '—' }}</a>
+                    <template v-else>{{ g.playerName || '—' }}</template>
+                  </template>
+                  <span v-if="goalTypeLabel(g)" class="match-detail__tag" :class="{ 'match-detail__tag--og': g.goalType === 'own_goal' }">{{ goalTypeLabel(g) }}</span>
+                  <span v-if="g.goalType === 'own_goal'" class="match-detail__note">{{ tx('（計入對方進球）', '(counted for the opponent)') }}</span>
+                </span>
+              </li>
+            </ol>
+          </section>
+          <section v-if="(detailData.cards ?? []).length > 0" class="match-detail__sec" aria-labelledby="md-cards">
+            <h4 id="md-cards" class="match-detail__sec-title">{{ tx('牌', 'Cards') }}</h4>
+            <ul class="match-detail__events">
+              <li v-for="(c, ci) in detailData.cards" :key="`c${ci}`">
+                <span class="match-detail__min">{{ minuteLabel(c.minute) }}</span>
+                <span class="match-detail__ev">
+                  <span :class="['match-detail__card', c.cardType === 'red' ? 'match-detail__card--red' : 'match-detail__card--yellow']" aria-hidden="true"></span>
+                  <span class="visually-hidden">{{ c.cardType === 'red' ? tx('紅牌', 'Red card') : tx('黃牌', 'Yellow card') }}</span>
+                  <a v-if="playerHref(detailMatch, c.playerSlug)" :href="playerHref(detailMatch, c.playerSlug)!">{{ c.playerName || '—' }}</a>
+                  <template v-else>{{ c.playerName || '—' }}</template>
+                </span>
+              </li>
+            </ul>
+          </section>
+          <section v-if="(detailData.lineup ?? []).length > 0" class="match-detail__sec" aria-labelledby="md-lineup">
+            <h4 id="md-lineup" class="match-detail__sec-title">{{ tx('出賽名單', 'Line-up') }}</h4>
+            <div class="match-detail__lineup">
+              <p class="match-detail__sub">{{ tx('先發', 'Starting XI') }}</p>
+              <ul class="match-detail__roster">
+                <li v-for="(p, pi) in lineupSplit.starters" :key="`s${pi}`">
+                  <span class="match-detail__no">{{ p.shirtNumber ?? '—' }}</span>
+                  <a v-if="playerHref(detailMatch, p.playerSlug)" :href="playerHref(detailMatch, p.playerSlug)!">{{ p.playerName || '—' }}</a>
+                  <template v-else>{{ p.playerName || '—' }}</template>
+                  <span v-if="p.position" class="match-detail__pos">{{ positionLabel(p.position) }}</span>
+                </li>
+              </ul>
+              <template v-if="lineupSplit.subsUsed.length > 0 || lineupSplit.subsUnused.length > 0">
+                <p class="match-detail__sub">{{ tx('替補', 'Substitutes') }}</p>
+                <ul class="match-detail__roster">
+                  <li v-for="(p, pi) in lineupSplit.subsUsed" :key="`u${pi}`">
+                    <span class="match-detail__no">{{ p.shirtNumber ?? '—' }}</span>
+                    <a v-if="playerHref(detailMatch, p.playerSlug)" :href="playerHref(detailMatch, p.playerSlug)!">{{ p.playerName || '—' }}</a>
+                    <template v-else>{{ p.playerName || '—' }}</template>
+                    <span v-if="p.position" class="match-detail__pos">{{ positionLabel(p.position) }}</span>
+                    <span class="match-detail__tag">{{ tx('替補上場', 'Came on') }}</span>
+                  </li>
+                  <li v-for="(p, pi) in lineupSplit.subsUnused" :key="`n${pi}`" class="is-muted">
+                    <span class="match-detail__no">{{ p.shirtNumber ?? '—' }}</span>
+                    <a v-if="playerHref(detailMatch, p.playerSlug)" :href="playerHref(detailMatch, p.playerSlug)!">{{ p.playerName || '—' }}</a>
+                    <template v-else>{{ p.playerName || '—' }}</template>
+                    <span v-if="p.position" class="match-detail__pos">{{ positionLabel(p.position) }}</span>
+                    <span class="match-detail__note">{{ tx('未上場', 'Unused') }}</span>
+                  </li>
+                </ul>
+              </template>
+            </div>
+          </section>
+          <p v-if="detailData.matchReport" class="match-detail__report">
+            <a class="btn btn--outline btn--sm" :href="lp(`/zh/news/${detailData.matchReport.slug}/`)">{{ tx('賽後報導', 'Match report') }}<span class="visually-hidden">：{{ detailData.matchReport.title }}</span></a>
+          </p>
+        </template>
+
         <div class="match-detail__actions">
           <button type="button" class="btn btn--primary btn--sm" @click="onIcsClick(detailMatch)">{{ tx('加入行事曆 ', 'Add to calendar ') }}<span class="en">.ics</span></button>
           <button type="button" class="btn btn--dark btn--sm" @click="onShareClick(detailMatch)">{{ copiedId === fixtureId(detailMatch.matchOn, detailMatch.homeAway, detailMatch.matchNo) ? tx('連結已複製', 'Link copied') : tx('分享此賽事', 'Share this match') }}</button>
@@ -1552,4 +1762,45 @@ useClubEventSchema(clubEvents, {
 .match-detail__time{ font-size:.95rem; color:var(--text); margin-bottom:.4rem; }
 .match-detail__venue{ display:flex; align-items:center; gap:.6rem; font-size:.9rem; color:var(--text); flex-wrap:wrap; margin:.75rem 0 1.25rem; }
 .match-detail__actions{ display:flex; gap:.6rem; flex-wrap:wrap; }
+
+/* 賽果：卡片比分／進球者／賽後報導；詳情彈窗的比分、時間軸、名單（主站 v3.31，E-342） */
+.fx-score{
+  flex:none; display:inline-flex; align-items:baseline; gap:.35rem; padding:0 .5rem;
+  font-size:1.75rem; font-weight:900; line-height:1; color:var(--heading); font-variant-numeric:tabular-nums;
+}
+.fx-score__sep{ font-size:1.25rem; color:var(--ghost); }
+.fixture-card__scorers{ font-size:.82rem; color:var(--text); margin:-.1rem 0 .55rem; overflow-wrap:anywhere; }
+.fixture-card__scorers-label{ font-size:.68rem; font-weight:800; letter-spacing:.05em; color:var(--muted); margin-right:.5rem; text-transform:uppercase; }
+.fixture-card__report{ margin:0 0 .55rem; font-size:.82rem; font-weight:700; }
+.fixture-card__report a{ color:var(--brand-aa); text-decoration:underline; }
+
+.match-detail{ max-height:calc(100vh - 2rem); overflow-y:auto; }
+.match-detail__score{
+  display:flex; justify-content:center; margin:.25rem 0 .9rem; font-size:3rem; font-weight:900; line-height:1;
+  color:var(--heading); font-variant-numeric:tabular-nums;
+}
+.match-detail__score-sep{ margin:0 .6rem; color:var(--ghost); }
+.match-detail__status{ font-size:.88rem; color:var(--muted); margin:0 0 1rem; }
+.match-detail__sec{ margin:0 0 1.1rem; padding-top:.9rem; border-top:1px solid var(--rule); }
+.match-detail__sec-title{ font-size:.75rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--brand-aa); margin:0 0 .5rem; }
+.match-detail__sub{ font-size:.72rem; font-weight:800; color:var(--muted); margin:.6rem 0 .25rem; }
+.match-detail__events, .match-detail__roster{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:.3rem; font-size:.9rem; }
+.match-detail__events li, .match-detail__roster li{ display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; min-width:0; }
+.match-detail__events .is-opponent{ color:var(--muted); }
+.match-detail__roster .is-muted{ color:var(--muted); }
+.match-detail__min, .match-detail__no{ flex:none; min-width:2.25rem; font-weight:800; color:var(--heading); font-variant-numeric:tabular-nums; }
+.match-detail__ev{ min-width:0; overflow-wrap:anywhere; }
+.match-detail__events a, .match-detail__roster a{ color:inherit; text-decoration:underline; text-underline-offset:2px; }
+.match-detail__pos, .match-detail__note{ font-size:.75rem; color:var(--muted); }
+.match-detail__tag{ display:inline-block; font-size:.68rem; font-weight:800; padding:.1rem .45rem; margin-left:.4rem; border:1px solid var(--rule); color:var(--brand-deep); }
+.match-detail__tag--og{ border-color:var(--brand-deep); }
+.match-detail__card{ display:inline-block; width:.6rem; height:.85rem; margin-right:.5rem; vertical-align:-.1rem; }
+.match-detail__card--yellow{ background:#f2c200; }
+.match-detail__card--red{ background:#d32f2f; }
+.match-detail__report{ margin:0 0 1.1rem; }
+.match-detail__actions{ margin-top:1rem; }
+@media (max-width:640px){
+  .fx-score{ font-size:1.4rem; padding:0 .25rem; }
+  .match-detail__score{ font-size:2.4rem; }
+}
 </style>

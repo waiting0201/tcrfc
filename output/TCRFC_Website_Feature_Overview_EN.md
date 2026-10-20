@@ -1,8 +1,8 @@
 # Taichung Rock FC — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.7
-> **Date**: 2026-09-14 (v1.7 revision: 2026-10-16)
-> **Corresponds to**: *TCRFC Website Functional Specification* v3.30
+> **Document version**: v1.8
+> **Date**: 2026-09-14 (v1.8 revision: 2026-10-20)
+> **Corresponds to**: *TCRFC Website Functional Specification* v3.31
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **How to read this document**
@@ -151,7 +151,7 @@ Membership covers **one thing only — belonging**. **A free registered account 
 | **Teams** | Teams | First team, academy age groups, Blue Whale first team |
 | | Players | Squad, numbers, positions, photographs, biographies |
 | | Coaches and staff | Coaching and administrative staff |
-| | Fixtures & Results | **Fixtures, results, tables, season management** (bulk import supported) |
+| | Fixtures & Results | **Fixtures, results, opposition teams (name and crest), tables, season management** (bulk import supported) |
 | | Honours and milestones | Titles and notable records |
 | **Programmes** | Courses and camps | Regular courses and short camps |
 | | Intakes and sessions | Dates and places available |

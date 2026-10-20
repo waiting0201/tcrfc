@@ -790,7 +790,7 @@ API 契約：上傳成功後把主檔縮小後的寬高寫回；移除圖片寬�
 ## v3.29 DDL 變更清單（2026-10-16，主站 v3.29／藍鯨 v1.12／App v3.22；DDL、EF 模型、遷移、種子與 API 已於同日落地）
 
 > 🔴 **狀態（2026-10-16 更新）：`db/club-schema.sql`、EF 模型＋migration（`ClientDocAlignmentExpand`／`Contract`）、`db/migrations/20261016_client-doc-alignment_{1-expand,2-contract}.sql`、種子與 API 已落地**；下表三處與原清單不同（見表後「實作差異」），以 DDL 為準。
-> 改綱要的順序是先文件、再 DDL（CLAUDE.md 目錄地圖 `db/` 列）。**表數與 `club_id` 張數不變**（本次沒有新增或刪除任何資料表；現行 49 必填／9 可為空，見 `docs/12` §4）。
+> 改綱要的順序是先文件、再 DDL（CLAUDE.md 目錄地圖 `db/` 列）。**表數與 `club_id` 張數不變**（本次沒有新增或刪除任何資料表；當時 49 必填／9 可為空；v3.31 起 50 必填，見 `docs/12` §4）。
 > 依據：「註冊帳號不是會籍、磐石兩級付費方案」「商店會員折扣」「核心價值四項」「學院梯隊 U10–U18」。決定細節見主站規劃書 v3.29 修訂摘要。
 
 | # | 表．欄位 | 變更 | 備註 |
@@ -822,3 +822,47 @@ API 契約：上傳成功後把主檔縮小後的寬高寫回；移除圖片寬�
 
 **§11.1 唯一鍵表受影響的只有 `MembershipBenefit`**（新增 `(membership_plan_id, benefit_code)`，上列 #5）；其餘唯一鍵不變。
 **權限碼 `module_code` 禁用字母**：`U` 的理由由「撞 `U15`」改為「撞 `U10`–`U18`」（§7.3），結論不變。
+
+---
+
+## v3.31 DDL 變更清單（2026-10-20，主站 v3.31；**文件先行，`db/*.sql`、EF 模型與 API 由後端依本節落地**）
+
+> 依據：主站規劃書 v3.31 修訂摘要（C4 對手球隊、出賽名單分先發／替補、C2 出賽自動彙總）。
+> **`club_id` 必填由 49 增為 50 張**（`opponent_teams`）；`docs/12` §4 資料表 115 → 116，側表 +1（`opponent_teams_i18n`）。
+
+### 新表 `opponent_teams`（對手球隊，🏛 `club_id` 必填）
+
+| 欄位 | 型別 | 約束 | 說明 |
+|---|---|---|---|
+| `id` | `uniqueidentifier` | PK | |
+| `club_id` | `uniqueidentifier` | `NOT NULL`，FK → `clubs` | 各俱樂部各自維護，互不共用 |
+| `name` | `nvarchar(128)` | `NOT NULL` | **繁中隊名**（預設值與回退來源，沿用 `matches.opponent` 的作法）；唯一鍵 `(club_id, name)` |
+| `crest_key` | `nvarchar(500)` | `NULL` | 隊徽（圖片欄位組，通則見規劃書 4.0；伺服器端重新編碼為 WebP） |
+| `crest_width` | `int` | `NULL` | 主檔（縮小之後）寬 |
+| `crest_height` | `int` | `NULL` | 主檔高 |
+| `sort_order` | `int` | `NOT NULL DEFAULT 0` | 清單排序 |
+| `created_at`／`updated_at`／`created_by`／`updated_by` | — | — | 共通欄位（§1.3） |
+
+- 隊徽沒有獨立替代文字欄位，前台 `alt` 取隊名。三個圖片欄位同有同無。
+- 索引：`(club_id, sort_order)`；唯一鍵 `(club_id, name)`（同俱樂部內繁中隊名不得重複）。
+- 刪除：被 `matches.opponent_team_id` 或 `standings.opponent_team_id` 引用者不可刪除（兩個 FK 皆 `NO ACTION`；後台先檢查並回 409）。
+
+### 新表 `opponent_teams_i18n`
+
+| 欄位 | 型別 | 約束 | 說明 |
+|---|---|---|---|
+| `opponent_team_id` | `uniqueidentifier` | PK 之一，FK → `opponent_teams`，`ON DELETE CASCADE` | |
+| `locale` | `nvarchar(10)` | PK 之一 | 英文隊名放 `en` 列；缺列則前台回退主表 `name`（繁中） |
+| `name` | `nvarchar(128)` | `NULL` | 該語系隊名；與 `matches_i18n.opponent`、`standings_i18n.team_name` 同長度 |
+
+### 既有表變更
+
+| # | 表.欄位 | 變更 | 備註 |
+|---|---|---|---|
+| 1 | `matches.opponent_team_id` | 新增，`uniqueidentifier NULL`，FK → `opponent_teams`（`NO ACTION`），索引 `(opponent_team_id)` | 不回填既有賽事；選了對手球隊時，服務端同時把當時隊名寫入 `matches.opponent`／`matches_i18n.opponent` 作回退與搜尋用；**讀取時以對手球隊的隊名優先**（隨更名同步）。未選取者維持自由文字 |
+| 2 | `standings.opponent_team_id` | 新增，`uniqueidentifier NULL`，FK → `opponent_teams`（`NO ACTION`），索引 `(opponent_team_id)` | 對應後前台積分榜顯示該隊隊徽；`standings_i18n.team_name` 保留為回退 |
+| 3 | `match_lineups.came_on` | 新增，`bit NOT NULL DEFAULT 0` | 僅替補（`is_starter = 0`）有意義，先發列恆為 0；既有替補列回填 0 |
+
+**出賽自動彙總規則**（C2 `player_season_stats.appearances`，手動輸入優先於自動彙總）：只計 `matches.status = 'played'` 的賽事；一場計入出賽 ⇔ `is_starter = 1`，或 `is_starter = 0` 且（`came_on = 1`，或該場該球員有 `match_goals` 或 `match_cards` 列）。
+
+**§11.1 唯一鍵表**：本次沒有新增唯一鍵。**`club_id` 必填清單**（`docs/12` §4）加入 `opponent_teams`。
