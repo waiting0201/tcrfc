@@ -93,6 +93,7 @@ reference/
 #   python3 output/tools/build-sitemap.py     → 慈善站台地圖中英 HTML
 #   python3 output/tools/build-app-brief.py   → 行動 App 客戶版中英 HTML
 output/*.pdf
+output/app-icons/
 output/TCRFC_慈善捐款站台地圖.html
 output/TCRFC_Charity_Donation_Sitemap_EN.html
 output/TCRFC_行動App功能說明_客戶版.html

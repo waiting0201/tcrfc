@@ -214,7 +214,7 @@ App 客戶版原本的 Decisions 一節已從 [`output/tools/build-app-brief.py`
 | **慈善捐款平台任何工作** | [`10-charity-donation-site.md`](10-charity-donation-site.md) → 慈善站規劃書該節行號。**資料表見 [`16-charity-schema.md`](16-charity-schema.md)** |
 | **行動 App 任何工作** | [`11-mobile-app.md`](11-mobile-app.md) → App 規劃書該節行號 |
 | **部署、基礎設施、技術選型** | [`17-deployment.md`](17-deployment.md)（拓撲、固定出口 IP、快取策略與**不得讀快取清單**、DBMS 連帶決定）→ [`12-database-schema.md`](12-database-schema.md) §1.4。**App 客戶端見 [`19-app-tech-stack.md`](19-app-tech-stack.md)** |
-| **App 的技術實作、CI、上架** | [`19-app-tech-stack.md`](19-app-tech-stack.md)（原生雙平台、`shared/` 契約、權杖、推播傳輸、可見度量測、設定下發、CI/CD）→ [`11-mobile-app.md`](11-mobile-app.md) → App 規劃書 |
+| **App 的技術實作、CI、上架** | **商店後台逐步操作：[`21-store-submission.md`](21-store-submission.md)**；[`19-app-tech-stack.md`](19-app-tech-stack.md)（原生雙平台、`shared/` 契約、權杖、推播傳輸、可見度量測、設定下發、CI/CD）→ [`11-mobile-app.md`](11-mobile-app.md) → App 規劃書 |
 | 視覺、色彩、字級 | [`06-conventions.md`](06-conventions.md) §設計 tokens → `site/src/assets/css/tcrfc.css` 的 `:root` |
 | **要改規格、改共用區塊、順移代號、重產客戶版** | 先掃 [`18-work-errors.md`](18-work-errors.md) §1 速查（這四件事各有前科）→ 本檔 §2.5 同步鏈 |
 

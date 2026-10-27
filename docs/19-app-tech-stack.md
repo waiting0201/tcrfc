@@ -378,7 +378,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 環境分離用 build configuration／Gradle flavor ＋ 不同 bundle id（`tw.tcrfc.app.dev`）；⚠️ **AASA 要同時列 dev 與 prod 兩個 appID**。
 密鑰（`.p8`、keystore、service account JSON）一律 CI secrets，**不進 repo**。
 
-**上架前置**：
+**上架前置**（兩個商店後台的逐步操作與每個欄位要填什麼，見 [`21-store-submission.md`](21-store-submission.md)）：
 
 | 項目 | 注意 |
 |---|---|
@@ -781,6 +781,16 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | **引導兩步** | 依 App 規劃書 v3.21 §2.5／§3.0：引導只剩「追蹤 → 通知」。語系本來就在啟動時決定，不在引導裡：iOS `LocalizationManager`（偏好空＝`.system`，`zh*`→繁中、`en*`→英文、其他→繁中，**解析結果不寫回偏好**）；Android `LanguageResolver.effective`＋`MainActivity.syncLanguage`（非英文＝繁中，`values/` 預設即繁中）。**`zh-Hans` 落在繁中**，符合規劃書「非繁中或英文時預設繁中」。已選過語系的舊使用者偏好照舊有效。設定頁語系切換保留 |
 | **四分頁根畫面不顯示標題**（使用者 2026-10-14 指示，規劃書未規範頁面標題，屬畫面實作） | 首頁、賽程、會員、新聞四個根畫面**整條導覽列收掉**（它們頂端沒有按鈕，只拿標題會留空白列）。iOS：`Navigation.swift` 的 `ScreenHostingController(hidesNavigationBar:)`，`viewWillAppear` 隱藏、`viewWillDisappear` 還原，push 的子畫面照常有標題與返回鍵（返回鍵只剩箭頭，因上層無標題）。Android：`AppRoot.kt` 的 `showTopBar` 對四個目的地不放 `TopAppBar`（`testTag("topBar")`）。**「更多」與所有子畫面不變**。日後四頁若要加頂端按鈕，要改成「只隱藏標題」而不是整條收掉 |
 | 冒煙測試 | iOS 斷言四頁 `navigationBars` 不存在、「更多」存在；Android `assertNoTopBar()`。iOS 單元 203／冒煙 20、Android 單元 374（兩 flavor）／冒煙 19，全綠（2026-10-14） |
+
+### 11m. App icon（iOS＋Android，2026-10-27）
+
+| 項目 | 決定 |
+|---|---|
+| 設計 | 依規劃書 §14.1「中性識別，雙標誌並列」：**白底**，左磐石桃紅隊徽（`brand/svg/tcrfc-mark-pink.svg`）、右藍鯨隊徽點陣主檔（`brand/blue-whale/bw-crest.png`，§16.2 第 1 項已確認足以產出 1024 icon）。底色不用任一隊品牌色：藍鯨隊徽是全彩白底盾徽，放在色底上會變成一塊白盾 |
+| 產生 | `node output/tools/build-app-icons.mjs` → `output/app-icons/`（不納版控），再複製進兩個 App repo；**改圖改腳本，不手改 PNG** |
+| iOS | `Assets.xcassets/AppIcon.appiconset` 單一 1024 universal（無透明），`project.yml` 的 `ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon`，其餘尺寸由 Xcode 產生 |
+| Android | 自適應圖示：前景 `mipmap-{mdpi…xxxhdpi}/ic_launcher_foreground.png`（108dp 畫布，兩標誌整組收在直徑 66dp 安全圓內）、背景 `@color/ic_launcher_background` = `#FFFFFF`。**不設 `<monochrome>`**：藍鯨隊徽是全彩點陣，系統只取透明度會變成一塊盾形色塊，等於改了標誌造型；待向量主檔到位再評估單色版 |
+| 驗證 | iOS 模擬器建置成功、`.app` 內含 `AppIcon60x60@2x` 與 `CFBundleIconName = AppIcon`；Android `assembleDebug` 與 `testProdDebugUnitTest` 成功、APK 含五種密度前景；iOS 單元測試 207 項全綠（2026-10-27）。⚠️ iOS 測試**不可加 `CODE_SIGNING_ALLOWED=NO`**：未簽章的測試宿主無法存取模擬器 Keychain，`KeychainStoreTests` 會失敗 |
 
 ## 12. 本檔不決定的事
 

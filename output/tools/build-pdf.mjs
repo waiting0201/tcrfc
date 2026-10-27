@@ -158,6 +158,19 @@ const DOCS = {
     runningFoot: '台中藍鯨 Taichung Blue Whale',
     font: '"PingFang TC","Noto Sans TC","Hiragino Sans","Helvetica Neue",Arial,sans-serif',
   },
+  // ── 操作手冊：母檔在 docs/（導航層），不是規格書 ──────────────────────
+  'store-zh': {
+    md: '../docs/21-store-submission.md',
+    pdf: 'TCRFC_App上架操作手冊.pdf',
+    lang: 'zh-Hant',
+    club: '台中磐石足球俱樂部',
+    title: ['行動 App', 'App Store／Google Play 上架操作手冊'],
+    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.　在地扎根 · 放眼世界',
+    labels: { version: '文件版本', date: '建立日期' },
+    runningHead: (v) => `TCRFC App 上架操作手冊 ${v}`,
+    runningFoot: '台中磐石足球俱樂部 TCRFC',
+    font: '"PingFang TC","Noto Sans TC","Hiragino Sans","Helvetica Neue",Arial,sans-serif',
+  },
   'bw-brief-en': {
     md: 'TCRFC_Taichung_Blue_Whale_Website_Feature_Overview_EN.md',
     pdf: 'TCRFC_Taichung_Blue_Whale_Website_Feature_Overview_EN.pdf',

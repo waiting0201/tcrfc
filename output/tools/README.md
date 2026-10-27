@@ -26,8 +26,20 @@ node output/tools/build-pdf.mjs bw-brief-zh # TCRFC_台中藍鯨官網功能說�
 node output/tools/build-pdf.mjs app-brief-zh  # TCRFC_行動App功能說明_客戶版.pdf（來源是 HTML，見下）
 node output/tools/build-pdf.mjs app-brief-en  # TCRFC_Mobile_App_Feature_Overview_EN.pdf（同上）
 node output/tools/build-pdf.mjs sitemap-zh # TCRFC_慈善捐款站台地圖.pdf
+node output/tools/build-pdf.mjs store-zh   # TCRFC_App上架操作手冊.pdf（母檔是 docs/21-store-submission.md）
 node output/tools/build-pdf.mjs sitemap-en # TCRFC_Charity_Donation_Sitemap_EN.pdf
 ```
+
+## App 上架圖示
+
+```bash
+node output/tools/build-app-icons.mjs   # → output/app-icons/（不納版控）
+```
+
+依 App 規劃書 §14.1「中性識別，雙標誌並列」：**白底**，左 `brand/svg/tcrfc-mark-pink.svg`、右 `brand/blue-whale/bw-crest.png`（點陣主檔），兩個標誌不改色、不改造型、不加字：
+`ios/AppIcon-1024.png`（無透明）、`play/play-icon-512.png`、`play/feature-graphic-1024x500.png`（無透明）、
+`android/mipmap-*/ic_launcher_foreground.png`（自適應圖示前景，五種密度，兩標誌整組收在直徑 66dp 的安全圓內；背景色 `#FFFFFF`）。
+產出後要複製進 App 專案：iOS `mobile/ios/TcrfcApp/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png`、Android `mobile/android/app/src/main/res/mipmap-*/`（[`docs/19`](../../docs/19-app-tech-stack.md) §11m）。
 
 ## 兩份版面式文件的 HTML 母檔是產生的，不要手改
 
