@@ -644,7 +644,7 @@ flowchart LR
 | `AdEvent` | **原始事件**（曝光與點擊，保存 90 天）。**不存 `member_id`、完整 IP、定位座標、廣告識別碼** | |
 | `AdDailyStat` | 日聚合（日期 × 檔期 × 素材 × 版位 × 平台 × 語系），長期保存 | |
 | `AppDevice` | 裝置（推播權杖加密、會員弱關聯、更新權杖四欄） | 🔒 |
-| `PushTopicSubscription` | 追蹤與推播訂閱（`is_following`／`is_push_enabled` 分離） | |
+| `PushTopicSubscription` | 推播訂閱（是否送推播看 `is_push_enabled`；`is_following` App 一律寫真、畫面不讀，App v3.24） | |
 | `PushMessage`／`PushMessageI18n`／`PushMessageStat` | 推播批次（雙人覆核、分眾條件、發送游標）、雙語文案、送出／送達／開啟彙總 | 🌐 |
 | `AppRelease`／`AppReleaseI18n` | App 版本、最低支援版本與建議版本旗標、更新說明與提示文案 | 🌐 |
 | `AppDiagnosticReport` | App 端診斷與錯誤回報（不存個資，保存 90 天） | |

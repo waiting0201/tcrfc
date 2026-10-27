@@ -62,9 +62,10 @@ CREATE TABLE member_card (
 
 CREATE INDEX idx_member_card_membership ON member_card (membership_id);
 
--- 追蹤偏好：本機儲存，登入後與帳號同步（規劃書 §2.4）。
+-- 推播訂閱（規劃書 §6.4、§10.1 PushTopicSubscription 的本機鏡像）：未登入綁裝置、登入後綁帳號。
+-- 目前俱樂部（§2.4、§3.0）不存在本表，由 App 設定本機永久儲存、不同步帳號。表名沿用以維持兩端相容。
 CREATE TABLE follow_preference (
-  target_type      TEXT    NOT NULL,               -- club／team／category 等追蹤對象種類
+  target_type      TEXT    NOT NULL,               -- club／team／category 等推播訂閱主題種類
   target_code      TEXT    NOT NULL,
   enabled          INTEGER NOT NULL DEFAULT 1,     -- 0／1
   updated_at_utc   TEXT    NOT NULL,

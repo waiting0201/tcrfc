@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.23
-> **Date**: 2026-09-04 (v3.23 revision: 2026-10-27)
+> **Document version**: v3.24
+> **Date**: 2026-09-04 (v3.24 revision: 2026-10-27)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.24 revision summary — the app is organised by club**
+> Step 1 of first-run onboarding (S23) is choosing the **current club** (Taichung Rock or Taichung Blue Whale; one of the two, required). Every later cold launch opens that club directly, and the club switcher above the four main tabs and the More tab can switch at any time. Once chosen, the whole app shows only that club: home, fixtures, news, squads, partners and sponsors, programs, FAQ and search list only that club's content; partner stores list that club's stores and those shared by both clubs; the colour scheme is that club's brand colours; and the charity entry appears only for Taichung Rock. The Member tab shows only the current club's membership and membership card, with a prompt to switch where the user also holds the other club's membership. A deep link or push that opens the other club's content switches the current club automatically. Push subscriptions are not affected by the current club, and either club's squads can be subscribed to. Advertising slots and the home block layout are app-level and shared by both clubs. Where: 1.1, 1.3, 1.4, 2.1–2.4, 3.0–3.12, 6.2–6.4, 9.2, 10.1, 15.
 
 > **v3.23 revision summary — a launch loading screen is added**
 > Every cold launch first shows the launch loading screen (S24): both club crests side by side and a progress bar that advances as the app configuration, clubs, squads, fixtures and competitions are refreshed; once all are done the home screen opens. The wait is capped at 3 seconds: on timeout or with no network, the app opens the home screen from the local cache and shows the "offline" notice; on a fresh install that cannot connect, the screen stays and offers a retry. The "offline" notice appears only when the network cannot be reached; a server error does not count as offline. Returning from the background does not show this screen. Where: 2.2, 2.4, 3.0, 13.
@@ -194,13 +197,13 @@ Three design premises shape the whole app:
 | **The app shares one dataset with the website** | The app creates no parallel content-editing interface. Everything is still maintained in the website admin; the app is a second presentation surface, not a second source of truth |
 | **Members use it at the ground and at store counters** | Signal is often absent. The digital membership card, cached fixtures, and already-read news **must work offline** |
 | **Advertising is sold directly, not through a network** | Slots are sold to local businesses and measured by our own system. No ad SDK, no tracking permission prompt, no behavioural targeting |
-| **One app, two clubs, one membership per club** | Both clubs' content appears as equals and there is **only one account system and one collection flow**, but **membership and the membership card are one per club** (v3.0). The app builds no second member roster and no second checkout |
+| **One app, two clubs, one membership per club** | The two clubs are equals; **once the user chooses a club, the whole app shows only that club** (3.0 current club). There is **only one account system and one collection flow**, but **membership and the membership card are one per club** (v3.0). The app builds no second member roster and no second checkout |
 
 **Where "co-principal" starts and stops** — the line most easily misread in this version:
 
 | Aspect | Principal | Notes |
 |---|---|---|
-| **Content and brand** | **Both clubs** | Fixtures, squads, and news presented as equals; a neutral app name with both crests |
+| **Content and brand** | **Both clubs** | A neutral app name, with both crests side by side on the launch screen; once inside, the current club's fixtures, squads, news and brand colours are shown (organised by club) |
 | **Membership** | **One per club** (v3.0) | A member may hold a Rock membership and a Blue Whale membership separately — separate terms, separate renewals, **one card each**. The account is still one per person |
 | **Collection and invoicing** | **Taichung Rock FC only** | Blue Whale memberships are sold on a **collect-and-remit** basis: one LINE Pay merchant account, one invoice header, settled by beneficiary afterwards. **The system performs no revenue splitting** |
 | **Legal and accounts** | **Taichung Rock FC only** | Developer account, push certificates, and the data controller named in the privacy policy |
@@ -249,7 +252,7 @@ How the three specifications divide:
 | 5 | Programs and camps | Reuses the website's existing booking mechanism, adding form pre-filling and "my bookings" |
 | 6 | News and stories | List, article, offline reading, category push subscriptions, sharing |
 | 7 | Squads and players | **Rock first team and academy squads, and the Blue Whale first team** — rosters and player detail |
-| 7b | **Follow preferences** | Choose who to follow on first run (Rock / Blue Whale / Academy / all); determines home content and push segmentation (3.0) |
+| 7b | **Current club** | Choose Taichung Rock or Taichung Blue Whale on first run, switchable at any time; determines which club's content and colours the whole app shows (3.0). Push subscriptions are set separately (6.4) |
 | 8 | Push notifications | Fixture reminders, results, news, membership expiry, jersey status |
 | 9 | **Owned advertising slots** | Slot management, flights, rotation weights, impression and click measurement, advertiser reporting |
 | 10 | Partners and sponsors | Logo wall and detail pages, outbound links |
@@ -284,7 +287,8 @@ How the three specifications divide:
 | **Creative** | The actual image or video under a flight, with headline, CTA, and click destination. One flight may hold several creatives for A/B testing and both languages |
 | **Impression** | The advertising area **at least 50% visible for at least one continuous second**. Each item in a rotation counts separately |
 | **Competition** | A named competition, such as the Premier League or a specific tournament. **Distinct from `Match.competition`**, the four-value type enum (league / cup / friendly / other) — that is a category, this has a name |
-| **Follow** | The squads a user chooses to care about. Determines whose next match the home screen shows, how upcoming fixtures are filtered, and who receives fixture push. **Following and push are separable**: a user may follow Blue Whale without receiving Blue Whale push |
+| **Current club** | The club the user has chosen to view (Taichung Rock or Taichung Blue Whale), one at a time. Determines the content and colours the whole app shows; **does not determine push**. Stored locally, not synced to the account |
+| **Push subscription** | The squads whose fixture push and kick-off reminders the user chooses to receive. **Independent of the current club**: a user viewing Rock can still receive Blue Whale push |
 | **Device** | One app installation, identified by `device_install_id`. Invalidated on uninstall; never shared across apps or devices |
 | **Deep link** | A link that opens a specific screen inside the app, either via the custom scheme or a Universal Link |
 | **Forced update** | An older app version is taken out of service for compatibility or security reasons and prompts the user to update on launch |
@@ -317,17 +321,17 @@ Five fixed bottom tabs, never more than three levels deep:
 
 | Tab | Contents | Sign-in required |
 |---|---|---|
-| **Home** | Next fixture, latest news, advertising slots, shortcuts, sponsor logo wall — **ordered by follow preferences** | No |
-| **Fixtures** | **Squad tabs including Blue Whale**, competition filters, fixtures/results toggle, match detail | No |
-| **Member** | Signed out: how to join. Signed in: card, membership, my bookings, jersey, prize-draw information | Partly |
-| **News** | Category list, article, offline reading | No |
-| **More** | **Squads of both clubs**, partner stores, program booking, partners and sponsors, charity (outbound), store (to the website shop), FAQ, **follow settings**, settings | No |
+| **Home** | The current club's next fixture, latest news, advertising slots, shortcuts, sponsor logo wall | No |
+| **Fixtures** | The current club's **squad tabs**, competition filters, fixtures/results toggle, match detail | No |
+| **Member** | Signed out: how to join. Signed in: the current club's card and membership, plus my bookings, jersey, prize-draw information | Partly |
+| **News** | The current club's category list, article, offline reading | No |
+| **More** | Squads, partner stores, program booking, partners and sponsors, charity (outbound, Taichung Rock only), store (to the website shop), FAQ, **switch club**, notification settings, settings | No |
 
 **How two clubs appear in the navigation**:
 
-1. **There is no "Rock tab" and no "Blue Whale tab".** The two clubs are not two parallel apps; tabs are split by **function**, and club is a filter dimension inside each function. Parallel club tabs would mean implementing every feature twice.
-2. **Follow preferences change defaults, never visibility.** A user following Rock can still switch to Blue Whale in the fixtures tab — following is ordering and defaults, not permission.
-3. **Both crests appear on club-related screens and nowhere else.** The membership card, settings, and partner stores carry no club crest.
+1. **Organised by current club** (3.0). The user views one club at a time: the five tabs have the same structure for both clubs, and their content shows only the current club. Viewing the other club means switching the current club; the two clubs are never mixed in one list.
+2. **Tabs are split by function; the club is the context for the whole app.** Both clubs share the same screens and tabs, and switching club changes only content and colours, not layout — consistent with the two websites' principle of "one site, only the colours differ".
+3. **A club switcher sits above the Home, Fixtures, News and Member tabs** (the current club's crest and name); tapping it switches club.
 
 **Design principle**: signed-out users must be able to browse fixtures, news, squads, partner stores, and program information in full. **The sign-in wall stands in exactly four places**: the membership card, my bookings, renewal, and prize-draw eligibility. The partner-store directory itself stays public — it is the main driver of paid conversion — with the applicable-tier label telling users which offers require which tier of membership.
 
@@ -357,7 +361,7 @@ Five fixed bottom tabs, never more than three levels deep:
 | S20 | Notification centre | `PushMessage` | No | Yes |
 | S21 | Settings | Local | No | Yes |
 | S22 | FAQ | `Faq` | No | Partial |
-| **S23** | **Follow settings / first-run onboarding** | `Team` / `Club` | No | Yes |
+| **S23** | **First-run onboarding / switch club** | `Club` | No | Yes |
 | **S24** | **Launch loading screen** | App configuration / `Club` / `Team` / `Match` / `Competition` | No | Yes (opens from cache) |
 
 ### 2.3 Deep links and Universal Links
@@ -376,6 +380,8 @@ Five fixed bottom tabs, never more than three levels deep:
 | Program detail | `tcrfc://program/{slug}` | `/zh/programs/{slug}` |
 | Membership card | `tcrfc://membercard` | (no public equivalent) |
 | Membership plans page | `tcrfc://upgrade` | `/zh/member/upgrade/` |
+
+**Deep links and the current club**: where the content opened belongs to the other club, the app **switches the current club automatically and then opens it**, without asking (3.0); links not tied to a particular club (membership card, membership plans page, content shared by both clubs) open under the current club.
 
 **The deep-link scheme stays `tcrfc://` even though the app name becomes neutral** — for three reasons:
 
@@ -411,7 +417,7 @@ Five fixed bottom tabs, never more than three levels deep:
 | Article | Cached once opened | 30 days | Yes |
 | Partner stores | Refreshed on launch | 24 hours | Yes (without live distance) |
 | Squads and players | Refreshed on launch | 24 hours | Yes |
-| **Follow preferences** | Stored locally, synced to the account after sign-in | Permanent | Yes — **mandatory** |
+| **Current club** | Stored locally, not synced to the account | Permanent | Yes — **mandatory** |
 | Membership status and draw eligibility | Refreshed on entering the screen | Never presented from cache as "valid" | No |
 | Advertising creatives | Pre-fetched for the day's flights | Cleared when the flight ends | No (no impressions offline) |
 | Program sessions and places | Not cached | — | No |
@@ -444,7 +450,7 @@ Each of the website's G-01 to G-12 features, and how the app handles it:
 | Code | Website feature | App handling |
 |---|---|---|
 | G-01 | Language switching | **App version**: see 2.5; switching stays on the current screen |
-| G-02 | Site search | **App version**: limited to news, players, partner stores, and FAQ; static pages excluded. **Player search covers both clubs** |
+| G-02 | Site search | **App version**: limited to news, players, partner stores, and FAQ; static pages excluded. **Results are limited to the current club and content shared by both clubs** (3.0) |
 | G-03 | Breadcrumbs | **Not built**: replaced by the navigation back stack |
 | G-04 | Footer | **Not built**: functions move into the More tab |
 | G-05 | Site-wide CTAs | **App version**: join, view membership plans, book a program |
@@ -456,19 +462,33 @@ Each of the website's G-01 to G-12 features, and how the app handles it:
 | G-11 | Member status bar | **App version**: the Member tab is itself the status. **Form pre-filling is provided in the app** (see 3.9) |
 | G-12 | FAQ shortcut blocks | Carried over: program and academy screens embed the matching FAQ topic |
 
-**First-run onboarding (S23)** — a necessary precondition on a two-club platform:
+**First-run onboarding (S23)** — decides the current club:
 
 | Step | Content | Skippable |
 |---|---|---|
-| 1 | **Choose who to follow**: Taichung Rock first team / Taichung Blue Whale first team / Rock academy squads / follow everything | Yes (skipping = follow everything) |
-| 2 | Explain and request push permission | Yes |
+| 1 | **Choose the current club**: Taichung Rock / Taichung Blue Whale, one of the two, shown with both crests and club names | **No** (a club must be chosen to enter the app) |
+| 2 | Explain and request push permission. Push for the first team and the club chosen in step 1 is on by default (6.4) | Yes |
 
-**Four rules**:
+**Current club rules**:
 
-1. **No sign-in wall.** Onboarding completes while signed out; preferences are stored locally first and synced to the account on sign-in.
-2. **Multi-select, and "follow everything" is an explicit option**, not a side effect of skipping.
-3. **Changeable at any time** from Follow settings in the More tab, which opens the same screen.
-4. **Following is not push.** Step 1 only decides what the home screen shows; whether push is received is controlled separately by step 2 and 6.4. Following Blue Whale with Blue Whale push disabled is a valid combination.
+| Item | Rule |
+|---|---|
+| Memory | Stored permanently on the device, **not synced to the account**. Every later cold launch goes straight to the current club's home screen once the launch loading screen (S24) finishes, without asking again |
+| Switching | The club switcher above the Home, Fixtures, News and Member tabs, and "Switch club" in the More tab. After switching the app returns to Home and reloads that club's data |
+| Scope | Home, fixtures, news, squads, partners and sponsors, programs, FAQ and search results **show only the current club's** content; content shared by both clubs (`club_id` empty, such as shared news and FAQ) appears under both |
+| Partner stores | The current club's stores and those shared by both clubs (`PartnerStore.club_id` empty) |
+| Charity entry | Appears only when the current club is Taichung Rock (consistent with the Taichung Blue Whale website having no charity section) |
+| Colours | The whole app applies the current club's brand colours; the launch loading screen (S24) keeps both crests side by side |
+| Member tab | Shows only the current club's membership and membership card (3.5, 3.6) |
+| Deep links and push | Where the content opened belongs to the other club (for example, opening a Taichung Blue Whale fixture push while viewing Taichung Rock), **the current club is switched automatically before the content opens**, without asking |
+| Push | **Not affected by the current club.** Push subscriptions are chosen separately in notification settings (6.4), and squads of both clubs can be subscribed to |
+| Advertising and home layout | Advertising slots (3.12) and the home block order in admin M2 are app-level, and both clubs share the same settings |
+
+**Three rules**:
+
+1. **No sign-in wall.** Onboarding completes while signed out.
+2. **One club at a time.** No screen in the app lists both clubs' content together (except notification settings).
+3. **Current club is not push.** The current club only decides what the screens show; which club's push is received is controlled by step 2 and 6.4. Viewing Taichung Rock while receiving Taichung Blue Whale push is a valid combination.
 
 **Launch loading screen (S24)** — every cold launch passes through this screen first:
 
@@ -490,27 +510,26 @@ Block order from top to bottom (order and visibility controlled by admin M2):
 
 | # | Block | Data source | Notes |
 |---|---|---|---|
-| 1 | Next fixture | `Match` | Countdown, opponent, time, venue; one tap to add to calendar or navigate. **Which club is shown follows the user's follow preferences**; where several are followed, the soonest match is shown with its club labelled |
+| 1 | Next fixture | `Match` | Countdown, opponent, time, venue; one tap to add to calendar or navigate. Shows the next match of **the current club's first team** |
 | 2 | Advertising slot `home_top` | `AdCampaign` | See 3.12 |
-| 3 | Latest news (3) | `Article` | Horizontally scrolling cards |
-| 4 | Membership card shortcut | `Member` | Shown when signed in with a valid membership; otherwise "Join" |
-| 5 | Upcoming fixtures (3) | `Match` | **Filtered by follow preferences**; where none are set, the next match of each club's first team |
+| 3 | Latest news (3) | `Article` | Horizontally scrolling cards; news of the current club and news shared by both clubs |
+| 4 | Membership card shortcut | `Member` | Shown when signed in with a valid membership at the current club; otherwise "Join" |
+| 5 | Upcoming fixtures (3) | `Match` | Upcoming fixtures of all the current club's squads |
 | 6 | Advertising slot `home_mid` | `AdCampaign` | |
-| 7 | Partner stores (3 nearby) | `PartnerStore` | By distance where location is granted; otherwise by admin order |
+| 7 | Partner stores (3 nearby) | `PartnerStore` | The current club's stores and those shared by both clubs; by distance where location is granted, otherwise by admin order |
 | 8 | Shortcuts | — | Program booking, store (to the website shop) |
-| 9 | Sponsor logo wall | `Sponsor` / `Partner` | **No impressions counted, never in advertising reports** (see 3.11) |
+| 9 | Sponsor logo wall | `Sponsor` / `Partner` | The current club's sponsors; **no impressions counted, never in advertising reports** (see 3.11) |
 
 **No fixed charity slot on the home screen** — consistent with the website rule. The charity entry point sits in the More tab and must state that the recipient is the Association.
 
 **How the two clubs appear on the home screen**:
 
-1. **Every fixture card must carry its club** (crest or name). With both clubs present, an unlabelled card cannot be attributed.
-2. **No "Rock section" above a "Blue Whale section".** The home screen is ordered by content type, not split by club — splitting would leave a user who follows one club looking at a half-empty screen.
-3. **Where no follow preference is set, both clubs carry equal weight.** No default bias toward either.
+1. **The home screen shows only the current club**, with the club switcher at the top. Both clubs share the same block order (admin M2); switching club changes only content and colours.
+2. **Fixture cards carry their squad** (squad name). A club has a first team alongside academy or youth squads, so upcoming fixtures must show which squad is playing.
 
 ### 3.2 Fixtures and results
 
-**This is the app's first feature.** Every squad of both clubs in one place is the reason users open the app weekly — a membership card is used a few times a season, fixtures are checked every week.
+**This is the app's first feature.** Every squad of the current club in one place is the reason users open the app weekly — a membership card is used a few times a season, fixtures are checked every week.
 
 **Squad tabs** are generated at run time from `Team.code` and **must not be hard-coded**. From v2.0 there are five:
 
@@ -527,13 +546,13 @@ Adding a squad later requires only a new record in admin C1, with no app release
 
 **The public label is always the display name**; `D1` and `BW1` serve only as internal codes and deep-link path segments, and never appear in user-visible text.
 
-**Because both clubs have a "first team", the club label can never be omitted**: on any screen showing both clubs' fixtures (home, all fixtures, search results), every card must carry a crest or club name.
+**Squad tabs list only the current club's `Team`s** (3.0): for Taichung Rock, the first team and each academy squad; for Taichung Blue Whale, the Blue Whale first team and the youth squad. Every card on the fixtures "All" tab must carry its squad name, to tell the club's squads apart.
 
 **Filter hierarchy (deliberately leaner than the website)**:
 
 | Level | Content | Always visible |
 |---|---|---|
-| First | Club/squad tabs: **All / Rock first team / Blue Whale first team / academy** | Yes |
+| First | Squad tabs: **All** plus each of the current club's squads (Taichung Rock: first team / academy; Taichung Blue Whale: Blue Whale first team / youth squad) | Yes |
 | Second | Fixtures / results toggle | Yes |
 | Third | **Competition** (Premier League, each tournament — generated from `Competition`) | Yes (horizontally scrolling chips) |
 | Secondary | Competition type (league / cup / friendly / other), home or away, month | Inside a filter sheet |
@@ -546,7 +565,7 @@ Adding a squad later requires only a new record in admin C1, with no app release
 
 | Item | Rule |
 |---|---|
-| Coverage | All published fixtures for both first teams over the next 12 months, league and cup |
+| Coverage | All published fixtures for the current club's first team over the next 12 months, league and cup (complete for each club) |
 | Default view | "All" clubs × "Upcoming", soonest first |
 | Grouping | By month, with a sticky month header |
 | Not yet published | Where a competition is known but its fixtures are not, show an empty-state note for that competition and **never hide the competition entirely** — users need to know it has not been published, not to assume it does not exist |
@@ -566,7 +585,7 @@ Adding a squad later requires only a new record in admin C1, with no app release
 |---|---|
 | **Add to system calendar** | A single fixture, or the whole season at once. Written to the device's native calendar, not an in-app calendar |
 | **Venue navigation** | Opens system maps using the `Venue` coordinates. Falls back to an address search where coordinates are absent |
-| **Kick-off reminder** | A local notification two hours before kick-off, scheduled by the App on the device, segmented by the **squads the user follows**. Can be turned off in settings; **governed by quiet hours** (6.4) |
+| **Kick-off reminder** | A local notification two hours before kick-off, scheduled by the App on the device, segmented by the **squads the user has subscribed to for push** (independent of the current club, 6.4). Can be turned off in settings; **governed by quiet hours** (6.4) |
 
 **Time handling**:
 - **A match's date and kick-off time** are recorded in **Taipei local time** (Taiwan time, no daylight saving); all other time data (announcement publishing, notification sending, order and membership timestamps, etc.) is recorded in Coordinated Universal Time (UTC).
@@ -579,8 +598,7 @@ Adding a squad later requires only a new record in admin C1, with no app release
 
 | Item | Content |
 |---|---|
-| **Club sections** | Split first into **Taichung Rock** and **Taichung Blue Whale**, each listing its own squads, with the club crest in the section header |
-| Squad selection | The same dynamic squad list as 3.2 |
+| Squad selection | The current club's squads, the same dynamic squad list as 3.2 |
 | Player list | Grouped by position (GK / DF / MF / FW), ordered by shirt number within each group |
 | Player card | Number, name (zh/en), position, photo |
 | Player detail | Date of birth, height and weight, nationality, preferred foot, joining date, previous clubs, career, season statistics (appearances, goals, assists, cards), related news |
@@ -595,8 +613,7 @@ Player likeness consent must be confirmed first (see 16.2): **consent is require
 | Item | Content |
 |---|---|
 | Categories | The website's existing eight categories, **no new ones** |
-| **Source label** | Each item is labelled with its club (Rock / Blue Whale), determined by the new `club_id` field on `Article` (10.2). **No new categories** |
-| **Filtered by follow** | The list defaults to the followed clubs and can be switched to all |
+| **Club scope** | The list shows only news of the current club and news shared by both clubs, **determined by the new `club_id` field on `Article`** (10.2; empty = shared by both clubs). No new categories |
 | List | Cover image, headline, category, date; pull to refresh, infinite scroll |
 | Article | Language toggle, text size control, system share (sharing the website URL) |
 | Offline | Opened articles remain readable offline for 30 days |
@@ -620,8 +637,7 @@ All fields and rules carry over from website 3.14; the app adds no member data f
 | Feature | Description |
 |---|---|
 | Member profile | Name, mobile, email, date of birth, language preference; change password, delete account |
-| **Follow preferences** | The list of followed squads — the same data as S23. **Independent of membership** — you may follow the club whose membership you have not bought |
-| **Membership status** | **Listed per club**: club, tier, member number, expiry date, state (pending / active / expired). **A club you have no membership with shows a join entry point rather than being hidden**; an account that has only registered and holds no membership has no membership card, and the Member tab shows a join entry point |
+| **Membership status** | **Only the current club's membership is shown**: club, tier, member number, expiry date, state (pending / active / expired). Where the current club has no membership, a join entry point is shown; **where the user also holds the other club's membership, a one-line prompt (for example "You also have a Taichung Blue Whale membership") and a switch button are shown**, and tapping it switches the current club. An account that has only registered and holds no membership has no membership card, and the Member tab shows a join entry point |
 | Renewal prompt | A banner in the Member tab from 30 days before expiry, plus a push (see 6.2). **The two clubs' seasons are not aligned, so each fires separately**; the push copy must name the club |
 | Jersey registration | Size, collection method (post or in person), delivery details; status shown as pending / dispatched / collected. **Registered per membership** — two memberships means two jerseys |
 | My bookings | See 3.9 |
@@ -634,7 +650,7 @@ All fields and rules carry over from website 3.14; the app adds no member data f
 
 Card face: **the club's logo**, member number, QR code, name, tier, expiry date, **last synced time**.
 
-**One card per membership**: a member holding both memberships has two cards, **each carrying that club's logo and brand colours**, switched by swiping or tabbing. This also resolves the concern that "a card favouring one club invites the other's stores to question its validity": Blue Whale's stores see a Blue Whale card. The design waits on Blue Whale's brand assets (16.2).
+**One card per membership**: a member holding both memberships has two cards, **each carrying that club's logo and brand colours**. **The Member tab presents only the current club's card**; presenting the other club's card means switching the current club (3.0). This also resolves the concern that "a card favouring one club invites the other's stores to question its validity": Blue Whale's stores see a Blue Whale card. The design waits on Blue Whale's brand assets (16.2).
 
 | Rule | Description |
 |---|---|
@@ -652,7 +668,7 @@ Card face: **the club's logo**, member number, QR code, name, tier, expiry date,
 | Block | Content |
 |---|---|
 | Tier explanation | A registered account (no membership yet) compared with each plan; Taichung Rock has two tiers, Rock Member and Prestige Member, and Blue Whale follows its own plans. **Tiers are set by each club's plans; no tier is added for the second club** |
-| **Coverage statement** | States plainly that **membership is one per club and runs on its own term**, so the club must be chosen before purchase; and that **the collecting party is always Taichung Rock FC** (Blue Whale memberships are collected on its behalf, see 5.2). **It must not be worded as "one membership covers both clubs"** |
+| **Coverage statement** | States plainly that **membership is one per club and runs on its own term**, and the purchase is for the current club (3.0), with the screen stating plainly which club's membership is being bought; and that **the collecting party is always Taichung Rock FC** (Blue Whale memberships are collected on its behalf, see 5.2). **It must not be worded as "one membership covers both clubs"** |
 | Plan comparison | Suggested annual fee, season period, `card_quota`, `jersey_quota`, shop member-discount ratio |
 | **Benefits table** | Grouping (card / discounts and offers / gifts / events / content and communication), the corresponding value for each plan |
 | Payment | See section 5 |
@@ -671,6 +687,7 @@ This is where the app differs most sharply in value from the website. A member o
 | **Map view** | List and map toggle, with category icons on the map |
 | **One-tap navigation** | Opens system maps directed at the store |
 | **One-tap calling** | Dials the store directly |
+| **Club scope** | Lists the current club's stores and those shared by both clubs (`club_id` empty) (3.0) |
 | Filters | The existing dimensions: category (food and drink / sports equipment / health / education / lifestyle services) and area |
 | Detail | Name, photo or logo, category, address, phone, opening hours, map link, website or social link, offer, **applicable tier** |
 | Tier labelling | "All members" and "Prestige tier only" must be clearly distinguished, with a view-plans CTA shown to members of other tiers and to those with no membership (there is no upgrade during the term; another plan can be chosen when renewing after expiry) |
@@ -690,7 +707,7 @@ This is where the app differs most sharply in value from the website. A member o
 
 ### 3.9 Programs and camps
 
-**Scope, first**: the website **already has online booking** (listed on the children's training, summer camp, winter camp, and specialist training pages), admin P3 booking management exists in full, and the types `Program` / `Session` / `Registration` / `Trial` are all defined. **Booking in the app is therefore not a new feature; it is a mobile interface onto an existing mechanism.**
+**Scope, first**: the website **already has online booking** (listed on the children's training, summer camp, winter camp, and specialist training pages), admin P3 booking management exists in full, and the types `Program` / `Session` / `Registration` / `Trial` are all defined. **Booking in the app is therefore not a new feature; it is a mobile interface onto an existing mechanism.** The program list shows only the programs run by the current club (3.0).
 
 Only three small items were moved out of scope in website v2.0, and only two of them return here:
 
@@ -726,7 +743,7 @@ The website has explicitly excluded an entire list of public prize-draw features
 
 **The app does exactly four things**:
 
-> **v3.0: draws are run per club.** The presentation is unchanged, but it is now shown **per club** — the boolean answers "is your membership *at this club* valid at this draw's cut-off?". A member holding both memberships sees themselves eligible for both draws.
+> **v3.0: draws are run per club.** The presentation is unchanged, but it is now shown **per club** — the boolean answers "is your membership *at this club* valid at this draw's cut-off?". The app shows the current club's draws; a member holding paid memberships at both clubs can see their eligibility for each draw by switching club.
 
 | # | Displayed | Source |
 |---|---|---|
@@ -762,7 +779,7 @@ The website has explicitly excluded an entire list of public prize-draw features
 | Our Sponsors | Grouped by tier (title / official / supporting), with links to sponsorship stories |
 | Enquiries | Routed to the website's partnership and sponsorship enquiry form |
 
-**The two clubs' sponsors must be shown in separate sections, never merged** — sponsorship contracts are signed separately, and merging them asserts commercial relationships that do not exist. `Sponsor` / `Partner` gain a `club_id` field marking ownership (10.2), and section headers name the club.
+**Only the current club's partners and sponsors are shown; the two clubs are never merged** — sponsorship contracts are signed separately, and merging them asserts commercial relationships that do not exist. `Sponsor` / `Partner` gain a `club_id` field marking ownership (10.2).
 
 **Whether Blue Whale's sponsors appear in the app requires the consent of both Blue Whale and those sponsors** (16.2). Until confirmed the section is hidden, and **must not be filled with empty logo placeholders**.
 
@@ -784,7 +801,7 @@ Where a sponsorship contract includes "N app placements", the correct approach i
 
 | Item | Rule |
 |---|---|
-| Slot positions | Home `home_top` and `home_mid`; fixture list `schedule_list`; news list `news_list`. **The definitive list is maintained in admin E4** |
+| Slot positions | Home `home_top` and `home_mid`; fixture list `schedule_list`; news list `news_list`. **The definitive list is maintained in admin E4**. Slots and flights are app-level, **and both clubs show the same set of advertising** |
 | **Advertising label** | Every slot **must** carry a clear "Advertisement" or "Sponsored" label and must never be mistaken for editorial content |
 | Rotation | Weighted random, constrained by the slot's per-session cap and the per-person frequency cap |
 | Clicks | Open the external browser or a designated in-app screen; external links must show a leaving-the-app notice first |
@@ -1031,11 +1048,11 @@ The website specification excludes notification features in four places, and wha
 
 | Type | Trigger | Segment | Default |
 |---|---|---|---|
-| Fixture reminder | Two hours before kick-off | Devices following that squad | On |
-| Venue confirmed | A fixture's `venue` changes from `TBC` to an actual venue | Devices following that squad | On |
-| Fixture change | Date, time, or venue changed; fixture postponed | Devices following that squad | On |
-| Result published | A score is entered and published in admin C4 | Devices following that squad | On |
-| Article published | An article is published in admin B2 | Devices subscribed to that category **and following that club** | Off |
+| Fixture reminder | Two hours before kick-off | Devices subscribed to that squad's push | On |
+| Venue confirmed | A fixture's `venue` changes from `TBC` to an actual venue | Devices subscribed to that squad's push | On |
+| Fixture change | Date, time, or venue changed; fixture postponed | Devices subscribed to that squad's push | On |
+| Result published | A score is entered and published in admin C4 | Devices subscribed to that squad's push | On |
+| Article published | An article is published in admin B2 | Devices subscribed to that category **and to that club's push** (news shared by both clubs goes to both clubs' subscribers) | Off |
 | Membership expiry | 30 days and 7 days before expiry | That member's devices | On |
 | Membership activated | Payment activation succeeds | That member's devices | On |
 | Jersey status | Status changes to "dispatched" | That member's devices | On |
@@ -1051,8 +1068,8 @@ Three dimensions only, with **behavioural targeting deliberately excluded**:
 | Dimension | Description |
 |---|---|
 | Membership tier | All / holders of an active membership / Prestige tier only / those with no active membership (including signed-out devices) |
-| Followed squad | `PushTopicSubscription` (device × `team_code`), **sent only where `is_push_enabled` is true** (see 10.1) |
-| **Club** | All / Rock only / Blue Whale only. For general announcements; **must not be used for differentiated commercial messaging** |
+| Push-subscribed squad | `PushTopicSubscription` (device × `team_code`), **sent only where `is_push_enabled` is true** (see 10.1). **Independent of the current club** |
+| **Club** | All / Rock only / Blue Whale only, by the device's club push subscription (`PushTopicSubscription` with the club topic type). For general announcements; **must not be used for differentiated commercial messaging** |
 | Language | `zh` / `en`; push copy must exist in both, sent per the device language |
 
 **Not built**: personalised push based on browsing history, click behaviour, geography, or purchase history.
@@ -1062,8 +1079,7 @@ Three dimensions only, with **behavioural targeting deliberately excluded**:
 | Feature | Description |
 |---|---|
 | Category toggles | Independently switchable (fixtures / results / news / membership and jersey) |
-| Followed squads | Multiple selection, the same data as S23. **Users who skipped onboarding are treated as following everything** |
-| **Follow without push** | Push can be disabled per followed squad (`is_following` and `is_push_enabled` are separate) |
+| **Push-subscribed squads and clubs** | Lists **every squad of both clubs** and both clubs, each switchable on its own and **not affected by the current club** — a user viewing Taichung Rock can still subscribe to Taichung Blue Whale. Push for the first team and club chosen in step 1 of first-run onboarding is on by default; everything else is off by default |
 | Quiet hours | A daily do-not-disturb window. **The switch is on by default, with a default window of 22:00–08:00**, in device local time and may span midnight |
 | **Quiet hours govern local reminders** | Quiet hours **also govern the match-day kickoff reminders the App schedules locally**: a reminder falling inside the window is deferred to the end of the window; if the match has already kicked off by then, no reminder is shown |
 | Permission denied | The app must show the state and offer a shortcut to system settings, and **must not nag with repeated prompts** |
@@ -1361,7 +1377,7 @@ The app requires **seven** extensions to existing modules. The first four change
 | **I Site settings / venues** | `Venue` gains coordinates, for fixture navigation and course locations | 3.2, 3.9 |
 | **C1 Squad management** (v2.0) | Adds `club_id` and club sections; **adds `BW1`, the Blue Whale first team**. `Team.code` stays globally unique | 3.2, 3.3 |
 | **B2 Article management** (v2.0) | Adds `club_id` to mark a news item's club; the list gains a club filter | 3.4 |
-| **E1 / E2 Partners and sponsors** (v2.0) | Adds `club_id`; the logo wall is sectioned by club and **must never merge them** | 3.11 |
+| **E1 / E2 Partners and sponsors** (v2.0) | Adds `club_id`; the app shows only the current club's logo wall and **must never merge the two** | 3.11 |
 
 > ⚠️ **C4's workload grows substantially**: where there were four Rock squads, v2.0 adds the Blue Whale first team and asks for 12 months of league and cup fixtures (3.2). Fixture data is maintained entirely by hand — **this is an ongoing staffing cost, not a one-off build**.
 
@@ -1381,7 +1397,7 @@ This is the project's first API specification. It sits here rather than in a fou
 |---|---|---|---|
 | Device | Register / update | Anonymous | `AppDevice` creation and push token updates |
 | Settings | Read | Anonymous | Minimum supported version, feature flags, maintenance mode |
-| **Clubs** | List | Anonymous | `Club` records (code, name), for club sections and follow settings (v2.0) |
+| **Clubs** | List | Anonymous | `Club` records (code, name), for choosing the current club and push subscriptions (v2.0) |
 | **Competitions** | List | Anonymous | `Competition`, for the third fixture filter level (v2.0) |
 | Fixtures | List / single | Anonymous | Filterable by **squad, club, competition**, and period |
 | Squads and players | List / single | Anonymous | Filterable by club |
@@ -1481,7 +1497,7 @@ This is the project's first API specification. It sits here rather than in a fou
 
 | Type | Fields the app needs | Use in the app |
 |---|---|---|
-| `Club` | `code`, name (zh/en), crest (**with @2x/@3x and dark variants**) and brand colour are bundled app resources, matched by `code` | Dual crests side by side, content-source labelling, **membership card branding (one card per membership from v3.0)**, sponsor zoning |
+| `Club` | `code`, name (zh/en), crest (**with @2x/@3x and dark variants**) and brand colour are bundled app resources, matched by `code` | Both crests side by side on the launch screen, choosing the current club and its colours, **membership card branding (one card per membership from v3.0)** |
 | `Competition` | `code`, name (zh/en), type, `season_id` | Competition filtering across the twelve-month fixture list |
 
 > ⚠️ **High-density raster and dark-variant crests are an app-specific requirement** — the web only needs SVG. They ship inside the app; see 16.2 item 1.
@@ -1493,7 +1509,7 @@ This is the project's first API specification. It sits here rather than in a fou
 | Type | Description | Key fields | Relations |
 |---|---|---|---|
 | `AppDevice` | Device | `device_install_id`, platform, OS version, app version, language, push token (encrypted), push permission state, `member_id` (nullable), first and last active times, **refresh-token hash**, **refresh-token expiry**, **last rotated at**, **revoked at (nullable)** | Member, PushTopicSubscription |
-| `PushTopicSubscription` | **Follow and push subscription** | `device_install_id`, `member_id` (nullable), topic type (**squad** / news category / **club**), topic value, **`is_following`**, **`is_push_enabled`** | AppDevice, Member, Team, Club |
+| `PushTopicSubscription` | **Push subscription** | `device_install_id`, `member_id` (nullable), topic type (**squad** / news category / **club**), topic value, **`is_following`**, **`is_push_enabled`** | AppDevice, Member, Team, Club |
 | `PushMessage` | Push batch | Title and body (zh/en), image, deep link, segmentation, scheduled time, status, operator, sent / delivered / opened counts | — |
 | `AppRelease` | App release | Platform, version, build, release date, state, minimum-supported flag, release notes (zh/en), forced or recommended | — |
 | **`AppDiagnosticReport`** | **App-side diagnostics and error reports** (what M5 receives, 8.5) | `device_install_id`, platform, app version, build, OS version, occurred at, kind (crash / abnormal exit / API error / launch time / user report), summary, technical detail, handling state | AppDevice |
@@ -1505,8 +1521,8 @@ This is the project's first API specification. It sits here rather than in a fou
 > ⚠️ **`AppDiagnosticReport` must hold no personal data**: no `member_id`, no full IP address, no coordinates, and no free text beyond what the user deliberately submits;
 > where a user submits text, the app states plainly before sending that it will be transmitted. Retention matches raw advertising events at **90 days**.
 
-> **Follow preferences reuse `PushTopicSubscription`; no new type is added.** Following and push segmentation draw on the same "which squads does this user care about" data, and splitting them into two tables would immediately produce a synchronisation problem. v2.0 replaces the single "subscription state" with two booleans — `is_following` (whether it appears on the home screen and in lists) and `is_push_enabled` (whether push is sent) — making "follow without push" a valid combination.
-> A nullable `member_id` is also added: while signed out the preference binds to the device, and after sign-in it binds to the account and travels between devices.
+> **`PushTopicSubscription` carries push subscriptions only**: whether push is sent is decided by `is_push_enabled`. Which club the app's screens show is decided by the current club (3.0, stored locally), and **`is_following` is not read**; when the app writes a subscription, `is_following` is always true.
+> A nullable `member_id` is also added: while signed out the push subscription binds to the device, and after sign-in it binds to the account and travels between devices.
 
 ### 10.2 Extensions to existing types
 
@@ -1519,10 +1535,10 @@ This is the project's first API specification. It sits here rather than in a fou
 | `Registration` | `member_id` (**nullable**); `privacy_consented_at`, `privacy_policy_version` (main site v3.25, written by the server on submit) | My bookings, form pre-filling; privacy-consent record | 3.9 |
 | `Match` | `opponent_en`, `venue_en`, `competition`, `status` | English display; front-end attributes promoted to formal fields | 3.2 |
 | `Member` | `registration source` gains an `App` value | Identification in admin K1 | 4.1 |
-| `Sponsor` / `Partner` | High-resolution assets (@2x / @3x), dark-mode logo variant, in-app ordering, **`club_id`** | Logo rendering in the app, **sectioned by club** | 3.11 |
-| **`Team`** (v2.0) | **`club_id`** (required), display name (zh/en) | Club sections; both clubs have a "first team" and must be distinguishable | 3.2, 3.3 |
+| `Sponsor` / `Partner` | High-resolution assets (@2x / @3x), dark-mode logo variant, in-app ordering, **`club_id`** | Logo rendering in the app, **current club only** | 3.11 |
+| **`Team`** (v2.0) | **`club_id`** (required), display name (zh/en) | Squads listed for the current club; both clubs have a "first team" and must be distinguishable | 3.2, 3.3 |
 | **`Match`** (v2.0) | **`competition_id`** (nullable) | Competition filtering and the 12-month calendar | 3.2 |
-| **`Article`** (v2.0) | **`club_id`** (nullable; empty = shared) | News source labelling and follow filtering | 3.4 |
+| **`Article`** (v2.0) | **`club_id`** (nullable; empty = shared) | News filtered by the current club (empty = shared by both clubs) | 3.4 |
 
 > **`Member` still gains no `club_id` (v3.0: same conclusion, different reason)**
 > The conclusion is the same: **the club dimension belongs on `Membership`, not on `Member`.** The new reason is that `Member.email` is the **login key** — adding a club dimension would mean two passwords to remember, two LINE bindings and two account-deletion flows; and `line_user_id` is 1:1 with a LINE account and cannot be duplicated. **Under privacy law the data subject is the person, not the membership.**
@@ -1532,8 +1548,8 @@ This is the project's first API specification. It sits here rather than in a fou
 >
 > | Type | New fields | Use in the app |
 > |---|---|---|
-> | **`Membership`** (new type) | `member_id` × `club_id` × `season_id`, tier, dates, status | 3.5 membership status listed per club; 3.7 joining and renewing separately |
-> | **`MemberCard`** | **`membership_id` (mandatory)** | 3.6 one card per membership, switched by swiping |
+> | **`Membership`** (new type) | `member_id` × `club_id` × `season_id`, tier, dates, status | 3.5 membership status shown for the current club; 3.7 joining and renewing separately |
+> | **`MemberCard`** | **`membership_id` (mandatory)** | 3.6 one card per membership; the Member tab shows the current club's card |
 > | **`MembershipPayment`** | `club_id` (beneficiary), `collecting_club_id` (collecting entity) | 5.2 the basis for collect-and-remit reconciliation |
 > | **`MemberDraw`** | `club_id` (mandatory) | 3.10 eligibility shown per club |
 
@@ -1562,9 +1578,9 @@ One real company may be several of these at once; **create a separate record for
 | Program sessions | Belong to `Session` and **do not enter `CalendarEvent`**. "My bookings" may display times but must not write to any calendar type |
 | Members | Not a separate roster; anyone holding an active `Membership` at that club |
 | Multi-card plans | Only a different `card_quota` / `jersey_quota` on `MembershipPlan`; **no student linking relationship is created** |
-| **Club vs squad** | `Club` is the legal entity and brand (Rock, Blue Whale); `Team` is a squad (D1, BW1, U12, BW-U15…). **One `Club` has many `Team`s.** Deep links and calendar subscriptions use `Team.code`; crests and sectioning use `Club` |
+| **Club vs squad** | `Club` is the legal entity and brand (Rock, Blue Whale); `Team` is a squad (D1, BW1, U12, BW-U15…). **One `Club` has many `Team`s.** Deep links and calendar subscriptions use `Team.code`; crests, colours and the current club use `Club` |
 | **`Club` vs the five commercial parties** | `Club` is a **content principal**, not a sixth commercial party. It counts no impressions, carries no payments or revenue share, and is never merged with `Partner` / `Sponsor` — Blue Whale is a co-principal, not a sponsor or partner of the club |
-| **Membership vs club** | Membership is `Membership`, **one per person per club**, with `club_id` required; `Member` carries no `club_id` (email is the sign-in key, the LINE binding is 1:1, and under personal-data law the data subject is the person, not the membership). The member centre lists membership status club by club, and **each membership has its own card** |
+| **Membership vs club** | Membership is `Membership`, **one per person per club**, with `club_id` required; `Member` carries no `club_id` (email is the sign-in key, the LINE binding is 1:1, and under personal-data law the data subject is the person, not the membership). The member centre shows the current club's membership status, and **each membership has its own card** |
 | Advertising vs sponsor exposure | `AdEvent` records impressions of `AdCreative` only. The sponsor logo wall **generates no `AdEvent` whatsoever** |
 | Device vs member | `AppDevice` exists independently (registered even when signed out); `member_id` is a **nullable weak link** released on sign-out |
 
@@ -1763,7 +1779,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 
 | Phase | Contents | Prerequisites |
 |---|---|---|
-| **A — Foundation** | **`Club` and `Competition` records**, **both clubs' fixtures and results (12 months)**, **first-run onboarding and follow preferences (S23)**, news list, squads (read-only), partners and sponsors, FAQ, deep links and Universal Links, both languages, `AppDevice` registration, settings | **Blue Whale's written authorisation, brand assets, and fixture data** (16.2, items 1–4) |
+| **A — Foundation** | **`Club` and `Competition` records**, **both clubs' fixtures and results (12 months)**, **first-run onboarding and current club (S23)**, news list, squads (read-only), partners and sponsors, FAQ, deep links and Universal Links, both languages, `AppDevice` registration, settings | **Blue Whale's written authorisation, brand assets, and fixture data** (16.2, items 1–4) |
 | **B — Membership** | Registration and sign-in, member centre, **digital membership card (one per membership)**, **partner stores and the nearby map**, plans and benefits, **joining and renewing through an external browser**, read-only prize-draw information | Store coordinates (16.2, item 9) |
 | **C — Engagement and revenue** | Push notifications, advertising slots and measurement, match-day reminders, **program booking (pre-filling and my bookings)** | The three additions to the member terms (16.2, item 12), first advertisers (16.2, item 7) |
 | **D — Content-dependent** | Player photographs and biographies, full article text and offline reading | The 113 draft articles unblocked (16.2, item 23), player assets (16.2, item 22) |
@@ -1811,7 +1827,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 
 | # | Item | Impact |
 |---|---|---|
-| 1 | **The one Blue Whale brand asset still outstanding**: the **vector** logo master (with a dark variant). The English name is settled (short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club`; usage in the Blue Whale specification §8.2) | First-run onboarding, club sections, **the membership card face** and the app icon **can now be built** — the raster master (3299 × 3243 at 300dpi) covers @2x / @3x and the 1024 app icon, and the brand colours are settled (Blue Whale specification §8.1). The vector master blocks **dark and single-colour card faces, and any print work**. **Never redraw the crest, never trace it from a website screenshot, never scale up a raster and pass it off as vector** |
+| 1 | **The one Blue Whale brand asset still outstanding**: the **vector** logo master (with a dark variant). The English name is settled (short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club`; usage in the Blue Whale specification §8.2) | First-run onboarding, the club switcher and colours, **the membership card face** and the app icon **can now be built** — the raster master (3299 × 3243 at 300dpi) covers @2x / @3x and the 1024 app icon, and the brand colours are settled (Blue Whale specification §8.1). The vector master blocks **dark and single-colour card faces, and any print work**. **Never redraw the crest, never trace it from a website screenshot, never scale up a raster and pass it off as vector** |
 | 2 | **Blue Whale's 12 months of fixtures**: dates, opponents, venues, home or away, for league and every cup competition | 3.2 is the app's first feature. **`content/` currently holds only the 2026/27 Premier League schedule; neither club's cup fixtures nor the Blue Whale league schedule have been supplied** |
 | 3 | **Blue Whale's players and coaching staff**: names (zh/en), numbers, positions, photographs, biographies, **and likeness consent** | 3.3 cannot be signed off. Minors require a guardian's consent |
 | 4 | **Ownership and DNS control of the Blue Whale website's domain** | 2.3. A Universal Link can only be bound to a domain you own; without control, **Blue Whale deep links must not ship** |

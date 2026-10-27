@@ -823,6 +823,48 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | 會員中心伺服器錯誤 | iOS `MemberStore.loadFailed`：非傳輸層錯誤時 `memberships` 仍設為 nil（不以舊值宣告會籍有效），畫面改顯示「會籍狀態暫時無法載入」卡片，會員卡入口照常。Android `MemberScreen` 原本就顯示 `ErrorState`＋重試。其他頁面無舊資料時都進 `.failed`，有舊資料時保留舊資料、不貼離線 |
 | 驗證 | iOS 單元 237／冒煙 20 全綠；Android 單元 209×2 flavor／冒煙 20（Pixel 8 API 35）全綠（2026-10-27，含離線判定與最短顯示的對齊）。**無網路、逾時兩條路徑只有單元測試，未在實機目視驗收** |
 
+### §11p App 依俱樂部分流（App v3.24）— Android
+
+規格見 App 規劃書 v3.24（§2.1／§3.0／§6.3／§6.4）。Android 的實作決定：
+
+| 項目 | 決定 |
+|---|---|
+| 儲存 | `SettingsStore.currentClub`（SharedPreferences 鍵 `current_club`，`currentClubFlow: StateFlow<String?>`）。**本機永久、不同步帳號**；null＝未選擇 |
+| 資料範圍的單一來源 | `AppData.clubCodes` 改為「目前俱樂部一隊」（未選擇或清單不含時為全部）。首頁新聞／夥伴／特約店家、新聞、名單、夥伴贊助、課程、試訓、FAQ 本來就以它展開，所以不必逐頁改過濾。`AppData.allClubCodes`／`allTeams`／`allMatches` 保留兩隊全部（通知設定、開賽提醒、深連結判斷用）；`teams`／`matches`／`competitions` 由 all* 依 `clubCode` 過濾，**切換是瞬間的**（兩隊資料原本就都在啟動時抓、都有快取），另 `switchClub` 會觸發 `refresh()` 重抓 |
+| 新聞與特約店家的「共同」 | 不在客戶端過濾：API 的 `/{club}/news`、`/{club}/partner-stores` 本來就回「該俱樂部專屬＋`club_id` 為空」（`ClubOrSharedSql`），客戶端只要只問目前俱樂部這一隊 |
+| 詳情頁探測 | 連結沒帶俱樂部時詳情頁（賽事、新聞、球員、店家、課程）改用 `AppData.probeOrder`（目前俱樂部優先、其餘跟後），slug 全站唯一所以仍開得到 |
+| 引導 | `OnboardingScreen` 第 1 步改為 `ClubChoiceList` 二選一（必選、無略過、無「全部」），`AppContainer.chooseClubFirstTime` 存目前俱樂部並把**該俱樂部一線隊＋俱樂部主題**設為預設推播訂閱（球隊清單 3 秒內沒到就只存選擇、不動訂閱）。第 2 步不變 |
+| 推播訂閱（舊追蹤） | `FollowSelection` 新增 `clubCodes`（本機表 `follow_preference` 新增 `target_type='club'` 列，無需遷移）；`FollowOption.ClubTopic`。**通知設定**（更多→「通知設定」，原「追蹤設定」）列兩隊所有球隊與兩個俱樂部主題，與目前俱樂部脫鉤；開賽提醒（`ReminderCoordinator`）改讀 `allMatches`／`allTeams`＋訂閱。**使用者明確全部取消勾選＝全部不訂閱**（存 `target_type='none'` 標記列，`FollowSelection(all = false)`）；只有沒有任何列的舊資料（升級使用者）才視為全部訂閱。⚠️ FCM 傳輸仍未做，**尚未寫入後端 `PushTopicSubscription`**（`isFollowing` 恆 true、看 `isPushEnabled` 的規則待推播接上時照辦） |
+| 升級遷移 | `UpgradeClubGate`（`AppRoot` 在 `onboardingDone && currentClub == null` 時）：讀 `FollowRepository.selection`——只訂閱一隊（`CurrentClub.migrate`）就直接用那隊且不顯示畫面；訂閱全部、未設定或橫跨兩隊 → `ClubChooserScreen` 顯示一次 |
+| 切換鈕 | `ClubSwitcherBar`（隊徽＋隊名＋箭頭）由 `MainShell` 放在首頁／賽程／新聞／會員四個根畫面上方（單一位置，不在各畫面重複）；「更多」第一列「切換俱樂部」。切換後 `NavHostController.resetToHome()` 清掉整個返回堆疊回首頁 |
+| 配色 | `TcrfcTheme(clubCode)`＋`schemeFor`：主色換成該俱樂部 `brandAa`（深色模式 `brandBright`），容器色由品牌色與 surface 混出，七個藍鯨變數沿用 `Tokens.Bw*`（取樣定案值）。`MainActivity` 在 S24 顯示期間與未選擇時傳 null＝中性品牌黑，載入畫面仍是雙標誌 |
+| 慈善入口 | `MoreScreen` 過濾 M2 排版資料中 `code == "charity"`，只在 `CurrentClub.showsCharity(current)`（磐石）顯示 |
+| 會員分頁 | `MemberClubView.of(memberships, current)` 只留目前俱樂部的會籍、訂單、入會入口；另一隊有會籍時多一行「你也有 X 的會籍」＋「切換過去」。會員卡（`CardsScreen`）、抽獎、球衣登記同樣只出示目前俱樂部的資料（另一隊的卡仍存在本機，切換後可出示）。方案頁（`PlansScreen`）直接帶目前俱樂部，移除俱樂部切換晶片 |
+| 深連結／推播點擊 | `MainShell` 在導覽前呼叫 `AppContainer.clubForLink`：連結明示（官網網域、`?club=`；`DeepLinkParser.clubHint`）→ 只有 slug 的 news／player／store／program 逐俱樂部探測所屬（`CurrentClub.firstOwner`，`probeOrder` 目前俱樂部優先；目前俱樂部找得到（含共同內容）就不切換，只在另一隊找到才切換；404 或失敗視為不在該隊）→ 球隊代號（`schedule/{team}`）→ 賽事編號查 `allMatches`（冷啟動最多等 3 秒）。推得與目前不同就 `switchClub`＋清返回堆疊，**不詢問**。不屬特定俱樂部的連結（會員卡）在目前俱樂部下開啟 |
+| 不分俱樂部 | 廣告版位、M2 首頁編排（`AppData.layout`、`AdSlot*`）、裝置註冊維持 App 層級 |
+| 註冊／忘記密碼帶的俱樂部 | `AppContainer.primaryClub()` 改為目前俱樂部（原為追蹤的第一個） |
+| 驗證 | 單元 227 全綠（新增 `CurrentClubTest` 18 項：持久化、範圍過濾、預設訂閱、訂閱與目前俱樂部脫鉤、升級遷移、深連結切換與 slug 探測、全部取消＝不訂閱、會員分頁提示、配色）；冒煙 23（Pixel 8 API 35）全綠，新增「引導選藍鯨→首頁只有藍鯨→切換磐石→重開仍是磐石」「升級使用者問一次」「深連結自動切換」。**真實 API 未驗收** |
+
+### §11p App 依俱樂部分流（App v3.24）— iOS
+
+規格見 App 規劃書 v3.24（§2.1／§3.0／§6.3／§6.4／§10.1）。iOS 的實作決定：
+
+| 項目 | 決定 |
+|---|---|
+| 儲存 | `CurrentClubStore`（`Domain/CurrentClubStore.swift`，`UserDefaults` 鍵 `tcrfc.club.current`）。**本機永久、不同步帳號**；`nil`／空字串＝未選。`select(_:)` 寫入後才由 `changes`（`PassthroughSubject`）送出——`@Published` 的 sink 在 willSet 觸發會讀到舊值，根容器重建畫面要的是新值。`AppContainer.club` 持有，`EnvironmentRoot` 注入所有 SwiftUI 畫面 |
+| 資料範圍 | `AppData` 保留兩隊全量（`catalog`／`schedule`／`competitions`，提醒、推播設定、深連結判斷用），畫面一律讀 `scopedCatalog`／`scopedClubs`／`scopedSchedule`／`scopedCompetitions`。`Catalog.scoped(to:)`：未選或代碼不在主檔時回全部，**不讓畫面全空**。賽程球隊分頁 `TeamTab.tabs(from: scopedCatalog)`（只有該俱樂部的一線隊與其梯隊）。首頁「下一場」「近期賽事」不再看追蹤，取該俱樂部一線隊最近一場、其餘梯隊補滿。新聞、夥伴贊助、名單、課程與試訓、FAQ、特約店家的 model 只問目前俱樂部這一隊；新聞與店家的「共同（`club_id` 為空）」由 API 每個俱樂部的清單已含，客戶端不另外過濾。`StoresModel` 是容器級單例，記下載入範圍，切換俱樂部後清空重抓 |
+| 品牌色 | `Brand.currentClubCode`（靜態）決定 `Brand.brand`／`brandAA`／`brandDeep`／`ink`，磐石值改名 `tcrfc*`、藍鯨七個變數沿用既有 `bw*`（取自 `club-bw.css`）；`ClubTheme.forClub(nil)`／`.app` 讀目前俱樂部。**畫面都是建立時才讀顏色，所以切換俱樂部時 `RootTabBarController.clubDidChange()` 整組分頁重建**（順便達成「切換後回首頁、重抓資料」），並更新 tab bar／view 的 tintColor；`EnvironmentRoot` 對所有 SwiftUI 畫面加 `.tint(Color(Brand.brandAA))`。S24 載入畫面維持雙標誌（只有按鈕色隨已存的選擇） |
+| 引導 | `OnboardingView` 第 1 步改 `ClubChoiceList`（俱樂部由球隊主檔動態產生，必選、無「全部」、無略過；沒選前「下一步」停用），**選定即 `club.select`**（品牌色立刻換）；第 2 步通知不變。完成時 `FollowStore.completeOnboarding(firstSelecting:)`：預設只開所選俱樂部一線隊＋該俱樂部主題。`clubOnly` 模式給升級使用者（見下） |
+| 推播訂閱（原追蹤） | 類別名稱仍叫 `FollowStore`（改名牽動面太大）。新增 `clubCodes`（`follow_preference` 表 `target_type='club'` 列，另以 `'clubs'/'none'` 列標記「明確選過、目前全關」，無需遷移）、`setTeam`／`setClub` 單項開關。`followsEverything` 在明確選過之後不再因「空」而變全部，**可以全關**（舊資料沒有明確選擇仍視為全部，供升級使用者）。`subscriptionItems` 送兩隊**全部**球隊與俱樂部主題，`isFollowing` 恆 true、`isPushEnabled`＝是否訂閱。畫面 `PushSubscriptionsView`（`Features/Club/ClubViews.swift`，路由仍是 `.followSettings`）：每個俱樂部一節，列俱樂部主題與該隊全部球隊的開關，與目前俱樂部無關；通知設定頁有入口，更多與會員頁也進得去。開賽提醒（`ReminderCoordinator`）仍讀 `appData.schedule` 全量＋訂閱，與目前俱樂部脫鉤。⚠️ APNs 傳輸仍未做（`NoopPushTransport`），訂閱送到後端的 `PushTopicSubscription` 但實際推播待傳輸接上 |
+| 升級遷移 | `CurrentClubStore.migrateIfNeeded(follow:catalog:)`（純函式 `inferredClub`）：舊引導已完成且沒有目前俱樂部時，舊追蹤只涵蓋一隊就用那隊，追全部、未設定或橫跨兩隊推不出來。在 `RootTabBarController.setupComplete`（引導判斷）時嘗試；仍推不出來就以 `OnboardingView(clubOnly: true)` 只顯示一次俱樂部選擇（按「開始使用」，不動推播訂閱）。球隊主檔尚未載入時不遷移（該次顯示 clubOnly 引導，載入後可直接選） |
+| 切換鈕 | `ClubSwitcherBar`（隊徽＋隊名＋箭頭的 `Menu`，辨識碼 `club.switcher`）由 `WithClubSwitcher` 包在首頁／賽程／新聞／會員四個根畫面上方；「更多」最上方固定一列「切換俱樂部」（`confirmationDialog`，不受 M2 編排控制）。選單與引導都走同一個 `club.select` |
+| 慈善入口 | `MoreView.showsCharity(clubCode:)`：只有磐石（`tcrfc`）顯示 M2 編排裡的 `charity`；商店入口改用目前俱樂部的官網網域組網址 |
+| 會員分頁 | `MemberScope`（`Domain/MemberScope.swift`，純函式）：會籍、訂單、可加入俱樂部、會員卡都只留目前俱樂部；`MemberCenterView` 在另一隊也有會籍時多一列「你也有 X 會籍 ／ 切換」（辨識碼 `member.other_club_hint`）。`MemberCardsView` 只出示目前俱樂部的卡（另一隊的卡仍在本機，切換後可出示）；首頁會員捷徑同樣只看目前俱樂部的卡。方案頁移除俱樂部分段，直接帶目前俱樂部；註冊／忘記密碼的俱樂部預設目前俱樂部（`FollowStore.registrationClubCode` 移除） |
+| 深連結／推播點擊 | `AppContainer.clubForDeepLink`：`schedule/{team}` 由球隊主檔推得；`match` 先查 `appData.schedule`，沒有再逐俱樂部取單場；`news`／`player`／`store`／`program` 只有 slug，依 `appData.clubSearchOrder`（目前俱樂部優先、其餘跟後）逐一試，**找到的俱樂部與目前不同就 `switchClubIfNeeded` 自動切換（不詢問）**，目前俱樂部找得到（含共同內容）就不切換。`membercard`／`upgrade` 等不屬特定俱樂部的連結、以及查不到的連結都在目前俱樂部下開啟。`RootTabBarController.route` 先 `await` 切換再 `performRoute`；引導未完成（含未選俱樂部）時連結擱置到引導結束 |
+| 不分俱樂部 | 廣告版位、M2 首頁編排（`AppData.layout`、`AdSlotView`）、裝置註冊維持 App 層級 |
+| 兩端共通決定 | 只有 slug 的新聞／球員／店家／課程連結：逐俱樂部探測所屬（目前俱樂部優先），找到另一隊就自動切換。推播訂閱明確選擇後全部取消＝全部不訂閱（舊資料沒有明確選擇才視為全部）；訂閱以 `isFollowing`＝true／`isPushEnabled`＝訂閱狀態送後端 |
+| 驗證 | 單元 251 項全綠（新增 `ClubScopeTests` 15 項：持久化與品牌色、賽程／首頁／新聞／店家／夥伴／課程過濾、慈善入口、深連結切換與不切換、會員分頁與提示、升級遷移、預設訂閱；`FollowStoreTests` 改寫兩項）；冒煙新增「引導選藍鯨→首頁與新聞只有藍鯨→切換鈕切磐石→賽程只有磐石球隊→殺掉重開仍是磐石」「磐石模式點藍鯨新聞連結自動切換」，引導測試改為俱樂部二選一。**真實 API 未驗收** |
+
 ## 12. 本檔不決定的事
 
 - **§16.2 技術前提第 17 項：推播是否走自家直送** —— 本檔建議直送（§5），但客戶可能有既有的服務商合約

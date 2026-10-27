@@ -74,13 +74,13 @@
     },
     {
       "key": "follow_preferences",
-      "label": "追蹤偏好",
+      "label": "目前俱樂部與推播訂閱",
       "strategy": "local_only_sync_on_login",
       "ttlSec": null,
       "retention": "permanent",
       "offline": true,
       "cacheMetaKey": false,
-      "notes": "本機儲存，登入後與帳號同步。"
+      "notes": "規劃書 §2.4「目前俱樂部」列：目前俱樂部本機永久儲存、不同步到帳號（存在 App 設定，不進 follow_preference 表）。follow_preference 表只存推播訂閱（§6.4、§10.1），未登入綁裝置、登入後綁帳號。key 名稱沿用以維持兩端相容。"
     },
     {
       "key": "membership_status",

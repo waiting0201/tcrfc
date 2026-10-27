@@ -232,6 +232,10 @@ ul.keyed .sub{ display:block; color:var(--faint); font-size:7.6pt; line-height:1
 .cardwrap .peek{ position:absolute; top:1.1mm; right:-1.1mm; bottom:1.1mm; width:2.4mm;
                  border:.6px solid var(--wire-2); border-left:0; border-radius:0 2mm 2mm 0;
                  background:#F0EAE8; }
+.csw{ display:flex; align-items:center; gap:1mm; width:max-content; margin:0 0 1.3mm;
+      border:.5px solid var(--wire-2); border-radius:2mm; padding:.6mm 1.6mm;
+      font-size:5.6pt; font-weight:700; background:#fff; }
+.csw .cv{ color:var(--faint); font-weight:400; }
 .swipe{ display:flex; align-items:center; justify-content:center; gap:1.2mm; margin-top:1.4mm; }
 .swipe .dot{ width:1.4mm; height:1.4mm; border-radius:50%; background:var(--wire-2); }
 .swipe .dot.on{ background:var(--brand); }
@@ -334,81 +338,83 @@ C['zh'] = dict(
     stand='這份文件把行動 App 攤開來看：使用者打開 App 之後會看到哪些畫面、每個畫面上放什麼、'
           '哪些內容由後台維護。畫面為<b>功能示意</b>，用來確認架構與流程是否正確，'
           '尚未進入視覺設計。',
-    stamps=[('依據　', '行動 App 功能規劃書 v3.22'), ('分頁　', '5 個　×　畫面 23 個'),
+    stamps=[('依據　', '行動 App 功能規劃書 v3.24'), ('分頁　', '5 個　×　畫面 24 個'),
             ('語言　', '繁中／英文雙語'), ('後台模組　', 'M1–M5　＋　E4–E6（共用官網後台）')],
 
-    eyebrow1='App map', h2_1='五個分頁：功能切分，不是球隊切分',
-    p1='底部固定五個分頁，任何功能最多點三層就到得了。<b>沒有「磐石分頁」與「藍鯨分頁」</b>——'
-       '分頁照功能切，球隊是每個功能裡的一個篩選。做成兩個平行分頁的話，每個功能都要做兩次，'
-       '而且只追一隊的人會看到一半空白的畫面。中間那一欄是<b>使用頻率最高的一頁</b>。',
+    eyebrow1='App map', h2_1='五個分頁：依功能切分，依俱樂部呈現',
+    p1='底部固定五個分頁，任何功能最多點三層就到得了。分頁照功能切，<b>俱樂部是整個 App 的情境</b>：'
+       '第一次打開時選定要看台中磐石還是台中藍鯨，之後整個 App 只呈現那一隊的內容與配色。'
+       '首頁、賽程、新聞、會員四個分頁上方都有<b>俱樂部切換鈕</b>，隨時可以換；兩隊用的是同一套畫面，'
+       '切換只換內容與配色。中間那一欄是<b>使用頻率最高的一頁</b>。',
     tabs=[
         ('1', '首頁', False, [
-            ('下一場比賽', '依你追蹤的球隊決定顯示誰，帶倒數與球隊標示。'),
+            ('下一場比賽', '目前俱樂部一線隊的下一場，帶倒數。'),
             ('最新消息', '橫向捲動卡片，三則。'),
             ('附近店家', '已授權定位時依距離排序。'),
             ('廣告版位', '自售版位，必須標示「廣告」。'),
             ('贊助商 Logo 牆', '<b>不計曝光、不進廣告報表</b>。')]),
         ('2', '賽程', True, [
-            ('兩隊全部球隊', '磐石一線隊與學院各梯隊（U10 至 U18）、<b>藍鯨一線隊</b>與青年隊，也可看「全部」。'),
+            ('目前俱樂部的全部球隊', '台中磐石：一線隊與學院各梯隊（U10 至 U18）；台中藍鯨：<b>藍鯨一線隊</b>與青年隊。也可看「全部」。'),
             ('12 個月完整賽程', '未來一整年、聯賽與盃賽都在裡面，依月份分組。'),
             ('依賽事名稱篩選', '企甲、各項盃賽可單獨篩出。'),
             ('單場詳情', '場地導航、加入行事曆、開賽提醒。'),
             ('離線可看', '下載過就能離線查閱。')]),
         ('3', '會員', False, [
-            ('電子會員卡', '<b>沒訊號也能出示</b>，<b>每份會籍一張</b>，左右滑動切換。'),
-            ('會籍狀態', '<b>逐俱樂部列出</b>層級、會員編號、有效期限。'),
+            ('電子會員卡', '<b>沒訊號也能出示</b>，<b>每份會籍一張</b>，出示的是目前俱樂部的卡。'),
+            ('會籍狀態', '目前俱樂部的層級、會員編號、有效期限；<b>另一隊也有會籍時提示切換</b>。'),
             ('我的報名', '課程與營隊的報名紀錄。'),
             ('球衣登記', '尺寸、領取方式、寄送狀態，<b>依會籍分別登記</b>。'),
-            ('抽獎資格', '<b>逐俱樂部</b>顯示有或沒有，不做任何操作。')]),
+            ('抽獎資格', '顯示在<b>目前俱樂部</b>有或沒有，不做任何操作。')]),
         ('4', '新聞', False, [
             ('分類列表', '沿用官網現有八個分類，不新增。'),
-            ('來源球隊標示', '標示是磐石還是藍鯨的消息。'),
-            ('依追蹤過濾', '預設只顯示你追蹤的球隊，可切換全部。'),
+            ('俱樂部範圍', '目前俱樂部與兩隊共同的消息。'),
             ('離線閱讀', '開過的文章保留 30 天。')]),
         ('5', '更多', False, [
-            ('兩隊球隊名單', '先分俱樂部兩區，區內再列球隊。'),
+            ('球隊名單', '目前俱樂部的各支球隊。'),
             ('特約店家', '附近地圖、導航、撥號。'),
             ('課程報名', '表單自動帶入會員資料。'),
-            ('夥伴與贊助商', '兩隊分區呈現，不混列。'),
-            ('慈善／商店', '皆為<b>外部連結</b>，不在 App 內完成。'),
-            ('追蹤設定・常見問題・設定', '隨時可改追蹤的球隊。')]),
+            ('夥伴與贊助商', '只呈現目前俱樂部的夥伴，不混列。'),
+            ('慈善／商店', '皆為<b>外部連結</b>，不在 App 內完成；慈善入口只在台中磐石出現。'),
+            ('切換俱樂部・通知設定・常見問題・設定', '隨時可換俱樂部；推播可訂閱兩隊的球隊。')]),
     ],
 
     eyebrow2='User journey', h2_2='使用動線：使用者實際會看到的畫面',
     p2='以下依順序走過一次。畫面中的編號對應右側的說明條列。畫面內的隊名、對手、店名與金額皆為示意，'
        '實際內容由後台維護。',
 
-    st00=dict(h='第一次打開 App', u='只出現一次，之後可在「更多」裡改', tag='可全部跳過',
-              lede='雙隊 App 一開始就要問一件事：<b>你追誰？</b>不知道使用者追誰，首頁就沒辦法決定要顯示'
-                   '哪一隊的下一場比賽。但這道問題<b>不能變成門檻</b>——所以兩步都能跳過，跳過就等於全部追蹤。',
-              items=[('1', '先選追蹤對象', '可以多選、也可以直接選「全部追蹤」。<b>「全部追蹤」是明確選項，不是跳過的副作用。</b>'),
-                     ('2', '再問推播', '先說明用途再請求權限，不在啟動時就跳系統視窗。'),
+    st00=dict(h='第一次打開 App', u='只出現一次，之後在頂部或「更多」切換', tag='選一隊就能開始',
+              lede='兩隊共用一個 App，一開始先問一件事：<b>你要看哪一隊？</b>選定之後，整個 App 只呈現那一隊的'
+                   '賽程、新聞、球隊與配色；下次打開直接進入，不再詢問。',
+              items=[('1', '選擇俱樂部', '台中磐石或台中藍鯨，二選一，以兩隊標誌與隊名呈現。<b>選了一隊才能進入 App。</b>'),
+                     ('2', '再問推播', '先說明用途再請求權限，不在啟動時就跳系統視窗；預設訂閱所選俱樂部一線隊的賽事推播。這一步可以跳過。'),
                      ('!', '語言跟隨手機', '不用另外選。手機語言不是繁中或英文時，預設繁中；之後可在「設定」裡改。'),
-                     ('!', '不設登入牆', '整段引導在未登入狀態就能完成，偏好先存在手機裡，登入後才與帳號同步。'),
-                     ('!', '追蹤 ≠ 推播', '追蹤只決定「首頁看什麼」。想在首頁看到藍鯨、又不想被藍鯨推播打擾，是合法的組合。')],
-              admin='<b>重要的分寸</b><br>追蹤<b>只影響預設值，不會把其他球隊藏起來</b>——追磐石的人一樣可以在賽程分頁切去看藍鯨。'
-                    '追蹤是排序與預設，不是權限。<br><br><b>後台維護</b>　M2 App 內容編排'),
+                     ('!', '不設登入牆', '整段引導在未登入狀態就能完成，選擇記在這支手機上。'),
+                     ('!', '看哪一隊 ≠ 收哪一隊的推播', '目前俱樂部只決定畫面看什麼。看台中磐石、同時收台中藍鯨的推播，是合法的組合。')],
+              admin='<b>隨時可以換</b><br>首頁、賽程、新聞、會員四個分頁上方都有俱樂部切換鈕，「更多」裡也有「切換俱樂部」。'
+                    '從推播或連結打開另一隊的內容時，<b>App 會自動切換過去</b>，不用先手動切換。'
+                    '<br><br><b>後台維護</b>　M2 App 內容編排'),
 
-    st01=dict(h='首頁', u='每次打開 App 的第一畫面', tag='依追蹤偏好排列',
-              lede='首頁<b>不做「磐石區塊」與「藍鯨區塊」的上下切分</b>——照內容類型排列，不照球隊切。'
-                   '照球隊切的話，只追一隊的人會看到一半空白的首頁。',
-              items=[('1', '下一場比賽', '倒數、對手、時間、場地，一按加入行事曆或導航。<b>卡片一定會標是哪一隊的比賽</b>，兩隊同時出現時沒有標示就分不出來。'),
+    st01=dict(h='首頁', u='每次打開 App 的第一畫面', tag='只呈現目前俱樂部',
+              lede='首頁只呈現<b>目前俱樂部</b>的內容，最上方是俱樂部切換鈕。兩隊共用同一套區塊順序，'
+                   '切換俱樂部只換內容與配色，不換版面。',
+              items=[('1', '下一場比賽', '目前俱樂部一線隊的下一場：倒數、對手、時間、場地，一按加入行事曆或導航。'),
                      ('2', '廣告版位', '自售版位，必須明顯標示「廣告」。載入失敗時顯示俱樂部自家備援內容，<b>版位永不空白</b>。'),
-                     ('3', '最新消息', '三則橫向捲動卡片，帶來源球隊標示。'),
-                     ('4', '會員卡快捷', '已登入且<b>至少一份會籍有效</b>時顯示，並標明是哪一隊的卡；未登入顯示「加入會員」。'),
-                     ('5', '附近店家', '已授權定位時依距離排序，未授權時依後台排序。'),
-                     ('6', '贊助商 Logo 牆', '<b>不計曝光、不進廣告報表</b>——那是對不出來的數字。')],
-              admin='<b>未設定追蹤時怎麼辦</b><br>兩隊權重相同，各取一線隊最近一場，<b>不得預設偏向任一隊</b>。'
+                     ('3', '最新消息', '三則橫向捲動卡片，目前俱樂部與兩隊共同的消息。'),
+                     ('4', '會員卡快捷', '已登入且持有<b>目前俱樂部</b>的有效會籍時顯示；否則顯示「加入會員」。'),
+                     ('5', '附近店家', '目前俱樂部與兩隊共同的店家；已授權定位時依距離排序，未授權時依後台排序。'),
+                     ('6', '贊助商 Logo 牆', '目前俱樂部的贊助商。<b>不計曝光、不進廣告報表</b>——那是對不出來的數字。')],
+              admin='<b>兩隊共用同一套設定</b><br>首頁區塊的順序與開關、廣告版位與檔期都是 App 層級，'
+                    '<b>兩隊看到的是同一組廣告</b>。'
                     '<br><br><b>後台維護</b>　M2 首頁區塊開關與排序　／　E4–E6 廣告'),
 
-    st02=dict(h='賽程：兩隊、12 個月、所有賽事', u='這是整個 App 的第一功能', tag='使用頻率最高',
-              lede='兩隊所有球隊的賽程集中在一個地方，是讓人<b>每週</b>打開 App 的主要理由——'
+    st02=dict(h='賽程：12 個月、所有賽事', u='這是整個 App 的第一功能', tag='使用頻率最高',
+              lede='目前俱樂部所有球隊的賽程集中在一個地方，是讓人<b>每週</b>打開 App 的主要理由——'
                    '會員卡一季用幾次，賽程每週都在看。這件事現在沒有任何一個地方做得到：'
                    '磐石的賽程在磐石官網，藍鯨的在藍鯨官網，盃賽的散在各處。',
-              items=[('1', '球隊分頁', '全部／磐石一線隊／藍鯨一線隊／學院梯隊。日後要加 U18 或 U10，後台新增一支球隊即可，<b>App 不用改版重上架</b>。'),
+              items=[('1', '球隊分頁', '「全部」加上目前俱樂部的各支球隊（台中磐石：一線隊／學院梯隊；台中藍鯨：藍鯨一線隊／青年隊）。日後要加新的梯隊，後台新增一支球隊即可，<b>App 不用改版重上架</b>。'),
                      ('2', '賽事名稱篩選', '企甲、各項盃賽可單獨篩出。<b>這是本次新增的一層</b>——只有「聯賽／盃賽」的粗分類，答不出「藍鯨在某項盃賽的賽程」。'),
                      ('3', '依月份分組', '月份標頭吸頂，往下滑就是完整的一整年。'),
-                     ('4', '每張卡片都標球隊', '兩隊都有「一線隊」，不標就分不出這是誰的比賽。'),
+                     ('4', '每張卡片都標球隊', '同一個俱樂部有一線隊、也有學院梯隊或青年隊，「全部」裡要分得出是哪一支。'),
                      ('5', '賽事日行程包', '加入手機行事曆（單場或整季）、場地導航、開賽前 2 小時提醒。<b>這三件事網頁做不到。</b>'),
                      ('!', '尚未公布的賽事不會被藏起來', '賽事名稱已知但賽程未定時，顯示該系列的空狀態說明——使用者需要知道「這項盃賽還沒公布」，而不是以為不存在。')],
               admin='<b>這一頁的成本要先講清楚</b><br>賽事資料<b>全部人工維護</b>，不串接任何外部系統，藍鯨的也不從藍鯨官網抓。'
@@ -417,11 +423,12 @@ C['zh'] = dict(
                     '<br><br><b>後台維護</b>　C1 球隊　／　C4 賽事　／　新增「賽事系列」設定'),
 
     st03=dict(h='電子會員卡', u='會員在店家櫃檯感受最直接的一項', tag='離線可出示',
-              lede='<b>每份會籍一張卡</b>——買了兩隊的人有兩張，各自帶該俱樂部的標誌與品牌色，左右滑動切換。'
+              lede='<b>每份會籍一張卡</b>——買了兩隊的人有兩張，各自帶該俱樂部的標誌與品牌色。'
+                   '會員分頁出示的是<b>目前俱樂部</b>的那一張，要出示另一隊的卡，切換俱樂部即可。'
                    '這樣藍鯨的合作店家看到的就是藍鯨的卡，<b>不會有「這張卡在我這裡到底能不能用」的疑問</b>。',
               items=[('1', '卡面就是那一隊的識別', '磐石的卡用磐石的標誌與桃紅，藍鯨的卡用藍鯨的。'),
-                     ('2', '左右滑動切換', '只有一份會籍就只有一張卡，不會出現空白的第二張。'
-                            '<b>沒買的那一隊顯示加入入口，不會被藏起來。</b>'),
+                     ('2', '只出示目前俱樂部的卡', '另一隊也有會籍時，畫面上提示「你也有台中藍鯨會籍」並附切換鈕；'
+                            '<b>目前俱樂部沒有會籍時顯示加入入口。</b>'),
                      ('3', 'QR 與會員編號', '店員目視驗卡，或掃 QR 開啟公開驗證頁，上面只顯示姓名首字、會員編號、層級、有效或已過期。'),
                      ('4', '最後同步時間', '卡面一定要標。超過 7 天沒連網會提醒——否則已過期的會員可以用飛航模式出示舊卡。'),
                      ('!', '沒訊號也能秀卡', '球場地下室、店家櫃檯常常收不到訊號。<b>這是網頁永遠做不到的一件事。</b>'),
@@ -434,7 +441,8 @@ C['zh'] = dict(
 
     st04=dict(h='特約店家與附近地圖', u='會員人在外面時最有用的一頁', tag='需要定位授權',
               lede='「附近有沒有可以打折的店」——這件事網頁做不好，手機做得很好。'
-                   '這是<b>會籍價值兌現最直接的時刻</b>，所以清單本身完全公開，未登入也看得完整。',
+                   '這是<b>會籍價值兌現最直接的時刻</b>，所以清單本身完全公開，未登入也看得完整。'
+                   '清單列出目前俱樂部與兩隊共同的店家。',
               items=[('1', '依距離排序', '由近至遠，顯示實際距離。<b>定位在手機上算完就丟，不上傳、不儲存。</b>'),
                      ('2', '清單／地圖切換', '地圖上以類別圖示標示。'),
                      ('3', '一鍵導航與撥號', '直接開啟手機地圖或撥號。'),
@@ -447,7 +455,7 @@ C['zh'] = dict(
     st05=dict(h='加入會籍', u='付款在 LINE Pay 完成，之後自動返回', tag='付款頁為站外',
               lede='會籍可以在 App 裡用 <b>LINE Pay</b> 直接完成，付款成功後<b>系統自動開通</b>，'
                    '不用等人工確認。權益對照表與方案比較<b>未登入就看得到</b>——它是入會轉換的關鍵，不設登入牆。',
-              items=[('1', '先選俱樂部，再選方案', '<b>會籍是每個俱樂部各一份</b>，兩隊球季不同步，各自計期、各自續會。'
+              items=[('1', '買的是目前俱樂部的會籍', '<b>會籍是每個俱樂部各一份</b>，兩隊球季不同步，各自計期、各自續會。'
                             '台中磐石有磐石會員與尊尚會員兩級，藍鯨的方案由藍鯨自訂；<b>不因為多一支球隊就多一個層級</b>。'),
                      ('2', '收款方一律是俱樂部', '買藍鯨的會籍，錢一樣進<b>台中磐石足球俱樂部</b>的帳戶、開同一張發票'
                             '（<b>代收代付</b>）。付款畫面明確寫出收款方與這份會籍是哪一隊的，不會讓人搞不清楚。'),
@@ -461,50 +469,51 @@ C['zh'] = dict(
 
     st06=dict(h='推播通知：十種，使用者全部可以關', u='系統信維持五封，不因推播而增減',
               th=['#', '通知', '推給誰', '預設'],
-              rows=[('01', '賽事提醒', '開賽前 2 小時', '追蹤該隊的人', '開'),
-                    ('02', '場地確認', '場地由「待定」改為確定', '追蹤該隊的人', '開'),
-                    ('03', '賽事異動', '日期、時間、場地變更或延賽', '追蹤該隊的人', '開'),
-                    ('04', '賽果發布', '後台填入比分並發布', '追蹤該隊的人', '開'),
-                    ('05', '新聞發布', '文章發布時', '訂閱該分類<b>且追蹤該俱樂部</b>的人', '<b>關</b>'),
+              rows=[('01', '賽事提醒', '開賽前 2 小時', '訂閱該隊推播的人', '開'),
+                    ('02', '場地確認', '場地由「待定」改為確定', '訂閱該隊推播的人', '開'),
+                    ('03', '賽事異動', '日期、時間、場地變更或延賽', '訂閱該隊推播的人', '開'),
+                    ('04', '賽果發布', '後台填入比分並發布', '訂閱該隊推播的人', '開'),
+                    ('05', '新聞發布', '文章發布時', '訂閱該分類<b>且訂閱該俱樂部推播</b>的人', '<b>關</b>'),
                     ('06', '會籍到期提醒', '到期前 30 天、7 天，<b>文案指明是哪一隊</b>', '該會員', '開'),
                     ('07', '會籍開通完成', '付款開通成功', '該會員', '開'),
                     ('08', '球衣狀態異動', '狀態改為「已寄出」', '該會員', '開'),
                     ('09', '課程報名狀態', '狀態改為「已確認」或「已繳費」', '該會員', '開'),
                     ('10', '一般公告', '後台手動發送', '可指定分眾', '開')],
-              foot='新聞推播<b>預設關閉</b>——文章的發布節奏若全部推播會造成打擾，由使用者自己開。'
+              foot='<b>推播訂閱與目前看哪一隊無關</b>：兩隊的球隊都可以各自訂閱，看台中磐石時一樣能收台中藍鯨的賽事通知。'
+                   '新聞推播<b>預設關閉</b>——文章的發布節奏若全部推播會造成打擾，由使用者自己開。'
                    '使用者可以一鍵全部關掉，但<b>會籍到期提醒仍會用系統信送到</b>：重要通知不會只有推播一個管道。'),
 
     eyebrow3='Other screens', h2_3='其餘四組畫面',
     p3='不在主動線上，但每一組都有它非有不可的理由。',
     minis=[('球隊與球員名單',
-            '先分<b>台中磐石</b>與<b>台中藍鯨</b>兩區，各區標頭放各自的標誌，區內再列所屬球隊。'
+            '列出<b>目前俱樂部</b>的各支球隊。'
             '球員依位置分組、組內依背號排序。<b>照片與簡介兩隊都還沒有</b>，素材到位前只顯示背號與姓名的文字卡，'
             '<b>不放假圖</b>。'),
            ('新聞與故事',
-            '沿用官網現有八個分類，<b>不另外新增</b>。每則標示是磐石還是藍鯨的消息，列表預設只顯示你追蹤的球隊。'
+            '沿用官網現有八個分類，<b>不另外新增</b>。列表只顯示目前俱樂部與兩隊共同的消息。'
             '開過的文章離線也能讀，保留 30 天；分享出去的是官網網址，沒裝 App 的人也點得開。'),
            ('課程報名與我的報名',
             '沿用官網既有的報名機制，<b>不是新功能，是手機介面</b>。已登入會員的姓名、手機、Email 自動帶入，'
             '手機打字痛苦，這項在 App 上的價值比網頁高一個量級。<b>非會員一樣可以報名。</b>'),
            ('夥伴與贊助商',
-            '<b>兩隊的贊助商分區呈現，不會混在一起列</b>——贊助合約是各自簽的，混列等於對外宣稱一段不存在的關係。'
+            '<b>只呈現目前俱樂部的夥伴與贊助商，不會把兩隊混在一起列</b>——贊助合約是各自簽的，混列等於對外宣稱一段不存在的關係。'
             '目前一份 Logo 都還沒拿到，<b>素材到位前不放示意用的假 Logo</b>。')],
     mini_screens=[
-        [('chips', ['台中磐石', '台中藍鯨']), ('bt', '一線隊'), ('img', 's'),
+        [('csw', ('r', '台中磐石')), ('bt', '一線隊'), ('img', 's'),
          ('bs', 'GK　DF　MF　FW'), ('bars', ['w90', 'w60'])],
-        [('chips', ['全部', '磐石', '藍鯨']), ('img', 's'), ('bt', '賽後報導'),
+        [('csw', ('r', '台中磐石')), ('img', 's'), ('bt', '賽後報導'),
          ('bars', ['w90', 'w75', 'w45'])],
         [('bt', '夏令營報名'), ('fld', '姓名（已帶入）'), ('fld', '手機（已帶入）'),
          ('bs', '繳費方式：現場或匯款'), ('cta', '送出報名')],
-        [('bt', '台中磐石　夥伴'), ('img', 's'), ('bt', '台中藍鯨　夥伴'), ('img', 's'),
+        [('csw', ('r', '台中磐石')), ('bt', '主贊助'), ('img', 's'), ('bt', '官方夥伴'), ('img', 's'),
          ('tiny', 'Logo 素材待提供')]],
 
     eyebrow4='Access', h2_4='誰看得到什麼',
     p4='特約店家的<b>清單是全公開的</b>，未登入也看得完整——因為它是吸引人加入會員最有效的誘因。'
        '真正的門檻在「到店出示會員卡兌換」這個動作。',
     acc_th=['功能', '未登入', '僅註冊帳號', '持有會籍'],
-    acc_rows=[('<b>兩隊</b>賽程、賽果、賽事詳情', 'y', 'y', 'y'),
-              ('追蹤球隊、首次啟動引導', 'y', 'y', 'y'),
+    acc_rows=[('賽程、賽果、賽事詳情（<b>兩隊皆可切換查看</b>）', 'y', 'y', 'y'),
+              ('首次啟動引導、切換俱樂部', 'y', 'y', 'y'),
               ('加入行事曆、場地導航、開賽提醒', 'y', 'y', 'y'),
               ('新聞與故事、離線閱讀', 'y', 'y', 'y'),
               ('球隊與球員名單', 'y', 'y', 'y'),
@@ -515,7 +524,7 @@ C['zh'] = dict(
               ('會籍方案與權益對照表', 'y', 'y', 'y'),
               ('<b>電子會員卡</b>（每份會籍一張，離線可出示）', 'n', 'n', 'y'),
               ('球衣登記（<b>依會籍分別登記</b>，方案含球衣者）', 'n', 'n', 'y'),
-              ('<b>抽獎資格</b>（<b>逐俱樂部</b>）', 'n', 'n', 'y'),
+              ('<b>抽獎資格</b>（<b>目前俱樂部</b>）', 'n', 'n', 'y'),
               ('通知中心與偏好設定', 'y', 'y', 'y')],
     acc_note_h='這張表為什麼是三欄',
     acc_note='因為<b>帳號只有一組</b>，會籍才是分俱樂部的。同一個人可以只買磐石、只買藍鯨，或兩隊都買——'
@@ -526,7 +535,7 @@ C['zh'] = dict(
              '<b>不得出現只寫「會籍有效」而不說哪一隊的畫面</b>。',
 
     colophon='台中磐石足球俱樂部　×　台中藍鯨女子隊　·　行動 App 功能說明（客戶版）<br>'
-             '依據《TCRFC 行動 App 功能規劃書》v3.22　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
+             '依據《TCRFC 行動 App 功能規劃書》v3.24　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
              '本文件的用色為說明文件用色，非 App 最終視覺。',
 
 
@@ -536,27 +545,29 @@ C['zh'] = dict(
     p6='規劃書列出的二十四個畫面，全部畫在這裡。<b>粉紅色代號</b>的六個是前面走過的主動線，'
        '其餘十八個一併補齊，方便逐頁核對有沒有漏掉或多做。畫面內容皆為示意，實際文案與資料由後台維護。',
     screens=[
-      ('S01','首頁','依追蹤偏好決定顯示哪一隊。',0,True,[
+      ('S01','首頁','只呈現目前俱樂部，上方可切換。',0,True,[
+        ('csw',('r','台中磐石')),
         ('blk',[('bt','下一場比賽'),('bs','還有 2 天 04:12'),
                 ('vs',('r','台中磐石','台北勒克斯',True)),
                 ('bs','10/04（六）19:00'),('cta2',('行事曆','導航'))]),
         ('ad',[('bt','廣告'),('img','s')]),
         ('blk',[('bt','最新消息'),('img','s')]),
         ('blk',[('bt','我的會員卡'),('bs','尊尚會員')])]),
-      ('S02','賽程列表','兩隊全部球隊，12 個月完整賽程。',1,True,[
-        ('chips',(['全部','磐石','藍鯨'],0)),
+      ('S02','賽程列表','目前俱樂部全部球隊，12 個月完整賽程。',1,True,[
+        ('csw',('r','台中磐石')),
+        ('chips',(['全部','一線隊','學院梯隊'],0)),
         ('chipsd',(['企甲','盃賽 01'],0)),
         ('bt','2026 年 10 月'),
         ('mrows',[('04','r','台中磐石','台北勒克斯','企甲聯賽',True,'19:00'),
-                  ('11','b','台中藍鯨','高雄攻城獅','女甲聯賽',False,'16:30')])]),
+                  ('11','r','台中磐石 U18','新竹風城 U18','青年聯賽',False,'10:00')])]),
       ('S03','賽事詳情','場地導航、加入行事曆、賽後賽果。',1,False,[
         ('img','t'),
         ('vs',('r','台中磐石','台北勒克斯',True)),
         ('kv',[('日期','10/04（六）'),('開賽','19:00'),('場地','台中足球場'),('輪次','第 7 輪')]),
         ('cta2',('加入行事曆','場地導航')),
         ('pl',[('bt','賽果'),('bs','賽後填入比分、進球者、卡牌、出賽名單與賽後報導連結')])]),
-      ('S04','球隊名單','先分兩間俱樂部，再列所屬球隊。',4,False,[
-        ('chips',(['台中磐石','台中藍鯨'],0)),
+      ('S04','球隊名單','列出目前俱樂部的各支球隊。',4,False,[
+        ('csw',('r','台中磐石')),
         ('chips',(['一線隊','U18','U16'],0)),
         ('blk',[('bt','守門員'),('bs','01　王○○'),('bs','21　李○○')]),
         ('blk',[('bt','後衛'),('bs','03　張○○'),('bs','05　陳○○')]),
@@ -567,32 +578,35 @@ C['zh'] = dict(
         ('kv',[('生日','1999/03/12'),('國籍','中華民國'),('慣用腳','右'),('加入','2024')]),
         ('blk',[('bt','本季數據'),('kv',[('出賽','18'),('進球','7'),('助攻','3'),('黃／紅','2 / 0')])]),
         ('pl',[('bs','相關新聞')])]),
-      ('S06','新聞列表','標示來源球隊，預設依追蹤過濾。',3,False,[
-        ('chips',(['全部','磐石','藍鯨'],0)),
-        ('blk',[('img','s'),('bt','<span class="badge r">TCRFC</span>賽後報導'),('bs','10/04　賽事報導')]),
-        ('blk',[('img','s'),('bt','<span class="badge b">BW</span>球隊動態'),('bs','10/02　球隊動態')])]),
+      ('S06','新聞列表','目前俱樂部與兩隊共同的新聞。',3,False,[
+        ('csw',('r','台中磐石')),
+        ('chips',(['全部','賽事報導','球隊動態'],0)),
+        ('blk',[('img','s'),('bt','賽後報導'),('bs','10/04　賽事報導')]),
+        ('blk',[('img','s'),('bt','球隊動態'),('bs','10/02　球隊動態')])]),
       ('S07','新聞內文','離線可讀 30 天，分享的是官網網址。',3,False,[
         ('img','t'),('bt','標題'),('bs','2026/10/04　·　賽事報導'),
         ('bars',['w90','w75','w90','w60','w45']),
         ('cta2',('字級','分享'))]),
-      ('S08','會員中心','會籍逐俱樂部列出，沒買的那一隊顯示加入入口。',2,False,[
+      ('S08','會員中心','只顯示目前俱樂部的會籍；另一隊也有會籍時提示切換。',2,False,[
+        ('csw',('r','台中磐石')),
         ('blk',[('bt','陳○○'),('bs','TCR-2026-004128')]),
         ('bt','我的會籍'),
-        ('lrow',[('台中磐石　尊尚會員','有效至 2027/06/30'),
-                 ('台中藍鯨','尚未加入　·　立即加入')]),
-        ('lrow',[('球衣登記','磐石 已寄出'),('我的報名','2 筆'),
-                 ('抽獎資格','磐石 具備')]),
+        ('lrow',[('台中磐石　尊尚會員','有效至 2027/06/30')]),
+        ('pl',[('bs','你也有台中藍鯨會籍　·　切換')]),
+        ('lrow',[('球衣登記','已寄出'),('我的報名','2 筆'),
+                 ('抽獎資格','具備')]),
         ('pl',[('bs','兩隊球季不同步，續會提醒各自於到期前 30 天顯示')])]),
-      ('S09','電子會員卡','每份會籍一張，左右滑動切換，沒訊號也能出示。',2,True,[
-        ('card',('TCRFC','台中磐石','有效至　2027/06/30',False,True)),
-        ('swipe',(['台中磐石','台中藍鯨'],0))]),
-      ('S10','會籍方案','先選俱樂部再選方案；未登入就看得到。',2,False,[
+      ('S09','電子會員卡','出示目前俱樂部的卡，沒訊號也能出示。',2,True,[
+        ('csw',('r','台中磐石')),
+        ('card',('TCRFC','台中磐石','有效至　2027/06/30',False,False)),
+        ('pl',[('bs','你也有台中藍鯨會籍　·　切換')])]),
+      ('S10','會籍方案','購買的是目前俱樂部的會籍；未登入就看得到。',2,False,[
+        ('csw',('r','台中磐石')),
         ('blk',[('bt','磐石會員'),('bs','建議年費 NT$ 400'),
                 ('bs','· 專屬電子會員卡<br>· 歡迎禮（老帽、行李牌）<br>· 購物折扣 10%')]),
         ('blk',[('bt','尊尚會員'),('bs','建議年費 NT$ 2,400'),
                 ('bs','· 含磐石會員權益<br>· 限量尊尚禮盒<br>· 優先購票／專屬活動')]),
-        ('chips',(['台中磐石','台中藍鯨'],0)),
-        ('cta','加入會籍')]),
+        ('cta','加入台中磐石會籍')]),
       ('S11','付款流程','LINE Pay 完成後自動開通。',2,True,[
         ('pl',[('bs','收款方：台中磐石足球俱樂部')]),
         ('blk',[('bt','LINE Pay'),('bt','NT$ 2,400'),('ctad','確認付款'),('tiny','取消')]),
@@ -633,16 +647,16 @@ C['zh'] = dict(
                 ('kv',[('狀態','已確認'),('繳費','待繳費')])]),
         ('blk',[('bt','週末兒童訓練'),('kv',[('狀態','已完成')])]),
         ('pl',[('bs','繳費為線下作業，不在 App 內付款')])]),
-      ('S18','抽獎資訊','逐俱樂部顯示有沒有資格，不做任何操作。',2,False,[
+      ('S18','抽獎資訊','顯示目前俱樂部的抽獎資格，不做任何操作。',2,False,[
         ('okb','✓ 台中磐石　具備資格'),
         ('bs','各俱樂部各自舉辦。該俱樂部的會籍在資格基準時間有效即自動列入，無須任何操作。'),
-        ('lrow',[('台中藍鯨','未持有會籍　·　不具資格')]),
         ('pl',[('bt','活動辦法'),('bars',['w90','w75','w60'])]),
         ('kv',[('開獎','2027/01/15'),('方式','現場直播')]),
         ('tiny','不顯示序號、不做查詢、無名單頁')]),
-      ('S19','夥伴與贊助商','兩隊分區呈現，不混列。',4,False,[
-        ('blk',[('bt','台中磐石　贊助商'),('chips',(['　','　','　'],9))]),
-        ('blk',[('bt','台中藍鯨　贊助商'),('chips',(['　','　','　'],9))]),
+      ('S19','夥伴與贊助商','只呈現目前俱樂部，不混列。',4,False,[
+        ('csw',('r','台中磐石')),
+        ('blk',[('bt','主贊助'),('chips',(['　','　','　'],9))]),
+        ('blk',[('bt','官方夥伴'),('chips',(['　','　','　'],9))]),
         ('tiny','Logo 素材待提供，不放假 Logo'),
         ('ctag','合作洽詢')]),
       ('S20','通知中心','App 內收件匣，保留 90 天，離線可讀。',2,False,[
@@ -653,16 +667,17 @@ C['zh'] = dict(
       ('S21','設定','語言、推播、定位與帳號刪除。',4,False,[
         ('chips',(['繁體中文','English'],0)),
         ('tog',[('賽事提醒',True),('賽果發布',True),('新聞發布',False),('會籍與球衣',True)]),
+        ('lrow',[('推播訂閱的球隊','兩隊皆可訂閱　·　台中磐石 一線隊')]),
         ('lrow',[('免打擾時段','22:00–08:00'),('清除快取',None),('刪除帳號',None)])]),
       ('S22','FAQ','沿用官網既有問答，不另建一套。',4,False,[
         ('fld','搜尋常見問題'),
         ('lrow',[('加入球隊',None),('學院招生',None),('課程與營隊報名',None),
                  ('費用與退費',None),('球迷會與商品',None)])]),
-      ('S23','追蹤設定／首次啟動引導','只出現一次，之後隨時可改。',4,True,[
-        ('bt','你想追蹤誰？'),
-        ('fld','☑　台中磐石　一線隊'),('fld','☑　台中藍鯨　一線隊'),
-        ('fld','☐　台中磐石　學院梯隊'),
-        ('ctag','全部追蹤'),('cta','開始使用')]),
+      ('S23','首次啟動引導／切換俱樂部','第一次必選一隊，之後隨時可切換。',4,True,[
+        ('bt','你要看哪一隊？'),
+        ('fld','◉　<span class="badge r">TCRFC</span>台中磐石'),
+        ('fld','○　<span class="badge b">BW</span>台中藍鯨'),
+        ('tiny','之後可隨時切換'),('cta','開始使用')]),
       ('S24','啟動載入畫面','每次開啟先更新資料，最多等 3 秒。',None,False,[
         ('bt','台中磐石 × 台中藍鯨'),('bars',['w60']),('tiny','正在更新賽程…')]),
     ],
@@ -674,31 +689,29 @@ C['zh'] = dict(
 
     # 手機示意內的字串
     ph=dict(
-        onb_q='你想追蹤誰？', onb_a='台中磐石　一線隊', onb_b='台中藍鯨　一線隊',
-        onb_c='台中磐石　學院梯隊', onb_all='全部追蹤', onb_skip='先跳過',
-        onb_note='之後可以隨時更改',
+        onb_q='你要看哪一隊？', onb_a='台中磐石', onb_b='台中藍鯨',
+        onb_note='之後可在頂部或「更多」隨時切換',
         home_next='下一場比賽', home_cd='還有 2 天 04:12',
         home_vs='台中磐石　vs　台北勒克斯', home_when='10/04（六）19:00　台中足球場',
         home_cal='加入行事曆', home_nav='導航',
         home_ad='廣告', home_news='最新消息', home_card='我的會員卡',
         home_store='附近特約店家', home_store1='好味小館　和平店　0.4 km',
         home_sp='贊助商', home_tabs=['首頁', '賽程', '會員', '新聞', '更多'],
-        fx_all='全部', fx_r='磐石', fx_b='藍鯨', fx_ac='學院',
+        fx_all='全部', fx_r='一線隊', fx_ac='學院梯隊',
         fx_c1='企甲聯賽', fx_c2='盃賽 01', fx_c3='盃賽 02',
         fx_month='2026 年 10 月',
         # (日, 隊色, 我方隊名, 對手, 賽事系列, 是否主場, 時間)
         # 顯示時一律**地主隊在前**：主場寫「我方 vs 對手」，客場寫「對手 vs 我方」。
         fx_rows=[('04', 'r', '台中磐石', '台北勒克斯', '企甲聯賽', True, '19:00'),
-                 ('11', 'b', '台中藍鯨', '高雄攻城獅', '女甲聯賽', False, '16:30'),
+                 ('11', 'r', '台中磐石 U18', '新竹風城 U18', '青年聯賽', False, '10:00'),
                  ('18', 'r', '台中磐石', '桃園極限', '盃賽 01', True, '18:00'),
-                 ('25', 'b', '台中藍鯨', '台南天后', '盃賽 01', True, '15:00')],
+                 ('25', 'r', '台中磐石 U16', '台南府城 U16', '青年聯賽', True, '09:30')],
         fx_home='主', fx_away='客',
         fx_seas='整季加入行事曆',
         card_no='會員編號', card_nov='TCR-2026-004128', card_nm='陳○○',
         card_tier='尊尚會員', card_exp='有效至　2027/06/30',
         card_sync='最後同步　2026/09/10 14:22', card_hint='台中磐石',
-        card_hint2='台中藍鯨', card_exp2='尚未加入',
-        card_swipe='左右滑動切換　·　每份會籍一張卡',
+        card_other='你也有台中藍鯨會籍　·　切換',
         store_list='清單', store_map='地圖', store_near='依距離排序',
         store_1='好味小館　和平店', store_1d='餐飲　·　0.4 km　·　所有會員 9 折',
         store_2='運動家健身　北屯店', store_2d='健康　·　1.2 km　·　限尊尚層級',
@@ -723,46 +736,46 @@ C['en'] = dict(
     stand='This document lays the mobile app out screen by screen: what a user sees after opening it, '
           'what sits on each screen, and which content is maintained in the admin. The screens are '
           '<b>functional sketches</b> for confirming structure and flow; visual design has not started.',
-    stamps=[('Based on　', 'Mobile App Specification v3.22'), ('Tabs　', '5　×　23 screens'),
+    stamps=[('Based on　', 'Mobile App Specification v3.24'), ('Tabs　', '5　×　24 screens'),
             ('Languages　', 'Chinese / English'), ('Admin modules　', 'M1–M5　＋　E4–E6 (shared admin)')],
 
-    eyebrow1='App map', h2_1='Five tabs, split by function rather than by club',
-    p1='Five fixed tabs along the bottom; nothing is more than three taps deep. '
-       '<b>There is no "Rock tab" and no "Blue Whale tab"</b> — tabs are split by function, and the club '
-       'is a filter inside each function. Parallel club tabs would mean building every feature twice, and '
-       'anyone following one club would be looking at a half-empty screen. The middle column is '
+    eyebrow1='App map', h2_1='Five tabs, split by function and shown by club',
+    p1='Five fixed tabs along the bottom; nothing is more than three taps deep. Tabs are split by function, and '
+       '<b>the club is the context for the whole app</b>: on first launch the user chooses Taichung Rock or '
+       'Taichung Blue Whale, and from then on the whole app shows only that club’s content and colours. '
+       'A <b>club switcher</b> sits above the Home, Fixtures, News and Member tabs and can be used at any time; '
+       'both clubs share the same screens, and switching changes only content and colours. The middle column is '
        '<b>the most frequently opened screen</b>.',
     tabs=[
         ('1', 'Home', False, [
-            ('Next match', 'Whose match is shown follows what you follow, with a countdown and a club label.'),
+            ('Next match', 'The current club’s first-team next match, with a countdown.'),
             ('Latest news', 'Three horizontally scrolling cards.'),
             ('Nearby stores', 'Sorted by distance where location is granted.'),
             ('Advertising slot', 'Sold by the club; must be labelled "Advertisement".'),
             ('Sponsor logo wall', '<b>No impressions counted, never in advertising reports.</b>')]),
         ('2', 'Fixtures', True, [
-            ('Every squad, both clubs', 'Rock first team and academy squads (U10 to U18), <b>Blue Whale first team</b> and youth teams, plus an "all" view.'),
+            ('Every squad of the current club', 'Taichung Rock: first team and academy squads (U10 to U18); Taichung Blue Whale: <b>Blue Whale first team</b> and youth team. Plus an "all" view.'),
             ('12-month calendar', 'A full year ahead, league and cup alike, grouped by month.'),
             ('Filter by competition', 'The Premier League and each tournament can be filtered individually.'),
             ('Match detail', 'Venue navigation, add to calendar, kick-off reminder.'),
             ('Works offline', 'Once downloaded, consultable with no connection.')]),
         ('3', 'Member', False, [
-            ('Digital membership card', '<b>Presentable with no signal</b>; <b>one card per membership</b>, swipe to switch.'),
-            ('Membership status', '<b>Listed club by club</b>: tier, member number, expiry date.'),
+            ('Digital membership card', '<b>Presentable with no signal</b>; <b>one card per membership</b>, showing the current club’s card.'),
+            ('Membership status', 'The current club’s tier, member number, expiry date; <b>a prompt to switch where you also hold the other club’s membership</b>.'),
             ('My bookings', 'Program and camp booking records.'),
             ('Jersey registration', 'Size, collection method, dispatch status, <b>registered per membership</b>.'),
-            ('Prize-draw eligibility', 'Shows only whether you have it, <b>club by club</b>; nothing to operate.')]),
+            ('Prize-draw eligibility', 'Shows only whether you have it at <b>the current club</b>; nothing to operate.')]),
         ('4', 'News', False, [
             ('Category list', "The website's existing eight categories, with none added."),
-            ('Club labelling', 'Marks each item as Rock or Blue Whale news.'),
-            ('Filtered by follow', 'Defaults to the clubs you follow; switchable to all.'),
+            ('Club scope', 'News of the current club and news shared by both clubs.'),
             ('Offline reading', 'Opened articles are kept for 30 days.')]),
         ('5', 'More', False, [
-            ('Both clubs’ squads', 'Split into two club sections, each listing its own squads.'),
+            ('Squads', 'Each squad of the current club.'),
             ('Partner stores', 'Nearby map, navigation, calling.'),
             ('Program booking', 'Member details pre-filled into the form.'),
-            ('Partners and sponsors', 'Sectioned by club, never merged.'),
-            ('Charity / shop', 'Both are <b>outbound links</b>, never completed inside the app.'),
-            ('Follow settings · FAQ · Settings', 'Change the squads you follow at any time.')]),
+            ('Partners and sponsors', 'Only the current club’s partners, never merged.'),
+            ('Charity / shop', 'Both are <b>outbound links</b>, never completed inside the app; the charity entry appears only for Taichung Rock.'),
+            ('Switch club · Notifications · FAQ · Settings', 'Switch club at any time; push can be subscribed for either club’s squads.')]),
     ],
 
     eyebrow2='User journey', h2_2='The journey: what a user actually sees',
@@ -770,45 +783,44 @@ C['en'] = dict(
        'Club names, opponents, store names, and amounts are illustrative; the real content is maintained '
        'in the admin.',
 
-    st00=dict(h='Opening the app for the first time', u='Shown once; changeable later from "More"',
-              tag='Entirely skippable',
-              lede='A two-club app has to ask one thing up front: <b>who do you follow?</b> Without knowing, '
-                   'the home screen cannot decide whose next match to show. But the question '
-                   '<b>must not become a barrier</b> — so both steps can be skipped, and skipping means '
-                   'following everything.',
-              items=[('1', 'Who to follow', 'Multi-select, or simply "follow everything". <b>"Follow everything" is an explicit option, not a side effect of skipping.</b>'),
-                     ('2', 'Then push permission', 'The purpose is explained before the system prompt appears; no permission dialogue on launch.'),
+    st00=dict(h='Opening the app for the first time', u='Shown once; switch later from the top or "More"',
+              tag='Choose a club to start',
+              lede='Two clubs share one app, so it asks one thing up front: <b>which club do you want to see?</b> '
+                   'Once chosen, the whole app shows only that club’s fixtures, news, squads and colours; '
+                   'the next launch goes straight in without asking again.',
+              items=[('1', 'Choose a club', 'Taichung Rock or Taichung Blue Whale, one of the two, shown with both crests and names. <b>A club must be chosen to enter the app.</b>'),
+                     ('2', 'Then push permission', 'The purpose is explained before the system prompt appears; no permission dialogue on launch. Fixture push for the chosen club’s first team is subscribed by default. This step can be skipped.'),
                      ('!', 'Language follows the phone', 'Nothing to choose. Anything other than Chinese or English defaults to Chinese; changeable later in Settings.'),
-                     ('!', 'No sign-in wall', 'The whole flow completes while signed out. Preferences are stored on the phone first and synced to the account after sign-in.'),
-                     ('!', 'Following is not push', 'Following only decides what the home screen shows. Wanting Blue Whale on your home screen without Blue Whale notifications is a valid combination.')],
-              admin='<b>An important limit</b><br>Following <b>changes defaults; it never hides the other club</b> — '
-                    'someone following Rock can still switch to Blue Whale in the fixtures tab. '
-                    'Following is ordering and defaults, not permission.<br><br><b>Maintained in</b>　M2 App composition'),
+                     ('!', 'No sign-in wall', 'The whole flow completes while signed out; the choice is kept on this phone.'),
+                     ('!', 'The club you view is not the push you get', 'The current club only decides what the screens show. Viewing Taichung Rock while receiving Taichung Blue Whale push is a valid combination.')],
+              admin='<b>Switchable at any time</b><br>A club switcher sits above the Home, Fixtures, News and Member tabs, '
+                    'and "Switch club" is in More. Opening the other club’s content from a push or a link '
+                    '<b>switches the app over automatically</b>, with no manual step.'
+                    '<br><br><b>Maintained in</b>　M2 App composition'),
 
-    st01=dict(h='Home', u='The first screen on every launch', tag='Ordered by what you follow',
-              lede='The home screen <b>is not split into a "Rock section" above a "Blue Whale section"</b> — '
-                   'it is ordered by content type, not by club. Splitting by club would leave anyone following '
-                   'one club looking at a half-empty screen.',
-              items=[('1', 'Next match', 'Countdown, opponent, time, venue, one tap to add to the calendar or navigate. <b>Every card carries its club</b>; with both present, an unlabelled card cannot be attributed.'),
+    st01=dict(h='Home', u='The first screen on every launch', tag='Current club only',
+              lede='The home screen shows only <b>the current club</b>, with the club switcher at the top. Both clubs '
+                   'share the same block order, and switching club changes only content and colours, not layout.',
+              items=[('1', 'Next match', 'The current club’s first-team next match: countdown, opponent, time, venue, one tap to add to the calendar or navigate.'),
                      ('2', 'Advertising slot', 'Club-sold, and clearly labelled. If a creative fails to load the club’s own fallback content appears, so <b>the slot is never blank</b>.'),
-                     ('3', 'Latest news', 'Three horizontally scrolling cards, each labelled with its club.'),
-                     ('4', 'Membership card shortcut', 'Shown when signed in with a valid membership; otherwise "Join".'),
-                     ('5', 'Nearby stores', 'By distance where location is granted, otherwise in admin order.'),
-                     ('6', 'Sponsor logo wall', '<b>No impressions counted, never in advertising reports</b> — that number reconciles with nothing.')],
-              admin='<b>When nothing is followed yet</b><br>Both clubs carry equal weight and each first team’s next '
-                    'match is shown. <b>No default bias toward either club.</b><br><br><b>Maintained in</b>　'
-                    'M2 home blocks and ordering　/　E4–E6 advertising'),
+                     ('3', 'Latest news', 'Three horizontally scrolling cards: the current club’s news and news shared by both clubs.'),
+                     ('4', 'Membership card shortcut', 'Shown when signed in with a valid membership at <b>the current club</b>; otherwise "Join".'),
+                     ('5', 'Nearby stores', 'The current club’s stores and those shared by both clubs; by distance where location is granted, otherwise in admin order.'),
+                     ('6', 'Sponsor logo wall', 'The current club’s sponsors. <b>No impressions counted, never in advertising reports</b> — that number reconciles with nothing.')],
+              admin='<b>Both clubs share one set of settings</b><br>Home block order and visibility, and advertising '
+                    'slots and flights, are app-level — <b>both clubs show the same advertising</b>.'
+                    '<br><br><b>Maintained in</b>　M2 home blocks and ordering　/　E4–E6 advertising'),
 
-    st02=dict(h='Fixtures: two clubs, 12 months, every competition',
+    st02=dict(h='Fixtures: 12 months, every competition',
               u="This is the app's number one feature", tag='Opened most often',
-              lede='Every squad of both clubs in one place is the reason people open the app <b>week after week</b> — '
+              lede='Every squad of the current club in one place is the reason people open the app <b>week after week</b> — '
                    'a membership card gets used a few times a season; fixtures get checked every week. '
                    'Nowhere offers this today: Rock’s fixtures live on Rock’s site, Blue Whale’s on theirs, '
                    'and the cup competitions are scattered.',
-              items=[('1', 'Club and squad tabs', 'All / Rock first team / Blue Whale first team / academy. Adding a U18 or U10 later means adding one squad in the admin, with <b>no app update or resubmission</b>.'),
+              items=[('1', 'Squad tabs', '"All" plus each of the current club’s squads (Taichung Rock: first team / academy; Taichung Blue Whale: Blue Whale first team / youth team). Adding a new academy squad later means adding it in the admin, with <b>no app update or resubmission</b>.'),
                      ('2', 'Filter by competition', 'The Premier League and each tournament individually. <b>This layer is new</b> — a four-value league/cup category cannot answer "when does Blue Whale play in that tournament?"'),
                      ('3', 'Grouped by month', 'A sticky month header; scrolling down covers a full year.'),
-                     ('4', 'Every card carries its club', 'Both clubs have a "first team"; without the label a card cannot be attributed.'),
+                     ('4', 'Every card carries its squad', 'A club has a first team alongside academy or youth squads, so the "All" view must show which squad is playing.'),
                      ('5', 'The matchday bundle', 'Add to the phone calendar (one match or the whole season), venue navigation, a reminder two hours before kick-off. <b>A website can do none of these three.</b>'),
                      ('!', 'Unpublished fixtures are never hidden', 'Where a competition is known but its fixtures are not, an empty-state note appears for it — users need to know it has not been published, not to assume it does not exist.')],
               admin='<b>The cost of this page, stated plainly</b><br>Fixture data is <b>maintained entirely by hand</b>, '
@@ -821,10 +833,11 @@ C['en'] = dict(
     st03=dict(h='Digital membership card', u='What a member feels most directly at a counter',
               tag='Works offline',
               lede='<b>One card per membership</b> — someone holding both clubs’ memberships has two cards, each '
-                   'carrying that club’s crest and colours, switched by swiping. A Blue Whale partner store therefore '
+                   'carrying that club’s crest and colours. The Member tab presents <b>the current club’s</b> card; '
+                   'to present the other club’s card, switch club. A Blue Whale partner store therefore '
                    'sees a Blue Whale card, and <b>nobody has to wonder whether this card works here</b>.',
               items=[('1', 'The card face is that club’s identity', 'Rock’s card uses Rock’s crest and magenta; Blue Whale’s uses its own.'),
-                     ('2', 'Swipe to switch', 'One membership means one card; there is never a blank second card. <b>The club not yet joined shows a join entry rather than being hidden.</b>'),
+                     ('2', 'Only the current club’s card', 'Where you also hold the other club’s membership, the screen shows "You also have a Taichung Blue Whale membership" with a switch button; <b>where the current club has no membership, a join entry is shown.</b>'),
                      ('3', 'QR and member number', 'Staff check by eye, or scan the QR to open a public verification page showing only the first character of the name, member number, tier, and valid or expired.'),
                      ('4', 'Last synced time', 'Always printed on the card face, with a warning after seven days without a sync — otherwise an expired member could present a stale card in airplane mode.'),
                      ('!', 'Presentable with no signal', 'Basements at grounds and store counters routinely have none. <b>A website will never do this.</b>'),
@@ -840,7 +853,8 @@ C['en'] = dict(
               tag='Needs location permission',
               lede='"Is there somewhere nearby that gives me a discount?" — a website answers this badly and a phone '
                    'answers it well. This is <b>where a membership pays for itself</b>, so the directory itself '
-                   'is fully public and complete without signing in.',
+                   'is fully public and complete without signing in. It lists the current club’s stores and those '
+                   'shared by both clubs.',
               items=[('1', 'Sorted by distance', 'Nearest first, with the actual distance shown. <b>Location is computed on the phone and discarded; never uploaded, never stored.</b>'),
                      ('2', 'List / map toggle', 'Category icons mark each store on the map.'),
                      ('3', 'One-tap navigation and calling', 'Opens the phone’s maps app or dials directly.'),
@@ -857,7 +871,7 @@ C['en'] = dict(
               lede='A membership can be completed in the app with <b>LINE Pay</b>, and <b>the system activates it '
                    'automatically</b> once payment succeeds. The benefits table and plan comparison are '
                    '<b>visible without signing in</b> — they are the key to conversion and carry no sign-in wall.',
-              items=[('1', 'Choose the club, then the plan', '<b>Membership is one per club</b>; the two seasons are not aligned, so each runs and renews on its own term. Taichung Rock has two plans, Rock Member and Prestige Member, and Blue Whale sets its own; <b>a second club does not add a tier</b>.'),
+              items=[('1', 'You buy the current club’s membership', '<b>Membership is one per club</b>; the two seasons are not aligned, so each runs and renews on its own term. Taichung Rock has two plans, Rock Member and Prestige Member, and Blue Whale sets its own; <b>a second club does not add a tier</b>.'),
                      ('2', 'The collecting party is always the club', 'A Blue Whale membership is still paid into <b>Taichung Rock FC</b>’s account against the same invoice (<b>collected on its behalf</b>). The screen names both the collecting party and which club this membership is for.'),
                      ('3', 'The amount is on the button', 'So nobody taps by accident.'),
                      ('→', 'The order is created before leaving', 'Form contents are saved before handing off to LINE Pay, so a failed payment <b>never asks the user to retype anything</b>.'),
@@ -873,55 +887,56 @@ C['en'] = dict(
     st06=dict(h='Push notifications: ten types, all switchable off',
               u='The five system emails stand, neither added to nor reduced',
               th=['#', 'Notification', 'Sent to', 'Default'],
-              rows=[('01', 'Kick-off reminder', 'Two hours before kick-off', 'People following that squad', 'On'),
-                    ('02', 'Venue confirmed', 'A venue changes from "to be confirmed"', 'People following that squad', 'On'),
-                    ('03', 'Fixture change', 'Date, time, or venue changed; postponed', 'People following that squad', 'On'),
-                    ('04', 'Result published', 'A score is entered and published', 'People following that squad', 'On'),
-                    ('05', 'Article published', 'When an article is published', 'Subscribers to that category <b>who follow that club</b>', '<b>Off</b>'),
+              rows=[('01', 'Kick-off reminder', 'Two hours before kick-off', 'People subscribed to that squad’s push', 'On'),
+                    ('02', 'Venue confirmed', 'A venue changes from "to be confirmed"', 'People subscribed to that squad’s push', 'On'),
+                    ('03', 'Fixture change', 'Date, time, or venue changed; postponed', 'People subscribed to that squad’s push', 'On'),
+                    ('04', 'Result published', 'A score is entered and published', 'People subscribed to that squad’s push', 'On'),
+                    ('05', 'Article published', 'When an article is published', 'Subscribers to that category <b>and to that club’s push</b>', '<b>Off</b>'),
                     ('06', 'Membership expiry', '30 and 7 days before; <b>the copy names the club</b>', 'That member', 'On'),
                     ('07', 'Membership activated', 'Payment activation succeeds', 'That member', 'On'),
                     ('08', 'Jersey status', 'Status changes to "dispatched"', 'That member', 'On'),
                     ('09', 'Booking status', 'Status changes to "confirmed" or "paid"', 'That member', 'On'),
                     ('10', 'General announcement', 'Sent by hand from the admin', 'Segmentable', 'On')],
-              foot='Article push <b>defaults to off</b> — pushing every article at its publishing cadence would be '
+              foot='<b>Push subscriptions do not depend on the club being viewed</b>: either club’s squads can be '
+                   'subscribed to, so someone viewing Taichung Rock still receives Taichung Blue Whale fixture alerts. '
+                   'Article push <b>defaults to off</b> — pushing every article at its publishing cadence would be '
                    'intrusive, so users opt in. Everything can be switched off at once, but <b>the membership expiry '
                    'reminder still arrives by email</b>: an important message never depends on push alone.'),
 
     eyebrow3='Other screens', h2_3='Four more groups of screens',
     p3='Off the main journey, but each one earns its place.',
     minis=[('Squads and players',
-            'Split first into <b>Taichung Rock</b> and <b>Taichung Blue Whale</b>, each section headed by its own '
-            'crest, with that club’s squads beneath. Players are grouped by position and ordered by shirt number. '
+            'Lists each squad of <b>the current club</b>. Players are grouped by position and ordered by shirt number. '
             '<b>Neither club has supplied photographs or biographies</b>; until they arrive, only a text card with '
             'number and name is shown — <b>never a placeholder image</b>.'),
            ('News and stories',
-            'The website’s existing eight categories, <b>with none added</b>. Each item is labelled Rock or Blue '
-            'Whale, and the list defaults to the clubs you follow. Opened articles stay readable offline for 30 days; '
+            'The website’s existing eight categories, <b>with none added</b>. The list shows only the current '
+            'club’s news and news shared by both clubs. Opened articles stay readable offline for 30 days; '
             'sharing sends the website URL, which opens for people without the app.'),
            ('Program booking and my bookings',
             'Reuses the website’s existing booking mechanism — <b>not a new feature, a phone interface</b>. '
             'A signed-in member’s name, mobile, and email are pre-filled; typing on a phone is painful, so this is '
             'worth an order of magnitude more here than on the web. <b>Non-members can still book.</b>'),
            ('Partners and sponsors',
-            '<b>The two clubs’ sponsors appear in separate sections and are never merged</b> — the contracts are '
+            '<b>Only the current club’s partners and sponsors are shown; the two clubs are never merged</b> — the contracts are '
             'signed separately, and merging them asserts a relationship that does not exist. Not one logo has been '
             'supplied yet, and <b>no placeholder logos will be used</b>.')],
     mini_screens=[
-        [('chips', ['Taichung Rock', 'Blue Whale']), ('bt', 'First Team'), ('img', 's'),
+        [('csw', ('r', 'Taichung Rock')), ('bt', 'First Team'), ('img', 's'),
          ('bs', 'GK　DF　MF　FW'), ('bars', ['w90', 'w60'])],
-        [('chips', ['All', 'Rock', 'Whale']), ('img', 's'), ('bt', 'Match report'),
+        [('csw', ('r', 'Taichung Rock')), ('img', 's'), ('bt', 'Match report'),
          ('bars', ['w90', 'w75', 'w45'])],
         [('bt', 'Summer camp'), ('fld', 'Name (pre-filled)'), ('fld', 'Mobile (pre-filled)'),
          ('bs', 'Payment: in person or transfer'), ('cta', 'Submit booking')],
-        [('bt', 'Taichung Rock　partners'), ('img', 's'), ('bt', 'Blue Whale　partners'), ('img', 's'),
+        [('csw', ('r', 'Taichung Rock')), ('bt', 'Main sponsor'), ('img', 's'), ('bt', 'Official partners'), ('img', 's'),
          ('tiny', 'Logo assets outstanding')]],
 
     eyebrow4='Access', h2_4='Who can see what',
     p4='The partner-store <b>directory is entirely public</b> and complete without signing in — because it is the '
        'most effective reason anyone has to join. The real threshold is the act of showing a card in the shop.',
     acc_th=['Feature', 'Signed out', 'Registered account only', 'Holds a membership'],
-    acc_rows=[('<b>Both clubs’</b> fixtures, results, match detail', 'y', 'y', 'y'),
-              ('Following squads, first-run onboarding', 'y', 'y', 'y'),
+    acc_rows=[('Fixtures, results, match detail (<b>either club, by switching</b>)', 'y', 'y', 'y'),
+              ('First-run onboarding, switching club', 'y', 'y', 'y'),
               ('Add to calendar, navigation, kick-off reminders', 'y', 'y', 'y'),
               ('News and stories, offline reading', 'y', 'y', 'y'),
               ('Squads and players', 'y', 'y', 'y'),
@@ -932,7 +947,7 @@ C['en'] = dict(
               ('Membership plans and the benefits table', 'y', 'y', 'y'),
               ('<b>Digital membership card</b> (one per membership, works offline)', 'n', 'n', 'y'),
               ('Jersey registration (<b>per membership</b>, where the plan includes one)', 'n', 'n', 'y'),
-              ('<b>Prize-draw eligibility</b> (<b>club by club</b>)', 'n', 'n', 'y'),
+              ('<b>Prize-draw eligibility</b> (<b>current club</b>)', 'n', 'n', 'y'),
               ('Notification centre and preferences', 'y', 'y', 'y')],
     acc_note_h='Why this table has three columns',
     acc_note='because <b>the account is single</b>; it is the membership that is per club. The same person may hold '
@@ -943,7 +958,7 @@ C['en'] = dict(
              'times — <b>no screen may state "membership valid" without naming the club</b>.',
 
     colophon='Taichung Rock FC　×　Taichung Blue Whale　·　Mobile App Feature Overview (Client Edition)<br>'
-             'Based on the TCRFC Mobile App Functional Specification v3.22　·　five tabs　·　'
+             'Based on the TCRFC Mobile App Functional Specification v3.24　·　five tabs　·　'
              'Chinese and English, with the architecture ready for a third language<br>'
              'The colours here belong to this document, not to the app’s final visual design.',
 
@@ -955,27 +970,29 @@ C['en'] = dict(
        'set can be checked page by page for anything missing or surplus. All content is illustrative; '
        'the real copy and data are maintained in the admin.',
     screens=[
-      ('S01','Home','Shows whichever club you follow.',0,True,[
+      ('S01','Home','Shows only the current club, switchable at the top.',0,True,[
+        ('csw',('r','Taichung Rock')),
         ('blk',[('bt','Next match'),('bs','in 2 days 04:12'),
                 ('vs',('r','Taichung Rock FC','Taipei Lux',True)),
                 ('bs','Sat 04 Oct 19:00'),('cta2',('Calendar','Navigate'))]),
         ('ad',[('bt','Advertisement'),('img','s')]),
         ('blk',[('bt','Latest news'),('img','s')]),
         ('blk',[('bt','My membership card'),('bs','Prestige Member')])]),
-      ('S02','Fixture list','Every squad of both clubs, 12 months ahead.',1,True,[
-        ('chips',(['All','Rock','Whale'],0)),
+      ('S02','Fixture list','Every squad of the current club, 12 months ahead.',1,True,[
+        ('csw',('r','Taichung Rock')),
+        ('chips',(['All','First Team','Academy'],0)),
         ('chipsd',(['Premier','Tournament 01'],0)),
         ('bt','October 2026'),
         ('mrows',[('04','r','Taichung Rock FC','Taipei Lux','Premier League',True,'19:00'),
-                  ('11','b','Taichung Blue Whale','Kaohsiung Attack',"Women's League",False,'16:30')])]),
+                  ('11','r','Taichung Rock U18','Hsinchu Wind U18','Youth League',False,'10:00')])]),
       ('S03','Match detail','Navigation, calendar, and the result afterwards.',1,False,[
         ('img','t'),
         ('vs',('r','Taichung Rock FC','Taipei Lux',True)),
         ('kv',[('Date','Sat 04 Oct'),('Kick-off','19:00'),('Venue','Taichung Stadium'),('Round','7')]),
         ('cta2',('Add to calendar','Navigate')),
         ('pl',[('bt','Result'),('bs','Score, scorers, cards, line-up and a link to the report, added after the match')])]),
-      ('S04','Squad','Split by club first, then by squad.',4,False,[
-        ('chips',(['Taichung Rock','Blue Whale'],0)),
+      ('S04','Squad','Each squad of the current club.',4,False,[
+        ('csw',('r','Taichung Rock')),
         ('chips',(['First Team','U18','U16'],0)),
         ('blk',[('bt','Goalkeepers'),('bs','01　Wang ○○'),('bs','21　Li ○○')]),
         ('blk',[('bt','Defenders'),('bs','03　Chang ○○'),('bs','05　Chen ○○')]),
@@ -986,32 +1003,35 @@ C['en'] = dict(
         ('kv',[('Born','12 Mar 1999'),('Nationality','Taiwan'),('Foot','Right'),('Joined','2024')]),
         ('blk',[('bt','This season'),('kv',[('Apps','18'),('Goals','7'),('Assists','3'),('Cards','2 / 0')])]),
         ('pl',[('bs','Related news')])]),
-      ('S06','News list','Labelled by club, filtered by what you follow.',3,False,[
-        ('chips',(['All','Rock','Whale'],0)),
-        ('blk',[('img','s'),('bt','<span class="badge r">TCRFC</span>Match report'),('bs','04 Oct　·　Match report')]),
-        ('blk',[('img','s'),('bt','<span class="badge b">BW</span>Squad news'),('bs','02 Oct　·　Squad news')])]),
+      ('S06','News list','The current club’s news and news shared by both clubs.',3,False,[
+        ('csw',('r','Taichung Rock')),
+        ('chips',(['All','Reports','Squad news'],0)),
+        ('blk',[('img','s'),('bt','Match report'),('bs','04 Oct　·　Match report')]),
+        ('blk',[('img','s'),('bt','Squad news'),('bs','02 Oct　·　Squad news')])]),
       ('S07','Article','Readable offline for 30 days; sharing sends the website URL.',3,False,[
         ('img','t'),('bt','Headline'),('bs','4 Oct 2026　·　Match report'),
         ('bars',['w90','w75','w90','w60','w45']),
         ('cta2',('Text size','Share'))]),
-      ('S08','Member centre','Memberships listed club by club; the club not joined shows a join entry.',2,False,[
+      ('S08','Member centre','Only the current club’s membership; a prompt to switch where you also hold the other club’s.',2,False,[
+        ('csw',('r','Taichung Rock')),
         ('blk',[('bt','Chen ○○'),('bs','TCR-2026-004128')]),
-        ('bt','My memberships'),
-        ('lrow',[('Taichung Rock　Prestige Member','Valid to 30 Jun 2027'),
-                 ('Taichung Blue Whale','Not joined　·　Join now')]),
-        ('lrow',[('Jersey registration','Rock — dispatched'),('My bookings','2'),
-                 ('Prize-draw eligibility','Rock — eligible')]),
+        ('bt','My membership'),
+        ('lrow',[('Taichung Rock　Prestige Member','Valid to 30 Jun 2027')]),
+        ('pl',[('bs','You also have a Taichung Blue Whale membership　·　Switch')]),
+        ('lrow',[('Jersey registration','Dispatched'),('My bookings','2'),
+                 ('Prize-draw eligibility','Eligible')]),
         ('pl',[('bs','Seasons are not aligned; each renewal prompt appears 30 days before its own expiry')])]),
-      ('S09','Digital membership card','One per membership, swipe to switch, presentable with no signal.',2,True,
-        [('card',('TCRFC','Taichung Rock','Valid to　30 Jun 2027',False,True)),
-         ('swipe',(['Taichung Rock','Taichung Blue Whale'],0))]),
-      ('S10','Membership plans','Choose the club, then the plan; visible without signing in.',2,False,[
+      ('S09','Digital membership card','The current club’s card, presentable with no signal.',2,True,
+        [('csw',('r','Taichung Rock')),
+         ('card',('TCRFC','Taichung Rock','Valid to　30 Jun 2027',False,False)),
+         ('pl',[('bs','You also have a Taichung Blue Whale membership　·　Switch')])]),
+      ('S10','Membership plans','You buy the current club’s membership; visible without signing in.',2,False,[
+        ('csw',('r','Taichung Rock')),
         ('blk',[('bt','Rock Member'),('bs','Suggested NT$400 / year'),
                 ('bs','· Dedicated digital member card<br>· Welcome gift (cap, luggage tag)<br>· 10% shopping discount')]),
         ('blk',[('bt','Prestige Member'),('bs','Suggested NT$2,400 / year'),
                 ('bs','· Everything in Rock Member<br>· Limited Prestige gift box<br>· Priority tickets / exclusive events')]),
-        ('chips',(['Taichung Rock','Taichung Blue Whale'],0)),
-        ('cta','Join a membership')]),
+        ('cta','Join Taichung Rock')]),
       ('S11','Payment flow','Activated automatically once LINE Pay succeeds.',2,True,[
         ('pl',[('bs','Collected by Taichung Rock FC')]),
         ('blk',[('bt','LINE Pay'),('bt','NT$2,400'),('ctad','Confirm payment'),('tiny','Cancel')]),
@@ -1052,17 +1072,17 @@ C['en'] = dict(
                 ('kv',[('Status','Confirmed'),('Payment','Due')])]),
         ('blk',[('bt','Weekend training'),('kv',[('Status','Completed')])]),
         ('pl',[('bs','Payment is handled offline, never inside the app')])]),
-      ('S18','Prize-draw information','Eligibility shown club by club; nothing to operate.',2,False,[
+      ('S18','Prize-draw information','The current club’s draw eligibility; nothing to operate.',2,False,[
         ('okb','✓ Taichung Rock　eligible'),
         ('bs','Each club runs its own draw. That club\u2019s membership being valid at the cut-off enters you '
               'automatically. Nothing to do.'),
-        ('lrow',[('Taichung Blue Whale','No membership　·　not eligible')]),
         ('pl',[('bt','Rules'),('bars',['w90','w75','w60'])]),
         ('kv',[('Draw','15 Jan 2027'),('Format','Live, in person')]),
         ('tiny','No serial number, no lookup, no winners list')]),
-      ('S19','Partners and sponsors','Sectioned by club, never merged.',4,False,[
-        ('blk',[('bt','Taichung Rock　sponsors'),('chips',(['　','　','　'],9))]),
-        ('blk',[('bt','Blue Whale　sponsors'),('chips',(['　','　','　'],9))]),
+      ('S19','Partners and sponsors','Only the current club, never merged.',4,False,[
+        ('csw',('r','Taichung Rock')),
+        ('blk',[('bt','Main sponsor'),('chips',(['　','　','　'],9))]),
+        ('blk',[('bt','Official partners'),('chips',(['　','　','　'],9))]),
         ('tiny','Logo assets outstanding; no placeholders'),
         ('ctag','Partnership enquiries')]),
       ('S20','Notification centre','An in-app inbox, kept 90 days, readable offline.',2,False,[
@@ -1073,17 +1093,18 @@ C['en'] = dict(
       ('S21','Settings','Language, push, location, and account deletion.',4,False,[
         ('chips',(['繁體中文','English'],1)),
         ('tog',[('Kick-off reminders',True),('Results',True),('News',False),('Membership & jersey',True)]),
+        ('lrow',[('Push-subscribed squads','Either club　·　Taichung Rock first team')]),
         ('lrow',[('Quiet hours','22:00–08:00'),('Clear cache',None),('Delete account',None)])]),
       ('S22','FAQ','Reuses the website’s existing answers; no second set.',4,False,[
         ('fld','Search the FAQ'),
         ('lrow',[('Joining the club',None),('Academy admissions',None),
                  ('Program & camp registration',None),('Fees & refunds',None),
                  ('Fan club & merchandise',None)])]),
-      ('S23','Follow settings / onboarding','Shown once, changeable at any time.',4,True,[
-        ('bt','Who do you follow?'),
-        ('fld','☑　Taichung Rock　First Team'),('fld','☑　Taichung Blue Whale　First Team'),
-        ('fld','☐　Taichung Rock　Academy'),
-        ('ctag','Follow everything'),('cta','Get started')]),
+      ('S23','Onboarding / switch club','Choose one club the first time; switch at any time after.',4,True,[
+        ('bt','Which club do you want to see?'),
+        ('fld','◉　<span class="badge r">TCRFC</span>Taichung Rock'),
+        ('fld','○　<span class="badge b">BW</span>Taichung Blue Whale'),
+        ('tiny','Switchable at any time'),('cta','Get started')]),
       ('S24','Launch loading screen','Refreshes data on every launch, waiting at most 3 seconds.',None,False,[
         ('bt','Taichung Rock × Blue Whale'),('bars',['w60']),('tiny','Updating fixtures…')]),
     ],
@@ -1098,32 +1119,30 @@ C['en'] = dict(
              'placeholder logos will be used.',
 
     ph=dict(
-        onb_q='Who do you follow?', onb_a='Taichung Rock　First Team',
-        onb_b='Taichung Blue Whale　First Team',
-        onb_c='Taichung Rock　Academy', onb_all='Follow everything', onb_skip='Skip for now',
-        onb_note='Changeable at any time',
+        onb_q='Which club do you want to see?', onb_a='Taichung Rock',
+        onb_b='Taichung Blue Whale',
+        onb_note='Switch at any time from the top or "More"',
         home_next='Next match', home_cd='in 2 days 04:12',
         home_vs='Taichung Rock　vs　Taipei Lux', home_when='Sat 04 Oct 19:00　Taichung Stadium',
         home_cal='Add to calendar', home_nav='Navigate',
         home_ad='Advertisement', home_news='Latest news', home_card='My membership card',
         home_store='Partner stores nearby', home_store1='Hao Wei Diner　Heping　0.4 km',
         home_sp='Sponsors', home_tabs=['Home', 'Fixtures', 'Member', 'News', 'More'],
-        fx_all='All', fx_r='Rock', fx_b='Whale', fx_ac='Academy',
+        fx_all='All', fx_r='First Team', fx_ac='Academy',
         fx_c1='Premier League', fx_c2='Tournament 01', fx_c3='Tournament 02',
         fx_month='October 2026',
         # (day, club colour, our team, opponent, competition, is_home, time)
         # Always list the **home side first**: home reads "us vs them", away reads "them vs us".
         fx_rows=[('04', 'r', 'Taichung Rock FC', 'Taipei Lux', 'Premier League', True, '19:00'),
-                 ('11', 'b', 'Taichung Blue Whale', 'Kaohsiung Attack', "Women's League", False, '16:30'),
+                 ('11', 'r', 'Taichung Rock U18', 'Hsinchu Wind U18', 'Youth League', False, '10:00'),
                  ('18', 'r', 'Taichung Rock FC', 'Taoyuan Limit', 'Tournament 01', True, '18:00'),
-                 ('25', 'b', 'Taichung Blue Whale', 'Tainan Queens', 'Tournament 01', True, '15:00')],
+                 ('25', 'r', 'Taichung Rock U16', 'Tainan Fucheng U16', 'Youth League', True, '09:30')],
         fx_home='H', fx_away='A',
         fx_seas='Add the season to my calendar',
         card_no='Member number', card_nov='TCR-2026-004128', card_nm='Chen ○○',
         card_tier='Prestige Member', card_exp='Valid to　30 Jun 2027',
         card_sync='Last synced　10 Sep 2026 14:22', card_hint='Taichung Rock',
-        card_hint2='Taichung Blue Whale', card_exp2='Not joined',
-        card_swipe='Swipe to switch　·　one card per membership',
+        card_other='You also have a Taichung Blue Whale membership　·　Switch',
         store_list='List', store_map='Map', store_near='Sorted by distance',
         store_1='Hao Wei Diner　Heping', store_1d='Food　·　0.4 km　·　10% off, all members',
         store_2='Athlete Gym　Beitun', store_2d='Health　·　1.2 km　·　Prestige tier only',
@@ -1246,6 +1265,10 @@ def items(spec, ph):
                 % ('<div class="peek"></div>' if peek else '', ' bw' if bw else '',
                    mk, club, QR, ph['card_nm'], ph['card_tier'],
                    ph['card_no'], ph['card_nov'], exp, ph['card_sync']))
+        elif kind == 'csw':           # 俱樂部切換鈕（目前俱樂部）
+            cls, club = val
+            out.append('<div class="csw"><span class="badge %s">%s</span>%s<span class="cv">▾</span></div>'
+                       % (cls, 'TCRFC' if cls == 'r' else 'BW', club))
         elif kind == 'swipe':
             labels, act = val
             dots = ''.join('<span class="dot%s"></span>' % (' on' if i == act else '')
@@ -1284,22 +1307,21 @@ def build(c):
     # ── 00 首次啟動 ─────────────────────────────────────────────────────────
     sc00 = """
     <div class="blk"><div class="bh"><span class="kk">1</span><span class="bt">{onb_q}</span></div>
-      <div class="fld" style="margin-bottom:1.1mm">☑　{onb_a}</div>
-      <div class="fld" style="margin-bottom:1.1mm">☑　{onb_b}</div>
-      <div class="fld" style="margin-bottom:1.1mm">☐　{onb_c}</div>
-      <div class="cta gh">{onb_all}</div></div>
+      <div class="fld" style="margin-bottom:1.1mm">◉　<span class="badge r">TCRFC</span>{onb_a}</div>
+      <div class="fld">○　<span class="badge b">BW</span>{onb_b}</div></div>
     <div class="blk pl"><div class="bh"><span class="kk">2</span><span class="bt">{push}</span></div>
       <div class="bs">{push_s}</div></div>
     <div class="cta">{next}</div>
-    <div class="tiny" style="text-align:center">{onb_skip}　·　{onb_note}</div>
+    <div class="tiny" style="text-align:center">{onb_note}</div>
     """.format(push=('推播通知' if c['lang'] != 'en' else 'Push notifications'),
-               push_s=('先說明用途，再請求權限' if c['lang'] != 'en'
-                       else 'The purpose is explained before the prompt'),
+               push_s=('先說明用途，再請求權限；可跳過' if c['lang'] != 'en'
+                       else 'The purpose is explained before the prompt; skippable'),
                next=('開始使用' if c['lang'] != 'en' else 'Get started'), **ph)
     ph00 = phone(sc00, chip=c['chip'])
 
     # ── 01 首頁 ────────────────────────────────────────────────────────────
     sc01 = """
+    <div class="csw"><span class="badge r">TCRFC</span>{card_hint}<span class="cv">▾</span></div>
     <div class="blk"><div class="bh"><span class="kk">1</span><span class="bt">{home_next}</span></div>
       <div class="bs" style="margin-bottom:.8mm">{home_cd}</div>
       <div class="bt"><span class="badge r">TCRFC</span>{home_vs}</div>
@@ -1308,7 +1330,7 @@ def build(c):
     <div class="blk ad"><div class="bh"><span class="kk">2</span><span class="bt">{home_ad}</span></div>
       <div class="img s" style="margin-bottom:0"></div></div>
     <div class="blk"><div class="bh"><span class="kk">3</span><span class="bt">{home_news}</span></div>
-      <div class="row"><span style="flex:1"><span class="img s"></span><span class="bs"><span class="badge r">TCRFC</span></span></span><span style="flex:1"><span class="img s"></span><span class="bs"><span class="badge b">BW</span></span></span></div></div>
+      <div class="row"><span style="flex:1"><span class="img s"></span><span class="bs"><span class="badge r">TCRFC</span></span></span><span style="flex:1"><span class="img s"></span><span class="bs"><span class="badge r">TCRFC</span></span></span></div></div>
     <div class="blk"><div class="bh"><span class="kk">4</span><span class="bt">{home_card}</span></div>
       <div class="bs">{card_tier}　·　{card_nov}</div></div>
     <div class="blk"><div class="bh"><span class="kk">5</span><span class="bt">{home_store}</span></div>
@@ -1328,7 +1350,8 @@ def build(c):
            ph['fx_home'] if is_home else ph['fx_away'], tm)
         for d, cls, me, opp, cmp_, is_home, tm in ph['fx_rows'])
     sc02 = """
-    <div class="row"><span class="chip on">{fx_all}</span><span class="chip">{fx_r}</span><span class="chip">{fx_b}</span><span class="chip">{fx_ac}</span></div>
+    <div class="csw"><span class="badge r">TCRFC</span>{card_hint}<span class="cv">▾</span></div>
+    <div class="row"><span class="chip on">{fx_all}</span><span class="chip">{fx_r}</span><span class="chip">{fx_ac}</span></div>
     <div class="row"><span class="chip dk">{fx_c1}</span><span class="chip">{fx_c2}</span><span class="chip">{fx_c3}</span></div>
     <div class="mday">{fx_month}</div>
     {rows}
@@ -1338,16 +1361,15 @@ def build(c):
 
     # ── 03 會員卡 ──────────────────────────────────────────────────────────
     sc03 = """
-    <div class="cardwrap"><div class="peek"></div><div class="card">
+    <div class="csw"><span class="badge r">TCRFC</span>{card_hint}<span class="cv">▾</span></div>
+    <div class="cardwrap"><div class="card">
       <div class="ch"><span class="cm">{mark1}</span><span class="cn">{card_hint}</span></div>
       <div class="qrw">{qr}</div>
       <div style="text-align:center"><div class="nm">{card_nm}</div>
         <div class="tierp">{card_tier}</div></div>
       <div class="meta">{card_no}　{card_nov}<br>{card_exp}<br><b>{card_sync}</b></div>
     </div></div>
-    <div class="swipe"><span class="sl">‹</span><span class="dot on"></span><span class="dot"></span>
-      <span class="sl">{card_hint}　／　{card_hint2}</span><span class="sl">›</span></div>
-    <div class="blk pl"><div class="bs" style="text-align:center">{card_swipe}</div></div>
+    <div class="blk pl"><div class="bs" style="text-align:center">{card_other}</div></div>
     <div class="blk pl"><div class="bs" style="text-align:center">{offline}</div></div>
     """.format(mark1=c['mark1'], qr=QR,
                offline=('✈︎　' + ('沒有網路也能出示' if c['lang'] != 'en'
