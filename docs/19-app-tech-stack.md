@@ -340,7 +340,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 
 🔴 **右欄不只是效能問題，是個資問題**：帶 `Authorization` 的回應若被邊緣快取，**會把 A 的個資回給 B**。必須顯式設定，不能靠 Cloudflare 預設行為。
 
-2. **啟動不等網路**：先用本機快取渲染，網路回來再更新。**3 秒靠這個達成，不是靠網路變快。**
+2. **啟動不等網路**：先用本機快取渲染，網路回來再更新。**3 秒靠這個達成，不是靠網路變快。** 規劃書 v3.23 加了啟動載入畫面（S24），會在這一頁等啟動時的更新，**但最多等 3 秒**：逾時或沒網路時有快取就以快取進首頁，所以這條依然成立。
 3. **併發不串行**（`async let`／`coroutineScope { async }`）。
 4. **連線預熱**：啟動立刻打設定端點建立 TLS 連線，後續請求復用。
 5. **ETag／304**：一個 RTT、不傳 body，同時服務 50MB／月。
@@ -801,6 +801,27 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | 開發版不變 | iOS Debug 與 Android `dev` flavor 仍連本機 `apps/api`（5299） |
 | 測試前要清掉的後台資料 | 測試站後台「App 版本與發布管理」的最低支援版本須 ≤ App 目前版本（`0.1.0`），否則一打開就進強制更新畫面。2026-10-27 查到兩平台都是 `0.9.0`（強制更新示範資料） |
 | 驗證 | iOS Release 建置的 `Info.plist` `TCRFCAPIBaseURL`、Android `prodRelease` 的 `BuildConfig` 均為測試站網址（2026-10-27） |
+
+### 11o. 啟動載入畫面 S24（iOS＋Android，2026-10-27，`mobile-app-engineer`）
+
+依規劃書 v3.23 §3.0。判定邏輯兩端都寫成無 UI 相依的 `StartupCoordinator`（iOS `Domain/StartupLogic.swift`、Android `domain/Startup.kt`），單元測試用虛擬時鐘、不真的等 3 秒。
+
+| 項目 | 決定 |
+|---|---|
+| 計時起點 | 載入畫面出現時（iOS `RootTabBarController.beginLaunch()`；Android `MainActivity.onCreate` 的 `StartupViewModel.begin()`）。**3 秒到就放行，更新不取消、在背景繼續** |
+| 「有快取」 | 兩端相同：**有俱樂部清單**（快取或剛抓到）即算。沒有俱樂部目錄首頁與賽程都是空的 |
+| 逾時且無快取 | 顯示「無法連線」＋重試，更新繼續；稍後資料到齊**自動放行**，不必按重試 |
+| 無網路 | 不等滿 3 秒：有快取立即放行＋離線提示，沒快取立即進失敗頁。Android 以 `ConnectivityManager` 判斷；iOS 以請求失敗判斷 |
+| 強制更新與維護 | App 設定一回來、閘門不是開放就立即放行給既有的強制更新／維護畫面，不等其他四項。App 設定本身失敗（三層都失敗）時閘門不擋（§7） |
+| 進度折算 | iOS：五項等權，球隊／賽程／賽事系列按「已完成俱樂部數 ÷ 俱樂部數」推進。Android：階段層級，權重設定 1、俱樂部 1、球隊 1、賽程 2、賽事系列 1（`AppData` 的 StateFlow 是整批結束才更新，無逐俱樂部事件）。兩端同一輪內只增不減，重試歸零 |
+| 熱啟動 | iOS：只在 `scene(_:willConnectTo:)` 呼叫一次。Android：`StartupViewModel` 存活期間 `begin()` 只生效一次，且只在 `savedInstanceState == null` 啟用——旋轉、深色模式、語系造成的重建不重顯；行程被回收後從最近工作還原視為回前景、不顯示；按返回離開後重開視為冷啟動 |
+| 深連結 | 載入畫面期間一律擱置（iOS `pendingLink`；Android `pendingDeepLinks` channel），放行後先接 S23 引導再導向 |
+| Android 系統 splash | 不引入 `core-splashscreen`；`values-v31` 的 `windowSplashScreenBackground` 與 S24 背景同色，系統 splash 在第一個畫格收掉，不會出現兩次閃爍 |
+| 最短顯示時間 | 兩端相同：僅「全部成功」路徑至少 400ms（iOS `StartupCoordinator`、Android `StartupViewModel.MIN_SHOW_MS`），從該輪開始起算，避免一閃而過；強制更新／維護、逾時、離線、部分失敗路徑不套用，3 秒仍是硬上限 |
+| 離線提示 | iOS 沿用 `AppData.isOffline`（`markOffline()`，背景更新跑完依結果重設）；Android 在 `MainShell` 頂端加全域 `StaleNotice(AppError.Offline)`，背景全部成功後自動收掉 |
+| 離線判定（2026-10-27 使用者定案，規劃書 v3.23 §3.0「伺服器錯誤」列） | **只有傳輸層錯誤算離線**（無網路、逾時、DNS 失敗等）；伺服器有回應的錯誤（4xx／5xx、解碼失敗）不算，由該頁顯示自己的錯誤。全 App 適用（含下拉更新與 App 設定的抓取）。原本 iOS 任一失敗即離線、Android 的 App 設定階段 5xx 也算離線，兩處都已改 |
+| 會員中心伺服器錯誤 | iOS `MemberStore.loadFailed`：非傳輸層錯誤時 `memberships` 仍設為 nil（不以舊值宣告會籍有效），畫面改顯示「會籍狀態暫時無法載入」卡片，會員卡入口照常。Android `MemberScreen` 原本就顯示 `ErrorState`＋重試。其他頁面無舊資料時都進 `.failed`，有舊資料時保留舊資料、不貼離線 |
+| 驗證 | iOS 單元 237／冒煙 20 全綠；Android 單元 209×2 flavor／冒煙 20（Pixel 8 API 35）全綠（2026-10-27，含離線判定與最短顯示的對齊）。**無網路、逾時兩條路徑只有單元測試，未在實機目視驗收** |
 
 ## 12. 本檔不決定的事
 

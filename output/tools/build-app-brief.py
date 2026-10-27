@@ -530,11 +530,11 @@ C['zh'] = dict(
              '本文件的用色為說明文件用色，非 App 最終視覺。',
 
 
-    # ── 全部畫面 S01–S23（gallery）──────────────────────────────────────
+    # ── 全部畫面 S01–S24（gallery）──────────────────────────────────────
     # (代號, 名稱, 一句話說明, 分頁索引或 None, 內容積木)
-    eyebrow6='All screens', h2_6='全部畫面：S01–S23',
-    p6='規劃書列出的二十三個畫面，全部畫在這裡。<b>粉紅色代號</b>的六個是前面走過的主動線，'
-       '其餘十七個一併補齊，方便逐頁核對有沒有漏掉或多做。畫面內容皆為示意，實際文案與資料由後台維護。',
+    eyebrow6='All screens', h2_6='全部畫面：S01–S24',
+    p6='規劃書列出的二十四個畫面，全部畫在這裡。<b>粉紅色代號</b>的六個是前面走過的主動線，'
+       '其餘十八個一併補齊，方便逐頁核對有沒有漏掉或多做。畫面內容皆為示意，實際文案與資料由後台維護。',
     screens=[
       ('S01','首頁','依追蹤偏好決定顯示哪一隊。',0,True,[
         ('blk',[('bt','下一場比賽'),('bs','還有 2 天 04:12'),
@@ -663,6 +663,8 @@ C['zh'] = dict(
         ('fld','☑　台中磐石　一線隊'),('fld','☑　台中藍鯨　一線隊'),
         ('fld','☐　台中磐石　學院梯隊'),
         ('ctag','全部追蹤'),('cta','開始使用')]),
+      ('S24','啟動載入畫面','每次開啟先更新資料，最多等 3 秒。',None,False,[
+        ('bt','台中磐石 × 台中藍鯨'),('bars',['w60']),('tiny','正在更新賽程…')]),
     ],
     gal_note_h='四件在畫面上看不出來、但很重要的事',
     gal_note='<b>①</b> 球員照片與簡介<b>兩隊都還沒有</b>，素材到位前只顯示背號與姓名的文字卡，不放假圖。'
@@ -946,10 +948,10 @@ C['en'] = dict(
              'The colours here belong to this document, not to the app’s final visual design.',
 
 
-    # ── All screens S01–S23 (gallery) ───────────────────────────────────
-    eyebrow6='All screens', h2_6='Every screen: S01–S23',
-    p6='All twenty-three screens listed in the specification are drawn here. The six with a '
-       '<b>pink code</b> are the journey walked through above; the other seventeen are included so the '
+    # ── All screens S01–S24 (gallery) ───────────────────────────────────
+    eyebrow6='All screens', h2_6='Every screen: S01–S24',
+    p6='All twenty-four screens listed in the specification are drawn here. The six with a '
+       '<b>pink code</b> are the journey walked through above; the other eighteen are included so the '
        'set can be checked page by page for anything missing or surplus. All content is illustrative; '
        'the real copy and data are maintained in the admin.',
     screens=[
@@ -1082,6 +1084,8 @@ C['en'] = dict(
         ('fld','☑　Taichung Rock　First Team'),('fld','☑　Taichung Blue Whale　First Team'),
         ('fld','☐　Taichung Rock　Academy'),
         ('ctag','Follow everything'),('cta','Get started')]),
+      ('S24','Launch loading screen','Refreshes data on every launch, waiting at most 3 seconds.',None,False,[
+        ('bt','Taichung Rock × Blue Whale'),('bars',['w60']),('tiny','Updating fixtures…')]),
     ],
     gal_note_h='Four things the screens cannot show, but that matter',
     gal_note='<b>①</b> <b>Neither club has supplied player photographs or biographies</b>; until they arrive '
@@ -1389,7 +1393,7 @@ def build(c):
         '<td>%s</td><td>%s</td></tr>' % (no, name, when, who, dflt)
         for no, name, when, who, dflt in st06['rows'])
 
-    # ── 全部畫面 S01–S23 ───────────────────────────────────────────────
+    # ── 全部畫面 S01–S24 ───────────────────────────────────────────────
     gallery = ''.join(
         '<div class="gcell%s">'
         '<div class="gcap"><span class="code">%s</span><span class="nm">%s</span></div>'

@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.22
-> **Date**: 2026-09-04 (v3.22 revision: 2026-10-16)
+> **Document version**: v3.23
+> **Date**: 2026-09-04 (v3.23 revision: 2026-10-27)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.23 revision summary — a launch loading screen is added**
+> Every cold launch first shows the launch loading screen (S24): both club crests side by side and a progress bar that advances as the app configuration, clubs, squads, fixtures and competitions are refreshed; once all are done the home screen opens. The wait is capped at 3 seconds: on timeout or with no network, the app opens the home screen from the local cache and shows the "offline" notice; on a fresh install that cannot connect, the screen stays and offers a retry. The "offline" notice appears only when the network cannot be reached; a server error does not count as offline. Returning from the background does not show this screen. Where: 2.2, 2.4, 3.0, 13.
 
 > **v3.22 revision summary — membership becomes two paid plans and a registered account is not a membership; Taichung Rock academy squad codes follow the development pathway**
 > **Aligned with main-site specification v3.29 (the client's fan-club plans in 8.2 and academy pathway in 4.3).**
@@ -355,6 +358,7 @@ Five fixed bottom tabs, never more than three levels deep:
 | S21 | Settings | Local | No | Yes |
 | S22 | FAQ | `Faq` | No | Partial |
 | **S23** | **Follow settings / first-run onboarding** | `Team` / `Club` | No | Yes |
+| **S24** | **Launch loading screen** | App configuration / `Club` / `Team` / `Match` / `Competition` | No | Yes (opens from cache) |
 
 ### 2.3 Deep links and Universal Links
 
@@ -412,6 +416,8 @@ Five fixed bottom tabs, never more than three levels deep:
 | Advertising creatives | Pre-fetched for the day's flights | Cleared when the flight ends | No (no impressions offline) |
 | Program sessions and places | Not cached | — | No |
 
+"Refreshed at launch" in the table happens on the launch loading screen (S24); the wait cap and timeout handling are in 3.0.
+
 **Two hard rules**:
 
 1. **Impressions must never be counted offline.** Impression events may be queued offline and sent on reconnection, but **must carry the original occurrence time**, and the server must reject events older than 24 hours — otherwise advertising performance can be inflated by hand.
@@ -463,6 +469,20 @@ Each of the website's G-01 to G-12 features, and how the app handles it:
 2. **Multi-select, and "follow everything" is an explicit option**, not a side effect of skipping.
 3. **Changeable at any time** from Follow settings in the More tab, which opens the same screen.
 4. **Following is not push.** Step 1 only decides what the home screen shows; whether push is received is controlled separately by step 2 and 6.4. Following Blue Whale with Blue Whale push disabled is a valid combination.
+
+**Launch loading screen (S24)** — every cold launch passes through this screen first:
+
+| Item | Rule |
+|---|---|
+| Screen | Both club crests side by side and a progress bar. Progress advances item by item as the data refreshed at launch completes: app configuration, clubs, squads, fixtures, competitions |
+| Done | Once all of the above is refreshed, the home screen opens; on a fresh install, first-run onboarding (S23) follows |
+| **Wait cap** | **3 seconds.** On timeout or with no network, if a local cache exists the home screen opens from it with the "offline" notice; unfinished refreshes continue in the background |
+| Server errors | The "offline" notice is shown only when the device cannot reach the network (no network, timeout); when the server responds with an error, no offline notice is shown and the screen holding that data shows its own error state. This rule applies app-wide |
+| Fresh install that cannot connect | With no local cache available the screen stays, showing "cannot connect" and "Retry" |
+| Forced update and maintenance | If the app configuration requires a forced update or reports maintenance, the matching screen is shown instead of the home screen |
+| Warm start | Returning from the background **does not** show this screen |
+
+**The wait cap is a hard rule**: the membership card must still be presentable at a ground with no signal (2.4), so this screen must never keep the user out of the app while waiting for the network.
 
 ### 3.1 Home
 
@@ -1681,7 +1701,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 
 | Item | Requirement |
 |---|---|
-| **Launch time** | Cold launch to an interactive home screen within 3 seconds (mid-range device, normal network) |
+| **Launch time** | Cold launch to an interactive home screen within 3 seconds (mid-range device, normal network); the launch loading screen (S24) wait cap is also 3 seconds, including with no network |
 | **Responsiveness** | Tab switching within 300 ms; list scrolling without dropped frames |
 | **Offline availability** | The membership card, cached fixtures, and read articles are fully usable offline (2.4) |
 | **Install size** | 60 MB or less recommended; assets are loaded remotely rather than bundled |
