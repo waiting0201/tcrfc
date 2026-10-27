@@ -792,6 +792,16 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | Android | 自適應圖示：前景 `mipmap-{mdpi…xxxhdpi}/ic_launcher_foreground.png`（108dp 畫布，兩標誌整組收在直徑 66dp 安全圓內）、背景 `@color/ic_launcher_background` = `#FFFFFF`。**不設 `<monochrome>`**：藍鯨隊徽是全彩點陣，系統只取透明度會變成一塊盾形色塊，等於改了標誌造型；待向量主檔到位再評估單色版 |
 | 驗證 | iOS 模擬器建置成功、`.app` 內含 `AppIcon60x60@2x` 與 `CFBundleIconName = AppIcon`；Android `assembleDebug` 與 `testProdDebugUnitTest` 成功、APK 含五種密度前景；iOS 單元測試 207 項全綠（2026-10-27）。⚠️ iOS 測試**不可加 `CODE_SIGNING_ALLOWED=NO`**：未簽章的測試宿主無法存取模擬器 Keychain，`KeychainStoreTests` 會失敗 |
 
+### 11n. 實機與商店內測期的 API 指向（iOS＋Android，2026-10-27）
+
+| 項目 | 決定 |
+|---|---|
+| 正式版建置指向測試站 | 實機、TestFlight、Play 內部測試用的正式版建置先連測試站：API `https://tcrfc-api.4webdemo.com`、官網 `https://tcrfc.4webdemo.com`（[`17`](17-deployment.md) §10.3 的暫用網址）。iOS 改 `Config/Release.xcconfig` 的 `API_BASE_URL`；Android 改 `gradle.properties` 的 `tcrfc.prod.apiBaseUrl`、`tcrfc.webBaseUrl`。iOS 的官網網址取自 API 的 `club.domain`，不另設 |
+| 🔴 送審前必須改回 | 正式網域定案、主站切換後改為 `https://api.tcrfc.tw` 與 `https://tcrfc.tw`。**不得以測試站網址送審**：審查人員連到的會是測試資料（[`21`](21-store-submission.md) §8 的送審前檢查） |
+| 開發版不變 | iOS Debug 與 Android `dev` flavor 仍連本機 `apps/api`（5299） |
+| 測試前要清掉的後台資料 | 測試站後台「App 版本與發布管理」的最低支援版本須 ≤ App 目前版本（`0.1.0`），否則一打開就進強制更新畫面。2026-10-27 查到兩平台都是 `0.9.0`（強制更新示範資料） |
+| 驗證 | iOS Release 建置的 `Info.plist` `TCRFCAPIBaseURL`、Android `prodRelease` 的 `BuildConfig` 均為測試站網址（2026-10-27） |
+
 ## 12. 本檔不決定的事
 
 - **§16.2 技術前提第 17 項：推播是否走自家直送** —— 本檔建議直送（§5），但客戶可能有既有的服務商合約

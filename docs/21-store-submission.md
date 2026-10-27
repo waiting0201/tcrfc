@@ -366,6 +366,8 @@ Android 另可用 Play Console → **深層連結**（Deep links）頁面看驗�
 
 ## 8. 填完商店資料與申報 → 送審
 
+> 🔴 **送審前先把 API 改回正式網址**：測試期兩個 App 的正式版建置連的是測試站（`tcrfc-api.4webdemo.com`），送審前要改為 `api.tcrfc.tw`／`tcrfc.tw` 再重新打包上傳，見 [`19`](19-app-tech-stack.md) §11n。
+
 ### 8.1 Apple
 
 第 3 節全部填完、3.7 選好建置後 → 版本頁右上 **Add for Review** → **Submit to App Review**。
