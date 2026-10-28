@@ -400,6 +400,8 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 
 **付款入口採保守版**：顯示權益對照與方案比較（§3.7 明寫「未登入即可檢視，是入會轉換關鍵」）、**不顯示金額**、按鈕文案「了解如何加入」→ 外開瀏覽器。**送審前須確認台灣區當期規則。**
 
+> **2026-10-28 使用者決定**：方案頁**維持不顯示建議年費**，**規劃書不更新**（App 規劃書 §3.7 方案比較列有「建議年費」，此處為使用者核可的刻意偏離；金額本身也仍屬規劃書 §16 第 10 項未定案）。日後若要顯示，須同時改 [`docs/21`](21-store-submission.md) 審查備註的 “The app shows no prices” 與商店文案 §0 第 2 點。
+
 **「可切換」要預留的不是 UI，是訂單那一層**（§5.5 原話：A 與 B 共用同一組訂單與開通邏輯）：
 
 1. **訂單建立端點（帶冪等鍵）與 `POST /api/membership/activate` 在 Phase B 就要做完**——外開瀏覽器走的官網流程本來就需要它們。
@@ -938,6 +940,181 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 
 **球員賽季數據**：`GET /api/v1/{club}/players/{id}/stats`（`PlayerCareerStatsDto`：`seasons[]` 含出賽、進球、助攻、黃牌、紅牌）。顯示在球員詳情（S05）簡介之後一段表格「賽季數據」，每球季一列；**助攻為空顯示「–」**（0 顯示 0）；`seasons` 為空、失敗或沒網路又沒快取時整段不顯示。快取走 `teams_players` 同一組時效、與語系無關；俱樂部由球員所屬球隊推得。球員照片仍照肖像同意 fail-closed（`PortraitPolicy` 未動）。
 
+### 11u. 稽核修正（iOS，2026-10-28，`mobile-app-engineer`）
+
+依 [`output/app-audit/FIX-PLAN.md`](../output/app-audit/FIX-PLAN.md)（來源 `ios-field-audit.md`）修〔兩端〕與〔iOS〕項目，並**對齊 Android §11v 的執行層決定**（差異見本節末）。**沒有改 `shared/` 與後端**；`./scripts/sync-shared.sh --check-upstream` 顯示 iOS 複本與上游一致，不需同步。純邏輯在 `Domain/`（`MatchDetailLogic`、`ScheduleLogic`（次要篩選）、`StaffLogic`、`PartnersLogic`、`ProgramsDisplay`、`QuickEntries`、`HomeLogic`、`CalendarEntry`），分享網址在 `Features/News/NewsShare`，單元測試 `AuditFixTests`（新增 37 項，總計 324 項全綠）。
+
+| 編號 | 狀態 | 執行層決定 |
+|---|---|---|
+| A1 | 完成 | `ContentAPI.match` 改回 `MatchDetailDto`；詳情頁**一律**呼叫單場端點（列表有該場先用列表欄位顯示，詳情補進球／卡牌／名單／賽後報導；取不到不算錯誤，只是沒有這些區塊）。深連結而列表沒有時由詳情轉回 `MatchDto` 顯示 |
+| A2 | 完成 | 進球（分鐘＋球員＋類型）、卡牌（黃／紅）、出賽名單（先發／替補，替補上場標「已上場」）、賽後報導按鈕（開 App 內新聞內文）。**對方進球**（`side=opponent` 且非烏龍球）只寫「對方進球」不顯示球員名；**烏龍球**顯示球員名並註記「計入對方進球」。詳情沒有進球時退回列表帶的 `scorers[]`。沒有資料的區塊整段不畫 |
+| A3 | 完成 | 賽事卡（26pt）與詳情（32pt）畫 `opponentCrest`：`ImageURL.pickVariant` 依像素寬挑 `url320／640／1280`，缺檔往較大的找，三檔皆空才由主檔推導。沒有隊徽什麼都不畫；隊徽視為裝飾（`accessibilityHidden`） |
+| A4 | 完成 | 賽事卡與詳情加「主場／客場」小標；主客場不明不顯示 |
+| A5 | 完成 | 賽事卡補 `FallbackTag`（詳情原本就有） |
+| B1 | 完成 | 「下一場賽事」只取目前俱樂部一線隊（`ScheduleLogic.firstTeamCodes`）；球隊主檔還沒載入時不濾 |
+| B3 | 完成 | 首頁加 `quick_entries` 區塊（預設順序在贊助商牆之前）。後台給的深連結常帶 `{slug}` 樣板不能直接開：代碼 `programs` 走 App 內課程列表，其餘有完整深連結走深連結、再不然官網網址（相對路徑接目前俱樂部網域）；解析不出目標的項目不顯示。圖示只認 home／calendar／news／member／shop／program／location／phone／info／heart，認不得不畫圖示（與 Android 同一份） |
+| B4（對齊 Android） | 完成 | 公告多則全部依序疊放；過了 `endsAt` 不顯示；`tcrfc://` 走深連結 |
+| B7 | 完成 | 贊助商與夥伴 Logo：深色模式取 `logoDarkUrl`（缺則退回淺色版），朗讀用 `logoAlt`（缺則名稱） |
+| 會員卡捷徑（對齊 Android） | 已具備＋小修 | 只看本機卡片（目前俱樂部）且 `status == valid` 的快照，不打 memberships 端點 |
+| C1／C2 | 完成 | 賽程加「篩選」面板（預設收合）：賽事類型（聯賽／盃賽／友誼賽／其他，只列範圍內實際有的；`competitionTag` 空或未知歸其他）、主客場、**月份（iOS 另含）**。賽事卡 meta 加賽事類型，系列名稱已含該詞就不重複 |
+| D | 部分 | **單場**加入行事曆（詳情頁「加入行事曆」）：`EKEventEditViewController`，開賽時間未定→全天事件、否則 2 小時；iOS 17 起免權限，iOS 15／16 在按下時才請求（`Info.plist` 加 `NSCalendarsUsageDescription`／`NSCalendarsWriteOnlyAccessUsageDescription`）。**整季匯入與「我的報名」單筆匯出未做**——Android 也只有單場，FIX-PLAN 規定兩端以 Android 範圍為準；規格 §3.2 的整季匯入因此仍缺（待決定 3） |
+| E1 | 完成 | 分享網址＝該篇所屬俱樂部網域＋目前語系＋`canonicalPath`（有語系前綴就換成目前語系、沒有就補；站外或 `//` 開頭不採用；沒有則 `/{lang}/news/{slug}`），規則與 Android 同 |
+| E2 | 完成 | 封面依 `coverFocalX／Y`（百分比，`object-position` 語意）裁切：`FocalCoverImage`，用於列表卡與內文封面 |
+| E3 | 維持現狀（🚫） | 新聞分類晶片仍只來自已載入頁面：契約沒有分類清單端點。八分類固定、影響有限 |
+| F1／F2 | 完成 | 教練卡：證照、專長、負責梯隊（轉隊名，代號不外露）、`staffGroup` 分組（教練團在前，其後管理層／行政／醫療／後勤）；**隨目前選的球隊分頁變動**（負責該隊的＋沒指定梯隊的）。教練卡接上圖片版位（`PortraitPolicy.photoURL(StaffDto)`，目前仍 fail-closed 不出現） |
+| F3 | 完成 | 球員／教練照片 alt 一律用 API `photoAlt`，沒有就設為輔助技術略過；**不再用姓名**。（Android 另會擋「含本人姓名」的 alt；iOS 沒做此過濾，待決定 4） |
+| F4 | 完成 | 球員與教練逐頁取完（`totalPages`），不再只取第一頁 100 筆 |
+| F7 | 完成 | 球員列與教練卡補 `FallbackTag` |
+| G1 | 完成 | 贊助商依等級（主贊助→官方贊助→支持夥伴→自訂→未填）、夥伴依類型分區。顯示文字照 Android 從官網抄的同一份對照（英文：Title／Official／Supporting Sponsors；Strategic／International／Training／Education／Brand Partners；自訂「指導單位」「官方合作夥伴」）；繁中「支持夥伴」區標題顯示「支持贊助」（與官網一致）。見契約缺口 2 |
+| G2／G3 | 完成 | 夥伴合作期間、贊助故事連結（開 App 內新聞內文）；合作內容超過 60 字提供「看全文」就地展開（取代 `lineLimit(4)` 截斷） |
+| H1 | 完成 | 課程列表與詳情封面（`coverUrl`／`coverAlt`，缺圖不佔位） |
+| H2 | 完成 | 詳情：類型（五個代碼→文字，與 Android 一致：兒童訓練／夏令營／冬令營／專項訓練／校園社區）、對象、年齡、教練、合作夥伴 Logo（有官網可點） |
+| H3 | 完成 | 梯次顯示早鳥價與截止日（過了截止日只顯示原價）、報名開放／截止時間（依裝置時區）；課程價格照規格顯示 |
+| H4 | 完成 | 梯次與試訓：有座標用座標導航（`ll=`），沒有退回名稱＋地址文字搜尋；(0,0)、範圍外不採用 |
+| H5 | 完成 | 課程詳情嵌入 `GET /{club}/faqs/embeds/program_detail`；失敗或空整段不顯示 |
+| I1 | 完成 | 抽獎封面圖（開獎與資格基準時間原本就有） |
+| I2 | 完成 | 抽獎與球衣登記只列目前俱樂部（`MemberScope.draws`／`jerseyGroups`） |
+| I6 | 完成 | 帳號頁加生日（可編輯，選擇器固定台灣日曆）與語系偏好；語系偏好與 App 語系是**同一份設定**（原本就會雙向同步帳號，`MemberStore.applyAccountLocale`／`languageChanged`），改動後自動寫回。（Android 的語系偏好與介面語系分開，兩端略有差異） |
+| J2 | 完成 | 店家篩選選項改取 `GET /partner-stores/filters`（快取鍵 `partner_store_filters`），取不到退回由清單推得 |
+| J3 | 完成 | 店家詳情圖片用 `imageAlt`（不再 `accessibilityHidden`）；地圖標記依類別用不同 SF Symbol（餐飲／運動用品／健康／教育／生活服務，其餘通用標記） |
+| L1／L2 | 完成 | 設定頁加「隱私權政策／服務條款／聯絡我們」與「定位權限」區（用途、目前狀態、前往系統設定）。政策取 `GET /{club}/policies/{privacy｜member-terms}` 在 App 內顯示（404→「尚未提供內容」；快取鍵 `policy`，每次進入重新驗證）；聯絡我們開目前俱樂部官網 `/{lang}/join/contact/`。**課程與試訓報名表的隱私連結改開 App 內政策頁**（依課程所屬俱樂部） |
+| M1 | 完成 | 必須更新／建議更新／維護訊息原本就用後台文字；補 `whatsNew`：更新後第一次開啟顯示一次（偏好設定記看過的版本；**全新安裝只記版本不彈**），設定頁版本區常駐顯示 |
+| N1 | 完成 | 圖片依**實際像素寬**（版位寬 × 螢幕倍率）挑 320／640／1280（`ImageURL.edge`／`resolve(width:)`），所有呼叫端改用；舊的 `role:` 版本保留給測試。首頁新聞卡 260pt @2x→640 |
+| O（對齊 Android） | 完成 | 「更多」依後台 M2 的項目與排序，**後台有填 `label` 就用後台的**；原生項目沒列出視為關閉；**通知中心、常見問題、推播訂閱、設定四個固定項目後台關不掉**（沒列出就補在設定之前）。「切換俱樂部」「搜尋」固定在最上面兩列 |
+| P1 | 完成 | 全站搜尋 `GET /{club}/search`（只搜目前俱樂部）：入口在首頁／賽程／新聞／會員四個根畫面的俱樂部切換列右側放大鏡＋「更多」第二列；新聞／球員／FAQ 各打一次帶 `type`，課程／教練／慈善一律濾掉；**特約店家 API 不搜，在已載入清單上本機比對**。按鍵盤搜尋鍵才查（不做輸入即搜） |
+
+**其他修正**：俱樂部切換鈕選定後延遲 0.5 秒才切換——新加的放大鏡讓選單收合時機變了，原本「選單動畫未收完就重建整組分頁」在冒煙測試中穩定重現 `UITargetedPreview` SIGABRT（`BUG_IN_CLIENT_OF_TARGETED_PREVIEW__VIEW_IS_NOT_IN_A_WINDOW`），延遲後連跑兩次通過。
+
+**不在本輪範圍（維持現狀）**：FIX-PLAN 整節（建議年費、🚫 契約缺口、推播傳輸與分類開關、LINE、健康聲明、廣告 `title`／`ctaText`／`videoUrl`／`theme`）；規格 §3.4 未列的新聞 `relations`／`tags`；球隊簡介與主視覺、夥伴國家與慈善專案、贊助活動；店家 `mapUrl`（iOS 有座標、導航功能等價）。
+
+**契約缺口（要補契約或規劃書）**：
+1. 快捷入口／更多項目的 `icon` 值域未定義，iOS 與 Android 暫用同一份常見字面值。
+2. 贊助商等級、夥伴類型、課程類型、教練分組的值域與英文不在 `shared/enums.json`；iOS 照 Android 抄的對照放在 `Localizable.strings`（`sponsor.tier.*`、`partner.type.*`、`programs.type.*`、`staff.group.*`），契約補上後改讀契約。
+3. `GET /{club}/search` 不含特約店家，與規格 §3.0 G-02 不一致（本機補）。
+4. 政策代碼 `privacy`／`member-terms`、官網聯絡頁路徑不在 `shared/`。「服務條款」暫對應 `member-terms`（會員條款），規格沒有獨立的 App 服務條款。
+5. `MatchDto` 無 `venueId`（無法用 `venues` 座標導賽事場地）、球員經歷／前東家／加入日期／關聯新聞、新聞分類清單端點、試訓 `isFallbackLocale`（維持 FIX-PLAN 所列缺口）。
+
+**與 Android 的差異**：D 行事曆整季未做（同 Android 範圍）；語系偏好與 App 語系同一份（iOS）vs 分開（Android）；alt 不擋「含姓名」（iOS 直接不用姓名、只用 `photoAlt`）；課程報名表隱私連結在 sheet 內以 `NavigationLink` 開政策頁；月份篩選 iOS 另有。
+
+**原列「待使用者決定」三項已結（2026-10-28）**：
+1. 「服務條款」：App 版另寫，草稿 [`output/TCRFC_App服務條款.md`](../output/TCRFC_App服務條款.md)（以會員條款為底、會員事項引用不重寫），待法務審閱與放置網址；**上線前設定頁仍暫對應 `member-terms`**，上線後改指 App 版。
+2. 截圖已依新畫面重拍（§11u／§11v 追加）。
+3. 整季匯入行事曆兩端已做（§11u／§11v 追加）。
+4. 是否比照 Android 擋掉「含本人姓名」的 `photoAlt`。
+
+**預覽資料（dev）**：`FixtureContentAPI` 補快捷入口、已結束賽事的進球／卡牌／名單／賽後報導、政策頁、搜尋；**截圖專用預覽資料沒動**（其賽事都是未開賽、版面編排只有三個區塊）。單元測試 324 項全綠（原 287）；冒煙 25 項全綠（新增 3 項：已結束賽事詳情、設定頁政策入口、搜尋；`scrollUntilHittable` 改從畫面上半部拖曳——鍵盤開著時 `swipeUp()` 起點落在鍵盤上，表單不會動）。**沒有對真實 API 實機驗證**。
+
+**2026-10-28 追加（iOS，`mobile-app-engineer`）：整季匯入、首頁下一場動作、照片 alt 對齊**
+
+處理上列待決定 2、3、4：
+
+| 項目 | 決定 |
+|---|---|
+| 整季匯入（規劃書 §3.2） | 賽程畫面「篩選」列右側的「整季加入行事曆」（`schedule.import_season`）。範圍＝**目前所選球隊分頁**（「全部」＝目前俱樂部全部球隊）**未開賽（`scheduled`）**的賽事，不受賽事系列與次要篩選影響；延賽、進行中、已結束、取消不匯入（與 Android 相同）。流程：**先跳說明對話框**（場數、只用來新增、已加入的會略過）→ 確認後才請求權限 → 直接 `EKEventStore.save` 寫入預設行事曆 → 回報「新增幾場、略過幾場」。**拒絕權限＝不寫入**，提示可到系統設定允許或改用單場「加入行事曆」 |
+| 權限 | iOS 17 起 `requestWriteOnlyAccessToEvents`（僅寫入）；iOS 15／16 沒有僅寫入，退回 `requestAccess(to: .event)`（完整權限）。單場仍走 `EKEventEditViewController`（iOS 17 起免權限）。`Info.plist` 說明文字見下，也進 `InfoPlist.strings`（中英） |
+| 事件格式（單場、整季、首頁同一份，`MatchActions.calendarEntry`，與 Android §11v 追加一致） | **標題**「台中磐石 一線隊 vs 高雄先鋒」（`Catalog.calendarTeamName`：一線隊「俱樂部簡稱 空格 隊名」，其他梯隊只有隊名；恆為球隊在前，客場也不調換（賽事詳情頁畫面標題仍依主客場排序，與事件無關）；對手空白「對手待定」／英文 `TBD`）。**地點**＝場地名（場地待定／空白不寫）。**備註**＝官網賽事連結 `https://{俱樂部網域}/{App 語系}/schedule/{賽事id}/`（網域占位或未定時退回契約的主站網域）。**事件網址**＝`tcrfc://match/{賽事id}`（iOS 另有，從行事曆點回 App）。有開賽時間＝指定時刻、2 小時；**開賽時間未定＝全天事件**（以裝置日曆組出比賽日當天，單元測試涵蓋非台北時區不偏一天）。**不設提醒**。已取消的賽事不提供 |
+| 重複判斷與取捨 | iOS 17 僅寫入**讀不到行事曆**，無法查既有事件，所以主要靠 App 本機紀錄：`UserDefaults` 鍵 `tcrfc.calendar.imported`，內容＝「賽事id｜事件起始時刻｜是否全天」集合（不含個資、不含 `eventIdentifier`）。匯入前先排除已記錄的；同一批裡重複的只寫一次；**單場經編輯畫面按「儲存」也記一筆**。**只有在本來就持有完整權限時**（iOS 15／16，或使用者另外授予）多查一道：比賽時間前後各一天內、事件網址與起始時刻都相同者略過。取捨：① 賽事**改期**（起始時刻變了）視為新事件、會再寫一筆；② 使用者在行事曆刪掉事件後 App 無從得知，該場不會再被整季匯入（單場加入不受影響）；③ 重灌 App 紀錄消失，再匯入會重複。不為去重索取完整權限 |
+| 首頁下一場賽事（規劃書 §3.1） | 卡片下方兩顆按鈕「加入行事曆」（`home.next_match.add_calendar`）「導航」（`home.next_match.navigate`），與賽事詳情同一份實作（`MatchActions`）；場地待定不顯示導航、已取消不顯示加入行事曆 |
+| 照片 alt（§12.2，對齊 Android §11v） | `PortraitPolicy.altText(photoAlt, name:)`：`photoAlt` 含該球員／教練本人姓名（不分大小寫、含變音）就當沒有 alt（圖設為輔助技術略過），規則同 Android `PortraitPolicy.altFor`。DTO 只有依語系回傳的單一 `name`，所以比對的是目前語系的姓名 |
+
+`Info.plist` 說明文字：
+- `NSCalendarsWriteOnlyAccessUsageDescription`：「用來把你選的單場賽事，或所選球隊的整季賽程，新增到你的行事曆。App 只會新增賽事，不會讀取、修改或刪除你行事曆裡的其他內容。」
+- `NSCalendarsUsageDescription`（僅 iOS 15／16 會用到）：「iOS 16 以前，寫入行事曆需要完整的行事曆權限。這個權限只用來把你選的賽事或整季賽程新增到行事曆，並避免重複新增；App 不會上傳、也不會使用你行事曆裡的其他內容。」
+
+與 Android 的差異（以此為準，覆寫上文「D 行事曆整季未做」「alt 不擋含姓名」兩處）：兩端事件格式以規格為準，細節以 Android 在 §11v 的追加為準核對；iOS 重複判斷靠本機紀錄（Android 另述）。測試：單元 329 項（新增 5）、冒煙新增 1 項（首頁動作與整季確認可取消）。商店截圖因此重拍，見 `output/app-screenshots/ios/README.md`。
+
+### 11v. 稽核修正（Android，2026-10-28，`mobile-app-engineer`）
+
+依 [`output/app-audit/FIX-PLAN.md`](../output/app-audit/FIX-PLAN.md)（來源 `android-field-audit.md`）修〔兩端〕與〔Android〕項目；與 iOS（§11u）判斷一致處以 FIX-PLAN 為準。**沒有改 `shared/` 上游與後端**。純邏輯在 `domain/`（`MatchDetail`、`HomeLogic`、`RosterText`、`PartnersLogic`、`MoreMenu`、`SearchLogic`、`NewsShare`），單元測試 `AuditFixesTest`（33 項）。
+
+**shared 同步**：`scripts/sync-shared.sh` 取到上游 `e0e17f0`。Android 複本原本落後 `0bb72a5`，**實際帶入**：`MatchDetailDto`／`MatchGoalDto`／`MatchCardDto`／`MatchLineupDto`／`MatchReportDto`／`MatchScorerDto`／`OpponentCrestDto`，`MatchDto` 與 `StandingRowDto` 多對手隊徽欄位；`error-codes.json` 多 `order_in_progress`；`cache-schema.sql`／`cache-policy.json` 只改註解文字（「追蹤偏好」改稱「目前俱樂部與推播訂閱」）。無破壞性變更。
+
+| 編號 | 狀態 | 執行層決定 |
+|---|---|---|
+| A1 | 完成 | `TcrfcRemote.match` 與 Retrofit 單場端點改回 `MatchDetailDto`（`ApiResponse<MatchDetailDto>`）；快取的舊 `MatchDto` JSON 仍可解（欄位子集）。詳情頁**一律**打單場端點（先快取後更新）：列表已有該場時先用列表欄位顯示、不等網路，詳情端點離線失敗不算錯誤；列表沒有（深連結）才依序探測俱樂部。`MatchDetails.toMatchDto` 把詳情缺的欄位以列表那一場補上 |
+| A2 | 完成 | 詳情依序顯示：進球（分鐘＋球員＋類型）、牌（黃／紅）、出賽名單（先發／替補上場／未上場，組內依背號）、賽後報導按鈕（開 `NewsDetailRoute(slug, 該場俱樂部)`）。規則與官網賽事詳情一致：`side == "opponent"` 且不是烏龍球 → 只寫「對方進球」不顯示球員名；烏龍球顯示球員名並註記「計入對方進球」；類型代碼 `own_goal`／`penalty`／`header`／`free_kick`，其他值不顯示。沒有資料的區塊整段不畫，不留空白 |
+| A3 | 完成 | 賽事卡與詳情都畫 `opponentCrest`（卡 28dp、詳情 40dp）。API 直接給 `url320`／`url640`／`url1280`：`ImageUrls.pickAvailable` 取「≥ 顯示像素寬」的最小有值一檔，都不夠大取最大有值一檔，三檔皆空才由主檔推導衍生檔。沒有隊徽什麼都不畫、不佔位；隊徽視為裝飾（對手名稱就在旁邊），不給 alt |
+| A4 | 已具備 | Android 原本就有「主場／客場」文字（卡片 meta 列、詳情「主客場」欄），不只是左右順序；未新增元件 |
+| A5 | 完成 | 詳情頁補 `FallbackNote`（賽事卡原本就有） |
+| A6 | 完成 | `MatchItem.opponentLabel`：`opponentName` 優先，退回 `opponent`，皆空白顯示「對手待定」 |
+| B1 | 完成（FIX-PLAN 標〔iOS〕，Android 同缺，一併修） | 「下一場賽事」只取目前俱樂部一線隊（`HomeLogic.nextCandidates`）；球隊清單尚未載入時不過濾 |
+| B2 | 完成 | 下一場上方倒數，日曆天計，`今天開賽`／`還有 N 天`（文字與 iOS 同） |
+| B3 | 完成 | 快捷入口不再濾掉只有 `deepLink` 的項目；有深連結走 App 內（`pendingDeepLinks`），否則開官網。`icon` 只認一組常見字面值（見契約缺口 1） |
+| B4 | 完成 | 公告：過了 `endsAt` 不顯示；有 `linkUrl` 可點（`tcrfc://` 走深連結、其餘開官網）；**多則全部依序疊放**（規格 §8.2 只寫公告條文案／連結／顯示期間，沒寫多則呈現，見待決定 1） |
+| B5 | 完成 | 會員卡捷徑只在「已登入 ＋ 本機有目前俱樂部、`isValid` 的卡」時顯示，否則顯示「加入會員」（導會員分頁）。進首頁時順手更新本機會員卡。`isValid` 因 SQLite 卡片表沒有該欄、且不能動 `shared/cache-schema.sql`，改存在一般偏好設定（比照 `cardsync:`），見 `CardView.isValid` |
+| B6 | 完成 | 已授權定位時首頁附近店家依距離排序再取 3 家；**首頁不主動要權限**，未授權維持後台排序。座標只在記憶體 |
+| B7 | 完成 | 贊助商 Logo 深色模式取 `logoDarkUrl`（無則退回淺色版），無障礙文字用 `logoAlt`（無則名稱）；夥伴頁同 |
+| C1 | 完成 | 賽程加「篩選」面板（收合預設）：賽事類型（聯賽／盃賽／友誼賽／其他，只列範圍內實際有的類型；`competitionTag` 空視為聯賽、未知值歸其他）與主客場。月份已有吸頂標頭，不重做。資料用 `MatchDto.competitionTag`（官網同一組值）；`CompetitionDto.compType` 沒用到（系列晶片已能篩系列） |
+| C2 | 完成 | 賽事卡的 meta 列加賽事類型；系列名稱已含該詞（「企業甲級聯賽」含「聯賽」）就不重複（規格：並存但不重複） |
+| E1 | 完成 | 分享網址＝**該篇所屬俱樂部網域**（`ClubWeb.baseUrl`，占位 `.invalid` 退回設定網域）＋**目前語系**＋`canonicalPath`（有語系前綴就換成目前語系，沒有就補；沒有 `canonicalPath` 用 `/{lang}/news/{slug}`），規則與 iOS `NewsShare.path` 同；因此分享鈕不再因 `canonicalPath` 空白而停用 |
+| E2 | 完成 | 封面依 `coverFocalX/Y`（後台存 0–100 百分比，兩欄缺一或超範圍＝置中）裁切：列表縮圖、首頁新聞卡、內文封面 |
+| E4 | 未做 | 規格 §3.4 內文只列雙語、字級、系統分享；`relations`／`tags`／`coreValueTags` 規格未要求 |
+| F1 | 完成 | 教練顯示證照、專長（`bio`）、負責梯隊（隊別代號→顯示名稱，代號不外露）、`staffGroup` 分組（教練團在前，其後管理層／行政／醫療／後勤，英文標題查表；不認得的分組併入教練團不丟人）。教練本來就依選的球隊過濾（`isShared` 屬所有球隊） |
+| F3 | 完成 | 照片 alt 用 API `photoAlt`，沒有、或含本人姓名（後台誤填）就不給 alt（`PortraitPolicy.altFor`）；原本的「球員照片」固定字串刪掉。照片本身仍 fail-closed 不顯示 |
+| F4 | 完成 | 球員／教練／賽程／FAQ 的分頁抓全部：`totalPages` 沒給時由 `totalCount`／`pageSize` 推算（`pagesFor`），中途遇到空頁停止。原本 `totalPages` 為空就只取第一頁 |
+| F5 | 未做 | `TeamDto.intro`／`heroUrl`／`heroAlt` 規格 §3.3 沒列 |
+| F6 | 完成 | 生日依語系格式化（`Format.date`）；慣用腳 `right`／`left`／`both` 轉中英文字（沿用官網對照） |
+| F7 | 完成 | 球員詳情補 `FallbackNote`；教練卡補；名單列原本就有 |
+| F8 | 已具備 | 賽季數據取不到整段不顯示，與 iOS 一致 |
+| G1 | 完成 | 贊助商依等級分區、夥伴依類型分區，自訂值接在固定值之後、沒填的最後。**API 回的是中文字面值**（`主贊助／官方贊助／支持夥伴`，夥伴 `策略夥伴…`），英文標題靠 `PartnersLogic` 內的對照表（抄自 `apps/web/shared/utils/partners.ts`）。繁中「支持夥伴」區標題顯示「支持贊助」與官網一致。見契約缺口 2 |
+| G2 | 完成 | 夥伴合作期間（點開展開）、贊助故事連結（開 App 內新聞內文，該俱樂部） |
+| G4 | 未做 | 夥伴 `country`／`charityPrograms`、贊助商 `activations` 規格 §3.11 沒列 |
+| H1 | 完成 | 課程列表／詳情、抽獎、店家的封面圖都走 `RemoteImage`（缺圖不畫） |
+| H2 | 完成 | 詳情：類型（`programType` 五個代碼→文字，不認得不顯示，見契約缺口 2）、對象（`audience` 是自由文字側表欄位，原樣）、年齡、教練、合作夥伴 Logo（點開官網） |
+| H3 | 完成 | 梯次顯示早鳥價與截止日、報名開放／截止時間；價格照規格仍顯示（「不顯示金額」只限會籍方案） |
+| H4 | 完成 | 梯次與試訓：有 `venueLat`／`venueLng` 用座標導航，否則退回地址再退回場地名稱；(0,0) 與範圍外不採用 |
+| H5 | 完成 | 課程詳情嵌入主題 FAQ：`GET /{club}/faqs/embeds/program_detail` 前 5 題＋「查看全部」；失敗或空整段不顯示（掛載點代碼取自官網 `useFaqEmbed`） |
+| H6／L1 | 完成 | `GET /{club}/policies/{code}` 新增到 `TcrfcRemote`（`privacy`、`member-terms`，代碼取自 API 測試）。課程／試訓報名表的隱私權政策連結改開 App 內政策頁（依課程所屬俱樂部），不再寫死 `/zh|en/privacy/` |
+| I1 | 完成 | 抽獎顯示開獎時間 `drawnAt`、資格基準時間 `snapshotAt`、封面圖 |
+| I3 | 完成 | 球衣列表顯示收件電話（本人資料、本人登入後看，不遮罩；遮罩規則 §12 針對後台） |
+| I4 | 完成 | 會籍列顯示 `planName`、`cardQuota`、`jerseyQuota` |
+| I5 | 完成 | 有效期限依語系格式化；狀態用 `isValid`（false 時狀態改錯誤色）；QR 網址用**該卡所屬俱樂部的網域** |
+| I6 | 完成 | 個人資料加「語系偏好」（中／英，帳號層級；原本更新時固定送 App 當前語系），與 App 介面語系分開 |
+| J1 | 完成 | 店家列表縮圖與詳情圖片（`imageUrl`／`imageAlt`）、詳情 `FallbackNote`；`mapUrl`：沒有座標時優先於地址搜尋（座標 > `mapUrl` > 地址） |
+| J2 | 完成 | 篩選選項改用 `GET /partner-stores/filters`（走 `partner_stores` 快取鍵 `filters.{club}`），取不到退回由清單推得 |
+| K1 | 完成 | 通知中心顯示 `imageUrl`（API 沒有 alt 欄位，視為裝飾） |
+| L1／L2 | 完成 | 設定頁加「隱私權政策／服務條款／聯絡我們」（前兩項 App 內顯示，內容空（404）顯示「尚無內容」＋到官網；聯絡我們開 `/{lang}/join/contact/`）與「定位」說明區（用途、目前狀態、前往系統設定）。政策每次進入都向伺服器取最新版，不快取 |
+| M1 | 完成 | `forceUpdateMessage`／`recommendUpdateMessage` 有值（依語系，缺漏退回另一語系）取代本機文案，沒有才用本機；`whatsNew` 更新後第一次開啟顯示一次（偏好設定記上次看過的版本，**全新安裝只記版本不彈**） |
+| N1 | 完成 | `RemoteImage` 改收**版位寬度 dp**（`null`＝整頁寬），內部乘 `displayMetrics.density` 才挑 320／640／1280（`ImageUrls.px`）。原本把 320 當點數用 |
+| N2 | 完成 | `AdImages.pick`：衍生檔（空字串）退回 `imageUrl` 推導的衍生檔；仍無圖用本機備援。預載網址同規則 |
+| O1 | 完成 | 規格 §8.2 M2 明寫「更多」分頁的項目與排序由後台控制，照做：`MoreMenu.build` 依排版資料的順序與 `label`；M2 能開關的原生項目是球隊名單／特約店家／課程／夥伴（排版資料有載入、卻沒列＝後台關閉）；**通知中心、常見問題、推播訂閱、設定固定項目不被關掉**（設定頁有刪除帳號與政策入口，商店規範要求隨時可達），沒列出就接在最後。排版取不到用本機預設。「切換俱樂部」「搜尋」兩列固定在最上 |
+| P1 | 完成 | 全站搜尋 `GET /{club}/search`，只搜目前俱樂部。入口：四個根畫面上方俱樂部切換列右側放大鏡、「更多」第二列。結果分新聞／球員／特約店家／FAQ，**只留 App 範圍**（API 另會回課程、教練、慈善，丟掉）。**API 不搜特約店家**（見契約缺口 3），店家在已載入清單上本機比對（所有關鍵字都要命中）。輸入停頓 0.4 秒或按鍵盤搜尋鍵才查 |
+
+**不在本輪範圍（維持現狀）**：FIX-PLAN「不在本輪」整節（方案頁建議年費、🚫 契約缺口、推播傳輸與分類開關、LINE 登入、健康聲明、Android 店家地圖、廣告 `title`／`ctaText`／`videoUrl`／`theme`）；D（iOS 專屬）。
+
+**契約缺口（要補契約或規劃書，不是 App 的事）**：
+1. 快捷入口／更多項目的 `icon` 鍵**沒有值域定義**（API 只回後台自由字串）。Android 暫時只認 `home`／`calendar`／`news`／`member`／`shop`／`program`／`location`／`phone`／`info`／`heart` 等字面值，認不得就不畫圖示。
+2. 贊助商等級、夥伴類型、課程類型的值域**不在 `shared/enums.json`**（官網與後台各寫一份中文字面值／代碼）。Android 照官網與後台抄了一份（`PartnersLogic`、`ProgramLogic.programTypeLabel`、`RosterText` 的教練分組），契約補上就改讀契約。
+3. `GET /{club}/search` 範圍是新聞／FAQ／課程／球員／教練／慈善，**沒有特約店家**，與 App 規劃書 §3.0 G-02（新聞、球員、特約店家、FAQ）不一致；目前店家靠本機比對補上。
+4. `AppAdImageVariantsDto` 的三個網址在契約是**必填字串**，所以「衍生檔為 null」實際只會是空字串；`pickAvailable` 兩者都處理。
+5. 政策代碼 `privacy`／`member-terms` 與官網聯絡頁路徑 `/{lang}/join/contact/` 不在 `shared/`（前者取自 API 測試、後者取自官網頁面目錄）。
+
+**待使用者決定**：
+1. 公告多則時全部疊放，還是只顯示第一則／輪播？（規格沒寫）
+2. 搜尋入口位置（目前：切換列放大鏡＋更多選單）規格沒指定。
+3. 首頁會員卡捷徑用「本機會員卡的 `isValid` 快照」判斷，不打 `memberships` 端點（規格 §2.4：會籍狀態不快取、會員中心才即時取）。若要求首頁即時以伺服器為準，要改成進首頁就打 `/member/memberships`。
+4. 更多選單的固定項目（通知中心、常見問題、推播訂閱、設定）後台關不掉——這是我的保守判斷，規格只說「項目與排序」。
+
+**預覽資料（dev）**：`fixtures/layout.json` 補四個原生更多項目（比照後端種子）、新增 `match.tcrfc.m-d1-01.json`（賽事詳情含進球／牌／名單／賽後報導）與 `policy.tcrfc.privacy.json`；**`fixtures-shot/` 沒動**。
+
+**驗證**：單元測試 286 項（dev、prod 兩個 flavor 各 286，全綠；新增 `AuditFixesTest` 33 項，含用 MockWebServer 驗單場端點解碼不丟 goals／cards／lineup／matchReport）；冒煙 29 項（Pixel 8 API 35）全綠，新增 6 項：賽事詳情（有／無賽後內容）、設定頁政策入口與政策頁、服務條款空內容、搜尋、賽程篩選面板。**沒有對真實 API 實機驗證**。冒煙曾有一次整組中斷（`deep_link_match` 結束時 `NavBackStackEntry` 狀態例外，Navigation 已知的 Activity 銷毀時序問題），同一組程式再跑 2 次全綠；未確認是否修正前就存在。
+
+### 11v 追加（2026-10-28）：整季匯入行事曆與首頁下一場動作（Android，`mobile-app-engineer`）
+
+落實規劃書 §3.2「整季一次匯入」「開賽時間未定以全天事件寫入」與 §3.1「下一場賽事」一鍵加入行事曆與導航。純邏輯 `domain/CalendarEntry.kt`，系統寫入 `core/SystemCalendar.kt`，賽事動作共用 `ui/schedule/MatchActions.kt`。
+
+| 項目 | Android 決定（iOS 請對齊事件欄位） |
+|---|---|
+| 做法與權限 | 整季一次寫多筆必須用 `CalendarContract`，**新增 `READ_CALENDAR`、`WRITE_CALENDAR`**（同屬行事曆權限群組，系統一次詢問）。逐筆 Intent 不可接受，沒有「免權限又能一次寫多筆」的做法。請求前先顯示說明對話框（寫什麼、為何要讀取、重複不會產生）。**READ 的用途**：挑可寫入的行事曆、判斷已匯入；只查詢本 App 寫入的事件（`CUSTOM_APP_PACKAGE`）與「同時間同標題」者，不讀其他內容、不上傳。拒絕權限＝不寫入並提示可改用單場加入 |
+| 入口 | 賽程頁、篩選列右側「整季匯入行事曆」。範圍＝**目前球隊分頁**的全部未開賽（`SCHEDULED`）賽事（不受賽事系列與次要篩選影響）；延賽、進行中、已結束、取消不匯入。完成以 Toast 顯示「已加入 N 場，M 場先前已加入」 |
+| 事件格式 | **標題**：`{球隊顯示名} vs {對手}`（例：`台中磐石 一線隊 vs 高雄先鋒`，球隊名即賽事卡所用 `teamLabel`；對手空白用「對手待定」／TBD）。**地點**：場地（`TBC`／空白不寫）。**備註**：官網賽事連結 `{該俱樂部網域}/{目前 App 語系}/schedule/{賽事 id}/`（網域占位 `.invalid` 退回設定的主站網域）。有開賽時間＝指定時刻、2 小時；**開賽時間未定＝全天事件**（`ALL_DAY=1`、`EVENT_TIMEZONE=UTC`、開始＝比賽日期 UTC 午夜、結束＝隔天 UTC 午夜）。不設提醒（開賽提醒另有本機通知） |
+| 寫入哪個行事曆 | 可寫入（貢獻者以上）且顯示中的行事曆，主要行事曆（`IS_PRIMARY`）優先，其次第一個。**找不到任何可寫入的行事曆**（無帳號且無本機行事曆）→ 提示先登入帳號或建立行事曆，不自行建立行事曆 |
+| 重複判斷 | 每個事件寫入 `CUSTOM_APP_PACKAGE`＝App 套件名、`CUSTOM_APP_URI`＝`tcrfc://match/{賽事 id}`。匯入前查詢該行事曆、開賽時間範圍內未刪除的事件，**以 `CUSTOM_APP_URI` 命中為重複**；退而比對「標題＋開始時間」相同（涵蓋單場走 Intent、無法帶識別值的情況）。使用者刪掉事件後再匯入會重新加入。未使用 `UID_2445`（該欄位偏向同步帳號用途，一般 App 寫入不保證保留） |
+| 單場加入 | 維持 `ACTION_INSERT` Intent（開行事曆編輯畫面、**不需權限**），改用同一份事件資料（標題、地點、備註、全天規則一致）。**修正**：全天事件原本以台北午夜當開始時間，行事曆以 UTC 解讀會落在前一天，已改為 UTC 午夜 |
+| 首頁 | 「下一場賽事」卡下方加「加入行事曆」「前往場地」（場地待定不顯示導航），與賽事詳情共用 `MatchActions` |
+| 驗證 | 單元測試 `CalendarEntryTest` 5 項（事件格式、全天事件、範圍、重複判斷）；冒煙新增 2 項（首頁動作存在；整季匯入：授權後寫入本機測試行事曆、再匯入一次數量不變），共 31 項。**未在含 Google 帳號的實機驗證各家行事曆 App 的顯示** |
+| 隱私申報與資料安全性 | 新增權限 `READ_CALENDAR`／`WRITE_CALENDAR`：資料只存在使用者裝置行事曆、不蒐集、不上傳；Play 資料安全性的「行事曆」類別不需申報為蒐集（僅本機處理），但權限用途聲明要寫「將所選球隊的賽事寫入系統行事曆並避免重複」 |
+
 ## 12. 本檔不決定的事
 
 - **§16.2 技術前提第 17 項：推播是否走自家直送** —— 本檔建議直送（§5），但客戶可能有既有的服務商合約
@@ -945,7 +1122,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 - **Google Maps API 的帳單帳戶歸屬**（俱樂部？我方代管？）
 - **Sign in with Apple 是否要做**（§4.2 與 §16.2 第 15 項雙重待確認）
 - **年齡分級是否歸兒童類別**（§12.4、§16.2 第 11 項）
-- **App 版的隱私政策與服務條款**（§12.4 明寫「須另行撰寫」，尚不存在）
+- **App 版的隱私政策與服務條款**（§12.4 明寫「須另行撰寫」）——草稿已產出（[`output/TCRFC_App隱私權政策.md`](../output/TCRFC_App隱私權政策.md)、[`output/TCRFC_App服務條款.md`](../output/TCRFC_App服務條款.md)，2026-10-28），**待法務審閱與決定放置網址**
 - **網站與 API 的 CI** —— [`17`](17-deployment.md) §8 已登記，仍未定
 
 > ✅ **原本屬於「這是新規格」的五項已於 2026-09-20 走完同步鏈**：

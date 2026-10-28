@@ -12,6 +12,7 @@
 
 ## 速查
 
+- 🔴 **客戶端（官網前台、兩個 App）讀 API，一律用契約宣告的回應型別解碼；做「有資料才顯示」的畫面時，逐欄對照後台能輸入、API 會回的欄位，找不到顯示位置就是漏**（`E-342` 前台、2026-10-28 App 稽核再犯：兩個 App 的單場賽事端點都把 `MatchDetailDto` 宣告成 `MatchDto`，`ignoreUnknownKeys`／`Decodable` 靜默丟掉進球者、卡牌、出賽名單）。① 新增或改動端點呼叫時，型別名稱要與 `shared/openapi.json` 的回應 schema 一致，不得「先用相近的 DTO 湊」；② 驗收用欄位最齊的那一筆資料（例如已結束、有進球與名單的賽事）逐欄看；③ 定期以 `output/app-audit/` 的格式重做欄位稽核（逐畫面列「欄位 → 端點 → DTO 欄位」）。
 - 🔴 **`matches.score_home`／`score_away` 的語意是「我方進球／對方進球」，不是主隊／客隊**（主站 v3.31 C4；`MatchEditView.vue` 的標籤是「我方進球」「對方進球」）。欄位名沿用 home／away 是歷史命名，**不得依 `home_away` 欄位對調**，也不得在前台把 `score_home` 當主隊比分直接顯示：前台依主客場自行排成「主隊 : 客隊」（`home_away = home`：我方在左；`away`：對方在左）。前台賽果卡片與賽事詳情必須顯示比分、進球者、卡牌、出賽名單（`E-342`）。對手球隊是 `OpponentTeam`（各俱樂部各自、中英隊名＋隊徽），**不是 `Team`**，不得塞進球隊清單。出賽自動彙總：已結束賽事中先發算一場，替補須 `came_on` 或該場有進球／吃牌才算。
 - 🔵 **核心價值是四項，不是五項**（使用者 2026-10-16 裁決，依客戶 2.3；主站 v3.29）：`inspiring_players` 啟發球員／`shaping_champions` 塑造冠軍／`local_pride` 在地驕傲／`global_influence` 撼動全球，同時是全站內容標籤 `value_tag_links.value_tag`。舊五標籤遷移：`players_first`→`inspiring_players`、`excellence`→`shaping_champions`、`community`→`local_pride`、`global_pathways`→`global_influence`、**`integrity` 無對應，連結列直接刪除**。看到 `players_first`／`excellence`／`global_pathways`／`community`／`integrity` 或「五大核心價值」一律是舊規格。4.4 課綱頁客戶原文的「培養菁英 Shaping elites」是頁面原文，不是核心價值定義，照留。
 

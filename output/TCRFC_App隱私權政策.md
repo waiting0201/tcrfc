@@ -41,6 +41,9 @@
 四、位置資訊
 本 App 僅於您使用「特約店家」功能並允許定位權限時，取得手機的位置，用以計算您與店家之間的距離並依距離排序。距離計算全程於您的手機上完成，**位置資訊不會傳送至本俱樂部或任何第三方，也不會被儲存**。您可隨時於手機設定關閉定位權限，店家清單仍可正常瀏覽，僅不依距離排序。本 App 不在背景取得位置。
 
+四之一、行事曆
+您於本 App 選擇「加入行事曆」或「整季加入行事曆」時，本 App 經您授權後將賽事新增至手機的系統行事曆；本 App 只新增賽事，不修改或刪除任何事件。為避免重複新增，Android 版及 iOS 16 以前之版本會在寫入前，於手機上查詢行事曆中是否已有本 App 寫入之同一場賽事（Android 版另比對同時間、同標題之事件）；iOS 17 以上之版本不讀取行事曆，改以手機內之匯入紀錄判斷。上述查詢僅於手機上進行，不保存、不傳送至本俱樂部或任何第三方，亦不用於其他目的。
+
 五、通知
 （一）開賽提醒：由本 App 依您追蹤的球隊與賽程，於手機上排程提醒，不需將您的資料傳送至伺服器。您可於設定中關閉提醒或設定靜音時段。
 （二）推播通知：本 App 透過 Apple Push Notification service（iOS）或 Firebase Cloud Messaging（Android）傳送推播，為此須將推播權杖交由上述服務提供者處理，可能涉及境外傳輸。您可隨時於手機設定關閉通知權限。
@@ -122,6 +125,9 @@ The App does not use advertising identifiers (IDFA/AAID), does not use third-par
 
 4. Location
 The App accesses your phone's location only when you use the Partner Stores feature and have granted location permission, to calculate the distance to each store and sort stores by distance. The calculation happens entirely on your phone. **Your location is never sent to the Club or to anyone else, and it is not stored.** You can turn off location permission at any time in your phone's settings; the store list still works, just without sorting by distance. The App does not access your location in the background.
+
+4A. Calendar
+When you choose "Add to calendar" or "Add season to calendar", the App adds the fixtures to your phone's calendar with your permission. The App only adds match events; it never edits or deletes any event. To avoid adding the same match twice, the Android app and the iOS app on iOS 16 or earlier check on your phone, before writing, whether the calendar already contains that match added by the App (on Android, also an event with the same time and title). On iOS 17 and later the App does not read your calendar at all and relies on a record of imported matches kept on your phone. These checks happen only on your phone; nothing is stored, sent to the Club or anyone else, or used for any other purpose.
 
 5. Notifications
 (a) Kick-off reminders are scheduled on your phone based on the teams you follow and their fixtures; no data needs to be sent to our servers. You can turn them off or set quiet hours in Settings.
