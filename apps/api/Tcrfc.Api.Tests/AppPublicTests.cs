@@ -528,6 +528,8 @@ public sealed class AppPublicTests(AdminWriteApiFixture fixture)
                     new { deviceInstallId = device, platform = "ios", appVersion = "7.7.7", buildNumber = "77", osVersion = "17", occurredAt = DateTimeOffset.UtcNow.ToString("O"), type = "crash", summary = "使用者 someone@example.com 電話 0912345678 閃退", detail = "堆疊 at Foo.Bar\n信箱 a.b@c.dev" },
                     new { platform = "ios", appVersion = "7.7.7", occurredAt = DateTimeOffset.UtcNow.ToString("O"), type = "startup_time", metricValue = 1200 },
                     new { platform = "ios", appVersion = "7.7.7", occurredAt = DateTimeOffset.UtcNow.ToString("O"), type = "startup_time", metricValue = 2400 },
+                    new { platform = "ios", appVersion = "7.7.7", occurredAt = DateTimeOffset.UtcNow.ToString("O"), type = "api_error", metricValue = 3 },
+                    new { platform = "ios", appVersion = "7.7.7", occurredAt = DateTimeOffset.UtcNow.ToString("O"), type = "api_error" },
                 },
             });
             Assert.Equal(HttpStatusCode.Accepted, accepted.StatusCode);
@@ -548,6 +550,7 @@ public sealed class AppPublicTests(AdminWriteApiFixture fixture)
             Assert.Equal(1, row.DevicesWithCrash);
             Assert.Equal(1, row.ActiveDevices);
             Assert.Equal(0m, row.CrashFreeDevicePercent);
+            Assert.True(summary.ByType.Single(t => t.Key == "api_error").Count >= 4); // metricValue 3 + 無值算 1（種子可能另有 api_error，故用 >=）
             Assert.InRange(summary.StartupMedianMs!.Value, 1200, 2400); // 種子也有一筆啟動耗時回報，只驗證落在範圍內
         }
         finally

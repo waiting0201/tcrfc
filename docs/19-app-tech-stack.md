@@ -355,7 +355,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 
 | 平台 | 做法 |
 |---|---|
-| iOS | **MetricKit**：每日 `MXMetricPayload`（含啟動耗時、hang）＋ `MXDiagnosticPayload`（含崩潰），**去識別化後 POST 自家端點**（`AppDiagnosticReport`，規劃書 v3.11 §10.1 已補） |
+| iOS | **MetricKit**：每日 `MXMetricPayload`（本 App 只取應用程式結束原因計數；啟動耗時由自家計時器量）＋ `MXDiagnosticPayload`（崩潰），**去識別化後 POST 自家端點**（`AppDiagnosticReport`，規劃書 v3.11 §10.1 已補）。實作與送出規則見 §11t |
 | Android | `Thread.setDefaultUncaughtExceptionHandler` 自捕 ＋ **`ApplicationExitInfo`**（API 30+；API 29 僅靠自捕） |
 | API 錯誤率／啟動耗時 | 由網路層與啟動計時器自行彙總，隨批次上報送出 |
 | 分析介面 | **App Store Connect 崩潰報告 ＋ Play Console 的 Android Vitals**——商店帳號本來就有，不是新增第三方 |
@@ -864,6 +864,79 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | 不分俱樂部 | 廣告版位、M2 首頁編排（`AppData.layout`、`AdSlotView`）、裝置註冊維持 App 層級 |
 | 兩端共通決定 | 只有 slug 的新聞／球員／店家／課程連結：逐俱樂部探測所屬（目前俱樂部優先），找到另一隊就自動切換。推播訂閱明確選擇後全部取消＝全部不訂閱（舊資料沒有明確選擇才視為全部）；訂閱以 `isFollowing`＝true／`isPushEnabled`＝訂閱狀態送後端 |
 | 驗證 | 單元 251 項全綠（新增 `ClubScopeTests` 15 項：持久化與品牌色、賽程／首頁／新聞／店家／夥伴／課程過濾、慈善入口、深連結切換與不切換、會員分頁與提示、升級遷移、預設訂閱；`FollowStoreTests` 改寫兩項）；冒煙新增「引導選藍鯨→首頁與新聞只有藍鯨→切換鈕切磐石→賽程只有磐石球隊→殺掉重開仍是磐石」「磐石模式點藍鯨新聞連結自動切換」，引導測試改為俱樂部二選一。**真實 API 未驗收** |
+
+### 11q. 商店截圖模式（iOS，2026-10-28，`mobile-app-engineer`）
+
+商店截圖要的是接近真實、中英成套、沒有廣告與人像的畫面；一般預覽資料（`FixtureContentAPI` 等）是「示範」佔位字，不適合。因此另做一組截圖專用預覽資料，**一般預覽資料與既有測試不動**。
+
+| 項目 | 決定 |
+|---|---|
+| 啟動參數 | `-TCRFC_SCREENSHOT_FIXTURES YES`（`AppConfiguration.screenshotKey`），會連帶啟用預覽資料模式（不連網），`AppConfiguration.screenshotMode == true` |
+| 只在 dev 生效 | 解析在 `#if DEBUG` 內；`DevFixtures/ScreenshotFixtures.swift` 整檔 `#if DEBUG`，Release 不含也不讀這個參數 |
+| 資料來源 | `output/app-screenshots/DATA.md`（iOS、Android 共用，內容一字不差）：企甲第 6–13 輪（只放未開賽、無比分）、對手無隊徽、中性名稱特約店家、方案權益、課程、三則事實性新聞 |
+| 實作 | `ScreenshotContentAPI`／`ScreenshotMemberAPI`／`ScreenshotProgramsAPI` 繼承既有預覽類別、只覆寫要換的方法（因此三個既有類別由 `final` 改為可繼承，並把少數 `private` 輔助方法放寬為內部可見，行為不變） |
+| 中英雙語 | 依 `lang` 參數取 `zh`／`en` 字串；會員 API 沒有 lang，以 `ScreenshotFixtures.isEnglish`（讀語言偏好）決定姓名寫法 |
+| 廣告 | `ads_enabled` 旗標關閉，版位根本不渲染（沒有空白占位）；`ad()` 回 404、`adPrefetch` 回空作為雙保險；首頁編排也不含廣告區塊 |
+| 會員卡「最後同步」 | 卡片 `serverTime` 設為當天（台灣時間）09:41，與狀態列一致 |
+| 拍攝方式 | 參數：`-TCRFC_SCREENSHOT_FIXTURES YES -TCRFC_DEBUG_RESET YES -TCRFC_DEBUG_SIGNED_IN YES -tcrfc.onboarding.completed YES -tcrfc.club.current tcrfc`，加 `-TCRFC_DEBUG_TAB`／`-TCRFC_DEBUG_PUSH`／`-TCRFC_DEBUG_URL` 導向畫面；乾淨安裝後拍（快取會殘留上一組資料）；`simctl status_bar override` ＋ `simctl location set` 西屯區 |
+| 驗證 | 新增 `ScreenshotFixturesTests` 5 項（賽程、英文無中文、廣告、09:41、啟動參數） |
+
+### 11r. 商店截圖模式（Android，2026-10-28，`mobile-app-engineer`）
+
+與 §11q 對應：一般預覽資料（`fixtures-src/fixtures/`）與既有測試不動，另做截圖專用資料。
+
+| 項目 | 決定 |
+|---|---|
+| 啟用方式 | `adb shell am start -n tw.tcrfc.app.dev/tw.tcrfc.app.MainActivity --ez screenshotFixtures true`（`--ez screenshotFixtures false` 關閉）。啟用時 `AppContainer.setScreenshotMode` 寫入設定（`SettingsStore.screenshotMode`＋資料來源＝預覽資料、略過引導、目前俱樂部＝台中磐石）並以假會員自動登入。**設定是持久的，但 `AppData` 在行程啟動時就開始載入，所以乾淨安裝後要「啟動一次、強制停止、再啟動一次」第二次才是乾淨載入**（否則首頁會殘留離線提示） |
+| 只在 dev 生效 | `MainActivity` 以 `BuildConfig.DEV_TOOLS` 把關，`setScreenshotMode` 與 `screenshotActive` 都再檢查 `env.devTools`；資料檔放 `fixtures-src/`，只打包進 dev flavor 的 assets（prod 不含）。prod 版即使收到該 extra 也不會動 |
+| 資料來源 | `output/app-screenshots/DATA.md`。由 `mobile/android/scripts/gen-screenshot-fixtures.py` 產生 `fixtures-src/fixtures-shot/{zh,en}/*.json`（改資料改腳本再重跑） |
+| 中英雙語 | 契約 DTO 是單語、由後端依 `lang` 輸出，所以分 `zh`／`en` 兩個目錄，`AppContainer` 依 App 目前語系選 `FixtureRemote(assets, "fixtures-shot/{lang}")`。會員用 `FixtureMemberRemote.screenshotLang`（非 null 即截圖模式：王小明／Hsiao-Ming Wang、尊尚會員、有效至 2027-07-31、球季起日 2026-08-01） |
+| 廣告 | `config.json` 的 `ads_enabled=false`（`AdSlot` 直接 `return`，不留 padding）、首頁編排不含 `ad_home_*`、沒有 `ad.*` 檔（404＝無可投放） |
+| 會員卡「最後同步」 | 取裝置時鐘；拍攝前用 `adb shell cmd alarm set-time` 把模擬器調到 09:41（Play 映像 `adb root` 不可用，但 `cmd alarm set-time` 可），拍完 `settings put global auto_time 1` 還原 |
+| 拍攝 | `pm clear` → `cmd locale set-app-locales <pkg> --locales zh-TW／en-US` → 啟動兩次（見上）；demo mode 09:41；`settings put global heads_up_notifications_enabled 0` 擋掉 Play services 彈窗，拍完還原為 1；`adb emu geo fix 120.6168 24.1816`。輸出轉成 24 位元 RGB |
+| 驗證 | 新增 `ScreenshotFixturesTest` 5 項（賽程第 6–13 輪無比分、全部資料不含「預覽」且英文無中文、廣告關閉、會員資料、預設會員不變）；單元 232×2 flavor 全綠、冒煙 23（Pixel 8 API 35）全綠 |
+
+### 11s. 診斷上報與強調卡對比（Android，2026-10-28，`mobile-app-engineer`）
+
+實作 §8「零第三方」。純邏輯在 `domain/Diagnostics.kt`（`DiagnosticReporter`、`DiagnosticScrubber`、`ExitReasonPolicy`、`StartupMetric`），Android 接線在 `core/DiagnosticsAndroid.kt`，網路層攔截在 `core/Net.kt`（`ApiErrorSink`）。**iOS 端尚未實作，行為請對齊下表。**
+
+| 項目 | 決定 |
+|---|---|
+| 送出的類型 | `startup_time`、`api_error`、`crash`、`abnormal_exit`；**不送 `user_report`**（App 沒有該入口） |
+| `startup_time` | `metricValue`＝程序啟動（`Process.getStartElapsedRealtime`）到 S24 放行的毫秒數；`summary`＝`cold_start phase=<放行原因>`。只在「Application 建立後第一個全新啟動」報一次；載入畫面出現過失敗頁（含等待重試）、或程序啟動超過 2 分鐘才進畫面者不報 |
+| `api_error` | 5xx 與連線失敗（取 Retrofit `@GET("…")` 註解的**路徑樣板**，非實際網址）；**4xx 不報**；裝置無網路時的連線失敗不記；取消的請求不記；上報端點自身失敗不記。`summary`＝`GET api/v1/{club}/schedule -> 503`（連線失敗為 `-> transport_error`），`detail`＝`status=503` 或 `transport_error: SocketTimeoutException`（只取例外類別簡名）。`metricValue`＝同鍵發生次數 |
+| 節流 | 同鍵（方法＋樣板＋狀態）10 分鐘內彙總成一筆（次數累加）；每小時最多新增 20 筆 `api_error` |
+| `crash` | `Thread.setDefaultUncaughtExceptionHandler` 同步寫入佇列檔後交還原處理器；`summary`＝`uncaught <例外類別> in main／background`，`detail`＝例外類別與 cause 鏈的堆疊框架（≤60 框架）。**不取例外訊息** |
+| `abnormal_exit` | 啟動時讀 `ApplicationExitInfo`（API 30+，API 29 無）只處理上次檢查之後的紀錄；報 ANR、native crash、初始化失敗、資源超用；`LOW_MEMORY`／`SIGNALED` 只在使用者正在用（importance ≤ visible）時報；`CRASH` 不重複報（已由處理器記錄）。`summary`＝`exit_reason=ANR importance=100`，`detail`＝系統的 description（仍過濾） |
+| 去個資（最後一道防線） | 入佇列前一律過濾：URL 查詢字串、Bearer／JWT、Email、UUID、32 字元以上的不透明字串、電話、6 位以上數字（會員編號）。欄位長度上限同後端（摘要 500、明細 8000）。帶 `deviceInstallId`（安裝識別，非廣告識別碼）、`platform`、`appVersion`、`buildNumber`、`osVersion`（API 等級）、`occurredAt`。**不帶**會員編號、姓名、語系、座標、IP |
+| 佇列與重送 | 一行一筆 JSON，存 `noBackupFilesDir/diagnostics-queue.jsonl`（不進雲端備份）；上限 200 筆，滿了丟最舊。每批最多 50 筆（後端上限）；**本機留 6 天**（後端 7 天拒收，留 1 天緩衝），過期不送。成功＝移除；4xx（408／429 除外）＝丟棄；5xx／傳輸失敗＝保留、單筆失敗計數 +1、**15 分鐘內不再嘗試**，累計 5 次失敗丟棄。離線不送 |
+| 何時送 | 啟動（處理完異常退出之後，會帶上次崩潰）、進背景（`ProcessLifecycle.onStop`，與廣告事件同一時機）；在 `scope`（`Dispatchers.Default`）執行，不阻塞 UI |
+| 不送的情況 | dev 版預覽資料模式與商店截圖模式：不記錄也不送（`enabled` 檢查資料來源）。prod 版永遠啟用 |
+| 符號化 | 堆疊是混淆後的類別名；CI 歸檔 `mapping.txt` 的規則見 §8，尚未接上 |
+| 後台統計 | 後台 M5 的 `api_error` 統計加總 `metricValue`（沒帶值當 1 次），其他類型仍算筆數（2026-10-28，`AdminAppConfigRepository.DiagnosticSummaryAsync`；iOS 同規則，見 §11t） |
+| 驗證 | `DiagnosticsTest` 21 項（節流、去個資、批次切分 50、6 天過期、失敗退避與 5 次丟棄、離線與停用、檔案儲存、異常退出判定、攔截器以 MockWebServer 驗 5xx／連線失敗／4xx）。**未在實機驗證崩潰上報到後端的完整往返**（需要 apps/api 與資料庫） |
+
+**強調卡對比（同日）**：首頁「下一場賽事」卡（`MatchCard(highlight = true)`）原本球隊標示用 `brandBright`（桃紅底上 1.49:1，藍鯨 2.01:1），次要文字用 `onPrimary` 78% 透明（3.4:1，不合 AA）。改為一律 `onPrimary`：磐石淺色 `#FFFFFF` 對 `#D61E83` ＝ 4.80:1，藍鯨 `#FFFFFF` 對 `#1A78AA` ＝ 4.87:1；深色模式 `#231916` 對 `#E85BA9` ＝ 5.32:1、對藍鯨 `#50B0E4` ＝ 7.10:1。iOS 若有同樣的透明度做法請一併檢查。
+
+### 11t. 診斷上報（iOS）與球員賽季數據（2026-10-28，`mobile-app-engineer`）
+
+**診斷上報 iOS 欄**：規則**對齊 §11s（Android）**，欄位語意兩端一致。程式：`Core/Diagnostics/`（`DiagnosticsReporter`、`DiagnosticsSanitizer`、`DiagnosticsStore`、`DiagnosticsAPI`、`CrashReportBridge`、`NetworkMonitor`），網路層觀察點在 `APIClient.errorObserver`。
+
+| 項目 | iOS 做法 |
+|---|---|
+| `startup_time` | 起點 `didFinishLaunching`（單調時鐘，不含 `main` 之前；Android 取程序啟動時間），終點 S24 放行；`summary="cold_start phase=ALL_LOADED｜CACHE_OFFLINE"`（全部成功／以快取放行並顯示離線）。每進程一次；出現過「無法連線」失敗頁或超過 2 分鐘不報 |
+| `api_error` | `APIClient.send` 最終失敗（重試用盡後）才通知；5xx 與連線失敗；4xx、解碼錯誤、取消、診斷端點自身不記；**裝置無網路（`NWPathMonitor`）時的連線失敗不記**。`summary="GET api/v1/{club}/schedule -> 503｜transport_error"`（樣板寫法與 Android 相同，無開頭斜線），`detail="status=503"` 或 `transport_error: URLError`（iOS 的 `APIError.offline` 已不帶底層例外，固定寫 `URLError`）。同鍵 10 分鐘彙總、`metricValue`＝次數；每小時最多新增 20 筆；鍵上限 30，超過併入「其他端點」桶 |
+| 端點樣板 | 第一段非固定根（`app`／`member`／`clubs`／`faq-categories`／`m`／`pages`／`ui-strings`）→ `{club}`；不在後端路徑段名單（取自 `shared/openapi.json`，測試比對漂移）的段 → `{id}`；查詢字串丟掉 |
+| `crash` | MetricKit `MXDiagnosticPayload.crashDiagnostics`，**崩潰後下次啟動由系統交付**（Android 是同步寫檔）。`summary="crash exc=<n> sig=<n> reason=<系統終止原因>"`；`detail`＝出事執行緒呼叫鏈（≤40 行 `二進位 +0x位移`）＋ `uuids: 二進位=UUID`。**不取例外訊息**（MetricKit 本來就沒有）。`occurredAt`＝payload 的結束時間，`appVersion`／`buildNumber` 取崩潰當時的值 |
+| `abnormal_exit` | `MXMetricPayload.applicationExitMetrics`（**每日一次交付、為計數而非逐次事件**；Android 是逐筆 `ApplicationExitInfo`）。任一異常計數 >0 才送，`metricValue`＝前景＋背景異常總數，`detail` 列各原因計數。Hang 不送 |
+| 去個資 | 同 Android：網址查詢字串、Bearer／JWT、Email、UUID、32 字以上英數、電話、6 位以上數字一律 `[已遮蔽]`；`summary` ≤500、`detail` ≤4000（Android 8000）。**兩處例外**：`uuids:` 行（二進位 UUID，dSYM 符號化必須；非個資）與 `二進位 +0x位移` 框架行不過濾。文字一律由固定欄位組出，不拼伺服器訊息 |
+| 佇列 | 上限 200 筆、每批 50、本機留 6 天、失敗後 15 分鐘內不再試、單筆累計 5 次丟棄（斷網不計次）、4xx（408／429 除外）整批丟棄、離線不送。檔案 `Application Support/diagnostics-queue.json`（JSON 陣列，排除備份；Android 是 jsonl）。**不進 `shared/cache-schema.sql`** |
+| 何時送 | **冷啟動放行後的背景工作**、**進背景**、收到 MetricKit 報告後（iOS 特有，報告到達時機由系統決定）。不在回前景時送 |
+| 不送 | 預覽資料與截圖模式、沒有 API 網址：不記錄、不建檔、不送 |
+| 符號化 | 需歸檔 dSYM（§8 規則）；`uuids:` 行用來對應 dSYM |
+| 驗證 | `DiagnosticsTests`（去個資、樣板與契約漂移、彙總／窗口／溢位、每小時 20 筆、4xx 與診斷端點不收、裝置離線不記不送、批次 50、6 天過期、未來夾斷、退避與 5 次丟棄、400 丟棄、停用、持久化、堆疊解析、異常退出摘要、觀察點僅最終失敗觸發一次）。**MetricKit 交付在模擬器不會發生，未在實機驗證崩潰上報往返** |
+
+**球員賽季數據**：`GET /api/v1/{club}/players/{id}/stats`（`PlayerCareerStatsDto`：`seasons[]` 含出賽、進球、助攻、黃牌、紅牌）。顯示在球員詳情（S05）簡介之後一段表格「賽季數據」，每球季一列；**助攻為空顯示「–」**（0 顯示 0）；`seasons` 為空、失敗或沒網路又沒快取時整段不顯示。快取走 `teams_players` 同一組時效、與語系無關；俱樂部由球員所屬球隊推得。球員照片仍照肖像同意 fail-closed（`PortraitPolicy` 未動）。
 
 ## 12. 本檔不決定的事
 

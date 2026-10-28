@@ -52,12 +52,14 @@
 
 | 用途 | 網址 | 狀態 |
 |---|---|---|
-| 隱私權政策 | `https://tcrfc.tw/zh/privacy/`（英文 `/en/privacy/`） | 頁面已有，**內容要換成 App 版** |
+| 隱私權政策 | 🔴 **App 版網址待定**（官網 `/zh/privacy/` 是官網版） | **App 版草稿已產出**：[`output/TCRFC_App隱私權政策.md`](../output/TCRFC_App隱私權政策.md)（2026-10-28，以官網母稿為底、補 App 特有資料），待法務審閱與決定放置網址 |
 | 支援網址 | `https://tcrfc.tw/zh/faq/` | 已有 |
 | 行銷網址 | `https://tcrfc.tw/zh/app/` | 已有 |
 | **帳號刪除說明頁** | 待新增（建議放在 `/zh/app/` 頁內一節或 FAQ 一題） | 🔴 **要新做**——Google 要求公開網址；現在只有登入後的會員中心有刪除按鈕 |
 
 ### 1.3 文案（中英各一份）
+
+> ✅ **定稿已產出**（2026-10-28）：[`output/TCRFC_App商店文案.md`](../output/TCRFC_App商店文案.md)，中英全部欄位可直接貼上，字數已檢查。下表是撰寫規則與草稿來源，**以 output 那份為準**。
 
 | 欄位 | 字數上限 | 用在 | 草稿 |
 |---|---|---|---|
@@ -90,6 +92,8 @@
 審查時若夥伴或球員照片仍為空，**空狀態畫面要完整、不能有破圖**（§14.3）；藍鯨內容未到位時截圖先只放磐石（§14.3）。
 
 截圖做法：模擬器（iOS 選 iPhone 16 Pro Max 或更新的 6.9 吋機型；Android 選 Pixel 系列）跑 App，`⌘S`（iOS 模擬器）或模擬器側邊相機鈕存圖，尺寸就會對。
+
+> **首批截圖**（2026-10-28，預覽資料、只放磐石、無人像、無廣告版位）：`output/app-screenshots/{ios,android}/{zh,en}/`，各資料夾的 `README.md` 列出每張的畫面與照片檢核。**不納版控**（`.gitignore`），要重拍照上面做法。
 
 ---
 
@@ -169,17 +173,20 @@
 2. Data Collection → **Get Started** → 「Do you or your third-party partners collect data from this app?」選 **Yes**
 3. 依下表勾資料類型；每一項會再問三題：**用途**、**是否與使用者身分連結（Linked）**、**是否用於追蹤（Tracking）**——**Tracking 一律選 No**（§12.4）
 
+> ✅ **逐項對照程式後的定稿**：[`output/TCRFC_App隱私標籤申報.md`](../output/TCRFC_App隱私標籤申報.md)（2026-10-28），含 Google 資料安全性與「何時要回頭改」。下表已同步更正，**兩者不一致時以 output 那份為準**。
+
 | 資料類型 | Linked | 用途 |
 |---|---|---|
 | Contact Info → **Name**、**Email Address** | Yes | App Functionality |
-| Contact Info → **Phone Number** | Yes | App Functionality（⚠️ 註冊表有收才勾） |
+| Contact Info → **Phone Number** | Yes | App Functionality（註冊選填、報名與球衣登記有收，**要勾**） |
+| Contact Info → **Physical Address** | Yes | App Functionality（球衣宅配地址） |
 | Identifiers → **User ID**（會員編號） | Yes | App Functionality |
 | Identifiers → **Device ID**（`device_install_id`、推播權杖） | Yes | App Functionality |
 | Purchases → **Purchase History**（會籍、球衣、訂單紀錄） | Yes | App Functionality |
-| Usage Data → **Advertising Data**（廣告曝光與點擊） | **No**（§12.1 不含 `member_id`） | Analytics、Developer's Advertising or Marketing |
-| Diagnostics → **Crash Data**、**Performance Data** | ⚠️ 請工程確認上報是否帶會員 | App Functionality、Analytics |
+| Usage Data → **Advertising Data**（廣告曝光與點擊） | **Yes**——事件不含 `member_id`，但 `ad_events` 原樣存 `device_install_id`，可經 `app_devices` 連回會員（`E-345`） | Analytics、Developer's Advertising or Marketing |
+| Diagnostics → **Crash Data**、**Performance Data**、**Other Diagnostic Data** | **Yes**（帶 `deviceInstallId`）；2026-10-28 兩端補上 `/app/diagnostics`，不經第三方 | App Functionality、Analytics |
 | Other Data → **Other Data Types**（生日、監護人資料） | Yes | App Functionality |
-| 課程報名的學員資料 | Yes | ⚠️ 依報名表實際欄位：含健康或緊急聯絡就另勾 Health／Sensitive Info |
+| 課程報名的學員資料 | Yes | 姓名、電話、Email、生日、監護人已含在上面各列；**App 不送 `healthDeclaration`**，不勾 Health／Sensitive Info |
 
 **不要勾 Location**：定位只在手機上算距離、不上傳（§12.1），Apple 的定義是「送出手機才算蒐集」。
 
@@ -230,7 +237,7 @@
    (Guideline 3.1.3(e), goods and services consumed outside the app).
 2. The prize draw screen is read-only information for members. Entry is free. Apple is not a sponsor.
 3. Location is used only on-device to sort nearby partner stores; it is never uploaded or stored.
-4. Account deletion: Settings > Account > Delete account.
+4. Account deletion: iOS: Member tab > Account > Delete account. Android: Member tab > Profile & account > Delete account.
 5. The app is jointly branded by Taichung Rock FC and Taichung Blue Whale; the brand licence is attached.
 ```
 
@@ -399,10 +406,10 @@ Android 另可用 Play Console → **深層連結**（Deep links）頁面看驗�
 | 是否蒐集或分享必要的使用者資料類型 | 是 |
 | 傳輸中的資料是否都經過加密 | 是 |
 | 使用者可否要求刪除資料 | 是 → 填帳號刪除說明頁網址（1.2） |
-| 個人資訊 | ☑ 姓名、電子郵件地址、使用者 ID、（有收才勾）電話號碼、其他資訊（生日、監護人） → 已蒐集、未分享、必要、用途「應用程式功能」「帳戶管理」 |
+| 個人資訊 | ☑ 姓名、電子郵件地址、使用者 ID、電話號碼（選填）、地址（選填，球衣宅配）、其他資訊（生日、監護人） → 已蒐集、未分享、用途「應用程式功能」「帳戶管理」 |
 | 財務資訊 | ☑ 購買記錄 → 應用程式功能 |
-| 應用程式活動 | ☑ 應用程式互動（廣告曝光與點擊）→ 用途「數據分析」「廣告或行銷」 |
-| 應用程式資訊與效能 | ☑ 當機記錄、診斷資訊 → 數據分析 |
+| 應用程式活動 | ☑ 其他使用者產生的動作（廣告曝光與點擊）→ 用途「數據分析」「廣告或行銷」 |
+| 應用程式資訊與效能 | ☑ 當機記錄、診斷資訊 → 數據分析、應用程式功能（2026-10-28 兩端補上診斷上報） |
 | 裝置或其他 ID | ☑ → 應用程式功能 |
 | 位置 | **不勾**（只在手機上計算，不上傳） |
 

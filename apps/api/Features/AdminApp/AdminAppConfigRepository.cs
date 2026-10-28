@@ -348,7 +348,7 @@ public sealed partial class AdminAppConfigRepository(
         return new AdminAppDiagnosticSummaryDto
         {
             Days = window, ByVersion = versionRows,
-            ByType = reports.GroupBy(r => r.ReportType).Select(g => new AdminAppDeviceCountRowDto { Key = g.Key, Label = ReportTypeLabels.GetValueOrDefault(g.Key, g.Key), Count = g.Count() }).OrderByDescending(x => x.Count).ToList(),
+            ByType = reports.GroupBy(r => r.ReportType).Select(g => new AdminAppDeviceCountRowDto { Key = g.Key, Label = ReportTypeLabels.GetValueOrDefault(g.Key, g.Key), Count = g.Key == "api_error" ? g.Sum(r => r.MetricValue ?? 1) : g.Count() }).OrderByDescending(x => x.Count).ToList(), // api_error 的 metricValue 是 App 端 10 分鐘內合併的次數，舊回報沒帶值算 1 次
             StartupMedianMs = startup.Count == 0 ? null : startup[startup.Count / 2],
             StartupP90Ms = startup.Count == 0 ? null : startup[Math.Min(startup.Count - 1, (int)Math.Ceiling(startup.Count * 0.9) - 1)],
         };
