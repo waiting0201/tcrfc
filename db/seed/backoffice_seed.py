@@ -1912,7 +1912,7 @@ IF NOT EXISTS (SELECT 1 FROM app_diagnostic_reports WHERE id = {esc(new_id("app_
     #     先 `apps/api/scripts/dev-azurite.sh up`，再 `python3 db/seed/seed-dev-blobs.py` 把占位圖傳進 Azurite
     #     （沒傳也能跑，只是閱讀器圖片載入失敗）。
     # ========================================================================
-    emit("-- ── 60. 本機驗收測資：球衣登記用會員 M900101／M900102、漫畫閱讀器用第 101／102 集（僅本機開發庫，不進正式庫） ──")
+    emit("-- ── 60. 本機驗收測資：球衣登記用會員 M900101／M900102、藍鯨有效會籍會員 M900103、漫畫閱讀器用第 101／102 集（僅本機開發庫，不進正式庫） ──")
     tc = clubs["tcrfc"]
     JERSEY_DEV_MEMBERS = [  # member no, name, email, phone, plan code, card holder note
         ("M900101", "【測試】球衣登記（尊尚會員）", "jersey-single@example.com", "0900-000-101", "premium", 2400),
@@ -1935,6 +1935,33 @@ BEGIN
           {esc(hashlib.sha256(("seed-card-token|" + msid).encode()).hexdigest()[:43])}, N'active', SYSUTCDATETIME());
   INSERT INTO membership_payments (id, membership_id, club_id, collecting_club_id, membership_plan_id, method, amount, paid_on, note, activated_start_on, activated_end_on)
   VALUES ({esc(new_id("membership_payment", msid))}, {esc(msid)}, {tc}, {tc}, {plan_sql}, N'onsite', {fee}, N'2026-09-20', N'【測試】種子付款紀錄', N'2026-09-20', N'2027-05-02');
+END
+""")
+
+    # 藍鯨有效會籍驗收會員（2026-10-30，SO 系列驗收需要「持有有效藍鯨會籍」的帳號；M900001 的藍鯨會籍已過期）。
+    # 🔴 藍鯨沒有 2026-27 球季與方案（只有 2025 單人方案、2023／2025／2025-26 三個球季）：沿用既有的 bw 2025 `single` 方案與 2025 球季，
+    # 會籍起訖日另設為涵蓋今天（2026-09-20～2027-05-02）；不另建球季／方案，以免改動會進正式庫的參照資料。
+    # 冪等（E-347）：會員與會籍都同時比對決定性 id、業務自然鍵（member_no／email／(member, club, season)），後台改過任一者也不會重複 INSERT。
+    bwc = clubs["bw"]
+    bw_no, bw_name, bw_email = "M900103", "【測試】藍鯨會員驗收", "bw-member@example.com"
+    bw_mid = new_id("member", bw_no)
+    bw_msid = new_id("membership", bw_no, "bw", "2025")
+    bw_plan_sql = f"(SELECT id FROM membership_plans WHERE club_id = {bwc} AND season_id = {season_sq(bwc, '2025')} AND code = N'single')"
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM members WHERE id = {esc(bw_mid)} OR member_no = {esc(bw_no)} OR email = {esc(bw_email)})
+  INSERT INTO members (id, member_no, name, email, password_hash, phone, birth_on, signup_source, status, email_verified_at, last_login_at, internal_note, locale)
+  VALUES ({esc(bw_mid)}, {esc(bw_no)}, {esc(bw_name)}, {esc(bw_email)}, {esc(TEST_HASH)}, N'0900-000-103', N'1990-01-01', N'web', N'active',
+          SYSUTCDATETIME(), NULL, N'【測試】本機驗收用：持有有效藍鯨會籍（見 backoffice_seed.py 區段 60）。', N'zh-Hant');
+IF NOT EXISTS (SELECT 1 FROM memberships WHERE id = {esc(bw_msid)}
+               OR (member_id = (SELECT id FROM members WHERE member_no = {esc(bw_no)}) AND club_id = {bwc} AND season_id = {season_sq(bwc, '2025')}))
+BEGIN
+  INSERT INTO memberships (id, member_id, club_id, season_id, tier, membership_start_on, membership_end_on, status, membership_plan_id)
+  VALUES ({esc(bw_msid)}, (SELECT id FROM members WHERE member_no = {esc(bw_no)}), {bwc}, {season_sq(bwc, '2025')}, N'standard', N'2026-09-20', N'2027-05-02', N'active', {bw_plan_sql});
+  INSERT INTO member_cards (id, membership_id, club_id, holder_name, token, status, issued_at)
+  VALUES ({esc(new_id("member_card", bw_msid))}, {esc(bw_msid)}, {bwc}, {esc(bw_name)},
+          {esc(hashlib.sha256(("seed-card-token|" + bw_msid).encode()).hexdigest()[:43])}, N'active', SYSUTCDATETIME());
+  INSERT INTO membership_payments (id, membership_id, club_id, collecting_club_id, membership_plan_id, method, amount, paid_on, note, activated_start_on, activated_end_on)
+  VALUES ({esc(new_id("membership_payment", bw_msid))}, {esc(bw_msid)}, {bwc}, {bwc}, {bw_plan_sql}, N'onsite', 800, N'2026-09-20', N'【測試】種子付款紀錄', N'2026-09-20', N'2027-05-02');
 END
 """)
 

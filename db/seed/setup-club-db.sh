@@ -31,7 +31,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && cd .. && pwd)"
 
-readonly TARGET_DATABASE="tcrfc_club"
+TARGET_DATABASE="tcrfc_club"
+TEST_DB=0
 
 RECREATE=0
 DRY_RUN=0
@@ -43,8 +44,13 @@ for arg in "$@"; do
     --dry-run)
       DRY_RUN=1
       ;;
+    --test-db)
+      # 2026-10-30：選用的 dotnet test 專用庫 tcrfc_club_test（不影響開發庫 tcrfc_club）
+      TEST_DB=1
+      TARGET_DATABASE="tcrfc_club_test"
+      ;;
     *)
-      echo "不認得的參數：${arg}（合法值：--recreate、--dry-run）" >&2
+      echo "不認得的參數：${arg}（合法值：--recreate、--dry-run、--test-db）" >&2
       exit 1
       ;;
   esac
@@ -56,17 +62,20 @@ if [[ "${DRY_RUN}" -eq 1 ]]; then
   exit 0
 fi
 
+DDL_MODE="--apply-club-db"
+SEED_ARGS=()
+if [[ "${TEST_DB}" -eq 1 ]]; then DDL_MODE="--apply-club-test-db"; SEED_ARGS=(--test-db); fi
 if [[ "${RECREATE}" -eq 1 ]]; then
-  echo "==> 步驟 1／2：建立／灌 DDL（deploy/local-ddl.sh --apply-club-db --recreate）"
-  "${REPO_ROOT}/deploy/local-ddl.sh" --apply-club-db --recreate
+  echo "==> 步驟 1／2：建立／灌 DDL（deploy/local-ddl.sh ${DDL_MODE} --recreate）"
+  "${REPO_ROOT}/deploy/local-ddl.sh" "${DDL_MODE}" --recreate
 else
-  echo "==> 步驟 1／2：建立／灌 DDL（deploy/local-ddl.sh --apply-club-db）"
-  "${REPO_ROOT}/deploy/local-ddl.sh" --apply-club-db
+  echo "==> 步驟 1／2：建立／灌 DDL（deploy/local-ddl.sh ${DDL_MODE}）"
+  "${REPO_ROOT}/deploy/local-ddl.sh" "${DDL_MODE}"
 fi
 
 echo
 echo "==> 步驟 2／2：灌種子資料（db/seed/apply-seed.sh，目標 ${TARGET_DATABASE}）"
-"${SCRIPT_DIR}/apply-seed.sh"
+"${SCRIPT_DIR}/apply-seed.sh" ${SEED_ARGS[@]+"${SEED_ARGS[@]}"}
 
 echo
 echo "完成——${TARGET_DATABASE} 已就緒，CLUB_SQL_CONNECTION_STRING 的 Database 應為 ${TARGET_DATABASE}。"

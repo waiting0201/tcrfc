@@ -41,6 +41,14 @@ function enrollmentMap(name) {
   return out;
 }
 
+/** 解析 EnrollmentStatus.NotYetOpen（推算出來的輸出狀態，不在 Slot 字典、不在 DDL CHECK）。 */
+function notYetOpenItem() {
+  const src = readFileSync(join(repoRoot, 'apps/api/Common/EnrollmentStatus.cs'), 'utf8');
+  const m = src.match(/NotYetOpen\s*=\s*\("([a-z_]+)",\s*"([^"]+)",\s*"([^"]+)"\)/);
+  if (!m) throw new Error('EnrollmentStatus.cs 找不到 NotYetOpen（格式被改動？）');
+  return { code: m[1], labelZh: m[2], labelEn: m[3] };
+}
+
 const doc = {
   $comment:
     '自動產生，請勿手改。產生器：shared/scripts/gen-enums.mjs（docs/19 §2）。來源是 db/club-schema.sql 的 CHECK 約束，不是規格；用戶端遇到不在清單內的值時須容錯（視為未知、不得當機）。',
@@ -63,6 +71,11 @@ const doc = {
       values: checkValues('sessions', 'status').map((v) => enrollmentMap('Slot').find((e) => e.literal === v)?.code ?? (() => { throw new Error(`sessions.status「${v}」沒有對應代碼`); })()),
       items: enrollmentMap('Slot'),
       note: '`status` 欄位仍是中文字面值（相容保留），新用戶端依 `statusCode` 分流、依語系顯示 `statusLabelZh`／`statusLabelEn`。DDL 值域與代碼表不一致時產生器失敗。',
+    },
+    'ProgramSessionDto.statusCode 對外輸出值域（含推算狀態；課程公開梯次專用）': {
+      values: [...checkValues('sessions', 'status').map((v) => enrollmentMap('Slot').find((e) => e.literal === v)?.code), notYetOpenItem().code],
+      items: [...enrollmentMap('Slot'), { ...notYetOpenItem(), literal: null }],
+      note: '`not_yet_open`（尚未開放）是**推算出來的輸出狀態**，不是儲存值：`sessions.status` 與 CK_sessions_status 沒有它，只出現在公開課程梯次的 `statusCode`／`statusLabelZh`／`statusLabelEn`（現在早於 `signupOpensAt`）。優先序：已結束（含已過 `signupClosesAt`）→ 尚未開放 → 額滿／候補 → 開放。用戶端一律讀伺服器回傳的狀態，**不得自行比對時間**；試訓場次與會員「我的報名」的 session／trial 狀態不會輸出此代碼。',
     },
     'RegistrationDto.statusCode（課程與試訓報名：MemberRegistrationDto、*RegistrationSubmittedDto）': {
       values: checkValues('registrations', 'status').map((v) => enrollmentMap('Registration').find((e) => e.literal === v)?.code ?? (() => { throw new Error(`registrations.status「${v}」沒有對應代碼`); })()),

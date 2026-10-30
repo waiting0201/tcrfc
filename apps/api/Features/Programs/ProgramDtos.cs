@@ -47,7 +47,7 @@ public sealed record ProgramSessionDto
     public DateTime? SignupOpensAt { get; init; }
     public DateTime? SignupClosesAt { get; init; }
     public required string Status { get; init; }
-    /// <summary>穩定狀態代碼（梯次 <c>open</c>／<c>full</c>／<c>waitlist</c>／<c>ended</c>），見 <c>shared/enums.json</c>；<c>status</c> 仍是中文字面值（相容保留）。</summary>
+    /// <summary>對外狀態代碼（梯次 <c>open</c>／<c>full</c>／<c>waitlist</c>／<c>ended</c>／<c>not_yet_open</c>），見 <c>shared/enums.json</c>；<c>not_yet_open</c> 是依 <c>signupOpensAt</c> 推算的輸出狀態、非儲存值，用戶端不得自行比對時間；<c>status</c> 仍是儲存的中文字面值（開放／額滿／候補／已結束，相容保留）。</summary>
     public required string StatusCode { get; init; }
     public required string StatusLabelZh { get; init; }
     public required string StatusLabelEn { get; init; }

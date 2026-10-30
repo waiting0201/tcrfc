@@ -42,9 +42,10 @@ const currentProgram = computed(() => registrable.value.find((p) => p.slug === p
 const sessionId = ref('')
 watch(currentProgram, (p) => {
   if (!p) { sessionId.value = ''; return }
-  if (!p.sessions.some((s) => s.id === sessionId.value)) sessionId.value = p.sessions[0]!.id
+  // 預選只選收得到報名的梯次（略過尚未開放者）；全都尚未開放則不預選
+  if (!p.sessions.some((s) => s.id === sessionId.value && isSessionRegistrable(s))) sessionId.value = p.sessions.find((s) => isSessionRegistrable(s))?.id ?? ''
 }, { immediate: true })
-const currentSession = computed(() => currentProgram.value?.sessions.find((s) => s.id === sessionId.value) ?? null)
+const currentSession = computed(() => currentProgram.value?.sessions.find((s) => s.id === sessionId.value && isSessionRegistrable(s)) ?? null)
 
 const applicantName = ref('')
 const birthOn = ref('')
@@ -202,8 +203,8 @@ function registerAnother() {
             <span id="pr-session-label" class="program-reg__legend">{{ tx('梯次', 'Session') }}<span class="req" aria-hidden="true">*</span></span>
             <ul class="program-reg__sessions" role="radiogroup" aria-labelledby="pr-session-label">
               <li v-for="s in currentProgram?.sessions ?? []" :key="s.id">
-                <label :class="['program-reg__session', { 'is-selected': sessionId === s.id }]">
-                  <input v-model="sessionId" type="radio" name="session" :value="s.id" required>
+                <label :class="['program-reg__session', { 'is-selected': sessionId === s.id, 'is-disabled': sessionSignupState(s) === 'not_yet' }]">
+                  <input v-model="sessionId" type="radio" name="session" :value="s.id" :required="sessionSignupState(s) !== 'not_yet'" :disabled="sessionSignupState(s) === 'not_yet'" :aria-disabled="sessionSignupState(s) === 'not_yet' ? 'true' : undefined" :aria-describedby="sessionSignupState(s) === 'not_yet' ? `pr-opens-${s.id}` : undefined">
                   <span class="program-reg__session-main">
                     <strong>{{ dateRange(s) }}</strong>
                     <span v-if="schedule(s)">{{ schedule(s) }}</span>
@@ -211,12 +212,14 @@ function registerAnother() {
                   </span>
                   <span class="program-reg__session-meta">
                     <span class="program-reg__badge">{{ sessionSignupLabel(sessionSignupState(s), locale) }}</span>
+                    <span v-if="sessionSignupState(s) === 'not_yet'" :id="`pr-opens-${s.id}`" class="program-reg__opens">{{ signupOpensText(s.signupOpensAt, isEn ? 'en' : 'zh') ?? tx('開放日期待公告', 'Opening date to be announced') }}</span>
                     <span v-if="effectivePrice(s)">{{ effectivePrice(s)!.early ? tx('早鳥價 ', 'Early-bird ') : '' }}{{ formatPrice(effectivePrice(s)!.price) }}</span>
                     <span v-if="remaining(s)">{{ remaining(s) }}</span>
                   </span>
                 </label>
               </li>
             </ul>
+            <p v-if="!currentSession" class="field-hint">{{ tx('目前沒有可報名的梯次，請於上列開放日期後再回來報名。', 'No session is open for registration right now. Please come back on the opening date shown above.') }}</p>
             <p v-if="currentSession && sessionSignupState(currentSession) === 'waitlist'" class="field-hint">{{ tx('這個梯次目前名額已滿，送出後會列入候補，有空位時由課程部依序聯繫。', 'This session is currently full. After you submit you will be placed on the waitlist, and the programs team will contact you in order when a place opens up.') }}</p>
           </div>
         </div>
@@ -278,7 +281,7 @@ function registerAnother() {
         </div>
       </div>
 
-      <button class="btn btn--primary btn--block" type="submit" :disabled="phase === 'submitting' || !currentSession">{{ phase === 'submitting' ? tx('送出中…', 'Submitting...') : tx('送出報名', 'Submit Registration') }}</button>
+      <button class="btn btn--primary btn--block" type="submit" :disabled="phase === 'submitting' || !currentSession" :aria-disabled="phase === 'submitting' || !currentSession ? 'true' : undefined">{{ phase === 'submitting' ? tx('送出中…', 'Submitting...') : tx('送出報名', 'Submit Registration') }}</button>
     </form>
   </div>
 </section>
@@ -290,6 +293,8 @@ function registerAnother() {
 .program-reg__legend{ display:block; font-size:.85rem; font-weight:700; color:var(--heading); margin-bottom:.6rem; }
 .program-reg__sessions{ list-style:none; margin:0; padding:0; display:grid; gap:.75rem; }
 .program-reg__session{ display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:.9rem; align-items:start; padding:1rem 1.15rem; border:1px solid var(--rule); background:var(--paper); cursor:pointer; }
+.program-reg__session.is-disabled{ cursor:not-allowed; opacity:.65; }
+.program-reg__opens{ font-weight:700; color:var(--ink); }
 .program-reg__session.is-selected{ border-color:var(--brand-aa); background:var(--paper-2); }
 .program-reg__session input{ margin-top:.35rem; }
 .program-reg__session-main{ display:flex; flex-direction:column; gap:.2rem; font-size:.88rem; }

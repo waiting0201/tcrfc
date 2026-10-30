@@ -3356,3 +3356,38 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：填任何隱私申報（商店標籤、隱私權政策的蒐集清單）時，**來源是 App 實際送出的請求欄位，不是規劃書的資料清單**；判斷「是否連結身分」要看伺服器端存下的識別碼能不能 join 到會員表，而不是看事件本身有沒有 `member_id`。
 - **防呆**：`output/TCRFC_App隱私標籤申報.md` 的「程式依據」欄與 §3「何時要回頭改」；沒有自動檢查。
 - **再犯（2026-10-28，App 內文案）**：同一天起草 App 版服務條款時發現，Android 設定頁「為什麼看到廣告」寫「只統計彙總次數，**不連結到你的帳號**」，iOS 寫「只統計次數」——同樣把「事件不含 `member_id`」說成「不連結」，與申報的 Linked＝Yes 矛盾，屬 App 內的不實陳述。已改為照實說明「不含會員編號，但附手機安裝識別碼以避免重複計算」（iOS `32c0d38`、Android `aef6d57`）。**範圍擴大**：「是否連結身分」的判定不只管商店申報，**凡是對使用者說明資料用途的文字（App 字串、政策、商店文案）都適用**；改申報時要一併 grep 兩端字串檔裡的「彙總／不連結／匿名／aggregate／anonymous」。
+
+### E-346 公開課程梯次狀態只讀資料庫 `status`，沒疊上報名時窗；已過截止的梯次顯示「開放」與「立即報名」，送出才被閘門拒絕（2026-10-30，Android 連真實 API 驗收發現，`backend-engineer` 修）
+- **錯在哪**：`ProgramsRepository` 公開輸出的 `statusCode`／`statusLabel*` 只由 `sessions.status` 推算；報名閘門卻另外比對 `signup_opens_at`／`signup_closes_at`。同一個梯次「畫面說開放、送出說已截止」，官網與兩個 App 都讀這個欄位。
+- **根因（可改掉的行為）**：同一個業務判斷（「這個梯次現在能不能報名」）在讀取路徑與寫入路徑**各寫一份**，且讀取路徑只看了一個欄位；種子與測試的梯次時窗都是 NULL 或未來，沒有「已過截止」的資料所以測試抓不到。
+- **修正**：新增 `Common/SignupWindow.Evaluate`（閘門與 `EnrollmentStatus.OfSlotAt` 共用）；公開詳情在快取之外、每次請求疊上時窗（已過截止＝`ended`，優先於額滿／候補）；列表 `HasOpenSession` 的 SQL 排除已過截止。**「尚未開放」當時規劃書值域沒有對應代碼，未新增**；使用者同日裁決新增為狀態（主站 v3.32／App v3.25），實作清單 `STATUS.md` §8-1 `SO-1`–`SO-6`。
+- **下次怎麼避免**：讀寫兩條路徑要共用的規則一律抽成單一函式；輸出會隨「現在時刻」變化的欄位**不得整包進快取**（要在快取外計算）；梯次／活動類測資一定要有「已過期」「尚未開始」各一筆。
+- **防呆**：`SessionEffectiveStatusTests`（純函式 9 項＋整合 1 項）。
+
+### E-347 本機種子重灌撞 `PK_matches` 中止、種子會員（`M9xxxxx`）整批不在，整套測試 901 項紅燈；測試與開發共用 `tcrfc_club` 讓這類殘骸無從分辨（2026-10-30，主 session 指派 backend-engineer 查）
+- **錯在哪**：`apply-seed.sh` 在 `matches` 區段以 `PK_matches` 重複中止（`-b`），後面區段（含會員 44 區）全沒套用；庫裡只剩測試建的 `M000001–3`，會員登入 401、全套測試找不到 `M900001`／`M900101`。重複的列是 `14fe7602-…`：庫裡 `opponent = 台中未來`，種子的自然鍵是 `台中FUTURO`。
+- **根因（可改掉的行為）**：①種子「已存在」判斷只比業務自然鍵，而自然鍵含 `matches.opponent` 這種會被遷移／後台改寫的文字；v3.31 對手球隊正規化把文字改成標準名後，自然鍵比不到、決定性 id 卻已存在 → INSERT 撞 PK。**設計冪等時只想了「資料沒被動過」，沒想「資料被合法改過」**。②重灌失敗後沒人看結束碼（只看到部分輸出），庫維持半套，直到整套測試紅燈才發現；與 `E-293`、`E-296` 同為「種子缺失」，但這次的成因確定是種子腳本中止，不是清理測試刪除（`tcrfc_club_test` 重灌後跑完整套仍保有 `M9xxxxx`，見下）。③測試與開發共用同一庫，殘骸（`M000001–3` 的測試會員、`T-*` 測資）與種子缺失混在一起，無法一眼判斷是誰弄的。
+- **修正**：`generate-club-seed-sql.py` 的 `matches` 存在判斷與 `match_no` 補值 UPDATE 改為「決定性 id **或** 自然鍵」（磐石與藍鯨兩處）；本機重灌成功（結束碼 0、無 U+FFFD）。新增選用的 `tcrfc_club_test`（`setup-club-db.sh --test-db`、`TestDatabaseGuard` 放行該名），有人在用本機 API 時測試改跑它。
+- **下次怎麼避免**：種子的存在判斷只要含「可能被遷移／後台改寫的欄位」，就必須同時比對決定性 id；新增遷移改寫種子列的文字時，順手用 `apply-seed.sh` 在**已有資料的庫**重跑一次驗冪等。重灌種子一律看結束碼與最後一行「完成。」。**`tcrfc_club_test` 同一時間只能有一個 `dotnet test` 在跑**：2026-10-30 有兩個 agent 同時跑全套，發票並行測試出現一次失敗，單獨重跑就通過。派工時，並行的後端 agent 必須錯開全套測試，或只跑相關的類別。
+- **防呆**：`apply-seed.sh` 的 `-b` 與 U+FFFD 掃描（既有）；測試庫隔離為選用，預設仍共用（無強制）。
+
+### E-348 Android 深連結在背景執行緒呼叫 `NavController.navigate`，冒煙測試 teardown 時拋 `IllegalStateException`、整個 instrumentation 中止；先前「冒煙 31 項全綠」只是那次沒撞上（2026-10-30，主 session 補跑 instrumented 冒煙發現，`mobile-app-engineer` 修）
+- **錯在哪**：`AppRoot.kt` 的深連結 `LaunchedEffect` 先呼叫 `container.clubForLink(...)`，它會用 `withTimeoutOrNull` 等賽程載入，等完後協程在背景執行緒繼續，`nav.navigate(MatchDetailRoute)` 因此不在 main 執行；NavBackStackEntry 停在 INITIALIZED，Activity 銷毀時拋 `State must be at least 'CREATED' to be moved to 'DESTROYED'`。四輪完整冒煙只有一輪全過。同時發現 `schedule/{team}` 深連結冷啟動時沒有等球隊清單，因而不會切換俱樂部。
+- **根因（可改掉的行為）**：①在可能掛起的呼叫之後操作 UI 物件，卻沒有固定在 main 執行緒，誤以為 `LaunchedEffect` 一定在 main 續行。②冒煙測試全綠只跑過一輪就記為通過，沒有連跑多輪確認穩定；CF-5 那一輪更是沒跑就收尾。③主 session 派工時要求 prod 冒煙測試也連跑 3 輪，但預覽資料只打包進 dev 版（`mobile/android/README.md`），prod 冒煙測試照設計就跑不過。下指令前沒有先查 README 的測試範圍。
+- **修正**：Android `490cb92`：深連結消費整段包進 `withContext(Dispatchers.Main.immediate)`；`clubForLink` 對 Schedule 目標也等 `allTeams`（最多 3 秒）；冒煙測試斷言導覽發生在 main，`tearDown` 先 `waitForIdle()` 再 `scenario.close()`。dev 冒煙連跑十幾輪 31／31 通過。
+- **殘留（2026-10-30 更正）**：原本記錄為「`deep_link_news_all_blocks` 約 2／15 輪逾時、根因未明」。後續連跑 38 輪，這一項都沒有失敗，重現的是 `deep_link_to_other_club_switches_current_club`，原紀錄很可能把測試名稱記錯。根因見 E-350。
+- **下次怎麼避免**：在 `suspend` 呼叫之後操作 NavController、View 或 Compose 狀態，一律明確切到 main。冒煙測試必須連跑至少 3 輪全過才能記為通過。冒煙測試只跑 `connectedDevDebugAndroidTest`。
+- **防呆**：`SmokeTest.kt` 的 main 執行緒斷言（只在發生掛起的那一輪抓得到，不是每次必現）；`docs/19` §11w。
+
+### E-349 同時派兩個 Android agent 各開一台模擬器，`connectedDevDebugAndroidTest` 卻對所有已連線裝置執行，在另一個 agent 驗收用的模擬器上安裝測試、跑完又把 App 解除安裝（2026-10-30，主 session）
+- **錯在哪**：主 session 派「修冒煙測試」（Pixel_8）與「真實 API 驗收」（Pixel_5）兩個 agent 並行，只叮囑驗收方用 `adb -s` 指定裝置，沒有要求測試方設定 `ANDROID_SERIAL`。Gradle 的 connected 測試預設對所有已連線裝置執行，約 09:59–10:02 那幾輪的結果混了兩台裝置，驗收方的 App 也被移除，只能重裝。
+- **根因（可改掉的行為）**：只想到「兩個 agent 不要在同一個目錄 build」，沒想到 connected 測試會作用在所有裝置上；只對其中一方下隔離指令。
+- **下次怎麼避免**：在同一台機器上並行跑多台 Android 模擬器時，每個會執行 `connected*AndroidTest` 或 `adb install` 的派工都要寫明 `ANDROID_SERIAL=<serial>`，且回報必須註明每一輪跑在哪台裝置上。
+- **防呆**：無（派工規範）。
+
+### E-350 Android 把 `combineResources` 先發出的半份球隊清單當成完整清單，深連結到另一隊時查不到球隊、不會切換俱樂部（2026-10-30，`mobile-app-engineer` 抓 log 查出）
+- **錯在哪**：`core/Cache.kt` 的 `combineResources` 只要任一俱樂部有資料就先發出，這時 `data != null` 但 `loading = true`，內容只有磐石的 6 隊。`AppContainer.clubForLink` 只等 `data != null`，拿到這份半份清單就不再等，查不到藍鯨的 `BW1`，結果是沒有切換俱樂部。賽事分支與 `chooseClubFirstTime` 也是同樣的寫法。冒煙測試 `deep_link_to_other_club_switches_current_club` 大約每 5 輪失敗 1 次。
+- **根因（可改掉的行為）**：①呼叫端把「有資料」當成「資料完整」，沒有看 `loading`；`combineResources` 會先發出部分結果，這件事沒有寫在型別或註解上。②E-348 收尾時沒有抓到失敗當下的 log，就把逾時歸到另一項測試，記錄的測試名稱不正確。
+- **修正**：Android `5ab946e` 新增 `awaitComplete(flow)`，等到 `data != null && !loading`，最多等 3 秒。這個寫法套用到 `clubForLink` 的 Schedule、Match 兩個分支與 `chooseClubFirstTime`。修正後連跑 17 輪冒煙測試，全部 31/31。**iOS**：iOS 沒有這種「合併資源先發出半份」的競態，`AppData.load` 會把所有俱樂部的資料都等到才一次指派。但遇到「某隊球隊快取不存在」或「某隊請求失敗」時，catalog 可能只有半份，賽程深連結會因此查不到球隊。iOS `f5e2b1d` 新增 `Catalog.isComplete`，查不到球隊且清單不完整時，先刷新再查一次（`ClubScopeTests.testScheduleLinkWithPartialCatalogRefreshesBeforeGivingUp`，單元 334、冒煙 29 全過）。
+- **下次怎麼避免**：讀合併型資源（多俱樂部合併）時，要「等完整」就必須同時檢查 `loading`。不穩定的測試要先抓到失敗當下的 log 或畫面樹，才能寫根因與測試名稱。
+- **防呆**：`CombineResourcesPartialTest`（鎖住「半份資料必定標 loading」的前提）。`SmokeTest` 的 `waitForText` 逾時時，會把語意樹寫進 logcat（tag `SmokeDump`）。

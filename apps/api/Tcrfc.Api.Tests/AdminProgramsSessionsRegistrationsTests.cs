@@ -259,6 +259,61 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
     // ═════════════════════════════ P3 報名管理 ═════════════════════════════
 
     [Fact]
+    public async Task Session_後台列表與詳情帶對外狀態_尚未開放與已截止由伺服器推算_儲存值不變()
+    {
+        using var client = await CreateClientAsync("academy.manager@tcrfc.test");
+        var slug = $"test-program-{Guid.NewGuid():N}"[..30];
+        Guid programId = default;
+        var ids = new List<Guid>();
+        try
+        {
+            programId = await CreateBwProgramAsync(client, slug, publish: true);
+            async Task<AdminSessionDetailDto> Create(string status, DateTime? opens, DateTime? closes)
+            {
+                var r = await client.PostAsJsonAsync("/api/v1/admin/bw/program-sessions", new CreateAdminSessionRequest
+                {
+                    ProgramId = programId, Capacity = 10, Status = status, SignupOpensAt = opens, SignupClosesAt = closes,
+                }, TestJson.WriteOptions);
+                Assert.Equal(HttpStatusCode.Created, r.StatusCode);
+                var d = (await r.Content.ReadFromJsonAsync<AdminSessionDetailDto>(TestJson.Options))!;
+                ids.Add(d.Id);
+                return d;
+            }
+            var now = DateTime.UtcNow;
+            var notYet = await Create("額滿", now.AddDays(3), null);
+            var closed = await Create("開放", null, now.AddDays(-1));
+            var open = await Create("開放", now.AddDays(-1), now.AddDays(5));
+
+            // 建立回應（詳情 DTO）本身就帶對外狀態；儲存值維持原樣。
+            Assert.Equal("額滿", notYet.Status);
+            Assert.Equal("not_yet_open", notYet.EffectiveStatusCode);
+            Assert.Equal("尚未開放", notYet.EffectiveStatusLabelZh);
+            Assert.Equal("Not yet open", notYet.EffectiveStatusLabelEn);
+            Assert.Equal("開放", closed.Status);
+            Assert.Equal("ended", closed.EffectiveStatusCode);
+            Assert.Equal("已結束", closed.EffectiveStatusLabelZh);
+            Assert.Equal("open", open.EffectiveStatusCode);
+
+            var detail = await client.GetFromJsonAsync<AdminSessionDetailDto>($"/api/v1/admin/bw/program-sessions/{notYet.Id}", TestJson.Options);
+            Assert.Equal("not_yet_open", detail!.EffectiveStatusCode);
+            Assert.Equal("額滿", detail.Status);
+
+            var list = await client.GetFromJsonAsync<List<AdminSessionListItemDto>>($"/api/v1/admin/bw/program-sessions?programId={programId}", TestJson.Options);
+            Assert.Equal("not_yet_open", list!.Single(x => x.Id == notYet.Id).EffectiveStatusCode);
+            Assert.Equal("額滿", list.Single(x => x.Id == notYet.Id).Status);
+            Assert.Equal("ended", list.Single(x => x.Id == closed.Id).EffectiveStatusCode);
+            Assert.Equal("開放", list.Single(x => x.Id == closed.Id).Status);
+            Assert.Equal("open", list.Single(x => x.Id == open.Id).EffectiveStatusCode);
+            Assert.Equal("Open", list.Single(x => x.Id == open.Id).EffectiveStatusLabelEn);
+        }
+        finally
+        {
+            foreach (var id in ids) await DeleteSessionByIdAsync(id);
+            if (programId != default) await DeleteProgramBySlugAsync(slug);
+        }
+    }
+
+    [Fact]
     public async Task Registration_後台代填_佔用名額_轉梯次連動調整新舊梯次名額_取消釋放名額()
     {
         using var client = await CreateClientAsync("academy.manager@tcrfc.test");

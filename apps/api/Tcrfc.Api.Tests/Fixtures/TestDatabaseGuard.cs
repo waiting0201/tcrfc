@@ -27,6 +27,12 @@ internal static class TestDatabaseGuard
     public const string RequiredDatabaseName = "tcrfc_club";
 
     /// <summary>
+    /// 2026-10-30：選用的 <c>dotnet test</c> 專用庫。把 <c>CLUB_SQL_CONNECTION_STRING</c> 指到它，整合測試就不會改寫
+    /// 使用者正在跑的開發庫 <c>tcrfc_club</c>（建庫與灌種子：<c>./db/seed/setup-club-db.sh --test-db</c>）。
+    /// </summary>
+    public const string TestDatabaseName = "tcrfc_club_test";
+
+    /// <summary>
     /// 讀取、驗證並回傳 <c>CLUB_SQL_CONNECTION_STRING</c>（環境變數優先，其次是 <see cref="TestLocalSettings"/>
     /// 從本機設定檔補上的值）。任何一關沒過都會丟
     /// <see cref="InvalidOperationException"/>，讓 xUnit 把使用這個 fixture 的每一項測試都
@@ -59,7 +65,8 @@ internal static class TestDatabaseGuard
         // 這條檢查存在的唯一理由就是防止 dotnet test 誤連到這個 SQL Server instance 上其他任何
         // 資料庫（使用者其他專案的資料庫、tcrfc_charity，或已廢除的 tcrfc_club_dev／tcrfc_club_test
         // 舊名稱）——寧可整套測試在啟動階段就直接拒絕執行，也不要讓測試安靜地寫壞別的資料庫。
-        if (!string.Equals(databaseName, RequiredDatabaseName, StringComparison.OrdinalIgnoreCase))
+        if (!string.Equals(databaseName, RequiredDatabaseName, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(databaseName, TestDatabaseName, StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
                 $"CLUB_SQL_CONNECTION_STRING 指向資料庫 '{databaseName}'，但整合測試只允許連到本專案的網站庫 "

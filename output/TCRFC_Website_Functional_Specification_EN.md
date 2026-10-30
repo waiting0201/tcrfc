@@ -1,9 +1,16 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.31
-> **Date**: 2026-08-14 (v3.31 revision: 2026-10-20)
+> **Document version**: v3.32
+> **Date**: 2026-08-14 (v3.32 revision: 2026-10-30)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.31*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.32*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.32 revision summary — course sessions gain a "Not yet open" status; "Register now" no longer shows before registration opens**
+> **A supplement to the P2 session status; no new page or module, no data-structure change.**
+> ① **Session status values are "Not yet open / Open / Full / Waitlist / Closed"**: for a session whose registration start time has not arrived, the public site and the mobile app show a disabled button with "Opens for registration on D Mon" instead of "Register now".
+> ② **"Not yet open" is determined automatically by the system from the registration start time and cannot be set by hand in the admin**; a session whose registration close time has passed is always treated as "Closed" and the public site shows "Closed".
+> ③ **Precedence is explicit**: Closed (including past the registration close time) → Not yet open → Full / Waitlist → Open.
+> Where: 4.4 P2; Mobile App Specification §3.9 follows.
 
 > **v3.31 revision summary — C4 gains opposition teams; line-ups distinguish starters from substitutes; player appearances aggregate from line-ups**
 > **A refinement of match data; no new page or module.**
@@ -1237,8 +1244,10 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Fields: name, description, who it's for, age range, curriculum (block editor), coaching staff (linked to C3), partners (linked to E1), images, FAQs
 
 #### P2 Sessions
-- Session: period, weekly timetable, venue (linked), capacity, current registrations, fees (standard / early-bird / early-bird deadline), registration open and close times, status (open / full / waitlist / closed)
-- The public site automatically shows "Register now / Join waitlist / Closed" based on status
+- Session: period, weekly timetable, venue (linked), capacity, current registrations, fees (standard / early-bird / early-bird deadline), registration open and close times (both optional; an empty end is unrestricted), status (not yet open / open / full / waitlist / closed)
+- **Setting and automatic determination of status**: the admin status field offers only "open / full / waitlist / closed". **"Not yet open" is determined automatically by the system from the registration start time and cannot be set by hand**, and a session past its registration close time is treated by the system as "closed". Registration is still accepted at the exact start and close instants; times are in Taipei time
+- **Precedence** (highest first; the first match wins): (1) closed — set to closed in the admin, or past the registration close time (whatever the admin set: open, full or waitlist); (2) not yet open — now is earlier than the registration start time (whatever the admin set: open, full or waitlist; no waitlist sign-ups are accepted while not yet open); (3) full / waitlist — the status set in the admin; (4) open
+- The public site (and the mobile app) automatically shows: open "Register now"; full and waitlist "Join waitlist"; closed "Closed"; **not yet open a disabled button with "Opens for registration on D Mon"**, which cannot be clicked or submitted
 
 #### P3 Registrations
 - Registration list: filters (program, session, status, date, **member or not**), keyword search, and a **"member" column** (added in v2.5; `Registration.member_id` is nullable — non-members may still register)

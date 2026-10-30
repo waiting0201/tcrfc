@@ -56,11 +56,13 @@ OUT_DIR="${REPO_ROOT}/deploy/dev/.local-ddl-output"
 LOCAL_MSSQL_CONTAINER="${LOCAL_MSSQL_CONTAINER:-sqlserver}"
 
 # ⛔ 資料庫名稱白名單。本腳本唯一允許建立／寫入的資料庫只有這兩個，不接受任何呼叫端覆寫。
-ALLOWED_DATABASES=("tcrfc_club" "tcrfc_charity")
+ALLOWED_DATABASES=("tcrfc_club" "tcrfc_club_test" "tcrfc_charity")
 
 # 網站庫名稱——--apply-club-db 模式（含 --recreate 的 DROP）只作用在這個名字，
 # 與 db/seed/setup-club-db.sh、db/seed/apply-seed.sh 的寫死名稱是同一個。
 readonly CLUB_DATABASE_NAME="tcrfc_club"
+# 🔴 2026-10-30：選用的 dotnet test 專用庫（--apply-club-test-db），讓整合測試不再改寫使用者正在跑的開發庫。
+readonly CLUB_TEST_DATABASE_NAME="tcrfc_club_test"
 # 慈善庫名稱——--apply-charity-db 模式（含 --recreate 的 DROP）只作用在這個名字。
 readonly CHARITY_DATABASE_NAME="tcrfc_charity"
 
@@ -79,6 +81,7 @@ assert_allowed_database() {
 MODE="${1:-}"
 APPLY=0
 APPLY_CLUB_DB=0
+APPLY_CLUB_TEST_DB=0
 RECREATE_CLUB_DB=0
 APPLY_CHARITY_DB=0
 RECREATE_CHARITY_DB=0
@@ -92,6 +95,12 @@ case "${MODE}" in
       RECREATE_CLUB_DB=1
     fi
     ;;
+  --apply-club-test-db)
+    APPLY_CLUB_TEST_DB=1
+    if [[ "${2:-}" == "--recreate" ]]; then
+      RECREATE_CLUB_DB=1
+    fi
+    ;;
   --apply-charity-db)
     APPLY_CHARITY_DB=1
     if [[ "${2:-}" == "--recreate" ]]; then
@@ -101,7 +110,7 @@ case "${MODE}" in
   "")
     ;;
   *)
-    echo "不認得的參數：${MODE}（合法值：--apply、--apply-club-db [--recreate]、--apply-charity-db [--recreate]，或不帶參數）" >&2
+    echo "不認得的參數：${MODE}（合法值：--apply、--apply-club-db [--recreate]、--apply-club-test-db [--recreate]、--apply-charity-db [--recreate]，或不帶參數）" >&2
     exit 1
     ;;
 esac
@@ -131,7 +140,7 @@ echo "==> 複製 db/charity-schema.sql（原樣，不轉換）"
 copy_ddl "${SRC_DIR}/charity-schema.sql" "${OUT_DIR}/charity-schema.local.sql"
 echo "    → ${OUT_DIR}/charity-schema.local.sql"
 
-if [[ "${APPLY}" -eq 0 && "${APPLY_CLUB_DB}" -eq 0 && "${APPLY_CHARITY_DB}" -eq 0 ]]; then
+if [[ "${APPLY}" -eq 0 && "${APPLY_CLUB_DB}" -eq 0 && "${APPLY_CLUB_TEST_DB}" -eq 0 && "${APPLY_CHARITY_DB}" -eq 0 ]]; then
   echo
   echo "只產生檔案，未執行。要灌進本機資料庫，加 --apply；" \
        "要建立／灌網站庫，加 --apply-club-db（見檔頭「用法」）。"
@@ -143,6 +152,10 @@ if [[ "${APPLY_CLUB_DB}" -eq 1 ]]; then
   echo "==> --apply-club-db：即將操作的目標"
   echo "    容器（docker container name）：${LOCAL_MSSQL_CONTAINER}"
   echo "    資料庫（僅這一個）：${CLUB_DATABASE_NAME}$( [[ "${RECREATE_CLUB_DB}" -eq 1 ]] && echo '（--recreate：先 DROP 再 CREATE）' )"
+elif [[ "${APPLY_CLUB_TEST_DB}" -eq 1 ]]; then
+  echo "==> --apply-club-test-db：即將操作的目標"
+  echo "    容器（docker container name）：${LOCAL_MSSQL_CONTAINER}"
+  echo "    資料庫（僅這一個）：${CLUB_TEST_DATABASE_NAME}$( [[ "${RECREATE_CLUB_DB}" -eq 1 ]] && echo '（--recreate：先 DROP 再 CREATE）' )"
 elif [[ "${APPLY_CHARITY_DB}" -eq 1 ]]; then
   echo "==> --apply-charity-db：即將操作的目標"
   echo "    容器（docker container name）：${LOCAL_MSSQL_CONTAINER}"
@@ -276,7 +289,7 @@ apply_one_db() { # ${1}=資料庫（白名單內）${2}=本機 DDL 檔 ${3}=是�
     echo "    套用 DDL：${ddl}"
     # -b：DDL 出錯就中止（不要在半套結構上繼續標記 migration 為已套用）；-I：QUOTED_IDENTIFIER ON（篩選索引／計算欄位需要）
     sqlcmd_apply_file "${db}" "${ddl}" -b -I
-    if [[ "${db}" == "${CLUB_DATABASE_NAME}" ]]; then
+    if [[ "${db}" == "${CLUB_DATABASE_NAME}" || "${db}" == "${CLUB_TEST_DATABASE_NAME}" ]]; then
       mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/Data/Migrations" "${REPO_ROOT}/apps/api/Data/Migrations/ClubDbContextModelSnapshot.cs"
     else
       mark_migrations_applied "${db}" "${REPO_ROOT}/apps/api/CharityPlatform/Data/Migrations" "${REPO_ROOT}/apps/api/CharityPlatform/Data/Migrations/CharityDbContextModelSnapshot.cs"
@@ -286,6 +299,8 @@ apply_one_db() { # ${1}=資料庫（白名單內）${2}=本機 DDL 檔 ${3}=是�
 
 if [[ "${APPLY_CLUB_DB}" -eq 1 ]]; then
   apply_one_db "${CLUB_DATABASE_NAME}" "${OUT_DIR}/club-schema.local.sql" "${RECREATE_CLUB_DB}"
+elif [[ "${APPLY_CLUB_TEST_DB}" -eq 1 ]]; then
+  apply_one_db "${CLUB_TEST_DATABASE_NAME}" "${OUT_DIR}/club-schema.local.sql" "${RECREATE_CLUB_DB}"
 elif [[ "${APPLY_CHARITY_DB}" -eq 1 ]]; then
   apply_one_db "${CHARITY_DATABASE_NAME}" "${OUT_DIR}/charity-schema.local.sql" "${RECREATE_CHARITY_DB}"
 else

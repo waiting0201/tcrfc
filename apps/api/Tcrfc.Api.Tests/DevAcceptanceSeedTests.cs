@@ -41,6 +41,23 @@ public sealed class DevAcceptanceSeedTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
+    public async Task 藍鯨有效會籍驗收會員_可登入_藍鯨會籍為有效且有一張有效會員卡()
+    {
+        using var client = fixture.CreateClient();
+        var login = await MemberTestScope.LoginAsync(client, "bw-member@example.com", SeedPassword);
+        using var authed = fixture.CreateClient();
+        authed.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", login.AccessToken);
+        var response = await authed.GetAsync("/api/v1/member/memberships");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var items = body.GetProperty("memberships");
+        var bw = Assert.Single(items.EnumerateArray().ToList(), m => m.GetProperty("club").GetProperty("code").GetString() == "bw");
+        Assert.Equal("active", bw.GetProperty("status").GetString());
+        Assert.Equal(1, bw.GetProperty("cards").GetArrayLength());
+        Assert.DoesNotContain(items.EnumerateArray(), m => m.GetProperty("club").GetProperty("code").GetString() == "tcrfc" && m.GetProperty("status").GetString() == "active");
+    }
+
+    [Fact]
     public async Task 漫畫閱讀器驗收集數_第101與102集已發布_各三頁_上下集導覽相連()
     {
         using var client = fixture.CreateClient();

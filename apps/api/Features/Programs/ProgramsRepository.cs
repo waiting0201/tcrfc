@@ -54,7 +54,9 @@ public sealed class ProgramsRepository(
                     SELECT p.id AS Id, p.slug AS Slug, p.program_type AS ProgramType,
                            p.age_min AS AgeMin, p.age_max AS AgeMax, p.cover_key AS CoverKey, p.cover_width AS CoverWidth, p.cover_height AS CoverHeight,
                            CAST(CASE WHEN EXISTS (
-                               SELECT 1 FROM sessions s WHERE s.program_id = p.id AND s.status IN (N'開放', N'候補')
+                               SELECT 1 FROM sessions s WHERE s.program_id = p.id AND s.status <> N'已結束'
+                                 AND (s.signup_closes_at IS NULL OR s.signup_closes_at >= SYSUTCDATETIME())
+                                 AND (s.status IN (N'開放', N'候補') OR s.signup_opens_at > SYSUTCDATETIME())
                            ) THEN 1 ELSE 0 END AS bit) AS HasOpenSession
                     FROM programs p
                     WHERE p.club_id = @ClubId AND p.status = 'published'
@@ -103,6 +105,26 @@ public sealed class ProgramsRepository(
     }
 
     public async Task<ProgramDetailDto?> GetBySlugAsync(ClubScope scope, string slug, string dbLocale, CancellationToken cancellationToken)
+    {
+        var cached = await GetBySlugCachedAsync(scope, slug, dbLocale, cancellationToken);
+        if (cached is null)
+        {
+            return null;
+        }
+
+        // 梯次狀態隨「現在時刻」變化（過了截止時間就是已結束），不能被整包快取凍結，故在快取之外、每次請求疊上報名時窗。
+        var now = DateTime.UtcNow;
+        return cached with
+        {
+            Sessions = cached.Sessions.Select(s =>
+            {
+                var effective = EnrollmentStatus.OfSlotAt(s.Status, s.SignupOpensAt, s.SignupClosesAt, now);
+                return s with { StatusCode = effective.Code, StatusLabelZh = effective.Zh, StatusLabelEn = effective.En };
+            }).ToList(),
+        };
+    }
+
+    private async Task<ProgramDetailDto?> GetBySlugCachedAsync(ClubScope scope, string slug, string dbLocale, CancellationToken cancellationToken)
     {
         return await cache.GetOrCreateAsync(
             CacheEntity, scope.ClubCode, dbLocale, slug,
@@ -295,14 +317,14 @@ public sealed class ProgramsRepository(
             throw new ProgramRegistrationValidationException("這個梯次已經結束報名。");
         }
 
+        // 與公開輸出的梯次狀態共用 SignupWindow（見 EnrollmentStatus.OfSlotAt），不在這裡另寫一份比較。
         var now = DateTime.UtcNow;
-        if (session.SignupOpensAt is DateTime opensAt && now < opensAt)
+        switch (SignupWindow.Evaluate(session.SignupOpensAt, session.SignupClosesAt, now))
         {
-            throw new ProgramRegistrationValidationException("這個梯次尚未開放報名。");
-        }
-        if (session.SignupClosesAt is DateTime closesAt && now > closesAt)
-        {
-            throw new ProgramRegistrationValidationException("這個梯次的報名已經截止。");
+            case SignupWindowState.NotYetOpen:
+                throw new ProgramRegistrationValidationException("這個梯次尚未開放報名。");
+            case SignupWindowState.Closed:
+                throw new ProgramRegistrationValidationException("這個梯次的報名已經截止。");
         }
 
         const string claimSlotSql = """

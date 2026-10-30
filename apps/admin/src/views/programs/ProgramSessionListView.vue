@@ -11,7 +11,7 @@ import { listAdminPrograms, type AdminProgramListItemDto } from '@/api/adminProg
 import { listAdminProgramSessions, type AdminSessionListItemDto } from '@/api/adminProgramSessions'
 import { AdminApiError } from '@/api/http'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
-import { sessionStatusTagType } from '@/types/program'
+import { EFFECTIVE_STATUS_HINT, effectiveStatusTagType, sessionStatusTagType } from '@/types/program'
 
 const router = useRouter()
 const club = computed(() => activeClubId.value)
@@ -127,6 +127,7 @@ function priceLabel(row: AdminSessionListItemDto): string {
       </el-empty>
     </el-card>
     <el-card v-else shadow="never">
+      <p v-if="sessions.length > 0" class="session-list__eff-hint">對外狀態：{{ EFFECTIVE_STATUS_HINT }}，不能手動設定。</p>
       <el-table v-if="sessions.length > 0" :data="sessions" row-key="id">
         <el-table-column label="所屬項目" min-width="160">
           <template #default="{ row }">{{ programLabelById.get(row.programId) ?? row.programNameZh ?? '—' }}</template>
@@ -148,6 +149,16 @@ function priceLabel(row: AdminSessionListItemDto): string {
             <el-tag :type="sessionStatusTagType(row.status)" size="small">{{ row.status }}</el-tag>
           </template>
         </el-table-column>
+        <el-table-column width="120">
+          <template #header>
+            <el-tooltip :content="EFFECTIVE_STATUS_HINT" placement="top">
+              <span class="session-list__eff-head">對外狀態 ⓘ</span>
+            </el-tooltip>
+          </template>
+          <template #default="{ row }">
+            <el-tag :type="effectiveStatusTagType(row.effectiveStatusCode)" size="small" effect="plain">{{ row.effectiveStatusLabelZh }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="90" fixed="right">
           <template #default="{ row }">
             <el-button size="small" text type="primary" @click="handleEdit(row)">{{ canManageSessions ? '編輯' : '檢視' }}</el-button>
@@ -164,6 +175,8 @@ function priceLabel(row: AdminSessionListItemDto): string {
 <style scoped>
 .session-list__over { color: var(--el-color-warning-dark-2); font-weight: 600; }
 .session-list__over-tag { margin-left: 4px; }
+.session-list__eff-head { cursor: help; }
+.session-list__eff-hint { margin: 0 0 8px; color: var(--el-text-color-secondary); font-size: 13px; }
 .session-list__filters {
   margin-bottom: 12px;
 }

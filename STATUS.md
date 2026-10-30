@@ -454,6 +454,23 @@
 
 ---
 
+## 8-1. 梯次狀態「尚未開放」（使用者 2026-10-30 裁決）的實作清單 `SO-*`
+
+> **來源**：使用者 2026-10-30 裁決「課程梯次狀態新增尚未開放」，主站 v3.32／App v3.25 已改完規格與導航層（同步鏈第 1–4、7 環，中英與 PDF；藍鯨規劃書只寫差異、客戶版不寫狀態值，皆無需異動）。**第 5 環（程式）：SO-1、SO-2 已完成（2026-10-30），SO-3–SO-6 依序交後續 agent。**
+> **契約**：梯次對外狀態新增代碼 `not_yet_open`（中文「尚未開放」、英文 `Not yet open`）；**資料庫 `sessions.status` 與 `CK_sessions_status` 一律不動**（仍是 開放／額滿／候補／已結束），「尚未開放」只在輸出時由 `SignupWindow` 推算，後台狀態欄不得出現此選項。優先序：已結束（含已過截止）→ 尚未開放 → 額滿／候補 → 開放。細節見 [`docs/14`](docs/14-invariants.md) 速查與主站 §4.4 P2。
+> **執行順序**：SO-1 → SO-2 → SO-3／SO-4／SO-5（可並行）→ SO-6。
+
+| ID | 狀態 | 工作 | 負責 | 前置 |
+|---|---|---|---|---|
+| SO-1 | ✅ | **API 值域**：`EnrollmentStatus.Slot` 新增 `not_yet_open`／尚未開放／Not yet open（**僅輸出代碼，不得寫進 `sessions.status` 的 CHECK**）；`OfSlotAt` 依優先序：已結束（儲存值已結束或 `Closed`）→ `NotYetOpen` → 儲存值。公開梯次輸出補 `signupOpensAt`（若尚未輸出）；列表 `hasOpenSession` 對「尚未開放」的處理（建議仍視為可報名課程，但梯次卡顯示開放日）須與規格一致；報名閘門訊息維持「尚未開放報名」。加測試：純函式（優先序各一筆：已過截止＋額滿、尚未開放＋額滿、尚未開放＋候補、恰等於開始時刻）＋整合 1 項。試訓場次不受影響（無報名開始欄位） **完成（2026-10-30，`backend-engineer`）**：`EnrollmentStatus.NotYetOpen` ＋ `OfSlotAt` 依優先序（儲存值已結束 → 已過截止 → 尚未開放 → 儲存值）；`SignupWindow.Evaluate` 改為先判截止；公開梯次已輸出 `signupOpensAt`；列表 `hasOpenSession` 納入尚未開放（使用者裁決）；報名閘門訊息不變；試訓不受影響。測試：`SessionEffectiveStatusTests` 純函式 16 項＋整合 1 項（尚未開放＋額滿、閘門拒絕）；`AdminDrawsTests` 藍鯨抽獎一項因新增 `M900103` 調整基準時間；全套 1388 項（排除 Charity）全綠，跑在 `tcrfc_club_test`。 | `backend-engineer` | — |
+| SO-2 | ✅ | **`shared/` 契約**：跑 `shared/scripts/gen-all.sh` 重產 OpenAPI、`enums.json`、Swift／Kotlin DTO；確認 CI 漂移檢查通過，兩個 App repo 的 `shared/` 同步（[`docs/19`](docs/19-app-tech-stack.md) §2） **完成（2026-10-30）**：`gen-all.sh` 通過、`check-shared.py` 通過；`shared/` 僅 `enums.json` 新增一組「對外輸出值域」（`not_yet_open`）與 `gen-enums.mjs`，`openapi.json`／Swift／Kotlin DTO 無差異（`statusCode` 型別本來就是 string）。**兩個 App repo 的 `shared/` 同步留給 SO-5。** | `backend-engineer` | SO-1 |
+| SO-3 | ✅（2026-10-30）| **官網前台**（`apps/web`，主站＋藍鯨共用）：課程詳情梯次卡依 `statusCode` 顯示；`not_yet_open` 顯示停用按鈕＋「M 月 D 日開放報名」（台北時間，來源 `signupOpensAt`），不可送出、不顯示候補；英文 `Opens for registration on D Mon`；課程報名表若依梯次預選，需略過尚未開放者。不得在前台自行比對時間推算狀態 | `frontend-architect` | SO-2 |
+| SO-4 | ✅（2026-10-30）| **後台**（`apps/admin`）：梯次狀態欄的選項維持 開放／額滿／候補／已結束 四個；列表與詳情**唯讀顯示「對外狀態」**（含尚未開放／已過截止的自動判定結果），並以說明文字註明「報名開始前自動顯示尚未開放、截止後自動顯示已結束」；介面用日常中文，不顯示代碼。**完成**：後台梯次 API 新增唯讀 `effectiveStatusCode`／`effectiveStatusLabelZh`／`effectiveStatusLabelEn`（列表與詳情，`EnrollmentStatus.OfSlotAt` 即時推算、不進快取）；`P2` 列表多一欄「對外狀態」、編輯頁「發布設定」顯示唯讀標籤，皆附說明文字；狀態欄選項仍四個，介面不顯示代碼。 | `frontend-architect` | SO-2 |
+| SO-5 | ✅ 2026-10-30 | **兩端完成（僅本機 commit、未 push，畫面未連新版 API 實機驗收，留 SO-6）**：iOS `5d72153`（單元 333、冒煙 28 全綠）、Android `ce615c4`（單元 dev／prod 各 296、dev 冒煙 32 項連跑 3 輪全過，`ANDROID_SERIAL` 指定 Pixel_8）；兩端皆只依 `statusCode` 判斷、以台北時間顯示「M 月 D 日開放報名」、開放時間缺漏時保底「尚未開放報名」、預覽資料各加一筆尚未開放梯次。⚠️ 兩端 `shared/` 同步時主 repo 有未提交變動（`upstream_dirty`），主 repo commit 後須重同步一次 ｜ **兩端 App**（`mobile/ios`、`mobile/android`）：課程列表與詳情依 `statusCode == not_yet_open` 顯示停用按鈕＋「M 月 D 日開放報名」（中英字串、無障礙標籤、深色模式）；**不得本機比對時間**；`unknown` 代碼的既有保底行為不變。各自是獨立 repo，各自 commit | `mobile-app-engineer` | SO-2 |
+| SO-6 | ⬜ | **收尾**：`apps/api/README.md` 末段改寫（「尚未開放…未新增」那段已過期）；`docs/18` 的 `E-346`「待規格決定」註記標結案；實機驗收（官網／Android／iOS 各以一筆未來開始時間的梯次確認按鈕停用、日期正確、時間到後自動轉為立即報名）。**做完 grep `STATUS.md`、`docs/` 殘留的「尚未開放無代碼」敘述** | 各自 | SO-3／4／5 |
+
+---
+
 ## 8. 內容生產線（與開發平行）
 
 | ID | 狀態 | 工作 | 規格在哪 | 前置 |
@@ -586,6 +603,9 @@
 | 2026-09-18 | **藍鯨站定為主站同骨架站台、只換配色**（藍鯨 v1.5 §1.3 總則，中英雙版與客戶版同步） |
 | 2026-09-14 | 藍鯨品牌色自隊徽取樣定案（七個變數）；隊徽點陣主檔取得 |
 | 2026-09-14 | 四份客戶版文件產出（中英，含後台完整模組一覽） |
+| 2026-10-30 | **課程梯次狀態疊上報名時窗（`E-346`，`backend-engineer`）**：Android 實機驗收發現已過截止的梯次仍顯示開放；公開輸出改與報名閘門共用 `SignupWindow`，已過截止＝`ended`；「尚未開放」使用者同日裁決新增為狀態（主站 v3.32／App v3.25），實作清單 `SO-1`–`SO-6`（§8-1）。 |
+| 2026-10-30 | **SO-1／SO-2 梯次對外狀態 `not_yet_open`（`backend-engineer`）**：`EnrollmentStatus.OfSlotAt` 依優先序推算、列表 `hasOpenSession` 納入尚未開放、`shared/enums.json` 新增對外輸出值域；全套 1388 項綠。**另補本機驗收會員 `M900103`（`bw-member@example.com`，持有有效藍鯨會籍）**，見 `db/seed/README.md` 區段 60。 |
+| 2026-10-30 | **種子重灌撞 `PK_matches` 修復＋選用測試庫 `tcrfc_club_test`（`E-347`，`backend-engineer`）**：`generate-club-seed-sql.py` 的 `matches` 存在判斷改為「決定性 id 或自然鍵」；新增 `setup-club-db.sh --test-db`／`apply-seed.sh --test-db`／`local-ddl.sh --apply-club-test-db`，`TestDatabaseGuard` 放行 `tcrfc_club_test`；預設仍共用 `tcrfc_club`。見 `docs/14` S0-13、`db/seed/README.md` |
 | — | 四份功能規劃書完成；`site/dist` 80 頁前台骨架部署於 Cloudflare Pages（全站 `noindex`） |
 
 ---

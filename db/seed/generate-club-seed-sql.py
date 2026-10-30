@@ -516,8 +516,9 @@ for m in schedule:
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = {CLUB_TCRFC} AND mt.season_id = {SEASON}
-    AND mt.round_no = {esc(round_no)} AND mt.match_on = {esc(match_on)} AND mt.opponent = {esc(m["opponent_zh"])};
+  WHERE mt.id = {esc(match_id)}
+     OR (mt.club_id = {CLUB_TCRFC} AND mt.season_id = {SEASON}
+    AND mt.round_no = {esc(round_no)} AND mt.match_on = {esc(match_on)} AND mt.opponent = {esc(m["opponent_zh"])});
 IF @id IS NULL
 BEGIN
   SET @id = {esc(match_id)};
@@ -529,8 +530,9 @@ END
 """)
     block(f"""
 UPDATE matches SET match_no = {esc(match_no)}
-WHERE club_id = {CLUB_TCRFC} AND season_id = {SEASON}
-  AND round_no = {esc(round_no)} AND match_on = {esc(match_on)} AND opponent = {esc(m["opponent_zh"])};
+WHERE id = {esc(match_id)}
+   OR (club_id = {CLUB_TCRFC} AND season_id = {SEASON}
+  AND round_no = {esc(round_no)} AND match_on = {esc(match_on)} AND opponent = {esc(m["opponent_zh"])});
 """)
 
 # ============================================================================
@@ -661,8 +663,9 @@ def emit_bw_matches(file_name: str, comp_tag: str):
         block(f"""
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = {CLUB_BW} AND mt.season_id = {bw_season_sub}
-    AND mt.match_on = {esc(match_on)} AND mt.opponent = {esc(opponent)};
+  WHERE mt.id = {esc(bw_match_id)}
+     OR (mt.club_id = {CLUB_BW} AND mt.season_id = {bw_season_sub}
+    AND mt.match_on = {esc(match_on)} AND mt.opponent = {esc(opponent)});
 IF @id IS NULL
 BEGIN
   SET @id = {esc(bw_match_id)};

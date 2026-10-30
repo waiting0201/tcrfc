@@ -19,6 +19,10 @@ export interface AdminSessionListItemDto {
   signupOpensAt?: string | null
   signupClosesAt?: string | null
   status: string
+  /** 對外狀態（唯讀）：伺服器依報名時窗推算，可能是「尚未開放」，已過截止視為「已結束」。前端不得自行比對時間。 */
+  effectiveStatusCode: string
+  effectiveStatusLabelZh: string
+  effectiveStatusLabelEn: string
   updatedAt: string
 }
 
@@ -40,6 +44,10 @@ export interface AdminSessionDetailDto {
   signupOpensAt?: string | null
   signupClosesAt?: string | null
   status: string
+  /** 對外狀態（唯讀）：伺服器依報名時窗推算，可能是「尚未開放」，已過截止視為「已結束」。前端不得自行比對時間。 */
+  effectiveStatusCode: string
+  effectiveStatusLabelZh: string
+  effectiveStatusLabelEn: string
   createdAt: string
   updatedAt: string
 }

@@ -3583,3 +3583,12 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - 🔴 **種子同步**：`db/seed/page_seed_content.json` 的 `about/philosophy` 與 `academy/curriculum` 來源已是前台 `core-values.ts`／`academy-curriculum.ts`；`npm run lint:page-seed-sync` 驗證 extract 重產結果與 json 逐位元一致。
 - 未驗證：會員中心登入後畫面、購物車／結帳折扣顯示（需真 API 與會員／會籍資料）；只做 SSR 假 API 掃描與 build。
 - 已知殘留：`charity/commitment.vue` 的備援文案已改為「在地驕傲／四大核心價值」，但種子 `extract.ts` 內 `commitment` 的原文仍寫「Community 社區共好／五大核心價值」（改它會讓 `page_seed_content.json` 與 `db/prod` 種子 manifest 失準，需後端一併重產），待後續處理。
+
+## 梯次「尚未開放」狀態（主站 v3.32 P2／SO-3，2026-10-30，`frontend-architect`）
+
+- **判斷只有一份**：`app/utils/program-session.ts`，一律依公開 API 的 `statusCode`（`open`／`full`／`waitlist`／`ended`／`not_yet_open`）。`status` 中文字面值不得拿來判斷；**前台不再比對 `signupOpensAt`／`signupClosesAt` 推算狀態**（已移除舊的時間比對，已過報名截止歸 `ended`、尚未開放歸 `not_yet_open`，都由伺服器算好）。缺 `statusCode` 或未知代碼保守視為已截止。
+- **呈現**：`open`＝「立即報名」；`full`／`waitlist`＝「額滿候補」（仍可送出，後端列入候補）；`ended`＝「已截止」；`not_yet_open`＝停用，不可選、不可送出、不顯示候補，旁邊顯示 `signupOpensText()`——中文「M 月 D 日開放報名」、英文 `Opens for registration on D Mon`，只顯示日期、一律以 `Asia/Taipei` 換算。
+- **落點**：課程詳情 `programs/[slug]` 每個梯次卡多一列「報名」（`not_yet_open` 為停用按鈕 `disabled`＋`aria-disabled="true"`，`aria-describedby` 指向開放日期文字，讀屏會念出）；`ProgramRegistration.vue` 的梯次單選會列出尚未開放的梯次（單選項 `disabled`＋`aria-disabled`、描述同上），**預選與送出只認可報名梯次**，全都尚未開放時不預選、送出鈕停用並提示。`useRegistrablePrograms` 保留尚未開放的梯次（`isSessionListed`），因此「線上報名」錨點在只有尚未開放時仍指向可見的報名區。
+- 列表 `hasOpenSession` 已含尚未開放的梯次（使用者裁決），未改。
+- 防呆：`scripts/check-news-body.mjs`（`npm run lint:news-body`）以假資料涵蓋五種 `statusCode`、時間欄位不影響結果、台北時間換算（UTC 日期與台北日期不同的邊界）與中英文案。
+- 未驗證：本機 API（:5299）仍是舊程式、沒有 `not_yet_open`，未做實機渲染；實機驗收併入 `SO-6`。

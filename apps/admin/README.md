@@ -3073,3 +3073,10 @@ API 契約以 `apps/api/README.md`「後台欄位串接稽核的後端修正」�
 - **I 網站事實**：新增「聯絡地址」中英（`contactAddressZh`／`contactAddressEn`，與場地地址無關）；梯隊代碼說明改 U10–U18。**儀表板**：「有效的付費會籍」改「有效的尊尚會籍」（`activePremiumMemberships`），「待處理的升級申請」改「待確認的會籍」（該數字實際是 `status=pending` 的會籍數）。
 - **球迷活動**：「限付費會員」改「限會員」（任一層級的有效會籍）。
 - 檢查：`npm run typecheck`、`npm run lint`（0 errors，179 warnings 皆為既有的 `vue/html-indent`）、`npm test`、`npm run build` 通過；**畫面未實機驗收**（未啟動本機 API）。
+
+### SO-4 梯次「對外狀態」唯讀顯示（2026-10-30）
+
+- 梯次狀態欄（編輯頁「發布設定」）選項維持 開放／額滿／候補／已結束 四個，**不提供「尚未開放」**。
+- `ProgramSessionListView.vue` 多一欄「對外狀態」（表頭提示＋表格上方說明）；`ProgramSessionEditView.vue`（編輯既有梯次時）在狀態欄下方顯示唯讀標籤。說明文字：「報名開始前自動顯示尚未開放、截止後自動顯示已結束」（`types/program.ts` 的 `EFFECTIVE_STATUS_HINT`）。
+- 資料一律讀後端 `effectiveStatusCode`／`effectiveStatusLabelZh`（`api/adminProgramSessions.ts`），**前端不比對時間**；畫面只顯示中文標籤，不顯示代碼。儲存後以回應刷新標籤。
+- 檢查：`npm run typecheck`、`npm run lint`、`npm test`、`npm run build` 通過；畫面未實機驗收。

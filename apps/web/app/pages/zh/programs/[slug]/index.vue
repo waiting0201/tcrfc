@@ -36,7 +36,7 @@ const mediaBaseUrl = config.public.mediaBaseUrl as string
 const contentView = computed(() => buildProgramContent(program.value?.content, isEn.value ? 'en' : 'zh', mediaBaseUrl))
 const contentBlocks = computed(() => contentView.value.blocks)
 const paragraphs = computed(() => contentView.value.paragraphs)
-const openSessions = computed(() => (program.value?.sessions ?? []).filter((s) => isSessionRegistrable(s)))
+const openSessions = computed(() => (program.value?.sessions ?? []).filter((s) => isSessionListed(s)))
 const registrable = computed(() => (isTcrfc.value && program.value && openSessions.value.length > 0
   ? [{ slug: program.value.slug, name: program.value.name, sessions: openSessions.value }]
   : []))
@@ -121,6 +121,16 @@ useCourseSchema(
       <div v-if="s.venueName" class="signup-preview__row"><span>{{ tx('地點', 'Venue') }}</span><span class="signup-preview__value">{{ s.venueName }}</span></div>
       <div class="signup-preview__row"><span>{{ tx('費用', 'Fee') }}</span><span class="signup-preview__value">{{ s.price != null ? `NT$ ${s.price}` : tx('待公告', 'To be announced') }}</span></div>
       <div v-if="s.capacity" class="signup-preview__row"><span>{{ tx('剩餘名額', 'Places left') }}</span><span class="signup-preview__value">{{ Math.max(s.capacity - s.enrolledCount, 0) }}</span></div>
+      <div class="signup-preview__row">
+        <span>{{ tx('報名', 'Registration') }}</span>
+        <span class="signup-preview__value">
+          <template v-if="sessionSignupState(s) === 'not_yet'">
+            <button type="button" class="btn btn--primary btn--sm" disabled aria-disabled="true" :aria-describedby="`session-opens-${s.id}`">{{ tx('尚未開放報名', 'Not open yet') }}</button>
+            <span :id="`session-opens-${s.id}`" class="session-opens">{{ signupOpensText(s.signupOpensAt, isEn ? 'en' : 'zh') ?? tx('開放日期待公告', 'Opening date to be announced') }}</span>
+          </template>
+          <template v-else>{{ sessionSignupLabel(sessionSignupState(s), isEn ? 'en' : 'zh') }}</template>
+        </span>
+      </div>
     </div>
   </div>
 </section>
@@ -146,4 +156,5 @@ useCourseSchema(
 .signup-preview__row:last-child{ border-bottom:none; }
 .signup-preview__value{ font-weight:700; color:var(--muted); text-align:right; }
 .is-pending{ color:var(--muted); font-style:italic; }
+.session-opens{ display:block; margin-top:.35rem; font-size:.8rem; color:var(--ink); }
 </style>

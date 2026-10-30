@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict'
 import { parseNewsBody, safeUrl, videoEmbedUrl } from '../app/utils/news-body.ts'
 import { focalObjectPosition } from '../app/utils/siteImage.ts'
-import { isSessionRegistrable, sessionSignupState, statusLabel } from '../app/utils/program-session.ts'
+import { isSessionListed, isSessionRegistrable, sessionSignupLabel, sessionSignupState, signupOpensText, statusLabel } from '../app/utils/program-session.ts'
 
 let n = 0
 let failures = 0
@@ -112,26 +112,42 @@ t('封面焦點 object-position：缺值＝50% 50%、有值照寫、越界退 50
   assert.equal(focalObjectPosition(-1, 101), '50% 50%')
 })
 
-// ── 05 課程梯次狀態 ──
-const now = new Date('2026-10-02T00:00:00Z')
-t('梯次狀態是中文字面值：開放／額滿／候補可報名，已結束不可', () => {
-  assert.equal(sessionSignupState({ status: '開放' }, now), 'open')
-  assert.equal(sessionSignupState({ status: '額滿' }, now), 'waitlist')
-  assert.equal(sessionSignupState({ status: '候補' }, now), 'waitlist')
-  assert.equal(sessionSignupState({ status: '已結束' }, now), 'closed')
-  assert.equal(isSessionRegistrable({ status: '開放' }, now), true)
-  assert.equal(isSessionRegistrable({ status: '已結束' }, now), false)
+// ── 05 課程梯次狀態（SO-3：只依 statusCode，不比對時間、不看 status 字面值）──
+t('statusCode 五種值：open 立即報名；full／waitlist 額滿候補；not_yet_open 停用；ended 已截止', () => {
+  assert.equal(sessionSignupState({ statusCode: 'open' }), 'open')
+  assert.equal(sessionSignupState({ statusCode: 'full' }), 'waitlist')
+  assert.equal(sessionSignupState({ statusCode: 'waitlist' }), 'waitlist')
+  assert.equal(sessionSignupState({ statusCode: 'not_yet_open' }), 'not_yet')
+  assert.equal(sessionSignupState({ statusCode: 'ended' }), 'closed')
+  assert.equal(sessionSignupLabel('open', 'zh'), '立即報名')
+  assert.equal(sessionSignupLabel('waitlist', 'zh'), '額滿候補')
+  assert.equal(sessionSignupLabel('closed', 'zh'), '已截止')
 })
-t('字面值欄位放英文 open 不是合法的「開放」（舊 bug）；未知狀態保守視為已截止', () => {
-  assert.equal(sessionSignupState({ status: 'open' }, now), 'closed')
+t('可報名／報名區列出：not_yet_open 列出但不可報名；ended 與未知都不列', () => {
+  assert.equal(isSessionRegistrable({ statusCode: 'open' }), true)
+  assert.equal(isSessionRegistrable({ statusCode: 'full' }), true)
+  assert.equal(isSessionRegistrable({ statusCode: 'not_yet_open' }), false)
+  assert.equal(isSessionRegistrable({ statusCode: 'ended' }), false)
+  assert.equal(isSessionListed({ statusCode: 'not_yet_open' }), true)
+  assert.equal(isSessionListed({ statusCode: 'ended' }), false)
+  assert.equal(isSessionListed({ statusCode: 'brand_new' }), false)
 })
-t('statusCode 為準：open／full／waitlist／ended，未知代碼容錯為不可報名；statusCode 優先於字面值', () => {
-  assert.equal(sessionSignupState({ statusCode: 'open' }, now), 'open')
-  assert.equal(sessionSignupState({ statusCode: 'full' }, now), 'waitlist')
-  assert.equal(sessionSignupState({ statusCode: 'waitlist' }, now), 'waitlist')
-  assert.equal(sessionSignupState({ statusCode: 'ended' }, now), 'closed')
-  assert.equal(sessionSignupState({ statusCode: 'brand_new' }, now), 'closed')
-  assert.equal(sessionSignupState({ statusCode: 'ended', status: '開放' }, now), 'closed')
+t('不看 status 字面值、不比對時間：缺 statusCode＝未知＝已截止；時間欄位不影響結果', () => {
+  assert.equal(sessionSignupState({ status: '開放' }), 'closed')
+  assert.equal(sessionSignupState({ statusCode: 'ended', status: '開放' }), 'closed')
+  assert.equal(sessionSignupState({ statusCode: 'open', signupOpensAt: '2999-01-01T00:00:00Z' }), 'open')
+  assert.equal(sessionSignupState({ statusCode: 'open', signupClosesAt: '2000-01-01T00:00:00Z' }), 'open')
+  assert.equal(sessionSignupState({ statusCode: 'not_yet_open', signupOpensAt: '2000-01-01T00:00:00Z' }), 'not_yet')
+})
+t('開放日期文字：台北時間換算、只顯示日期；中英兩語', () => {
+  // 2026-11-04T16:30:00Z = 台北 11/5 00:30（UTC 日期與台北日期不同）
+  assert.equal(signupOpensText('2026-11-04T16:30:00Z', 'zh'), '11 月 5 日開放報名')
+  assert.equal(signupOpensText('2026-11-04T16:30:00Z', 'en'), 'Opens for registration on 5 Nov')
+  // 台北 12/31 23:30 = UTC 15:30 同日
+  assert.equal(signupOpensText('2026-12-31T15:30:00Z', 'zh'), '12 月 31 日開放報名')
+  assert.equal(signupOpensText('2026-03-01T09:00:00Z', 'en'), 'Opens for registration on 1 Mar')
+  assert.equal(signupOpensText(null), null)
+  assert.equal(signupOpensText('not a date'), null)
 })
 t('statusLabel：後端標籤優先、本地代碼表次之、未知代碼退回字面值或代碼', () => {
   assert.equal(statusLabel({ statusCode: 'waitlisted' }, 'en'), 'Waitlisted')
@@ -139,13 +155,6 @@ t('statusLabel：後端標籤優先、本地代碼表次之、未知代碼退回
   assert.equal(statusLabel({ statusCode: 'x', status: '新狀態' }, 'en'), '新狀態')
   assert.equal(statusLabel({ statusCode: 'x' }, 'zh'), 'x')
 })
-t('報名窗口：尚未開放、已截止都不可報名', () => {
-  assert.equal(sessionSignupState({ status: '開放', signupOpensAt: '2026-11-01T00:00:00Z' }, now), 'not_yet')
-  assert.equal(isSessionRegistrable({ status: '開放', signupOpensAt: '2026-11-01T00:00:00Z' }, now), false)
-  assert.equal(sessionSignupState({ status: '開放', signupClosesAt: '2026-09-30T00:00:00Z' }, now), 'closed')
-  assert.equal(isSessionRegistrable({ status: '開放', signupOpensAt: '2026-09-01T00:00:00Z', signupClosesAt: '2026-10-31T00:00:00Z' }, now), true)
-})
-
 if (failures > 0) {
   console.error(`\n✗ 共 ${failures} 項斷言失敗`)
   process.exit(1)

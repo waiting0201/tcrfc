@@ -31,6 +31,32 @@ public static class EnrollmentStatus
 
     public static (string Code, string Zh, string En) OfSlot(string? literal) => Resolve(Slot, literal);
 
+    /// <summary>
+    /// 推算出來的輸出狀態「尚未開放」：**不是儲存值**，不在 <see cref="Slot"/>（不對應任何 <c>sessions.status</c> 字面值，
+    /// <c>CK_sessions_status</c> 也不收），只由 <see cref="OfSlotAt"/> 在現在早於報名開始時間時輸出。
+    /// 代碼值域仍收進 <c>shared/enums.json</c>（產生器解析下一行格式）。
+    /// </summary>
+    public static readonly (string Code, string Zh, string En) NotYetOpen = ("not_yet_open", "尚未開放", "Not yet open");
+
+    /// <summary>
+    /// 梯次對外的「有效狀態」：儲存的 <c>status</c> 再疊上報名時窗（主站規劃書 v3.32 §4.4 P2）。
+    /// 優先序（命中即止）：① 已結束——儲存值已結束，或已過報名截止；② 尚未開放——現在早於報名開始（不論儲存為開放、額滿或候補）；
+    /// ③ 額滿／候補——儲存值；④ 開放。時窗判斷只由 <see cref="SignupWindow"/> 提供。
+    /// </summary>
+    public static (string Code, string Zh, string En) OfSlotAt(string? literal, DateTime? signupOpensAtUtc, DateTime? signupClosesAtUtc, DateTime nowUtc)
+    {
+        if (string.Equals(literal, "已結束", StringComparison.Ordinal))
+        {
+            return Slot["已結束"];
+        }
+        return SignupWindow.Evaluate(signupOpensAtUtc, signupClosesAtUtc, nowUtc) switch
+        {
+            SignupWindowState.Closed => Slot["已結束"],
+            SignupWindowState.NotYetOpen => NotYetOpen,
+            _ => OfSlot(literal),
+        };
+    }
+
     public static (string Code, string Zh, string En) OfRegistration(string? literal) => Resolve(Registration, literal);
 
     /// <summary>未知字面值（資料被改成值域外時）回傳 <c>unknown</c>＋原文字，不丟例外。</summary>

@@ -16,6 +16,11 @@ public sealed record AdminSessionListItemDto
     public DateTime? SignupOpensAt { get; init; }
     public DateTime? SignupClosesAt { get; init; }
     public required string Status { get; init; }
+    /// <summary>對外狀態（唯讀，伺服器依報名時窗推算，隨現在時刻而變；後台不得自行比對時間）。
+    /// 由 <c>EnrollmentStatus.OfSlotAt</c> 產生，可能為 <c>not_yet_open</c>，與儲存值 <c>Status</c> 不同。</summary>
+    public required string EffectiveStatusCode { get; init; }
+    public required string EffectiveStatusLabelZh { get; init; }
+    public required string EffectiveStatusLabelEn { get; init; }
     public required DateTime UpdatedAt { get; init; }
 }
 
@@ -38,6 +43,11 @@ public sealed record AdminSessionDetailDto
     public DateTime? SignupOpensAt { get; init; }
     public DateTime? SignupClosesAt { get; init; }
     public required string Status { get; init; }
+    /// <summary>對外狀態（唯讀，伺服器依報名時窗推算，隨現在時刻而變；後台不得自行比對時間）。
+    /// 由 <c>EnrollmentStatus.OfSlotAt</c> 產生，可能為 <c>not_yet_open</c>，與儲存值 <c>Status</c> 不同。</summary>
+    public required string EffectiveStatusCode { get; init; }
+    public required string EffectiveStatusLabelZh { get; init; }
+    public required string EffectiveStatusLabelEn { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
 }

@@ -18,6 +18,7 @@
 # 用法：
 #   ./db/seed/apply-seed.sh            產生並套用（灌 tcrfc_club）
 #   ./db/seed/apply-seed.sh --dry-run  只產生 .sql，不套用（等同直接跑 generate 腳本）
+#   ./db/seed/apply-seed.sh --test-db  改灌 tcrfc_club_test（dotnet test 專用庫，選用）
 #
 # 🔴 2026-09-30：本機只剩 tcrfc_club（網站）與 tcrfc_charity（慈善）兩庫，測試庫已併入 tcrfc_club。
 # 已移除 SEED_TARGET_DATABASE 切換目標庫的用途；若環境裡還殘留這個變數且值不是 tcrfc_club，
@@ -34,9 +35,16 @@ OUT_FILE="${OUT_DIR}/club-seed.local.sql"
 LOCAL_MSSQL_CONTAINER="${LOCAL_MSSQL_CONTAINER:-sqlserver}"
 
 # ⛔ 本腳本唯一允許寫入的資料庫，寫死，不接受任何呼叫端覆寫。
-readonly TARGET_DATABASE="tcrfc_club"
+# 2026-10-30：另加選用的 --test-db（只改成 tcrfc_club_test，dotnet test 專用庫），仍是寫死的兩選一白名單。
+TARGET_DATABASE="tcrfc_club"
+ARGS=()
+for a in "$@"; do
+  if [[ "${a}" == "--test-db" ]]; then TARGET_DATABASE="tcrfc_club_test"; else ARGS+=("${a}"); fi
+done
+set -- ${ARGS[@]+"${ARGS[@]}"}
+readonly TARGET_DATABASE
 
-if [[ -n "${SEED_TARGET_DATABASE:-}" && "${SEED_TARGET_DATABASE}" != "${TARGET_DATABASE}" ]]; then
+if [[ -n "${SEED_TARGET_DATABASE:-}" && "${SEED_TARGET_DATABASE}" != "tcrfc_club" ]]; then
   echo "拒絕執行：SEED_TARGET_DATABASE='${SEED_TARGET_DATABASE}' 不是 ${TARGET_DATABASE}。" >&2
   echo "本機測試庫已於 2026-09-30 併入 ${TARGET_DATABASE}，SEED_TARGET_DATABASE 已不再使用，請 unset 它。" >&2
   exit 1

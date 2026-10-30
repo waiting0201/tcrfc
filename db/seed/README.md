@@ -76,6 +76,7 @@
 |---|---|---|
 | 會員 `M900101`（`jersey-single@example.com`） | tcrfc 2026-27 尊尚會員（`premium`）方案、有效會籍、球衣 0／1 件（v3.29：原「單人」方案已由磐石會員／尊尚會員取代） | 登入後在會員中心登記球衣，登記第二件會被擋（`jersey_quota_reached`） |
 | 會員 `M900102`（`jersey-family@example.com`） | tcrfc 2026-27 尊尚會員方案、有效會籍、球衣 0／1 件（v3.29：家庭方案已移除，兩位驗收會員額度相同） | 登記、修改（`pending` 才可改）、超量被擋；要試多件請在後台暫時建一個含多件球衣的方案 |
+| 會員 `M900103`（`bw-member@example.com`） | **持有有效藍鯨會籍**（2026-10-30 新增）：藍鯨 `single` 方案（NT$800、含會員卡一張、球衣一件）、起訖 2026-09-20～2027-05-02、有效、會員卡一張、付款紀錄一筆；**沒有磐石會籍**。⚠️ 藍鯨沒有 2026-27 球季與方案，沿用既有的 2025 球季＋`single` 方案，會籍日期另設為涵蓋今天，因此 `isCurrentSeason` 為 false（球季本身已結束） | 藍鯨站／App 切到藍鯨後登入，驗收會員卡、會籍狀態、「尚未開放」梯次報名閘門等需要藍鯨會員的流程。既有 `M900001` 的藍鯨會籍已過期，不適用 |
 | 漫畫第 101、102 集 | tcrfc、已發布、各 3 頁（800×1200），102 為最新 | 前台 `/zh/culture/manga/`（閱讀器、上下集導覽、閱讀數） |
 
 - 登入密碼與其他種子會員相同（`ContentEditor@123`，僅本機）。既有 `M900001`／`M900002` 的球衣額度已用滿或剩 1 件，不足以走完整條路，故另建。
@@ -225,6 +226,20 @@ set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
 用的 `CLUB_SQL_CONNECTION_STRING` 若沒有精確指向 `tcrfc_club`，六個 fixture 一律在 `InitializeAsync()`
 直接拒絕啟動**（擋住 `tcrfc_charity`、已廢除的舊名稱與容器內其他專案的資料庫），見
 [`../../apps/api/README.md`](../../apps/api/README.md)「怎麼跑」。
+
+## 選用的測試專用庫 `tcrfc_club_test`（2026-10-30）
+
+預設仍是「測試與開發共用 `tcrfc_club`」（上一節，使用者 2026-09-30 裁決）。需要不污染開發庫時（例如別人正在用
+:5299 的 API 驗收），改用：
+
+```bash
+./db/seed/setup-club-db.sh --test-db [--recreate]   # = deploy/local-ddl.sh --apply-club-test-db ＋ apply-seed.sh --test-db
+```
+
+然後把 `CLUB_SQL_CONNECTION_STRING` 的 `Database` 指到 `tcrfc_club_test` 再 `dotnet test`（見 `apps/api/README.md`）。
+白名單變成 `tcrfc_club`、`tcrfc_club_test`、`tcrfc_charity` 三個，仍是寫死、不接受呼叫端覆寫；`DROP` 只在 `--recreate`。
+**種子冪等**：`matches` 的存在判斷是「決定性 id **或** 業務自然鍵」（`E-347`）——自然鍵含 `opponent` 文字，
+而 v3.31 的對手球隊正規化遷移會把該文字改成標準名（`台中FUTURO`→`台中未來`），只比自然鍵就會判成不存在而撞 `PK_matches`。
 
 ## 連線字串長什麼樣
 

@@ -34,6 +34,20 @@ export const PROGRAM_STATUS_LABEL: Record<ProgramStatus, string> = {
 
 // ── P2 梯次與場次 ────────────────────────────────────────────────────────────────
 
+/**
+ * 對外狀態代碼（`effectiveStatusCode`，伺服器推算，唯讀）的標籤色。多一個「尚未開放」，
+ * 它不是儲存值，後台狀態欄不提供。畫面只顯示伺服器回傳的中文標籤，不顯示代碼。
+ */
+export function effectiveStatusTagType(code: string): 'success' | 'warning' | 'info' | 'danger' {
+  if (code === 'open') return 'success'
+  if (code === 'full') return 'warning'
+  if (code === 'waitlist' || code === 'not_yet_open') return 'info'
+  return 'danger' // ended
+}
+
+/** 對外狀態的說明文字（列表與詳情共用）。 */
+export const EFFECTIVE_STATUS_HINT = '報名開始前自動顯示尚未開放、截止後自動顯示已結束'
+
 /** `sessions.status`：中文值（見 `db/club-schema.sql` `CK_sessions_status`），省略時後端自動依名額推定。 */
 export type SessionStatus = '開放' | '額滿' | '候補' | '已結束'
 

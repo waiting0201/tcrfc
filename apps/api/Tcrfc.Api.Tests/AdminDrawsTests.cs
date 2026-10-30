@@ -275,7 +275,12 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             // 藍鯨還沒確認蒐集告知：即使磐石已確認也不行（各俱樂部各自舉辦）
             Assert.Equal(HttpStatusCode.Conflict, (await C1Test.PostJsonAsync(admin, $"/api/v1/admin/bw/draws/{draw.Id}/roster", new { })).StatusCode);
             await C1Test.PutJsonAsync(admin, "/api/v1/admin/bw/draws/notice", new { confirmed = true });
-            // M900001 的藍鯨球迷會籍是 2025 年球季（已到期）→ 基準時間當下沒有合格會員
+            // M900001 的藍鯨會籍是 2025 年球季（已到期）；本機驗收會員 M900103（2026-09-20 起有效藍鯨會籍，區段 60）在預設基準時間（現在）合格 → 1 位
+            var previewNow = await BizTest.ReadAsync<AdminRosterPreviewDto>(await C1Test.PostEmptyAsync(admin, $"/api/v1/admin/bw/draws/{draw.Id}/roster/preview"));
+            Assert.Equal(1, previewNow.EligibleCount);
+            // 基準時間拉到 2026-06-01（M900001 已到期、M900103 尚未開始）→ 沒有合格會員
+            var between = await admin.PutAsync($"/api/v1/admin/bw/draws/{draw.Id}", BizTest.Multipart(DrawPayload(code, snapshot: DateTime.Parse("2026-06-01T00:00:00Z").ToUniversalTime())));
+            Assert.Equal(HttpStatusCode.OK, between.StatusCode);
             var preview = await BizTest.ReadAsync<AdminRosterPreviewDto>(await C1Test.PostEmptyAsync(admin, $"/api/v1/admin/bw/draws/{draw.Id}/roster/preview"));
             Assert.Equal(0, preview.EligibleCount);
             var none = await C1Test.PostJsonAsync(admin, $"/api/v1/admin/bw/draws/{draw.Id}/roster", new { });

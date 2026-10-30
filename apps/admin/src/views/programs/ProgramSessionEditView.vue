@@ -33,7 +33,7 @@ import {
   type CreateSessionPayload,
 } from '@/api/adminProgramSessions'
 import { AdminApiError } from '@/api/http'
-import { SESSION_STATUS_ORDER } from '@/types/program'
+import { EFFECTIVE_STATUS_HINT, SESSION_STATUS_ORDER, effectiveStatusTagType } from '@/types/program'
 import { dateOnlyToPickerDate as fromDateOnlyString, pickerDateToDateOnly as toDateOnlyString, pickerDateToUtc, utcToPickerDate } from '@/utils/dateTime'
 
 const route = useRoute()
@@ -59,6 +59,12 @@ const form = reactive({
 })
 const baselineJson = ref('')
 const enrolledCount = ref(0)
+/** 對外狀態標籤（伺服器推算、唯讀）；新增梯次尚未儲存前為空。 */
+const effectiveStatus = reactive({ code: '', label: '' })
+function applyEffectiveStatus(d: { effectiveStatusCode: string; effectiveStatusLabelZh: string }) {
+  effectiveStatus.code = d.effectiveStatusCode
+  effectiveStatus.label = d.effectiveStatusLabelZh
+}
 
 const programs = ref<AdminProgramListItemDto[]>([])
 const venues = ref<AdminVenueListItemDto[]>([])
@@ -102,6 +108,7 @@ async function loadSession() {
       form.signupClosesAt = utcToPickerDate(detail.signupClosesAt)
       form.status = (detail.status as typeof form.status) ?? ''
       enrolledCount.value = detail.enrolledCount
+      applyEffectiveStatus(detail)
     } else if (route.query.programId) {
       form.programId = String(route.query.programId)
     }
@@ -173,6 +180,7 @@ async function handleSave() {
       router.replace(`/programs/sessions/${created.id}/edit`)
       sessionId.value = created.id
       enrolledCount.value = created.enrolledCount
+      applyEffectiveStatus(created)
     } else {
       // `updateAdminProgramSession` 的型別是 `Omit<CreateSessionPayload, 'programId'>`——這裡直接把
       // `buildPayload()` 的結果（含 `programId`，但既然是變數賦值而非物件實字，TypeScript 不會做
@@ -180,6 +188,7 @@ async function handleSave() {
       // 不會被讀取。不特地解構拿掉，省得為了一個永遠用不到的變數名多繞一手。
       const updated = await updateAdminProgramSession(activeClubId.value, sessionId.value!, buildPayload())
       enrolledCount.value = updated.enrolledCount
+      applyEffectiveStatus(updated)
       ElMessage.success('已儲存')
     }
     baselineJson.value = JSON.stringify(form)
@@ -350,6 +359,10 @@ function retryLoad() {
                 </el-select>
                 <p class="session-edit__hint">留空時依名額自動推定（額滿即關閉），「候補」與「已結束」需要人工設定。</p>
               </FormField>
+              <el-form-item v-if="effectiveStatus.label" label="對外狀態">
+                <el-tag :type="effectiveStatusTagType(effectiveStatus.code)" effect="plain">{{ effectiveStatus.label }}</el-tag>
+                <p class="session-edit__hint">{{ EFFECTIVE_STATUS_HINT }}，不能手動設定。</p>
+              </el-form-item>
             </el-card>
           </template>
         </EditLayout>

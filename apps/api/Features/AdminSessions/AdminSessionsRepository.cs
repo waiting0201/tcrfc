@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Caching;
+using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Features.AdminPrograms;
@@ -59,11 +60,20 @@ public sealed class AdminSessionsRepository(ClubDbContext dbContext, IQueryCache
                 SignupOpensAt = s.SignupOpensAt,
                 SignupClosesAt = s.SignupClosesAt,
                 Status = s.Status ?? "開放",
+                EffectiveStatusCode = string.Empty,
+                EffectiveStatusLabelZh = string.Empty,
+                EffectiveStatusLabelEn = string.Empty,
                 UpdatedAt = s.UpdatedAt,
             })
             .ToListAsync(cancellationToken);
 
-        return rows;
+        // 對外狀態每次請求即時推算（後台端點不走快取）；時窗判斷只由 EnrollmentStatus.OfSlotAt／SignupWindow 提供。
+        var now = DateTime.UtcNow;
+        return rows.Select(r =>
+        {
+            var eff = EnrollmentStatus.OfSlotAt(r.Status, r.SignupOpensAt, r.SignupClosesAt, now);
+            return r with { EffectiveStatusCode = eff.Code, EffectiveStatusLabelZh = eff.Zh, EffectiveStatusLabelEn = eff.En };
+        }).ToList();
     }
 
     public async Task<AdminSessionDetailDto?> GetByIdAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
@@ -215,7 +225,11 @@ public sealed class AdminSessionsRepository(ClubDbContext dbContext, IQueryCache
     private async Task InvalidatePublicCachesAsync(AdminClubScope scope, CancellationToken cancellationToken)
         => await cache.InvalidateAsync("programs", scope.ClubCode, cancellationToken);
 
-    private static AdminSessionDetailDto ToDetailDto(Session session) => new()
+    private static AdminSessionDetailDto ToDetailDto(Session session)
+    {
+        var status = session.Status ?? "開放";
+        var eff = EnrollmentStatus.OfSlotAt(status, session.SignupOpensAt, session.SignupClosesAt, DateTime.UtcNow);
+        return new()
     {
         Id = session.Id,
         ProgramId = session.ProgramId,
@@ -230,8 +244,12 @@ public sealed class AdminSessionsRepository(ClubDbContext dbContext, IQueryCache
         EarlyBirdUntil = session.EarlyBirdUntil,
         SignupOpensAt = session.SignupOpensAt,
         SignupClosesAt = session.SignupClosesAt,
-        Status = session.Status ?? "開放",
+        Status = status,
+        EffectiveStatusCode = eff.Code,
+        EffectiveStatusLabelZh = eff.Zh,
+        EffectiveStatusLabelEn = eff.En,
         CreatedAt = session.CreatedAt,
         UpdatedAt = session.UpdatedAt,
     };
+    }
 }

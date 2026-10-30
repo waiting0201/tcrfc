@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.24
-> **Date**: 2026-09-04 (v3.24 revision: 2026-10-27)
+> **Document version**: v3.25
+> **Date**: 2026-09-04 (v3.25 revision: 2026-10-30)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.25 revision summary — course sessions gain a "Not yet open" status**
+> Session status follows the "Not yet open" status added to website P2 (v3.32): for a session whose registration start time has not arrived, the app's course list and detail show a disabled button with "Opens for registration on D Mon" and no "Book now". The server determines this from the registration window; the app displays the status the server returns. Where: §3.9.
 
 > **v3.24 revision summary — the app is organised by club**
 > Step 1 of first-run onboarding (S23) is choosing the **current club** (Taichung Rock or Taichung Blue Whale; one of the two, required). Every later cold launch opens that club directly, and the club switcher above the four main tabs and the More tab can switch at any time. Once chosen, the whole app shows only that club: home, fixtures, news, squads, partners and sponsors, programs, FAQ and search list only that club's content; partner stores list that club's stores and those shared by both clubs; the colour scheme is that club's brand colours; and the charity entry appears only for Taichung Rock. The Member tab shows only the current club's membership and membership card, with a prompt to switch where the user also holds the other club's membership. A deep link or push that opens the other club's content switches the current club automatically. Push subscriptions are not affected by the current club, and either club's squads can be subscribed to. Advertising slots and the home block layout are app-level and shared by both clubs. Where: 1.1, 1.3, 1.4, 2.1–2.4, 3.0–3.12, 6.2–6.4, 9.2, 10.1, 15.
@@ -724,7 +727,7 @@ Only three small items were moved out of scope in website v2.0, and only two of 
 | Rule | Source |
 |---|---|
 | Booking states: pending → confirmed → paid → completed / cancelled / waitlisted | Website P3 |
-| Session states: open / full / waitlist / closed, with the front end showing "Book now / Join waitlist / Closed" | Website P2 |
+| Session states: not yet open / open / full / waitlist / closed, with the front end showing "Book now / Join waitlist / Closed", and a disabled button with "Opens for registration on D Mon" when not yet open; the server decides the state and its precedence, the app does not compare times itself | Website P2 |
 | **Payment is offline** (bank transfer or in person, marked by admin staff) | Website P3 |
 | Booking fields: student details, parent contact, health declaration, notes | Website P3 |
 | Privacy-consent checkbox (required); on submit the main-site API stores the consent time and the privacy-policy version consented to, and the App only sends the checkbox result | Website 3.5, 5.1 `Registration` |

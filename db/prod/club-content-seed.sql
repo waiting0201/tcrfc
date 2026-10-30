@@ -917,8 +917,9 @@ GO
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 1 AND mt.match_on = N'2026-09-13' AND mt.opponent = N'高雄先鋒';
+  WHERE mt.id = N'4445a43b-2b42-5d60-9eab-b5d21730b4f5'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 1 AND mt.match_on = N'2026-09-13' AND mt.opponent = N'高雄先鋒');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -932,15 +933,17 @@ END
 GO
 
 UPDATE matches SET match_no = 3
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 1 AND match_on = N'2026-09-13' AND opponent = N'高雄先鋒';
+WHERE id = N'4445a43b-2b42-5d60-9eab-b5d21730b4f5'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 1 AND match_on = N'2026-09-13' AND opponent = N'高雄先鋒');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 2 AND mt.match_on = N'2026-09-20' AND mt.opponent = N'台灣電力';
+  WHERE mt.id = N'1239610c-bb45-5e89-863b-d88069ffb12b'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 2 AND mt.match_on = N'2026-09-20' AND mt.opponent = N'台灣電力');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -954,15 +957,17 @@ END
 GO
 
 UPDATE matches SET match_no = 6
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 2 AND match_on = N'2026-09-20' AND opponent = N'台灣電力';
+WHERE id = N'1239610c-bb45-5e89-863b-d88069ffb12b'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 2 AND match_on = N'2026-09-20' AND opponent = N'台灣電力');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 3 AND mt.match_on = N'2026-10-11' AND mt.opponent = N'陽信北競';
+  WHERE mt.id = N'6eb00ead-d87b-5886-9794-4559f2d89eb9'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 3 AND mt.match_on = N'2026-10-11' AND mt.opponent = N'陽信北競');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -976,15 +981,17 @@ END
 GO
 
 UPDATE matches SET match_no = 12
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 3 AND match_on = N'2026-10-11' AND opponent = N'陽信北競';
+WHERE id = N'6eb00ead-d87b-5886-9794-4559f2d89eb9'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 3 AND match_on = N'2026-10-11' AND opponent = N'陽信北競');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 4 AND mt.match_on = N'2026-10-18' AND mt.opponent = N'南市台鋼';
+  WHERE mt.id = N'c0c1f6b3-7d38-5795-8972-76697e814efb'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 4 AND mt.match_on = N'2026-10-18' AND mt.opponent = N'南市台鋼');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -998,15 +1005,17 @@ END
 GO
 
 UPDATE matches SET match_no = 13
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 4 AND match_on = N'2026-10-18' AND opponent = N'南市台鋼';
+WHERE id = N'c0c1f6b3-7d38-5795-8972-76697e814efb'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 4 AND match_on = N'2026-10-18' AND opponent = N'南市台鋼');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 5 AND mt.match_on = N'2026-10-25' AND mt.opponent = N'台中FUTURO';
+  WHERE mt.id = N'14fe7602-33a6-5650-8991-c703ae1e60e1'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 5 AND mt.match_on = N'2026-10-25' AND mt.opponent = N'台中FUTURO');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1020,15 +1029,17 @@ END
 GO
 
 UPDATE matches SET match_no = 20
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 5 AND match_on = N'2026-10-25' AND opponent = N'台中FUTURO';
+WHERE id = N'14fe7602-33a6-5650-8991-c703ae1e60e1'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 5 AND match_on = N'2026-10-25' AND opponent = N'台中FUTURO');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 6 AND mt.match_on = N'2026-11-01' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'fa770cda-f1a6-5f9b-8636-abbffa7e090e'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 6 AND mt.match_on = N'2026-11-01' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1042,15 +1053,17 @@ END
 GO
 
 UPDATE matches SET match_no = 22
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 6 AND match_on = N'2026-11-01' AND opponent = N'新北航源';
+WHERE id = N'fa770cda-f1a6-5f9b-8636-abbffa7e090e'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 6 AND match_on = N'2026-11-01' AND opponent = N'新北航源');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 7 AND mt.match_on = N'2026-11-22' AND mt.opponent = N'大同足球';
+  WHERE mt.id = N'03f501d8-caff-5493-a881-814e229df668'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 7 AND mt.match_on = N'2026-11-22' AND mt.opponent = N'大同足球');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1064,15 +1077,17 @@ END
 GO
 
 UPDATE matches SET match_no = 27
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 7 AND match_on = N'2026-11-22' AND opponent = N'大同足球';
+WHERE id = N'03f501d8-caff-5493-a881-814e229df668'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 7 AND match_on = N'2026-11-22' AND opponent = N'大同足球');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 8 AND mt.match_on = N'2026-11-29' AND mt.opponent = N'高雄先鋒';
+  WHERE mt.id = N'87a7eaf4-c835-5b47-96a8-0a87c421e97a'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 8 AND mt.match_on = N'2026-11-29' AND mt.opponent = N'高雄先鋒');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1086,15 +1101,17 @@ END
 GO
 
 UPDATE matches SET match_no = 31
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 8 AND match_on = N'2026-11-29' AND opponent = N'高雄先鋒';
+WHERE id = N'87a7eaf4-c835-5b47-96a8-0a87c421e97a'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 8 AND match_on = N'2026-11-29' AND opponent = N'高雄先鋒');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 9 AND mt.match_on = N'2026-12-06' AND mt.opponent = N'台灣電力';
+  WHERE mt.id = N'fbaefb17-8433-5e47-8a7f-064701a5b5c4'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 9 AND mt.match_on = N'2026-12-06' AND mt.opponent = N'台灣電力');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1108,15 +1125,17 @@ END
 GO
 
 UPDATE matches SET match_no = 34
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 9 AND match_on = N'2026-12-06' AND opponent = N'台灣電力';
+WHERE id = N'fbaefb17-8433-5e47-8a7f-064701a5b5c4'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 9 AND match_on = N'2026-12-06' AND opponent = N'台灣電力');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 10 AND mt.match_on = N'2026-12-13' AND mt.opponent = N'陽信北競';
+  WHERE mt.id = N'e7f0af6b-42a2-56c4-88b6-d89e2d2dcff9'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 10 AND mt.match_on = N'2026-12-13' AND mt.opponent = N'陽信北競');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1130,15 +1149,17 @@ END
 GO
 
 UPDATE matches SET match_no = 40
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 10 AND match_on = N'2026-12-13' AND opponent = N'陽信北競';
+WHERE id = N'e7f0af6b-42a2-56c4-88b6-d89e2d2dcff9'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 10 AND match_on = N'2026-12-13' AND opponent = N'陽信北競');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 11 AND mt.match_on = N'2027-01-24' AND mt.opponent = N'南市台鋼';
+  WHERE mt.id = N'df1b91e5-3e94-532c-a1a4-2f5aa846bf2d'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 11 AND mt.match_on = N'2027-01-24' AND mt.opponent = N'南市台鋼');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1152,15 +1173,17 @@ END
 GO
 
 UPDATE matches SET match_no = 41
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 11 AND match_on = N'2027-01-24' AND opponent = N'南市台鋼';
+WHERE id = N'df1b91e5-3e94-532c-a1a4-2f5aa846bf2d'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 11 AND match_on = N'2027-01-24' AND opponent = N'南市台鋼');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 12 AND mt.match_on = N'2027-01-31' AND mt.opponent = N'台中FUTURO';
+  WHERE mt.id = N'91d03fb3-55a0-5e9d-bc99-187aad60523d'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 12 AND mt.match_on = N'2027-01-31' AND mt.opponent = N'台中FUTURO');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1174,15 +1197,17 @@ END
 GO
 
 UPDATE matches SET match_no = 48
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 12 AND match_on = N'2027-01-31' AND opponent = N'台中FUTURO';
+WHERE id = N'91d03fb3-55a0-5e9d-bc99-187aad60523d'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 12 AND match_on = N'2027-01-31' AND opponent = N'台中FUTURO');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 13 AND mt.match_on = N'2027-02-21' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'053920c5-d084-5ca8-8551-b8b6e04a5cef'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 13 AND mt.match_on = N'2027-02-21' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1196,15 +1221,17 @@ END
 GO
 
 UPDATE matches SET match_no = 50
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 13 AND match_on = N'2027-02-21' AND opponent = N'新北航源';
+WHERE id = N'053920c5-d084-5ca8-8551-b8b6e04a5cef'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 13 AND match_on = N'2027-02-21' AND opponent = N'新北航源');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 14 AND mt.match_on = N'2027-02-28' AND mt.opponent = N'大同足球';
+  WHERE mt.id = N'7a9afb6f-f18e-59aa-87fe-1e85fdeff424'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 14 AND mt.match_on = N'2027-02-28' AND mt.opponent = N'大同足球');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1218,15 +1245,17 @@ END
 GO
 
 UPDATE matches SET match_no = 55
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 14 AND match_on = N'2027-02-28' AND opponent = N'大同足球';
+WHERE id = N'7a9afb6f-f18e-59aa-87fe-1e85fdeff424'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 14 AND match_on = N'2027-02-28' AND opponent = N'大同足球');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 15 AND mt.match_on = N'2027-03-07' AND mt.opponent = N'高雄先鋒';
+  WHERE mt.id = N'e359485a-8a7f-51a9-a389-3a5d76449e2e'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 15 AND mt.match_on = N'2027-03-07' AND mt.opponent = N'高雄先鋒');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1240,15 +1269,17 @@ END
 GO
 
 UPDATE matches SET match_no = 59
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 15 AND match_on = N'2027-03-07' AND opponent = N'高雄先鋒';
+WHERE id = N'e359485a-8a7f-51a9-a389-3a5d76449e2e'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 15 AND match_on = N'2027-03-07' AND opponent = N'高雄先鋒');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 16 AND mt.match_on = N'2027-03-14' AND mt.opponent = N'台灣電力';
+  WHERE mt.id = N'4fc1f0d5-24bc-5059-8b43-a030940e672a'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 16 AND mt.match_on = N'2027-03-14' AND mt.opponent = N'台灣電力');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1262,15 +1293,17 @@ END
 GO
 
 UPDATE matches SET match_no = 62
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 16 AND match_on = N'2027-03-14' AND opponent = N'台灣電力';
+WHERE id = N'4fc1f0d5-24bc-5059-8b43-a030940e672a'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 16 AND match_on = N'2027-03-14' AND opponent = N'台灣電力');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 17 AND mt.match_on = N'2027-03-21' AND mt.opponent = N'陽信北競';
+  WHERE mt.id = N'7f4efa11-2c5b-56b5-b0c2-336f398ff481'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 17 AND mt.match_on = N'2027-03-21' AND mt.opponent = N'陽信北競');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1284,15 +1317,17 @@ END
 GO
 
 UPDATE matches SET match_no = 68
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 17 AND match_on = N'2027-03-21' AND opponent = N'陽信北競';
+WHERE id = N'7f4efa11-2c5b-56b5-b0c2-336f398ff481'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 17 AND match_on = N'2027-03-21' AND opponent = N'陽信北競');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 18 AND mt.match_on = N'2027-04-11' AND mt.opponent = N'南市台鋼';
+  WHERE mt.id = N'a0731c9b-8f80-503c-88c6-4172ba87d3c2'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 18 AND mt.match_on = N'2027-04-11' AND mt.opponent = N'南市台鋼');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1306,15 +1341,17 @@ END
 GO
 
 UPDATE matches SET match_no = 69
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 18 AND match_on = N'2027-04-11' AND opponent = N'南市台鋼';
+WHERE id = N'a0731c9b-8f80-503c-88c6-4172ba87d3c2'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 18 AND match_on = N'2027-04-11' AND opponent = N'南市台鋼');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 19 AND mt.match_on = N'2027-04-18' AND mt.opponent = N'台中FUTURO';
+  WHERE mt.id = N'6951be96-a6ac-5698-ad53-21246f86fbe3'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 19 AND mt.match_on = N'2027-04-18' AND mt.opponent = N'台中FUTURO');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1328,15 +1365,17 @@ END
 GO
 
 UPDATE matches SET match_no = 76
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 19 AND match_on = N'2027-04-18' AND opponent = N'台中FUTURO';
+WHERE id = N'6951be96-a6ac-5698-ad53-21246f86fbe3'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 19 AND match_on = N'2027-04-18' AND opponent = N'台中FUTURO');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 20 AND mt.match_on = N'2027-04-25' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'ab4372c9-7476-5f8a-b73a-dff065a94838'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 20 AND mt.match_on = N'2027-04-25' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1350,15 +1389,17 @@ END
 GO
 
 UPDATE matches SET match_no = 78
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 20 AND match_on = N'2027-04-25' AND opponent = N'新北航源';
+WHERE id = N'ab4372c9-7476-5f8a-b73a-dff065a94838'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 20 AND match_on = N'2027-04-25' AND opponent = N'新北航源');
 GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id
   FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-    AND mt.round_no = 21 AND mt.match_on = N'2027-05-02' AND mt.opponent = N'大同足球';
+  WHERE mt.id = N'b056ddcd-5e70-56f6-b988-19466e04a7ad'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+    AND mt.round_no = 21 AND mt.match_on = N'2027-05-02' AND mt.opponent = N'大同足球');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -1372,8 +1413,9 @@ END
 GO
 
 UPDATE matches SET match_no = 83
-WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
-  AND round_no = 21 AND match_on = N'2027-05-02' AND opponent = N'大同足球';
+WHERE id = N'b056ddcd-5e70-56f6-b988-19466e04a7ad'
+   OR (club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27')
+  AND round_no = 21 AND match_on = N'2027-05-02' AND opponent = N'大同足球');
 GO
 
 -- ── 9. articles：news.json 共 83 筆。slug 全站唯一，直接沿用 JSON 既有 slug。 ──
@@ -2554,8 +2596,9 @@ GO
 -- ── 13. matches：藍鯨 2023 木蘭 15 場 ＋ 2025 總統盃 6 場 ＋ 25/26 木蘭 21 場 ──────
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-04-22' AND mt.opponent = N'花蓮';
+  WHERE mt.id = N'd8835d94-f985-5df7-981c-2f603c9f9a5a'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-04-22' AND mt.opponent = N'花蓮');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2570,8 +2613,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-04-29' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'9da66c37-4478-5a71-bf59-10803ff2fbe4'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-04-29' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2586,8 +2630,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-04-29' AND mt.opponent = N'桃園戰神';
+  WHERE mt.id = N'a4454f4c-4f12-5f4a-b4db-61c9cbbdaedc'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-04-29' AND mt.opponent = N'桃園戰神');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2602,8 +2647,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-05-13' AND mt.opponent = N'臺北熊讚';
+  WHERE mt.id = N'590b5030-2631-5e1f-9a3c-0a905f2fbce7'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-05-13' AND mt.opponent = N'臺北熊讚');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2618,8 +2664,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-05-20' AND mt.opponent = N'高雄陽信銀行';
+  WHERE mt.id = N'e0ca2cf3-b930-5099-bc9c-57d6c5b20998'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-05-20' AND mt.opponent = N'高雄陽信銀行');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2634,8 +2681,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-05-27' AND mt.opponent = N'花蓮';
+  WHERE mt.id = N'ec405b7c-8c86-5072-8d7c-6678d984483d'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-05-27' AND mt.opponent = N'花蓮');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2650,8 +2698,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-06-18' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'bccd6403-e937-5b62-a9db-75e129eb72e4'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-06-18' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2666,8 +2715,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-07-01' AND mt.opponent = N'桃園戰神';
+  WHERE mt.id = N'1d737644-b978-5d6a-a418-cd9cd5cd9f77'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-07-01' AND mt.opponent = N'桃園戰神');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2682,8 +2732,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-07-08' AND mt.opponent = N'臺北熊讚';
+  WHERE mt.id = N'eb7e0fa6-7123-56fb-afe9-9fb2b403d0c8'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-07-08' AND mt.opponent = N'臺北熊讚');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2698,8 +2749,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-11-04' AND mt.opponent = N'高雄陽信銀行';
+  WHERE mt.id = N'936d409f-0074-5187-9613-d3b30a55d35f'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-11-04' AND mt.opponent = N'高雄陽信銀行');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2714,8 +2766,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-12-02' AND mt.opponent = N'花蓮';
+  WHERE mt.id = N'83f926c7-b5ab-547a-9b8b-3057721b35bd'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-12-02' AND mt.opponent = N'花蓮');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2730,8 +2783,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-11-18' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'eb697b10-bd61-5e3a-a2ab-169d40dbb4d8'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-11-18' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2746,8 +2800,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-11-25' AND mt.opponent = N'桃園戰神 Mars';
+  WHERE mt.id = N'aba62e80-4237-5812-b084-c2b27da67320'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-11-25' AND mt.opponent = N'桃園戰神 Mars');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2762,8 +2817,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-12-09' AND mt.opponent = N'臺北熊讚';
+  WHERE mt.id = N'4bf417f5-e0f3-54e1-931f-ba608aa3f86b'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-12-09' AND mt.opponent = N'臺北熊讚');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2778,8 +2834,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
-    AND mt.match_on = N'2023-12-16' AND mt.opponent = N'高雄陽信銀行';
+  WHERE mt.id = N'51ba77c3-4c09-5f2c-bb5f-2d78b7bc5289'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023')
+    AND mt.match_on = N'2023-12-16' AND mt.opponent = N'高雄陽信銀行');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2794,8 +2851,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
-    AND mt.match_on = N'2025-04-23' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'15ca12a1-50b6-55f7-ad5d-9e18c0a344ce'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
+    AND mt.match_on = N'2025-04-23' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2810,8 +2868,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
-    AND mt.match_on = N'2025-04-27' AND mt.opponent = N'陽信北競';
+  WHERE mt.id = N'b03a297f-876b-54e3-9630-86858deddaa2'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
+    AND mt.match_on = N'2025-04-27' AND mt.opponent = N'陽信北競');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2826,8 +2885,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
-    AND mt.match_on = N'2025-05-11' AND mt.opponent = N'科學城女足';
+  WHERE mt.id = N'9bb1e2c5-7a22-5940-a478-0bbcd333ebc5'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
+    AND mt.match_on = N'2025-05-11' AND mt.opponent = N'科學城女足');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2842,8 +2902,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
-    AND mt.match_on = N'2025-06-08' AND mt.opponent = N'台中櫻花';
+  WHERE mt.id = N'7ac2f53a-2449-5271-81ad-a710afd12b64'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
+    AND mt.match_on = N'2025-06-08' AND mt.opponent = N'台中櫻花');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2858,8 +2919,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
-    AND mt.match_on = N'2025-06-13' AND mt.opponent = N'新竹STRIKERS';
+  WHERE mt.id = N'e6a76e06-fbf8-54b5-b54d-fef32ffab84c'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
+    AND mt.match_on = N'2025-06-13' AND mt.opponent = N'新竹STRIKERS');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2874,8 +2936,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
-    AND mt.match_on = N'2025-06-15' AND mt.opponent = N'高雄ATTACKERS';
+  WHERE mt.id = N'642ed19b-9101-5c6f-958f-07bb9aab73ed'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025')
+    AND mt.match_on = N'2025-06-15' AND mt.opponent = N'高雄ATTACKERS');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2890,8 +2953,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-08-16' AND mt.opponent = N'花蓮女足';
+  WHERE mt.id = N'4dffa4e0-bdc8-555d-b935-9f23f0627081'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-08-16' AND mt.opponent = N'花蓮女足');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2906,8 +2970,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-08-23' AND mt.opponent = N'台中櫻花';
+  WHERE mt.id = N'76a22ce9-57cf-5194-bc1a-8184fb246c19'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-08-23' AND mt.opponent = N'台中櫻花');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2922,8 +2987,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-09-13' AND mt.opponent = N'高雄Attackers';
+  WHERE mt.id = N'7fc8471d-5463-56e7-9580-067be15045d4'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-09-13' AND mt.opponent = N'高雄Attackers');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2938,8 +3004,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-09-20' AND mt.opponent = N'臺北熊讚';
+  WHERE mt.id = N'04ccc7e0-3b34-5ee0-a957-3d1601412299'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-09-20' AND mt.opponent = N'臺北熊讚');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2954,8 +3021,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-09-27' AND mt.opponent = N'女武神';
+  WHERE mt.id = N'909474ce-98e6-5372-982b-d7aad9758504'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-09-27' AND mt.opponent = N'女武神');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2970,8 +3038,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-11-01' AND mt.opponent = N'陽信北競';
+  WHERE mt.id = N'f1ccf262-b7a2-56f9-823c-055b1bec8758'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-11-01' AND mt.opponent = N'陽信北競');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -2986,8 +3055,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-11-08' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'1e9f5dfe-d895-58ff-a8c4-13fdd14d8029'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-11-08' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3002,8 +3072,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-11-15' AND mt.opponent = N'花蓮女足';
+  WHERE mt.id = N'30ad88e9-eb9b-5703-b0d3-860c903af57c'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-11-15' AND mt.opponent = N'花蓮女足');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3018,8 +3089,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-12-06' AND mt.opponent = N'台中櫻花';
+  WHERE mt.id = N'db5dee32-15f4-5877-a719-9819951da8db'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-12-06' AND mt.opponent = N'台中櫻花');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3034,8 +3106,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-12-13' AND mt.opponent = N'高雄Attackers';
+  WHERE mt.id = N'120745b8-b203-573c-966f-8bbdb3a21dc9'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-12-13' AND mt.opponent = N'高雄Attackers');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3050,8 +3123,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2025-12-20' AND mt.opponent = N'臺北熊讚';
+  WHERE mt.id = N'3344ba3c-af2d-54bb-8d18-c8fca02be664'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2025-12-20' AND mt.opponent = N'臺北熊讚');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3066,8 +3140,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-01-24' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'fd85704c-2d4c-5ac3-9d43-c5df16509318'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-01-24' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3082,8 +3157,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-01-31' AND mt.opponent = N'女武神';
+  WHERE mt.id = N'6de7a1a5-3ef9-5ae4-9bd1-a00b163b38ee'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-01-31' AND mt.opponent = N'女武神');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3098,8 +3174,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-02-07' AND mt.opponent = N'陽信北競';
+  WHERE mt.id = N'2647c1bf-797b-5c24-9217-575f7f0155f2'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-02-07' AND mt.opponent = N'陽信北競');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3114,8 +3191,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-03-21' AND mt.opponent = N'新北航源';
+  WHERE mt.id = N'ff87eb4e-a159-5cd3-97e2-5f4d247b8fe2'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-03-21' AND mt.opponent = N'新北航源');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3130,8 +3208,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-03-28' AND mt.opponent = N'花蓮女足';
+  WHERE mt.id = N'4fa70dd0-b787-52e7-992e-61ad47d6823c'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-03-28' AND mt.opponent = N'花蓮女足');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3146,8 +3225,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-04-25' AND mt.opponent = N'台中櫻花';
+  WHERE mt.id = N'61129a70-29bb-5390-9961-c0c329bf3408'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-04-25' AND mt.opponent = N'台中櫻花');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3162,8 +3242,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-05-02' AND mt.opponent = N'高雄Attackers';
+  WHERE mt.id = N'e642c30a-e997-5586-b0f8-35672b994fb9'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-05-02' AND mt.opponent = N'高雄Attackers');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3178,8 +3259,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-05-09' AND mt.opponent = N'臺北熊讚';
+  WHERE mt.id = N'ca8c580e-8d91-5aa8-bf99-8c150ddcf6be'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-05-09' AND mt.opponent = N'臺北熊讚');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3194,8 +3276,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-05-16' AND mt.opponent = N'女武神';
+  WHERE mt.id = N'5109f7e8-746a-5b46-bafb-1ad6939cb7b2'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-05-16' AND mt.opponent = N'女武神');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
@@ -3210,8 +3293,9 @@ GO
 
 DECLARE @id uniqueidentifier;
 SELECT @id = mt.id FROM matches mt
-  WHERE mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
-    AND mt.match_on = N'2026-05-23' AND mt.opponent = N'陽信北競';
+  WHERE mt.id = N'756810bc-783c-5dc6-b6be-ca26c8ca30bf'
+     OR (mt.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND mt.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025-26')
+    AND mt.match_on = N'2026-05-23' AND mt.opponent = N'陽信北競');
 IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;

@@ -434,7 +434,7 @@ flowchart LR
 | `Program` | **●** | 課程／營隊／專項項目：類型、年齡區間（數字，`age_min`／`age_max`，留主表）、區塊內容；**對象文字 `audience` 在側表 `programs_i18n.audience`**（2026-10-06 起，稽核 D 類，自由文字所以要雙語） | 🌐 |
 | `ProgramStaff` | — | `(program_id, staff_id)` 教練團 | |
 | `ProgramPartner` | — | `(program_id, partner_id)` 合作單位 | |
-| `Session` | **●** | 梯次／場次：期間、時段、場地、名額、已報名數、價格、報名起訖、狀態。**永不進 `CalendarEvent`** | |
+| `Session` | **●** | 梯次／場次：期間、時段、場地、名額、已報名數、價格、報名起訖、狀態（儲存值四種；對外另有推算的「尚未開放」，不入庫，v3.32）。**永不進 `CalendarEvent`** | |
 | `Registration` | **●** | 報名。**`member_id` 可為空**（非會員可報名）；**繳費線下**。**v3.25 新增 `privacy_consented_at`／`privacy_policy_version`**（伺服器於送出時寫入的隱私同意時間與政策版本，後台唯讀，明細見 `docs/12b` §6.13） | 🔒 |
 | `Trial` | **●** | 試訓場次：日期、場地、對象、名額、截止；**`enrolled_count`／`status`（開放／額滿／候補／已結束）比照 `Session`（B1）**。**同步行事曆由 L3 開關決定，預設關閉**（開關寫入設定並連動各場次的 `sync_to_calendar`） | 🌐 |
 
@@ -705,6 +705,7 @@ flowchart LR
     `sessions.status` 直接沿用規劃書 P2（行 1098）「狀態（開放／額滿／候補／已結束）」的中文字面，
     比照 `CK_registrations_status` 已建立的先例用中文值而非英文代碼
     （`CHECK (status IN (N'開放',N'額滿',N'候補',N'已結束'))`）。三欄皆允許 `NULL`。
+    **（2026-10-30，主站 v3.32）對外狀態另有「尚未開放」，它是由 `signup_opens_at` 推算的輸出值，不是儲存值——此 CHECK 不得加入「尚未開放」**，後台狀態欄也不提供。
     套用前已查證 `tcrfc_club_dev` 這兩張表皆為 0 筆資料，純 DDL 變更，不需搭配任何 DML 轉態。
     後端 API 見 `apps/api/README.md`「S1-9」段；migration 名稱 `AlignSchemaS19Programs`。
 37. 🔴 **（S1-10，2026-09-25）`form_fields` 新增 `options_json` 欄位，並補齊三個從未約束過的

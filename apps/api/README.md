@@ -5283,6 +5283,22 @@ cd apps/api/Tcrfc.Api.Tests && dotnet test     # 沒有 export 也能跑；連�
   `TestDatabaseGuard` 的「只准連 `tcrfc_club`」檢查不變。JWT 金鑰仍由各 fixture 以環境變數設為測試專用值（E-79）。
 - VS Code：開專案根目錄按 F5 選「啟動並偵錯 API」（`.vscode/launch.json`／`tasks.json`，納管）。
 
+#### 選用：`dotnet test` 改跑獨立庫 `tcrfc_club_test`（2026-10-30，不影響開發庫）
+
+預設 `dotnet test` 仍連 `tcrfc_club`（與開發共用，S0-13 使用者裁決），會改寫開發資料（測試會員、`settings`、孤兒測資）。
+本機同時有人在用 API（例如 App 實機驗收）時，改跑獨立庫：
+
+```bash
+set -a; source .env; set +a
+./db/seed/setup-club-db.sh --test-db            # 建 tcrfc_club_test（DDL＋種子），已存在則只重灌種子；從零來加 --recreate
+export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_test;User Id=sa;Password=${MSSQL_DEV_SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;"
+cd apps/api && dotnet test Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj --filter "FullyQualifiedName!~Charity"
+```
+
+`TestDatabaseGuard` 只多放行 `tcrfc_club_test` 這一個名字，其餘（含 `tcrfc_charity`、他專案庫）照舊拒絕。
+⚠️ 慈善測試（`CharityApiFixture`）仍只認 `tcrfc_charity`、沒有獨立庫，要避免改到開發的慈善資料就用上面的 `--filter` 排除。
+種子冪等：賽事（`matches`）以決定性 id **或**業務自然鍵比對（2026-10-30，`E-347`），對手名被正規化改名後重灌也不會 PK 重複。
+
 #### 替代方案：export 環境變數（舊做法）
 
 
@@ -10718,3 +10734,19 @@ Multipart：`payload`（JSON）、`file`（封面）、`ogImage`、內文圖片 
 - **後台** `/api/v1/admin/{club}/opponent-teams`（`Features/AdminOpponentTeams`）：權限同賽程（`team.match.*`），俱樂部範圍；新增／修改 `multipart/form-data`（`payload` ＋ 選填檔案 `crest`）；被賽事或積分榜引用時刪除回 409 `opponent_team_in_use`，同俱樂部同名回 409 `opponent_team_name_duplicate`。賽事／積分榜帶 `opponentTeamId` 時，儲存會把庫內隊名寫進 `matches.opponent`／`standings_i18n` 作後備文字；球隊改名會同步這些後備文字。
 - **came_on**：先發恆存 false；替補在該場有進球（含烏龍球）或牌者儲存時強制 true（`AdminMatchesRepository.ReconcileCameOn`，進球／牌／名單任一更新都會對帳）。出賽＝先發或 came_on（`StandingsRepository.AutoTotalsAsync`；後台球員賽季數據的「自動」欄共用同一份）。
 - **公開賽程**：`GET /api/v1/{club}/schedule?order=asc|desc&status=a,b,c`；`GET /api/v1/{club}/schedule/{id}` 回 `MatchDetailDto`（列表欄位＋`goals`／`cards`／`lineup`，只含現役球員）。詳情含 `matchReport`（文章關聯 `article_relations.target_type=match`、分類 `match` 的最新已發布文章）。
+
+---
+
+## 梯次對外狀態疊上報名時窗（2026-10-30，`E-346`；`not_yet_open` 為 SO-1，主站 v3.32 §4.4 P2）
+
+- 公開課程詳情的梯次 `statusCode`／`statusLabelZh`／`statusLabelEn` 不只看 `sessions.status`，由 `EnrollmentStatus.OfSlotAt` 依下列優先序推算（命中即止）：
+  ① **已結束**——儲存值已結束，或已過 `signup_closes_at`（不論儲存為開放、額滿或候補）→ `ended`；
+  ② **尚未開放**——現在早於 `signup_opens_at`（不論儲存為開放、額滿或候補；尚未開放期間也不接受候補）→ `not_yet_open`／尚未開放／Not yet open；
+  ③ 額滿／候補——儲存值；④ 開放。
+  時窗判斷只有一份實作：`Common/SignupWindow.Evaluate`（報名閘門與公開輸出共用；恰等於開始／截止時刻仍算時窗內，時刻以 UTC 存、台北時間顯示）。
+- **`not_yet_open` 是推算出來的輸出狀態，不是儲存值**：`sessions.status`、`CK_sessions_status`、後台狀態欄與後台梯次的 `status` 欄（儲存值）都不動，`EnrollmentStatus.Slot` 字典也沒有它（另有 `EnrollmentStatus.NotYetOpen` 常數，`shared/enums.json` 另列「對外輸出值域」一組）。公開梯次輸出同時帶 `signupOpensAt`（UTC），前台／App 以它顯示「M 月 D 日開放報名」，**一律讀 `statusCode`，不得自行比對時間**。
+- 計算在快取之外、每次請求執行（`GetBySlugAsync` 對快取結果疊加），詳情快取不會把「尚未開放」或「已結束」凍結。
+- 列表 `hasOpenSession`（使用者 2026-10-30 裁決）：儲存值非已結束、未過截止，且（儲存為開放／候補，**或尚未開放**）的梯次都算；SQL 內與詳情同一套條件。此欄隨列表快取，過期延遲以快取 TTL／失效為準。
+- **後台梯次（SO-4）**：`AdminSessionListItemDto`／`AdminSessionDetailDto` 另增唯讀 `effectiveStatusCode`／`effectiveStatusLabelZh`／`effectiveStatusLabelEn`，同樣由 `OfSlotAt` 在每次請求推算（後台端點不走快取）；`status` 仍是儲存值，輸入（建立／更新）的值域不變、不接受 `not_yet_open`。測試 `Session_後台列表與詳情帶對外狀態…`（`AdminProgramsSessionsRegistrationsTests`）。
+- **刻意不動**：會員「我的報名」的 `sessionStatus*`（已報名者的課程狀態，報名截止不代表課程結束）、試訓場次（無報名時窗欄位）。報名閘門訊息維持「尚未開放報名」。
+- 測試：`SessionEffectiveStatusTests`（純函式 16 項＋整合 1 項，含尚未開放／尚未開放加額滿／加候補／恰等於開始時刻／已結束優先）。
