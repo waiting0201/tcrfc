@@ -725,7 +725,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | 項目 | 決定 |
 |---|---|
 | C1 我的報名 | `GET /member/registrations?lang=`：每筆帶 `kind`（course／trial）、`course`／`trial` 摘要與 `isFallbackLocale`，**拿掉逐筆反查課程詳情（N＋1）**。顯示課程名稱、起訖與每週時段、場地；試訓顯示日期、球隊、場地；只顯示、不寫入行事曆。**繳費狀態＝報名 `statusCode` 為 `paid` 或 `completed`**（已取消與未知代碼不顯示繳費行） |
-| C2 狀態代碼 | 梯次與報名一律依 `statusCode` 判斷（梯次 open／full／waitlist／ended；報名 pending／confirmed／paid／completed／cancelled／waitlisted），顯示依語系取 `statusLabelZh`／`statusLabelEn`；**未知值（含 `unknown`）容錯**：梯次不給報名入口、報名只顯示後端標籤、不判斷繳費、不當機。原本客戶端自備的中文字面對照已移除 |
+| C2 狀態代碼 | 梯次與報名一律依 `statusCode` 判斷（梯次 not_yet_open／open／full／waitlist／ended（not_yet_open 由 API 依報名時窗推算，客戶端不得自行比對時間）；報名 pending／confirmed／paid／completed／cancelled／waitlisted），顯示依語系取 `statusLabelZh`／`statusLabelEn`；**未知值（含 `unknown`）容錯**：梯次不給報名入口、報名只顯示後端標籤、不判斷繳費、不當機。原本客戶端自備的中文字面對照已移除 |
 | C3／C5 廣告 | 標頭已記載（所有請求帶 `X-Device-Install-Id`）；`AppAdItemDto.imageVariants`（320／640／1280）依顯示寬度挑最小夠用的檔，沒有才用 `imageUrl` |
 | C4 當日預載 | `GET /app/ads/prefetch?lang=&theme=`：啟動與回前景時、距上次超過 6 小時才抓（`ads_enabled` 沒被明確關閉才做）；整份存 SQLite（`ad_creatives`），**過了 `validUntil` 整份清除、素材 `endsAt` 之後不再被選用**，圖片交給 Coil 磁碟快取預先下載。**有網路時永遠先問即時端點**（頻次與每日上限以它為準）；連不上才用預載：檔期內素材**依 `weight` 加權、不重複抽出輪播順序，最多 `rotationCap` 則**，沒有素材用該版位 `fallback`（不量測）。🔴 **離線顯示的廣告（連不上即時端點而改用預載素材或 fallback）一律不量測、不產生曝光與點擊計數事件**——App 規劃書 §2.4 硬規則 1「離線時不得計算廣告曝光」、內容表「廣告素材 離線 ❌（離線不計曝光）」，**以規劃書為準**（2026-10-05 更正：原先曾依協調者指示做成離線可暫存，已改回）。**線上時已量到、但尚未送出就斷線的事件**照佇列暫存，連線後帶**原始發生時間**（單調時鐘推算＋伺服器時間錨）回傳，超過 24 小時由伺服器拒收（佇列不因被拒而重送）。預載仍保留（載入速度、離線可顯示素材），只是離線顯示不計。實作：`AdSlotSource`（回傳 `offline` 旗標）＋`AdEventRecorder`（離線一律不入佇列），測試涵蓋「離線路徑顯示廣告後佇列沒有新增事件」「線上量到的事件斷線後仍在佇列、補送時帶原始時間」 |
 | B8 | 會籍方案與權益對照表 `isFallbackLocale` 已補「（Chinese only）」標示 |
@@ -1129,6 +1129,13 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
     - **「聯絡我們」**：本來就是開外部瀏覽器到 `/{lang}/join/contact/`，與 Android 一致，不是 bug，已補冒煙測試。
     - **冒煙測試注意**：模擬器上若殘留連真實 API 時的快取，有 3 項新聞冒煙測試會失敗；跑之前先 `simctl uninstall`。
   - **種子資料問題**（不是 App 的問題）：`member-terms` 與藍鯨的隱私權政策沒有資料（404）；隱私權政策內文自帶「最後更新日期：2026年8月1日」，與頂端的更新日期矛盾；有幾場已過日期的賽事狀態仍是 `scheduled`；9/13 那場比分 5-2，但只有 2 筆進球。
+- **第二輪：會員畫面與「尚未開放」（2026-10-30，API 已重啟為新版）**：兩端全過，App 沒有 bug。
+  - **尚未開放**：測試梯次 `39e5f4cd`（寒假營）的報名開始時間設為 2026-11-15 10:00（台北），兩端都顯示停用按鈕與「11 月 15 日開放報名」；已過截止的梯次顯示「已結束／已截止」。「時間到自動轉立即報名」沒有等到實際時刻，由 `SessionEffectiveStatusTests` 的時窗邊界案例覆蓋（狀態由 API 判定，App 只照 `statusCode` 顯示）。
+  - **會員畫面**（種子密碼 `ContentEditor@123`，僅本機）：有效會籍（iOS `jersey-single`、Android `jersey-family`）的會員卡、課程報名送出、我的報名、球衣登記；藍鯨會籍 `bw-member` 切到藍鯨後顯示「有效」——狀態由伺服器依有效期間判定，球季標籤「2025」只是種子的名稱欄位，不是 App 問題；只註冊 `member-f` 顯示「目前是註冊帳號」與會籍方案入口，沒有空卡。
+  - **冷啟動**：兩端全新安裝後第一個畫面就是「你想看哪一隊？」，沒有先露出首頁。
+  - **權杖被撤銷**（iOS 實測 `logout-all` 後重開）：會員分頁顯示「登入已失效，請重新登入。」，不當掉、不重試。
+  - **iOS 新增真 API 驗收 UI 測試**（`dea3b80`，`TcrfcAppUITests/RealApiAcceptanceTests.swift`）：預設跳過，`TEST_RUNNER_ACCEPT_REAL_API=1` 加 `-only-testing:TcrfcAppUITests/RealApiAcceptanceTests` 才跑。
+  - **發現**：兩端把梯次 `weeklySchedule` 的 JSON 原文印在畫面上（官網早已經過 `formatWeeklySchedule`）。測資抽成 `shared/weekly-schedule-cases.json`（參考實作 `apps/web/shared/utils/weekly-schedule.ts`），三端逐案比對；iOS `2f03238`（`WeeklySchedule.swift`，單元 336 全過）、Android `2f09bfc`（`domain/Programs.kt`，單元 297、dev 冒煙 32 全過）已移植，解析不了整行不顯示。同批把課程列表標籤改為「可報名／即將開放」（App 規劃書 v3.26 §3.9）。⚠️ iOS 冒煙 `testTrialRegistrationFlow` 找不到「送出報名」而失敗，改動前的 HEAD 也失敗，另案追查。兒童混齡班有兩筆沒有日期、容量 50 的「開放」梯次，是 `PrivacyConsentTests` 中途被強制停止、finally 沒跑到而殘留在共用庫 `tcrfc_club` 的測試資料（E-347 的共用庫風險）。
 
 ## 12. 本檔不決定的事
 

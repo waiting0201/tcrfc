@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.25
-> **Date**: 2026-09-04 (v3.25 revision: 2026-10-30)
+> **Document version**: v3.26
+> **Date**: 2026-09-04 (v3.26 revision: 2026-10-30)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.26 revision summary — registration label in the course list**
+> In the course list, a course with at least one session that is open or not yet open shows the card label "Open / opening soon" (Chinese: 可報名／即將開放). The label comes from a flag returned by the server; the app does not compare times itself. The website course list does not show this label. Where: §3.9.
 
 > **v3.25 revision summary — course sessions gain a "Not yet open" status**
 > Session status follows the "Not yet open" status added to website P2 (v3.32): for a session whose registration start time has not arrived, the app's course list and detail show a disabled button with "Opens for registration on D Mon" and no "Book now". The server determines this from the registration window; the app displays the status the server returns. Where: §3.9.
@@ -732,6 +735,8 @@ Only three small items were moved out of scope in website v2.0, and only two of 
 | Booking fields: student details, parent contact, health declaration, notes | Website P3 |
 | Privacy-consent checkbox (required); on submit the main-site API stores the consent time and the privacy-policy version consented to, and the App only sends the checkbox result | Website 3.5, 5.1 `Registration` |
 | **Program sessions do not enter the calendar** | Website data-consistency principle |
+
+**Registration label in the course list**: a course with at least one session that is open or not yet open shows the card label "Open / opening soon" (Chinese: 可報名／即將開放); both cases use the same label. The server returns the flag that decides it and the app does not compare times itself; the detail page still shows each session's button by its state. The website course list does not show this label.
 
 **Two boundaries**:
 

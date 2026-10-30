@@ -20,6 +20,7 @@
 | `deeplinks.json` | 手寫 | 規劃書 §2.3 的 8 條深連結、官網回退網址、`universalLinkPaths`、解析測資 |
 | `ad-viewability.md` | 手寫 | 廣告可見度量測的雙平台共同行為規格 |
 | `ad-viewability-cases.json` | 手寫 | 曝光判定與點擊去重的測資（兩端單元測試逐案比對） |
+| `weekly-schedule-cases.json` | 手寫 | 梯次 `weeklySchedule`（JSON 字串）→ 可讀文字的測資；參考實作 `apps/web/shared/utils/weekly-schedule.ts`，官網 `npm run lint:weekly-schedule` 與兩端單元測試逐案比對。🔴 App 不得把原始 JSON 印到畫面上 |
 | `scripts/` | 工具 | 產生器與一致性檢查 |
 
 **產生檔不要手改**——改來源（後端程式、或產生器）再重新產生。

@@ -1,0 +1,105 @@
+{
+  "$comment": "sessions.weekly_schedule（API 原樣輸出的 JSON 字串）→ 可讀文字的共同測資。參考實作是 apps/web/shared/utils/weekly-schedule.ts；官網、iOS、Android 都必須通過全部案例。無法解析一律回 null（呼叫端不顯示或顯示「—」），且輸出不得含 { } [ ] \" 等原始 JSON 字元。改規則要先改這份與參考實作，再跑 shared/scripts/gen-all.sh 與兩端 sync-shared.sh。",
+  "cases": [
+    {
+      "input": "{\"mon\":\"18:00-19:30\",\"wed\":\"18:00-19:30\"}",
+      "locale": "zh",
+      "expected": "週一 18:00–19:30、週三 18:00–19:30"
+    },
+    {
+      "input": "{\"mon\":\"18:00-19:30\",\"wed\":\"18:00-19:30\"}",
+      "locale": "en",
+      "expected": "Mon 18:00–19:30, Wed 18:00–19:30"
+    },
+    {
+      "input": "{\"wed\":\"18:00-19:30\",\"mon\":\"9:00-10:30\"}",
+      "locale": "zh",
+      "expected": "週一 09:00–10:30、週三 18:00–19:30"
+    },
+    {
+      "input": "{\"mon-fri\":\"09:00-16:00\"}",
+      "locale": "zh",
+      "expected": "週一至週五 09:00–16:00"
+    },
+    {
+      "input": "{\"mon-fri\":\"09:00-16:00\"}",
+      "locale": "en",
+      "expected": "Mon–Fri 09:00–16:00"
+    },
+    {
+      "input": "{\"sat\":\"09:00-11:00\"}",
+      "locale": "zh",
+      "expected": "週六 09:00–11:00"
+    },
+    {
+      "input": "{\"mon\":\"1.5 小時\",\"wed\":\"1.5 小時\"}",
+      "locale": "zh",
+      "expected": "週一 1.5 小時、週三 1.5 小時"
+    },
+    {
+      "input": "{\"Monday\":[\"18:00-19:00\",\"19:30-20:30\"]}",
+      "locale": "en",
+      "expected": "Mon 18:00–19:00, Mon 19:30–20:30"
+    },
+    {
+      "input": "{\"mon,wed\":\"18:00-19:30\"}",
+      "locale": "zh",
+      "expected": "週一 18:00–19:30、週三 18:00–19:30"
+    },
+    {
+      "input": null,
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "null",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "{}",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "not json",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "[1,2]",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "\"每週一\"",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "{\"foo\":\"18:00-19:30\"}",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "{\"mon\":123}",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "{\"mon\":\"25:00-26:00\"}",
+      "locale": "zh",
+      "expected": null
+    },
+    {
+      "input": "{\"fri-mon\":\"18:00-19:30\"}",
+      "locale": "zh",
+      "expected": null
+    }
+  ]
+}

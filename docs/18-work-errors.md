@@ -3363,6 +3363,7 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **修正**：新增 `Common/SignupWindow.Evaluate`（閘門與 `EnrollmentStatus.OfSlotAt` 共用）；公開詳情在快取之外、每次請求疊上時窗（已過截止＝`ended`，優先於額滿／候補）；列表 `HasOpenSession` 的 SQL 排除已過截止。**「尚未開放」當時規劃書值域沒有對應代碼，未新增**；使用者同日裁決新增為狀態（主站 v3.32／App v3.25），實作清單 `STATUS.md` §8-1 `SO-1`–`SO-6`。
 - **下次怎麼避免**：讀寫兩條路徑要共用的規則一律抽成單一函式；輸出會隨「現在時刻」變化的欄位**不得整包進快取**（要在快取外計算）；梯次／活動類測資一定要有「已過期」「尚未開始」各一筆。
 - **防呆**：`SessionEffectiveStatusTests`（純函式 9 項＋整合 1 項）。
+- **結案（2026-10-30）**：「尚未開放」已由使用者裁決新增（主站 v3.32／App v3.25），SO-1～SO-6 完成，後台、官網、iOS、Android 實機驗收通過。
 
 ### E-347 本機種子重灌撞 `PK_matches` 中止、種子會員（`M9xxxxx`）整批不在，整套測試 901 項紅燈；測試與開發共用 `tcrfc_club` 讓這類殘骸無從分辨（2026-10-30，主 session 指派 backend-engineer 查）
 - **錯在哪**：`apply-seed.sh` 在 `matches` 區段以 `PK_matches` 重複中止（`-b`），後面區段（含會員 44 區）全沒套用；庫裡只剩測試建的 `M000001–3`，會員登入 401、全套測試找不到 `M900001`／`M900101`。重複的列是 `14fe7602-…`：庫裡 `opponent = 台中未來`，種子的自然鍵是 `台中FUTURO`。
@@ -3391,3 +3392,15 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **修正**：Android `5ab946e` 新增 `awaitComplete(flow)`，等到 `data != null && !loading`，最多等 3 秒。這個寫法套用到 `clubForLink` 的 Schedule、Match 兩個分支與 `chooseClubFirstTime`。修正後連跑 17 輪冒煙測試，全部 31/31。**iOS**：iOS 沒有這種「合併資源先發出半份」的競態，`AppData.load` 會把所有俱樂部的資料都等到才一次指派。但遇到「某隊球隊快取不存在」或「某隊請求失敗」時，catalog 可能只有半份，賽程深連結會因此查不到球隊。iOS `f5e2b1d` 新增 `Catalog.isComplete`，查不到球隊且清單不完整時，先刷新再查一次（`ClubScopeTests.testScheduleLinkWithPartialCatalogRefreshesBeforeGivingUp`，單元 334、冒煙 29 全過）。
 - **下次怎麼避免**：讀合併型資源（多俱樂部合併）時，要「等完整」就必須同時檢查 `loading`。不穩定的測試要先抓到失敗當下的 log 或畫面樹，才能寫根因與測試名稱。
 - **防呆**：`CombineResourcesPartialTest`（鎖住「半份資料必定標 loading」的前提）。`SmokeTest` 的 `waitForText` 逾時時，會把語意樹寫進 logcat（tag `SmokeDump`）。
+
+### E-351 驗收時呼叫後台梯次 `PUT` 只送要改的兩個時間欄位，結果場地、日期、名額、費用全被清成 null（2026-10-30，`frontend-architect` 自行發現並當場補回）
+- **錯在哪**：SO-6 準備驗收資料時，直接呼叫 `PUT /api/v1/admin/tcrfc/program-sessions/{id}`，只帶 `signupOpensAt`／`signupClosesAt`。後台 `PUT` 是**整筆取代**，沒帶的欄位一律寫成 null。幸好事前已把原始 JSON 存檔，當場整筆補回，並用後台 GET 與畫面確認恢復。
+- **根因（可改掉的行為）**：把 `PUT` 當成部分更新來用，呼叫前沒先看端點的語意；繞過後台畫面直接打 API 時，畫面原本會幫忙帶齊所有欄位的保護也就沒了。
+- **下次怎麼避免**：改資料優先走後台畫面；必須直接打後台 API 時，先 `GET` 取得完整資料，只改目標欄位，再整筆 `PUT` 回去；呼叫前先把原始資料存到 scratchpad 當備份。
+- **防呆**：無（靠流程）。犯第二次就要在後台 `PUT` 端點加上「必填欄位缺漏 → 400」，或改成 `PATCH`。
+
+### E-352 驗收時用索引點選「登出」，點到的是相鄰的「登出所有裝置」，撤銷了共用種子帳號在所有裝置上的權杖，影響同時在驗收的另一端（2026-10-30，Android 驗收 agent 自行回報）
+- **錯在哪**：Android 驗收腳本以文字比對找「登出」，取第二個相符節點，實際命中「登出所有裝置」。`bw-member@example.com` 同時是 iOS 驗收要用的帳號，iOS 端因此可能被登出（這次 iOS 重新登入後未受影響）。
+- **根因（可改掉的行為）**：自動化點選用「文字包含＋索引」定位，沒用唯一識別（testTag／accessibilityIdentifier 或完整文字比對）；兩端並行驗收又共用同一個帳號。
+- **下次怎麼避免**：點選一律用 testTag／完整文字；有破壞性的按鈕（登出所有裝置、刪除帳號、送出付款）點之前先確認節點文字；並行驗收時每一端分配不同帳號，共用帳號只做唯讀。
+- **防呆**：無（靠流程）。
