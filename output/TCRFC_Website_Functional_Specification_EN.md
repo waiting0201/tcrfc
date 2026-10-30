@@ -1,9 +1,14 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.32
-> **Date**: 2026-08-14 (v3.32 revision: 2026-10-30)
+> **Document version**: v3.33
+> **Date**: 2026-08-14 (v3.33 revision: 2026-10-30)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.32*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.33*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.33 revision summary — match-detail line-up: substitutes are ordered by shirt number**
+> **A supplement to how the C4 line-up is shown on the public site; no new page or module, no data-structure change.**
+> ① **Substitutes are sorted by shirt number, ascending**: in the line-up on the match detail page, substitutes who came on and those who did not appear together in one list, each row showing whether the player came on; players without a shirt number come last. The website and the mobile app present it the same way.
+> Where: 4.3 C4; Mobile App Specification §3 (match detail) follows.
 
 > **v3.32 revision summary — course sessions gain a "Not yet open" status; "Register now" no longer shows before registration opens**
 > **A supplement to the P2 session status; no new page or module, no data-structure change.**
@@ -1225,7 +1230,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 #### C4 Fixtures & Results
 - Match record: season, competition (league / cup), date and time, home/away, opponent (chosen from the opposition-team list; an opponent not in the list can be typed in as a team name), venue, status (upcoming / live / finished / postponed / cancelled), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number), **original date and original time** (populated only when status is "postponed"; records the date and time the fixture was originally scheduled for, so it can be shown here and on the fixture card)
-- Result: score (our goals and the opponent's goals), scorers with timings, cards, **line-up (starters and substitutes distinguished; a substitute also records "came on")**, link to the match report (7.2)
+- Result: score (our goals and the opponent's goals), scorers with timings, cards, **line-up (starters and substitutes distinguished; a substitute also records "came on")**, link to the match report (7.2). **On the public match detail page, substitutes are sorted by shirt number ascending; those who came on and those who did not appear in one list, each row showing whether the player came on, and players without a shirt number come last**
 - **Opposition teams**: each club maintains its own list of opposition teams, with the fields team name (Chinese and English) and crest (the crest follows the 4.0 image-upload rules). A match's opponent is chosen from this list; an opponent not in the list can still be typed in as a team name. **An opposition team referenced by a match or a league-table row cannot be deleted.** Fixture cards on the public site show the opponent's crest when one is set
 - **League table**: maintained manually or imported from CSV; each row's team can optionally be linked to an opposition team (the public site then shows that team's crest)
 - **Season management**: add, edit and delete seasons, with the fields season code (e.g. `2026/27`, unique within a club), start date and end date. **Seasons are created per club** (the two clubs' seasons are not aligned); **a season referenced by matches, standings, honours, season stats, memberships or similar records cannot be deleted**; the "current season" is the season whose start-to-end range contains today

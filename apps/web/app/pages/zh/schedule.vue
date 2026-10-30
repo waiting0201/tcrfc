@@ -1505,22 +1505,16 @@ useClubEventSchema(clubEvents, {
                   <span v-if="p.position" class="match-detail__pos">{{ positionLabel(p.position) }}</span>
                 </li>
               </ul>
-              <template v-if="lineupSplit.subsUsed.length > 0 || lineupSplit.subsUnused.length > 0">
+              <template v-if="lineupSplit.subs.length > 0">
                 <p class="match-detail__sub">{{ tx('替補', 'Substitutes') }}</p>
                 <ul class="match-detail__roster">
-                  <li v-for="(p, pi) in lineupSplit.subsUsed" :key="`u${pi}`">
+                  <li v-for="(p, pi) in lineupSplit.subs" :key="`b${pi}`" :class="{ 'is-muted': !p.cameOn }">
                     <span class="match-detail__no">{{ p.shirtNumber ?? '—' }}</span>
                     <a v-if="playerHref(detailMatch, p.playerSlug)" :href="playerHref(detailMatch, p.playerSlug)!">{{ p.playerName || '—' }}</a>
                     <template v-else>{{ p.playerName || '—' }}</template>
                     <span v-if="p.position" class="match-detail__pos">{{ positionLabel(p.position) }}</span>
-                    <span class="match-detail__tag">{{ tx('替補上場', 'Came on') }}</span>
-                  </li>
-                  <li v-for="(p, pi) in lineupSplit.subsUnused" :key="`n${pi}`" class="is-muted">
-                    <span class="match-detail__no">{{ p.shirtNumber ?? '—' }}</span>
-                    <a v-if="playerHref(detailMatch, p.playerSlug)" :href="playerHref(detailMatch, p.playerSlug)!">{{ p.playerName || '—' }}</a>
-                    <template v-else>{{ p.playerName || '—' }}</template>
-                    <span v-if="p.position" class="match-detail__pos">{{ positionLabel(p.position) }}</span>
-                    <span class="match-detail__note">{{ tx('未上場', 'Unused') }}</span>
+                    <span v-if="p.cameOn" class="match-detail__tag">{{ tx('替補上場', 'Came on') }}</span>
+                    <span v-else class="match-detail__note">{{ tx('未上場', 'Unused') }}</span>
                   </li>
                 </ul>
               </template>
@@ -1673,7 +1667,8 @@ useClubEventSchema(clubEvents, {
 
 .fixture-card__matchup{ display:flex; align-items:center; gap:1rem; margin-bottom:.65rem; }
 .fx-side{ display:flex; align-items:center; gap:.55rem; flex:1 1 0; min-width:0; }
-.fx-side--them{ flex-direction:row-reverse; text-align:right; }
+/* 依位置而非我方／對手決定方向：左邊那隊「隊名 隊徽」靠右、右邊那隊「隊徽 隊名」靠左，主客場都貼著 VS 置中。 */
+.fixture-card__matchup > .fx-side:first-child{ flex-direction:row-reverse; text-align:right; }
 .fx-crest{ flex:none; width:26px; height:28px; object-fit:contain; }
 .fx-crest--ph{
   width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center;

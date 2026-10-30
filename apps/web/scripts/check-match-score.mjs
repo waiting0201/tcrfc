@@ -72,15 +72,18 @@ t('列表 scorers 摘要：合併同球員、依時間排序、null 球員不列
   assert.deepEqual(r[1].minutes, [60, 80])
   assert.deepEqual(groupScorers(undefined), [])
 })
-t('先發／替補切分：替補再分上場與未上場', () => {
+t('先發／替補切分：替補依球衣號碼排序，上場與未上場混排', () => {
   const l = [
-    { isStarter: true, cameOn: false }, { isStarter: false, cameOn: true }, { isStarter: false, cameOn: false },
+    { isStarter: true, cameOn: false, shirtNumber: 9 },
+    { isStarter: false, cameOn: true, shirtNumber: 45 },
+    { isStarter: false, cameOn: false, shirtNumber: 4 },
+    { isStarter: false, cameOn: false, shirtNumber: null },
+    { isStarter: false, cameOn: true, shirtNumber: 5 },
   ]
   const r = splitLineup(l)
   assert.equal(r.starters.length, 1)
-  assert.equal(r.subsUsed.length, 1)
-  assert.equal(r.subsUnused.length, 1)
-  assert.deepEqual(splitLineup(undefined), { starters: [], subsUsed: [], subsUnused: [] })
+  assert.deepEqual(r.subs.map((p) => p.shirtNumber), [4, 5, 45, null])
+  assert.deepEqual(splitLineup(undefined), { starters: [], subs: [] })
 })
 t('輪次：null／0 不輸出（不得印「第 null 輪」）', () => {
   assert.equal(roundLabel(null, false), null)

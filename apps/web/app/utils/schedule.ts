@@ -412,13 +412,13 @@ export function ourScorers(goals: readonly MatchGoal[] | null | undefined) {
   return groupScorers((goals ?? []).filter((g) => g.side === 'club'))
 }
 
-/** 出賽名單切成先發／替補；替補再分「有上場」與「未上場」。 */
-export function splitLineup<T extends { isStarter: boolean; cameOn: boolean }>(lineup: readonly T[] | null | undefined): { starters: T[]; subsUsed: T[]; subsUnused: T[] } {
+/** 出賽名單切成先發／替補；替補依球衣號碼由小到大（無號碼排最後，同號維持原順序），上場與否由 `cameOn` 在畫面上標示。 */
+export function splitLineup<T extends { isStarter: boolean; cameOn: boolean; shirtNumber?: number | null }>(lineup: readonly T[] | null | undefined): { starters: T[]; subs: T[] } {
   const all = lineup ?? []
+  const no = (p: T) => p.shirtNumber ?? Number.POSITIVE_INFINITY
   return {
     starters: all.filter((p) => p.isStarter),
-    subsUsed: all.filter((p) => !p.isStarter && p.cameOn),
-    subsUnused: all.filter((p) => !p.isStarter && !p.cameOn),
+    subs: all.filter((p) => !p.isStarter).sort((a, b) => no(a) - no(b)),
   }
 }
 

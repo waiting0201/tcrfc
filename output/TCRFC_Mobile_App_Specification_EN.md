@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.26
-> **Date**: 2026-09-04 (v3.26 revision: 2026-10-30)
+> **Document version**: v3.27
+> **Date**: 2026-09-04 (v3.27 revision: 2026-10-30)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.27 revision summary — match-detail substitutes ordered by shirt number**
+> In the match detail line-up, substitutes are sorted by shirt number ascending; those who came on and those who did not appear together in one list, each row showing whether the player came on; players without a shirt number come last. Same as the website (main spec C4, v3.33). Where: §3 (match detail).
 
 > **v3.26 revision summary — registration label in the course list**
 > In the course list, a course with at least one session that is open or not yet open shows the card label "Open / opening soon" (Chinese: 可報名／即將開放). The label comes from a flag returned by the server; the app does not compare times itself. The website course list does not show this label. Where: §3.9.
@@ -583,7 +586,7 @@ Adding a squad later requires only a new record in admin C1, with no app release
 
 **Fixture cards must additionally show the competition name** (for example "Premier League"), alongside but not duplicating the competition type (league / cup).
 
-**Match detail**: the above plus results (score, scorers and minutes, cards, line-up) and a link to the match report.
+**Match detail**: the above plus results (score, scorers and minutes, cards, line-up) and a link to the match report. **Substitutes in the line-up are sorted by shirt number ascending; those who came on and those who did not appear in one list, each row showing whether the player came on, and players without a shirt number come last.**
 
 **Match-day bundle** (the three things only a phone can do):
 
