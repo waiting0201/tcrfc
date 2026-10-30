@@ -1135,7 +1135,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
   - **冷啟動**：兩端全新安裝後第一個畫面就是「你想看哪一隊？」，沒有先露出首頁。
   - **權杖被撤銷**（iOS 實測 `logout-all` 後重開）：會員分頁顯示「登入已失效，請重新登入。」，不當掉、不重試。
   - **iOS 新增真 API 驗收 UI 測試**（`dea3b80`，`TcrfcAppUITests/RealApiAcceptanceTests.swift`）：預設跳過，`TEST_RUNNER_ACCEPT_REAL_API=1` 加 `-only-testing:TcrfcAppUITests/RealApiAcceptanceTests` 才跑。
-  - **發現**：兩端把梯次 `weeklySchedule` 的 JSON 原文印在畫面上（官網早已經過 `formatWeeklySchedule`）。測資抽成 `shared/weekly-schedule-cases.json`（參考實作 `apps/web/shared/utils/weekly-schedule.ts`），三端逐案比對；iOS `2f03238`（`WeeklySchedule.swift`，單元 336 全過）、Android `2f09bfc`（`domain/Programs.kt`，單元 297、dev 冒煙 32 全過）已移植，解析不了整行不顯示。同批把課程列表標籤改為「可報名／即將開放」（App 規劃書 v3.26 §3.9）。⚠️ iOS 冒煙 `testTrialRegistrationFlow` 找不到「送出報名」而失敗，改動前的 HEAD 也失敗，另案追查。兒童混齡班有兩筆沒有日期、容量 50 的「開放」梯次，是 `PrivacyConsentTests` 中途被強制停止、finally 沒跑到而殘留在共用庫 `tcrfc_club` 的測試資料（E-347 的共用庫風險）。
+  - **發現**：兩端把梯次 `weeklySchedule` 的 JSON 原文印在畫面上（官網早已經過 `formatWeeklySchedule`）。測資抽成 `shared/weekly-schedule-cases.json`（參考實作 `apps/web/shared/utils/weekly-schedule.ts`），三端逐案比對；iOS `2f03238`（`WeeklySchedule.swift`，單元 336 全過）、Android `2f09bfc`（`domain/Programs.kt`，單元 297、dev 冒煙 32 全過）已移植，解析不了整行不顯示。同批把課程列表標籤改為「可報名／即將開放」（App 規劃書 v3.26 §3.9）。iOS 冒煙 `testTrialRegistrationFlow` 曾一次找不到「送出報名」而失敗；於 `0217995` 重查不可重現（假資料日期為相對今天、單跑三個 iOS 版本皆過、冒煙 29 項連跑 3 輪全過），推測為多台模擬器與 Android 驗收同時跑時，捲動加鍵盤彈出的時序受資源影響。再失敗時要保留 `.xcresult` 與畫面樹再查。兒童混齡班有兩筆沒有日期、容量 50 的「開放」梯次，是 `PrivacyConsentTests` 中途被強制停止、finally 沒跑到而殘留在共用庫 `tcrfc_club` 的測試資料（E-347 的共用庫風險）。
 
 ## 12. 本檔不決定的事
 
