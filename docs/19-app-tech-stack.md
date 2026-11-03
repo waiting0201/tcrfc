@@ -1137,6 +1137,16 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
   - **iOS 新增真 API 驗收 UI 測試**（`dea3b80`，`TcrfcAppUITests/RealApiAcceptanceTests.swift`）：預設跳過，`TEST_RUNNER_ACCEPT_REAL_API=1` 加 `-only-testing:TcrfcAppUITests/RealApiAcceptanceTests` 才跑。
   - **發現**：兩端把梯次 `weeklySchedule` 的 JSON 原文印在畫面上（官網早已經過 `formatWeeklySchedule`）。測資抽成 `shared/weekly-schedule-cases.json`（參考實作 `apps/web/shared/utils/weekly-schedule.ts`），三端逐案比對；iOS `2f03238`（`WeeklySchedule.swift`，單元 336 全過）、Android `2f09bfc`（`domain/Programs.kt`，單元 297、dev 冒煙 32 全過）已移植，解析不了整行不顯示。同批把課程列表標籤改為「可報名／即將開放」（App 規劃書 v3.26 §3.9）。iOS 冒煙 `testTrialRegistrationFlow` 曾一次找不到「送出報名」而失敗；於 `0217995` 重查不可重現（假資料日期為相對今天、單跑三個 iOS 版本皆過、冒煙 29 項連跑 3 輪全過），推測為多台模擬器與 Android 驗收同時跑時，捲動加鍵盤彈出的時序受資源影響。再失敗時要保留 `.xcresult` 與畫面樹再查。兒童混齡班有兩筆沒有日期、容量 50 的「開放」梯次，是 `PrivacyConsentTests` 中途被強制停止、finally 沒跑到而殘留在共用庫 `tcrfc_club` 的測試資料（E-347 的共用庫風險）。
 
+### 11x. SF Symbol 名稱與最低版本檢查（iOS，2026-11-03）
+
+- `Image(systemName:)` 找不到符號時**不報錯、畫空白**，模擬器又是新版 iOS，版本問題目視抓不到（`E-353`）。
+- 新增或更換符號時，對照 macOS 內建的符號表確認名稱存在、且最低 iOS ≤ 部署目標 15.0：
+  ```sh
+  P=/System/Library/CoreServices/CoreGlyphs.bundle/Contents/Resources/name_availability.plist
+  plutil -convert json -o - "$P" | python3 -c "import json,sys;d=json.load(sys.stdin);n='building.2';v=d['symbols'].get(n);print(n, d['year_to_release'][v]['iOS'] if v else 'MISSING')"
+  ```
+- 已修：夥伴贊助 `handshake`（不存在）→ `building.2`；課程相關 `figure.run`（iOS 16）→ `sportscourt`。
+
 ## 12. 本檔不決定的事
 
 - **§16.2 技術前提第 17 項：推播是否走自家直送** —— 本檔建議直送（§5），但客戶可能有既有的服務商合約
