@@ -72,6 +72,28 @@ const features = computed(() => (isEn.value ? SHOP_APP_FEATURES_EN : FEATURES))
     <p class="app-note"><template v-if="isEn">You do not need the app to follow along: everything can be browsed on the website. The <a :href="lp('/zh/schedule/')">schedule</a>, <a :href="lp('/zh/news/')">latest news</a> and <a :href="lp('/zh/club/first-team/')">First Team</a> pages match what is in the app.</template><template v-else>還沒安裝也沒關係：所有內容都能在官網瀏覽，<a :href="lp('/zh/schedule/')">賽事行事曆</a>、<a :href="lp('/zh/news/')">最新消息</a>與<a :href="lp('/zh/club/first-team/')">一線隊</a>與 App 內容一致。</template></p>
   </div>
 </section>
+
+<section id="delete-account" class="band app-delete" aria-labelledby="app-delete-title">
+  <div class="band-inner container">
+    <h2 id="app-delete-title" class="section-title">{{ tx('刪除帳號', 'Delete account') }}</h2>
+    <p class="app-note app-note--lead">{{ tx('本節說明如何刪除帳號，不需登入即可閱讀；此頁不提供刪除操作。', 'This section explains how to delete your account. You can read it without signing in; no deletion can be made on this page.') }}</p>
+
+    <h3 class="app-delete__h">{{ tx('在 App 裡刪除', 'Delete in the app') }}</h3>
+    <p class="app-delete__p">{{ tx('在 App 內前往「設定 → 刪除帳號」，二次確認後即可完成。', 'In the app, go to Settings → Delete account. The deletion is completed after a two-step confirmation.') }}</p>
+
+    <h3 class="app-delete__h">{{ tx('在官網會員中心刪除', 'Delete in the website member centre') }}</h3>
+    <p class="app-delete__p">{{ tx('登入會員中心 → 個人資料與安全 → 刪除帳號，輸入密碼確認。以 LINE 註冊、尚未設定密碼者，請輸入 DELETE 確認。', 'Sign in to the member centre → Profile and security → Delete account, and confirm with your password. If you registered through LINE and have not set a password, type DELETE to confirm.') }}</p>
+
+    <h3 class="app-delete__h">{{ tx('刪除後的資料', 'Data after deletion') }}</h3>
+    <ul class="app-delete__list">
+      <li><strong>{{ tx('清除：', 'Erased: ') }}</strong>{{ tx('姓名、Email、電話、生日、LINE 綁定與推播綁定；所有電子會員卡立即作廢；未完成的會籍申請取消；刪除後無法復原。', 'name, email, phone number, date of birth, LINE link and push-notification binding. All digital membership cards are voided immediately, unfinished membership requests are cancelled, and deletion cannot be undone.') }}</li>
+      <li><strong>{{ tx('保留：', 'Retained: ') }}</strong>{{ tx('已鎖定的抽獎名單快照僅留會員編號與遮罩姓名；已成立的會籍、付款與訂單紀錄依法保存（不含可識別身分的個資）。保存年限依法規辦理。', 'a locked prize-draw snapshot keeps only the member number and masked name. Membership, payment and order records already created are kept as required by law (without personally identifying data). The retention period follows the law.') }}</li>
+    </ul>
+
+    <h3 class="app-delete__h">{{ tx('無法登入時', 'If you cannot sign in') }}</h3>
+    <p class="app-delete__p"><template v-if="isEn">If you cannot sign in to the app or the website, please use the general form on the <a :href="lp('/zh/join/contact/')">Contact us</a> page to request deletion, and state the email address you registered with. Contact details also appear in the website footer.</template><template v-else>無法登入 App 或官網的人，請使用<a :href="lp('/zh/join/contact/')">聯絡我們</a>的一般聯絡表單提出刪除帳號的申請，並註明註冊時的 Email。官網頁尾亦有聯絡資訊。</template></p>
+  </div>
+</section>
 </template>
 
 <style>
@@ -86,4 +108,11 @@ const features = computed(() => (isEn.value ? SHOP_APP_FEATURES_EN : FEATURES))
 .app-features .feature-card__desc{ font-size:.85rem; line-height:1.7; color:var(--text); text-wrap:pretty; }
 .app-note{ margin-top:2rem; font-size:.9rem; line-height:1.8; }
 .app-note a{ color:var(--brand-aa); text-decoration:underline; }
+.app-delete{ scroll-margin-top:6rem; }
+.app-note--lead{ margin-top:.5rem; }
+.app-delete__h{ margin-top:2rem; font-size:1.05rem; font-weight:800; color:var(--heading); }
+.app-delete__p, .app-delete__list{ margin-top:.5rem; font-size:.92rem; line-height:1.85; max-width:46rem; text-wrap:pretty; }
+.app-delete__list{ padding-left:1.25rem; }
+.app-delete__list li + li{ margin-top:.5rem; }
+.app-delete__p a{ color:var(--brand-aa); text-decoration:underline; }
 </style>
