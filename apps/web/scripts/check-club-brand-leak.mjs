@@ -154,6 +154,33 @@ const EXEMPT_PAGES = [
     terms: ['磐石', 'Taichung Rock'],
     reason: '同上（同一份頁面檔案的 en 版本）。en 版的揭露文案寫英文名「Taichung Rock FC」，F2（2026-10-03）補列。',
   },
+  // 2026-11-05 實機驗收補列（STATUS 變更紀錄 2026-11-05）。逐句核對過四頁的全部命中：只有下列法務揭露，沒有品牌文案。
+  {
+    route: '/zh/member-terms/',
+    terms: ['磐石'],
+    reason:
+      '會員條款的法務揭露：①與台中磐石足球俱樂部共用同一套會員帳號系統、可分別申辦兩隊會籍；②會費由台中磐石足球俱樂部代收並開立電子發票；' +
+      '③同時持有兩隊會籍者可分別參加兩隊抽獎。依據藍鯨規劃書 §5.2／§5.3（共用帳號、一人每俱樂部一份會籍）與 §1.3（收款沿用主站單一金流與發票），' +
+      '以及 STATUS B-8（藍鯨商店代收代付）。法務母稿在 content/legal/。收款方與帳號共用是法務上必須明示的事實，不是品牌外洩。',
+  },
+  {
+    route: '/en/member-terms/',
+    terms: ['Taichung Rock'],
+    reason: '同上（同一份條款的 en 版本）。英文寫「Taichung Rock FC」，棘輪比對視同 /zh/member-terms/ 的「磐石」例外。',
+  },
+  {
+    route: '/zh/privacy/',
+    terms: ['磐石'],
+    reason:
+      '隱私權政策的個資處理揭露：①網站系統、會員帳號與官方商店與台中磐石足球俱樂部共用，並由其營運團隊協助維運；②商店款項由其代收並開立電子發票，' +
+      '訂單資料因此提供給磐石用於收款、出貨、退款與發票；③受委託維運與代收款項的單位列入個資接收對象。個資法要求明示蒐集對象與委託範圍，' +
+      '依據同上（藍鯨規劃書 §5.2／§5.3、§1.3，STATUS B-8，content/legal/ 母稿）。',
+  },
+  {
+    route: '/en/privacy/',
+    terms: ['Taichung Rock'],
+    reason: '同上（同一份政策的 en 版本）。英文寫「Taichung Rock FC」，棘輪比對視同 /zh/privacy/ 的「磐石」例外。',
+  },
 ]
 
 function findExemption(route, term) {

@@ -507,6 +507,17 @@ function onDetailClosed() {
   detailToken++
   detailLoading.value = false
   detailMatch.value = null
+  restoreListUrl()
+}
+/** 賽事詳情彈窗關閉後的網址還原。只有「直接開 `/schedule/{賽事 id}/` 深連結」會讓網址停在單場路徑，
+ * 關閉時改回列表網址 `/schedule/`（保留原有查詢參數、不帶 hash）。用 `replaceState` 而不是 push：
+ * 不新增歷史紀錄，瀏覽器上一頁仍回到進站前的頁面，不會在 `/schedule/{id}/` 與 `/schedule/` 之間形成迴圈。
+ * 帶入現有 `history.state`，讓 vue-router 的位置紀錄不被破壞。 */
+function restoreListUrl() {
+  if (typeof window === 'undefined' || scheduleTarget.value.kind !== 'match') return
+  const listPath = lp('/zh/schedule/')
+  if (window.location.pathname === listPath) return
+  window.history.replaceState(window.history.state, '', `${listPath}${window.location.search}`)
 }
 /** 點擊 `<dialog>` 自身（即點擊 `::backdrop` 覆蓋的區域，不是內容區）視同關閉——`<dialog>`
  * 原生只有 Escape 會關閉，點擊背景不會，這裡補上這個慣例互動。 */
@@ -526,15 +537,17 @@ const nextMatchCountdown = ref<string | null>(null)
 let countdownTimer: ReturnType<typeof setInterval> | undefined
 function computeNextMatchCountdown(): string | null {
   if (state.team === 'all' || state.team === 'club') return null
+  // 🔴 只取「開賽時刻還沒到」的未開始賽事。狀態仍是未開始、但開賽時刻已過的賽事（賽後尚未回填賽果／狀態），
+  // 不是「下一場」：舊寫法會挑到它並顯示「比賽即將開始」，在賽果檢視裡尤其突兀。已有比分的賽事同樣排除。
+  const now = Date.now()
   const upcoming = matches.value
-    .filter((m) => m.teamCode === state.team && mapMatchStatus(m.status).code === 'upcoming')
-    .slice()
-    .sort((a, b) => (a.matchOn === b.matchOn ? (a.kickoff ?? '').localeCompare(b.kickoff ?? '') : a.matchOn.localeCompare(b.matchOn)))[0]
+    .filter((m) => m.teamCode === state.team && mapMatchStatus(m.status).code === 'upcoming' && !hasScore(m))
+    .map((m) => ({ m, instant: matchInstantUtc(m.matchOn, m.kickoff) }))
+    .filter((x): x is { m: MatchItem; instant: Date } => x.instant !== null && x.instant.getTime() > now)
+    .sort((a, b) => a.instant.getTime() - b.instant.getTime())[0]
   if (!upcoming) return null
-  const instant = matchInstantUtc(upcoming.matchOn, upcoming.kickoff)
-  if (!instant) return null
-  const diffMs = instant.getTime() - Date.now()
-  if (diffMs <= 0) return tx('比賽即將開始', 'The match is about to start')
+  const diffMs = upcoming.instant.getTime() - now
+  if (diffMs < 60_000) return tx('比賽即將開始', 'The match is about to start')
   const days = Math.floor(diffMs / 86_400_000)
   const hours = Math.floor((diffMs % 86_400_000) / 3_600_000)
   if (isEn.value) {
@@ -1362,7 +1375,7 @@ useClubEventSchema(clubEvents, {
                     <span class="fixture-card__scorers-label">{{ tx('進球', 'Goals') }}</span>{{ cardScorers(m).map(scorerLine).join(isEn ? '; ' : '；') }}
                   </p>
                   <p v-if="m.matchReport" class="fixture-card__report">
-                    <a :href="lp(`/zh/news/${m.matchReport!.slug}/`)">{{ tx('賽後報導', 'Match report') }}<span class="visually-hidden">：{{ m.matchReport!.title }}</span></a>
+                    <a :href="lp(`/zh/news/${m.matchReport!.slug}/`)">{{ tx('賽後報導', 'Match report') }}<span class="visually-hidden">{{ isEn ? ': ' : '：' }}{{ m.matchReport!.title }}</span></a>
                   </p>
                   <p class="fixture-card__venue">
                     <span :class="['ha-pill', haCode(m.homeAway) === 'home' ? 'ha-pill--home' : 'ha-pill--away']">{{ haCode(m.homeAway) === 'home' ? tx('主場 HOME', 'Home') : tx('客場 AWAY', 'Away') }}</span>
@@ -1521,7 +1534,7 @@ useClubEventSchema(clubEvents, {
             </div>
           </section>
           <p v-if="detailData.matchReport" class="match-detail__report">
-            <a class="btn btn--outline btn--sm" :href="lp(`/zh/news/${detailData.matchReport.slug}/`)">{{ tx('賽後報導', 'Match report') }}<span class="visually-hidden">：{{ detailData.matchReport.title }}</span></a>
+            <a class="btn btn--outline btn--sm" :href="lp(`/zh/news/${detailData.matchReport.slug}/`)">{{ tx('賽後報導', 'Match report') }}<span class="visually-hidden">{{ isEn ? ': ' : '：' }}{{ detailData.matchReport.title }}</span></a>
           </p>
         </template>
 
