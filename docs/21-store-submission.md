@@ -271,7 +271,40 @@
 2. 左側 **Internal Testing** → **＋** 建群組（例：`TCRFC 內部`）→ 加入團隊成員（須先在 **Users and Access** 加為使用者）
 3. 把建置加進群組 → 成員手機安裝 **TestFlight** App 就收得到
 
-**內部測試不用審查**；外部測試（給非團隊成員）要過一次簡易審查。
+**內部測試不用審查**；外部測試（給非團隊成員）要過一次簡易審查（Beta App Review）。
+
+### 4.4 TestFlight 外部測試的表單
+
+**A. Test Information**（左側 General Information → Test Information；每個語系各一份，至少填 English 或主要語系）
+
+| 欄位 | 必填 | 填 |
+|---|---|---|
+| Beta App Description | ✅ | 給測試者看的 App 介紹（範本如下） |
+| Feedback Email | ✅ | 收測試回報的信箱（建議用開發方信箱，不是審查窗口的私人信箱） |
+| Marketing URL | — | `https://tcrfc.tw/zh/app/`（正式網域未上線前可留空） |
+| Privacy Policy URL | — | 同 3.4；App 版網址未定前可留空，但正式送審前必填 |
+| Beta App Review Information：First／Last Name、Phone、Email | ✅ | 1.1 第 3 項 |
+| Sign-in required ＋ User Name／Password | ✅（App 有登入） | 1.1 第 5 項的測試帳號（**只填在後台，不寫進任何檔案**） |
+| Review Notes | — | 沿用 3.8 的五點英文備註；測試期另加一句「This build connects to our staging server」 |
+| License Agreement | — | 不填，沿用 Apple 標準 EULA |
+
+```
+Beta App Description（範本）
+Official app of Taichung Rock FC and Taichung Blue Whale. Check fixtures and results,
+show your digital member card, find nearby partner stores and browse club programs.
+This is a beta build connected to a test server; data may be reset.
+```
+
+**B. 建外部群組**：左側 **External Testing** → **＋** → 群組名（例：`TCRFC 外部測試`）→ 加測試者 Email，或開 **Public Link**（可設人數上限）
+
+**C. 把建置加進外部群組時**，每個建置都要填：
+
+| 欄位 | 必填 | 填 |
+|---|---|---|
+| What to Test | ✅ | 這一版要測什麼（英文，條列 3–5 點），例：`Log in with the test account, open the member card, switch club, check fixtures.` |
+| 加密申報 | — | 不會再問（`ITSAppUsesNonExemptEncryption = false`，見 4.2） |
+
+送出後等 Beta App Review（通常一天內）。**同一版本號的後續建置多半不用再審**；改版本號（`CFBundleShortVersionString`）會再審一次。
 
 ---
 
