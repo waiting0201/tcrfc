@@ -55,7 +55,7 @@
 | 隱私權政策 | 🔴 **App 版網址待定**（官網 `/zh/privacy/` 是官網版） | **App 版草稿已產出**：[`output/TCRFC_App隱私權政策.md`](../output/TCRFC_App隱私權政策.md)（2026-10-28，以官網母稿為底、補 App 特有資料），待法務審閱與決定放置網址 |
 | 支援網址 | `https://tcrfc.tw/zh/faq/` | 已有 |
 | 行銷網址 | `https://tcrfc.tw/zh/app/` | 已有 |
-| **帳號刪除說明頁** | 待新增（建議放在 `/zh/app/` 頁內一節或 FAQ 一題） | 🔴 **要新做**——Google 要求公開網址；現在只有登入後的會員中心有刪除按鈕 |
+| **帳號刪除說明頁** | `https://tcrfc.tw/zh/app/#delete-account`（英文 `https://tcrfc.tw/en/app/#delete-account`；藍鯨站同路徑） | 📄 **規格已定（2026-11-05，App 規劃書 v3.28 §2.3）、待前台實作**——Google 要求公開網址；實作前現在只有登入後的會員中心有刪除按鈕。填表時用 `/zh/app/#delete-account`，上線後用瀏覽器實開確認錨點會捲到該節 |
 
 ### 1.3 文案（中英各一份）
 
@@ -389,7 +389,7 @@ cd mobile/android && ./gradlew bundleRelease
 |---|---|---|
 | `apple-app-site-association` | `https://tcrfc.tw/.well-known/apple-app-site-association`（**無副檔名、`Content-Type: application/json`、不可轉址**） | 由 `shared/deeplinks.json` 的 `universalLinkPaths` 產生，appID 為 `<Team ID>.tw.tcrfc.app` |
 | `assetlinks.json` | `https://tcrfc.tw/.well-known/assetlinks.json` | `package_name: tw.tcrfc.app`、`sha256_cert_fingerprints` 填 6.5 的 SHA-256 |
-| 帳號刪除說明頁 | 見 1.2 | 寫 App 與官網兩條刪除步驟，以及保留範圍（規劃書 §4.6） |
+| 帳號刪除說明頁 | 見 1.2 | 官網 App 頁 `#delete-account` 一節：App 與官網兩條刪除步驟、清除與保留範圍（只寫「依法保存」不寫年限）、無法登入時走一般聯絡表單（規劃書 §2.3、§4.6） |
 
 `www.tcrfc.tw` 若也登記（§0 待定案），兩個檔案也要在 `www` 直接提供一份。
 

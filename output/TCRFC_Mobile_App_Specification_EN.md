@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.27
-> **Date**: 2026-09-04 (v3.27 revision: 2026-10-30)
+> **Document version**: v3.28
+> **Date**: 2026-09-04 (v3.28 revision: 2026-11-05)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.28 revision summary — the website app page gains a "Delete account" section, serving as the public account-deletion URL the stores require**
+> The website's app download pages (`/zh/app/`, `/en/app/`) gain a "Delete account" section (anchor `#delete-account`), readable without signing in. It explains three things: how to delete from inside the app and from the website member centre, which data is erased and which is retained, and how to get in touch when sign-in is not possible. Both the Taichung Rock FC and the Taichung Blue Whale websites carry it, with identical content. Deletion remains completable inside the app (3.14, 4.6); the section is an explanation only and offers no deletion action. Where: 2.3, 3.14, 4.6, 12.4, 14.3.
 
 > **v3.27 revision summary — match-detail substitutes ordered by shirt number**
 > In the match detail line-up, substitutes are sorted by shirt number ascending; those who came on and those who did not appear together in one list, each row showing whether the player came on; players without a shirt number come last. Same as the website (main spec C4, v3.33). Where: §3 (match detail).
@@ -401,8 +404,17 @@ Five fixed bottom tabs, never more than three levels deep:
 **Dependencies on the website (to be delivered by the website project)**:
 
 1. `.well-known/apple-app-site-association` and `.well-known/assetlinks.json` **must be served from the website domain**; their contents require the Apple Team ID and the Android package name, which must be obtained first.
-2. The website must add app download pages (`/zh/app/`, `/en/app/`) and a footer link.
+2. The website must add app download pages (`/zh/app/`, `/en/app/`) and a footer link; **each page carries a "Delete account" section (anchor `#delete-account`) that serves as the public account-deletion URL the stores require**, described below.
 3. On devices without the app, every deep link must fall back to its website URL and **must never show an error page**.
+
+**The "Delete account" section of the website app page** (`/zh/app/#delete-account`, `/en/app/#delete-account`; each of the Taichung Rock FC and Taichung Blue Whale websites has its own app page, with identical content): a public explanation page, readable without signing in, that describes how to delete but offers no deletion action itself. Four parts:
+
+| Part | Content |
+|---|---|
+| Delete in the app | Settings → Delete account; completed after a two-step confirmation (3.14, 4.6) |
+| Delete in the website member centre | Sign in to the member centre → Profile and security → Delete account, and confirm with the password (accounts registered through LINE without a password type DELETE instead) |
+| Data after deletion | **Erased**: name, email, phone number, date of birth, LINE link and push-notification binding; all digital membership cards are voided immediately; unfinished membership requests are cancelled; deletion cannot be undone. **Retained**: a locked prize-draw snapshot keeps only the member number and masked name; membership, payment and order records already created are kept as required by law (without personally identifying data). The retention period follows the law and is not stated in this section |
+| If you cannot sign in | Use the general contact form under "Contact us" on the website (main specification 10.7) to request deletion, stating the email used to register; contact details also appear in the website footer |
 
 > ✅ **The v2.0 gap is resolved — the client has decided to build the Taichung Blue Whale website**
 > In v2.0 the website's section 06 was a single outbound page with no Blue Whale fixture, player or news pages, so `tcrfc://schedule/bw1`, `tcrfc://match/{Blue Whale match}` and `tcrfc://player/{Blue Whale player}` had nowhere to fall back to on devices without the app, and shared links were dead.
@@ -839,7 +851,7 @@ Where a sponsorship contract includes "N app placements", the correct approach i
 
 Language, push permission and categories, location permission explanation, clear cache, offline content management, privacy policy, terms of service, "why am I seeing advertising?", version and update check, contact us, sign out, and **delete account**.
 
-**Account deletion must be completable inside the app** (a hard store requirement); "please write to us" is not acceptable. Deletion follows the website rules: member personal data is erased, but a locked prize-draw snapshot retains only the member number and masked name.
+**Account deletion must be completable inside the app** (a hard store requirement); "please write to us" is not acceptable. Deletion follows the website rules: member personal data is erased, but a locked prize-draw snapshot retains only the member number and masked name. The website app page also carries a public "Delete account" explanation (`/en/app/#delete-account`, see 2.3) for store review and for people who cannot sign in.
 
 ---
 
@@ -913,6 +925,7 @@ The website rules carry over, implemented in the app:
 | Erased | `Member` personal data, `AppDevice` binding and push token, membership card token revocation |
 | **Retained** | A locked `DrawRoster` snapshot **retains only the member number and masked name**, with everything else erased; `MembershipPayment` is retained per accounting requirements |
 | Irreversible | **Locked historical draw rosters must never be altered** — doing so would destroy the auditability of the draw |
+| Public explanation | The website app page, `/zh/app/#delete-account` and `/en/app/#delete-account`, explains the two deletion paths (in the app and in the website member centre), what is erased and retained, and how to get in touch when sign-in is not possible (2.3) |
 
 ---
 
@@ -1717,7 +1730,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 |---|---|
 | Age rating | Must be confirmed whether content involving minors places the app in a children's category (see 16.2). This specification's "no ad networks, no behavioural targeting, no advertising identifiers" position already aligns with those restrictions |
 | Privacy labels | Declared accurately. Since no advertising identifier is used and no cross-app tracking occurs, "no tracking" may be declared |
-| **Account deletion** | **Must be completable inside the app** (3.14); this is a hard requirement |
+| **Account deletion** | **Must be completable inside the app** (3.14); this is a hard requirement. The stores also require a public deletion-explanation URL, provided by `#delete-account` on the website app page (2.3) |
 | External payment | See 5.5 |
 | Third-party sign-in | Where LINE sign-in is offered, confirm whether Sign in with Apple is required alongside |
 | Privacy policy and terms | App-specific versions must be written and linked from the store listing |
@@ -1769,7 +1782,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | Risk | Preparation |
 |---|---|
 | **In-app purchase determination** (5.5) | Prepare documentation arguing the benefits are physical goods and services; have a build for fallback option B ready |
-| Account deletion | Confirm the in-app path completes the deletion |
+| Account deletion | Confirm the in-app path completes the deletion, and that the public `#delete-account` URL on the website app page opens before submission (2.3) |
 | Location permission | The purpose string must be specific; vague wording such as "to provide a better service" is not acceptable |
 | Push permission | A pre-permission explanation screen is required before the first request |
 | Age rating | Declare the nature of the content accurately |
