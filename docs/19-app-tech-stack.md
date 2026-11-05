@@ -1147,6 +1147,14 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
   ```
 - 已修：夥伴贊助 `handshake`（不存在）→ `building.2`；課程相關 `figure.run`（iOS 16）→ `sportscourt`。
 
+### 11y. 設定頁補「刪除帳號」入口（iOS＋Android，2026-11-05）
+
+- 缺口：規劃書 §3.14 設定項目含「刪除帳號」、§4.6 要求「App 內設定可直接完成」，兩端原本只在會員區有入口。
+- 做法：設定頁加入口，**開的是會員區同一個確認畫面**（iOS `DeleteAccountView`；Android 將私有 `DeleteDialog` 包成共用的 `DeleteAccountDialog(container, hasPassword, …)`，內含 `deleteMe` ＋ `signOutLocal`），刪除邏輯只有一份；會員區入口保留（§3.12）。Android 設定頁點下時先 `GET me` 取得 `hasPassword`。
+- **未登入時不顯示（執行層決定）**：§3.14／§4.6 沒規定未登入的行為；未登入沒有帳號可刪，無法登入者走官網 `#delete-account` 的聯絡方式（§4.6 公開說明）。
+- 位置：設定清單最後一個區塊。⚠️ 設定頁目前**沒有「登出」項目**（登出在會員區帳號頁），所以無法排在「登出之後」；是否要補設定頁登出屬規格詮釋，未動。
+- 測試：iOS 單元＋`testSettingsDeleteAccountOpensSameConfirmation`／`testSettingsHidesDeleteAccountWhenSignedOut`；Android `SmokeTest` 兩項。**測試只開到確認畫面就取消，不真的刪除**（E-352）。
+
 ## 12. 本檔不決定的事
 
 - **§16.2 技術前提第 17 項：推播是否走自家直送** —— 本檔建議直送（§5），但客戶可能有既有的服務商合約

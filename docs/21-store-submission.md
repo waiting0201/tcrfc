@@ -55,7 +55,7 @@
 | 隱私權政策 | 🔴 **App 版網址待定**（官網 `/zh/privacy/` 是官網版） | **App 版草稿已產出**：[`output/TCRFC_App隱私權政策.md`](../output/TCRFC_App隱私權政策.md)（2026-10-28，以官網母稿為底、補 App 特有資料），待法務審閱與決定放置網址 |
 | 支援網址 | `https://tcrfc.tw/zh/faq/` | 已有 |
 | 行銷網址 | `https://tcrfc.tw/zh/app/` | 已有 |
-| **帳號刪除說明頁** | `https://tcrfc.tw/zh/app/#delete-account`（英文 `https://tcrfc.tw/en/app/#delete-account`；藍鯨站同路徑） | ✅ **已實作（2026-11-05，未在正式網域實開）**（`apps/web/app/pages/zh/app/index.vue` 的 `#delete-account` 一節，磐石與藍鯨兩站共用，本機兩站 SSR 皆已輸出該錨點）——Google 要求公開網址。填表時用 `/zh/app/#delete-account`，上線後用瀏覽器實開確認錨點會捲到該節。⚠️ 該節第 1 段依規格寫「設定 → 刪除帳號」，但 App 實際入口在「會員」分頁的「帳號」頁（iOS）／會員資料頁（Android），送審前待規劃書與頁面一併校正 |
+| **帳號刪除說明頁** | `https://tcrfc.tw/zh/app/#delete-account`（英文 `https://tcrfc.tw/en/app/#delete-account`；藍鯨站同路徑） | ✅ **已實作（2026-11-05，未在正式網域實開）**（`apps/web/app/pages/zh/app/index.vue` 的 `#delete-account` 一節，磐石與藍鯨兩站共用，本機兩站 SSR 皆已輸出該錨點）——Google 要求公開網址。填表時用 `/zh/app/#delete-account`，上線後用瀏覽器實開確認錨點會捲到該節。✅ 該節第 1 段寫「設定 → 刪除帳號」，**App 設定頁已補入口（2026-11-05，iOS a93394e／Android a9a582a，見 [`docs/19`](docs/19-app-tech-stack.md) §11y）**，會員區原入口保留 |
 
 ### 1.3 文案（中英各一份）
 
