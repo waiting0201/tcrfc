@@ -551,7 +551,19 @@ public sealed class AppPublicTests(AdminWriteApiFixture fixture)
             Assert.Equal(1, row.ActiveDevices);
             Assert.Equal(0m, row.CrashFreeDevicePercent);
             Assert.True(summary.ByType.Single(t => t.Key == "api_error").Count >= 4); // metricValue 3 + 無值算 1（種子可能另有 api_error，故用 >=）
-            Assert.InRange(summary.StartupMedianMs!.Value, 1200, 2400); // 種子也有一筆啟動耗時回報，只驗證落在範圍內
+            // 啟動耗時中位數是全庫統計（不分版本），本機庫會累積真實裝置回報：不能寫死範圍，改用同一個時間窗的實際值以相同規則重算，
+            // 並確認本測試寫入的 1200／2400 確實被納入（回報數至少 2 筆）。不刪除任何既有回報。
+            var metrics = new List<int>();
+            await using (var connection = new Microsoft.Data.SqlClient.SqlConnection(Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING")))
+            {
+                await connection.OpenAsync();
+                await using var command = new Microsoft.Data.SqlClient.SqlCommand("SELECT metric_value FROM app_diagnostic_reports WHERE report_type = N'startup_time' AND metric_value IS NOT NULL AND occurred_at >= DATEADD(day, -7, SYSUTCDATETIME()) ORDER BY metric_value", connection);
+                await using var reader = await command.ExecuteReaderAsync();
+                while (await reader.ReadAsync()) { metrics.Add(Convert.ToInt32(reader.GetValue(0))); }
+            }
+
+            Assert.True(metrics.Count >= 2 && metrics.Contains(1200) && metrics.Contains(2400));
+            Assert.Equal(metrics[metrics.Count / 2], summary.StartupMedianMs!.Value);
         }
         finally
         {

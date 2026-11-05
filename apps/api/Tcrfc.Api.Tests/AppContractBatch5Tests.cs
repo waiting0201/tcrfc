@@ -115,7 +115,7 @@ public sealed class AppContractBatch5Tests(AdminWriteApiFixture fixture)
                 foreach (var s in detail.GetProperty("sessions").EnumerateArray())
                 {
                     total++;
-                    Assert.Contains(s.GetProperty("statusCode").GetString(), new[] { "open", "full", "waitlist", "ended" });
+                    Assert.Contains(s.GetProperty("statusCode").GetString(), new[] { "open", "full", "waitlist", "ended", "not_yet_open" });
                     Assert.False(string.IsNullOrWhiteSpace(s.GetProperty("statusLabelEn").GetString()));
                     Assert.False(string.IsNullOrWhiteSpace(s.GetProperty("status").GetString())); // 既有欄位保留
                 }

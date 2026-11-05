@@ -2314,7 +2314,7 @@ CREATE TABLE draw_rosters (
   member_no_snapshot               nvarchar(32)    NOT NULL,
   name_snapshot                    nvarchar(64)    NULL,
   -- 2026-10-16（v3.29）：新名單快照 standard／premium；舊制的 fan_club／registered 快照維持原值（凍結名單不改寫，名單雜湊含層級字串）。
-  tier_snapshot                     nvarchar(16)   NULL CONSTRAINT CK_draw_rosters_tier_snapshot CHECK (tier_snapshot IN ('standard','premium','fan_club','registered')),
+  tier_snapshot                     nvarchar(16)   NULL CONSTRAINT CK_draw_rosters_tier_snapshot CHECK (tier_snapshot IN ('registered','fan_club','standard','premium')),
   membership_end_on_snapshot         date          NULL,
   is_winner                        bit              NOT NULL CONSTRAINT DF_draw_rosters_is_winner DEFAULT 0,
   is_backup                        bit              NOT NULL CONSTRAINT DF_draw_rosters_is_backup DEFAULT 0,

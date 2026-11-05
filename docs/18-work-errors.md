@@ -3422,7 +3422,7 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 ### E-355 本機測試庫沒開 RCSI，S2-27 的 8 項新聞內文 HTTP 測試擋了三週沒跑；補跑全套才發現另有 2 項測試與資料漂移（2026-11-05，S2-27 待辦 ① 補跑時發現）
 - **錯在哪**：① 10-16 交件時 HTTP 測試被 `RcsiGuard` 擋下，只回報「未跑」就結案該批，三週後才補跑（補跑後 8 項全過，本列程式無缺陷）。② 補跑時全套 1695 項有 2 項失敗，皆與 S2-27 無關：`AppPublicTests.診斷回報_…`（`StartupMedianMs` 斷言 1200–2400，本機庫累積了 10-28 起的真實裝置 `startup_time` 回報，中位數變 1099）與 `AppContractBatch5Tests.公開課程梯次與試訓場次_…`（允許的狀態碼清單沒有 v3.32 新增的 `not_yet_open`）。
 - **根因（可改掉的行為）**：① 守衛擋下測試時沒有當場開 RCSI 重跑，而是把「補跑」留成待辦；本機兩庫的 RCSI 沒有納入建庫後的檢查。② 新增 API 狀態碼（`not_yet_open`）時只改單元測試，沒有搜尋斷言同一組代碼的 HTTP 測試；斷言共用本機庫累積資料的統計值，資料一變就失敗。
-- **修正**：本機兩庫已 `SET READ_COMMITTED_SNAPSHOT ON`。2 項失敗不屬本列，未修（以免擴大範圍），留給有權限的後續交付：`AppContractBatch5Tests` 清單補 `not_yet_open`；診斷回報測試改成只驗證自己寫入的資料或限定版本號。
+- **修正**：本機兩庫已 `SET READ_COMMITTED_SNAPSHOT ON`。2 項失敗同日修好：`AppContractBatch5Tests` 清單補 `not_yet_open`；診斷回報測試改為從資料庫讀同時間窗的 `startup_time` 值，以 API 相同規則重算中位數再比對（並確認本測試的 1200／2400 有納入），不刪既有回報。另 `local-vs-ddl` 的 `CK_draw_rosters_tier_snapshot` 列舉順序漂移，因 SQL Server 依 IN 清單原順序存定義、屬真實定義差異而非比對器問題，改把 `db/club-schema.sql` 對齊 migration（registered、fan_club、standard、premium），兩模式重跑通過。
 - **下次怎麼避免**：測試被環境守衛擋下，當場修環境重跑；新增 API 代碼時 grep 該代碼集合的所有斷言；斷言不得依賴共用庫的累積統計。
 - **防呆**：無。
 
