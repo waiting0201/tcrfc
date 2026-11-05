@@ -4,7 +4,7 @@
 // - Email 是登入鍵，**本期不提供修改**（規劃書沒寫換 Email 的流程）。
 // - 變更密碼會撤銷其他裝置；LINE 註冊、尚未設定密碼者可直接設定第一組密碼。
 // - 解除 LINE 綁定須至少保留一種登入方式：沒設定過密碼時後端回 409 `password_required`，引導先設定密碼。
-// - 刪除帳號：欄位清除（保留會員編號與遮罩姓名）；會員卡作廢；**會籍與付款紀錄依稅法與會計法規保留**，要如實告知。
+// - 刪除帳號：欄位清除（保留會員編號與遮罩姓名）；會員卡作廢；**抽獎名單快照僅留會員編號與遮罩姓名；已成立的會籍、付款與訂單紀錄依法保存**，要如實告知（措辭須與官網 App 頁 #delete-account 一致，不寫年限）。
 import { MEMBER_PASSWORD_HINT, MEMBER_PASSWORD_HINT_EN, passwordProblem, toMemberApiError } from '#shared/utils/member'
 import type { MemberBrowserSession, MemberProfile } from '#shared/utils/member'
 
@@ -242,13 +242,13 @@ async function deleteAccount() {
         <h3 id="mp-del-title" class="mc-h3">{{ tx('刪除帳號', 'Delete account') }}</h3>
         <p class="mc-note">
           <template v-if="isEn">
-            After deletion, your name, email, phone number, date of birth and LINE link are cleared, all digital membership cards are voided immediately, any unfinished membership requests are cancelled, and this <strong>cannot be undone</strong>.
-            Under tax and accounting regulations, <strong>membership and payment records that have already been created are kept</strong> (without personally identifying data).
+            After deletion, your name, email, phone number, date of birth, LINE link and push-notification binding are erased, all digital membership cards are voided immediately, any unfinished membership requests are cancelled, and this <strong>cannot be undone</strong>.
+            A locked prize-draw snapshot keeps only your member number and masked name, and <strong>membership, payment and order records that have already been created are kept</strong> as required by law (without personally identifying data).
             For more details, see the <a :href="lp('/zh/privacy/')">Privacy Policy</a>.
           </template>
           <template v-else>
-            刪除後，您的姓名、Email、電話、生日與 LINE 綁定會被清除，所有電子會員卡立即作廢，未完成的會籍申請會取消，且<strong>無法復原</strong>。
-            依稅法與會計法規，已成立的<strong>會籍與付款紀錄會保留</strong>（不含可識別身分的個資）。
+            刪除後，您的姓名、Email、電話、生日、LINE 綁定與推播綁定會被清除，所有電子會員卡立即作廢，未完成的會籍申請會取消，且<strong>無法復原</strong>。
+            已鎖定的抽獎名單快照僅留會員編號與遮罩姓名；已成立的<strong>會籍、付款與訂單紀錄依法保存</strong>（不含可識別身分的個資）。
             更多說明請見<a :href="lp('/zh/privacy/')">隱私權政策</a>。
           </template>
         </p>
