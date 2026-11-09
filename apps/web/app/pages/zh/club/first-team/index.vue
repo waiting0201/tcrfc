@@ -17,7 +17,7 @@
 // 可查證的獎盃時間軸，不得比照磐石那樣編一個出來。
 import type { PlayerStatsResponse, StandingsResponse } from '#shared/utils/standings'
 import type { PlayerDto } from '#shared/utils/player'
-import { playerPath } from '#shared/utils/player'
+import { nationalityLabel, playerPath } from '#shared/utils/player'
 
 definePageMeta({ nav: 'club', unit: '3.1', enReady: true, enReadyBw: true })
 
@@ -137,7 +137,7 @@ watchEffect(() => {
     p.schemaEligible && p.name && !isKnownMinor(p.birthOn))
   if (eligible.length === 0) return
   useSchemaOrg(
-    eligible.map((p: { id: string, slug?: string, name: string, position?: string | null, photoUrl?: string | null, photoWidth?: number | null, photoHeight?: number | null }) =>
+    eligible.map((p: { id: string, slug?: string, name: string, position?: string | null, nationality?: string | null, photoUrl?: string | null, photoWidth?: number | null, photoHeight?: number | null }) =>
       definePerson({
         // 唯一 @id（見 about/our-people.vue 同一處說明、docs/18 E-96）：不給就全部合併成站台身分節點。
         '@id': `player-${p.id}`,
@@ -145,6 +145,7 @@ watchEffect(() => {
         // 詳情頁的正規網址（slug）；沒有 slug 時不輸出 url，不拿 id 網址頂替（id 網址會 301，不是正規形式）。
         url: p.slug ? `${siteUrl}${lp(playerPath(p.slug))}` : undefined,
         jobTitle: p.position ?? undefined,
+        nationality: p.nationality ? { '@type': 'Country', name: nationalityLabel(p.nationality, 'en') } : undefined,
         image: schemaImage(p.photoUrl, p.photoWidth, p.photoHeight),
       }),
     ),
@@ -248,11 +249,15 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
         <div class="player-card__visual">
           <img v-if="p.photoUrl" :src="p.photoUrl" :alt="imgAlt(p.photoAlt, isEn ? `Photo of ${p.name}` : `${p.name} 球員照片`)" v-bind="imgAttrs(p.photoWidth, p.photoHeight)" loading="lazy" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
           <img class="player-card__crest" :src="assets.headerMark.src" alt="" width="64" height="67" aria-hidden="true">
-          <span class="player-card__num">{{ p.shirtNo ?? '—' }}</span>
         </div>
         <div class="player-card__body">
-          <span class="player-card__pos">{{ isEn ? clubPositionLabelEn(p.position) : (p.position ?? '—') }}</span>
+          <!-- 背號放資訊區右上、與位置同列（2026-11-09 客戶回饋：放在照片上會壓在球員胸口正中央） -->
+          <div class="player-card__head">
+            <span class="player-card__pos">{{ isEn ? clubPositionLabelEn(p.position) : (p.position ?? '—') }}</span>
+            <span class="player-card__num"><span class="visually-hidden">{{ tx('背號', 'No.') }} </span>{{ p.shirtNo ?? '—' }}</span>
+          </div>
           <p class="player-card__name"><a class="sh-player-link" :href="lp(playerPath(p.slug || p.id))">{{ p.name }}</a></p>
+          <p v-if="p.nationality" class="player-card__nat"><span class="visually-hidden">{{ tx('國籍', 'Nationality') }} </span>{{ nationalityLabel(p.nationality, isEn ? 'en' : 'zh') }}</p>
         </div>
       </article>
     </div>
@@ -526,13 +531,15 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
   display:flex; align-items:center; justify-content:center; overflow:hidden;
 }
 .player-card__crest{ position:absolute; inset:0; margin:auto; width:58%; height:58%; object-fit:contain; opacity:.06; }
+.player-card__head{ display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
 .player-card__num{
-  position:relative; font-size:2.5rem; font-weight:900; color:var(--brand-aa);
+  flex:none; font-size:1.6rem; line-height:1; font-weight:900; color:var(--brand-aa);
   font-variant-numeric:tabular-nums; letter-spacing:-.02em;
 }
 .player-card__body{ padding:.85rem .95rem 1.1rem; }
 .player-card__pos{ font-size:.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
 .player-card__name{ font-size:.92rem; font-weight:800; color:var(--heading); margin-top:.3rem; line-height:1.3; }
+.player-card__nat{ font-size:.7rem; font-weight:600; color:var(--muted); margin-top:.2rem; }
 .player-card__en{ display:block; font-size:.7rem; color:var(--muted); margin-top:.15rem; }
 .player-card--demo{ position:relative; }
 .player-card--demo::before{

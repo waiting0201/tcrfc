@@ -259,6 +259,64 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
+    public async Task Player_國籍代碼_不合法回欄位錯誤_合法值正規化_空值允許()
+    {
+        using var client = await CreateClientAsync("team.manager@tcrfc.test");
+        var teamId = await GetTeamIdAsync("tcrfc", "D1");
+        var ids = new List<Guid>();
+        try
+        {
+            // 中文國名（舊的自由文字寫法）不再接受：欄位錯誤 nationality，訊息為日常中文。
+            var bad = await client.PostAsync("/api/v1/admin/tcrfc/players", AdminArticleMultipart.Build(new CreateAdminPlayerRequest
+            {
+                TeamId = teamId, ShirtNo = 61, Nationality = "台灣",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "【測試】國籍錯誤" } },
+            }));
+            Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+            var body = await bad.Content.ReadFromJsonAsync<JsonElement>();
+            Assert.Equal("請從清單選擇國籍。", body.GetProperty("errors").GetProperty("nationality").EnumerateArray().First().GetString());
+
+            // 小寫與前後空白正規化成大寫代碼；英國四地合法。
+            var ok = await client.PostAsync("/api/v1/admin/tcrfc/players", AdminArticleMultipart.Build(new CreateAdminPlayerRequest
+            {
+                TeamId = teamId, ShirtNo = 62, Nationality = " tw ",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "【測試】國籍正規化" } },
+            }));
+            Assert.Equal(HttpStatusCode.Created, ok.StatusCode);
+            var created = (await ok.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!;
+            ids.Add(created.Id);
+            Assert.Equal("TW", created.Nationality);
+
+            var upd = await client.PutAsync($"/api/v1/admin/tcrfc/players/{created.Id}", AdminArticleMultipart.Build(new UpdateAdminPlayerRequest
+            {
+                TeamId = teamId, ShirtNo = 62, Nationality = "GB-ENG",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "【測試】國籍正規化" } },
+            }));
+            Assert.Equal(HttpStatusCode.OK, upd.StatusCode);
+            Assert.Equal("GB-ENG", (await upd.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!.Nationality);
+
+            // 更新時的不合法值同樣擋下；空值清空允許。
+            var badUpd = await client.PutAsync($"/api/v1/admin/tcrfc/players/{created.Id}", AdminArticleMultipart.Build(new UpdateAdminPlayerRequest
+            {
+                TeamId = teamId, ShirtNo = 62, Nationality = "ZZ",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "【測試】國籍正規化" } },
+            }));
+            Assert.Equal(HttpStatusCode.BadRequest, badUpd.StatusCode);
+            var clear = await client.PutAsync($"/api/v1/admin/tcrfc/players/{created.Id}", AdminArticleMultipart.Build(new UpdateAdminPlayerRequest
+            {
+                TeamId = teamId, ShirtNo = 62, Nationality = "",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "【測試】國籍正規化" } },
+            }));
+            Assert.Equal(HttpStatusCode.OK, clear.StatusCode);
+            Assert.Null((await clear.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!.Nationality);
+        }
+        finally
+        {
+            foreach (var id in ids) await DeletePlayerByIdAsync(id);
+        }
+    }
+
+    [Fact]
     public async Task Player_建立成功不含照片_可更新_公開端點看得到()
     {
         using var client = await CreateClientAsync("team.manager@tcrfc.test");

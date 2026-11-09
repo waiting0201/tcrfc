@@ -21,6 +21,7 @@ import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
+import { COUNTRY_OPTIONS, isCountryCode } from '@/data/countries'
 import { useWritableTeamScope } from '@/composables/useWritableTeamScope'
 import PlayerSeasonStatsPanel from './parts/PlayerSeasonStatsPanel.vue'
 import { createAdminPlayer, getAdminPlayer, updateAdminPlayer, type SavePlayerPayload } from '@/api/adminPlayers'
@@ -66,6 +67,8 @@ const form = reactive({
   photoAltZh: '',
   photoAltEn: '',
 })
+/** 舊資料的國籍是自由文字（不是國家代碼）：不默默清掉，提示使用者重新選擇。 */
+const legacyNationality = computed(() => (form.nationality && !isCountryCode(form.nationality) ? form.nationality : ''))
 const baselineJson = ref('')
 // 載入時的網址代稱：改了它會讓舊的球員頁連結失效，要在欄位旁提醒。
 const originalSlug = ref('')
@@ -104,7 +107,8 @@ async function loadPlayer() {
       form.heightCm = detail.heightCm ?? null
       form.weightKg = detail.weightKg ?? null
       form.nationality = detail.nationality ?? ''
-      form.preferredFoot = detail.preferredFoot ?? ''
+      // 舊資料可能存中文「左腳」，轉回代碼讓下拉選單能對上（後端讀出時也會正規化）。
+      form.preferredFoot = ({ 左腳: 'left', 右腳: 'right', 雙腳: 'both' } as Record<string, string>)[detail.preferredFoot ?? ''] ?? detail.preferredFoot ?? ''
       form.joinedOn = fromDateOnlyString(detail.joinedOn)
       form.status = (detail.status as PlayerStatus) ?? 'active'
       form.portraitConsentStatus = detail.portraitConsentStatus as PortraitConsentStatus
@@ -379,14 +383,26 @@ function retryLoad() {
                   <FormField field="weightKg" label="體重（公斤）">
                     <el-input-number v-model="form.weightKg" :min="30" :max="150" style="width: 100%" @change="formErrors.clear('weightKg')" />
                   </FormField>
-                  <el-form-item label="國籍">
-                    <el-input v-model="form.nationality" placeholder="例如 中華台北" />
-                  </el-form-item>
+                  <FormField field="nationality" label="國籍">
+                    <!-- 存國家代碼（ISO 3166-1 alpha-2，另加英國四地），官網與 App 依語系顯示國名；畫面只顯示中文國名。 -->
+                    <el-select
+                      v-model="form.nationality"
+                      filterable
+                      clearable
+                      placeholder="請選擇國籍（可輸入國名搜尋）"
+                      style="width: 100%"
+                      @change="formErrors.clear('nationality')"
+                    >
+                      <el-option v-for="c in COUNTRY_OPTIONS" :key="c.code" :label="c.label" :value="c.code" />
+                    </el-select>
+                    <p v-if="legacyNationality" class="player-edit__hint player-edit__hint--warning">原填寫內容：{{ legacyNationality }}，請重新選擇國籍</p>
+                  </FormField>
                   <el-form-item label="慣用腳">
-                    <el-select v-model="form.preferredFoot" clearable filterable allow-create placeholder="左腳／右腳／雙腳" style="width: 100%">
-                      <el-option label="左腳" value="左腳" />
-                      <el-option label="右腳" value="右腳" />
-                      <el-option label="雙腳" value="雙腳" />
+                    <!-- 存代碼 left／right／both（資料表值域，官網英文版與 App 依代碼轉中英文字）；畫面只顯示中文。 -->
+                    <el-select v-model="form.preferredFoot" clearable placeholder="左腳／右腳／雙腳" style="width: 100%">
+                      <el-option label="左腳" value="left" />
+                      <el-option label="右腳" value="right" />
+                      <el-option label="雙腳" value="both" />
                     </el-select>
                   </el-form-item>
                   <el-form-item label="加入日期">

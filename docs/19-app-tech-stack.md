@@ -938,6 +938,8 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 | 符號化 | 需歸檔 dSYM（§8 規則）；`uuids:` 行用來對應 dSYM |
 | 驗證 | `DiagnosticsTests`（去個資、樣板與契約漂移、彙總／窗口／溢位、每小時 20 筆、4xx 與診斷端點不收、裝置離線不記不送、批次 50、6 天過期、未來夾斷、退避與 5 次丟棄、400 丟棄、停用、持久化、堆疊解析、異常退出摘要、觀察點僅最終失敗觸發一次）。**MetricKit 交付在模擬器不會發生，未在實機驗證崩潰上報往返** |
 
+**球員國籍顯示（2026-11-09）**：`PlayerDto.nationality` 後端存 ISO 3166-1 alpha-2 大寫，另有英國四地 `GB-ENG`／`GB-SCT`／`GB-WLS`／`GB-NIR`；可為空；後端認不得的舊值保留原文。App 依 **App 內選擇的語系**（不是系統語系）產生國名：iOS `LocalizationManager.nationalityLabel`（`Locale(identifier: <lproj>).localizedString(forRegionCode:)`）、Android `RosterText.nationalityLabel`（`Locale("", code).getDisplayCountry(<App 語系>)`）；英國四地用 `Localizable.strings` 的 `nationality.GB-*`／`strings.xml` 的 `nationality_gb_*` 固定字串；非代碼的舊值原樣顯示，空值不顯示該列。測試：iOS `NationalityLabelTests`、Android `NationalityLabelTest`。**慣用腳**：後端讀出時已正規化成 `left`／`right`／`both`，App 不需改；認不得的值 iOS `codeLabel("foot", …)` 中文原樣、ASCII 不顯示，Android `footLabel` 原樣回傳（已有測試涵蓋 iOS 回退）。
+
 **球員賽季數據**：`GET /api/v1/{club}/players/{id}/stats`（`PlayerCareerStatsDto`：`seasons[]` 含出賽、進球、助攻、黃牌、紅牌）。顯示在球員詳情（S05）簡介之後一段表格「賽季數據」，每球季一列；**助攻為空顯示「–」**（0 顯示 0）；`seasons` 為空、失敗或沒網路又沒快取時整段不顯示。快取走 `teams_players` 同一組時效、與語系無關；俱樂部由球員所屬球隊推得。球員照片仍照肖像同意 fail-closed（`PortraitPolicy` 未動）。
 
 ### 11u. 稽核修正（iOS，2026-10-28，`mobile-app-engineer`）

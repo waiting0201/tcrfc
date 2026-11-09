@@ -32,3 +32,56 @@ export interface PlayerDto {
 export function playerPath(slugOrId: string): string {
   return `/zh/club/first-team/player/${slugOrId}/`
 }
+
+/**
+ * 慣用腳代碼正規化：值域是 right／left／both（docs/12a §5.2）。2026-11-09 前後台曾把中文「左腳」直接存進資料庫，
+ * 一併認得（API 讀出時也會正規化，見 apps/api Features/Players/PreferredFoot.cs）。認不得的值原樣回傳。
+ */
+export function normalizePreferredFoot(foot: string): string {
+  const f = foot.trim().toLowerCase()
+  if (f === 'right' || f === '右腳') return 'right'
+  if (f === 'left' || f === '左腳') return 'left'
+  if (f === 'both' || f === '雙腳') return 'both'
+  return foot
+}
+
+/**
+ * 國籍：資料表 `player.nationality` 存 ISO 3166-1 alpha-2 大寫代碼（另加英國四地 GB-ENG／GB-SCT／GB-WLS／GB-NIR），
+ * 可為空、單一國籍（2026-11-09 起；後台為國家下拉選單，後端 migration 把舊中文值轉成代碼）。
+ * 國名一律在前端依語系產生：Intl.DisplayNames（瀏覽器與 Node 的 CLDR 資料一致，SSR 與 hydration 輸出相同）；
+ * 英國四地用固定對照。不是合法代碼的值（認不得的舊資料）原樣顯示。
+ * 後台清單見 apps/admin/src/constants/countries.ts，後端清單在 apps/api，三處要同步。
+ */
+const UK_HOME_NATIONS: Record<string, { zh: string, en: string }> = {
+  'GB-ENG': { zh: '英格蘭', en: 'England' },
+  'GB-SCT': { zh: '蘇格蘭', en: 'Scotland' },
+  'GB-WLS': { zh: '威爾斯', en: 'Wales' },
+  'GB-NIR': { zh: '北愛爾蘭', en: 'Northern Ireland' },
+}
+const displayNamesCache = new Map<string, Intl.DisplayNames | null>()
+function regionNames(locale: 'zh' | 'en'): Intl.DisplayNames | null {
+  const tag = locale === 'en' ? 'en' : 'zh-Hant-TW'
+  if (!displayNamesCache.has(tag)) {
+    try {
+      displayNamesCache.set(tag, new Intl.DisplayNames([tag], { type: 'region' }))
+    }
+    catch {
+      displayNamesCache.set(tag, null)
+    }
+  }
+  return displayNamesCache.get(tag) ?? null
+}
+export function nationalityLabel(code: string | null | undefined, locale: 'zh' | 'en'): string {
+  const raw = (code ?? '').trim()
+  if (!raw) return ''
+  const uk = UK_HOME_NATIONS[raw]
+  if (uk) return uk[locale]
+  if (!/^[A-Z]{2}$/.test(raw)) return raw // 舊資料（非代碼）原樣顯示
+  try {
+    const name = regionNames(locale)?.of(raw)
+    return name && name !== raw ? name : raw
+  }
+  catch {
+    return raw
+  }
+}

@@ -60,6 +60,7 @@ public sealed record AdminPlayerDetailDto
     public DateOnly? BirthOn { get; init; }
     public int? HeightCm { get; init; }
     public int? WeightKg { get; init; }
+    /// <summary>國籍代碼：ISO 3166-1 alpha-2 大寫（如 <c>TW</c>、<c>JP</c>）或英國四地 <c>GB-ENG</c>／<c>GB-SCT</c>／<c>GB-WLS</c>／<c>GB-NIR</c>；可為空，單一國籍。API 不回國名，國名由前端／App 依語系產生。</summary>
     public string? Nationality { get; init; }
     public string? PreferredFoot { get; init; }
     public DateOnly? JoinedOn { get; init; }
@@ -96,6 +97,7 @@ public sealed record CreateAdminPlayerRequest
     public DateOnly? BirthOn { get; init; }
     public int? HeightCm { get; init; }
     public int? WeightKg { get; init; }
+    /// <summary>國籍代碼：ISO 3166-1 alpha-2 大寫（如 <c>TW</c>、<c>JP</c>）或英國四地 <c>GB-ENG</c>／<c>GB-SCT</c>／<c>GB-WLS</c>／<c>GB-NIR</c>；可為空，單一國籍。API 不回國名，國名由前端／App 依語系產生。</summary>
     public string? Nationality { get; init; }
     public string? PreferredFoot { get; init; }
     public DateOnly? JoinedOn { get; init; }
@@ -119,6 +121,7 @@ public sealed record UpdateAdminPlayerRequest
     public DateOnly? BirthOn { get; init; }
     public int? HeightCm { get; init; }
     public int? WeightKg { get; init; }
+    /// <summary>國籍代碼：ISO 3166-1 alpha-2 大寫（如 <c>TW</c>、<c>JP</c>）或英國四地 <c>GB-ENG</c>／<c>GB-SCT</c>／<c>GB-WLS</c>／<c>GB-NIR</c>；可為空，單一國籍。API 不回國名，國名由前端／App 依語系產生。</summary>
     public string? Nationality { get; init; }
     public string? PreferredFoot { get; init; }
     public DateOnly? JoinedOn { get; init; }

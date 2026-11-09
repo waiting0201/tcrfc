@@ -3592,3 +3592,9 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - 列表 `hasOpenSession` 已含尚未開放的梯次（使用者裁決），未改。
 - 防呆：`scripts/check-news-body.mjs`（`npm run lint:news-body`）以假資料涵蓋五種 `statusCode`、時間欄位不影響結果、台北時間換算（UTC 日期與台北日期不同的邊界）與中英文案。
 - 未驗證：本機 API（:5299）仍是舊程式、沒有 `not_yet_open`，未做實機渲染；實機驗收併入 `SO-6`。
+
+## 球員國籍顯示（2026-11-09）
+
+- `player.nationality` 存 ISO 3166-1 alpha-2 大寫代碼（另有 `GB-ENG`／`GB-SCT`／`GB-WLS`／`GB-NIR`），可為空、單一國籍；後台為國家下拉選單。
+- 前台以 `shared/utils/player.ts` 的 `nationalityLabel(code, 'zh' | 'en')` 產生國名：`Intl.DisplayNames`（`zh-Hant-TW`／`en`，SSR 與瀏覽器同一份 CLDR，無 hydration 差異）＋英國四地固定對照；不是代碼的舊資料原樣顯示。已取代並移除舊的 `clubNationalityLabelEn` 中英對照表。
+- 落點：球員詳情頁「國籍」列、一線隊名單卡（`.player-card__nat`，位置／背號同一列之下、姓名之後一行小字，背號仍在資訊區右上）、名單頁 `Person` JSON-LD 的 `nationality`（`Country`，英文國名）。

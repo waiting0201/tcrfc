@@ -1,9 +1,15 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.33
-> **Date**: 2026-08-14 (v3.33 revision: 2026-10-30)
+> **Document version**: v3.34
+> **Date**: 2026-08-14 (v3.34 revision: 2026-11-09)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.33*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.34*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.34 revision summary — player nationality is chosen from a country drop-down; the website and the mobile app show the country name in the visitor's language**
+> **A change to how the C2 player-profile field is entered; no new page or module.**
+> ① **Nationality is chosen from a country drop-down in the admin**: one nationality per player, may be left blank; the list covers countries and regions, plus England, Scotland, Wales and Northern Ireland as used in football.
+> ② **The website and the mobile app show the country name in the current language**: the same player's nationality reads in Chinese on the Chinese site and in English on the English site, chosen once in the admin.
+> Where: 3.1 Players, 4.3 C2; mobile app specification §3 player detail follows.
 
 > **v3.33 revision summary — match-detail line-up: substitutes are ordered by shirt number**
 > **A supplement to how the C4 line-up is shown on the public site; no new page or module, no data-structure change.**
@@ -425,7 +431,7 @@ The following assets must be inventoried before launch to determine migration sc
 | Sub-item | Public-site functionality |
 |---|---|
 | Team Overview | Team introduction + key visual + headline stats for the season |
-| Players | Player card list (squad number / position / nationality / photo), **ordered by squad number, with no position grouping or filter**; clicking opens a **player detail page** (profile, career stats, appearances this season, related news, video) |
+| Players | Player card list (squad number / position / nationality / photo; nationality shown as the country name in the current language), **ordered by squad number, with no position grouping or filter**; clicking opens a **player detail page** (profile, career stats, appearances this season, related news, video) |
 | Coaches | Coach card list + detail (coaching history, licences) |
 | Fixtures | Grouped by season and competition, showing date, opponent, venue, home/away; sourced from the same data as calendar category `D1`, with "View full schedule" and "Subscribe to D1 fixtures (.ics)" |
 | Results & Standings | Results list (score, scorers) + league table (maintained automatically or manually) |
@@ -1218,7 +1224,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Data scope**: scope-limited accounts may only maintain their own club's teams, and an academy manager's data scope is academy squads (`team.type = academy`), so they may not change the first team
 
 #### C2 Players
-- Profile: name (Chinese and English), squad number, position, date of birth, height and weight, nationality, preferred foot, join date, photo
+- Profile: name (Chinese and English), squad number, position, date of birth, height and weight, nationality (chosen from a country drop-down; the front end shows the country name in the current language), preferred foot, join date, photo
 - Career: history, previous clubs, achievements
 - Season stats: appearances, goals, assists, cards (entered manually or aggregated from match data; manual entry takes precedence). **Automatic appearance rule**: only matches with status "finished" count; **a starter counts as one appearance, a substitute counts only if they came on**, and a substitute who scored or received a card in that match is treated as having come on
 - Status: active / departed / on loan / developing overseas (mapping to the Pathways markers in 3.4)

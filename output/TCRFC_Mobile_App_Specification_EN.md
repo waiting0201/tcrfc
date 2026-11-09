@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.28
-> **Date**: 2026-09-04 (v3.28 revision: 2026-11-05)
+> **Document version**: v3.29
+> **Date**: 2026-09-04 (v3.29 revision: 2026-11-09)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.29 revision summary — the player detail shows nationality as a country name in the app's language**
+> The nationality on the player detail is chosen from a country drop-down in the main-site admin, and the app shows the country name in the current language ("台灣" in Chinese, "Taiwan" in English), consistent with the website (main-site C2, v3.34). Where: §3 player detail.
 
 > **v3.28 revision summary — the website app page gains a "Delete account" section, serving as the public account-deletion URL the stores require**
 > The website's app download pages (`/zh/app/`, `/en/app/`) gain a "Delete account" section (anchor `#delete-account`), readable without signing in. It explains three things: how to delete from inside the app and from the website member centre, which data is erased and which is retained, and how to get in touch when sign-in is not possible. Both the Taichung Rock FC and the Taichung Blue Whale websites carry it, with identical content. Deletion remains completable inside the app (3.14, 4.6); the section is an explanation only and offers no deletion action. Where: 2.3, 3.14, 4.6, 12.4, 14.3.
@@ -622,7 +625,7 @@ Adding a squad later requires only a new record in admin C1, with no app release
 | Squad selection | The current club's squads, the same dynamic squad list as 3.2 |
 | Player list | Grouped by position (GK / DF / MF / FW), ordered by shirt number within each group |
 | Player card | Number, name (zh/en), position, photo |
-| Player detail | Date of birth, height and weight, nationality, preferred foot, joining date, previous clubs, career, season statistics (appearances, goals, assists, cards), related news |
+| Player detail | Date of birth, height and weight, nationality (country name in the current language), preferred foot, joining date, previous clubs, career, season statistics (appearances, goals, assists, cards), related news |
 | Coaches and staff | Name, role, licences, specialisms, squads covered |
 
 **Launch prerequisite**: player photographs and biographies have not yet been supplied (`photo` and `bio` fields are empty). **The Blue Whale roster, photographs, and biographies are likewise outstanding**, and come from Blue Whale rather than the club (16.2). Until they arrive this section sits in Phase D, and the list must not be padded with placeholder images — **a text-only card showing number and name is preferable to a fake photo**.

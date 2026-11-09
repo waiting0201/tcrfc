@@ -10750,3 +10750,14 @@ Multipart：`payload`（JSON）、`file`（封面）、`ogImage`、內文圖片 
 - **後台梯次（SO-4）**：`AdminSessionListItemDto`／`AdminSessionDetailDto` 另增唯讀 `effectiveStatusCode`／`effectiveStatusLabelZh`／`effectiveStatusLabelEn`，同樣由 `OfSlotAt` 在每次請求推算（後台端點不走快取）；`status` 仍是儲存值，輸入（建立／更新）的值域不變、不接受 `not_yet_open`。測試 `Session_後台列表與詳情帶對外狀態…`（`AdminProgramsSessionsRegistrationsTests`）。
 - **刻意不動**：會員「我的報名」的 `sessionStatus*`（已報名者的課程狀態，報名截止不代表課程結束）、試訓場次（無報名時窗欄位）。報名閘門訊息維持「尚未開放報名」。
 - 測試：`SessionEffectiveStatusTests`（純函式 16 項＋整合 1 項，含尚未開放／尚未開放加額滿／加候補／恰等於開始時刻／已結束優先）。
+
+---
+
+## 球員國籍改存代碼（2026-11-09，使用者決定）
+
+- **契約**：`players.nationality`（nvarchar(32)，單一國籍、可為空，型別不變）存 **ISO 3166-1 alpha-2 大寫代碼**（如 `TW`、`JP`），另加英國四地 `GB-ENG`／`GB-SCT`／`GB-WLS`／`GB-NIR`。**國名不入庫、API 不回國名**，由官網與 App 依語系產生（原本後台填中文，英文版因此顯示中文）。公開 `PlayerDto`、後台 DTO 照舊回 `nationality` 字串（即代碼），XML 註解與 OpenAPI 已寫明值域。
+- **`Features/Players/NationalityCode.cs`**：硬編碼 249 個 ISO 代碼＋4 個英國四地（不依賴 `RegionInfo`，各平台 ICU 資料不完整）；`Normalize`（trim、轉大寫，空白回 null）、`IsValid`（空值合法）。
+- **後台寫入**（`AdminPlayersRepository` 建立／更新）：先驗證再正規化存入；不在清單內回 400 欄位錯誤 `errors.nationality = "請從清單選擇國籍。"`（舊的中文國名也會被擋，前端須改下拉）。空值清空允許。
+- **Migration** `PlayerNationalityToCode`（`20261109031214`，資料遷移、不改結構、冪等）：SQL 與 `db/migrations/20261109_player-nationality-code.sql` 同源。比對 trim 後、不分大小寫的別名表（`Features/Players/NationalityLegacyNames.cs`：約 110 個國家／地區的中英文國名，含台灣／臺灣／中華台北／中華民國→`TW`、南韓／韓國→`KR`、英格蘭→`GB-ENG`），已是代碼的值只修正大小寫。**認不得的值保留原文，不刪不改**。`Down` 不還原中文（有損且無意義，註解已寫）。
+- **本機庫** `tcrfc_club`：已套用；原有 57 位球員中 1 位「台灣」→`TW`，其餘 NULL，無認不得的值。另在交易內造 8 筆混合資料演練後回滾：臺灣／japan／英格蘭／tw／GB-NIR／南韓皆轉對，「火星」原樣保留。
+- **測試**：`NationalityCodeTests`（清單數量、正規化、驗證、別名皆指向合法代碼且涵蓋至少 70 國、SQL 與 migration 內嵌每個別名）；`AdminTeamsPlayersStaffTests.Player_國籍代碼_…`（不合法回欄位錯誤、小寫與空白正規化、更新、清空）。

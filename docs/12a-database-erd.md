@@ -298,7 +298,7 @@ erDiagram
     date birth_on
     int height_cm
     int weight_kg
-    string_32 nationality
+    string_32 nationality "國家代碼 ISO 3166-1 alpha-2 或 GB-ENG/SCT/WLS/NIR，可空"
     enum preferred_foot
     date joined_on
     enum status

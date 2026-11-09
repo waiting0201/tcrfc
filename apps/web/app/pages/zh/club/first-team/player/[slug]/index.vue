@@ -10,7 +10,7 @@
 // 「相關新聞」「影片」兩區塊沒有公開資料來源（球員與文章／影片沒有可查詢的關聯端點），不放空殼；見 README 缺口。
 import type { PlayerCareerStatsResponse } from '#shared/utils/standings'
 import type { PlayerDto } from '#shared/utils/player'
-import { playerPath } from '#shared/utils/player'
+import { nationalityLabel, normalizePreferredFoot, playerPath } from '#shared/utils/player'
 
 definePageMeta({ nav: 'club', unit: '3.1', enReady: true, enReadyBw: true })
 
@@ -56,7 +56,7 @@ const current = computed(() => seasons.value[0] ?? null)
 
 const FOOT: Record<string, string> = { right: '右腳', left: '左腳', both: '雙腳' }
 const footLabel = computed(() => {
-  const f = player.value?.preferredFoot
+  const f = player.value?.preferredFoot ? normalizePreferredFoot(player.value.preferredFoot) : null
   if (!f) return null
   return isEn.value ? clubFootLabelEn(f) : (FOOT[f.toLowerCase()] ?? f)
 })
@@ -111,7 +111,7 @@ const hasFallback = computed(() => hasFallbackLocale(playerData.value))
       <div><dt>{{ tx('背號', 'Shirt number') }}</dt><dd>{{ statCell(player?.shirtNo) }}</dd></div>
       <div><dt>{{ tx('位置', 'Position') }}</dt><dd>{{ positionText }}</dd></div>
       <div><dt>{{ tx('所屬隊伍', 'Team') }}</dt><dd>{{ tx('一線隊 First Team', 'First Team') }}</dd></div>
-      <div v-if="player?.nationality"><dt>{{ tx('國籍', 'Nationality') }}</dt><dd>{{ player.nationality }}</dd></div>
+      <div v-if="player?.nationality"><dt>{{ tx('國籍', 'Nationality') }}</dt><dd>{{ nationalityLabel(player.nationality, isEn ? 'en' : 'zh') }}</dd></div>
       <div v-if="player?.heightCm"><dt>{{ tx('身高', 'Height') }}</dt><dd>{{ player.heightCm }} cm</dd></div>
       <div v-if="player?.weightKg"><dt>{{ tx('體重', 'Weight') }}</dt><dd>{{ player.weightKg }} kg</dd></div>
       <div v-if="footLabel"><dt>{{ tx('慣用腳', 'Preferred foot') }}</dt><dd>{{ footLabel }}</dd></div>

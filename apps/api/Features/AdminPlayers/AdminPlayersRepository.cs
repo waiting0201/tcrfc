@@ -99,6 +99,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         ValidatePortraitConsentStatus(request.PortraitConsentStatus);
         ValidateContent(request.Content);
         ValidateNumericRanges(request.ShirtNo, request.HeightCm, request.WeightKg);
+        ValidateNationality(request.Nationality);
         var team = await ResolveTeamAsync(scope, request.TeamId, cancellationToken);
 
         // 🔴 S1-8 新增：列級授權——球員必屬於某支球隊（team_id 必填），直接用該球隊檢查即可。
@@ -132,8 +133,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             BirthOn = request.BirthOn,
             HeightCm = request.HeightCm,
             WeightKg = request.WeightKg,
-            Nationality = request.Nationality,
-            PreferredFoot = request.PreferredFoot,
+            Nationality = Players.NationalityCode.Normalize(request.Nationality),
+            PreferredFoot = Players.PreferredFoot.Normalize(request.PreferredFoot),
             JoinedOn = request.JoinedOn,
             Status = request.Status ?? "active",
             PhotoKey = photoKey,
@@ -169,6 +170,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         ValidatePortraitConsentStatus(request.PortraitConsentStatus);
         ValidateContent(request.Content);
         ValidateNumericRanges(request.ShirtNo, request.HeightCm, request.WeightKg);
+        ValidateNationality(request.Nationality);
 
         var player = await dbContext.Players
             .Include(p => p.Team)
@@ -207,8 +209,8 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         player.BirthOn = request.BirthOn;
         player.HeightCm = request.HeightCm;
         player.WeightKg = request.WeightKg;
-        player.Nationality = request.Nationality;
-        player.PreferredFoot = request.PreferredFoot;
+        player.Nationality = Players.NationalityCode.Normalize(request.Nationality);
+        player.PreferredFoot = Players.PreferredFoot.Normalize(request.PreferredFoot);
         player.JoinedOn = request.JoinedOn;
         player.Status = request.Status ?? "active";
         player.PortraitConsentStatus = request.PortraitConsentStatus ?? "not_consented";
@@ -289,6 +291,12 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         existing.Name = content.Name;
         existing.Bio = content.Bio;
         existing.PhotoAlt = string.IsNullOrWhiteSpace(content.PhotoAlt) ? null : content.PhotoAlt.Trim();
+    }
+
+    private static void ValidateNationality(string? nationality)
+    {
+        if (!Players.NationalityCode.IsValid(nationality))
+            throw new AdminPlayerValidationException("請從清單選擇國籍。", "nationality");
     }
 
     private static void ValidateStatus(string? status)
@@ -480,7 +488,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             HeightCm = player.HeightCm,
             WeightKg = player.WeightKg,
             Nationality = player.Nationality,
-            PreferredFoot = player.PreferredFoot,
+            PreferredFoot = Players.PreferredFoot.Normalize(player.PreferredFoot),
             JoinedOn = player.JoinedOn,
             Status = player.Status,
             PhotoKey = player.PhotoKey,

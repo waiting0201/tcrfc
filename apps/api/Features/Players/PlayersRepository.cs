@@ -175,7 +175,7 @@ public sealed class PlayersRepository(
             HeightCm = row.HeightCm,
             WeightKg = row.WeightKg,
             Nationality = row.Nationality,
-            PreferredFoot = row.PreferredFoot,
+            PreferredFoot = PreferredFoot.Normalize(row.PreferredFoot),
             PhotoKey = photoKey,
             PortraitConsented = row.PortraitConsentStatus is "consented" or "consented_by_guardian",
             Name = name,

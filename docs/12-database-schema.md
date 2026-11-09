@@ -403,7 +403,7 @@ flowchart LR
 | `Competition` | **●** | **賽事系列**（`code`、名稱、類型、`season_id`）。v3.0 新增，App 的賽事篩選與 12 個月完整賽程靠它。`status` **收斂為 `draft`／`published`**（S1-8，見 [§12 第 33 點](#12-踩雷點)） | 🌐 |
 | `Season` | **●** | 賽季（`code` 如 `2026-27`、起訖日）。唯一鍵 `(club_id, code)`——**兩隊球季不同步** | |
 | `Team` | **●** | 球隊。**`code` UNIQUE（全站唯一，不得改複合鍵）**，值域 `D1`／**`BW1`**／磐石學院梯隊 `U10`／`U12`／`U14`／`U16`／`U18`／藍鯨青年隊 **`BW-U15`／`BW-U12`**（v3.29；`U15` 退出，實際建立哪幾隊以 C1 為準，年齡層另存 `age_band`）；`type` = `first_team`／`academy`；**`gender`（`men`／`women`／`mixed`）**。`first_team` 為**每俱樂部至多一筆** | 🌐 |
-| `Player` | **●** | 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態。**新增 `portrait_consent_status`**（肖像同意，S1-8，見 [§12 第 32 點](#12-踩雷點)）。**新增 `slug`**（2026-10-05，網址代稱：App 規劃書 §2.3 深連結 `tcrfc://player/{slug}` → `/zh/club/first-team/player/{slug}`，`string(160)`、`[a-z0-9-]`，必填；唯一鍵 **`(club_id, slug)`**，兩隊的球員可各自有同一個 slug） | 🌐 |
+| `Player` | **●** | 球員：背號、位置、生日、身高體重、國籍（**`nationality` 存國家代碼**：ISO 3166-1 alpha-2 大寫，另有 `GB-ENG`／`GB-SCT`／`GB-WLS`／`GB-NIR`，可為空；國名不入庫，前台依語系以 `Intl.DisplayNames`／系統 Locale 顯示；主站 v3.34）、慣用腳、加入日期、狀態。**新增 `portrait_consent_status`**（肖像同意，S1-8，見 [§12 第 32 點](#12-踩雷點)）。**新增 `slug`**（2026-10-05，網址代稱：App 規劃書 §2.3 深連結 `tcrfc://player/{slug}` → `/zh/club/first-team/player/{slug}`，`string(160)`、`[a-z0-9-]`，必填；唯一鍵 **`(club_id, slug)`**，兩隊的球員可各自有同一個 slug） | 🌐 |
 | `PlayerSeasonStat` | — | 逐季數據 `(player_id, season_id)`。**由 `Player` 推導** | |
 | `Staff` | **○** | 教練與團隊成員：證照、專長、分組。**空＝兩隊共同**（行政與醫療多為共用）。**新增 `portrait_consent_status`**（同 `Player`，S1-8） | 🌐 |
 | `StaffTeam` | — | `(staff_id, team_id)` 帶職務 | |

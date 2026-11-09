@@ -759,7 +759,7 @@ CREATE TABLE players (
   birth_on                 date             NULL,
   height_cm                int              NULL,
   weight_kg                int              NULL,
-  nationality              nvarchar(32)     NULL,
+  nationality              nvarchar(32)     NULL,  -- 國籍代碼：ISO 3166-1 alpha-2 大寫，或 GB-ENG/GB-SCT/GB-WLS/GB-NIR；國名由前端依語系產生（2026-11-09）
   preferred_foot           nvarchar(16)     NULL,
   joined_on                date             NULL,
   status                   nvarchar(16)     NULL,

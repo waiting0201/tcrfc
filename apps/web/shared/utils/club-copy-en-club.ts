@@ -19,6 +19,7 @@
 import type { HeroCopy, SeoCopy, ClubHubStat, CtaCardCopy } from './club-copy'
 import type { SiteFacts } from './site-facts'
 import { BW_NAME_EN } from './club-copy'
+import { normalizePreferredFoot } from './player'
 
 // ---------------------------------------------------------------------------
 // 共用小工具（本檔內部使用，不匯出）
@@ -139,9 +140,9 @@ export function clubPositionLabelEn(position: string | null | undefined): string
   }
 }
 
-/** 慣用腳。 */
+/** 慣用腳 → 英文。中文舊值的正規化與國籍英文名在 `player.ts`（本檔不得含中文字串，check-en-copy）。 */
 export function clubFootLabelEn(foot: string): string {
-  const f = foot.toLowerCase()
+  const f = normalizePreferredFoot(foot)
   if (f === 'right') return 'Right foot'
   if (f === 'left') return 'Left foot'
   if (f === 'both') return 'Both feet'
