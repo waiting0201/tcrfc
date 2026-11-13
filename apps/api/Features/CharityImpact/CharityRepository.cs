@@ -202,6 +202,7 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 WHERE (ir.club_id = @ClubId OR ir.club_id IS NULL)
                   AND (@Year IS NULL OR YEAR(ir.happened_on) = @Year)
                   AND (@ProgramSlug IS NULL OR cp.slug = @ProgramSlug)
+                  AND (cp.id IS NULL OR cp.status = 'published')
                 """;
             var countSql = $"SELECT COUNT(*) FROM impact_records ir LEFT JOIN charity_programs cp ON cp.id = ir.charity_program_id {where}";
             var sql = $"""
@@ -271,7 +272,7 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
         {
             using var connection = connectionFactory.CreateConnection();
             var years = await connection.QueryAsync<int>(new CommandDefinition(
-                "SELECT DISTINCT YEAR(happened_on) FROM impact_records WHERE happened_on IS NOT NULL AND (club_id = @ClubId OR club_id IS NULL) ORDER BY 1 DESC",
+                "SELECT DISTINCT YEAR(ir.happened_on) FROM impact_records ir LEFT JOIN charity_programs cp ON cp.id = ir.charity_program_id WHERE ir.happened_on IS NOT NULL AND (ir.club_id = @ClubId OR ir.club_id IS NULL) AND (cp.id IS NULL OR cp.status = 'published') ORDER BY 1 DESC",
                 new { scope.ClubId }, cancellationToken: ct));
             return (IReadOnlyList<int>)years.ToList();
         }, cancellationToken);
@@ -303,20 +304,22 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
                 LEFT JOIN charities_i18n r ON r.charity_id = c.id AND r.locale = @Locale
                 LEFT JOIN charities_i18n d ON d.charity_id = c.id AND d.locale = @DefaultLocale
                 WHERE (c.club_id = @ClubId OR c.club_id IS NULL)
-                  AND (EXISTS (SELECT 1 FROM impact_records ir WHERE ir.charity_id = c.id AND (ir.club_id = @ClubId OR ir.club_id IS NULL))
+                  AND (EXISTS (SELECT 1 FROM impact_records ir LEFT JOIN charity_programs icp ON icp.id = ir.charity_program_id WHERE ir.charity_id = c.id AND (ir.club_id = @ClubId OR ir.club_id IS NULL) AND (icp.id IS NULL OR icp.status = 'published'))
                     OR EXISTS (SELECT 1 FROM charity_programs cp WHERE cp.charity_id = c.id AND cp.status = 'published' AND (cp.club_id = @ClubId OR cp.club_id IS NULL)))
                 ORDER BY c.row_seq
                 """;
             var orgs = (await connection.QueryAsync<OrgRow>(new CommandDefinition(orgSql, p, cancellationToken: ct))).AsList();
 
             var recordCount = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
-                "SELECT COUNT(*) FROM impact_records WHERE club_id = @ClubId OR club_id IS NULL", p, cancellationToken: ct));
+                "SELECT COUNT(*) FROM impact_records ir LEFT JOIN charity_programs cp ON cp.id = ir.charity_program_id WHERE (ir.club_id = @ClubId OR ir.club_id IS NULL) AND (cp.id IS NULL OR cp.status = 'published')", p, cancellationToken: ct));
             var regions = await connection.QueryAsync<string>(new CommandDefinition("""
                 SELECT DISTINCT COALESCE(NULLIF(r.location, N''), d.location)
                 FROM impact_records ir
                 LEFT JOIN impact_records_i18n r ON r.impact_record_id = ir.id AND r.locale = @Locale
                 LEFT JOIN impact_records_i18n d ON d.impact_record_id = ir.id AND d.locale = @DefaultLocale
+                LEFT JOIN charity_programs cp ON cp.id = ir.charity_program_id
                 WHERE (ir.club_id = @ClubId OR ir.club_id IS NULL) AND COALESCE(NULLIF(r.location, N''), d.location) IS NOT NULL
+                  AND (cp.id IS NULL OR cp.status = 'published')
                 ORDER BY 1
                 """, p, cancellationToken: ct));
 

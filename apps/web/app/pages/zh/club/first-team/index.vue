@@ -17,7 +17,7 @@
 // 可查證的獎盃時間軸，不得比照磐石那樣編一個出來。
 import type { PlayerStatsResponse, StandingsResponse } from '#shared/utils/standings'
 import type { PlayerDto } from '#shared/utils/player'
-import { nationalityLabel, playerPath } from '#shared/utils/player'
+import { nationalityLabel, normalizePlayerPosition, playerPath, playerPositionLabelZh } from '#shared/utils/player'
 
 definePageMeta({ nav: 'club', unit: '3.1', enReady: true, enReadyBw: true })
 
@@ -144,7 +144,7 @@ watchEffect(() => {
         name: p.name,
         // 詳情頁的正規網址（slug）；沒有 slug 時不輸出 url，不拿 id 網址頂替（id 網址會 301，不是正規形式）。
         url: p.slug ? `${siteUrl}${lp(playerPath(p.slug))}` : undefined,
-        jobTitle: p.position ?? undefined,
+        jobTitle: p.position ? (isEn.value ? clubPositionLabelEn(p.position) : playerPositionLabelZh(p.position)) : undefined,
         nationality: p.nationality ? { '@type': 'Country', name: nationalityLabel(p.nationality, 'en') } : undefined,
         image: schemaImage(p.photoUrl, p.photoWidth, p.photoHeight),
       }),
@@ -245,7 +245,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
 
     <p v-if="players.length === 0" class="roster-note">{{ tx('名單準備中，稍後將於本頁公布。', 'The squad list is being prepared and will be published on this page soon.') }}</p>
     <div v-else class="player-grid" id="player-grid">
-      <article v-for="p in players" :key="p.id" class="player-card clip-card" :data-pos="p.position">
+      <article v-for="p in players" :key="p.id" class="player-card clip-card" :data-pos="normalizePlayerPosition(p.position)">
         <div class="player-card__visual">
           <img v-if="p.photoUrl" :src="p.photoUrl" :alt="imgAlt(p.photoAlt, isEn ? `Photo of ${p.name}` : `${p.name} 球員照片`)" v-bind="imgAttrs(p.photoWidth, p.photoHeight)" loading="lazy" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
           <img class="player-card__crest" :src="assets.headerMark.src" alt="" width="64" height="67" aria-hidden="true">
@@ -253,7 +253,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
         <div class="player-card__body">
           <!-- 背號放資訊區右上、與位置同列（2026-11-09 客戶回饋：放在照片上會壓在球員胸口正中央） -->
           <div class="player-card__head">
-            <span class="player-card__pos">{{ isEn ? clubPositionLabelEn(p.position) : (p.position ?? '—') }}</span>
+            <span class="player-card__pos">{{ isEn ? clubPositionLabelEn(p.position) : playerPositionLabelZh(p.position) }}</span>
             <span class="player-card__num"><span class="visually-hidden">{{ tx('背號', 'No.') }} </span>{{ p.shirtNo ?? '—' }}</span>
           </div>
           <p class="player-card__name"><a class="sh-player-link" :href="lp(playerPath(p.slug || p.id))">{{ p.name }}</a></p>
@@ -428,7 +428,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
           <tr v-for="r in statRows" :key="r.playerId">
             <td><a class="sh-player-link" :href="lp(playerPath(slugById.get(r.playerId) ?? r.playerId))">{{ r.name ?? '—' }}</a></td>
             <td>{{ statCell(r.shirtNo) }}</td>
-            <td>{{ isEn ? clubPositionLabelEn(r.position) : (r.position ?? '—') }}</td>
+            <td>{{ isEn ? clubPositionLabelEn(r.position) : playerPositionLabelZh(r.position) }}</td>
             <td>{{ statCell(r.appearances) }}</td>
             <td>{{ statCell(r.goals) }}</td>
             <td :class="{ 'is-null': r.assists === null }">{{ statCell(r.assists) }}</td>

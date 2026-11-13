@@ -85,3 +85,27 @@ export function nationalityLabel(code: string | null | undefined, locale: 'zh' |
     return raw
   }
 }
+
+/**
+ * 場上位置：資料表 `player.position` 的值域是 GK／DF／MF／FW（2026-11-13 起後台為下拉選單、API 讀寫都會正規化，
+ * 見 apps/api Features/Players/PlayerPosition.cs）。之前後台是自由文字，舊資料可能是中文，一併認得；
+ * 大小寫不拘。認不得的值原樣回傳（中文頁照原文顯示；英文頁見 `clubPositionLabelEn`，不輸出中日文字元）。
+ */
+export type PlayerPositionCode = 'GK' | 'DF' | 'MF' | 'FW'
+const POSITION_ALIASES: Record<string, PlayerPositionCode> = {
+  GK: 'GK', 門將: 'GK', 守門員: 'GK',
+  DF: 'DF', 後衛: 'DF',
+  MF: 'MF', 中場: 'MF',
+  FW: 'FW', 前鋒: 'FW',
+}
+export function normalizePlayerPosition(position: string | null | undefined): string {
+  const raw = position ?? ''
+  return POSITION_ALIASES[raw.trim().toUpperCase()] ?? raw
+}
+const POSITION_ZH: Record<PlayerPositionCode, string> = { GK: '門將', DF: '後衛', MF: '中場', FW: '前鋒' }
+/** 位置 → 中文頁顯示文字；空值回 `fallback`，認不得的值原樣顯示。英文頁用 `clubPositionLabelEn`。 */
+export function playerPositionLabelZh(position: string | null | undefined, fallback = '—'): string {
+  if (!position || !position.trim()) return fallback
+  const code = normalizePlayerPosition(position)
+  return POSITION_ZH[code as PlayerPositionCode] ?? code
+}

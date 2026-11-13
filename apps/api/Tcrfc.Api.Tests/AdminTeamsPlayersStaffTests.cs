@@ -317,6 +317,52 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
+    public async Task Player_位置_中文舊值存成代碼_公開端點回GK_空值清空_認不得的值原樣保留()
+    {
+        using var client = await CreateClientAsync("team.manager@tcrfc.test");
+        var teamId = await GetTeamIdAsync("tcrfc", "D1");
+        Guid? playerId = null;
+        try
+        {
+            var created = await client.PostAsync("/api/v1/admin/tcrfc/players", AdminArticleMultipart.Build(new CreateAdminPlayerRequest
+            {
+                TeamId = teamId, ShirtNo = 63, Position = " 門將 ",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "【測試】位置正規化" } },
+            }));
+            Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+            var detail = (await created.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!;
+            playerId = detail.Id;
+            Assert.Equal("GK", detail.Position);
+
+            // 公開列表與單筆詳情都回代碼（寫入後快取已失效）。
+            var list = await client.GetFromJsonAsync<PagedResult<JsonElement>>("/api/v1/tcrfc/players?team=D1", TestJson.Options);
+            var pub = list!.Items.First(p => p.GetProperty("id").GetGuid() == playerId);
+            Assert.Equal("GK", pub.GetProperty("position").GetString());
+            var single = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tcrfc/players/{playerId}", TestJson.Options);
+            Assert.Equal("GK", single.GetProperty("position").GetString());
+
+            // 更新：英文全名也轉代碼；認不得的值原樣保留（與慣用腳一致，不拒收）；空值清空。
+            async Task<string?> PutAsync(string? position)
+            {
+                var r = await client.PutAsync($"/api/v1/admin/tcrfc/players/{playerId}", AdminArticleMultipart.Build(new UpdateAdminPlayerRequest
+                {
+                    TeamId = teamId, ShirtNo = 63, Position = position,
+                    Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "【測試】位置正規化" } },
+                }));
+                Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+                return (await r.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!.Position;
+            }
+            Assert.Equal("MF", await PutAsync("Midfielder"));
+            Assert.Equal("邊鋒", await PutAsync("邊鋒"));
+            Assert.Null(await PutAsync(""));
+        }
+        finally
+        {
+            if (playerId is Guid id) await DeletePlayerByIdAsync(id);
+        }
+    }
+
+    [Fact]
     public async Task Player_建立成功不含照片_可更新_公開端點看得到()
     {
         using var client = await CreateClientAsync("team.manager@tcrfc.test");

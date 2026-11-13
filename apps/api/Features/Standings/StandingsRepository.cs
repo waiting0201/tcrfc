@@ -186,7 +186,7 @@ public sealed class StandingsRepository(ClubDbContext db, IImagePublicUrlResolve
             var photo = p.PortraitConsentStatus is "consented" or "consented_by_guardian" ? p.PhotoKey : null;
             return new PlayerSeasonStatDto
             {
-                PlayerId = p.Id, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), TeamCode = p.Team.Code, ShirtNo = p.ShirtNo, Position = p.Position,
+                PlayerId = p.Id, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), TeamCode = p.Team.Code, ShirtNo = p.ShirtNo, Position = Tcrfc.Api.Features.Players.PlayerPosition.Normalize(p.Position),
                 PhotoUrl = photo is null ? null : imageUrls.Resolve(photo),
                 PhotoWidth = photo is null ? null : p.PhotoWidth, PhotoHeight = photo is null ? null : p.PhotoHeight,
                 PhotoAlt = photo is null ? null : RequestLocale.Pick(requested?.PhotoAlt, fallback?.PhotoAlt), Appearances = t.Appearances, Goals = t.Goals, Assists = t.Assists, YellowCards = t.Yellow, RedCards = t.Red, Source = t.Source,

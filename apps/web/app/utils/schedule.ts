@@ -133,6 +133,30 @@ export function mapMatchStatus(status: string | null): { code: string; label: st
   return { code: meta.code, label: meta.label }
 }
 
+/** 台灣時區（Asia/Taipei，無夏令時間，固定 UTC+8）的今天日期鍵 `YYYY-MM-DD`。
+ * 🔴 不要用 `new Date().toISOString().slice(0, 10)`（那是 UTC 日期，台灣 00:00–08:00 會落後一天）。 */
+export function taipeiDateKey(now: Date | number = Date.now()): string {
+  const t = typeof now === 'number' ? now : now.getTime()
+  return new Date(t + 8 * 3_600_000).toISOString().slice(0, 10)
+}
+
+/**
+ * 賽事歸屬哪個分頁：「賽程」(fixtures) 或「賽果」(results)。
+ * 規格（主站規劃書 3.13、docs/02）只定義五種狀態標記，沒有規定各狀態歸哪個分頁，採用下列規則：
+ * - 已結束 → 賽果
+ * - 未開始、進行中、延賽 → 賽程（延賽即使原定日已過也留在賽程，等改期）
+ * - 取消 → 依比賽日：今天或未來歸賽程，已過歸賽果
+ * 未知狀態字面值沿用 {@link mapMatchStatus} 的預設（未開始 → 賽程）。
+ * `todayKey` 須為台灣日期鍵（{@link taipeiDateKey}）。
+ */
+export function matchTabOf(status: string | null, matchOn: string, todayKey: string): 'fixtures' | 'results' {
+  switch (mapMatchStatus(status).code) {
+    case 'finished': return 'results'
+    case 'cancelled': return matchOn >= todayKey ? 'fixtures' : 'results'
+    default: return 'fixtures'
+  }
+}
+
 /** 英文版：同 {@link mapMatchStatus}，`label` 為英文（Upcoming／Finished／Postponed／Cancelled／Live）。 */
 export function mapMatchStatusEn(status: string | null): { code: string; label: string } {
   const meta = (status && MATCH_STATUS_MAP[status]) || DEFAULT_STATUS_META

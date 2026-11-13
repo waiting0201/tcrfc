@@ -272,12 +272,19 @@ public sealed class AdminVenuesRepository(ClubDbContext dbContext, IImagePublicU
         row.PhotoAlt = content.PhotoAlt;
     }
 
-    /// <summary>站台事實（<c>Features/SiteFacts</c>）的公開讀取會快取主場名稱與地址；場地變更後讓所有俱樂部的該項快取失效。</summary>
+    /// <summary>場地名稱／地址被多個公開讀取快取引用：站台事實（<c>site-facts</c>）、賽程（<c>schedule</c>）、
+    /// 行事曆（<c>calendar</c>）、課程梯次（<c>programs</c>）；場地變更後讓所有俱樂部的這幾項快取失效。
+    /// 場地可能被兩個俱樂部共用，故不限於呼叫端俱樂部。</summary>
     private async Task InvalidateSiteFactsAsync(CancellationToken cancellationToken)
     {
         foreach (var code in await dbContext.Clubs.AsNoTracking().Select(c => c.Code).ToListAsync(cancellationToken))
         {
-            await cache.InvalidateAsync("site-facts", code, cancellationToken);
+            foreach (var entity in VenueDependentCacheEntities)
+            {
+                await cache.InvalidateAsync(entity, code, cancellationToken);
+            }
         }
     }
+
+    private static readonly string[] VenueDependentCacheEntities = ["site-facts", "schedule", "calendar", "programs"];
 }

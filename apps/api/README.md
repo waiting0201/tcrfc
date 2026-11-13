@@ -10761,3 +10761,31 @@ Multipart：`payload`（JSON）、`file`（封面）、`ogImage`、內文圖片 
 - **Migration** `PlayerNationalityToCode`（`20261109031214`，資料遷移、不改結構、冪等）：SQL 與 `db/migrations/20261109_player-nationality-code.sql` 同源。比對 trim 後、不分大小寫的別名表（`Features/Players/NationalityLegacyNames.cs`：約 110 個國家／地區的中英文國名，含台灣／臺灣／中華台北／中華民國→`TW`、南韓／韓國→`KR`、英格蘭→`GB-ENG`），已是代碼的值只修正大小寫。**認不得的值保留原文，不刪不改**。`Down` 不還原中文（有損且無意義，註解已寫）。
 - **本機庫** `tcrfc_club`：已套用；原有 57 位球員中 1 位「台灣」→`TW`，其餘 NULL，無認不得的值。另在交易內造 8 筆混合資料演練後回滾：臺灣／japan／英格蘭／tw／GB-NIR／南韓皆轉對，「火星」原樣保留。
 - **測試**：`NationalityCodeTests`（清單數量、正規化、驗證、別名皆指向合法代碼且涵蓋至少 70 國、SQL 與 migration 內嵌每個別名）；`AdminTeamsPlayersStaffTests.Player_國籍代碼_…`（不合法回欄位錯誤、小寫與空白正規化、更新、清空）。
+
+
+---
+
+## 球員位置改存代碼（docs/23 W-6／M-11，2026-11-13）
+
+- **契約**：`players.position`（`nvarchar(32)`，可空，型別不變）存 `GK`／`DF`／`MF`／`FW` 大寫代碼。後台「位置」原是自由文字（提示寫「例如 門將、中場」），營運人員照填中文，英文頁顯示中文、App 把球員歸到「其他」，與慣用腳（docs/18 E-357）同形。回應形狀不變（仍是字串），沒有新增錯誤碼，不用跑 `shared/scripts/gen-all.sh`。
+- **`Features/Players/PlayerPosition.cs`**：`Normalize`——空白回 null；代碼大小寫不拘；門將／守門員／Goalkeeper→`GK`、後衛／Defender→`DF`、中場／Midfielder→`MF`、前鋒／Striker／Forward→`FW`（含簡體）；**認不得的值原樣（trim 後）保留，不拒收**，與 `PreferredFoot` 一致。
+- **寫入**（`AdminPlayersRepository` 建立／更新）與**讀出**都過它，舊資料不必遷移。讀出點共 6 處：公開球員列表與詳情（`PlayersRepository.Map`）、賽事出賽名單（`MatchesRepository` 的 `MatchLineupDto.Position`）、球員賽季統計（`StandingsRepository` 的 `PlayerSeasonStatDto.Position`）、後台球員列表與詳情／建立／更新回應（`AdminPlayersRepository`）。搜尋、`AppPublic` 不輸出位置。沒有球員批次匯入路徑。
+- **種子**：`db/prod/club-content-seed.sql` 與本機種子的 28 位磐石一線隊球員只有 `GK`(3)／`DF`(7)／`MF`(13)／`FW`(5)，藍鯨 `BW1` 球員無位置（NULL），沒有需要轉換的值。
+- **測試**：`PlayerPositionTests`（純函式 18 項）；`AdminTeamsPlayersStaffTests.Player_位置_中文舊值存成代碼_公開端點回GK_…`（後台存「 門將 」→公開列表與詳情回 `GK`、英文全名轉代碼、認不得的值保留、空值清空）。
+
+---
+
+## 後台寫入端對公開快取的失效補齊（docs/23 H-1：W-4／W-26／W-27／W-28／W-29，2026-11-13）
+
+「公開端讀到別的模組的欄位並快取，寫入端卻只失效自己那一種」的五筆缺口。**原則**：公開 Repository 的 SQL 只要 JOIN 或子查詢到別的模組的資料表，那個模組的後台寫入就要失效該公開 entity。
+
+| 筆 | 後台寫入 | 補失效的 entity（公開端 Repository） | 範圍鍵 |
+|---|---|---|---|
+| W-4 | `AdminRegistrationsRepository` 建立／更新（含轉梯次）／批次改狀態／候補轉正（交易 `Commit` 之後） | `programs`（`Programs/ProgramsRepository`，梯次已報名人數與額滿狀態） | 該俱樂部 |
+| W-26 | `AdminVenuesRepository` 建立／更新／刪除 | `site-facts`（既有）＋ `schedule`（`Schedule/MatchesRepository`）＋ `calendar`（`Calendar/CalendarRepository`）＋ `programs`（梯次場地）。試訓（`Trials`）與場地清單（`SiteSettings.ListVenuesAsync`）、日曆 ICS／feed 都不走快取，不需失效 | 所有俱樂部（場地可共用，沿用原本逐俱樂部迴圈） |
+| W-27 | `AdminFaqCategoriesRepository` 建立／更新（改名、排序、停用）／刪除 | `faq-categories`（範圍鍵 `CacheDimensions.SharedClub`，與讀取端一致，分類無 `club_id`）＋ `faqs`／`faq-detail`／`faq-embed`（依分類 slug 篩選與回傳分類 slug） | 分類本身用共用鍵；FAQ 三項逐俱樂部 |
+| W-28 | `AdminPartnersRepository`、`AdminStaffRepository` | 補 `programs`（課程詳情含授課教練姓名、合作夥伴名稱與 logo alt）；其餘公開端讀教練姓名的只有 `Search`（不快取） | 該俱樂部 |
+| W-29 | （讀取端修正，非失效）`Features/CharityImpact/CharityRepository` | 事蹟紀錄列表／count／年份清單／彙總（件數、地區、參與團體）一律加 `(cp.id IS NULL OR cp.status = 'published')`，草稿計畫的事蹟與計畫名稱不外露 | — |
+
+- **測試**：`AuditH1CacheInvalidationTests`（真實 `redis-server`：課程公開頁在報名異動、場地改名、教練改名、夥伴改名後立刻反映；FAQ 分類新增／改名／停用／刪除後公開分類清單立刻反映）、`AuditH1CharityRecordsDraftProgramTests`（草稿計畫的事蹟不出現在公開列表／年份，發布後才出現）。
+- **跑測試的注意**：這幾支會寫資料，請照 `docs/14` 的 `tcrfc_club_test` 流程（`./db/seed/setup-club-db.sh --test-db`，`CLUB_SQL_CONNECTION_STRING` 指向它），不要在使用者的開發庫或正式庫副本上跑（`E-332`、`E-347`）。

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
@@ -32,7 +33,7 @@ namespace Tcrfc.Api.Features.AdminRegistrations;
 /// 在這件事上沒有明確答案」，依任務指示停在這裡、寫進報告，不自行新增 <c>EmailLog.type</c> 值域
 /// 或串接簡訊服務。
 /// </summary>
-public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, SensitiveActionLogger audit)
+public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, SensitiveActionLogger audit, IQueryCache cache)
 {
     internal static readonly HashSet<string> AllowedStatuses =
         new(StringComparer.Ordinal) { "待確認", "已確認", "已繳費", "完成", "取消", "候補" };
@@ -183,6 +184,7 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
         }
 
         await transaction.CommitAsync(cancellationToken);
+        await InvalidatePublicProgramsAsync(scope, cancellationToken);
         return (await GetByIdAsync(scope, registrationId, cancellationToken))!;
     }
 
@@ -249,6 +251,7 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
         }
 
         await transaction.CommitAsync(cancellationToken);
+        await InvalidatePublicProgramsAsync(scope, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
     }
 
@@ -307,6 +310,7 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
         }
 
         await transaction.CommitAsync(cancellationToken);
+        await InvalidatePublicProgramsAsync(scope, cancellationToken);
         return new BatchOperationResultDto { UpdatedCount = updated, Skipped = skipped };
     }
 
@@ -332,6 +336,7 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
         await dbContext.SaveChangesAsync(cancellationToken);
         await AdjustEnrolledCountAsync(registration.SessionId!.Value, +1, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        await InvalidatePublicProgramsAsync(scope, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
     }
 
@@ -480,6 +485,10 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, Sensit
     /// <c>Features/AdminSessions/AdminSessionsRepository.DeriveDefaultStatus</c> 一致（規劃書
     /// 只講「額滿自動關閉」單向語意，見該檔案上的說明）。名額扣減有下限保護
     /// （<c>enrolled_count</c> 不會被減到負數），避免資料異常時連鎖出現負數名額。</summary>
+    /// <summary>報名異動會改梯次已報名人數與額滿狀態，公開課程頁（<c>Features/Programs</c>）走 <c>programs</c> 快取，寫入後須失效（比照 AdminSessions）。</summary>
+    private Task InvalidatePublicProgramsAsync(AdminClubScope scope, CancellationToken cancellationToken)
+        => cache.InvalidateAsync("programs", scope.ClubCode, cancellationToken);
+
     private Task AdjustEnrolledCountAsync(Guid sessionId, int delta, CancellationToken cancellationToken)
         => dbContext.Database.ExecuteSqlInterpolatedAsync($@"
             UPDATE sessions

@@ -9,6 +9,8 @@
 //   開放 → 立即報名；額滿／候補 → 額滿候補（後端仍受理，直接列入候補）；已結束 → 已截止；
 //   尚未開放 → 停用按鈕＋「M 月 D 日開放報名」，不可送出、不可候補。
 
+import { taipeiDateKey } from './schedule.ts'
+
 export const SESSION_STATUS = {
   open: '開放',
   full: '額滿',
@@ -126,4 +128,33 @@ export function signupOpensText(iso: string | null | undefined, locale: 'zh' | '
     return `Opens for registration on ${day} ${mon}`
   }
   return `${month} 月 ${day} 日開放報名`
+}
+
+/** 梯次價格顯示用的判斷（夏令營、冬令營、報名元件共用）。 */
+export interface PriceFields {
+  price: number | null
+  earlyBirdPrice: number | null
+  earlyBirdUntil: string | null
+}
+
+/**
+ * 早鳥價是否仍有效：有早鳥價，且（沒填截止日，或截止日（含）當天以前）。
+ * 🔴 「今天」一律用台灣時區日期（`taipeiDateKey`），不用 UTC——UTC 在台灣 00:00–08:00 會落後一天，
+ * 截止日當天早上就被誤判已過期。`earlyBirdPrice` 為 null 視為沒有早鳥價（0 元是合法的早鳥價，與報名元件一致）。
+ */
+export function isEarlyBirdActive(s: PriceFields, todayKey: string = taipeiDateKey()): boolean {
+  if (s.earlyBirdPrice == null) return false
+  return !s.earlyBirdUntil || s.earlyBirdUntil.slice(0, 10) >= todayKey
+}
+
+/** 梯次價格列（夏令營、冬令營預覽卡用）：早鳥有效才有 `early`；`regular` 為正價（沒填為 null）。 */
+export function sessionPriceView(s: PriceFields | null | undefined, todayKey: string = taipeiDateKey()): {
+  early: { price: number, until: string | null } | null
+  regular: number | null
+} {
+  if (!s) return { early: null, regular: null }
+  return {
+    early: isEarlyBirdActive(s, todayKey) ? { price: s.earlyBirdPrice!, until: s.earlyBirdUntil ? s.earlyBirdUntil.slice(0, 10).replaceAll('-', '/') : null } : null,
+    regular: s.price ?? null,
+  }
 }

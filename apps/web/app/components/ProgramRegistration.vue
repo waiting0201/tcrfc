@@ -77,10 +77,9 @@ function dateRange(s: SessionDto): string {
 function schedule(s: SessionDto): string | null {
   return formatWeeklySchedule(s.weeklySchedule, locale.value)
 }
-/** 早鳥價在早鳥截止日（含）之前有效；沒填截止日視為持續有效。 */
+/** 早鳥價在早鳥截止日（含，台灣日期）之前有效；沒填截止日視為持續有效。判斷共用 `isEarlyBirdActive`。 */
 function effectivePrice(s: SessionDto): { price: number, early: boolean } | null {
-  const today = new Date().toISOString().slice(0, 10)
-  if (s.earlyBirdPrice != null && (!s.earlyBirdUntil || s.earlyBirdUntil >= today)) return { price: s.earlyBirdPrice, early: true }
+  if (isEarlyBirdActive(s)) return { price: s.earlyBirdPrice!, early: true }
   return s.price != null ? { price: s.price, early: false } : null
 }
 function remaining(s: SessionDto): string | null {

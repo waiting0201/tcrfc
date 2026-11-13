@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
@@ -22,7 +23,7 @@ namespace Tcrfc.Api.Features.AdminFaqs;
 /// <see cref="UpdateAsync"/> 把 <c>IsEnabled</c> 設為 <c>false</c>，需要真的移除這個分類（不留存）
 /// 才用 DELETE。
 /// </summary>
-public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
+public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext, IQueryCache cache)
 {
     public async Task<IReadOnlyList<AdminFaqCategoryListItemDto>> ListAsync(CancellationToken cancellationToken)
     {
@@ -95,6 +96,7 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await InvalidatePublicCacheAsync(cancellationToken);
         return (await GetByIdAsync(category.Id, cancellationToken))!;
     }
 
@@ -137,6 +139,7 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        await InvalidatePublicCacheAsync(cancellationToken);
         return await GetByIdAsync(id, cancellationToken);
     }
 
@@ -153,7 +156,23 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
         // 刪除分類本身即可連帶清掉關聯列，不需要另外手動清子表。
         dbContext.FaqCategories.Remove(category);
         await dbContext.SaveChangesAsync(cancellationToken);
+        await InvalidatePublicCacheAsync(cancellationToken);
         return true;
+    }
+
+    /// <summary>分類沒有 <c>club_id</c>、全站共用：公開分類清單（<c>faq-categories</c>）以
+    /// <see cref="CacheDimensions.SharedClub"/> 為俱樂部維度；而各俱樂部的 FAQ 列表／單筆／嵌入快取
+    /// 會依分類 slug 篩選並回傳分類 slug，分類改 slug、停用或刪除都會影響，所以對每個俱樂部一併失效
+    /// （key 與 <c>Faqs/FaqsRepository</c> 讀取端一致）。</summary>
+    private async Task InvalidatePublicCacheAsync(CancellationToken cancellationToken)
+    {
+        await cache.InvalidateAsync("faq-categories", CacheDimensions.SharedClub, cancellationToken);
+        foreach (var code in await dbContext.Clubs.AsNoTracking().Select(c => c.Code).ToListAsync(cancellationToken))
+        {
+            await cache.InvalidateAsync("faqs", code, cancellationToken);
+            await cache.InvalidateAsync("faq-detail", code, cancellationToken);
+            await cache.InvalidateAsync("faq-embed", code, cancellationToken);
+        }
     }
 
     private void AddOrReplaceI18n(FaqCategory category, string locale, AdminFaqCategoryLocaleContent content)

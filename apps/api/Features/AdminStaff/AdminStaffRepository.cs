@@ -136,7 +136,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await cache.InvalidateAsync("staff", scope.ClubCode, cancellationToken);
+        await InvalidatePublicCacheAsync(scope, cancellationToken);
         return (await GetByIdAsync(scope, staff.Id, cancellationToken))!;
     }
 
@@ -218,7 +218,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
-        await cache.InvalidateAsync("staff", scope.ClubCode, cancellationToken);
+        await InvalidatePublicCacheAsync(scope, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
     }
 
@@ -321,5 +321,13 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             CreatedAt = staff.CreatedAt,
             UpdatedAt = staff.UpdatedAt,
         };
+    }
+
+    /// <summary>教練／工作人員姓名除了 <c>staff</c> 本身，也被課程公開快取（<c>programs</c>，Programs/ProgramsRepository
+    /// 的授課教練）引用，兩邊都要失效。</summary>
+    private async Task InvalidatePublicCacheAsync(AdminClubScope scope, CancellationToken cancellationToken)
+    {
+        await cache.InvalidateAsync("staff", scope.ClubCode, cancellationToken);
+        await cache.InvalidateAsync("programs", scope.ClubCode, cancellationToken);
     }
 }

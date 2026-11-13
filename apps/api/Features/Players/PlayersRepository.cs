@@ -170,7 +170,7 @@ public sealed class PlayersRepository(
             Slug = row.Slug,
             TeamCode = row.TeamCode,
             ShirtNo = row.ShirtNo,
-            Position = row.Position,
+            Position = PlayerPosition.Normalize(row.Position),
             BirthOn = row.BirthOn is { } birthOn ? DateOnly.FromDateTime(birthOn) : null,
             HeightCm = row.HeightCm,
             WeightKg = row.WeightKg,

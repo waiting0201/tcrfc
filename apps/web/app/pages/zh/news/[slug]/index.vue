@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { playerPositionLabelZh } from '#shared/utils/player'
 // app/pages/zh/news/[slug]/index.vue — 新聞逐篇網址（S0-9e，取代 article.vue 的範本頁）
 //
 // 由 app/pages/zh/news/article.vue 改寫而來，版面（DOM 結構、class）逐字沿用該頁
@@ -30,6 +31,9 @@ const club = config.public.club
 // S1-13：lang 跟隨目前路由語系（/zh/news/{slug} 或 /en/news/{slug}，兩者是同一個
 // component 檔案複製出來的孿生路由，見 nuxt.config.ts 的 pages:extend），不再寫死 'zh'。
 const { locale, lp, isEn, tx } = useLocale()
+/** 位置代碼 → 依語系顯示文字（認不得的值：中文頁原樣、英文頁見 clubPositionLabelEn）。 */
+const positionText = (pos: string) => (isEn.value ? clubPositionLabelEn(pos) : playerPositionLabelZh(pos))
+
 
 // slug 用函式形式傳給 useFetch key／URL，確保「從一篇相關文章點到另一篇」這種
 // client-side 導覽（同一個路由元件、只有 params.slug 變化）會重新打 API，
@@ -383,7 +387,7 @@ watch(() => article.value?.slug, (slug) => { if (slug) reportView(club, 'news', 
         <h3>{{ tx('相關球員', 'Related players') }}</h3>
         <ul class="article-players">
           <li v-for="p in relatedPlayers" :key="p.id">
-            <a :href="lp(playerPath(p.slug))">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position ? `${tx('　', ' · ')}${p.position}` : '' }}</a>
+            <a :href="lp(playerPath(p.slug))">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position && positionText(p.position) ? `${tx('　', ' · ')}${positionText(p.position)}` : '' }}</a>
           </li>
         </ul>
       </template>

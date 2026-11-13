@@ -294,7 +294,7 @@ erDiagram
     uuid team_id FK
     string_160 slug
     int shirt_no
-    enum position
+    enum position "GK／DF／MF／FW 大寫代碼，不存顯示文字"
     date birth_on
     int height_cm
     int weight_kg

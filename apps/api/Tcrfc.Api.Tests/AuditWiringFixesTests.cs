@@ -804,15 +804,8 @@ public sealed class AuditWiringFixesTests(AdminWriteApiFixture fixture)
 
         // 網站事實：寫回同值
         var facts = await admin.GetFromJsonAsync<AdminSiteFactsDto>("/api/v1/admin/tcrfc/site-facts", TestJson.Options);
-        var factsResponse = await admin.PutAsJsonAsync("/api/v1/admin/tcrfc/site-facts", new UpdateSiteFactsRequest
-        {
-            FoundedYear = facts!.FoundedYear, FoundingDateIso = facts.FoundingDateIso, FoundingDateDisplayZh = facts.FoundingDateDisplayZh, FoundingDateDisplayEn = facts.FoundingDateDisplayEn,
-            FoundingTitleZh = facts.FoundingTitleZh, FoundingTitleEn = facts.FoundingTitleEn, LeagueNameZh = facts.LeagueNameZh, LeagueNameEn = facts.LeagueNameEn,
-            LeagueShortNameZh = facts.LeagueShortNameZh, LeagueShortNameEn = facts.LeagueShortNameEn, SquadStructureZh = facts.SquadStructureZh, SquadStructureEn = facts.SquadStructureEn,
-            SquadCodes = facts.SquadCodes,
-            HomeVenues = facts.HomeVenues.Select(v => new UpdateSiteFactVenueRequest { Id = v.Id, NameZh = v.NameZh, NameEn = v.NameEn, Address = v.Address }).ToList(),
-            ContactPhone = facts.ContactPhone, ContactHoursZh = facts.ContactHoursZh, ContactHoursEn = facts.ContactHoursEn, BlueWhaleSiteUrl = facts.BlueWhaleSiteUrl,
-        }, TestJson.WriteOptions);
+        // PUT 是整份取代：必須帶回全部欄位（聯絡地址、Email、社群、部門、頁尾簡介），否則會把共用庫的設定清掉。
+        var factsResponse = await admin.PutAsJsonAsync("/api/v1/admin/tcrfc/site-facts", SiteFactsTests.ToUpdateRequest(facts), TestJson.WriteOptions);
         Assert.Equal(HttpStatusCode.OK, factsResponse.StatusCode);
         Assert.Contains("site-facts:tcrfc", cache.Invalidated);
 

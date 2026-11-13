@@ -104,7 +104,7 @@
 // shared/utils/ 不像 app/utils/ 會被自動引入）。
 import { venueAddressByName } from '#shared/utils/schema-batch2'
 import { resolveScheduleSlug } from '#shared/utils/schedule-route'
-import { playerPath } from '#shared/utils/player'
+import { playerPath, playerPositionLabelZh } from '#shared/utils/player'
 import type { MatchCard, MatchCrest, MatchGoal, MatchLineupEntry, MatchScorer } from '~/utils/schedule'
 
 definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule', enReady: true, enReadyBw: true })
@@ -435,7 +435,7 @@ else if (deepLinkedMatch.value) {
   const m = deepLinkedMatch.value
   state.team = m.teamCode
   if (m.seasonCode) state.season = m.seasonCode
-  state.mode = mapMatchStatus(m.status).code === 'finished' ? 'results' : 'fixtures'
+  state.mode = matchTabOf(m.status, m.matchOn, taipeiDateKey()) === 'results' ? 'results' : 'fixtures'
 }
 else if (scheduleTarget.value.kind === 'unknown' || scheduleTarget.value.kind === 'match') {
   // 認不得的參數、或賽事不存在（404）：302 回 /schedule/，不顯示錯誤頁
@@ -606,10 +606,9 @@ function scoreOf(m: MatchItem) {
   const code = cardStatusCode(m)
   return code === 'finished' || code === 'live' ? matchScoreDisplay(m) : null
 }
-const POSITION_ZH: Record<string, string> = { GK: '守門員', DF: '後衛', MF: '中場', FW: '前鋒' }
 function positionLabel(p: string | null): string {
   if (!p) return ''
-  return isEn.value ? clubPositionLabelEn(p) : (POSITION_ZH[p.toUpperCase()] ?? p)
+  return isEn.value ? clubPositionLabelEn(p) : playerPositionLabelZh(p)
 }
 function goalTypeLabel(g: MatchGoal): string {
   switch (g.goalType) {
@@ -656,7 +655,8 @@ function cardMatches(m: MatchItem): boolean {
   const id = fixtureId(m.matchOn, m.homeAway, m.matchNo)
   if (forcedVisibleIds.value.has(id)) return true
   const teamOk = state.team === 'all' ? true : m.teamCode === state.team
-  const statusOk = state.mode === 'fixtures' ? cardStatusCode(m) === 'upcoming' : cardStatusCode(m) === 'finished'
+  // 延賽、進行中歸賽程；取消依比賽日（今天起歸賽程、已過歸賽果）——規則見 utils/schedule.ts 的 matchTabOf()
+  const statusOk = matchTabOf(m.status, m.matchOn, taipeiDateKey()) === (state.mode === 'fixtures' ? 'fixtures' : 'results')
   const compOk = state.comp === 'all' ? true : m.competitionTag === state.comp
   const haOk = state.ha === 'all' ? true : haCode(m.homeAway) === state.ha
   const seasonOk = state.season === 'all' ? true : m.seasonCode === state.season
@@ -689,7 +689,7 @@ const teamEventsCache = reactive<Record<string, ClubEventItem[]>>({})
 const teamEventsLoading = ref(false)
 const teamEventsFailed = ref(false)
 function taipeiTodayKey(): string {
-  return new Date(Date.now() + 8 * 3_600_000).toISOString().slice(0, 10)
+  return taipeiDateKey()
 }
 function addDaysKey(key: string, days: number): string {
   const [y, m, d] = key.split('-').map(Number)
@@ -1040,6 +1040,7 @@ function eventToVeventLines(m: MatchItem): string[] {
   return [
     'BEGIN:VEVENT',
     `UID:${icsEscape(fixtureId(m.matchOn, m.homeAway, m.matchNo))}@${uidHost.value}`,
+    ...(cardStatusCode(m) === 'cancelled' ? ['STATUS:CANCELLED'] : []),
     `DTSTAMP:${start}`,
     `DTSTART:${start}`,
     `DTEND:${end}`,

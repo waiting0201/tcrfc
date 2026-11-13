@@ -9,6 +9,7 @@
 import type { PagedResponse } from '#shared/utils/api-types'
 import type { CoreValueDto } from '#shared/utils/core-values'
 import type { ShopProductListItem } from '#shared/utils/shop'
+import { playerPositionLabelZh } from '#shared/utils/player'
 
 definePageMeta({ nav: 'home', unit: '01', bodyClass: 'page-home', enReady: true, enReadyBw: true })
 
@@ -37,6 +38,9 @@ const clubName = computed(() => (isEn.value ? (isTcrfc.value ? CLUB_NAME_EN : BW
 // 套一層 lp() 換算成目前路由語系——這裡是本輪 curl 實測時抓到的真實回歸（英文首頁的三個
 // CTA 連結原本會把讀者導回 /zh/...），修法見下方樣板三處呼叫點。
 const { locale, lp, isEn, tx } = useLocale()
+/** 位置代碼 → 依語系顯示文字（認不得的值：中文頁原樣、英文頁見 clubPositionLabelEn）。 */
+const positionText = (pos: string) => (isEn.value ? clubPositionLabelEn(pos) : playerPositionLabelZh(pos))
+
 
 const homeSeo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getHomeSeoEnBw(siteFacts.value) : getHomeSeoEn(siteFacts.value)) : getHomeSeo(clubKey.value, siteFacts.value)))
 
@@ -805,7 +809,7 @@ onBeforeUnmount(() => {
               <img v-if="p.photoUrl" :src="p.photoUrl" :alt="imgAlt(p.photoAlt, `${p.shirtNo != null ? tx(`${p.shirtNo} 號球員 `, `Player ${p.shirtNo}: `) : ''}${p.name}`)" loading="lazy" v-bind="imgAttrs(p.photoWidth, p.photoHeight)">
               <img v-else class="roster-card__crest" :src="assets.headerMark.src" alt="" loading="lazy" width="64" height="67">
             </div>
-            <p class="roster-card__name">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position ? `${tx('　', ' · ')}${p.position}` : '' }}</p>
+            <p class="roster-card__name">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position && positionText(p.position) ? `${tx('　', ' · ')}${positionText(p.position)}` : '' }}</p>
           </div>
         </div>
       </div>

@@ -19,7 +19,7 @@
 import type { HeroCopy, SeoCopy, ClubHubStat, CtaCardCopy } from './club-copy'
 import type { SiteFacts } from './site-facts'
 import { BW_NAME_EN } from './club-copy'
-import { normalizePreferredFoot } from './player'
+import { normalizePlayerPosition, normalizePreferredFoot } from './player'
 
 // ---------------------------------------------------------------------------
 // 共用小工具（本檔內部使用，不匯出）
@@ -129,14 +129,18 @@ export function clubWeekdayShortEn(upper: string): string {
   return upper.charAt(0) + upper.slice(1).toLowerCase()
 }
 
-/** 場上位置代碼（GK／DF／MF／FW）→ 英文全名；其他值原樣顯示。 */
+/**
+ * 場上位置代碼（GK／DF／MF／FW）→ 英文全名。先經 `normalizePlayerPosition`（中文舊值也認得，中文字串在 player.ts）；
+ * 認不得的值：純拉丁字原樣顯示，含中日文字元的舊資料不輸出（英文頁不得出現中文），顯示破折號。
+ */
 export function clubPositionLabelEn(position: string | null | undefined): string {
-  switch ((position ?? '').toUpperCase()) {
+  const code = normalizePlayerPosition(position)
+  switch (code) {
     case 'GK': return 'Goalkeeper'
     case 'DF': return 'Defender'
     case 'MF': return 'Midfielder'
     case 'FW': return 'Forward'
-    default: return position ?? '\u2014'
+    default: return !code || /[\u2E80-\u9FFF\uFF00-\uFFEF]/.test(code) ? '\u2014' : code
   }
 }
 

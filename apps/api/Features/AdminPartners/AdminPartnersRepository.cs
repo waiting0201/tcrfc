@@ -229,6 +229,8 @@ public sealed class AdminPartnersRepository(ClubDbContext dbContext, IQueryCache
     {
         await cache.InvalidateAsync(CacheEntity, scope.ClubCode, cancellationToken);
         await cache.InvalidateAsync("charity", scope.ClubCode, cancellationToken);
+        // 課程公開快取內含合作夥伴名稱與 logo alt（Programs/ProgramsRepository）。
+        await cache.InvalidateAsync("programs", scope.ClubCode, cancellationToken);
     }
 
     private sealed record Validated(string? Slug, string PartnerType, string? Country, string? WebsiteUrl);

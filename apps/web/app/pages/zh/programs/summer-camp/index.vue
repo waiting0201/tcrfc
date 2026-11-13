@@ -149,9 +149,13 @@ useCourseSchema(
 
       <div v-for="c in sessionCards" :key="c.key" class="signup-preview">
         <div v-if="c.name" class="signup-preview__row"><span>{{ tx('課程', 'Program') }}</span><span class="signup-preview__value">{{ c.name }}</span></div>
-        <div class="signup-preview__row">
+        <div v-if="sessionPriceView(c.session).early" class="signup-preview__row">
           <span>{{ tx('早鳥價', 'Early-bird price') }}</span>
-          <span class="signup-preview__value">{{ c.session?.earlyBirdPrice ? `NT$ ${c.session.earlyBirdPrice}` : tx('待公告', 'To be announced') }}</span>
+          <span class="signup-preview__value">NT$ {{ sessionPriceView(c.session).early!.price }}{{ sessionPriceView(c.session).early!.until ? tx(`（至 ${sessionPriceView(c.session).early!.until}）`, ` (until ${sessionPriceView(c.session).early!.until})`) : '' }}</span>
+        </div>
+        <div class="signup-preview__row">
+          <span>{{ tx('費用', 'Fee') }}</span>
+          <span class="signup-preview__value">{{ sessionPriceView(c.session).regular != null ? `NT$ ${sessionPriceView(c.session).regular}` : tx('待公告', 'To be announced') }}</span>
         </div>
         <div class="signup-preview__row">
           <span>{{ tx('剩餘名額', 'Places left') }}</span>

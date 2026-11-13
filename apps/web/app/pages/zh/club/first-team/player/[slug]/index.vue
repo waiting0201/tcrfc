@@ -10,7 +10,7 @@
 // 「相關新聞」「影片」兩區塊沒有公開資料來源（球員與文章／影片沒有可查詢的關聯端點），不放空殼；見 README 缺口。
 import type { PlayerCareerStatsResponse } from '#shared/utils/standings'
 import type { PlayerDto } from '#shared/utils/player'
-import { nationalityLabel, normalizePreferredFoot, playerPath } from '#shared/utils/player'
+import { nationalityLabel, normalizePreferredFoot, playerPath, playerPositionLabelZh } from '#shared/utils/player'
 
 definePageMeta({ nav: 'club', unit: '3.1', enReady: true, enReadyBw: true })
 
@@ -70,7 +70,7 @@ useSeoMeta({
     : `${assets.value.nameZh}一線隊球員${player.value?.name ?? ''}的基本資料與逐季出賽數據。`)),
 })
 /** 場上位置顯示（英文版把 GK／DF／MF／FW 轉成全名）。 */
-const positionText = computed(() => (isEn.value ? clubPositionLabelEn(player.value?.position) : (player.value?.position ?? '—')))
+const positionText = computed(() => (isEn.value ? clubPositionLabelEn(player.value?.position) : playerPositionLabelZh(player.value?.position)))
 const hasFallback = computed(() => hasFallbackLocale(playerData.value))
 </script>
 

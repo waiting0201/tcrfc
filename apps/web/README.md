@@ -3598,3 +3598,22 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - `player.nationality` 存 ISO 3166-1 alpha-2 大寫代碼（另有 `GB-ENG`／`GB-SCT`／`GB-WLS`／`GB-NIR`），可為空、單一國籍；後台為國家下拉選單。
 - 前台以 `shared/utils/player.ts` 的 `nationalityLabel(code, 'zh' | 'en')` 產生國名：`Intl.DisplayNames`（`zh-Hant-TW`／`en`，SSR 與瀏覽器同一份 CLDR，無 hydration 差異）＋英國四地固定對照；不是代碼的舊資料原樣顯示。已取代並移除舊的 `clubNationalityLabelEn` 中英對照表。
 - 落點：球員詳情頁「國籍」列、一線隊名單卡（`.player-card__nat`，位置／背號同一列之下、姓名之後一行小字，背號仍在資訊區右上）、名單頁 `Person` JSON-LD 的 `nationality`（`Country`，英文國名）。
+
+## 球員位置顯示（docs/23 W-6，2026-11-13，`frontend-architect`）
+
+- `player.position` 值域是 `GK`／`DF`／`MF`／`FW`（後台改下拉、API 讀寫正規化）。`shared/utils/player.ts` 的 `normalizePlayerPosition()` 認代碼（不分大小寫）與中文舊值（門將、守門員、後衛、中場、前鋒），認不得的原樣回傳；
+  `playerPositionLabelZh()` 出中文（門將／後衛／中場／前鋒，空值回 `—`）。英文頁用 `clubPositionLabelEn()`（`club-copy-en-club.ts`，先經 normalize；認不得且含中日文字元的值顯示 `—`，英文頁不輸出中文）。
+- 套用的顯示點：一線隊名單卡與數據表、名單頁 `Person` JSON-LD 的 `jobTitle`（依語系）、球員詳情頁（`positionText`）、賽程頁出賽名單（`positionLabel`，原本自帶的 `POSITION_ZH` 已移除並統一為「門將」）、
+  首頁球員橫幅、新聞內文相關球員（後兩處原本直接印原值，英文頁會出現 `GK` 代碼）。學院隊伍頁與其他頁沒有顯示球員位置。
+- 名單頁依背號排序、不做位置分組或篩選（規劃書主站 §3.1），`data-pos` 只是屬性，沒有拿來分組。
+- 驗證：`npm run lint:player-position`（`scripts/check-player-position.mjs`，已併入 `npm run lint`）。
+
+## 賽程分頁歸屬與課程早鳥價（docs/23 W-1／W-8，2026-11-13，`frontend-architect`）
+
+- **賽程頁分頁歸屬**：規劃書 3.13 與 `docs/02` 只定義五種狀態標記，沒有規定各狀態歸哪個分頁，採用 `app/utils/schedule.ts` 的 `matchTabOf(status, matchOn, todayKey)`——
+  已結束 → 賽果；未開始、進行中、延賽 → 賽程（延賽原定日已過也留在賽程）；**取消依比賽日**：今天或未來 → 賽程，已過 → 賽果。
+  `schedule.vue` 的 `cardMatches`（列表、月曆、計數、空狀態、批次 `.ics` 都吃 `visibleMatches`）與深連結初始分頁共用這個函式；取消的賽事 `.ics` 加 `STATUS:CANCELLED`。
+  「今天」一律 `taipeiDateKey()`（UTC+8），不用 UTC。首頁「下一場」、一線隊頁 `nextScheduledFixture`、倒數仍只挑真正未開賽的；`club/first-team`、`academy/teams` 的賽程表本來就列全部狀態，不受影響。
+- **早鳥價**：`app/utils/program-session.ts` 的 `isEarlyBirdActive()`（有早鳥價且無截止日或截止日（含，台灣日期）未過）與 `sessionPriceView()`。
+  夏令營、冬令營預覽卡與 `ProgramRegistration.vue` 共用：早鳥有效 → 顯示「早鳥價 NT$ X（至 日期）」加「費用 NT$ 正價」；失效或未設定 → 只顯示「費用」；正價也沒有 → 「待公告」。
+- 驗證：`npm run lint:schedule-tab`（`scripts/check-schedule-tab.mjs`，已併入 `npm run lint`）。

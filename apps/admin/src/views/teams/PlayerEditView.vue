@@ -22,6 +22,7 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
 import { COUNTRY_OPTIONS, isCountryCode } from '@/data/countries'
+import { PLAYER_POSITION_OPTIONS, isPlayerPositionCode, normalizePlayerPosition } from '@/data/playerPositions'
 import { useWritableTeamScope } from '@/composables/useWritableTeamScope'
 import PlayerSeasonStatsPanel from './parts/PlayerSeasonStatsPanel.vue'
 import { createAdminPlayer, getAdminPlayer, updateAdminPlayer, type SavePlayerPayload } from '@/api/adminPlayers'
@@ -69,6 +70,8 @@ const form = reactive({
 })
 /** 舊資料的國籍是自由文字（不是國家代碼）：不默默清掉，提示使用者重新選擇。 */
 const legacyNationality = computed(() => (form.nationality && !isCountryCode(form.nationality) ? form.nationality : ''))
+/** 舊資料的位置是自由文字且認不得：下拉選單會原樣顯示原文，提示重新選擇，不默默清掉。 */
+const legacyPosition = computed(() => (form.position && !isPlayerPositionCode(form.position) ? form.position : ''))
 const baselineJson = ref('')
 // 載入時的網址代稱：改了它會讓舊的球員頁連結失效，要在欄位旁提醒。
 const originalSlug = ref('')
@@ -102,7 +105,8 @@ async function loadPlayer() {
       form.slug = detail.slug ?? ''
       originalSlug.value = detail.slug ?? ''
       form.shirtNo = detail.shirtNo ?? null
-      form.position = detail.position ?? ''
+      // 舊資料可能存中文「門將」等，轉回代碼讓下拉選單能對上（後端讀出時也會正規化）；認不得的保留原文。
+      form.position = normalizePlayerPosition(detail.position)
       form.birthOn = fromDateOnlyString(detail.birthOn)
       form.heightCm = detail.heightCm ?? null
       form.weightKg = detail.weightKg ?? null
@@ -354,9 +358,13 @@ function retryLoad() {
                   <FormField field="shirtNo" label="背號">
                     <el-input-number v-model="form.shirtNo" :min="1" :max="99" style="width: 100%" @change="formErrors.clear('shirtNo')" />
                   </FormField>
-                  <el-form-item label="位置">
-                    <el-input v-model="form.position" placeholder="例如 門將、中場" />
-                  </el-form-item>
+                  <FormField field="position" label="位置">
+                    <!-- 存代碼 GK／DF／MF／FW（官網英文版與 App 依代碼轉文字）；畫面只顯示中文。 -->
+                    <el-select v-model="form.position" clearable placeholder="請選擇位置" style="width: 100%" @change="formErrors.clear('position')">
+                      <el-option v-for="o in PLAYER_POSITION_OPTIONS" :key="o.value" :label="o.label" :value="o.value" />
+                    </el-select>
+                    <p v-if="legacyPosition" class="player-edit__hint player-edit__hint--warning">原填寫內容：{{ legacyPosition }}，請重新選擇位置</p>
+                  </FormField>
 
                   <FormField field="slug" label="網址代稱">
                     <el-input

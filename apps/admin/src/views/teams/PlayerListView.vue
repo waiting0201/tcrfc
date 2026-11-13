@@ -11,6 +11,7 @@ import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
 import { listAdminPlayers, type AdminPlayerListItemDto } from '@/api/adminPlayers'
 import { AdminApiError } from '@/api/http'
+import { playerPositionLabel } from '@/data/playerPositions'
 import {
   PLAYER_STATUS_LABEL,
   PLAYER_STATUS_ORDER,
@@ -137,7 +138,7 @@ function portraitTagType(status: string): 'success' | 'warning' | 'info' {
           <template #default="{ row }">{{ teamLabelById.get(row.teamId) ?? row.teamCode }}</template>
         </el-table-column>
         <el-table-column label="位置" width="110">
-          <template #default="{ row }">{{ row.position || '—' }}</template>
+          <template #default="{ row }">{{ playerPositionLabel(row.position) }}</template>
         </el-table-column>
         <el-table-column label="狀態" width="100">
           <template #default="{ row }">{{ PLAYER_STATUS_LABEL[row.status as PlayerStatus] ?? row.status }}</template>

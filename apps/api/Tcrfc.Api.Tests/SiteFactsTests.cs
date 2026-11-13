@@ -307,7 +307,8 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.Contains($"\"{expectedKey}\"", await response.Content.ReadAsStringAsync());
     }
 
-    private static UpdateSiteFactsRequest ToUpdateRequest(AdminSiteFactsDto dto) => new()
+    /// <summary>把讀回的 DTO 轉成「完整原樣」的 PUT 請求。PUT 是整份取代，漏帶欄位＝清空，其他測試要寫回同值時一律用它。</summary>
+    internal static UpdateSiteFactsRequest ToUpdateRequest(AdminSiteFactsDto dto) => new()
     {
         FoundedYear = dto.FoundedYear,
         FoundingDateIso = dto.FoundingDateIso,

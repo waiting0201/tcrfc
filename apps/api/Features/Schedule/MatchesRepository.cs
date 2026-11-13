@@ -293,7 +293,7 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
                 var p = players[l.PlayerId];
                 return new MatchLineupDto
                 {
-                    PlayerId = l.PlayerId, PlayerSlug = p.Slug, PlayerName = NameOf(l.PlayerId), ShirtNumber = p.ShirtNo, Position = p.Position,
+                    PlayerId = l.PlayerId, PlayerSlug = p.Slug, PlayerName = NameOf(l.PlayerId), ShirtNumber = p.ShirtNo, Position = Tcrfc.Api.Features.Players.PlayerPosition.Normalize(p.Position),
                     IsStarter = l.IsStarter, CameOn = !l.IsStarter && l.CameOn,
                 };
             })

@@ -65,7 +65,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             TeamCode = r.TeamCode,
             Slug = r.Slug,
             ShirtNo = r.ShirtNo,
-            Position = r.Position,
+            Position = Players.PlayerPosition.Normalize(r.Position),
             BirthOn = r.BirthOn,
             Status = r.Status,
             PhotoKey = r.PhotoKey,
@@ -129,7 +129,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             TeamId = team.Id,
             Slug = slug,
             ShirtNo = request.ShirtNo,
-            Position = request.Position,
+            Position = Players.PlayerPosition.Normalize(request.Position),
             BirthOn = request.BirthOn,
             HeightCm = request.HeightCm,
             WeightKg = request.WeightKg,
@@ -205,7 +205,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
 
         player.TeamId = team.Id;
         player.ShirtNo = request.ShirtNo;
-        player.Position = request.Position;
+        player.Position = Players.PlayerPosition.Normalize(request.Position);
         player.BirthOn = request.BirthOn;
         player.HeightCm = request.HeightCm;
         player.WeightKg = request.WeightKg;
@@ -483,7 +483,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             TeamCode = player.Team.Code,
             Slug = player.Slug,
             ShirtNo = player.ShirtNo,
-            Position = player.Position,
+            Position = Players.PlayerPosition.Normalize(player.Position),
             BirthOn = player.BirthOn,
             HeightCm = player.HeightCm,
             WeightKg = player.WeightKg,

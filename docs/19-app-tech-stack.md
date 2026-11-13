@@ -1157,6 +1157,16 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 - 位置：設定清單最後一個區塊，**登出在前、刪除帳號在後**（§3.14 原文順序「…聯絡我們、登出、刪除帳號」）；兩項都是已登入才顯示。登出重用會員區既有動作（iOS `member.logout()` 含確認；Android `session.logout()`），**只登出本機裝置，不是「登出所有裝置」**。已依 §3.14 補齊，無待決。
 - 測試：iOS 單元＋`testSettingsDeleteAccountOpensSameConfirmation`／`testSettingsLogoutSignsOutThisDeviceOnly`／`testSettingsHidesDeleteAccountWhenSignedOut`；Android `SmokeTest` 三項。**測試只開到確認畫面就取消，不真的刪除**（E-352）。
 
+### 11z. 後台給的網址、樣板深連結與排版重抓（iOS＋Android，2026-11-13，起因 [`docs/23`](23-admin-frontend-wiring-audit.md) H-3）
+
+- **後台給的網址統一解析**（版面編排、公告、廣告、「查看方案」）：相對路徑（`/` 開頭）接**目前俱樂部的網域**，絕對 `http`／`https` 原樣，含 `{`／`}` 的樣板或其他寫法視為不可用。Android 入口是 `ClubWeb.resolve`／`AppContainer.resolveWeb`，iOS 是 `resolveWeb`。API 對商店等入口回的是相對路徑（`AppLayoutReader`），**客戶端不得直接把它交給系統開啟**（`M-1`）。
+- **快捷入口解析規則兩端一致**：代碼 `programs` 一律走 App 內課程列表；深連結或官網網址含大括號視為樣板，改用下一個來源；都解析不出來就不顯示該入口（`M-2`）。
+- **深連結解析器拒收含 `{`、`}` 的參數值**（兩平台），走既有的解析失敗路徑。後台存的深連結可能是帶佔位符的樣板（正式內容種子的 `tcrfc://program/{slug}`），不能當成可開啟的連結。iOS 公告條在連結不可用時只顯示文字、不是按鈕。⚠️ 後台推播與公告的連結選單仍給樣板、API 只驗 `tcrfc://` 開頭（`M-3` 未修的部分）。
+- **排版（`/app/layout`）重抓時機**：冷啟動、切語系、回前景、首頁下拉。回前景不設時間節流，改以 ETag 條件式請求（§7.2 A4），同時只允許一個進行中的請求；失敗時保留現有排版。iOS `ContentAPI.layout` 因此多一個 `etag` 參數（`M-10`）。⚠️ 尚未對真 API 驗證帶裝置識別（回應為 `private, no-store`）時是否仍回 ETag 與 304。
+- **早鳥價**：兩平台都以台灣時區的「今天」判斷早鳥是否仍有效，過期只顯示正價（`M-14`）。
+- 測試：iOS `LayoutRefreshAndTemplateLinkTests` 5 項、Android `WebLinksAndQuickEntriesTest` 11 項。**未實機驗收。**
+- ⚠️ Android `lintDevDebug` 有 5 個既有的 `StateFlowValueCalledInComposition` 錯誤（非本次改動），未處理。
+
 ## 12. 本檔不決定的事
 
 - **§16.2 技術前提第 17 項：推播是否走自家直送** —— 本檔建議直送（§5），但客戶可能有既有的服務商合約
