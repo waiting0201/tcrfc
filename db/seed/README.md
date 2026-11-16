@@ -557,5 +557,6 @@ E4–E6 版位 2／廣告主 2／檔期 2（含 1 個已結束檔期與 14 天�
 
 - 種子：`backoffice_seed.py` 的快捷入口與「更多」的 `programs` 不再綁 `program`（`tcrfc://program/{slug}` 樣板列）——App 對代碼 `programs` 固定走內建課程列表；`db/prod/club-content-seed.sql` 同步（兩處 `deep_link_id` 改 `NULL`）。深連結對照表本身維持九列（含樣板，是路由規則）。
 - 既有庫：[`../migrations/20261116_app-link-template-cleanup.sql`](../migrations/20261116_app-link-template-cleanup.sql)（冪等、單一交易、事後斷言無殘留）。只把「值含大括號」的使用者連結設為 `NULL`（版面項目綁到樣板列、推播、公告條、廣告素材點擊目的地、版位備援連結），不動 `app_deep_links`、不動完整連結。不需先 migrate 再 deploy，任何時間可套用；不含中文字面值。
+- 🔵 **正式庫的套用方式（2026-11-16）**：`20261113_fallback-content-import.sql`、`20261113_form-definition-align.sql`、`20261116_app-link-template-cleanup.sql` 三支已包成 EF migration（`FallbackContentImport`／`FormDefinitionAlign`／`AppLinkTemplateCleanup`，`apps/api/Data/Migrations/`），**經 `db-migrate.yml` 的預覽 → 唯讀比對 → `production-db` 核准後套用，不要手動貼進正式庫**。SQL 內容以逐位元組複本內嵌（`apps/api/Data/Migrations/Sql/`），改 `db/migrations/` 的檔後要同步複製（`MigrationSqlParityTests` 把關）。新建庫（本機種子、`prod-db-init.sh`）不執行它們，種子已含最終資料。做法見 [`docs/20`](../../docs/20-cicd.md) §5 migration 注意事項第 7 點。
 
 ⚠️ `fallback-content-import` 與 `app-link-template-cleanup` 兩支遷移含 `SET NOCOUNT ON`，不印逐步筆數；套用後請以前後查詢核對（例如各表筆數、`settings_i18n` 語系列數），不要用輸出判斷有沒有生效。

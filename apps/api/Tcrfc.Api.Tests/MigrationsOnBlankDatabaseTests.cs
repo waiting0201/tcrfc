@@ -54,6 +54,10 @@ public sealed class MigrationsOnBlankDatabaseTests
                 await ExecuteAsync(probe, batch);
             }
 
+            // 資料遷移（FallbackContentImport／FormDefinitionAlign）的前置檢查要求兩個俱樂部已存在（正式庫的參照資料有，純 DDL 空庫沒有）。
+            await ExecuteAsync(probe,
+                "INSERT INTO clubs (code, domain) VALUES (N'tcrfc', N'tcrfc.example'), (N'bw', N'bw.example');");
+
             var options = new DbContextOptionsBuilder<ClubDbContext>().UseSqlServer(probe, o => o.CommandTimeout(300)).Options;
             await using var context = new ClubDbContext(options);
             var all = context.Database.GetMigrations().ToList();

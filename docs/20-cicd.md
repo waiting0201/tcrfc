@@ -699,6 +699,14 @@ deploy/prod-schema-compare.sh club    "$D/club.snapshot.txt"    --against local 
 
 6. 🔴 **新增預設值／欄位 CHECK 的 migration 必須具名**（2026-10-13，`E-322`）：`AddColumn(defaultValue)` 不會命名預設值，產生 `DF__表__欄__隨機碼`，各環境名稱不同。migration 最後呼叫 `SystemNamedConstraintRenamer.Rename(migrationBuilder)`（以 `sys.*` 查詢、冪等；衝突即 THROW 點名），DDL 同步寫 `CONSTRAINT DF_<表>_<欄>`，**新欄位寫在該表最後**。規則見 [`14`](14-invariants.md)「約束命名」「欄位順序」。`NameSystemConstraints`（主站 `20261013034701`、慈善 `20261013034731`）套到正式庫時：單一交易內對主站 525＋67、慈善 108 個約束 `sp_rename`（資料表只取結構描述鎖、不掃資料，瞬間完成；輸出會有數百行 `Caution: Changing any part of an object name…` 訊息，是 `sp_rename` 的資訊訊息而非錯誤，`sqlcmd_log_has_error` 不會誤判）。
 
+7. 🔵 **資料遷移（只改資料、不改結構）也包成 EF migration，經 `db-migrate.yml` 核准套用**（2026-11-16）：正式庫只能經本關卡寫入，所以 `db/migrations/*.sql` 的資料遷移不手動貼進正式庫。做法（先例：`20261116044147_FallbackContentImport`、`20261116044218_FormDefinitionAlign`、`20261116044250_AppLinkTemplateCleanup`）：
+   - **同源**：SQL 檔的逐位元組複本放 `apps/api/Data/Migrations/Sql/`，以內嵌資源（`LogicalName="migration-sql/<檔名>"`，`Tcrfc.Api.csproj` 的萬用字元）讀入（Docker build context 是 `apps/api`，讀不到 `db/`）；`MigrationSqlParityTests` 比對複本與 `db/migrations/` 相同，改了其中一份忘了另一份就紅燈。`Up()` 只有一行 `EmbeddedMigrationSql.Run(migrationBuilder, "migration-sql/…sql")`，`Down()` 留空並寫明不可逆。
+   - **GO 與 DECLARE**：EF 的 idempotent script 把一支 migration 的所有命令放進同一個 `IF NOT EXISTS … BEGIN … END` 批次，原樣貼上會讓各批 `DECLARE @id` 重複宣告。`EmbeddedMigrationSql` 依 `GO` 切批、每批包成 `EXEC(N'SET NOCOUNT ON; SET XACT_ABORT ON; …')`（單引號加倍），每批各有變數範圍；`GO` 本身不進 `Sql()`。
+   - **交易**：EF 為每支 migration 開外層 `BEGIN TRANSACTION … COMMIT`；腳本自帶的 `BEGIN TRAN／COMMIT` 成為巢狀交易，最後由外層一次提交，所以**一支 migration 內全有或全無**（比原 SQL 檔「每批各自成交易」更嚴）。事後斷言 `THROW` 會讓 `sqlcmd -b` 中止、整支回滾。
+   - **冪等與既有庫**：腳本本身冪等（本機庫先前已手動套過，`dotnet ef database update` 再跑第二次為 0 筆變動）；新建庫（`prod-db-init.sh`、`local-ddl.sh`、CI）把全部 migration 標記為已套用而不執行，種子已含最終資料，不影響結構一致性檢查。
+   - **非 ASCII**：中文字面值經 `generate`／`apply` 既有的 UTF-16LE 轉換進 sqlcmd 13（`E-330`），不需額外處理。
+   - 改 `db/migrations/` 的資料遷移 SQL 後，要同步 `cp` 到 `apps/api/Data/Migrations/Sql/`。
+
 ### 🔴 新增 migration 的驗收：一定要跑一次「Probe」確認基準沒有偏移（`docs/18-work-errors.md` E-45）
 
 **背景**：`InitialBaseline`（S0-7f）建立時只 commit 了 `.cs`／`.Designer.cs`，`ClubDbContextModelSnapshot.cs`

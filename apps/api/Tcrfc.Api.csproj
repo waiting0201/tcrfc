@@ -54,6 +54,12 @@
     <EmbeddedResource Include="Features/AdminApp/deeplinks.contract.json" LogicalName="deeplinks.contract.json" />
   </ItemGroup>
 
+  <!-- 資料遷移 migration 與 db/migrations/*.sql 同源：腳本以內嵌資源讀入（Docker build context 是 apps/api，讀不到 db/，所以放逐位元組複本）。
+       MigrationSqlParityTests 比對複本與 db/migrations 相同，不同就紅燈。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Data/Migrations/Sql/*.sql" LogicalName="migration-sql/%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <!-- Tcrfc.Api.Tests（S0-7d）是本目錄底下的獨立子專案，沒有 .sln 把兩者的建置範圍分開，
        預設的遞迴 **/*.cs 萬用字元會把測試專案的原始碼一起吃進來（測試專案參照 xunit／
        Microsoft.AspNetCore.Mvc.Testing，本專案完全沒有這些套件，會直接編譯失敗）。明確排除。 -->

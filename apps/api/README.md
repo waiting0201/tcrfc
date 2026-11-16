@@ -5283,6 +5283,10 @@ cd apps/api/Tcrfc.Api.Tests && dotnet test     # 沒有 export 也能跑；連�
   `TestDatabaseGuard` 的「只准連 `tcrfc_club`」檢查不變。JWT 金鑰仍由各 fixture 以環境變數設為測試專用值（E-79）。
 - VS Code：開專案根目錄按 F5 選「啟動並偵錯 API」（`.vscode/launch.json`／`tasks.json`，納管）。
 
+#### 資料遷移包成 EF migration（2026-11-16）
+
+只改資料的遷移（`db/migrations/*.sql`）要上正式庫時，包成 EF migration 經 `db-migrate.yml` 核准套用：腳本逐位元組複本放 `Data/Migrations/Sql/`（內嵌資源），`Up()` 呼叫 `EmbeddedMigrationSql.Run(migrationBuilder, "migration-sql/<檔名>.sql")`（依 `GO` 切批、每批包 `EXEC`，單支 migration 在 EF 外層交易內全有或全無），`Down()` 留空。`MigrationSqlParityTests` 比對複本與 `db/migrations/` 相同。現有三支：`FallbackContentImport`、`FormDefinitionAlign`、`AppLinkTemplateCleanup`。細節見 `docs/20-cicd.md` §5。本機既有庫若已手動套過，`dotnet ef database update` 再跑一次為 0 筆變動。
+
 #### 選用：`dotnet test` 改跑獨立庫 `tcrfc_club_test`（2026-10-30，不影響開發庫）
 
 預設 `dotnet test` 仍連 `tcrfc_club`（與開發共用，S0-13 使用者裁決），會改寫開發資料（測試會員、`settings`、孤兒測資）。
