@@ -988,7 +988,7 @@ Cloudflare 清快取（選配）、`rollback.yml`。細節與取捨全在 **§4a
 
 | 項目 | 設計 |
 |---|---|
-| 觸發 | push `master` 且 `infra/**`（或兩支 infra workflow 檔）有變動；`workflow_dispatch`（可勾「只跑 what-if」）。**沒有 `pull_request`／`pull_request_target`** |
+| 觸發 | push `master` 且 `infra/**`（或兩支 infra workflow 檔）有變動，**`infra/` 下的 `*.md` 說明文件除外**（2026-11-16，`E-362`）；`workflow_dispatch`（可勾「只跑 what-if」）。**沒有 `pull_request`／`pull_request_target`** |
 | PR 檢查 | `infra-validate.yml`（`pull_request`，只讀、無 secrets、無 `id-token`）：`az bicep lint`／`build`／`build-params`。同一支以 `workflow_call` 被 `infra.yml` 先行呼叫 |
 | 步驟 | validate → 檢查必要設定都已填 → `azure/login`（OIDC）→ `what-if`（輸出貼進 job summary）→ `deploy`（`--mode Incremental`，**絕不用 Complete**） |
 | 執行環境 | GitHub-hosted `ubuntu-latest`；**不使用 self-hosted runner**，與 §4 完全分開 |

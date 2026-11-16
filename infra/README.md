@@ -24,7 +24,7 @@
 | [`modules/sql.bicep`](modules/sql.bicep) | Azure SQL 伺服器 ＋ 兩個 Basic 資料庫（含鎖） |
 | [`modules/storage.bicep`](modules/storage.bicep) | 儲存體帳戶（俱樂部、慈善各呼叫一次，含鎖） |
 | [`modules/monitoring.bicep`](modules/monitoring.bicep) | Action Group、七個指標告警（兩庫資料空間 1.5 GB、兩庫各兩級 DTU、VM CPU 額度）、月預算 |
-| [`../.github/workflows/infra.yml`](../.github/workflows/infra.yml) | push `master`（`infra/**` 有變動）→ what-if → deploy |
+| [`../.github/workflows/infra.yml`](../.github/workflows/infra.yml) | push `master`（`infra/**` 有變動，`*.md` 說明文件除外）→ what-if → deploy |
 | [`../.github/workflows/infra-validate.yml`](../.github/workflows/infra-validate.yml) | PR 與 `infra.yml` 共用的 `bicep lint`／`build`，不需任何憑證 |
 
 **為什麼範圍是 resource group 而不是訂閱**：資源群組由人工一次性建立，部署身分只被授權到這個群組

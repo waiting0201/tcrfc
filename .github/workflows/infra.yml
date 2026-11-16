@@ -4,7 +4,8 @@
 # 🔴 這條跑在 GitHub-hosted runner，因為它要建出 VM；與 docs/20 §4 的 self-hosted runner
 #    （跑在 VM 上、負責應用程式部署）是兩回事，不共用、不互相依賴。
 #
-# 觸發：只有 push master 且 infra/** 有變動，或手動 workflow_dispatch。
+# 觸發：只有 push master 且 infra/** 有變動（說明文件 *.md 除外），或手動 workflow_dispatch。
+#   說明文件不觸發：2026-11-16 只改 infra/README.md 一行就啟動了一次部署（docs/18 E-362）。
 #   ⛔ 沒有 pull_request／pull_request_target：fork PR 拿不到任何 Azure 權限（docs/20 §1、§4）。
 #
 # 權限鏈（公開 repo 的防護，缺一不可）：
@@ -27,6 +28,7 @@ on:
     branches: [master]
     paths:
       - 'infra/**'
+      - '!infra/**/*.md'
       - '.github/workflows/infra.yml'
       - '.github/workflows/infra-validate.yml'
   workflow_dispatch:

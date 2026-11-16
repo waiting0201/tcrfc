@@ -1310,7 +1310,7 @@ scripts/check-node-version.mjs` 離開碼 0；分別故意改壞 `apps/admin/Doc
 | [`infra/main.bicep`](../infra/main.bicep)、[`infra/main.bicepparam`](../infra/main.bicepparam) | 入口（範圍 `rg-tcrfc-prod`）與參數檔 |
 | [`infra/modules/`](../infra/modules/) | `network`／`compute`／`sql`／`storage`／`monitoring` 五個模組 |
 | [`infra/cloud-init.yaml`](../infra/cloud-init.yaml) | VM 首次開機：Docker ＋ Compose、`runner` 使用者、`/opt/tcrfc/` 目錄、Docker 日誌輪替 |
-| [`.github/workflows/infra.yml`](../.github/workflows/infra.yml) | push `master`（`infra/**` 有變動）或手動 → `what-if` → `deploy`，OIDC 登入，`environment: production` |
+| [`.github/workflows/infra.yml`](../.github/workflows/infra.yml) | push `master`（`infra/**` 有變動，`*.md` 除外）或手動 → `what-if` → `deploy`，OIDC 登入，`environment: production` |
 | [`.github/workflows/infra-validate.yml`](../.github/workflows/infra-validate.yml) | PR 與 `infra.yml` 共用的 lint／build，無任何憑證 |
 
 **部署一律 Incremental，絕不用 Complete**（會刪掉模板沒寫的資源，例如手動建的部署身分）。**這條 workflow 跑在 GitHub-hosted runner**，與 [`20`](20-cicd.md) §4 在 VM 上的 self-hosted runner（負責應用程式部署）是兩回事。
