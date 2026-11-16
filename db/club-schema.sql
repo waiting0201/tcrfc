@@ -1662,12 +1662,13 @@ CREATE TABLE form_fields (
     ('text','textarea','select','multiselect','date','file','consent'))
 );
 
--- 題目文字（label，zh-Hant 列必存、en 列可缺）＋下拉／多選選項的英文顯示文字（options_json）。
+-- 題目文字（label，zh-Hant 列必存、en 列可缺）＋下拉／多選選項的顯示文字（options_json，zh-Hant 與 en 列皆可有）。
 -- S1-10 修正（2026-09-25，驗收回饋補做）：原本 form_fields 完全沒有題目文字欄位，公開表單無題目
 -- 可顯示、後台只能印英文欄位代碼，違反 CLAUDE.md 全域規定第 4 條（前台可見內容皆需 zh／en 雙欄位）。
--- options_json 與 form_fields.options_json（canonical，用於驗證與儲存）同順序、同筆數的 JSON 字串
--- 陣列，只有「有自訂顯示文字的語系」才會有這一列（通常是 en）——canonical 值本身就是 zh-Hant 的
--- 顯示文字，不需要另外存一份 zh-Hant 選項顯示文字。完整說明見 docs/12-database-schema.md §12 第 40 點。
+-- options_json 與 form_fields.options_json（canonical＝送出值，用於驗證與儲存）同順序、同筆數的 JSON 字串
+-- 陣列，是該語系的選項**顯示文字**。2026-11-13 起 zh-Hant 列也使用這欄（後台可改中文選項顯示文字，
+-- 規劃書 v3.35 4.7 G1）：zh-Hant 列的 options_json 為 NULL＝前台中文顯示送出值本身；en 列為 NULL＝回退顯示中文。
+-- 欄位結構沒變（本欄原本就是逐語系一列），只是 zh-Hant 列開始使用。完整說明見 docs/12-database-schema.md §12 第 40 點。
 CREATE TABLE form_fields_i18n (
   form_field_id     uniqueidentifier NOT NULL,
   locale            nvarchar(10)     NOT NULL,

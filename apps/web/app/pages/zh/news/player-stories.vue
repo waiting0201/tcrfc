@@ -22,7 +22,7 @@ const articles = computed(() => data.value?.items ?? [])
 // 該元件本輪已改為依俱樂部動態組字，見 app/components/news/NewsCategoryTabs.vue）。
 useSeoMeta({
   title: computed(() => isEn.value ? getNewsCategorySeoEn('player-stories', null, clubKey).title : `球員故事 Player Stories｜新聞 News｜${getClubAssets(club).nameZh}`),
-  description: computed(() => isEn.value ? getNewsCategorySeoEn('player-stories', null, clubKey).description : `${getClubAssets(club).shortNameZh}球員故事與人物專訪，內容尚待客戶提供，目前為空狀態頁面。`),
+  description: computed(() => isEn.value ? getNewsCategorySeoEn('player-stories', null, clubKey).description : `${getClubAssets(club).shortNameZh}球員故事與人物專訪，記錄球員的成長歷程與心路歷程。`),
 })
 </script>
 

@@ -493,7 +493,7 @@ flowchart LR
 > §3.10 固定表格寫死，不建 `name` 側表、不開放後台編輯**——規劃書 3.10 本來就用固定表格列出 7 類表單的中英名稱，
 > 屬介面文案（`UiString` 範疇），不是逐筆可管理的資料。
 > ✅ **`FormField` 的 🌐 已解決（S1-10 修正，2026-09-25）：建 `form_fields_i18n`**——動態欄位的題目文字
-> （`label`）與下拉／多選選項的英文顯示文字（`options_json`）皆語系化，zh-Hant 必存、en 可缺，補齊 CLAUDE.md
+> （`label`）與下拉／多選選項的顯示文字（`options_json`，2026-11-13 起中英皆可設定）皆語系化，zh-Hant 必存、en 可缺，補齊 CLAUDE.md
 > 全域規定第 4 條在動態表單欄位上的落差（原本公開表單完全沒有題目可顯示）。完整說明見 [§12 第 40 點](#12-踩雷點)。
 > ✅ **`Form.form_code` 九碼目錄拍板（S1-10，2026-09-25，`backend-engineer` 判斷；2026-10-09 起縮為八碼）**：規劃書
 > §3.10 只用中文標題列出 7 類表單＋提案下載共 8 種（原第 9 種捐助洽詢已於 2026-10-09 整個拿掉，規劃書 v3.25，記錄見 [`docs/15`](15-out-of-scope-record.md)；收縮遷移 `db/migrations/20261010_donation-enquiry-drop_2-contract.sql`），未定義程式用代碼字串，本輪定案：
@@ -502,7 +502,7 @@ flowchart LR
 > （10.6）／`general_contact`（10.7）／`proposal_download`（9.4 CTA 提案下載，`docs/12a` 早已
 > 引用這個字面值）。八筆 `Form`／預設 `FormField` 種子資料見 `db/seed/generate-club-seed-sql.py`
 > 對應段落，兩俱樂部（`tcrfc`／`bw`）各自種一份，欄位內容依規劃書 §3.10 逐表單的欄位清單設定
-> 為系統預先定義的欄位（規劃書 v3.19 起，後台 G1 只檢視欄位清單，不新增、刪除，也不改欄位代碼、必填與選項）。
+> 為系統預先定義的欄位（規劃書 v3.19 起，後台 G1 不新增、刪除欄位，也不改欄位類型、必填與選項送出值；v3.35 起可改題目文字與選項顯示文字，存 `form_fields_i18n`）。
 
 ### 4.7 I 網站設定（2）
 
@@ -774,9 +774,14 @@ flowchart LR
       顯示中文，跟「這一列不存在」語意相同，兩者刻意合一，不用「空字串」表示「沒有翻譯」）。
     - `options_json`：下拉／多選選項的**顯示文字**，`nvarchar(1000) NULL`，與
       `form_fields.options_json`（canonical，送出值與驗證用，維持單一語系不變）同順序、同筆數的
-      JSON 字串陣列。**只有 en 列會用到這欄**——canonical 值本身就是 zh-Hant 的顯示文字，不需要
-      再存一份 zh-Hant 選項顯示文字側表列，避免同一份中文選項文字出現兩個副本、日後改一邊忘了
-      改另一邊。
+      JSON 字串陣列。⚠️ **2026-11-13 修訂**：原設計「只有 en 列會用到這欄、中文顯示文字＝canonical 值本身」
+      讓後台**無法改選項的中文顯示文字**，與主站規劃書 v3.35 4.7 G1（後台可改題目文字與選項顯示文字，
+      **中／英**）不符，且前台改讀定義後（docs/23 W-3）中文頁的選項文字必須能與送出值不同
+      （例如送出值「學院 U12」、顯示「U12 梯隊」）。**現在 zh-Hant 列與 en 列都可有這欄**：
+      zh-Hant 列為 `NULL`＝前台中文顯示送出值本身（既有行為）；en 列為 `NULL`＝回退顯示中文。
+      **欄位結構沒變**（本欄原本就是逐語系一列），**不需要改綱要與 EF 遷移**，只是 zh-Hant 列開始使用，
+      資料由 `db/migrations/20261113_form-definition-align.sql` 與種子補入。送出值（`form_fields.options_json`）
+      永遠不因顯示文字而變，`enquiry_answers.value` 存的仍是送出值。
     這個設計刻意**不把 canonical 值本身語系化**（不建「選項代碼」與「選項顯示文字」分離的新
     抽象）：`enquiry_answers.value` 已經直接儲存 canonical（中文）字面值超過一輪（S1-10 第一次
     上線起），改成語系無關的代碼需要同時遷移既有資料與所有比對邏輯，本輪判斷「維持 canonical＝
@@ -1081,7 +1086,7 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 | `PlayerSeasonStat` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | C2／C4（行 889–904） | 逐季數據、進球、卡、名單 |
 | `StaffTeam` `ProgramStaff` `ProgramPartner` `SponsorPackageLink` | C3／P1／E2 | 多對多 |
 | `ComicPage` | F1（行 968–974） | 內頁批次上傳與排序 |
-| `Form` `FormField` `EnquiryAnswer` | G1（行 984–990） | 表單欄位（系統預先定義，後台 G1 只檢視） |
+| `Form` `FormField` `EnquiryAnswer` | G1（行 984–990） | 表單欄位（結構由系統預先定義；後台 G1 可改題目與選項的顯示文字，v3.35） |
 | `Proposal` `ProposalFile` | E3（行 943–948） | 多版本多語 PDF。**Lead 仍走 `Enquiry`** |
 | `MemberCard` | 3.14 電子會員卡；`card_quota`（行 1283） | 一份會籍可多張卡，每張一組 token |
 | `JerseyIssue` | K3（行 1056–1061） | `jersey_quota` 可 > 1，逐件登記 |

@@ -316,6 +316,10 @@ public partial class CharityDbContext : DbContext
 
             entity.HasIndex(e => e.RefCode, "UQ_charity_program_refs_code").IsUnique();
 
+            entity.HasIndex(e => e.ExternalId, "UX_charity_program_refs_external_id")
+                .IsUnique()
+                .HasFilter("([external_id] IS NOT NULL)");
+
             entity.HasIndex(e => e.Seq, "UQ_charity_program_refs_seq")
                 .IsUnique()
                 .IsClustered();
@@ -347,6 +351,19 @@ public partial class CharityDbContext : DbContext
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("updated_at");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.DeactivatedAt)
+                .HasPrecision(3)
+                .HasColumnName("deactivated_at");
+            entity.Property(e => e.ExternalId).HasColumnName("external_id");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.LastSyncedAt)
+                .HasPrecision(3)
+                .HasColumnName("last_synced_at");
+            entity.Property(e => e.NameEn)
+                .HasMaxLength(128)
+                .HasColumnName("name_en");
 
             entity.HasOne(d => d.CharityRef).WithMany(p => p.CharityProgramRefs)
                 .HasForeignKey(d => d.CharityRefId)
@@ -369,6 +386,10 @@ public partial class CharityDbContext : DbContext
             entity.ToTable("charity_refs");
 
             entity.HasIndex(e => e.RefCode, "UQ_charity_refs_code").IsUnique();
+
+            entity.HasIndex(e => e.ExternalId, "UX_charity_refs_external_id")
+                .IsUnique()
+                .HasFilter("([external_id] IS NOT NULL)");
 
             entity.HasIndex(e => e.Seq, "UQ_charity_refs_seq")
                 .IsUnique()
@@ -403,6 +424,19 @@ public partial class CharityDbContext : DbContext
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("updated_at");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.DeactivatedAt)
+                .HasPrecision(3)
+                .HasColumnName("deactivated_at");
+            entity.Property(e => e.ExternalId).HasColumnName("external_id");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.LastSyncedAt)
+                .HasPrecision(3)
+                .HasColumnName("last_synced_at");
+            entity.Property(e => e.NameEn)
+                .HasMaxLength(128)
+                .HasColumnName("name_en");
 
             entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.CharityRefCreatedByNavigations)
                 .HasForeignKey(d => d.CreatedBy)

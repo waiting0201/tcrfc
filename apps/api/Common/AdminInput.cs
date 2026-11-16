@@ -87,7 +87,19 @@ public static partial class AdminInput
                 throw new AdminValidationException($"{Spaced(label)}的 App 連結格式不正確，範例：tcrfc://schedule/d1。", field);
             }
 
+            // 稽核 docs/23 M-3：樣板（tcrfc://news/{slug}）與 App 解析不了的位置存了也點不開，寫入時擋下。
+            // 這裡只做不連資料庫的語法層；指向的對象是否存在由 AppLinkValidator.ValidateAsync 檢查。
+            if (Features.AdminApp.AppLinkValidator.CheckSyntax(text, label) is { } problem)
+            {
+                throw new AdminValidationException(problem, field);
+            }
+
             return text;
+        }
+
+        if (text.Contains('{') || text.Contains('}'))
+        {
+            throw new AdminValidationException($"「{label}」含有還沒填入的內容，請重新輸入完整的網址。", field);
         }
 
         if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))

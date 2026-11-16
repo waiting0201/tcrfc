@@ -499,3 +499,61 @@ E4–E6 版位 2／廣告主 2／檔期 2（含 1 個已結束檔期與 14 天�
 - **藍鯨首頁 `core_values` 預設 `is_enabled = 0`**（磐石不變）。
 - **聯絡與社群 setting**（`CONTACT_SEEDS`，`generate-club-seed-sql.py`）：`site.social_facebook／instagram／youtube`（藍鯨另有 `site.social_line`、`site.contact_email`）寫 `settings.setting_value`；`site.footer_blurb` 逐語系寫 `settings_i18n`（en 取自 `apps/web/shared/utils/club-copy-en-core.ts`）。部門窗口不種。
 - `clubs` 不再有品牌欄位（標誌、Favicon、品牌色）；遷移 `db/migrations/20261006_club-brand-drop_2-contract.sql`。
+
+## 官網寫死後備轉後台資料（區段 60b，2026-11-13）
+
+> 起因：使用者 2026-11-13 拍板，官網各處「後台沒資料就顯示寫死內容」的後備要拿掉（[`docs/23`](../../docs/23-admin-frontend-wiring-audit.md) H-1 的 B 類與 C-5）。
+> 拿掉之前，寫死版裡**真實**的內容必須先在資料庫裡，否則正式站會突然少一塊。本節記錄逐項盤點的結論與搬進去的內容。
+> 定義與 SQL 在 [`fallback_content_seed.py`](fallback_content_seed.py)（種子區段 60b 與資料遷移共用同一份）。
+
+### 兩個入口，因為內容種子過不了已有資料的庫
+
+- **種子區段 60b**（`generate-club-seed-sql.py` 呼叫，`generate-prod-content-sql.py` 歸 `IMPORT`）：本機種子、`tcrfc_club_test`、驗收用內容種子（`db/prod/club-content-seed.sql`）。
+- **資料遷移** [`../migrations/20261113_fallback-content-import.sql`](../migrations/20261113_fallback-content-import.sql)（`python3 db/seed/generate-fallback-content-migration.py` 產生，`--check` 可掛 CI）：**已經有資料的庫只能走這條**。🔴 內容種子的匯入程序要求「擁有的表全空」（`deploy/prod-seed-import.sh preflight`），而正式庫與本機 `tcrfc_club` 早已有資料（2026-10-16 的 `20261016_intake-docs-import*.sql` 已建里程碑、夥伴、慈善事蹟…），種子過不了 preflight。遷移冪等、事後斷言、不覆蓋後台人員改過的內容。
+
+### 搬進去的內容（全部中英兩份，沒有圖片）
+
+| 內容 | 落點 | 冪等鍵與保護 |
+|---|---|---|
+| 磐石國際夥伴 3 筆：Hellas Verona FC（義大利 Italy）、Rayo Ciudad Alcobendas CF（西班牙 Spain）、Rot-Weiss Ahlen（德國 Germany） | `partners`（類型「國際夥伴」）；`country` 同時帶中英，因為 3.4 國際路徑頁依 `country` 比對地區；`start_on` 不填（新聞日期不等於簽署日）；`show_on_home=0` | `(club_id, slug)` |
+| 藍鯨建教合作學校 5 所 | `partners`（類型「教育夥伴」）；合作內容「建教合作（女子足球隊）」；`start_on` 不填，五權國中的 2015 年寫在合作內容文字（來源 `content/blue-whale/club-profile.md` 沿革） | `(club_id, slug)` |
+| 贊助方案名稱：磐石 9、藍鯨 8（藍鯨不設漫畫、「學院贊助」稱「青年隊贊助」） | `sponsor_packages`（已發布、價格不公開，只有名稱；金額與權益規劃書沒有，由營運在後台填） | **(club_id, 繁中名稱)**：本機種子的 tcrfc 已有同名的【測試】方案（名稱就是規劃書方案名），同名不再補，免得出現 18 張卡；正式庫沒有測試方案，會補齊 9 張 |
+| 磐石榮譽：成立首年頭銜「2024 全國乙級聯賽 冠軍」（英 National Second Division / Champions） | `achievements`（球隊 D1；球季掛該俱樂部最新一筆，因為「成立首年」沒有對應的球季列，與【測試】榮譽同做法） | `(club_id, 年, 繁中賽事名)`；找不到 D1 或任何球季就整筆略過 |
+| 頁尾簡介、社群連結、藍鯨聯絡 Email | `settings`／`settings_i18n`（與 `CONTACT_SEEDS` 同值，皆為俱樂部官方公開資訊；藍鯨 Email 出自舊站頁尾，本來就在版控內） | 只補「列不存在」或「值為空且 `updated_by IS NULL`（沒人儲存過）」；後台人員存過的值（含刻意清空）不動 |
+
+**沒有任何【測試】值**，所以不新增「測試值清單」項目。守門測試：`FallbackContentSeedTests`（走公開端點，確認合作期間、已發布、俱樂部分區後官網讀得到；庫沒灌這一段會先紅燈）。
+
+### 逐項盤點結論（不搬的項目與原因）
+
+| 寫死後備 | 結論 |
+|---|---|
+| W-2 首頁 Hero 兩張新聞卡 | 兩則都是真實新聞（`2026-08-10-international-000` Trenčín、`2026-05-24-match-001` 3-0 銘傳大學）且已在種子區段 9（`articles` 83 篇已發布）；只缺封面圖。不搬。 |
+| W-10 磐石里程碑 2024–2026 | 正式庫與本機 `tcrfc_club` 已有客戶文件匯入的 **49 筆**（`20261016_intake-docs-import.sql`），靜態 15 筆是新聞標題編的精選、與 49 筆來源不同且部分重疊（日期差一兩天），不搬、不混。**本機 `tcrfc_club_test` 這類只灌種子的庫是 0 筆**（種子只有藍鯨 12 筆）。 |
+| W-16 一線隊合影／獎盃照／賽季備註 | 照片是圖片（種子不帶圖）；合影對應 `teams.hero_key`（後台球隊主視覺）；**獎盃照無對應欄位**（`achievements` 沒有圖片欄）；「2026/27 賽季」是由前台常數寫的字串，不是資料（球季在 `seasons`）。榮譽文字已搬（見上表）。 |
+| W-19 場地占位卡 | `Training Base`／`Academy Ground` 沒有地址與任何真實資訊，是占位，直接拿掉。真實場地（西屯足球場，含地址）在種子區段 24／24c。 |
+| W-23 球迷會 4 張活動照片 | 真實照片但**沒有活動名稱與日期**（替代文字只有「球員、學員與球迷合影」之類），球迷會活動（`fan_events`）要有名稱、日期才能建，不編造。 |
+| W-5 藍鯨兒童訓練班別與守門員班 | 資料已在 `programs`／`sessions`（藍鯨 6 個兒童班＋守門員基礎班，區段 28），但欄位對不上「200 元／堂」「限女性」「報名表單網址」「U8／U10 合併一列」，**需要另外決定**（見回報）。 |
+| W-31 頁尾簡介／社群／Email | 已在區段 24b（`CONTACT_SEEDS`）；本次再以「只補空值」補進資料遷移，供已有資料的庫使用。注意本機兩庫的磐石 6 個鍵已被後台儲存清成 NULL（`updated_by` 非空），屬人為清空，不覆蓋。 |
+| 首頁商店入口球衣照 | 一張球員穿主場球衣的照片，不是商品；沒有商品名稱與價格可建，不編造。真實商品由營運在 S 模組建立。 |
+| C-5 慈善事蹟 3 筆與影響力數字 | 正式庫與 `tcrfc_club` 已有客戶文件匯入的 3 筆事蹟＋3 個受贈團體＋3 個計畫（`20261016_intake-docs-import-2.sql`），靜態版是其簡略版，不搬。 |
+
+### 圖片類（需營運人員在後台上傳，檔案不納版控）
+
+來源檔（`site/src/assets/img/` 與收件夾，未納管）與後台落點：`partners-intl/partner-intl-01-hellas-verona.webp`、`…-02-rayo-alcobendas.png`、`…-03-rot-weiss-ahlen.webp` → 夥伴的標誌；`club/first-team-01-squad.jpg` → 球隊 D1 主視覺；`news-trencin.jpg`／`news-mcu.jpg` → 對應兩篇新聞封面；`fanclub/fanclub-event-0{1..4}.jpg` → 日後建立的球迷會活動回顧封面；`club/first-team-02-trophy.jpg` 無落點。
+
+
+## 表單定義對齊前台頁面（2026-11-13，docs/23 W-3 的後端配套）
+
+> 起因：前台七張表單（`apps/web/app/pages/zh/join/*`）改讀後台表單定義（`GET /api/v1/{club}/forms/{formCode}`）後，畫面顯示的是種子的題目與選項文字，與頁面原本定稿的措辭不同。
+> 規劃書主站 v3.35 4.7 G1：欄位結構系統預先定義，**後台可改題目文字（中／英）與選項顯示文字（中／英）**。**以頁面文字為準**對齊種子與既有庫。
+
+- **種子**（`generate-club-seed-sql.py` 的 `FORM_FIELD_DEFAULTS`／`FORM_FIELD_OVERRIDES`）：`field()` 新增 `option_labels_zh`，寫進 `form_fields_i18n` zh-Hant 列的 `options_json`；`FORM_FIELD_OVERRIDES` 的值改為 `(送出值, 中文顯示, 英文顯示)`。題目、選項顯示文字、必填逐項照頁面。**選項送出值（`options`）一律不動。**
+- **預設選項組＝藍鯨**（報名項目顯示「U12 青年隊」，不稱學院／Academy，E-233）；磐石走 `FORM_FIELD_OVERRIDES`（顯示「U12 梯隊」「混齡班」…）。
+- **既有庫的更新通道** [`../migrations/20261113_form-definition-align.sql`](../migrations/20261113_form-definition-align.sql)（手寫＋由舊／新種子差異算出的變更清單，共 50 列變更＝兩俱樂部各 25）：**只更新「目前值仍等於舊種子值」的列**——中文與英文題目各自判斷；英文選項顯示文字比對時忽略 JSON 逗號後空白（後台存檔會壓成緊湊格式）；中文選項顯示文字只在原本為 `NULL` 且送出值等於預期時補；必填欄位目前為 0 才改 1（八張表單的結構在後台鎖定，營運人員改不了必填）。營運人員在後台改過的文字一律不動。冪等、單一交易、事後斷言「選項顯示文字筆數＝送出值筆數」。不需先 migrate 再 deploy，任何時間可套用。
+- **驗證方式**（可重現）：在 `tcrfc_club_test` 先灌 HEAD 版（舊）種子 → 模擬營運人員改三列 → 套遷移（被改的三列保留、其餘更新）→ 再套（0 筆變動）→ 把三列還原成舊值再套 → 與全新灌入新種子的表單定義**逐列一致**（`form_fields`／`form_fields_i18n` 的必填、送出值、題目、選項顯示文字，212 列）。重灌種子冪等。
+- **正式庫**：`db/prod/club-reference-data.sql` 已重產（`generate-prod-reference-sql.py`；`--check` 一致），但參照資料只用於**首次初始化**；已初始化的正式庫走上面那支遷移。
+
+## App 連結樣板清理（2026-11-16，稽核 docs/23 M-3）
+
+- 種子：`backoffice_seed.py` 的快捷入口與「更多」的 `programs` 不再綁 `program`（`tcrfc://program/{slug}` 樣板列）——App 對代碼 `programs` 固定走內建課程列表；`db/prod/club-content-seed.sql` 同步（兩處 `deep_link_id` 改 `NULL`）。深連結對照表本身維持九列（含樣板，是路由規則）。
+- 既有庫：[`../migrations/20261116_app-link-template-cleanup.sql`](../migrations/20261116_app-link-template-cleanup.sql)（冪等、單一交易、事後斷言無殘留）。只把「值含大括號」的使用者連結設為 `NULL`（版面項目綁到樣板列、推播、公告條、廣告素材點擊目的地、版位備援連結），不動 `app_deep_links`、不動完整連結。不需先 migrate 再 deploy，任何時間可套用；不含中文字面值。

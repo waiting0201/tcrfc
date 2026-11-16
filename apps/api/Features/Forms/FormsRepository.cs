@@ -397,9 +397,12 @@ public sealed class FormsRepository(
             IsRequired = field.IsRequired,
             ValidationRule = field.ValidationRule,
             Options = canonicalOptions,
-            // 選項顯示文字沒有請求語系翻譯時，回退成跟 Options 一樣的中文字面值（canonical 值本身
-            // 就是 zh-Hant 的顯示文字，不需要 form_fields_i18n 另存一份 zh-Hant 選項列）。
-            OptionLabels = canonicalOptions is null ? null : (requestedOptionLabels ?? canonicalOptions),
+            // 選項顯示文字：請求語系（zh-Hant 或 en）的 form_fields_i18n.options_json 有設定就用它；沒有（或筆數與送出值
+            // 對不上，防禦資料被直接改壞）時回退成跟 Options 一樣的字面值。zh-Hant 列的選項顯示文字讓中文顯示可以與
+            // 送出值不同（後台可改，規劃書 4.7 G1）；沒設定時顯示送出值本身（既有行為）。
+            OptionLabels = canonicalOptions is null
+                ? null
+                : (requestedOptionLabels is not null && requestedOptionLabels.Count == canonicalOptions.Count ? requestedOptionLabels : canonicalOptions),
             SortOrder = field.SortOrder,
         };
     }

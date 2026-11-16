@@ -59,7 +59,13 @@ const PROGRAM_LABELS: Record<string, string> = {
   'specialist-fitness': '專項訓練（體能與速度）', 'specialist-advanced': '專項訓練（高階訓練）',
   undecided: '尚未確定，請協助建議',
 }
-/** mockup 13 個細項 → 後端 enrollment_category 封閉選項的 7 選 1（見上方檔頭說明）。 */
+/** mockup 13 個細項 → 後端 enrollment_category 封閉選項的 7 選 1（見上方檔頭說明）。
+ *
+ * W-3／W-24：**這張對照表必須保留**——頁面的下拉比後端選項細（6 種專項訓練收斂為單一「專項訓練」、
+ * 「尚未確定」退回「兒童混齡班」），是多對一的轉換，無法由定義的選項清單直接產生。但下拉各項的**顯示文字**
+ * 已改讀定義（`ol()`，取該送出值在定義裡的 optionLabels，取不到用原寫死文字），後台改英文選項文字會反映在前台；
+ * 送出值是否都存在於後端選項由 npm run lint:form-definition 檢查。藍鯨下拉（academy-u15／academy-u12）維持頁面自己的
+ * 文字：定義裡的選項文字帶「Academy」，藍鯨一律稱 Youth team（BW-C1），不得外洩。 */
 const ENROLLMENT_CATEGORY_MAP: Record<string, string> = {
   'academy-u10': '學院 U10', 'academy-u12': '學院 U12', 'academy-u14': '學院 U14', 'academy-u16': '學院 U16', 'academy-u18': '學院 U18',
   'academy-u15': '學院 U15', // 藍鯨沿用的後端選項（磐石已無 U15）
@@ -85,7 +91,13 @@ const website = ref('')
 
 const PARENT_RELATION_LABELS: Record<string, string> = { father: '父親', mother: '母親', guardian: '法定監護人', other: '其他' }
 
-const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('academy_children_training')
+// fl＝fieldLabel：欄位題目照後台表單設計器的設定顯示（取不到或英文缺漏時用括號內的原寫死文字）。
+// 學員姓名（中文＋英文合併）、家長聯絡方式（姓名＋關係＋電話＋Email 合併）不對應單一定義欄位，維持原樣。
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken, fieldLabel: fl, optionLabel } = useFormSubmit('academy_children_training')
+/** 磐石下拉某一項的顯示文字：取該項送出值（ENROLLMENT_CATEGORY_MAP）在定義裡的選項文字，取不到用 fallback。 */
+function ol(code: string, fallback: string): string {
+  return optionLabel('enrollment_category', ENROLLMENT_CATEGORY_MAP[code] ?? '', fallback)
+}
 
 async function onSubmit() {
   const programLabel = PROGRAM_LABELS[program.value] ?? program.value
@@ -98,7 +110,7 @@ async function onSubmit() {
     enrollment_category: ENROLLMENT_CATEGORY_MAP[program.value] ?? '兒童混齡班',
     name: studentNameEn.value ? `${studentNameZh.value}（${studentNameEn.value}）` : studentNameZh.value,
     birth_date: studentDob.value,
-    location_preference: locationPreference.value === 'xitun' ? `${primaryVenue.value.nameZh}（主場）` : '尚無偏好，請協助安排',
+    location_preference: locationPreference.value === 'xitun' && primaryVenue.value ? `${primaryVenue.value.nameZh}（主場）` : '尚無偏好，請協助安排',
     contact: [`${parentName.value}（${relationLabel}）`, parentPhone.value, parentEmail.value].filter(Boolean).join(' ／ '),
     experience: experienceWithProgram,
     health_status: healthNote.value,
@@ -150,22 +162,22 @@ async function onSubmit() {
           <legend>{{ tx('報名項目', 'Program') }}</legend>
           <div class="form-grid">
             <div class="form-field form-field--full">
-              <label for="a-program">{{ tx('想報名的項目', 'Program you would like to join') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="a-program">{{ fl('enrollment_category', tx('想報名的項目', 'Program you would like to join')) }}<span class="req" aria-hidden="true">*</span></label>
               <select v-if="isTcrfc" id="a-program" v-model="program" name="program" required aria-describedby="a-program-error a-program-hint">
                 <option value="">{{ tx('請選擇', 'Please select') }}</option>
                 <optgroup :label="tx('足球學院梯隊', 'Academy squads')">
-                  <option value="academy-u10">{{ tx('U10 梯隊', 'U10 squad') }}</option>
-                  <option value="academy-u12">{{ tx('U12 梯隊', 'U12 squad') }}</option>
-                  <option value="academy-u14">{{ tx('U14 梯隊', 'U14 squad') }}</option>
-                  <option value="academy-u16">{{ tx('U16 梯隊', 'U16 squad') }}</option>
-                  <option value="academy-u18">{{ tx('U18 梯隊', 'U18 squad') }}</option>
+                  <option value="academy-u10">{{ ol('academy-u10', tx('U10 梯隊', 'U10 squad')) }}</option>
+                  <option value="academy-u12">{{ ol('academy-u12', tx('U12 梯隊', 'U12 squad')) }}</option>
+                  <option value="academy-u14">{{ ol('academy-u14', tx('U14 梯隊', 'U14 squad')) }}</option>
+                  <option value="academy-u16">{{ ol('academy-u16', tx('U16 梯隊', 'U16 squad')) }}</option>
+                  <option value="academy-u18">{{ ol('academy-u18', tx('U18 梯隊', 'U18 squad')) }}</option>
                 </optgroup>
                 <optgroup :label="tx('兒童訓練班別', 'Children\'s training classes')">
-                  <option value="children-mixed">{{ tx('混齡班', 'Mixed-age class') }}</option>
-                  <option value="children-beginner">{{ tx('初學班', 'Beginner class') }}</option>
-                  <option value="children-skill">{{ tx('技巧發展班', 'Skills development class') }}</option>
+                  <option value="children-mixed">{{ ol('children-mixed', tx('混齡班', 'Mixed-age class')) }}</option>
+                  <option value="children-beginner">{{ ol('children-beginner', tx('初學班', 'Beginner class')) }}</option>
+                  <option value="children-skill">{{ ol('children-skill', tx('技巧發展班', 'Skills development class')) }}</option>
                 </optgroup>
-                <optgroup :label="tx('專項訓練', 'Specialist training')">
+                <optgroup :label="ol('specialist-goalkeeper', tx('專項訓練', 'Specialist training'))">
                   <option value="specialist-goalkeeper">{{ tx('守門員', 'Goalkeeper') }}</option>
                   <option value="specialist-forward">{{ tx('前鋒', 'Forward') }}</option>
                   <option value="specialist-defender">{{ tx('後衛', 'Defender') }}</option>
@@ -188,10 +200,10 @@ async function onSubmit() {
               <p v-else id="a-program-hint" class="field-hint"><template v-if="isEn">The Youth team is a long-term training squad and requires a trial. For children's training and specialist training, see the <a :href="lp('/zh/programs/')">Programs</a> section, where registration is in person on site.</template><template v-else>青年隊為長期培訓編制，需經試訓。兒童訓練與專項訓練請見<a :href="lp('/zh/programs/')">推廣活動</a>單元，現場個人報名。</template></p>
             </div>
             <div class="form-field">
-              <label for="a-location">{{ tx('偏好受訓地點', 'Preferred training location') }}</label>
+              <label for="a-location">{{ fl('location_preference', tx('偏好受訓地點', 'Preferred training location')) }}</label>
               <select id="a-location" v-model="locationPreference" name="location_preference">
                 <option value="">{{ tx('尚無偏好，請協助安排', 'No preference - please arrange for me') }}</option>
-                <option value="xitun">{{ isEn ? `${primaryVenue.nameEn ?? primaryVenue.nameZh} (home ground)` : `${primaryVenue.nameZh}（主場）` }}</option>
+                <option v-if="primaryVenue" value="xitun">{{ isEn ? `${primaryVenue.nameEn ?? primaryVenue.nameZh} (home ground)` : `${primaryVenue.nameZh}（主場）` }}</option>
               </select>
               <p class="field-hint"><template v-if="isEn">For other training locations, see <a :href="lp('/zh/join/location/')">Location &amp; Map</a>.</template><template v-else>如需查詢其他受訓地點，請見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</template></p>
             </div>
@@ -211,17 +223,17 @@ async function onSubmit() {
               <input id="a-name-en" v-model="studentNameEn" type="text" name="student_name_en" autocomplete="off">
             </div>
             <div class="form-field">
-              <label for="a-dob">{{ tx('學員出生日期', "Student's date of birth") }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="a-dob">{{ fl('birth_date', tx('學員出生日期', "Student's date of birth")) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="a-dob" v-model="studentDob" type="date" name="student_dob" required aria-describedby="a-dob-error">
               <p class="field-error" id="a-dob-error" role="alert">{{ tx('請填寫學員出生日期', 'Please enter the student\'s date of birth') }}</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="a-experience">{{ tx('足球或運動經歷（選填）', 'Football or sports experience (optional)') }}</label>
+              <label for="a-experience">{{ fl('experience', tx('足球或運動經歷（選填）', 'Football or sports experience (optional)'), { optional: true }) }}</label>
               <textarea id="a-experience" v-model="experience" name="experience" aria-describedby="a-experience-hint"></textarea>
               <p class="field-hint" id="a-experience-hint">{{ tx('是否曾參加校隊、社區球隊或其他訓練課程，簡述即可；沒有經驗也歡迎報名。', 'Let us know if they have played for a school team, community team or taken other training programs. A brief summary is fine, and beginners are welcome.') }}</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="a-health">{{ tx('特殊健康狀況說明（選填）', 'Special health conditions (optional)') }}</label>
+              <label for="a-health">{{ fl('health_status', tx('特殊健康狀況說明（選填）', 'Special health conditions (optional)'), { optional: true }) }}</label>
               <textarea id="a-health" v-model="healthNote" name="health_note" aria-describedby="a-health-hint"></textarea>
               <p class="field-hint" id="a-health-hint">{{ tx('如過敏、氣喘、慢性病或需特別留意的事項，有助於教練提前準備。', 'Allergies, asthma, chronic conditions or anything else we should know about, so the coaches can prepare in advance.') }}</p>
             </div>

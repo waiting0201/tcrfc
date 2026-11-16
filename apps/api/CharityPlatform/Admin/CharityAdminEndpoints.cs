@@ -174,12 +174,23 @@ public static class CharityAdminEndpoints
         }).WithName("CharityAdminListProjects").Produces<IReadOnlyList<AdminProjectListItemDto>>();
 
         // 撥付對象與慈善計畫的候選清單（唯讀複本，下拉選單用）。
+        // 只列啟用中者；帶 projectId 時另外保留該項目目前選用的（即使已停用），讓編輯畫面仍能正確顯示既有選擇。
         group.MapGet("/charity-refs", async (
-            HttpContext http, ICharityAdminAuthorizer authorizer, CharityProjectsAdminService service, CancellationToken ct) =>
+            Guid? projectId, HttpContext http, ICharityAdminAuthorizer authorizer, CharityProjectsAdminService service, CancellationToken ct) =>
         {
             var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.ProjectView, ct);
-            return Results.Ok(await service.ListCharityRefsAsync(scope, ct));
+            return Results.Ok(await service.ListCharityRefsAsync(scope, projectId, ct));
         }).WithName("CharityAdminListCharityRefs").Produces<AdminCharityRefOptionsDto>();
+
+        // 「從官網更新清單」（K-2）：手動觸發，慈善平台以 HTTP 呼叫主站公開清單並整份對齊複本。沿用 N2 項目管理的寫入權限。
+        group.MapPost("/charity-refs/sync", async (
+            HttpContext http, ICharityAdminAuthorizer authorizer, CharityRefSyncService service, CancellationToken ct) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.ProjectManage, ct);
+            return Results.Ok(await service.SyncAsync(scope, ClientIpResolver.Resolve(http), ct));
+        }).WithName("CharityAdminSyncCharityRefs").Produces<AdminCharityRefSyncResultDto>()
+          .Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status409Conflict)
+          .Produces(StatusCodes.Status502BadGateway).Produces(StatusCodes.Status503ServiceUnavailable);
 
         group.MapGet("/{id:guid}", async (
             Guid id, HttpContext http, ICharityAdminAuthorizer authorizer, CharityProjectsAdminService service, CancellationToken ct) =>

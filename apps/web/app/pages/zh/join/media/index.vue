@@ -37,7 +37,9 @@ const deadline = ref('')
 const consent = ref(false)
 const website = ref('')
 
-const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('media_enquiry')
+// W-3：欄位題目照後台表單設計器的設定顯示（fl＝fieldLabel，取不到或英文缺漏時用括號內的原寫死文字）。
+// 採訪類型（併入主題前綴）、電話／Email（合併成聯絡方式）不對應單一定義欄位，維持原樣。
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken, fieldLabel: fl } = useFormSubmit('media_enquiry')
 
 async function onSubmit() {
   const coverageLabel = COVERAGE_TYPE_LABELS[coverageType.value]
@@ -90,7 +92,7 @@ async function onSubmit() {
           <legend>{{ tx('媒體資料', 'Media details') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="md-outlet">{{ tx('媒體／機構名稱', 'Media outlet / organisation name') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="md-outlet">{{ fl('media_name', tx('媒體／機構名稱', 'Media outlet / organisation name')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="md-outlet" v-model="mediaOutlet" type="text" name="media_outlet" required autocomplete="organization" aria-describedby="md-outlet-error">
               <p class="field-error" id="md-outlet-error" role="alert">{{ tx('請填寫媒體／機構名稱', 'Please enter the media outlet / organisation name') }}</p>
             </div>
@@ -112,7 +114,7 @@ async function onSubmit() {
           <legend>{{ tx('記者／聯絡人資料', 'Journalist / contact details') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="md-name">{{ tx('記者／聯絡人姓名', 'Journalist / contact name') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="md-name">{{ fl('name', tx('記者／聯絡人姓名', 'Journalist / contact name')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="md-name" v-model="contactName" type="text" name="contact_name" required autocomplete="name" aria-describedby="md-name-error">
               <p class="field-error" id="md-name-error" role="alert">{{ tx('請填寫記者／聯絡人姓名', 'Please enter the journalist / contact name') }}</p>
             </div>
@@ -133,13 +135,13 @@ async function onSubmit() {
           <legend>{{ tx('採訪需求', 'Interview requirements') }}</legend>
           <div class="form-grid">
             <div class="form-field form-field--full">
-              <label for="md-topic">{{ tx('採訪主題／需求說明', 'Interview topic / requirements') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="md-topic">{{ fl('topic', tx('採訪主題／需求說明', 'Interview topic / requirements')) }}<span class="req" aria-hidden="true">*</span></label>
               <textarea id="md-topic" v-model="topic" name="topic" required aria-describedby="md-topic-hint md-topic-error"></textarea>
               <p class="field-hint" id="md-topic-hint">{{ tx('請說明採訪對象（如球員、教練、管理層）、報導角度與希望配合的形式。', 'Please describe who you would like to interview (for example players, coaches or management), the angle of your coverage and the format you have in mind.') }}</p>
               <p class="field-error" id="md-topic-error" role="alert">{{ tx('請說明採訪主題與需求', 'Please describe the interview topic and requirements') }}</p>
             </div>
             <div class="form-field">
-              <label for="md-deadline">{{ tx('期望採訪日期／截稿日', 'Preferred interview date / deadline') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="md-deadline">{{ fl('deadline', tx('期望採訪日期／截稿日', 'Preferred interview date / deadline')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="md-deadline" v-model="deadline" type="date" name="deadline" required aria-describedby="md-deadline-error">
               <p class="field-error" id="md-deadline-error" role="alert">{{ tx('請填寫期望採訪日期或截稿日', 'Please enter your preferred interview date or deadline') }}</p>
             </div>

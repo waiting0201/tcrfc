@@ -23,6 +23,8 @@
 //      產生 /config.js），compose 必須帶 ADMIN_API_BASE_URL，且值要指向 API_DOMAIN；漏帶時映像檔裡
 //      沒有任何預設可用，畫面會顯示「未設定 API 位址」（E-112 升級段第三次：舊版退回寫死的 127.0.0.1）。
 //      同時要求 Dockerfile 有複製 entrypoint 腳本、nginx-spa.conf 有 /config.js 的 no-store 設定。
+//   6. api：必須帶 CHARITY_MAIN_SITE_API_BASE_URL（慈善後台 N2「從官網更新清單」呼叫主站的基底網址），
+//      值要等於 Dockerfile 的 ASPNETCORE_HTTP_PORTS 對應的 http://127.0.0.1:<port>（K-2）。
 //
 // 用法：node scripts/check-compose-env.mjs（在 repo 任何位置執行皆可）。失敗結束碼 1。
 // CI：.github/workflows/ci.yml 的 compose-env job（改 docker-compose.yml 或兩份 nuxt.config.ts 時必跑）。
@@ -147,6 +149,23 @@ for (const { service, dir, frontend = {} } of SPA_APPS) {
   }
   if (!/<script src="\/config\.js"><\/script>/.test(read(dir + '/index.html'))) {
     fail(`${dir}/index.html 沒有載入 /config.js`)
+  }
+}
+
+// ── 6. api：慈善後台「從官網更新清單」呼叫主站公開清單 API 的基底網址（K-2）。
+//    漏帶時 N2 同步直接回「尚未設定」（正式環境不猜網址）；值必須是容器自己的 Dockerfile 連接埠，
+//    連接埠改了這裡沒跟著改，同步會連不上卻不報編譯期錯誤。
+{
+  const apiEnv = compose0['api']
+  if (!apiEnv) fail('docker-compose.yml 找不到服務 api')
+  else if (!('CHARITY_MAIN_SITE_API_BASE_URL' in apiEnv)) {
+    fail('api 缺 CHARITY_MAIN_SITE_API_BASE_URL：慈善後台 N2「從官網更新清單」會回「尚未設定」（K-2）')
+  } else {
+    const port = read('apps/api/Dockerfile').match(/ASPNETCORE_HTTP_PORTS=(\d+)/)?.[1]
+    if (!port) fail('apps/api/Dockerfile 找不到 ASPNETCORE_HTTP_PORTS，無法核對 CHARITY_MAIN_SITE_API_BASE_URL 的連接埠')
+    else if (apiEnv.CHARITY_MAIN_SITE_API_BASE_URL !== `http://127.0.0.1:${port}`) {
+      fail(`api 的 CHARITY_MAIN_SITE_API_BASE_URL 必須是 http://127.0.0.1:${port}（Dockerfile 的 ASPNETCORE_HTTP_PORTS），目前是「${apiEnv.CHARITY_MAIN_SITE_API_BASE_URL}」`)
+    }
   }
 }
 

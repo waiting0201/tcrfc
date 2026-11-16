@@ -111,6 +111,7 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
             {
                 ["enquiry_type"] = "贊助",
                 ["company"] = "測試股份有限公司",
+                ["cooperation_direction"] = "合作構想", // 頁面「合作構想或洽詢內容」必填，定義同步必填（FormDefinitionAlignmentTests）
                 ["name"] = "類別測試-贊助",
                 ["contact"] = "sponsor@example.com",
                 ["privacy_consent"] = "true",
@@ -121,6 +122,7 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
                 ["media_name"] = "測試媒體",
                 ["name"] = "類別測試-媒體",
                 ["topic"] = "球隊專訪",
+                ["deadline"] = "2027-01-01", // 頁面「期望採訪日期／截稿日」必填，定義同步必填
                 ["contact"] = "reporter@example.com",
                 ["privacy_consent"] = "true",
             });
@@ -450,20 +452,21 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
         Assert.NotNull(form);
 
         var enquiryType = form!.Fields.Single(f => f.FieldKey == "enquiry_type");
-        Assert.Equal("Enquiry Type", enquiryType.Label);
+        Assert.Equal("This enquiry is about", enquiryType.Label); // 前台頁面定稿的措辭（FormDefinitionAlignmentTests）
         Assert.Equal(new[] { "合作夥伴", "贊助", "兩者" }, enquiryType.Options); // 送出值永遠是 canonical（中文）。
-        Assert.Equal(new[] { "Partnership", "Sponsorship", "Both" }, enquiryType.OptionLabels); // 顯示文字依語系。
+        Assert.Equal(new[] { "A partnership", "A sponsorship package", "Both" }, enquiryType.OptionLabels); // 顯示文字依語系。
 
         var company = form.Fields.Single(f => f.FieldKey == "company");
-        Assert.Equal("Company Name", company.Label);
+        Assert.Equal("Company / organisation name", company.Label);
         Assert.Null(company.OptionLabels); // 沒有選項的欄位一律 null。
 
         // zh 請求（預設語系）驗證回退不會把英文洩漏出來。
         var zhResponse = await client.GetAsync($"/api/v1/tcrfc/forms/{FormCatalog.PartnershipSponsorship}?lang=zh");
         var zhForm = await zhResponse.Content.ReadFromJsonAsync<PublicFormDto>(TestJson.Options);
         var zhEnquiryType = zhForm!.Fields.Single(f => f.FieldKey == "enquiry_type");
-        Assert.Equal("洽詢類型", zhEnquiryType.Label);
-        Assert.Equal(new[] { "合作夥伴", "贊助", "兩者" }, zhEnquiryType.OptionLabels); // 中文顯示文字＝canonical 值本身。
+        Assert.Equal("這次想洽詢的是", zhEnquiryType.Label);
+        // 中文顯示文字是 zh-Hant 列的 options_json（頁面措辭），送出值（Options）仍是 canonical。
+        Assert.Equal(new[] { "合作夥伴關係", "贊助方案", "兩者都想了解" }, zhEnquiryType.OptionLabels);
     }
 
     [Fact]

@@ -338,7 +338,7 @@ C['zh'] = dict(
     stand='這份文件把行動 App 攤開來看：使用者打開 App 之後會看到哪些畫面、每個畫面上放什麼、'
           '哪些內容由後台維護。畫面為<b>功能示意</b>，用來確認架構與流程是否正確，'
           '尚未進入視覺設計。',
-    stamps=[('依據　', '行動 App 功能規劃書 v3.24'), ('分頁　', '5 個　×　畫面 24 個'),
+    stamps=[('依據　', '行動 App 功能規劃書 v3.30'), ('分頁　', '5 個　×　畫面 24 個'),
             ('語言　', '繁中／英文雙語'), ('後台模組　', 'M1–M5　＋　E4–E6（共用官網後台）')],
 
     eyebrow1='App map', h2_1='五個分頁：依功能切分，依俱樂部呈現',
@@ -405,7 +405,7 @@ C['zh'] = dict(
                      ('6', '贊助商 Logo 牆', '目前俱樂部的贊助商。<b>不計曝光、不進廣告報表</b>——那是對不出來的數字。')],
               admin='<b>兩隊共用同一套設定</b><br>首頁區塊的順序與開關、廣告版位與檔期都是 App 層級，'
                     '<b>兩隊看到的是同一組廣告</b>。'
-                    '<br><br><b>後台維護</b>　M2 首頁區塊開關與排序　／　E4–E6 廣告'),
+                    '<br><br><b>後台維護</b>　M2 首頁區塊開關、排序、名稱與「查看全部」前往位置　／　E4–E6 廣告'),
 
     st02=dict(h='賽程：12 個月、所有賽事', u='這是整個 App 的第一功能', tag='使用頻率最高',
               lede='目前俱樂部所有球隊的賽程集中在一個地方，是讓人<b>每週</b>打開 App 的主要理由——'
@@ -535,7 +535,7 @@ C['zh'] = dict(
              '<b>不得出現只寫「會籍有效」而不說哪一隊的畫面</b>。',
 
     colophon='台中磐石足球俱樂部　×　台中藍鯨女子隊　·　行動 App 功能說明（客戶版）<br>'
-             '依據《TCRFC 行動 App 功能規劃書》v3.24　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
+             '依據《TCRFC 行動 App 功能規劃書》v3.30　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
              '本文件的用色為說明文件用色，非 App 最終視覺。',
 
 
@@ -575,7 +575,7 @@ C['zh'] = dict(
       ('S05','球員詳情','素材到位前只顯示文字卡，不放假圖。',4,False,[
         ('img','t'),
         ('bt','09　林○○　前鋒'),
-        ('kv',[('生日','1999/03/12'),('國籍','中華民國'),('慣用腳','右'),('加入','2024')]),
+        ('kv',[('生日','1999/03/12'),('國籍','台灣'),('慣用腳','右'),('加入','2024')]),
         ('blk',[('bt','本季數據'),('kv',[('出賽','18'),('進球','7'),('助攻','3'),('黃／紅','2 / 0')])]),
         ('pl',[('bs','相關新聞')])]),
       ('S06','新聞列表','目前俱樂部與兩隊共同的新聞。',3,False,[
@@ -631,7 +631,7 @@ C['zh'] = dict(
                ('營業','11:00–21:00')]),
         ('blk',[('bt','會員優惠'),('bs','所有會員 9 折　·　尊尚會員 85 折')]),
         ('cta2',('導航','撥號'))]),
-      ('S15','課程列表','梯次狀態自動顯示可否報名。',4,False,[
+      ('S15','課程列表','梯次狀態自動顯示可否報名；報名還沒開始的梯次顯示開放日期。',4,False,[
         ('chips',(['全部','兒童','營隊'],0)),
         ('blk',[('img','s'),('bt','2026 冬令營'),('bs','12/22–12/26　·　剩 6 位'),('cta','立即報名')]),
         ('blk',[('bt','週末兒童訓練'),('bs','每週六 09:00　·　額滿'),('ctag','額滿候補')])]),
@@ -736,7 +736,7 @@ C['en'] = dict(
     stand='This document lays the mobile app out screen by screen: what a user sees after opening it, '
           'what sits on each screen, and which content is maintained in the admin. The screens are '
           '<b>functional sketches</b> for confirming structure and flow; visual design has not started.',
-    stamps=[('Based on　', 'Mobile App Specification v3.24'), ('Tabs　', '5　×　24 screens'),
+    stamps=[('Based on　', 'Mobile App Specification v3.30'), ('Tabs　', '5　×　24 screens'),
             ('Languages　', 'Chinese / English'), ('Admin modules　', 'M1–M5　＋　E4–E6 (shared admin)')],
 
     eyebrow1='App map', h2_1='Five tabs, split by function and shown by club',
@@ -809,7 +809,7 @@ C['en'] = dict(
                      ('6', 'Sponsor logo wall', 'The current club’s sponsors. <b>No impressions counted, never in advertising reports</b> — that number reconciles with nothing.')],
               admin='<b>Both clubs share one set of settings</b><br>Home block order and visibility, and advertising '
                     'slots and flights, are app-level — <b>both clubs show the same advertising</b>.'
-                    '<br><br><b>Maintained in</b>　M2 home blocks and ordering　/　E4–E6 advertising'),
+                    '<br><br><b>Maintained in</b>　M2 home block visibility, order, names and "See all" destinations　/　E4–E6 advertising'),
 
     st02=dict(h='Fixtures: 12 months, every competition',
               u="This is the app's number one feature", tag='Opened most often',
@@ -958,7 +958,7 @@ C['en'] = dict(
              'times — <b>no screen may state "membership valid" without naming the club</b>.',
 
     colophon='Taichung Rock FC　×　Taichung Blue Whale　·　Mobile App Feature Overview (Client Edition)<br>'
-             'Based on the TCRFC Mobile App Functional Specification v3.24　·　five tabs　·　'
+             'Based on the TCRFC Mobile App Functional Specification v3.30　·　five tabs　·　'
              'Chinese and English, with the architecture ready for a third language<br>'
              'The colours here belong to this document, not to the app’s final visual design.',
 
@@ -1056,7 +1056,7 @@ C['en'] = dict(
                ('Hours','11:00–21:00')]),
         ('blk',[('bt','Member offer'),('bs','10% off all members　·　15% off Prestige Members')]),
         ('cta2',('Navigate','Call'))]),
-      ('S15','Program list','Session status decides whether booking is open.',4,False,[
+      ('S15','Program list','Session status decides whether booking is open; sessions not yet open show their opening date.',4,False,[
         ('chips',(['All','Children','Camps'],0)),
         ('blk',[('img','s'),('bt','2026 Winter camp'),('bs','22–26 Dec　·　6 places left'),('cta','Book now')]),
         ('blk',[('bt','Weekend training'),('bs','Saturdays 09:00　·　Full'),('ctag','Join the waiting list')])]),

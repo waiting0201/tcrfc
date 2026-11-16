@@ -18,7 +18,7 @@ const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
 // 藍鯨英文版（B-5，2026-10-05）：英文識別依俱樂部取，藍鯨英文不得出現磐石字樣（Academy／TCRFC／Taichung Rock）。
-// C-2：社群／Email／頁尾簡介以後台值優先（useClubIdentity），後台未維護時沿用 club-copy 過渡值。
+// C-2：社群／Email／頁尾簡介以後台值為準（useClubIdentity）：後台清空就不顯示；只有 API 打不到時才沿用 club-copy 靜態值。
 const identity = useClubIdentity()
 const clubNameEn = computed(() => (club.value === 'bw' ? BW_NAME_EN : CLUB_NAME_EN))
 const acaEn = computed(() => (club.value === 'bw' ? 'Youth' : 'Academy'))
@@ -97,7 +97,7 @@ async function onSubscribe() {
       <div class="footer-top">
         <div class="footer-brand">
           <img class="footer-brand__logo" :src="assets.footerMark.src" :alt="isEn ? clubNameEn : assets.nameZh" :width="assets.footerMark.width" :height="assets.footerMark.height">
-          <p>{{ identity.footerBlurb }}</p>
+          <p v-if="identity.footerBlurb">{{ identity.footerBlurb }}</p>
           <nav class="footer-social" :aria-label="tx('社群媒體', 'Social media')">
             <a v-if="identity.social.facebook" :href="identity.social.facebook" :aria-label="tx('前往 Facebook 粉絲專頁', 'Visit our Facebook page')" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H7v4h3v7h4v-7h3l1-4h-4v-2c0-.6.4-1 1-1z" /></svg></a>
             <a v-if="identity.social.instagram" :href="identity.social.instagram" :aria-label="tx('前往 Instagram', 'Visit our Instagram')" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.2" cy="6.8" r="1" /></svg></a>

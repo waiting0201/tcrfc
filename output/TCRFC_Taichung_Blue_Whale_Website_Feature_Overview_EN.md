@@ -1,7 +1,7 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.11
-> **Date**: 2026-09-14 (v1.11 revision: 2026-10-20)
+> **Document version**: v1.12
+> **Date**: 2026-09-14 (v1.12 revision: 2026-11-13)
 > **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.12
 > **Content principal**: Taichung Blue Whale Women's Football Club
 
@@ -136,7 +136,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | | Advertising slots | App advertising, flights, performance | **Shared; no Blue Whale access** |
 | **Culture** | Comic | Characters, episodes | **Not used on this site** |
 | | Supporters' club events | Event scheduling | Blue Whale's events |
-| **Enquiries** | Form designer | Viewing form fields; setting notifications, auto-replies and CAPTCHA | Blue Whale's forms |
+| **Enquiries** | Form designer | Editing form question and option text; setting notifications, auto-replies and CAPTCHA | Blue Whale's forms |
 | | Inbox | Form submissions | Blue Whale's submissions |
 | | Newsletter list | Subscriptions and unsubscribes | Blue Whale's list |
 | **Search & sharing settings** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** | Blue Whale's pages (**its own settings**) |
@@ -227,5 +227,5 @@ The Blue Whale site reuses the Taichung Rock site's **layout system** — cards,
 ---
 
 > Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.6
-> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.11　·　11 sections plus the member area　·　Chinese and English
+> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.12　·　11 sections plus the member area　·　Chinese and English
 > **Shares the admin and database of the Taichung Rock FC website; content and brand remain separate.**

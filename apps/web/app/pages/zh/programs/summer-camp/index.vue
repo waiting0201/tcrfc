@@ -121,7 +121,7 @@ useCourseSchema(
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2>{{ tx('合作夥伴', 'Partners') }}</h2>
-      <p>{{ tx('客戶收件夾內的歷史資料顯示台中磐石曾與以下單位合作，實際是否為夏令營之固定合作夥伴待客戶確認：', 'Historical records show that Taichung Rock FC has worked with the organisation below. Whether it is a regular Summer Camp partner is still to be confirmed:') }}</p>
+      <p>{{ tx('台中磐石曾與以下單位合作：', 'Taichung Rock FC has worked with the organisation below:') }}</p>
     </div>
     <div class="grid grid--2">
       <figure class="clip-card" style="margin:0;">

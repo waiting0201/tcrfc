@@ -157,10 +157,10 @@ export function useSportsTeamSchema(teamCode: string) {
             '@type': 'SportsOrganization',
             name: (isEnUrl && facts.value.league.nameEn) || facts.value.league.nameZh,
           },
-          location: {
-            '@type': 'Place',
-            name: (isEnUrl && primaryVenue.value.nameEn) || primaryVenue.value.nameZh,
-          },
+          // 沒有任何場地時不輸出 location（不寫空 Place、不寫死場地名）。
+          ...(primaryVenue.value
+            ? { location: { '@type': 'Place', name: (isEnUrl && primaryVenue.value.nameEn) || primaryVenue.value.nameZh } }
+            : {}),
         }),
       }],
     }

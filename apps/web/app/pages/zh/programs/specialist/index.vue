@@ -195,7 +195,7 @@ useCourseSchema(
     <div class="prose">
       <h2>{{ tx('教練資格', 'Coaching Qualifications') }}</h2>
       <p v-if="isEn">According to promotional material for the Taichung Rock FC adult football training camp, the Specialist Training coaching team hold <span class="en">AFC</span> coaching licences.</p>
-      <p v-else>依客戶提供之「台中磐石成人足球訓練營」宣傳資料，台中磐石專項訓練教練團具備 <span class="en">AFC</span> 教練證照。</p>
+      <p v-else>依「台中磐石成人足球訓練營」宣傳資料，台中磐石專項訓練教練團具備 <span class="en">AFC</span> 教練證照。</p>
     </div>
 
   </div>

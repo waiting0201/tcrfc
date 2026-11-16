@@ -89,7 +89,7 @@ useSeoMeta({
           <p v-if="isEn && !isTcrfc" class="unit-card__desc">{{ CLUB_CULTURE_PAGE_EN_BW.merchCardDesc }}</p>
           <p v-else-if="isEn" class="unit-card__desc">Official merchandise in three collections (Club, Academy and Fan), available in the online store.</p>
           <p v-else-if="isTcrfc" class="unit-card__desc">俱樂部、{{ identity.academyShortLabelZh }}、球迷三大系列官方商品，可於站內商店選購。</p>
-          <p v-else class="unit-card__desc">官方商品與線上商店，商品內容由後台提供。</p>
+          <p v-else class="unit-card__desc">官方商品與線上商店。</p>
           <span class="unit-card__link">{{ tx('看商品', 'View merchandise') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>

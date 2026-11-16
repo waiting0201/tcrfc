@@ -7,8 +7,9 @@
 //   - 提案簡介下載：`GET .../proposals`（已發布且至少一份檔案）＋ `POST .../proposals/{id}/download-requests`
 //     （建立 Lead 並回傳 30 分鐘限時連結，後台 E3）。提案 PDF 只放私有容器，**任何地方都不得輸出檔案的公開網址**
 //     （docs/14 E1a 規則①），下載一律走同源代理 `/api/backend/{club}/proposals/downloads/{token}`。
-// 🔴 方案卡片：API 沒有任何已發布方案時，維持既有 9 張（藍鯨 8 張）靜態方案卡——那是規劃書 §3.9 9.4 列出的
-// 方案名稱，不是假資料；後台一旦發布任何一張方案，整區換成後台資料（不混搭）。
+// 🔴 方案卡片：一律來自後台已發布的方案。2026-11-13 起沒有寫死的 9 張（藍鯨 8 張）靜態方案卡（方案名稱已搬進資料，
+// 金額與權益由營運在後台補）；沒有已發布方案時顯示空狀態與洽詢入口。方案卡只有名稱時，說明、權益、對象、價格各列
+// 都是 v-if，不會出現空的說明區塊。
 // 🔴 A/B 提案：規劃書允許多份提案（版本號不同）做 A/B。前台目前**不隨機分流**（隨機會讓 SSR 與 hydration 不一致，
 // 且 Lead 追蹤的比較基準需要可重現的規則），固定挑「有目前語系檔案、版本號最大」的一份（pickProposal）。
 import { formatPackagePrice, pickProposal, proposalDownloadHref, splitBenefitList } from '#shared/utils/partners'
@@ -19,16 +20,8 @@ const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const route = useRoute()
 const club = config.public.club
-// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()／getClubIdentity()。
-// 「學院贊助」比照 join/partnership/index.vue 既有做法改讀 identity.academyShortLabelZh。
 const clubAssets = computed(() => getClubAssets(config.public.club))
-const identity = computed(() => getClubIdentity(config.public.club))
 const clubEn = computed(() => bizClubNameEn(config.public.club))
-const isTcrfc = computed(() => config.public.club !== 'bw')
-// 藍鯨規劃書 v1.9 §2.1：藍鯨不設 8.1 漫畫，因此也沒有「漫畫內容合作」方案；
-// 方案數與後續編號跟著同一個單元開關走，不另寫俱樂部判斷。
-const mangaEnabled = computed(() => isUnitEnabledForClub('8.1', config.public.club))
-
 // G-12 常見問題快捷區塊：sponsorship 掛載點（db/seed FAQ_EMBED_SLOTS「贊助方案頁（9.4）」，四個固定掛載點
 // 的最後一個，S2-7 首次消費）。並掛 FAQPage Schema（GEO-06；沒有題目時 useFaqPageSchema 不輸出）。
 const { faqs } = useFaqEmbed(config.public.club, 'sponsorship', locale.value)
@@ -40,31 +33,27 @@ const proposal = computed(() => pickProposal(proposals.value, locale.value))
 const hasApiPackages = computed(() => packages.value.length > 0)
 
 const CN_NUM = ['', '一', '兩', '三', '四', '五', '六', '七', '八', '九', '十']
-const staticPlanCountZh = computed(() => (mangaEnabled.value ? '九' : '八'))
-/** 方案數文字：有後台資料用實際張數（≤10 用中文數字，其餘阿拉伯數字），否則沿用規劃書固定的九／八。 */
+/** 方案數文字（只在有後台方案時使用）：≤10 用中文數字，其餘阿拉伯數字。 */
 const planCountZh = computed(() => {
-  if (!hasApiPackages.value) return staticPlanCountZh.value
   const n = packages.value.length
   return n <= 10 ? (CN_NUM[n] ?? String(n)) : String(n)
 })
 const CN_NUM_EN = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten']
 const planCountEn = computed(() => {
-  if (!hasApiPackages.value) return mangaEnabled.value ? 'nine' : 'eight'
   const n = packages.value.length
   return n <= 10 ? (CN_NUM_EN[n] ?? String(n)) : String(n)
 })
 const planCountEnCap = computed(() => planCountEn.value.charAt(0).toUpperCase() + planCountEn.value.slice(1))
-const planNum = (n: number) => String(mangaEnabled.value || n < 6 ? n : n - 1).padStart(2, '0')
 
 useSeoMeta({
   title: computed(() => (isEn.value ? `Sponsorship Opportunities | Partners & Sponsors | ${clubEn.value}` : `贊助方案 Sponsorship Opportunities｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
   description: computed(() => isEn.value
     ? (hasApiPackages.value
       ? `${clubEn.value} offers ${planCountEn.value} sponsorship packages: ${packages.value.map((p) => p.name).filter(Boolean).join(', ')}.`
-      : `${clubEn.value} offers ${planCountEn.value} sponsorship packages: club, ${isTcrfc.value ? 'Academy' : 'Youth team'}, team, camp, international program, ${mangaEnabled.value ? 'manga content, ' : ''}merchandise, Fan Club and venue naming rights.`)
+      : `Sponsorship opportunities with ${clubEn.value}: packages and partnership enquiries.`)
     : hasApiPackages.value
     ? `${clubAssets.value.nameZh}${planCountZh.value}種贊助方案：${packages.value.map((p) => p.name).filter(Boolean).join('、')}。`
-    : `${clubAssets.value.nameZh}${planCountZh.value}種贊助方案：俱樂部、${identity.value.academyShortLabelZh}、球隊、營隊、國際計畫、${mangaEnabled.value ? '漫畫內容、' : ''}商品、球迷會、場館冠名。`),
+    : `${clubAssets.value.nameZh}的贊助方案與合作洽詢。`),
 })
 
 // ---- 提案簡介下載表單（建立 Lead）----
@@ -130,14 +119,14 @@ async function onDownloadSubmit() {
     <p class="page-hero__eyebrow">9.4 Sponsorship Opportunities</p>
     <h1><template v-if="isEn">Sponsorship Opportunities</template><template v-else>{{ tx('贊助方案', 'Sponsorship Opportunities') }}<span class="en">Sponsorship Opportunities</span></template></h1>
     <p v-if="hasApiPackages" class="page-hero__lede"><template v-if="isEn">{{ planCountEnCap }} sponsorship packages to help you find the partnership scale that suits you best.</template><template v-else>{{ planCountZh }}種贊助方案，找到最適合的合作規模。</template></p>
-    <p v-else class="page-hero__lede"><template v-if="isEn">{{ planCountEnCap }} sponsorship packages, from the club, {{ isTcrfc ? 'the Academy' : 'the Youth team' }}, teams and camps through to venue naming rights, to help you find the partnership scale that suits you best.</template><template v-else>{{ planCountZh }}種贊助方案，涵蓋俱樂部、{{ identity.academyShortLabelZh }}、球隊、營隊到場館冠名，找到最適合的合作規模。</template></p>
+    <p v-else class="page-hero__lede">{{ tx('贊助方案整理中，歡迎先透過洽詢表單與我們聯繫。', 'Our sponsorship packages are being compiled. In the meantime, please get in touch through the enquiry form.') }}</p>
   </div>
 </section>
 
-<!-- SPEC 3.9 §9.4 — 贊助方案卡片（磐石九種；藍鯨不設漫畫為八種，藍鯨規劃書 v1.9 §2.1） -->
+<!-- SPEC 3.9 §9.4 — 贊助方案卡片（資料來自後台 E2，已發布者） -->
 <section class="band grain" id="plans" aria-labelledby="plans-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="plans-title"><template v-if="isEn">{{ planCountEnCap }} sponsorship packages</template><template v-else>{{ planCountZh }}種贊助方案</template></h2>
+    <h2 class="visually-hidden" id="plans-title">{{ tx('贊助方案', 'Sponsorship packages') }}</h2>
     <div v-if="hasApiPackages" class="grid grid--3 plan-grid">
       <article v-for="(pkg, i) in packages" :key="pkg.id" class="plan-card">
         <p class="plan-card__num">{{ String(i + 1).padStart(2, '0') }}</p>
@@ -151,61 +140,8 @@ async function onDownloadSubmit() {
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
       </article>
     </div>
-    <div v-else class="grid grid--3 plan-grid">
-      <article class="plan-card">
-        <p class="plan-card__num">01</p>
-        <h3 class="plan-card__title"><template v-if="isEn">Club Sponsorship</template><template v-else>俱樂部贊助<span class="en">Club Sponsorship</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
-      <article class="plan-card">
-        <p class="plan-card__num">02</p>
-        <h3 class="plan-card__title"><template v-if="isEn">{{ getPartnersPlanYouthTitleEn(club) }}</template><template v-else>{{ identity.academyShortLabelZh }}贊助<span class="en">{{ getPartnersPlanYouthTitleEn(club) }}</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
-      <article class="plan-card">
-        <p class="plan-card__num">03</p>
-        <h3 class="plan-card__title"><template v-if="isEn">Team Sponsorship</template><template v-else>球隊贊助<span class="en">Team Sponsorship</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
-      <article class="plan-card">
-        <p class="plan-card__num">04</p>
-        <h3 class="plan-card__title"><template v-if="isEn">Camp Sponsorship</template><template v-else>營隊贊助<span class="en">Camp Sponsorship</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
-      <article class="plan-card">
-        <p class="plan-card__num">05</p>
-        <h3 class="plan-card__title"><template v-if="isEn">International Program Sponsorship</template><template v-else>國際計畫贊助<span class="en">International Programme Sponsorship</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
-      <article v-if="mangaEnabled" class="plan-card">
-        <p class="plan-card__num">06</p>
-        <h3 class="plan-card__title"><template v-if="isEn">Manga Content Partnership</template><template v-else>漫畫內容合作<span class="en">Manga Content Partnership</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
-      <article class="plan-card">
-        <p class="plan-card__num">{{ planNum(7) }}</p>
-        <h3 class="plan-card__title"><template v-if="isEn">Merchandise Partnership</template><template v-else>商品合作<span class="en">Merchandise Partnership</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
-      <article class="plan-card">
-        <p class="plan-card__num">{{ planNum(8) }}</p>
-        <h3 class="plan-card__title"><template v-if="isEn">Fan Club Sponsorship</template><template v-else>球迷會贊助<span class="en">Fan Club Sponsorship</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
-      <article class="plan-card">
-        <p class="plan-card__num">{{ planNum(9) }}</p>
-        <h3 class="plan-card__title"><template v-if="isEn">Venue Naming Rights</template><template v-else>場館冠名<span class="en">Venue Naming Rights</span></template></h3>
-        <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
-      </article>
+    <div v-else class="deck-empty" role="status" style="color:var(--text)">
+      <p><template v-if="isEn">Sponsorship packages are being compiled and will be published on this page soon. To learn about sponsorship in the meantime, please <a :href="lp('/zh/join/partnership/')">fill in the sponsorship enquiry form</a>.</template><template v-else>贊助方案整理中，稍後將於本頁公布。若想先了解贊助合作，歡迎<a :href="lp('/zh/join/partnership/')">填寫贊助洽詢表單</a>。</template></p>
     </div>
   </div>
 </section>

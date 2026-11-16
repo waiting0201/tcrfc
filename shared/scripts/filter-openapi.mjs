@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 export const EXCLUDED_PREFIXES = [
   '/api/v1/admin', // 後台管理（官網後台專用）
   '/api/v1/donation-platform', // 慈善捐款平台（獨立後台與獨立資料庫，App 不呼叫）
+  '/api/v1/{club}/charity/directory', // 慈善平台後台「從官網更新清單」專用（K-2，2026-11-13），App 不呼叫
   '/api/membership/activate', // 伺服器內部、憑證保護，不對外（App 規劃書 §9.3）
 ];
 

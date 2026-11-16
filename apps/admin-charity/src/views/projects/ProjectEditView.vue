@@ -18,6 +18,7 @@ import FormSection from '@/components/FormSection.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import CharityRefSyncPanel from '@/components/CharityRefSyncPanel.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import {
   createProject,
@@ -51,7 +52,7 @@ const loading = ref(false)
 const loadError = ref('')
 const saving = ref(false)
 const existing = ref<ProjectDetail | null>(null)
-const refs = ref<CharityRefOptions>({ charities: [], programs: [] })
+const refs = ref<CharityRefOptions>({ charities: [], programs: [], lastSyncedAt: null })
 
 const form = reactive({
   nameZh: '',
@@ -101,7 +102,7 @@ async function load() {
   loading.value = true
   loadError.value = ''
   try {
-    const [options, project] = await Promise.all([getCharityRefs(), props.projectKey ? getProject(props.projectKey) : Promise.resolve(null)])
+    const [options, project] = await Promise.all([getCharityRefs(props.projectKey), props.projectKey ? getProject(props.projectKey) : Promise.resolve(null)])
     refs.value = options
     if (project) fill(project)
   } catch (error) {
@@ -114,6 +115,33 @@ async function load() {
 onMounted(load)
 
 const programOptions = computed(() => refs.value.programs.filter((p) => p.charityRefCode === form.charityRefCode))
+
+/** 選單文字：官網已不再公開者加註，且在選單中不可再被新選（只讓既有選擇看得到）。 */
+const INACTIVE_NOTE = '（官網已不再公開）'
+const optionLabel = (o: { name: string; isActive: boolean }) => (o.isActive ? o.name : `${o.name}${INACTIVE_NOTE}`)
+
+const selectedCharity = computed(() => refs.value.charities.find((c) => c.refCode === form.charityRefCode))
+const selectedProgram = computed(() => refs.value.programs.find((p) => p.refCode === form.programRefCode))
+const inactiveSelected = computed(() => [selectedCharity.value, selectedProgram.value].filter((o) => o && !o.isActive).map((o) => o!.name))
+
+/**
+ * 更新清單後重新載入選單。帶的是「已儲存」的項目編號，但表單上可能有尚未儲存的選擇剛好被官網下架，
+ * 所以新清單裡找不到的目前選擇，沿用舊清單的資料並標為已不再公開，避免選單退化成顯示內部代碼。
+ */
+async function reloadRefs() {
+  const previous = refs.value
+  try {
+    const fresh = await getCharityRefs(props.projectKey)
+    const keepCharity = previous.charities.find((c) => c.refCode === form.charityRefCode)
+    if (keepCharity && !fresh.charities.some((c) => c.refCode === keepCharity.refCode)) fresh.charities.push({ ...keepCharity, isActive: false })
+    const keepProgram = previous.programs.find((p) => p.refCode === form.programRefCode)
+    if (keepProgram && !fresh.programs.some((p) => p.refCode === keepProgram.refCode)) fresh.programs.push({ ...keepProgram, isActive: false })
+    refs.value = fresh
+  } catch {
+    // 清單重新載入失敗不影響已完成的更新；保留畫面上原有選單。
+    ElMessage.warning('清單已更新，但選單暫時無法重新載入，請重新整理本頁')
+  }
+}
 
 function onCharityChange() {
   // 換了公益機構，原本選的計畫若不屬於它就清掉（後端也會擋「組合不一致」）。
@@ -288,16 +316,26 @@ async function togglePublish() {
                 </FormField>
                 <p class="project-edit__hint">店家分潤與項目分潤相加不得超過 100%，儲存時會依合作中店家中分潤最高的一家檢查。</p>
                 <FormField field="charityRefCode" label="撥付對象（公益機構）">
-                  <el-select v-model="form.charityRefCode" style="width: 100%" clearable @change="onCharityChange">
-                    <el-option v-for="c in refs.charities" :key="c.refCode" :value="c.refCode" :label="c.name" />
+                  <el-select v-model="form.charityRefCode" style="width: 100%" clearable placeholder="請選擇公益機構" @change="onCharityChange">
+                    <el-option v-for="c in refs.charities" :key="c.refCode" :value="c.refCode" :label="optionLabel(c)" :disabled="!c.isActive">
+                      <span class="project-edit__opt-name">{{ optionLabel(c) }}</span>
+                      <span v-if="c.nameEn" class="project-edit__opt-sub">{{ c.nameEn }}</span>
+                    </el-option>
                   </el-select>
                 </FormField>
                 <FormField field="charityProgramRefCode" label="撥付對象（公益計畫，選填）">
-                  <el-select v-model="form.programRefCode" style="width: 100%" clearable>
-                    <el-option v-for="p in programOptions" :key="p.refCode" :value="p.refCode" :label="p.name" />
+                  <el-select v-model="form.programRefCode" style="width: 100%" clearable placeholder="請選擇公益計畫">
+                    <el-option v-for="p in programOptions" :key="p.refCode" :value="p.refCode" :label="optionLabel(p)" :disabled="!p.isActive">
+                      <span class="project-edit__opt-name">{{ optionLabel(p) }}</span>
+                      <span v-if="p.nameEn" class="project-edit__opt-sub">{{ p.nameEn }}</span>
+                    </el-option>
                   </el-select>
                 </FormField>
-                <p class="project-edit__hint">此清單來自官方網站的公益團體資料（唯讀複本），如需新增或更新請聯絡官網管理端</p>
+                <p v-if="inactiveSelected.length > 0" class="project-edit__warn" role="status">
+                  <span aria-hidden="true">⚠ </span>「{{ inactiveSelected.join('」、「') }}」官網已不再公開。這個項目可以照舊儲存，但新的項目無法再選它，建議改選其他對象。
+                </p>
+                <p class="project-edit__hint">這份清單來自官方網站，這裡不能直接新增或修改。找不到要的公益機構或計畫時，請先到官網發布，再按下方的「從官網更新清單」。</p>
+                <CharityRefSyncPanel :last-synced-at="refs.lastSyncedAt" @synced="reloadRefs" />
               </FormSection>
 
               <FormSection title="憑證模式">
@@ -345,6 +383,19 @@ async function togglePublish() {
   margin: 0 0 var(--charity-admin-space-3);
   font-size: 12px;
   line-height: 1.6;
+  color: var(--charity-admin-text-tertiary);
+}
+
+.project-edit__warn {
+  margin: 0 0 var(--charity-admin-space-3);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--charity-warning-text);
+}
+
+.project-edit__opt-sub {
+  margin-left: var(--charity-admin-space-2);
+  font-size: 12px;
   color: var(--charity-admin-text-tertiary);
 }
 

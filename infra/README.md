@@ -301,6 +301,7 @@ GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 | `CORS_ALLOWED_ORIGINS` | compose（由五個網域組出） | ✅ | Production 缺 → **沒有任何來源被允許**，瀏覽器端全部被擋 | 不需手動設，改 `.env` 的網域即可 |
 | `TRUSTED_PROXY_IPS` | compose（`172.28.238.2,.3,.4`） | ✅ | 缺 → 不掛 `UseForwardedHeaders`，限流把所有人當成同一個來源 | 與 compose 固定 IP 成對，勿單改一邊 |
 | 六個 `*_DOMAIN`（含 `CHARITY_DOMAIN`） | compose | ✅ | `CHARITY_DOMAIN` 缺 → 付款返回網址解析不出來，付款端點回 503 | 來自 `.env` |
+| `CHARITY_MAIN_SITE_API_BASE_URL` | compose（固定 `http://127.0.0.1:8080`，api 容器自己） | ✅ | 缺 → 慈善後台 N2「從官網更新清單」回 503「尚未設定官網清單的來源」（本機 Development 退回 `http://127.0.0.1:5299`） | 慈善平台不得持有主站資料庫連線，同行程也走 HTTP 呼叫主站公開清單（K-2）；不是機密。`scripts/check-compose-env.mjs` 把關：值必須等於 Dockerfile 的 `ASPNETCORE_HTTP_PORTS`。日後慈善 api 拆成獨立容器時改成主站 api 的**內部**網址 |
 
 **B. 外部憑證／服務：到位前正式環境該怎麼填**
 

@@ -99,7 +99,7 @@ const hero = computed(() => (isEn.value ? getYouthCoachesHeroEn(clubKey.value) :
         </div>
       </article>
     </div>
-    <p v-else class="section-lede is-pending">{{ tx('教練名單整理中，待資料到位後將公布於本頁。', 'The coaching list is being compiled and will be published here once the information is ready.') }}</p>
+    <p v-else class="section-lede is-pending">{{ tx('教練名單整理中，稍後將公布於本頁。', 'The coaching list is being compiled and will be published here soon.') }}</p>
 
     <h2 class="section-title" style="margin-top:4rem;">{{ tx('證照、專長與負責梯隊', 'Licences, Specialisms and Squads') }}</h2>
     <ul v-if="coachDetails.length > 0" class="coach-detail-list">

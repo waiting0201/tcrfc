@@ -32,6 +32,10 @@ public sealed class CharityConflictException(string title, string message, strin
 public sealed class CharityUnprocessableException(string message)
     : CharityApiException(StatusCodes.Status422UnprocessableEntity, "目前無法處理這筆請求", message);
 
+/// <summary>上游系統（例如主站公開清單 API）連不上、逾時或回應不合法。502；呼叫端沒有做錯，稍後重試或洽維運。</summary>
+public sealed class CharityBadGatewayException(string message)
+    : CharityApiException(StatusCodes.Status502BadGateway, "官網清單暫時無法取得", message);
+
 /// <summary>外部服務（金流、發票加值中心）暫時無法使用。503；前台據此顯示明確錯誤與聯絡方式，不留半完成狀態。</summary>
 public sealed class CharityServiceUnavailableException(string message)
     : CharityApiException(StatusCodes.Status503ServiceUnavailable, "服務暫時無法使用", message);

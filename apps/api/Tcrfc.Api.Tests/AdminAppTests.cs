@@ -127,7 +127,7 @@ public sealed class AdminAppTests(AdminWriteApiFixture fixture)
             // 深連結：必須 tcrfc://、代碼格式與重複、使用中不能刪
             Assert.Equal(HttpStatusCode.BadRequest, (await AppTest.PostJsonAsync(admin, Base + "/layout/deep-links", new { code = "zztest_a", appLink = "https://x.test", label = new { zh = "x" } })).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await AppTest.PostJsonAsync(admin, Base + "/layout/deep-links", new { code = "Bad Code", appLink = "tcrfc://x", label = new { zh = "x" } })).StatusCode);
-            var link = await AppTest.ReadAsync<AdminAppDeepLinkDto>(await AppTest.PostJsonAsync(editor, Base + "/layout/deep-links", new { code = "zztest_link", appLink = "tcrfc://zztest/{id}", webUrl = "/zh/zztest/{id}", label = new { zh = "ZZTEST 連結", en = "ZZTEST link" } }));
+            var link = await AppTest.ReadAsync<AdminAppDeepLinkDto>(await AppTest.PostJsonAsync(editor, Base + "/layout/deep-links", new { code = "zztest_link", appLink = "tcrfc://upgrade", webUrl = "/zh/member/upgrade/", label = new { zh = "ZZTEST 連結", en = "ZZTEST link" } }));
             Assert.Equal(HttpStatusCode.Conflict, (await AppTest.PostJsonAsync(admin, Base + "/layout/deep-links", new { code = "zztest_link", appLink = "tcrfc://y", label = new { zh = "x" } })).StatusCode);
 
             var item = await AppTest.ReadAsync<AdminAppLayoutItemDto>(await AppTest.PostJsonAsync(admin, Base + "/layout/items", new { kind = "quick_entry", itemKey = "zztest_entry", deepLinkId = link.Id, iconKey = "star", label = new { zh = "ZZTEST 入口", en = "ZZTEST entry" } }));

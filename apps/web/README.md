@@ -3617,3 +3617,111 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - **早鳥價**：`app/utils/program-session.ts` 的 `isEarlyBirdActive()`（有早鳥價且無截止日或截止日（含，台灣日期）未過）與 `sessionPriceView()`。
   夏令營、冬令營預覽卡與 `ProgramRegistration.vue` 共用：早鳥有效 → 顯示「早鳥價 NT$ X（至 日期）」加「費用 NT$ 正價」；失效或未設定 → 只顯示「費用」；正價也沒有 → 「待公告」。
 - 驗證：`npm run lint:schedule-tab`（`scripts/check-schedule-tab.mjs`，已併入 `npm run lint`）。
+
+## 表單題目與選項照後台設定顯示（docs/23 W-3／W-24，2026-11-13，`frontend-architect`）
+
+使用者 2026-11-13 拍板：後台表單設計器可改的**題目文字（中／英）**與**選項英文顯示文字**，前台要照後台設定顯示（欄位結構——欄位鍵、類型、必填、選項送出值——仍鎖定）。API 不變（`GET /api/v1/{club}/forms/{formCode}?lang=` 已輸出 `label`、`options`、`optionLabels`）。
+
+- **取值**：`app/composables/useFormDefinition.ts`（`useFetch`，**伺服器端渲染時就取得**，SSR 輸出的標籤就是後台文字，無閃動、無 hydration 差異）；純函式在 `shared/utils/form-definition.ts`。`useFormSubmit(formCode)` 內部呼叫它並回傳 `fieldLabel`／`fieldOptions`／`optionLabel`，**驗證碼開關與送出後導向頁也改讀同一份（SSR 取得），不再掛載後另打一次**。
+  - `fieldLabel(欄位鍵, 退路, { optional?, lang? })`：定義有可用文字用定義，否則用頁面原寫死文字；`optional` 在定義文字後補「（選填）」。
+  - `fieldOptions(欄位鍵, 退路[{ value, label }])`：定義有 `options` 時清單由定義產生（value＝送出值、label＝同位置的 `optionLabels`）；否則整份退路。
+  - `optionLabel(欄位鍵, 送出值, 退路)`：單一選項顯示文字，給頁面自己分組或只取部分選項的下拉。
+- **退路規則**：定義取不到（API 沒啟動）、定義沒有該欄位鍵、題目空白 → 頁面原文字。**英文頁**的定義文字若含中日韓字元（API 在英文缺漏時回退中文）→ 視為未翻譯，改用頁面的英文退路，不印出中文。
+- **頁面**（`app/pages/zh/join/`）：
+  - `general`：姓名、Email、主旨、內容。主旨在定義是 text 型別，五個主旨選項維持頁面自己的。
+  - `player`：生日、場上位置、足球經歷、影片連結。姓名（中＋英合併）、聯絡方式（電話＋Email 合併）不對應單一定義欄位；位置選項是頁面的。
+  - `academy`：報名項目、偏好地點、學員生日、足球經歷（選填）、健康狀況（選填）；磐石下拉各項顯示文字改讀定義（`ol()`）。
+  - `camp-registration`：營隊梯次、學員姓名、學員生日。健康聲明與隱私同意是整段聲明文字、緊急聯絡人是三欄合併，維持原樣。
+  - `international-player`：姓名、國籍、護照號碼、經歷、影片連結、簽證狀態。本頁是英文主標籤＋中文副標籤並列，用 `useFormSubmit(code, { bothLangs: true })` 多取另一語系，`fl(鍵, 退路, { lang: 'en' | 'zh' })` 分別取兩行。
+  - `partnership`：洽詢類型（標籤＋選項）、公司、產業別、預算區間、聯絡人姓名。
+  - `media`：媒體名稱、記者姓名、採訪主題、截稿日。
+  - 提案下載（9.4）目前前台沒有走 `useFormSubmit` 的表單頁，未涉及。
+- **對照表處理（W-24）**：`partnership` 的 `ENQUIRY_TYPE_MAP` 已拿掉（選項值直接是後端送出值）。**保留**：`academy` 的 `ENROLLMENT_CATEGORY_MAP`——頁面下拉比後端選項細（6 種專項訓練收斂為「專項訓練」、「尚未確定」退回「兒童混齡班」），是多對一，無法由定義產生；`ol()` 只換顯示文字。藍鯨下拉維持頁面自己的文字（定義選項帶 `Academy`，藍鯨一律稱 Youth team，BW-C1）。`PLAN_LABEL_MAP`／`DIRECTION_LABELS`（W-18，贊助方案與合作方向勾選組合成文字送出）、產業／預算／位置／簽證等 text 型別欄位的選項都是頁面自己的，**這次不動**。
+- **zh 頁文字會變**：標籤改取定義文字後，中文頁的措辭以後台種子為準（例如「媒體／機構名稱」→「媒體名稱」、洽詢類型選項「合作夥伴關係」→「合作夥伴」），這是「照後台設定」的預期結果；中文選項顯示文字與送出值相同（後台只能改英文選項文字）。
+- **驗證**：`npm run lint:form-definition`（`scripts/check-form-definition.mjs`，已併入 `npm run lint`）：取值規則（定義有值、缺欄位、英文回退中文、選項顯示／送出值對應）＋頁面寫死的選項送出值對得上種子 `db/seed/generate-club-seed-sql.py` 的 select 選項。
+- **實機**：用假 API（只回 `partnership_sponsorship` 的定義）搭 `node .output/server/index.mjs` 驗過 SSR 輸出：中文頁標籤與選項取定義文字、英文頁選項取定義英文、英文缺漏（回退中文）改用頁面英文、API 關閉時全部退回原文字。**未對真實 `apps/api`（:5299）驗證**。
+
+## 官網寫死後備拿掉（docs/23 H-1 B 類與 C-5，2026-11-13，`frontend-architect`）
+
+使用者 2026-11-13 拍板：官網各處「後台沒資料就顯示寫死內容」的後備一律拿掉，空資料狀態只能是「整塊不顯示」或「得體的空狀態文案」（原始案例 `docs/18` E-291）。後端先把寫死版裡的真實內容搬進資料（種子區段 60b ＋ `db/migrations/20261113_fallback-content-import.sql`，說明見 `db/seed/README.md`），本輪是前端這一步。**兩站走同一條路徑**，不再有 `isTcrfc` 專屬的後備。空狀態沿用全站既有 `.news-empty`（`site/src/assets/css/tcrfc.css`）或各頁既有的 `is-pending`／`deck-empty`，中英都有，不出現「待客戶提供」這類內部用語。
+
+| 編號 | 檔案 | 後台沒資料時現在顯示 |
+|---|---|---|
+| W-2 | `pages/zh/index.vue` Hero | 沒有已發布新聞：Hero 右側新聞卡整塊不顯示（兩站一致）。有新聞但沒封面：沿用新聞卡既有無圖處理（品牌標記） |
+| 首頁商店入口 | `pages/zh/index.vue` | 沒有上架商品：整個商店入口區塊不顯示（磐石比照藍鯨）；`store-visual` 球衣照引用移除 |
+| W-10 | `pages/zh/about/milestones.vue` | 「重要里程碑整理中，稍後將於本頁公布。」（兩站、中英）。`usingApi` 旗標與磐石寫死時間軸、藍鯨「尚未重建」說明段移除；hero 導言改為中性（`MILESTONES_HERO.bw`／`MILESTONES_HERO_EN_BW`），`MILESTONES_API_LEDE_EN_BW` 移除 |
+| W-16 | `pages/zh/club/first-team/index.vue` | ① 榮譽：沒有後台榮譽整段（含獎盃照那一欄）不顯示，成立首年頭銜後備與 `foundingHonourDescEn` 移除；② 合影：球隊主視覺沒設時兩站一致用純色底（`page-hero__bg--pending`，藍鯨原本的做法），`first-team-01-squad.jpg` 引用移除；③ 名單備註：賽季字樣取積分榜預設的目前賽季代碼（`standings.season.code`），網址帶 `?season=` 或推不出來時寫「目前 N 人名單」／「Current squad of N players」，不再寫死 2026/27；④ 獎盃照 `first-team-02-trophy.jpg` 是固定版面裝飾圖，**保留**（榮譽區塊顯示時才出現） |
+| W-17 | `pages/zh/programs/school-community/index.vue`、`club-copy.ts`／`club-copy-en-acad.ts` | 「合作學校名單整理中，稍後將於本頁公布。」，不畫表格。`SCHOOL_PARTNERS_BW`／`SCHOOL_PARTNERS_BW_EN`／`SchoolPartnerRow`／`SCHOOL_PARTNER_NO_YEAR_EN` 移除。有資料時：學校／合作內容兩欄固定，**「合作年度」欄只在至少一列有起訖年時才出現**（資料不再有獨立年份欄，年份寫在合作內容文字裡），沒年度的列不再寫「未標明年度」；藍鯨導言改為中性「合作學校與教育單位」 |
+| W-19 | `pages/zh/join/location/index.vue`、`pages/zh/academy/teams.vue` | 場地：後台場地 API → 站台事實場地清單（site-facts API，兩站同一條）→ 都沒有顯示「場地資訊整理中，稍後將於本頁公布。」；磐石 `Training Base`／`Academy Ground` 占位卡移除。學院隊伍：沒有學院球隊顯示「梯隊資訊整理中，稍後將於本頁公布。」，不再用 `squadCodes` 生空殼分頁；`getAcademyTeamTabsEn` 移除（`getAcademyTeamTabs` 仍供 `schedule.vue`／`coaches.vue` 使用，未動） |
+| W-23 | `pages/zh/culture/fan-club/index.vue` | 沒有已結束活動：既有空狀態「還沒有活動回顧。」；4 張寫死照片與 `showStaticReview` 移除。hero 圖 `fanclub-event-04.jpg` 是固定版面圖，保留 |
+| C-5 | `partners/our-partners`、`club/international-pathways`、`partners/opportunities`、`charity/impact-stories`、`charity/our-impact` | 夥伴牆：某類型沒有夥伴顯示既有「尚未公開」虛線格（磐石國際夥伴三隊徽移除）；國際路徑頁：地區頁籤與「合作俱樂部」牆照既有「目前尚無可公開的…」文案，`FALLBACK_INTL_TILES` 移除；贊助方案：9／8 張靜態卡移除，沒有已發布方案時顯示說明＋洽詢表單連結，hero 導言與 SEO 描述不再寫「九／八種」；慈善事蹟：「慈善事蹟整理中…」整個時間軸與年份篩選不渲染（`STATIC_YEARS` 移除）；影響力數據：統計格三項顯示「—」、團體名單「整理中」，「3 筆事蹟」與三個團體名稱移除（`STATIC_ORGS`／`usingApi` 移除）。國際夥伴 `country` 是雙語字串（「義大利 Italy」）：地區比對只認中英關鍵字，其餘歸歐洲；夥伴牆詳情列英文頁改用 `clubCountryLabelEn` 取拉丁部分 |
+| W-31 | `shared/utils/club-copy.ts`（`applySiteFactsToIdentity`）、`useSiteFacts.ts`（`fromApi`）、`SiteFooter.vue`、`join/contact/index.vue`、`programs/childrens-training/index.vue` | **API 成功但值為空＝不顯示**（頁尾簡介整段、頁首／頁尾／聯絡頁的社群圖示、聯絡頁 Email 列；英文版簡介英文值缺漏也不顯示，不混入中文）。**API 打不到＝沿用靜態快照降級**（`SiteFacts.fromApi` 不為 true 時整組沿用 `CLUB_IDENTITY` 現值，既有 fail-open）。兒童訓練頁 LINE 洽詢鈕原本直接讀靜態識別，改走 `useClubIdentity()`。Organization JSON-LD 的 `sameAs`／`email` 原本就只讀 `facts`，API 成功時只輸出後台有的值 |
+| W-25 之一 | `pages/zh/schedule.vue` | 空狀態改為「{隊別}的賽程尚未公布，賽程確定後將更新於本頁。」 |
+
+- **刻意不動**（使用者指示）：W-5 藍鯨兒童訓練班別與守門員班、`useCmsPage` 靜態頁、`usePolicy`、`news/media.vue` 品牌識別包、`culture/merchandise`、`useSiteFacts` 靜態快照本身、W-18 贊助洽詢勾選項、表單頁、W-11 文案數字。
+- **圖片**：只移除程式引用，`site/src/assets/img/` 的檔案沒動；`scripts/site-images.txt` 同步拿掉不再被引用的 6 張（`club/first-team-01-squad`、`news-trencin`、`partners-intl/*` 三張、`player-09-liu`）與球迷會 `fanclub-event-01…03`，營運要上傳到後台時從收件夾／`site/src/assets/img/` 取。
+- **防回歸**：`npm run lint:no-static-fallback`（`scripts/check-no-static-fallback.mjs`，已併入 `npm run lint`）字面比對這次移除的識別字與特徵寫法（`FALLBACK_INTL_TILES`、`SCHOOL_PARTNERS_BW`、`STATIC_YEARS`、`STATIC_ORGS`、`showStaticReview`、milestones 的 `usingApi`、`heroNews.length || isTcrfc`、商店入口 `isTcrfc.value || …`、`partners-intl/`、場地占位卡、`|| identity.footerBlurb`／`|| identity.social.email` 等）。
+- **驗證**：`npm run lint` 通過（0 error）；`NUXT_PUBLIC_CLUB=tcrfc`／`bw` 各 `npm run build` 通過。實機以 scratchpad 的空資料假 API 搭 `node .output/server/index.mjs`（兩站各一個 process）看過 SSR 輸出：上表各空狀態、W-31 三種情形（API 成功且空值／API 成功有值／API 打不到）皆如表。**未對真實 `apps/api`（:5299）驗證**。
+- **既有弱點**：`join/location` 與 `club/first-team` 讀 `primaryVenue.address`，站台事實的 `venues` 為空陣列時整頁 500——**已於下一節「場地清單為空」修掉**。
+
+## 場地清單為空不再 500，以及訪客文案去內部口吻（2026-11-13，`frontend-architect`）
+
+承接上一節。兩件事，只動 `apps/web`。
+
+### 1. `primaryVenue` 可為空（站台事實成功但 `venues: []`）
+
+`useSiteFacts().primaryVenue` 型別改為 `SiteFactVenue | null`（`site-facts.ts` 的 `getPrimaryVenue` 同），`club-copy.ts` 的 `primaryVenueOf` 同。「沒有任何場地」是合法狀態，各取用點省略該段文字或區塊；**不用寫死場地名當退路**。API 打不到時 `mergeSiteFacts` 仍沿用靜態快照（fail-open，未動）。
+
+| 取用點 | 沒有場地時 |
+|---|---|
+| `join/location/index.vue` | 地圖／導航連結不組（`mapQuery`／`mapEmbedSrc`／`mapNavHref` 皆 null），顯示既有「場地資訊整理中」空狀態；「導航連結」卡不渲染 |
+| `club/first-team/index.vue`（hero／介紹／SEO，經 `club-copy.ts`／`club-copy-en-club.ts`） | 「主場為○○。」整句省略（磐石與藍鯨、中英皆是），不留殘句；英文賽程句改「In the 2026/27 season, 21 regular-season league matches are scheduled.」 |
+| `club/index.vue` hub hero | 中文改「台中磐石的一線隊，是…」、英文「The First Team is…」（省略「從○○出發」「based at ○○」） |
+| `about/our-story.vue` | 「俱樂部主場設於○○」／「The club's home ground is ○○.」整句省略 |
+| `join/contact/index.vue` | 「主場：○○。」省略，保留「各場地詳細位置見…」 |
+| `join/academy/index.vue` | 「偏好受訓地點」下拉不出「○○（主場）」選項，送出時不帶場地名 |
+| `programs/childrens-training/index.vue` | 場地說明改「實際梯次場地將依公告為準」，右側「主要場地」面板整塊不顯示（公開場地 API 有資料時照舊）；梯次表場地欄無值顯示「—」；磐石專屬的寫死 Google 地圖網址只在有場地時才用 |
+| `womens/index.vue`（磐石的藍鯨簡介卡） | 「主場」列整列省略 |
+| `useSchemaOrgClub.ts`（SportsTeam JSON-LD） | 不輸出 `location`（實機確認：`memberOf` 在、`location` 不在） |
+| `server/routes/llms-en.txt.ts` | 省略「Home venue」行；修掉「API 成功但無場地卻回頭用靜態快照場地」的漏洞，只有 API 打不到（或有場地但缺英文名）才用快照 |
+| `schedule.vue`／`womens` 場地清單 | 本來就以 `find`／`map` 處理空陣列，未動 |
+
+**實機（scratchpad 假 API：site-facts 成功、`venues: []`、場地 API 空）**：兩站（`tcrfc`／`bw`）× `/zh/`、`/en/` × 首頁、場地頁、一線隊頁、club hub、賽程、our-story、contact、學院報名、兒童訓練，加 `llms.txt`／`llms-en.txt`，全部 200、輸出無 `undefined`、無「設於，」「主場為。」「home ground is .」殘句；場地頁顯示「場地資訊整理中，稍後將於本頁公布。」。假 API 關掉（打不到）後場地頁與 `llms-en.txt` 回到靜態快照場地，行為不變。
+**同類問題已修（成立首年頭銜 `foundingTitle` 為 null）**：原本首頁 SEO 描述、首頁 hero 事實列、一線隊 hero／介紹、our-story、history 會印出「null」或殘句。現在 `foundingTitleZh` 無值時整個子句省略：首頁描述「…2024 年創立。一線隊…」、事實列只剩創立日、一線隊 hero「球隊 2024 年創立。」、介紹「…隨俱樂部創立成軍，現於…出賽」、our-story／history「在台中成立」後接下一句（EN 版同）；club hub 統計卡「首年頭銜」整張省略（同樣省略梯隊數為 0 與聯賽名為空的統計卡）；括號片段（`(U10, U12)`）在 `squadCodes` 為空時不留空括號。`mergeSiteFacts` 在 API 成功但中文無頭銜／梯隊敘述時，英文值也設為 null（不回頭用靜態快照），`llms-en.txt` 同理省略該行；API 打不到時仍用快照。假 API（`foundingTitle`／`shortName`／電話／地址／時段皆 null，`venues`、`squadCodes` 為空）驗證：兩站 × 中英 × 首頁、一線隊、club hub、our-story、history、學院、學院報名、`llms.txt`、`llms-en.txt` 共 32 頁皆 200，頁面可見文字與 JSON-LD 無 `null`／`undefined`。**未處理**：`squadCodes` 為空時中文散文句（「依年齡分為  梯隊」）只會多空白、不印 null，未逐句改寫。
+
+### 2. 訪客與搜尋引擎看得到的內部口吻
+
+只處理會被渲染出去的字串（樣板、`tx()`、SEO、alt、JSON-LD、llms.txt），程式註解不算。
+
+| 位置 | 原文 → 新文案 |
+|---|---|
+| `academy/join.vue` 招生對象 | 「待招生簡章確認後更新於本頁」→「將公布於本頁」；EN「once the admissions brochure is confirmed」→「will be announced on this page」 |
+| `academy/join.vue` 流程導言 | 「實際步驟與時程待客戶提供之招生簡章確認」→「…以學院公告的招生簡章為準」；EN 同步 |
+| `academy/curriculum.vue` | 「待客戶資料到位後填入下表」→「整理中，稍後將於下表公布」；EN 同步 |
+| `academy/coaches.vue`、`academy/life.vue`、`club-copy.ts`／`club-copy-en-acad.ts` 藍鯨青年隊教練團與生活 | 「待資料到位」「待肖像同意到位」「已核實資料到位」→「整理中，稍後將公布」／「將陸續公布」；SEO description 改描述頁面，EN 同步 |
+| `programs/specialist/index.vue` | 「依客戶提供之…宣傳資料」→「依…宣傳資料」 |
+| `programs/summer-camp/index.vue` | 「客戶收件夾內的歷史資料顯示…待客戶確認：」→「台中磐石曾與以下單位合作：」；EN 同步 |
+| `news/player-stories.vue`、`news/academy.vue`（SEO description） | 「內容尚待客戶提供，目前為空狀態頁面」→ 描述這一頁（球員故事與人物專訪／各梯隊動態與消息） |
+| `news/camps-events.vue` | 整塊「分類說明」編輯備註（規劃書 v1.8、客戶收件夾、「待與客戶確認後回頭修正 output/…md」）**移除**，原本磐石中文版會對訪客顯示 |
+| `about/our-story.vue` | 「圖文段落／Text and Images」佔位段（「正式內文與圖片確認後…」）**移除**，中英皆是 |
+| `about/history.vue`（藍鯨中文） | 「正式版本將於俱樂部確認後更新」→「部分年度的屆數標示與其他資料略有出入」 |
+| `join/location/index.vue` | 「正式上線時於此區塊嵌入各場地的 Google Map…」→「主場位置的 Google 地圖如下，出發前可先確認路線。」；EN「A Google Map of the home ground is shown below, so you can check the route before you set out.」 |
+| `charity/index.vue`（尚無捐款網址時） | 「（網域待定）」＋「客戶尚未確認網域…disabled 佔位…規劃書 v1.4」→ 按鈕「前往協會慈善捐款平台（即將開放）」＋「慈善捐款平台由台灣足球策略發展協會主辦並收受捐款，平台開放後將於此提供連結。」；EN 同步（主辦與收款主體維持協會） |
+| `charity/our-impact.vue` | 「後台可逐項決定是否顯示」／「each item can be shown or hidden individually」移除 |
+| `culture/merchandise/index.vue`、`culture/index.vue`、`club-copy-en-club.ts` | 「商品內容由後台提供，目前尚無可顯示的商品」→「商品整理中，稍後將陸續上架」；EN「Products are being prepared and will be listed here soon.」；SEO description 同；「正式上線前，仍可透過舊官網…」→「站內商店開放前，仍可透過舊官網…」 |
+| `club/first-team/index.vue`、`first-team/player/[slug]`、`childrens-training` | 「後台登錄後將於此公布」→「公布後將顯示於此」；「後台手動登錄」→「俱樂部手動登錄」；「於後台建立梯次後自動顯示」→「於梯次建立後顯示」；EN 同步 |
+| `club-copy.ts`／`club-copy-en-core.ts`／`club-copy-en-club.ts` 藍鯨一線隊與教練團 | 「名單與賽程由後台維護，內容更新中」→「名單與賽程整理中，稍後將公布」；EN「maintained in the back office」→「being compiled and will be published soon」 |
+| `club-copy.ts`／`club-copy-en-acad.ts` 藍鯨營隊 | 「是否開放另行規劃中」／「whether to offer one is still being planned」移除 |
+| `club-copy.ts`／`club-copy-en-acad.ts` 藍鯨青年隊 SEO | 「招生方式與課表待確認，詳情請洽俱樂部」→「招生方式與課表詳情請洽俱樂部」；EN 同步 |
+| `member/index.vue`、`member/upgrade/index.vue` | 「（見規劃書 3.14）」移除 |
+| `checkout/index.vue` | 「後端計算」→「系統計算」 |
+
+**刻意沒改（需要決定或不屬前台單獨可完成）**：
+- 藍鯨球員故事 hero／空狀態說明（`getPlayerStoriesHeroBw` 與 `getPlayerStoriesEmptyNote`，EN `getPlayerStoriesHeroEnBw`、`CLUB_PLAYER_STORIES_EMPTY_NOTE_EN_BW`）仍含「肖像同意」字樣，**以及** `HISTORY_NOTE_EN_BW` 的「will be updated once the club has confirmed them」：這幾句同時是 `db/seed/page_seed_content.json` 的種子來源，`check-page-seed-sync` 逐位元比對；改了就必須重跑 extract 並由後端重產 db/prod 種子與 manifest，超出只動 `apps/web` 的範圍。已在 `check-visitor-copy.mjs` 的 `KNOWN_PENDING` 暫時放行（只放那四句字面值），種子重產後改文案並刪掉清單。
+- 表單與註冊的「同意書／健康聲明仍待法務審閱（pending legal review）」提示（`MemberAgeGuardian`、各 `join/*` 表單的英文提示）：這是法遵揭露，不是文案潤飾，是否改寫由產品決定。
+- `preview/[token].vue`（編輯者預覽頁，noindex）對後台人員說話，檢查腳本列為檔案層例外。
+
+**防回歸**：`npm run lint:visitor-copy`（`scripts/check-visitor-copy.mjs`，已併入 `npm run lint`）。掃 `app`／`shared`／`server` 的 `.vue`／`.ts`，**先剝掉註解再掃**：`.ts` 與 `.vue` 的 `<script>`／`<style>` 用認得字串與樣板字串的小型 tokenizer 剝 `//`、`/* */`（`https://` 不會被當註解），`.vue` 的 template 剝 `<!-- -->`。九條字面規則：提到「客戶」（待客戶／客戶提供／客戶確認／客戶收件夾／客戶資料）與 `the client` 類英文、`規劃書`／`mockup`／`TODO`／`FIXME`／`lorem ipsum`、`佔位`／`占位`、`後台`／`back office`、`肖像同意`／`image consent`、`尚未開發`／`正式上線時|前`／`目前為空狀態`、`docs/N`／`STATUS.md`。行層例外只有 `console.*(` 與 `throw new Error(`（開發者訊息）。已用 `git show HEAD:` 取出這次改前的 `news/academy.vue`、`camps-events.vue`、`join/location`、`club-copy.ts` 暫放進樹內確認會報、放回後 OK。
+**注意**：`check-en-copy.mjs` 的字串解析不認巢狀樣板字串（`` `…${cond ? `…` : ''}…` ``），英文文案裡要條件式省略一段時請用輔助函式回傳字串（見 `club-copy-en-club.ts` 的 `homeVenueClauseEn`、`bwHomeGroundsSentenceEn`）。
+
+**驗證**：`npm run lint` 0 error（293 warning，皆既有的 `vue/attributes-order` 類）；`NUXT_PUBLIC_CLUB=tcrfc`／`bw` 各 `npm run build` 通過；`nuxi typecheck` 全專案仍有既有錯誤（`useFetch` 推成 `{}` 的 `items` 等），本輪改過的檔案沒有新增錯誤——區分方式：逐檔過濾錯誤輸出，改過的檔案裡剩下的錯誤都是既有類型（`items` 不存在於 `{}`、`ClubIdentity.shortNameZh`、`useSiteFacts.ts` 第 171 行 `en.value` 的 `undefined`/`null`），行號不在本輪編輯處，`primaryVenue` 可為空沒有引發任何新錯誤。**未對真實 `apps/api` 驗證。**

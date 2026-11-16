@@ -1161,11 +1161,13 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 
 - **後台給的網址統一解析**（版面編排、公告、廣告、「查看方案」）：相對路徑（`/` 開頭）接**目前俱樂部的網域**，絕對 `http`／`https` 原樣，含 `{`／`}` 的樣板或其他寫法視為不可用。Android 入口是 `ClubWeb.resolve`／`AppContainer.resolveWeb`，iOS 是 `resolveWeb`。API 對商店等入口回的是相對路徑（`AppLayoutReader`），**客戶端不得直接把它交給系統開啟**（`M-1`）。
 - **快捷入口解析規則兩端一致**：代碼 `programs` 一律走 App 內課程列表；深連結或官網網址含大括號視為樣板，改用下一個來源；都解析不出來就不顯示該入口（`M-2`）。
-- **深連結解析器拒收含 `{`、`}` 的參數值**（兩平台），走既有的解析失敗路徑。後台存的深連結可能是帶佔位符的樣板（正式內容種子的 `tcrfc://program/{slug}`），不能當成可開啟的連結。iOS 公告條在連結不可用時只顯示文字、不是按鈕。⚠️ 後台推播與公告的連結選單仍給樣板、API 只驗 `tcrfc://` 開頭（`M-3` 未修的部分）。
+- **深連結解析器拒收含 `{`、`}` 的參數值**（兩平台），走既有的解析失敗路徑。後台存的深連結可能是帶佔位符的樣板（正式內容種子的 `tcrfc://program/{slug}`），不能當成可開啟的連結。iOS 公告條在連結不可用時只顯示文字、不是按鈕。✅ **後台已修（2026-11-16）**：推播、公告條、廣告、版面項目的連結在 API 寫入時驗證（`Features/AdminApp/AppLinkContract.cs`／`AppLinkValidator.cs`），後台以「先選要前往哪裡、再選對象」設定，不再存樣板；App 端對樣板的拒收保留作為舊資料的防線。後端解析器讀的 `deeplinks.contract.json` 是 `shared/deeplinks.json` 的逐字複本（Docker build context 讀不到 `shared/`），`gen-all.sh` 第一步重新複製，`AppLinkContractTests` 比對兩檔位元組相同並以契約的 `parseCases` 逐案驗證。
 - **排版（`/app/layout`）重抓時機**：冷啟動、切語系、回前景、首頁下拉。回前景不設時間節流，改以 ETag 條件式請求（§7.2 A4），同時只允許一個進行中的請求；失敗時保留現有排版。iOS `ContentAPI.layout` 因此多一個 `etag` 參數（`M-10`）。⚠️ 尚未對真 API 驗證帶裝置識別（回應為 `private, no-store`）時是否仍回 ETag 與 304。
 - **早鳥價**：兩平台都以台灣時區的「今天」判斷早鳥是否仍有效，過期只顯示正價（`M-14`）。
 - 測試：iOS `LayoutRefreshAndTemplateLinkTests` 5 項、Android `WebLinksAndQuickEntriesTest` 11 項。**未實機驗收。**
-- ⚠️ Android `lintDevDebug` 有 5 個既有的 `StateFlowValueCalledInComposition` 錯誤（非本次改動），未處理。
+- ✅ Android `lintDevDebug` 原有的 5 個 `StateFlowValueCalledInComposition` 錯誤已於 2026-11-16 修掉（改用 `collectAsState`／`collectAsStateWithLifecycle`），lint 轉綠。
+- **首頁區塊顯示設定（`M-5`，App 規劃書 v3.30 §3.1／§8.2）**：區塊標題用後台 `label`（非空白才用），否則用內建字串；「查看全部」依序採用後台 `deepLink`（解析器認得且非樣板）→ `webUrl`（經 `resolveWeb`）→ 內建預設位置，原本有的入口不會因後台沒設而消失。只套用在原本就有「查看全部」的區塊。入口：iOS `HomeLogic.sectionDisplay`、Android `HomeLogic.sectionLabel`／`seeAllTarget`。
+- ⚠️ **契約缺口**：`AppLayoutItemDto` 沒有「名稱是否為回退語系」的旗標，兩平台在英文介面下以偵測中日文字元判斷回退（中英混寫的名稱會被誤判）；`app_layout_items` 存的是深連結對照表的列，沒有自己的連結欄位，「查看全部」目前只能設不需對象的位置（賽程、會員卡、會籍升級）；Android 首頁的附近店家區塊沒有「查看全部」而 iOS 有。
 
 ## 12. 本檔不決定的事
 

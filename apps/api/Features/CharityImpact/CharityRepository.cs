@@ -41,6 +41,57 @@ public sealed class CharityRepository(IClubSqlConnectionFactory connectionFactor
 
     private static DateOnly? D(DateTime? value) => value is null ? null : DateOnly.FromDateTime(value.Value);
 
+    private sealed record DirectoryCharityRow(Guid Id, string Slug, string? NameZh, string? NameEn);
+    private sealed record DirectoryProgramRow(Guid Id, string Slug, Guid CharityId, string? NameZh, string? NameEn);
+
+    /// <summary>
+    /// 慈善平台「從官網更新清單」的資料來源（K-2）。<b>已公開</b>的定義：慈善計畫 <c>status = 'published'</c>；公益團體本身沒有發布狀態，
+    /// 官網只透過已發布的計畫呈現它，所以「至少有一個已發布計畫」的公益團體才算公開。藍鯨不設慈善單元（俱樂部範圍內沒有資料就是空清單）。
+    /// 沒有繁中名稱的項目不輸出（慈善平台複本的 <c>name</c> 為必填，且憑證快照用中文）；英文名稱空白輸出 <c>null</c>，不以中文頂替。
+    /// 快取 entity <c>charity</c>：後台 B5 寫入已會失效，所以改名或下架後下一次同步立即看到。
+    /// </summary>
+    public async Task<CharityDirectoryDto> GetDirectoryAsync(ClubScope scope, CancellationToken cancellationToken)
+        => await cache.GetOrCreateAsync(Entity, scope.ClubCode, CacheDimensions.AnyLocale, "directory", async ct =>
+        {
+            using var connection = connectionFactory.CreateConnection();
+            var p = new { scope.ClubId, DefaultLocale = RequestLocale.DefaultDbLocale, EnLocale = "en" };
+
+            var programs = (await connection.QueryAsync<DirectoryProgramRow>(new CommandDefinition("""
+                SELECT cp.id AS Id, cp.slug AS Slug, cp.charity_id AS CharityId,
+                       NULLIF(LTRIM(RTRIM(d.name)), N'') AS NameZh, NULLIF(LTRIM(RTRIM(e.name)), N'') AS NameEn
+                FROM charity_programs cp
+                LEFT JOIN charity_programs_i18n d ON d.charity_program_id = cp.id AND d.locale = @DefaultLocale
+                LEFT JOIN charity_programs_i18n e ON e.charity_program_id = cp.id AND e.locale = @EnLocale
+                WHERE (cp.club_id = @ClubId OR cp.club_id IS NULL) AND cp.status = 'published'
+                ORDER BY cp.row_seq
+                """, p, cancellationToken: ct))).ToList();
+
+            var charities = (await connection.QueryAsync<DirectoryCharityRow>(new CommandDefinition("""
+                SELECT c.id AS Id, c.slug AS Slug,
+                       NULLIF(LTRIM(RTRIM(d.name)), N'') AS NameZh, NULLIF(LTRIM(RTRIM(e.name)), N'') AS NameEn
+                FROM charities c
+                LEFT JOIN charities_i18n d ON d.charity_id = c.id AND d.locale = @DefaultLocale
+                LEFT JOIN charities_i18n e ON e.charity_id = c.id AND e.locale = @EnLocale
+                WHERE (c.club_id = @ClubId OR c.club_id IS NULL)
+                  AND EXISTS (SELECT 1 FROM charity_programs cp
+                              WHERE cp.charity_id = c.id AND cp.status = 'published' AND (cp.club_id = @ClubId OR cp.club_id IS NULL))
+                ORDER BY c.row_seq
+                """, p, cancellationToken: ct))).Where(c => c.NameZh is not null).ToList();
+
+            // 計畫必須屬於輸出清單內的公益團體（團體沒有繁中名稱被排除時，其計畫一併排除，慈善平台才不會收到孤兒計畫）。
+            var charityIds = charities.Select(c => c.Id).ToHashSet();
+            return new CharityDirectoryDto
+            {
+                Charities = charities
+                    .Select(c => new CharityDirectoryCharityDto { Id = c.Id, Slug = c.Slug, Status = "published", NameZh = c.NameZh!, NameEn = c.NameEn })
+                    .ToList(),
+                Programs = programs
+                    .Where(x => x.NameZh is not null && charityIds.Contains(x.CharityId))
+                    .Select(x => new CharityDirectoryProgramDto { Id = x.Id, Slug = x.Slug, CharityId = x.CharityId, Status = "published", NameZh = x.NameZh!, NameEn = x.NameEn })
+                    .ToList(),
+            };
+        }, cancellationToken);
+
     public async Task<PagedResult<CharityProgramListItemDto>> ListProgramsAsync(
         ClubScope scope, string dbLocale, int page, int pageSize, CancellationToken cancellationToken)
     {

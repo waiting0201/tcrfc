@@ -40,14 +40,11 @@ const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.
 const { facts } = useSiteFacts(clubKey.value)
 // C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案；分頁 id／teamCode 與中文版相同）。
 const hero = computed(() => (isEn.value ? getAcademyTeamsHeroEn(facts.value, clubKey.value) : getAcademyTeamsHero(clubKey.value, facts.value)))
-// B-10（2026-10-06）：分頁優先由公開 `/teams`（type=academy，後台排序）驅動；API 失敗或沒有學院球隊時回退 club-copy 的
-// `getAcademyTeamTabs`（site-facts 梯隊代碼；v3.29 起沒有「其他年齡層」說明分頁）。
-const fallbackTabs = computed(() => (isEn.value ? getAcademyTeamTabsEn(facts.value, clubKey.value) : getAcademyTeamTabs(clubKey.value, facts.value)))
+// 分頁一律由公開 `/teams`（type=academy，後台排序）驅動。後台沒有學院球隊時不再用站台設定的梯隊代碼
+// （`squadCodes`）生出空殼分頁，改顯示空狀態（2026-11-13，docs/23 W-19）。
 type TeamTab = { id: string, labelZh: string, teamCode: string | null, team: PublicTeamView | null }
 const { academyTeams } = await usePublicTeams()
-const tabs = computed<TeamTab[]>(() => (academyTeams.value.length
-  ? academyTeams.value.map((t) => ({ id: t.code.toLowerCase(), labelZh: academyTabLabel(t.code), teamCode: t.code, team: t }))
-  : fallbackTabs.value.map((t) => ({ ...t, team: null }))))
+const tabs = computed<TeamTab[]>(() => academyTeams.value.map((t) => ({ id: t.code.toLowerCase(), labelZh: academyTabLabel(t.code), teamCode: t.code, team: t })))
 const introParagraphs = (t: PublicTeamView) => (t.intro ?? '').split(/\n{2,}/).map((x) => x.trim()).filter(Boolean)
 /** 有真實 `Team.code` 可查詢的分頁。 */
 const teamTabs = computed(() => tabs.value.filter((t) => t.teamCode !== null))
@@ -70,7 +67,7 @@ function matchesForTeam(teamCode: string) {
   return (scheduleData.value?.items ?? []).filter((m) => m.teamCode === teamCode)
 }
 
-const active = ref(tabs.value[0]!.id)
+const active = ref(tabs.value[0]?.id ?? '')
 const tabRefs = ref<Record<string, HTMLElement | null>>({})
 
 function selectTab(id: string, focus = true) {
@@ -131,7 +128,11 @@ useSeoMeta({
          role="tab" 與 aria-controls／aria-labelledby，跟這個 h2 是兩件事，互不取代）。 -->
     <h2 id="team-tabs-title" class="visually-hidden">{{ tx('梯隊名單、教練與賽程', 'Squad rosters, coaches and fixtures') }}</h2>
 
-    <div class="team-tabs" data-team-tabs>
+    <div v-if="tabs.length === 0" class="news-empty">
+      <p>{{ tx('梯隊資訊整理中，稍後將於本頁公布。', 'Squad information is being compiled and will be published on this page soon.') }}</p>
+    </div>
+
+    <div v-else class="team-tabs" data-team-tabs>
       <div class="team-tabs__list" role="tablist" :aria-label="tx(`${identity.academyShortLabelZh}年齡層`, 'Age groups')">
         <button
           v-for="(tab, idx) in tabs" :key="tab.id"

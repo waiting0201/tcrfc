@@ -11,10 +11,7 @@
 // `Team.code`（磐石 `D1`／藍鯨 `BW1`，docs/14 踩雷點「BW1 不是第二個 D1」），球員／
 // 教練／賽程三個區塊改成資料驅動、兩俱樂部共用同一套樣板，不再整段隱藏。
 //
-// 「榮譽時間軸」維持 `isTcrfc` 靜態內容——沒有比賽結果或球隊主檔以外的公開 API
-// 可以查詢「俱樂部歷史榮譽」（比照 about/milestones.vue 同樣沒有公開 API 的現況），
-// 且本頁目前唯一能引用的藍鯨舊站文字（content/blue-whale/club-profile.md）沒有逐年
-// 可查證的獎盃時間軸，不得比照磐石那樣編一個出來。
+// 榮譽時間軸一律來自後台榮譽（見下方 achievements）；沒有資料時整段不顯示，不放寫死版（2026-11-13，docs/23 W-16）。
 import type { PlayerStatsResponse, StandingsResponse } from '#shared/utils/standings'
 import type { PlayerDto } from '#shared/utils/player'
 import { nationalityLabel, normalizePlayerPosition, playerPath, playerPositionLabelZh } from '#shared/utils/player'
@@ -42,7 +39,7 @@ const { lp, locale, isEn, tx } = useLocale()
 // club-copy.ts 已改為工廠函式，一次呼叫 useSiteFacts(clubKey.value) 即可覆蓋整頁需求
 // ——原本固定寫 useSiteFacts('tcrfc') 只是因為當時只有榮譽時間軸（isTcrfc 專屬區塊）
 // 用得到，現在 hero／SEO／intro 兩俱樂部都要讀，改成動態帶入目前 club。
-const { facts, primaryVenue } = useSiteFacts(clubKey.value)
+const { facts } = useSiteFacts(clubKey.value)
 // 英文版：磐石用 `*En`，藍鯨用 `*EnBw`（club-copy-en-club.ts 檔頭）。
 const hero = computed(() => (isEn.value ? (isTcrfc.value ? getFirstTeamHeroEn(facts.value) : getFirstTeamHeroEnBw(facts.value)) : getFirstTeamHero(clubKey.value, facts.value)))
 const intro = computed(() => (isEn.value ? (isTcrfc.value ? getFirstTeamIntroEn(facts.value) : getFirstTeamIntroEnBw(facts.value)) : getFirstTeamIntro(clubKey.value, facts.value)))
@@ -98,12 +95,12 @@ const standingsFallback = computed(() => hasFallbackLocale(standings.value)
 const statRows = computed(() => playerStats.value?.items ?? [])
 const seasonOptions = computed(() => [...new Set([...(standings.value?.seasons ?? []), ...(playerStats.value?.seasons ?? [])])])
 const shownSeason = computed(() => standings.value?.season?.code ?? playerStats.value?.season?.code ?? seasonParam.value)
+/** 名單備註的賽季字樣：取賽季資料（積分榜預設的目前賽季）；使用者切到其他賽季或推不出來時不顯示賽季字樣。 */
+const rosterSeason = computed(() => (seasonParam.value ? null : (standings.value?.season?.code ?? null)))
 const hasManualStat = computed(() => statRows.value.some(r => r.source === 'manual'))
 
 // 榮譽時間軸（C5 榮譽，S2-7 輪補上）：`GET /api/backend/{club}/achievements?team={一線隊代碼}`（年份新到舊）。
-// 🔴 前面檔頭「沒有公開 API 可查歷史榮譽」已過時（後端 E1a 批新增）。後端有任何一筆榮譽就換成後台資料
-// （兩俱樂部共用同一版型，藍鯨有資料也會顯示）；沒有（含 API 打不到）時，磐石維持下方以 site-facts 單一來源組出
-// 的既有一筆（成立首年頭銜），藍鯨整段不顯示（沒有可查證的獎盃資料，不得編造）。
+// 後端有榮譽就顯示（兩俱樂部共用同一版型）；沒有（含 API 打不到）時整段不顯示，不編造、不放寫死頭銜。
 const { data: achievementsData } = await useFetch<Array<{
   id: string
   year: number | null
@@ -189,10 +186,6 @@ function matchStatusText(status: string | null): string {
   return isEn.value ? mapMatchStatusEn(status).label : meta.label
 }
 
-/** 榮譽時間軸備援一筆（磐石成立首年頭銜）的英文敘述；頭銜英文值缺漏時不輸出。 */
-const foundingHonourDescEn = computed(() => (facts.value.foundingTitleEn
-  ? `The club won the ${facts.value.foundingTitleEn} title in its first year and, the following year, was promoted to compete in ${facts.value.league.nameEn ? `the ${facts.value.league.nameEn}` : 'the league'}.`
-  : ''))
 /** 底部「加入一線隊」卡的聯賽名稱（英文版）。 */
 const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.value.league.nameEn}` : 'the league'))
 </script>
@@ -209,9 +202,8 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
 </nav>
 
 <section class="page-hero page-hero--media">
-  <!-- 藍鯨無一線隊合影照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石球員合影頂替 -->
+  <!-- 後台球隊主視覺沒設時用純色底（兩站一致，不放寫死合影，docs/23 W-16） -->
   <img v-if="firstTeam?.heroUrl" class="page-hero__bg" :src="firstTeam.heroUrl" :alt="imgAlt(firstTeam.heroAlt)" v-bind="imgAttrs(firstTeam.heroWidth, firstTeam.heroHeight)">
-  <img v-else-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/club/first-team-01-squad.jpg')" :alt="isEn ? `Taichung Rock First Team players posing together at ${primaryVenue.nameEn ?? primaryVenue.nameZh}` : `台中磐石一線隊球員於${primaryVenue.nameZh}合影`" width="1920" height="1280">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '3.1 First Team' : '3.1' }}</p>
@@ -261,7 +253,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
         </div>
       </article>
     </div>
-    <p v-if="players.length > 0" class="roster-note">{{ isEn ? `2026/27 season squad of ${players.length} players, ordered by shirt number (position grouping and filtering are not available).` : `2026/27 賽季${players.length}人名單，依背號排序（球員位置分類與篩選未提供）。` }}</p>
+    <p v-if="players.length > 0" class="roster-note">{{ isEn ? `${rosterSeason ? `${rosterSeason} season squad` : 'Current squad'} of ${players.length} players, ordered by shirt number (position grouping and filtering are not available).` : `${rosterSeason ? `${rosterSeason} 賽季` : '目前'}${players.length}人名單，依背號排序（球員位置分類與篩選未提供）。` }}</p>
   </div>
 </section>
 
@@ -396,7 +388,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
         </tbody>
       </table>
     </div>
-    <p v-else class="fixtures-note" style="margin-top:1rem;">{{ tx('本賽季積分榜尚無資料，後台登錄後將於此公布。', 'There is no league table data for this season yet; it will be published here once it has been entered.') }}</p>
+    <p v-else class="fixtures-note" style="margin-top:1rem;">{{ tx('本賽季積分榜尚無資料，公布後將顯示於此。', 'There is no league table data for this season yet; it will appear here once it is published.') }}</p>
     <p v-if="standingRows.length && isEn" class="fixtures-note">
       The league table is maintained manually by the club or imported from figures published by the league organiser; official positions are as announced by the league<template v-if="standings?.updatedAt">; last updated {{ formatTaipeiDateTime(standings.updatedAt, locale) }}</template>.
     </p>
@@ -441,16 +433,16 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
     <p v-else class="roster-note">{{ tx('本賽季尚無球員數據。', 'There are no player statistics for this season yet.') }}</p>
     <p v-if="statRows.length && isEn" class="fixtures-note">
       Statistics are compiled automatically from completed match records (an appearance means a place in the starting line-up, plus substitutes who recorded a goal or a card in that match). Match records have no assist data, so the assists column shows a dash to mean not recorded, not zero.
-      <template v-if="hasManualStat">Some players' figures were entered manually in the back office, and the manual entry takes precedence.</template>
+      <template v-if="hasManualStat">Some players' figures were entered manually by the club, and the manual entry takes precedence.</template>
     </p>
     <p v-else-if="statRows.length" class="fixtures-note">
       數據由已結束的賽事紀錄自動彙總（出賽＝先發名單，加上雖列替補但該場有進球或黃紅牌者）；賽事紀錄沒有助攻資料，助攻欄顯示「—」表示未記錄，不是 0。
-      <template v-if="hasManualStat">部分球員的數據為後台手動登錄，以手動登錄為準。</template>
+      <template v-if="hasManualStat">部分球員的數據由俱樂部手動登錄，以手動登錄為準。</template>
     </p>
   </div>
 </section>
 
-<section v-if="isTcrfc || achievements.length" class="band grain honours-band" id="honours" aria-labelledby="honours-title">
+<section v-if="achievements.length" class="band grain honours-band" id="honours" aria-labelledby="honours-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">01</span>
   <div class="band-inner container">
     <div class="eyebrow-row">
@@ -460,19 +452,11 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
       </div>
     </div>
     <div class="honours-layout" :style="isTcrfc ? undefined : 'grid-template-columns:1fr'">
-      <ol v-if="achievements.length" class="timeline">
+      <ol class="timeline">
         <li v-for="a in achievements" :key="a.id" class="timeline-item">
           <p class="timeline-item__year">{{ a.year ?? '—' }}</p>
           <p class="timeline-item__title">{{ [a.competitionName, a.placing].filter(Boolean).join(' ') }}</p>
           <p v-if="a.teamName" class="timeline-item__desc">{{ a.teamName }}</p>
-        </li>
-      </ol>
-      <ol v-else class="timeline">
-        <!-- GEO-03（S1-12d）：成立年份／首季頭銜／聯賽為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-        <li class="timeline-item">
-          <p class="timeline-item__year">{{ facts.foundedYear }}</p>
-          <p class="timeline-item__title">{{ isEn ? facts.foundingTitleEn : facts.foundingTitleZh }}</p>
-          <p class="timeline-item__desc">{{ isEn ? foundingHonourDescEn : `俱樂部創立首年即拿下${facts.foundingTitleZh}，隔年晉升${facts.league.nameZh}出賽。` }}</p>
         </li>
       </ol>
       <figure v-if="isTcrfc" class="honours-photo clip-card clip-card--on-dark">

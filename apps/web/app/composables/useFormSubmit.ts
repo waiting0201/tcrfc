@@ -6,6 +6,9 @@
 // 但送出邏輯（狀態管理、呼叫端點、成功／失敗訊息）完全相同，集中在這裡避免七頁各自重寫一份、
 // 七份實作互相漂移（同樣的理由見 app/components/news/NewsListBody.vue 檔頭）。
 //
+// W-3（2026-11-13）：表單定義（題目文字、選項顯示文字、驗證碼、導向頁）改在伺服器端渲染時取得，見
+// app/composables/useFormDefinition.ts；本檔回傳 fieldLabel／fieldOptions／optionLabel 給頁面使用。
+//
 // 🔴 **`answers` 的鍵必須是後端這張表單目前存在的 `field_key`**（見
 // apps/api/Features/Forms/FormDtos.cs 的 `SubmitFormRequest.Answers` 說明），不是前台頁面
 // 欄位的 `name` 屬性——mockup 的欄位遠比後端 `form_fields` 種子資料豐富（例如 10.1 加入球隊
@@ -22,7 +25,7 @@ export interface FormSubmitOptions {
   website?: string
 }
 
-export function useFormSubmit(formCode: string) {
+export function useFormSubmit(formCode: string, options: { bothLangs?: boolean } = {}) {
   const config = useRuntimeConfig()
   const club = config.public.club
   const route = useRoute()
@@ -32,30 +35,18 @@ export function useFormSubmit(formCode: string) {
 
   const siteKey = (config.public.turnstileSiteKey as string | undefined)?.trim() ?? ''
 
-  // 防機器人驗證（Cloudflare Turnstile）：site key 有值「且」該表單公開設定 captchaEnabled === true
-  // 才顯示元件並要求權杖。表單定義取自 `GET /api/v1/{club}/forms/{formCode}`（PublicFormDto.captchaEnabled，
-  // 經同源代理），只在瀏覽器端掛載後取一次——取不到就視為不需要驗證（後端是最後防線，會自己擋）。
-  const captchaEnabled = ref(false)
-  // B-16：送出成功後導向頁（`PublicFormDto.redirectPath`，站內相對路徑，可為 null；欄位尚未出現時視同 null）。
-  const redirectPath = ref<string | null>(null)
+  // 表單定義（`GET /api/v1/{club}/forms/{formCode}`）在伺服器端渲染時就取得（docs/23 W-3），
+  // 題目文字／選項顯示文字由頁面經 fieldLabel／fieldOptions 讀取（見 useFormDefinition.ts）；
+  // 驗證碼開關與送出後導向頁也來自同一份定義。取不到＝維持現狀（不需驗證、不導向），後端是最後防線。
+  const { definition, fieldLabel, fieldOptions, optionLabel } = useFormDefinition(formCode, { bothLangs: options.bothLangs })
+
+  // 防機器人驗證（Cloudflare Turnstile）：site key 有值「且」該表單公開設定 captchaEnabled === true 才顯示元件並要求權杖。
+  const captchaEnabled = computed(() => !!siteKey && definition.value?.captchaEnabled === true)
+  // B-16：送出成功後導向頁（`PublicFormDto.redirectPath`，站內相對路徑，可為 null）。
+  const redirectPath = computed(() => safeRedirectPath(definition.value?.redirectPath))
   const captchaToken = ref<string | null>(null)
   /** 頁面以 `ref="captchaWidget"` 綁到 `<FormTurnstile>`，送出失敗時由這裡 reset。 */
   const captchaWidget = ref<{ reset: () => void } | null>(null)
-
-  onMounted(async () => {
-    try {
-      // 表單定義不論 siteKey 有無都要取（redirectPath 與驗證碼無關）；取不到＝維持現狀，不影響送出。
-      const def = await $fetch<{ captchaEnabled?: boolean, redirectPath?: string | null }>(`/api/backend/${club}/forms/${formCode}`, {
-        query: { lang: isEn.value ? 'en' : 'zh' },
-      })
-      captchaEnabled.value = !!siteKey && def?.captchaEnabled === true
-      redirectPath.value = safeRedirectPath(def?.redirectPath)
-    }
-    catch {
-      captchaEnabled.value = false
-      redirectPath.value = null
-    }
-  })
 
   const status = ref<FormSubmitStatus>('idle')
   /** 失敗時的訊息——一律顯示後端 400 回應的 `message`／`detail`（例如「缺少必填欄位：xxx」），
@@ -72,7 +63,7 @@ export function useFormSubmit(formCode: string) {
 
   async function submit(answers: Record<string, string>, options: FormSubmitOptions = {}) {
     errorMessage.value = ''
-    const captchaRequired = !!siteKey && captchaEnabled.value
+    const captchaRequired = captchaEnabled.value
     if (captchaRequired && !captchaToken.value) {
       status.value = 'error'
       errorMessage.value = t('form.captcha_required', tx('請先完成人機驗證。', 'Please complete the verification first.'))
@@ -120,10 +111,10 @@ export function useFormSubmit(formCode: string) {
   }
 
   /** 目前是否要顯示並要求人機驗證（給頁面 `v-if` 用）。 */
-  const captchaActive = computed(() => !!siteKey && captchaEnabled.value)
+  const captchaActive = captchaEnabled
   function onCaptchaToken(value: string | null) { captchaToken.value = value }
 
-  return { status, errorMessage, submit, reset, siteKey, captchaActive, captchaWidget, onCaptchaToken }
+  return { status, errorMessage, submit, reset, siteKey, captchaActive, captchaWidget, onCaptchaToken, definition, fieldLabel, fieldOptions, optionLabel }
 }
 
 /** 只接受站內相對路徑（單一 `/` 開頭；拒絕 `//host`、`/\\host`、含控制字元或協定）；其餘回 null。 */

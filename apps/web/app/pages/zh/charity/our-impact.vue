@@ -7,8 +7,8 @@
 //   - `charityCount`／`donationItemCount`（＝事蹟筆數）／`regions`（＝事蹟地點）：系統自動彙整；
 //   - `charities`：合作公益團體（Logo 牆／名稱列表）。
 // 🔴 計數為 0 一律顯示「—」（尚未公開），不顯示「0」：0 代表資料還沒建，不是「確實沒有合作團體」。
-// 🔴 後端完全沒有資料（含 API 打不到）時，退回 mockup 時代人工整理的三個團體名稱與「3」筆已公開事蹟（真實，
-// 有俱樂部新聞報導為憑據，S0-9 搬遷保留）；後台一旦有任何事蹟或公開統計，整頁換成後台資料，不混搭。
+// 🔴 2026-11-13 起沒有寫死的三個團體名稱與「3」筆事蹟數字（原靜態值已由客戶文件匯入後台）：後端完全沒有資料
+// （含 API 打不到）時，統計格一律顯示「—」、團體名單顯示空狀態文案。
 // 🔴 單元 11 對藍鯨整頁 404（藍鯨規劃書 §2.1）。
 import type { CharityProgramListItem, ImpactSummary } from '#shared/utils/charity'
 import type { PagedResponse } from '#shared/utils/api-types'
@@ -33,7 +33,6 @@ const { data } = await useFetch<ImpactSummary>(`/api/backend/${club}/charity/imp
 })
 
 const summary = computed(() => data.value ?? null)
-const usingApi = computed(() => Boolean(summary.value && (summary.value.charityCount > 0 || summary.value.donationItemCount > 0 || summary.value.metrics.length > 0)))
 
 // B-21：掛在特定計畫的指標（programSlug）顯示所屬計畫並連過去。指標 DTO 只帶 slug，計畫名稱回頭查計畫列表
 // （只在真的有指標掛計畫時才發請求）；查不到名稱仍保留連結，用通用字樣。
@@ -46,16 +45,14 @@ const { data: programsData } = await useFetch<PagedResponse<CharityProgramListIt
 const programNameBySlug = computed(() => new Map((programsData.value?.items ?? []).map((p) => [p.slug, p.name])))
 
 interface StatCell { label: string, text: string | null, programSlug?: string | null, programName?: string | null }
-const STATIC_ORGS = ['潭秀非營利幼兒園', '台中磐石盃少年足球隊伍', '潭秀國中暨嶺東高中聯隊']
 
 const stats = computed<StatCell[]>(() => {
   const s = summary.value
-  if (!usingApi.value || !s) {
+  if (!s) {
     return [
       { label: tx('合作公益團體數', 'Partner charities'), text: null },
       { label: tx('累計捐助項次', 'Donation items to date'), text: null },
       { label: tx('服務地區數', 'Regions served'), text: null },
-      { label: tx('已公開紀錄的慈善事蹟', 'Published charity impact records'), text: '3' },
     ]
   }
   const count = (n: number) => (n > 0 ? String(n) : null)
@@ -73,8 +70,8 @@ const stats = computed<StatCell[]>(() => {
       })),
   ]
 })
-const regions = computed(() => (usingApi.value ? summary.value?.regions ?? [] : []))
-const charities = computed(() => (usingApi.value ? summary.value?.charities ?? [] : []))
+const regions = computed(() => summary.value?.regions ?? [])
+const charities = computed(() => summary.value?.charities ?? [])
 const anyLogo = computed(() => charities.value.some((c) => c.logoUrl))
 </script>
 
@@ -94,11 +91,11 @@ const anyLogo = computed(() => charities.value.some((c) => c.logoUrl))
   <div class="container">
     <p class="page-hero__eyebrow">11.4 Our Impact</p>
     <h1><template v-if="isEn">Our Impact</template><template v-else>{{ tx('影響力數據', 'Our Impact') }}<span class="en">Our Impact</span></template></h1>
-    <p class="page-hero__lede"><template v-if="isEn">Cumulative statistics and partner charities show the club's track record in charity work. <strong>Amount-based data is generally not made public</strong>, and each item can be shown or hidden individually.</template><template v-else>以累計統計與合作公益團體，呈現俱樂部投入公益的軌跡。<strong>金額類數據原則上不公開</strong>，後台可逐項決定是否顯示。</template></p>
+    <p class="page-hero__lede"><template v-if="isEn">Cumulative statistics and partner charities show the club's track record in charity work. <strong>Amount-based data is generally not made public</strong>.</template><template v-else>以累計統計與合作公益團體，呈現俱樂部投入公益的軌跡。<strong>金額類數據原則上不公開</strong>。</template></p>
   </div>
 </section>
 
-<LocaleFallbackNotice v-if="isEn && !usingApi" partial />
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(data)" partial />
 
 <section class="band grain grain--2 stats-band" aria-labelledby="impact-stats-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;">11.4</span>
@@ -119,7 +116,6 @@ const anyLogo = computed(() => charities.value.some((c) => c.logoUrl))
 <section class="band sponsor-band" aria-labelledby="impact-partners-title">
   <div class="band-inner container">
     <h2 class="section-title" id="impact-partners-title">{{ tx('合作公益團體', 'Partner charities') }}</h2>
-    <template v-if="usingApi">
       <div v-if="anyLogo" class="sponsor-grid">
         <PartnerLogoTile
           v-for="c in charities"
@@ -137,13 +133,6 @@ const anyLogo = computed(() => charities.value.some((c) => c.logoUrl))
         <li v-for="c in charities" :key="c.slug" class="partner-list__item">{{ c.name }}</li>
       </ul>
       <p v-else class="section-lede">{{ tx('合作公益團體名單整理中，稍後將於本頁公布。', 'The list of partner charities is being compiled and will be published here soon.') }}</p>
-    </template>
-    <template v-else>
-      <p class="section-lede" style="margin-bottom:2rem;"><template v-if="isEn">Charities are listed by name until their logos are available. Once the official logos arrive, this will become a logo wall.</template><template v-else>依規劃書，尚無 Logo 圖檔時以名稱列表呈現；正式 Logo 到齊後將改為 Logo 牆。</template></p>
-      <ul class="partner-list">
-        <li v-for="n in STATIC_ORGS" :key="n" class="partner-list__item">{{ n }}</li>
-      </ul>
-    </template>
   </div>
 </section>
 

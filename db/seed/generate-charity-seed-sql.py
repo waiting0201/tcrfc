@@ -388,6 +388,9 @@ IF NOT EXISTS (SELECT 1 FROM admin_user_roles WHERE admin_user_id = {admin_sq(us
 #    🔴 主站目前也還沒有真實的公益團體種子資料（mockup 階段），且協會統編未定
 #    （STATUS.md B-7），本檔一律用清楚標明「僅供本機開發顯示」的虛構名稱，不得沿用到
 #    任何正式環境。ref_code／source 格式是本次的工程判斷，規劃書未定義匯入格式。
+#    K-2（2026-11-13）：N2「從官網更新清單」之後，真實的列由同步寫入（external_id＝主站 id、ref_code＝其 32 碼十六進位、
+#    source='main_site_api'）。下面這幾筆是同步機制之前的本機開發列：external_id 為空，**同步永不更新或停用它們**
+#    （docs/16 §2.2「複本欄位」）；新增欄位 name_en／is_active 等一律走資料庫預設（英文空、啟用），所以產出的 SQL 不變。
 # ============================================================================
 CHARITY_REFS = [
     ("TEST-CHARITY-A", "測試用．公益機構Ａ（僅供本機開發顯示）"),

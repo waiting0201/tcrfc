@@ -371,7 +371,7 @@ async function onSubmit() {
           <p class="summary__line"><span>{{ tx('運費', 'Shipping') }}</span><strong>{{ shippingFee > 0 ? formatPrice(shippingFee) : tx('免運', 'Free') }}</strong></p>
           <p class="summary__line summary__total"><span>{{ tx('應付金額', 'Total due') }}</span><span>{{ formatPrice(total) }}</span></p>
           <p v-if="isEn" class="summary__note">The final amount is calculated by our system when you submit your order. Payment is collected by {{ subject }}. Charity donations are received by the Taiwan Football Strategic Development Association on a separate platform and are checked out separately from this shop.</p>
-          <p v-else class="summary__note">實際金額以送出訂單時後端計算為準。收款方為{{ subject }}。慈善捐款由台灣足球策略發展協會於獨立平台收受，與本商店分開結帳。</p>
+          <p v-else class="summary__note">實際金額以送出訂單時系統計算為準。收款方為{{ subject }}。慈善捐款由台灣足球策略發展協會於獨立平台收受，與本商店分開結帳。</p>
           <p class="summary__note"><a :href="lp('/zh/cart/')">{{ tx('← 回購物車修改', '← Back to cart to edit') }}</a></p>
         </div>
       </aside>

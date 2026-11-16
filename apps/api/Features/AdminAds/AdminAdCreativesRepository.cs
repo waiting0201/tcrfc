@@ -13,7 +13,7 @@ namespace Tcrfc.Api.Features.AdminAds;
 /// 以及審核與緊急暫停。素材是否符合版位規格（長寬比、最小像素、檔案大小、是否允許影片）在上傳時就檢查。
 /// 🔴 <b>素材內容被修改（含換圖）後一律回到「待審」</b>——否則核可過的素材可以被偷換成沒審過的內容而直接上線（規劃書 §7.9 第 3 點）。
 /// </summary>
-public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreativeMapper mapper, SensitiveActionLogger audit)
+public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreativeMapper mapper, SensitiveActionLogger audit, Tcrfc.Api.Features.AdminApp.AppLinkValidator links)
 {
     private static readonly IReadOnlySet<string> Locales = new HashSet<string>(["zh", "en"], StringComparer.Ordinal);
     private static readonly IReadOnlySet<string> Variants = new HashSet<string>(["A", "B"], StringComparer.Ordinal);
@@ -85,6 +85,7 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
         Guid campaignId, AdSlot slot, UpsertAdminAdCreativeRequest request, UploadedImageInfo image, string? videoKey, Guid? operatorId, CancellationToken cancellationToken)
     {
         Validate(request, slot, hasVideo: videoKey is not null);
+        await links.ValidateAsync(request.ClickUrl, "點擊目的地", "clickUrl", cancellationToken);
         var now = DateTime.UtcNow;
         var c = new AdCreative
         {
@@ -111,6 +112,13 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
 
         var hasVideoAfter = newVideoKey is not null || (c.VideoKey is not null && !request.RemoveVideo);
         Validate(request, slot, hasVideoAfter);
+
+        // 連結沒改就不重驗：舊資料的連結若已失效，不該讓營運人員連改替代文字都存不了（App 端本來就會忽略失效的連結）。
+        if ((c.ClickUrl ?? "") != (request.ClickUrl?.Trim() ?? ""))
+        {
+            await links.ValidateAsync(request.ClickUrl, "點擊目的地", "clickUrl", cancellationToken);
+        }
+
         var changed = image.Change || newVideoKey is not null || request.RemoveVideo
                       || c.Locale != AdLabels.ToDbLocale(request.Locale) || Changed(c, request);
         if (image.Change)
@@ -221,7 +229,6 @@ public sealed class AdminAdCreativesRepository(ClubDbContext dbContext, AdCreati
         AdminInput.RequireText(r.AltText, "替代文字（給讀屏軟體與圖片載入失敗時顯示）", 200, "altText");
         AdminInput.OptionalText(r.Title, "標題", 160, "title");
         AdminInput.OptionalText(r.CtaText, "按鈕文字", 60, "ctaText");
-        AdminInput.OptionalHttpOrAppLink(r.ClickUrl, "點擊目的地", 500, "clickUrl");
 
         AdminInput.OneOf(r.Theme ?? "both", AdLabels.Theme.Keys.ToHashSet(StringComparer.Ordinal), "底色版本", "「淺色底」「深色底」或「深淺底通用」", "theme");
         if (r.VariantTag is not null)

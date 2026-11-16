@@ -136,6 +136,12 @@ async function remove(row: LayoutItemDto) {
     ElMessage.error(errText(e, '刪除失敗，請稍後再試'))
   }
 }
+/** 對照表那一列是不是還沒填完的樣板（含大括號）：App 會把它當成不可用，所以首頁版面不能選。 */
+const isTemplateLink = (d: DeepLinkDto) => d.appLink.includes('{') || d.appLink.includes('}')
+/** 可選的位置：啟用中、且不需要再指定對象的完整連結；目前已綁著樣板列的，仍列出但標示需要重選。 */
+const linkOptions = computed(() =>
+  deepLinks.value.filter((d) => d.isActive && (!isTemplateLink(d) || d.id === form.deepLinkId)).map((d) => ({ id: d.id, label: d.labelZh || '（未命名連結）', stale: isTemplateLink(d) })))
+const staleSelected = computed(() => linkOptions.value.some((o) => o.id === form.deepLinkId && o.stale))
 const linkText = (r: LayoutItemDto) => deepLinks.value.find((d) => d.id === r.deepLinkId)?.labelZh ?? (r.deepLinkId ? '（已設定）' : '未設定')
 </script>
 
@@ -190,7 +196,9 @@ const linkText = (r: LayoutItemDto) => deepLinks.value.find((d) => d.id === r.de
         <LangTabsBar variant="bare">
           <BilingualShortField v-model:zh="form.labelZh" v-model:en="form.labelEn" field="label" label="名稱" required />
           <FormField field="deepLinkId" label="點擊後前往">
-            <el-select v-model="form.deepLinkId" clearable placeholder="不設定" style="width: 100%"><el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || '（未命名連結）'" :value="d.id" /></el-select>
+            <el-alert v-if="staleSelected" type="warning" show-icon :closable="false" title="目前選的位置還缺少要前往的對象，App 點了不會有反應，請重新選擇" style="margin-bottom: 8px" />
+            <el-select v-model="form.deepLinkId" clearable placeholder="不設定" style="width: 100%"><el-option v-for="o in linkOptions" :key="o.id" :label="o.stale ? `${o.label}（需要重新選擇）` : o.label" :value="o.id" :disabled="o.stale" /></el-select>
+            <div class="li__muted">首頁版面只能前往不需要指定對象的位置（例如賽程、會員卡、會籍升級）；要前往某一則消息或某個課程，請改用推播或公告。</div>
           </FormField>
           <FormField v-if="!fixedKind" field="iconKey" label="圖示（選填）"><el-input v-model="form.iconKey" placeholder="選填，圖示名稱請向 App 工程團隊確認" /></FormField>
           <el-form-item label="顯示在 App"><el-switch v-model="form.isEnabled" /></el-form-item>

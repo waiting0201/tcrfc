@@ -1,8 +1,11 @@
 # 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v2.7
-> **Date**: 2026-09-03 (v2.7 revision: 2026-10-12)
+> **Document version**: v2.8
+> **Date**: 2026-09-03 (v2.8 revision: 2026-11-13)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v2.8 revision summary — the register of charities and programmes is refreshed manually from the main site**
+> **No change of scope; this states how the register is synchronised.** The main site provides a read-only public register (only published charities and charity programmes, with their reference code, Chinese and English names and status); the `N2` admin of this platform offers a manual "Refresh from the website" action, which an administrator triggers to pull the register and update this platform's read-only copy. There is no scheduled job and no CSV import. The read-only copy stores both Chinese and English names; an item the main site has unpublished or deleted is marked inactive in the copy rather than deleted, and existing donation projects and issued vouchers continue to cite their snapshot. Charities and charity programmes marked inactive in the copy do not appear in the menus used to add or edit a donation project; existing donation projects that already use one keep displaying it normally. Lands in: §6.2, §9.3; the corresponding open item is closed.
 
 > **v2.7 revision summary — contrast thresholds stated explicitly**
 > **No change of scope.** The contrast clause in §3.7 now states 4.5:1 for text and 3:1 for form-control boundaries and focus outlines, and requires that status is never conveyed by colour alone. This platform's visuals always use the association's brand assets and never reuse TCRFC brand colours. Where: §3.7.
@@ -511,6 +514,7 @@ N. Charity Donation Platform
 | **Revenue share** | `project_share_pct` and the **recipient** (which may link to a `Charity` organisation) |
 | **Invoice mode** | `invoice_mode`: `b2c_invoice` or `donation_receipt` |
 | Links | May link to a main-site `CharityProgram`, shown publicly as delivered impact |
+| **Refresh from the website** | When an administrator presses it, the platform pulls the charities and charity programmes from the main site's read-only public register and updates its read-only copy (reference code, Chinese and English names, status). Manual only, no scheduled job; where the two diverge the main site prevails; an item the main site has unpublished or deleted is marked inactive in the copy, not deleted; inactive items do not appear in the menus used to add or edit a donation project, and existing donation projects that already use one keep displaying it normally |
 | Display | Publish state, ordering |
 | Validation | On save, verify that **`store_share_pct` + `project_share_pct` ≤ 100%**, blocking the save if not |
 
@@ -650,7 +654,7 @@ Constraint: store_share_pct + project_share_pct ≤ 100%
 
 > 🔴 **Three rules for cross-system references (new in v2.0)**
 > 1. **The main site is the single master for charities and charity programmes.** `charity_name_snapshot` here is a **read-only copy**; where the two diverge the main site prevails. **This platform must never become a second source of truth.**
-> 2. **No live joins and no synchronous queries against the main site's database.** The two databases are independent of each other, and this platform never holds a connection to the main site's database. Register synchronisation is by CSV import in the `N2` admin, or by periodically pulling a read-only main-site API.
+> 2. **No live joins and no synchronous queries against the main site's database.** The two databases are independent of each other, and this platform never holds a connection to the main site's database. Register synchronisation is always triggered manually by the "Refresh from the website" action in the `N2` admin: the main site provides a read-only public register API (only published charities and charity programmes, with reference code, Chinese and English names and status), an administrator triggers a pull, and this platform's read-only copy is updated; **there is no scheduled job and no CSV import**. The copy stores both Chinese and English names; an item the main site has unpublished or deleted is marked inactive in the copy and not deleted, and existing donation projects and issued vouchers continue to cite their snapshot. Charities and charity programmes marked inactive in the copy do not appear in the menus used to add or edit a donation project; existing donation projects that already use one keep displaying it normally.
 > 3. **The snapshot is deliberate, not a compromise.** Recipient names are printed on statements and donation receipts — documents already issued — and **must not change when the main site later renames a record**. This is consistent with the existing snapshot rules for `SettlementLine` and `DonationInvoice`.
 | `DonationPayment` | **Gateway transaction**: gateway transaction ID, request and confirm timestamps, amount, state, response summary | Donation |
 | `DonationInvoice` | **Invoice / receipt**: type, number, issue time, carrier or tax ID or receipt details, state, void and credit records | Donation |
@@ -681,7 +685,7 @@ Constraint: store_share_pct + project_share_pct ≤ 100%
 | One shop doing both | **Create a record in each**, sharing nothing and with no foreign key between them |
 | What people donate to | `DonationProject` |
 | Charitable work already delivered | `CharityProgram` (main site 11.2). A `DonationProject` may link to it; the reverse does not hold |
-| The recipient organisation | `Charity` (existing on the main site); a project's payout recipient links directly to it |
+| The recipient organisation | `Charity` (existing on the main site); the master record stays on the main site, and a project's payout recipient references its read-only copy |
 | Whether a donor is a member | **A soft email match, shown as a label only.** Nothing is written to `Member`, and no relation field is created |
 
 ### 9.4 Languages
@@ -808,8 +812,7 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 15. **The Association's tax ID**: neither certificate carries one, so it must be obtained from the tax authority. The trust block, invoice titles, receipts and settlement statements all need it — a launch precondition.
 16. **Written agreements between the Association and the club**: the **operational-services data processing agreement** (§11.1 — from v2.0 its scope narrows to operation), and the basis for paying the club when it is a recipient or delivery partner.
 17. **Who holds and operates the independent admin** (new in v2.0): an independent database and admin need the Association's own **seed super administrator** — who holds it, who performs day-to-day operation and backups, and whose 2FA it is bound to. The operating cost and staffing of a standalone system must be confirmed.
-18. **How the charity register is synchronised** (new in v2.0): the main site's `Charity` is the master record and this platform holds a snapshot. Is synchronisation by CSV import or a read-only main-site API? How often? **Where the two diverge the main site prevails.**
-17. **Recurring donations**: out of scope now — should they be assessed later?
+18. **Recurring donations**: out of scope now — should they be assessed later?
 
 ---
 

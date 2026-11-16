@@ -16,7 +16,7 @@ const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
-// C-2：社群／Email 以後台值優先，未維護時沿用 club-copy 過渡值（useClubIdentity）。
+// C-2：社群／Email 以後台值為準，後台清空就不顯示；只有 API 打不到時才沿用 club-copy 靜態值（useClubIdentity）。
 const identity = useClubIdentity()
 const hero = computed(() => (isEn.value ? (isTcrfc.value ? JOIN_CONTACT_HERO_EN : JOIN_CONTACT_HERO_EN_BW) : JOIN_CONTACT_HERO[clubKey.value]))
 const seoEn = computed(() => (isTcrfc.value ? JOIN_CONTACT_SEO_EN : JOIN_CONTACT_SEO_EN_BW))
@@ -77,9 +77,9 @@ function socialHandle(url: string): string {
         <p class="contact-item__value">{{ tcrfcFacts.contact.phone }}</p>
       </div>
 
-      <div v-if="isTcrfc || identity.social.email" class="contact-item">
+      <div v-if="identity.social.email" class="contact-item">
         <p class="contact-item__label">Email</p>
-        <p v-if="identity.social.email" class="contact-item__value">{{ identity.social.email }}</p>
+        <p class="contact-item__value">{{ identity.social.email }}</p>
       </div>
 
       <!-- GEO-03（S1-12d）：地址／主場名稱為單一來源（useSiteFacts 讀後端 API），不在此
@@ -88,7 +88,7 @@ function socialHandle(url: string): string {
         <p class="contact-item__label">{{ tx('地址', 'Address') }}</p>
         <!-- v3.29：聯絡地址是獨立設定（site.contact_address，客戶 10 聯絡資訊），與場地地址無關；英文版讀英文地址，缺漏回退中文 -->
         <p class="contact-item__value">{{ isEn ? (tcrfcFacts.contact.addressEn || tcrfcFacts.contact.address) : tcrfcFacts.contact.address }}</p>
-        <p v-if="isTcrfc" class="field-hint"><template v-if="isEn">Home ground: {{ tcrfcVenue.nameEn ?? tcrfcVenue.nameZh }}. For the exact location of each venue, see <a :href="lp('/zh/join/location/')">Location &amp; Map</a>.</template><template v-else>主場：{{ tcrfcVenue.nameZh }}。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</template></p>
+        <p v-if="isTcrfc" class="field-hint"><template v-if="isEn"><template v-if="tcrfcVenue">Home ground: {{ tcrfcVenue.nameEn ?? tcrfcVenue.nameZh }}. </template>For the exact location of each venue, see <a :href="lp('/zh/join/location/')">Location &amp; Map</a>.</template><template v-else><template v-if="tcrfcVenue">主場：{{ tcrfcVenue.nameZh }}。</template>各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</template></p>
       </div>
 
       <!-- S1-17 收尾修正（2026-09-29）：營業時間改讀 useSiteFacts('tcrfc').contact.hours，

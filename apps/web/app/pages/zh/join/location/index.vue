@@ -11,19 +11,19 @@ const clubEn = computed(() => bizClubNameEn(clubKey.value))
 
 // BW-C1（品牌外洩全站盤點）：本頁原本 10-location 單元零俱樂部分支（既有缺口，見
 // apps/web/README.md「S1-12d」節「刻意不動的範圍」），固定讀 tcrfc。改為動態帶入
-// 目前 club：tcrfc 維持既有「訓練基地／主場／學院場地」三張固定卡；bw 沒有這三種
-// 場地類型的既有分類（只有 `facts.venues` 這份真實的兩座場地清單，見 site-facts.ts），
-// 改為逐一列出 `facts.venues`，不挪用磐石的場地分類假裝藍鯨也有「訓練基地」。
+// 目前 club。場地卡來源兩層（兩站一致）：後台場地管理 venues API → 站台事實 `facts.venues`（site-facts API）；
+// 都沒有就顯示空狀態。2026-11-13 起不再有磐石的 Training Base／Academy Ground 占位卡。
 const { facts, primaryVenue } = useSiteFacts(clubKey.value)
 
 // S1-17：嵌入地圖與導航連結改用 site-facts 的地址算出來（不再另外寫死一份 URL 編碼字串）。
 // 只有主場地址有真實資料可用時才嵌入（tcrfc 有；bw 現況兩座場地皆無地址，見 site-facts.ts
 // 既有註解，`showMap` 因此對 bw 自然不渲染，不是本輪新增的判斷）。
 // v3.29：聯絡地址（site.contact_address）與場地地址是兩件事，地圖與場地卡只用「場地地址」，沒有時退回場地名稱。
-const venueAddress = computed(() => primaryVenue.value.address)
-const mapQuery = computed(() => encodeURIComponent(venueAddress.value ?? primaryVenue.value.nameZh))
-const mapEmbedSrc = computed(() => `https://www.google.com/maps?q=${mapQuery.value}&output=embed`)
-const mapNavHref = computed(() => `https://www.google.com/maps/search/?api=1&query=${mapQuery.value}`)
+// 站台事實沒有任何場地（venues 為空）時 primaryVenue 為 null：不組地圖連結。
+const venueAddress = computed(() => primaryVenue.value?.address ?? null)
+const mapQuery = computed(() => (primaryVenue.value ? encodeURIComponent(venueAddress.value ?? primaryVenue.value.nameZh) : null))
+const mapEmbedSrc = computed(() => (mapQuery.value ? `https://www.google.com/maps?q=${mapQuery.value}&output=embed` : null))
+const mapNavHref = computed(() => (mapQuery.value ? `https://www.google.com/maps/search/?api=1&query=${mapQuery.value}` : null))
 
 // I5 場地管理（H 批）：後台維護的場地（名稱、地址、經緯度、交通說明、照片）。有資料時改由 API 呈現場地卡、地圖與交通說明，
 // 沒有資料（API 無場地或打不到）時沿用上方 site-facts 的既有內容（過渡策略）。
@@ -34,7 +34,7 @@ const apiEmbedSrc = computed(() => (apiPrimaryVenue.value ? venueEmbedSrc(apiPri
 const showMap = computed(() => (hasApiVenues.value ? !!apiEmbedSrc.value : !!venueAddress.value))
 const embedSrc = computed(() => (hasApiVenues.value ? apiEmbedSrc.value : mapEmbedSrc.value))
 const primaryNavHref = computed(() => (apiPrimaryVenue.value ? venueMapHref(apiPrimaryVenue.value) : null) ?? mapNavHref.value)
-const primaryName = computed(() => apiPrimaryVenue.value?.name ?? (isEn.value ? (primaryVenue.value.nameEn ?? primaryVenue.value.nameZh) : primaryVenue.value.nameZh))
+const primaryName = computed(() => apiPrimaryVenue.value?.name ?? (primaryVenue.value ? (isEn.value ? (primaryVenue.value.nameEn ?? primaryVenue.value.nameZh) : primaryVenue.value.nameZh) : null))
 // 英文版：API 場地欄位回退為繁中時提示（PublicVenue 沒有 isFallbackLocale，以是否含中日文字判斷）
 const venuesHaveZh = computed(() => venues.value.some((v) => /[\u3400-\u9fff]/.test(`${v.name}${v.address ?? ''}${v.directions ?? ''}`)))
 
@@ -87,34 +87,17 @@ useSeoMeta({
         <p class="venue-card__addr">{{ v.address ?? tx('地址資訊準備中，稍後將於本頁公布。', 'Address details are being prepared and will be published here soon.') }}</p>
       </article>
     </div>
-    <div v-else-if="isTcrfc" class="grid grid--3">
-      <article class="venue-card">
-        <p class="venue-card__label">{{ tx('訓練基地', 'Training base') }}</p>
-        <h3 class="venue-card__name">Training Base</h3>
-        <p class="venue-card__addr">{{ tx('地址資訊準備中，稍後將於本頁公布。', 'Address details are being prepared and will be published here soon.') }}</p>
-      </article>
-
-      <!-- GEO-03（S1-12d）：主場名稱／地址為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-      <article class="venue-card">
-        <p class="venue-card__label">{{ tx('主場', 'Home ground') }}</p>
-        <h3 class="venue-card__name"><template v-if="isEn">{{ primaryVenue.nameEn ?? primaryVenue.nameZh }}</template><template v-else>{{ primaryVenue.nameZh }}<span class="en">{{ primaryVenue.nameEn }}</span></template></h3>
-        <p class="venue-card__addr">{{ venueAddress ?? tx('地址資訊準備中，稍後將於本頁公布。', 'Address details are being prepared and will be published here soon.') }}</p>
-      </article>
-
-      <article class="venue-card">
-        <p class="venue-card__label">{{ tx('學院場地', 'Academy venue') }}</p>
-        <h3 class="venue-card__name">Academy Ground</h3>
-        <p class="venue-card__addr">{{ tx('地址資訊準備中，稍後將於本頁公布。', 'Address details are being prepared and will be published here soon.') }}</p>
-      </article>
-    </div>
-    <!-- bw：沒有「訓練基地／學院場地」這種既有場地分類，逐一列出 facts.venues 這份真實
-         的場地清單（現況兩座，皆無地址，詳見 site-facts.ts），不挪用磐石的場地分類。 -->
-    <div v-else class="grid grid--3">
+    <!-- 後台場地管理（venues API）沒有資料時，退到站台事實（site-facts API）的場地清單；兩者都沒有就顯示空狀態。
+         不再放磐石的 Training Base／Academy Ground 占位卡（2026-11-13，docs/23 W-19）。 -->
+    <div v-else-if="facts.venues.length > 0" class="grid grid--3">
       <article v-for="v in facts.venues" :key="v.nameZh" class="venue-card">
         <p class="venue-card__label">{{ v.isHomeGround ? tx('主場', 'Home ground') : tx('訓練場地', 'Training venue') }}</p>
         <h3 class="venue-card__name"><template v-if="isEn">{{ v.nameEn ?? v.nameZh }}</template><template v-else>{{ v.nameZh }}<span v-if="v.nameEn" class="en">{{ v.nameEn }}</span></template></h3>
         <p class="venue-card__addr">{{ v.address ?? tx('地址資訊準備中，稍後將於本頁公布。', 'Address details are being prepared and will be published here soon.') }}</p>
       </article>
+    </div>
+    <div v-else class="news-empty">
+      <p>{{ tx('場地資訊整理中，稍後將於本頁公布。', 'Venue information is being compiled and will be published on this page soon.') }}</p>
     </div>
   </div>
 </section>
@@ -127,7 +110,7 @@ useSeoMeta({
         <p class="kicker kicker--on-dark">{{ tx('嵌入地圖', 'Embedded map') }}</p>
         <h2 class="section-title" id="map-title" style="color:#fff">Google Map</h2>
       </div>
-      <p class="section-lede on-dark">{{ tx('正式上線時於此區塊嵌入各場地的 Google Map（可依所選場地切換）。', 'At launch, a Google Map for each venue will be embedded here (switchable by venue).') }}</p>
+      <p class="section-lede on-dark">{{ tx('主場位置的 Google 地圖如下，出發前可先確認路線。', 'A Google Map of the home ground is shown below, so you can check the route before you set out.') }}</p>
     </div>
 
     <div class="map-embed">
@@ -171,7 +154,7 @@ useSeoMeta({
         <p class="direction-card__mode">{{ tx('大眾運輸', 'Public transport') }}</p>
         <p>{{ tx('詳細路線指引準備中，稍後將於本頁公布。', 'Detailed directions are being prepared and will be published here soon.') }}</p>
       </div>
-      <div class="direction-card">
+      <div v-if="primaryNavHref" class="direction-card">
         <p class="direction-card__mode">{{ tx('導航連結', 'Navigation link') }}</p>
         <a :href="primaryNavHref" target="_blank" rel="noopener">{{ tx('開啟 Google 導航', 'Open Google Maps navigation') }}{{ isEn ? ` (${primaryName})` : `（${primaryName}）` }}<span class="visually-hidden">{{ tx('（新分頁開啟）', '(opens in a new tab)') }}</span></a>
       </div>

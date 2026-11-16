@@ -120,8 +120,10 @@ const academySquadsEn = computed(() => tcrfcFacts.value.squadCodes.join('/'))
         <dd>{{ bwFoundedText }}</dd>
         <dt>{{ tx('所屬聯賽', 'League') }}</dt>
         <dd>{{ bwLeagueText }}</dd>
-        <dt>{{ tx('主場', 'Home grounds') }}</dt>
-        <dd>{{ bwVenueText }}</dd>
+        <template v-if="bwVenueText">
+          <dt>{{ tx('主場', 'Home grounds') }}</dt>
+          <dd>{{ bwVenueText }}</dd>
+        </template>
         <dt>{{ tx('梯隊體系', 'Squad structure') }}</dt>
         <dd>{{ bwSquadText }}</dd>
         <dt>{{ tx('完整資訊', 'Full information') }}</dt>

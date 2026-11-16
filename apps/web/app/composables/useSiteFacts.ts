@@ -101,7 +101,8 @@ function mergeSiteFacts(
     foundedDisplayZh: zh.foundedDisplay,
     foundedDisplayEn: pickEn(en?.foundedDisplay, SITE_FACTS[club].foundedDisplayEn),
     foundingTitleZh: zh.foundingTitle,
-    foundingTitleEn: pickEn(en?.foundingTitle, SITE_FACTS[club].foundingTitleEn),
+    // API 成功但沒有成立首年頭銜＝兩個語系都不顯示（不回頭用靜態快照的頭銜）
+    foundingTitleEn: zh.foundingTitle ? pickEn(en?.foundingTitle, SITE_FACTS[club].foundingTitleEn) : null,
     league: {
       nameZh: zh.league.name,
       nameEn: pickEn(en?.league.name, SITE_FACTS[club].league.nameEn),
@@ -116,7 +117,7 @@ function mergeSiteFacts(
       }),
     ),
     squadStructureZh: zh.squadStructureSummary,
-    squadStructureEn: pickEn(en?.squadStructureSummary, SITE_FACTS[club].squadStructureEn),
+    squadStructureEn: zh.squadStructureSummary ? pickEn(en?.squadStructureSummary, SITE_FACTS[club].squadStructureEn) : null,
     squadCodes: zh.squadCodes,
     contact: {
       address: zh.contact.address,
@@ -141,6 +142,7 @@ function mergeSiteFacts(
     footerBlurbZh: zh.footerBlurb?.trim() || null,
     footerBlurbEn: pickEn(en?.footerBlurb, null),
     blueWhaleSiteUrl: zh.blueWhaleSiteUrl,
+    fromApi: true,
   }
 }
 
@@ -151,7 +153,7 @@ function mergeSiteFacts(
  *
  * 回傳：
  * - `facts`：與 SiteFacts 型別相容的 ComputedRef，供頁面文字與 JSON-LD 直接讀欄位。
- * - `primaryVenue`：主場（`isHomeGround` 第一筆）的 ComputedRef，等價於舊版
+ * - `primaryVenue`：主場（`isHomeGround` 第一筆）的 ComputedRef，**沒有任何場地時為 null**；等價於舊版
  *   `getPrimaryVenue(club)` 但改讀本次 fetch 的結果。
  * - `academyLabel(separator?)`：梯隊代碼組字函式，等價於舊版 `academyTeamCodesLabel(club, sep)`。
  */
@@ -169,8 +171,9 @@ export function useSiteFacts(club: string) {
 
   const facts = computed<SiteFacts>(() => mergeSiteFacts(normalized, zh.value, en.value))
 
-  const primaryVenue = computed<SiteFactVenue>(
-    () => facts.value.venues.find((v) => v.isHomeGround) ?? facts.value.venues[0],
+  // 站台事實成功但場地清單為空是合法狀態（後台尚未建任何場地）：回傳 null，由各取用點省略該段文字。
+  const primaryVenue = computed<SiteFactVenue | null>(
+    () => facts.value.venues.find((v) => v.isHomeGround) ?? facts.value.venues[0] ?? null,
   )
 
   /** 把 `facts.squadCodes` 陣列組成單一顯示字串（例如年齡層代碼依序以分隔符連接）。

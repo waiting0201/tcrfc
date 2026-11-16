@@ -157,3 +157,39 @@ public sealed record CharityCtaDto
     public string? DonationCta { get; init; }
     public string? FanCta { get; init; }
 }
+
+/// <summary>
+/// 慈善平台「從官網更新清單」讀取的公益團體與慈善計畫清單（K-2，2026-11-13）。
+/// 🔴 只含<b>已公開</b>者的識別與名稱：沒有聯絡窗口、沒有金額、沒有任何個資。<c>Id</c>（主站主鍵）是慈善平台複本的對照鍵——
+/// <c>Slug</c> 後台可以改，只給顯示與除錯用，不可當鍵。
+/// </summary>
+public sealed record CharityDirectoryDto
+{
+    public required IReadOnlyList<CharityDirectoryCharityDto> Charities { get; init; }
+    public required IReadOnlyList<CharityDirectoryProgramDto> Programs { get; init; }
+}
+
+public sealed record CharityDirectoryCharityDto
+{
+    public required Guid Id { get; init; }
+    public required string Slug { get; init; }
+
+    /// <summary>目前只輸出已公開者，固定 <c>published</c>；欄位保留，讓慈善平台不必推測「清單裡有的就是公開」。</summary>
+    public required string Status { get; init; }
+    public required string NameZh { get; init; }
+
+    /// <summary>英文名稱；主站沒有填就是 <c>null</c>（不以中文頂替）。</summary>
+    public string? NameEn { get; init; }
+}
+
+public sealed record CharityDirectoryProgramDto
+{
+    public required Guid Id { get; init; }
+    public required string Slug { get; init; }
+
+    /// <summary>所屬公益團體的 <see cref="CharityDirectoryCharityDto.Id"/>；一定出現在同一份回應的 <c>Charities</c> 裡。</summary>
+    public required Guid CharityId { get; init; }
+    public required string Status { get; init; }
+    public required string NameZh { get; init; }
+    public string? NameEn { get; init; }
+}

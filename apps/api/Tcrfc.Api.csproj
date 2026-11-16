@@ -48,6 +48,12 @@
     <PackageReference Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
 
+  <!-- 後台連結驗證用的深連結契約：與 shared/deeplinks.json 逐字相同（Docker build context 是 apps/api，讀不到 shared/）。
+       shared/scripts/gen-all.sh 會重新複製；AppLinkContractTests 比對兩份，不同就紅燈。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="Features/AdminApp/deeplinks.contract.json" LogicalName="deeplinks.contract.json" />
+  </ItemGroup>
+
   <!-- Tcrfc.Api.Tests（S0-7d）是本目錄底下的獨立子專案，沒有 .sln 把兩者的建置範圍分開，
        預設的遞迴 **/*.cs 萬用字元會把測試專案的原始碼一起吃進來（測試專案參照 xunit／
        Microsoft.AspNetCore.Mvc.Testing，本專案完全沒有這些套件，會直接編譯失敗）。明確排除。 -->

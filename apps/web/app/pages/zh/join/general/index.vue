@@ -38,7 +38,9 @@ const message = ref('')
 const consent = ref(false)
 const website = ref('')
 
-const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('general_contact')
+// W-3：欄位題目照後台表單設計器的設定顯示（fl＝fieldLabel，取不到或英文缺漏時用括號內的原寫死文字）。
+// 主旨欄在表單定義裡是 text 型別（沒有選項清單），下方五個主旨選項是頁面自己的，維持原樣。
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken, fieldLabel: fl } = useFormSubmit('general_contact')
 
 async function onSubmit() {
   await submit({
@@ -88,12 +90,12 @@ async function onSubmit() {
           <legend>{{ tx('你的資料', 'Your details') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="gc-name">{{ tx('姓名', 'Name') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="gc-name">{{ fl('name', tx('姓名', 'Name')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="gc-name" v-model="name" type="text" name="name" required autocomplete="name" aria-describedby="gc-name-error">
               <p class="field-error" id="gc-name-error" role="alert">{{ tx('請填寫姓名', 'Please enter your name') }}</p>
             </div>
             <div class="form-field">
-              <label for="gc-email">Email<span class="req" aria-hidden="true">*</span></label>
+              <label for="gc-email">{{ fl('contact', 'Email') }}<span class="req" aria-hidden="true">*</span></label>
               <input id="gc-email" v-model="email" type="email" name="email" required autocomplete="email" aria-describedby="gc-email-error">
               <p class="field-error" id="gc-email-error" role="alert">{{ tx('請填寫有效的 Email', 'Please enter a valid email address') }}</p>
             </div>
@@ -104,7 +106,7 @@ async function onSubmit() {
           <legend>{{ tx('留言內容', 'Your message') }}</legend>
           <div class="form-grid">
             <div class="form-field form-field--full">
-              <label for="gc-subject">{{ tx('主旨', 'Subject') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="gc-subject">{{ fl('subject', tx('主旨', 'Subject')) }}<span class="req" aria-hidden="true">*</span></label>
               <select id="gc-subject" v-model="subject" name="subject" required aria-describedby="gc-subject-error">
                 <option value="">{{ tx('請選擇', 'Please select') }}</option>
                 <option value="general">{{ tx('一般詢問', 'General enquiry') }}</option>
@@ -116,7 +118,7 @@ async function onSubmit() {
               <p class="field-error" id="gc-subject-error" role="alert">{{ tx('請選擇主旨', 'Please select a subject') }}</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="gc-message">{{ tx('內容', 'Message') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="gc-message">{{ fl('message', tx('內容', 'Message')) }}<span class="req" aria-hidden="true">*</span></label>
               <textarea id="gc-message" v-model="message" name="message" required aria-describedby="gc-message-error"></textarea>
               <p class="field-error" id="gc-message-error" role="alert">{{ tx('請填寫留言內容', 'Please enter your message') }}</p>
             </div>

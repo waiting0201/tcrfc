@@ -55,11 +55,11 @@ useFaqPageSchema(faqs)
       <h2>{{ tx('招生對象', 'Who We Recruit') }}</h2>
       <p v-if="isEn">
         TCRFC Academy runs age-group squads at <a :href="lp('/zh/academy/teams/')">{{ tcrfcAcademyLabel(', ') }} and other age groups</a>,
-        recruiting players of the matching ages who are passionate about football. Registration age ranges, school-year equivalents and places will be updated on this page once the admissions brochure is confirmed.
+        recruiting players of the matching ages who are passionate about football. Registration age ranges, school-year equivalents and places will be announced on this page.
       </p>
       <p v-else>
         台中磐石足球學院依 <a :href="lp('/zh/academy/teams/')">{{ tcrfcAcademyLabel('、') }} 及其他年齡層</a> 設立分齡梯隊，
-        招收對應年齡層、對足球有熱忱的學員。詳細報名年齡區間、就讀年級對照與名額，待招生簡章確認後更新於本頁。
+        招收對應年齡層、對足球有熱忱的學員。詳細報名年齡區間、就讀年級對照與名額，將公布於本頁。
       </p>
     </div>
   </div>
@@ -68,7 +68,7 @@ useFaqPageSchema(faqs)
 <section class="band">
   <div class="container">
     <h2 class="section-title">{{ tx('遴選流程', 'Selection Process') }}</h2>
-    <p class="section-lede" style="margin-top:.5rem;">{{ tx('下列為一般性招生流程架構，實際步驟與時程待客戶提供之招生簡章確認。', 'The steps below outline a general admissions process. Actual steps and timing will be confirmed once the admissions brochure is available.') }}</p>
+    <p class="section-lede" style="margin-top:.5rem;">{{ tx('下列為一般性招生流程，實際步驟與時程以學院公告的招生簡章為準。', 'The steps below outline a general admissions process. Actual steps and timing follow the admissions brochure published by the Academy.') }}</p>
 
     <ol class="path-track" style="margin-top:2.5rem;">
       <li class="path-step">

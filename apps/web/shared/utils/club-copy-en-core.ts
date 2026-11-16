@@ -480,7 +480,7 @@ export const OUR_PEOPLE_SEO_EN_BW: SeoCopy = {
 export const OUR_PEOPLE_HERO_EN_BW: HeroCopy = {
   h1Zh: 'Our People',
   h1En: null,
-  lede: `The coaching staff who keep the ${BW_NAME_EN} First Team running. The list is maintained in the back office and the content is being updated.`,
+  lede: `The coaching staff who keep the ${BW_NAME_EN} First Team running. The list is being compiled and will be published on this page soon.`,
 }
 
 export const GOVERNANCE_SEO_EN_BW: SeoCopy = {
@@ -535,8 +535,6 @@ export const MILESTONES_SEO_EN_BW: SeoCopy = {
 export const MILESTONES_HERO_EN_BW: HeroCopy = {
   h1Zh: 'Key Milestones',
   h1En: null,
-  lede: `The key events of ${BW_NAME_EN} are currently collected in the year-by-year record from 2014 to 2025 on the Club History page. The year-filter timeline on this page has not yet been rebuilt from ${BW_NAME_EN} data.`,
+  lede: `Key milestones of ${BW_NAME_EN}, which can be filtered by year. For the complete year-by-year record from 2014 to 2025, see the Club History page.`,
 }
 
-/** 後台有里程碑資料時的中性導言（藍鯨）。 */
-export const MILESTONES_API_LEDE_EN_BW = `Key milestones of ${BW_NAME_EN}, which can be filtered by year.`

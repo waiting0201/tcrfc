@@ -57,7 +57,7 @@ const hero = computed(() => (isEn.value ? getYouthLifeHeroEn(clubKey.value) : ge
         <h2 class="section-title">{{ tx('訓練日常剪影', 'Training Snapshots') }}</h2>
       </div>
       <p v-if="isTcrfc" class="section-lede">{{ tx('下列照片皆為學員未成年，說明僅描述訓練場景，不標示個人姓名。', 'The players in these photos are minors. Captions describe the training scenes only and do not name individuals.') }}</p>
-      <p v-else class="section-lede is-pending">{{ tx('訓練與比賽影像整理中，待肖像同意到位後將陸續公布於本頁。', 'Training and match images are being compiled and will be published here progressively once image consent is confirmed.') }}</p>
+      <p v-else class="section-lede is-pending">{{ tx('訓練與比賽影像整理中，將陸續公布於本頁。', 'Training and match images are being compiled and will be published here progressively.') }}</p>
     </div>
 
     <div v-if="isTcrfc" class="gallery-grid">

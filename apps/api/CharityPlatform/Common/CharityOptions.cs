@@ -31,6 +31,28 @@ public static class CharityOptions
         return environment.IsDevelopment() ? "http://charity.localhost" : null;
     }
 
+    /// <summary>
+    /// 主站 API 的基底網址（K-2，慈善後台 N2「從官網更新清單」呼叫 <c>/api/v1/tcrfc/charity/directory</c>）。
+    /// 🔴 慈善平台不得持有主站資料庫連線（慈善規劃書 §9.3），即使與主站同在一個 api 行程內也走 HTTP；所以這是明確設定：
+    /// compose 為 api 容器帶 <c>http://127.0.0.1:8080</c>（容器自己，<c>scripts/check-compose-env.mjs</c> 把關）。
+    /// 本機 <c>dotnet run</c>（Development）未設定時退回 <c>http://127.0.0.1:5299</c>（launchSettings 的埠）；
+    /// 非本機環境未設定回傳 <c>null</c>，由呼叫端回「尚未設定」，不猜網址。必須是絕對的 http／https 網址。
+    /// </summary>
+    public const string MainSiteApiBaseUrlConfigKey = "CHARITY_MAIN_SITE_API_BASE_URL";
+
+    public static string? ResolveMainSiteApiBaseUrl(IConfiguration configuration, IHostEnvironment environment)
+    {
+        var configured = configuration[MainSiteApiBaseUrlConfigKey]?.Trim();
+        if (string.IsNullOrWhiteSpace(configured))
+        {
+            return environment.IsDevelopment() ? "http://127.0.0.1:5299" : null;
+        }
+
+        return Uri.TryCreate(configured, UriKind.Absolute, out var uri) && uri.Scheme is "http" or "https"
+            ? configured.TrimEnd('/')
+            : null;
+    }
+
     /// <summary>建單後多久沒完成付款就視為逾時（分鐘；規劃書 §4.3 建議 30 分鐘）。</summary>
     public const string PaymentTimeoutMinutesConfigKey = "CHARITY_PAYMENT_TIMEOUT_MINUTES";
 

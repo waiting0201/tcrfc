@@ -408,3 +408,28 @@ export const listDiagnostics = (params: { type?: string; status?: string; platfo
 export const getDiagnostic = (id: string) => apiRequest<{ report: DiagnosticDto; detail: string | null }>(`${app}/diagnostics/${id}`)
 export const setDiagnosticStatus = (id: string, status: string) => apiRequest<DiagnosticDto>(`${app}/diagnostics/${id}/status`, { method: 'PUT', body: { status } })
 export const getDiagnosticSummary = (days = 7) => apiRequest<DiagnosticSummaryDto>(`${app}/diagnostics/summary${buildQuery({ days })}`)
+
+// ── 連結選擇器（稽核 docs/23 M-3／M-5）：先選「要前往哪裡」，需要對象時再挑對象；完整連結由伺服器組好 ──
+export interface LinkDestinationDto {
+  key: string
+  label: string
+  /** 有值＝不需要對象的完整連結 */
+  link: string | null
+  /** 有值＝還要挑一個對象（match／news／program／player／store） */
+  targetKind: string | null
+}
+export interface LinkTargetDto {
+  link: string
+  label: string
+  hint: string | null
+}
+export type LinkDescribeStatus = 'empty' | 'app' | 'web' | 'template' | 'unrecognized' | 'missing'
+export interface LinkDescriptionDto {
+  status: LinkDescribeStatus
+  destinationKey: string | null
+  targetLabel: string | null
+  message: string | null
+}
+export const listLinkDestinations = () => apiRequest<LinkDestinationDto[]>(`${app}/links/destinations`)
+export const searchLinkTargets = (kind: string, q?: string) => apiRequest<LinkTargetDto[]>(`${app}/links/targets${buildQuery({ kind, q })}`)
+export const describeLink = (link: string | null) => apiRequest<LinkDescriptionDto>(`${app}/links/describe`, { method: 'POST', body: { link } })

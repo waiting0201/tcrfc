@@ -64,7 +64,10 @@ const phone = ref('')
 const consent = ref(false)
 const website = ref('')
 
-const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('international_player_enquiry')
+// W-3：欄位題目照後台表單設計器的設定顯示。本頁是「英文主標籤＋中文副標籤」雙語並列，所以多取另一個語系的定義（bothLangs）：
+// fl(鍵, 退路, { lang: 'en' })＝英文主標籤、fl(鍵, 退路, { lang: 'zh' })＝中文副標籤；取不到或英文缺漏時用括號內的原寫死文字。
+// 場上位置、目前球隊、比賽層級（併入經歷送出）、電話／Email（合併成聯絡方式）不對應單一定義欄位，維持原樣。
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken, fieldLabel: fl } = useFormSubmit('international_player_enquiry', { bothLangs: true })
 
 async function onSubmit() {
   const background = [
@@ -124,17 +127,17 @@ async function onSubmit() {
           <legend>Player Information <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">球員基本資料</span></legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="ip-name">Full Name <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">姓名</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-name">{{ fl('name', 'Full Name', { lang: 'en' }) }} <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">{{ fl('name', '姓名', { lang: 'zh' }) }}</span><span class="req" aria-hidden="true">*</span></label>
               <input id="ip-name" v-model="fullName" type="text" name="full_name" required autocomplete="name" aria-describedby="ip-name-error">
               <p class="field-error" id="ip-name-error" role="alert">Please enter your full name</p>
             </div>
             <div class="form-field">
-              <label for="ip-nationality">Nationality <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">國籍</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-nationality">{{ fl('nationality', 'Nationality', { lang: 'en' }) }} <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">{{ fl('nationality', '國籍', { lang: 'zh' }) }}</span><span class="req" aria-hidden="true">*</span></label>
               <input id="ip-nationality" v-model="nationality" type="text" name="nationality" required autocomplete="country-name" aria-describedby="ip-nationality-error">
               <p class="field-error" id="ip-nationality-error" role="alert">Please enter your nationality</p>
             </div>
             <div class="form-field">
-              <label for="ip-passport">Passport Number <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">護照號碼（選填）</span></label>
+              <label for="ip-passport">{{ fl('passport_no', 'Passport Number', { lang: 'en' }) }} <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">{{ fl('passport_no', '護照號碼（選填）', { lang: 'zh', optional: true }) }}</span></label>
               <input id="ip-passport" v-model="passportNumber" type="text" name="passport_number" autocomplete="off" aria-describedby="ip-passport-hint">
               <p class="field-hint" id="ip-passport-hint">Optional at enquiry stage; may be requested later if we proceed with a trial or contract.</p>
             </div>
@@ -167,13 +170,13 @@ async function onSubmit() {
               <input id="ip-level" v-model="playingLevel" type="text" name="playing_level" placeholder="e.g. semi-professional, university league, national youth team">
             </div>
             <div class="form-field form-field--full">
-              <label for="ip-experience">Career Summary <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">足球經歷簡述</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-experience">{{ fl('experience', 'Career Summary', { lang: 'en' }) }} <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">{{ fl('experience', '足球經歷簡述', { lang: 'zh' }) }}</span><span class="req" aria-hidden="true">*</span></label>
               <textarea id="ip-experience" v-model="careerSummary" name="career_summary" required aria-describedby="ip-experience-hint ip-experience-error"></textarea>
               <p class="field-hint" id="ip-experience-hint">Clubs, leagues, honours or representative caps — a brief summary is enough.</p>
               <p class="field-error" id="ip-experience-error" role="alert">Please summarise your football career</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="ip-video">Video Highlight Link <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">影片連結</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-video">{{ fl('video_url', 'Video Highlight Link', { lang: 'en' }) }} <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">{{ fl('video_url', '影片連結', { lang: 'zh' }) }}</span><span class="req" aria-hidden="true">*</span></label>
               <input id="ip-video" v-model="videoUrl" type="url" name="video_url" required placeholder="https://" aria-describedby="ip-video-hint ip-video-error">
               <p class="field-hint" id="ip-video-hint">A publicly viewable link (YouTube, cloud drive, etc.) speeds up our evaluation.</p>
               <p class="field-error" id="ip-video-error" role="alert">Please provide a video link</p>
@@ -185,7 +188,7 @@ async function onSubmit() {
           <legend>Visa Status <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">簽證狀態</span></legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="ip-visa">Current Visa Status <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">簽證狀態</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-visa">{{ fl('visa_status', 'Current Visa Status', { lang: 'en' }) }} <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">{{ fl('visa_status', '簽證狀態', { lang: 'zh' }) }}</span><span class="req" aria-hidden="true">*</span></label>
               <select id="ip-visa" v-model="visaStatus" name="visa_status" required aria-describedby="ip-visa-error">
                 <option value="">Select</option>
                 <option value="not_in_taiwan">Not currently in Taiwan</option>

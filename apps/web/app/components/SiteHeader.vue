@@ -32,7 +32,7 @@ const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
 // 英文版（主站 /en/）改用英文識別；`getClubIdentityEn` 見 shared/utils/club-copy-en-core.ts。
 // 藍鯨英文版（B-5，2026-10-05）：`getClubIdentityEnFor` 依俱樂部回藍鯨／磐石英文識別。
-// C-2：社群／Email／頁尾簡介以後台值優先（useClubIdentity），後台未維護時沿用 club-copy 過渡值。
+// C-2：社群／Email／頁尾簡介以後台值為準（useClubIdentity）：後台清空就不顯示；只有 API 打不到時才沿用 club-copy 靜態值。
 const identity = useClubIdentity()
 // 導覽下拉的特色照片全是磐石（含未成年學員）——藍鯨站不輸出，只留按鈕（E-83、check-club-image-leak.mjs）。
 const isTcrfc = computed(() => club.value === 'tcrfc')

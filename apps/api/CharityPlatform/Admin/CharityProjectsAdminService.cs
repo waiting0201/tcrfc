@@ -86,7 +86,7 @@ public sealed class CharityProjectsAdminService(
         }
 
         await EnsureShareCompatibleWithStoresAsync(pct, cancellationToken);
-        var refs = await ResolveRefsAsync(request.CharityRefCode, request.CharityProgramRefCode, cancellationToken);
+        var refs = await ResolveRefsAsync(request.CharityRefCode, request.CharityProgramRefCode, keepCharityCode: null, keepProgramCode: null, cancellationToken);
 
         var slug = v.Slug ?? AdminInput.GenerateSlug("project", v.NameEn);
         if (await db.DonationProjects.AnyAsync(p => p.ProjectSlug == slug, cancellationToken))
@@ -146,7 +146,7 @@ public sealed class CharityProjectsAdminService(
         }
 
         await EnsureShareCompatibleWithStoresAsync(newPct, cancellationToken);
-        var refs = await ResolveRefsAsync(request.CharityRefCode, request.CharityProgramRefCode, cancellationToken);
+        var refs = await ResolveRefsAsync(request.CharityRefCode, request.CharityProgramRefCode, project.CharityRefCode, project.CharityProgramRefCode, cancellationToken);
 
         if (v.Slug is not null && v.Slug != project.ProjectSlug)
         {
@@ -344,14 +344,34 @@ public sealed class CharityProjectsAdminService(
         return true;
     }
 
-    /// <summary>撥付對象與慈善計畫的候選清單（唯讀複本，N2 下拉選單用）。</summary>
-    public async Task<AdminCharityRefOptionsDto> ListCharityRefsAsync(CharityAdminScope scope, CancellationToken cancellationToken)
+    /// <summary>
+    /// 撥付對象與慈善計畫的候選清單（唯讀複本，N2 下拉選單用）。<b>只列啟用中者</b>（主站已下架或刪除的不能再被新選）；
+    /// 帶 <paramref name="projectId"/> 時另外保留該項目目前選用的公益團體與慈善計畫（即使已停用，<c>IsActive</c> 為 false），
+    /// 讓編輯畫面仍能正確顯示既有選擇，也不會在儲存時被迫換掉。<c>LastSyncedAt</c> 是最近一次「從官網更新清單」的時間，從未同步為空。
+    /// </summary>
+    public async Task<AdminCharityRefOptionsDto> ListCharityRefsAsync(CharityAdminScope scope, Guid? projectId, CancellationToken cancellationToken)
     {
-        var charities = await db.CharityRefs.AsNoTracking().OrderBy(c => c.Name)
-            .Select(c => new AdminCharityRefDto(c.RefCode, c.Name)).ToListAsync(cancellationToken);
-        var programs = await db.CharityProgramRefs.AsNoTracking().OrderBy(c => c.Name)
-            .Select(c => new AdminCharityProgramRefDto(c.RefCode, c.Name, c.CharityRef.RefCode)).ToListAsync(cancellationToken);
-        return new AdminCharityRefOptionsDto(charities, programs);
+        string? keepCharity = null;
+        string? keepProgram = null;
+        if (projectId is { } pid)
+        {
+            var current = await db.DonationProjects.AsNoTracking().Where(p => p.Id == pid)
+                .Select(p => new { p.CharityRefCode, p.CharityProgramRefCode }).SingleOrDefaultAsync(cancellationToken);
+            keepCharity = current?.CharityRefCode;
+            keepProgram = current?.CharityProgramRefCode;
+        }
+
+        var charities = await db.CharityRefs.AsNoTracking()
+            .Where(c => c.IsActive || c.RefCode == keepCharity).OrderBy(c => c.Name)
+            .Select(c => new AdminCharityRefDto(c.RefCode, c.Name, c.NameEn, c.IsActive)).ToListAsync(cancellationToken);
+        var programs = await db.CharityProgramRefs.AsNoTracking()
+            .Where(c => c.IsActive || c.RefCode == keepProgram).OrderBy(c => c.Name)
+            .Select(c => new AdminCharityProgramRefDto(c.RefCode, c.Name, c.CharityRef.RefCode, c.NameEn, c.IsActive)).ToListAsync(cancellationToken);
+
+        var lastCharity = await db.CharityRefs.AsNoTracking().MaxAsync(c => c.LastSyncedAt, cancellationToken);
+        var lastProgram = await db.CharityProgramRefs.AsNoTracking().MaxAsync(c => c.LastSyncedAt, cancellationToken);
+        var last = lastCharity is null ? lastProgram : lastProgram is null ? lastCharity : lastCharity > lastProgram ? lastCharity : lastProgram;
+        return new AdminCharityRefOptionsDto(charities, programs, last);
     }
 
     // ───────────────────────────────────────────────────────────────────────
@@ -548,7 +568,10 @@ public sealed class CharityProjectsAdminService(
     /// 撥付對象與慈善計畫：只收參照碼，名稱從唯讀複本<b>值複製</b>進快照欄位（規劃書 §9.3、docs/16 §1）。
     /// 只選慈善計畫時，撥付對象自動帶出該計畫所屬的公益團體；兩者都選時必須一致。
     /// </summary>
-    private async Task<Refs> ResolveRefsAsync(string? charityCode, string? programCode, CancellationToken cancellationToken)
+    /// <param name="keepCharityCode">項目目前已選用的公益團體（編輯時）；即使已停用也允許原樣保留。新增時為空。</param>
+    /// <param name="keepProgramCode">項目目前已選用的慈善計畫（編輯時）；同上。</param>
+    private async Task<Refs> ResolveRefsAsync(
+        string? charityCode, string? programCode, string? keepCharityCode, string? keepProgramCode, CancellationToken cancellationToken)
     {
         charityCode = string.IsNullOrWhiteSpace(charityCode) ? null : charityCode.Trim();
         programCode = string.IsNullOrWhiteSpace(programCode) ? null : programCode.Trim();
@@ -560,7 +583,7 @@ public sealed class CharityProjectsAdminService(
         {
             var program = await db.CharityProgramRefs.AsNoTracking()
                 .Where(p => p.RefCode == programCode)
-                .Select(p => new { p.Name, CharityCode = p.CharityRef.RefCode, CharityName = p.CharityRef.Name })
+                .Select(p => new { p.Name, p.IsActive, CharityCode = p.CharityRef.RefCode, CharityName = p.CharityRef.Name })
                 .SingleOrDefaultAsync(cancellationToken)
                 ?? throw new AdminValidationException("找不到所選的慈善計畫，請重新選擇。", "charityProgramRefCode");
 
@@ -569,14 +592,26 @@ public sealed class CharityProjectsAdminService(
                 throw new AdminValidationException("所選的慈善計畫不屬於所選的受贈公益團體。", "charityProgramRefCode");
             }
 
+            // 主站已下架的計畫不能再被新選；已選用它的項目可以原樣保留（憑證與既有捐款都引用它的快照）。
+            if (!program.IsActive && programCode != keepProgramCode)
+            {
+                throw new AdminValidationException("所選的慈善計畫官網已不再公開，請重新選擇。", "charityProgramRefCode");
+            }
+
             charityCode = program.CharityCode;
             charityName = program.CharityName;
             programName = program.Name;
         }
         else if (charityCode is not null)
         {
-            charityName = await db.CharityRefs.AsNoTracking().Where(c => c.RefCode == charityCode).Select(c => c.Name).SingleOrDefaultAsync(cancellationToken)
+            var charity = await db.CharityRefs.AsNoTracking().Where(c => c.RefCode == charityCode).Select(c => new { c.Name, c.IsActive }).SingleOrDefaultAsync(cancellationToken)
                 ?? throw new AdminValidationException("找不到所選的受贈公益團體，請重新選擇。", "charityRefCode");
+            if (!charity.IsActive && charityCode != keepCharityCode)
+            {
+                throw new AdminValidationException("所選的受贈公益團體官網已不再公開，請重新選擇。", "charityRefCode");
+            }
+
+            charityName = charity.Name;
         }
 
         return new Refs(charityCode, charityName, programCode, programName);
@@ -654,8 +689,9 @@ public sealed class CharityProjectsAdminService(
     }
 }
 
-public sealed record AdminCharityRefDto(string RefCode, string Name);
+public sealed record AdminCharityRefDto(string RefCode, string Name, string? NameEn, bool IsActive);
 
-public sealed record AdminCharityProgramRefDto(string RefCode, string Name, string CharityRefCode);
+public sealed record AdminCharityProgramRefDto(string RefCode, string Name, string CharityRefCode, string? NameEn, bool IsActive);
 
-public sealed record AdminCharityRefOptionsDto(IReadOnlyList<AdminCharityRefDto> Charities, IReadOnlyList<AdminCharityProgramRefDto> Programs);
+public sealed record AdminCharityRefOptionsDto(
+    IReadOnlyList<AdminCharityRefDto> Charities, IReadOnlyList<AdminCharityProgramRefDto> Programs, DateTime? LastSyncedAt);

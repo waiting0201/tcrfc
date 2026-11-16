@@ -328,6 +328,12 @@ CREATE TABLE charity_refs (
         updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_charity_refs_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
+    -- K-2（2026-11-13）：由 N2「從官網更新清單」寫入。欄位附加在表尾，與既有庫 ALTER TABLE ADD 的欄位順序一致。
+    external_id    uniqueidentifier NULL,        -- 主站 charities.id（同步的對照鍵）；NULL＝同步機制之前的列（本機開發種子），同步不碰
+    name_en        nvarchar(128)    NULL,        -- 英文名稱；主站沒有英文時為空
+    is_active      bit              NOT NULL CONSTRAINT DF_charity_refs_is_active DEFAULT 1,  -- 主站下架或刪除→0（不刪列，既有項目與憑證引用其快照）
+    deactivated_at datetime2(3)     NULL,
+    last_synced_at datetime2(3)     NULL,
     CONSTRAINT PK_charity_refs PRIMARY KEY NONCLUSTERED (id),
     CONSTRAINT UQ_charity_refs_seq UNIQUE CLUSTERED (seq)
 );
@@ -344,6 +350,12 @@ CREATE TABLE charity_program_refs (
         updated_at  datetime2(3)     NOT NULL CONSTRAINT DF_charity_program_refs_updated_at DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
+    -- K-2：欄位語意同 charity_refs。
+    external_id    uniqueidentifier NULL,        -- 主站 charity_programs.id
+    name_en        nvarchar(128)    NULL,
+    is_active      bit              NOT NULL CONSTRAINT DF_charity_program_refs_is_active DEFAULT 1,
+    deactivated_at datetime2(3)     NULL,
+    last_synced_at datetime2(3)     NULL,
     CONSTRAINT PK_charity_program_refs PRIMARY KEY NONCLUSTERED (id),
     CONSTRAINT UQ_charity_program_refs_seq UNIQUE CLUSTERED (seq)
 );
@@ -762,6 +774,13 @@ ALTER TABLE donation_projects ADD CONSTRAINT UQ_donation_projects_slug UNIQUE (p
 ALTER TABLE donations         ADD CONSTRAINT UQ_donations_order_no     UNIQUE (order_no);
 ALTER TABLE charity_refs         ADD CONSTRAINT UQ_charity_refs_code         UNIQUE (ref_code);
 ALTER TABLE charity_program_refs ADD CONSTRAINT UQ_charity_program_refs_code UNIQUE (ref_code);
+-- K-2：同步的對照鍵。僅非空者唯一（同步機制之前的列 external_id 為空，不互相衝突）。
+CREATE UNIQUE NONCLUSTERED INDEX UX_charity_refs_external_id
+    ON charity_refs (external_id)
+    WHERE external_id IS NOT NULL;
+CREATE UNIQUE NONCLUSTERED INDEX UX_charity_program_refs_external_id
+    ON charity_program_refs (external_id)
+    WHERE external_id IS NOT NULL;
 ALTER TABLE admin_users   ADD CONSTRAINT UQ_admin_users_username UNIQUE (username);  -- email 不設唯一
 ALTER TABLE admin_roles   ADD CONSTRAINT UQ_admin_roles_code     UNIQUE (code);
 ALTER TABLE permissions   ADD CONSTRAINT UQ_permissions_code     UNIQUE (code);

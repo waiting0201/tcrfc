@@ -54,13 +54,17 @@ async function buildDefaultsEn(club: string): Promise<{ positioning: string, fac
     // 打不到後端：只用靜態英文快照。
   }
   const founded = enOnly(api?.foundedDisplay) ?? snapshot.foundedDisplayEn
-  const title = enOnly(api?.foundingTitle) ?? snapshot.foundingTitleEn
+  // API 成功但沒有頭銜／梯隊敘述＝省略該行（不回頭用靜態快照）；只有 API 打不到或只缺英文值才用快照。
+  const apiOk = !!api
+  const title = apiOk && !api.foundingTitle?.trim() ? null : (enOnly(api?.foundingTitle) ?? snapshot.foundingTitleEn)
   const league = enOnly(api?.league?.name) ?? snapshot.league.nameEn
   // 主場可能不只一個（藍鯨：太原足球場、豐原體育場），全部列出；API 沒有英文值時退回快照。
   const apiHomes = (api?.venues ?? []).filter((v) => v.isHomeGround).map((v) => enOnly(v.name)).filter((v): v is string => !!v)
   const snapHomes = snapshot.venues.filter((v) => v.isHomeGround).map((v) => v.nameEn).filter((v): v is string => !!v)
-  const venue = (apiHomes.length > 0 ? apiHomes : snapHomes).join(' and ') || null
-  const squads = enOnly(api?.squadStructureSummary) ?? snapshot.squadStructureEn
+  // API 成功且場地清單為空＝目前沒有任何場地，省略主場那一行；只有 API 打不到（或有場地但缺英文名）才退回快照。
+  const apiHasNoVenues = !!api && Array.isArray(api.venues) && api.venues.length === 0
+  const venue = (apiHomes.length > 0 ? apiHomes : apiHasNoVenues ? [] : snapHomes).join(' and ') || null
+  const squads = apiOk && !api.squadStructureSummary?.trim() ? null : (enOnly(api?.squadStructureSummary) ?? snapshot.squadStructureEn)
 
   const positioning = club === 'bw'
     ? `${BW_FULL_NAME_EN} is a women's football club in Taichung, Taiwan, with a First Team and Youth teams (U15 and U12 girls' teams). `

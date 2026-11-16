@@ -115,7 +115,7 @@ public sealed class CharityPublicCatalog(CharityDbContext db, ICharityImageStora
                 CoverUrl = imageUrls.Resolve(x.Row.CoverKey),
                 CoverAlt = RequestLocale.Pick(x.Row.Requested?.CoverAlt, x.Row.Default?.CoverAlt),
                 SortOrder = x.Row.SortOrder,
-                IsFallback = dbLocale != RequestLocale.DefaultDbLocale && string.IsNullOrWhiteSpace(x.Row.Requested?.Name),
+                IsFallback = CharityLocaleFallback.IsMissingTranslation(dbLocale, x.Row.Requested?.Name, x.Row.Default?.Name),
             })
             .ToList();
     }
@@ -131,6 +131,7 @@ public sealed class CharityPublicCatalog(CharityDbContext db, ICharityImageStora
                 p.MinAmount,
                 p.MaxAmount,
                 p.InvoiceMode,
+                p.CharityRefCode,
                 p.CharityNameSnapshot,
                 p.CharityProgramNameSnapshot,
                 p.CharityProgramRefCode,
@@ -154,6 +155,8 @@ public sealed class CharityPublicCatalog(CharityDbContext db, ICharityImageStora
         }
 
         var (defaultMin, defaultMax) = await GetDefaultAmountRangeAsync(cancellationToken);
+        var refNames = await CharityLocaleFallback.ResolveRefNamesAsync(
+            db, dbLocale, row.CharityRefCode, row.CharityNameSnapshot, row.CharityProgramRefCode, row.CharityProgramNameSnapshot, cancellationToken);
 
         return new PublicProjectDetailDto
         {
@@ -168,10 +171,10 @@ public sealed class CharityPublicCatalog(CharityDbContext db, ICharityImageStora
             MinAmount = row.MinAmount ?? defaultMin,
             MaxAmount = row.MaxAmount ?? defaultMax,
             InvoiceMode = row.InvoiceMode,
-            CharityName = row.CharityNameSnapshot,
-            CharityProgramName = row.CharityProgramNameSnapshot,
+            CharityName = refNames.CharityName,
+            CharityProgramName = refNames.ProgramName,
             CharityProgramRefCode = row.CharityProgramRefCode,
-            IsFallback = dbLocale != RequestLocale.DefaultDbLocale && string.IsNullOrWhiteSpace(row.Requested?.Name),
+            IsFallback = CharityLocaleFallback.IsMissingTranslation(dbLocale, row.Requested?.Name, row.Default?.Name) || refNames.IsFallback,
         };
     }
 

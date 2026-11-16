@@ -29,14 +29,14 @@ const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
-const identity = computed(() => getClubIdentity(clubKey.value))
+const identity = useClubIdentity()
 
 const classesBw = computed(() => (isEn.value ? CHILDRENS_TRAINING_CLASSES_BW_EN : CHILDRENS_TRAINING_CLASSES_BW))
 // BW-C1：改讀 useSiteFacts(clubKey)（後端公開端點），不再固定讀 tcrfc。
 const { primaryVenue } = useSiteFacts(clubKey.value)
 // C-6／S2-13：英文版場地名取後端 en 回應的 nameEn，沒有就退回中文名（不自行音譯）。
 // 藍鯨英文：後端 en 回應沒有場地英文名時，用規劃書英文版既有寫法（Taichung Beitun Taiyuan Football Field），不退回中文。
-const factsVenueName = computed(() => (isEn.value ? (primaryVenue.value.nameEn ?? (isTcrfc.value ? null : BW_PRIMARY_VENUE_EN_FALLBACK)) : null) ?? primaryVenue.value.nameZh)
+const factsVenueName = computed(() => (primaryVenue.value ? ((isEn.value ? (primaryVenue.value.nameEn ?? (isTcrfc.value ? null : BW_PRIMARY_VENUE_EN_FALLBACK)) : null) ?? primaryVenue.value.nameZh) : null))
 // C-7（2026-10-06）：主要場地優先讀公開場地 API（I5 場地管理，主場 `isHome`），API 失敗或沒有場地才回退站台事實常數。
 const { venues } = await usePublicVenues()
 const homeVenue = computed(() => venues.value.find((v) => v.isHome) ?? venues.value[0] ?? null)
@@ -174,9 +174,10 @@ useCourseSchema(
       <div class="prose">
         <h2>{{ tx('訓練地點', 'Training Venue') }}</h2>
         <p v-if="isTcrfc">{{ tx('兒童足球訓練主要於台中磐石主場地舉行，實際梯次場地將於報名頁面標示。', 'Children\'s Training is held mainly at the Taichung Rock FC home ground. The venue for each session will be shown on the registration page.') }}</p>
-        <p v-else>{{ isEn ? `Classes are mainly held at ${venueName}. The actual venue for each session follows the announcement.` : `課程主要於${venueName}舉行，實際梯次場地將依公告為準。` }}</p>
+        <p v-else-if="venueName">{{ isEn ? `Classes are mainly held at ${venueName}. The actual venue for each session follows the announcement.` : `課程主要於${venueName}舉行，實際梯次場地將依公告為準。` }}</p>
+        <p v-else>{{ tx('實際梯次場地將依公告為準。', 'The venue for each session follows the announcement.') }}</p>
       </div>
-      <div class="fact-panel">
+      <div v-if="venueName" class="fact-panel">
         <dl style="margin:0;">
           <dt>{{ tx('主要場地', 'Main venue') }}</dt>
           <dd>{{ venueName }}</dd>
@@ -184,12 +185,12 @@ useCourseSchema(
             <dt>{{ tx('地址', 'Address') }}</dt>
             <dd>{{ homeVenue.address }}</dd>
           </template>
-          <template v-else-if="primaryVenue.address">
+          <template v-else-if="primaryVenue?.address">
             <dt>{{ tx('地址', 'Address') }}</dt>
             <dd v-if="isEn"><span lang="zh-Hant">{{ primaryVenue.address }}</span></dd>
             <dd v-else>{{ primaryVenue.address }}</dd>
           </template>
-          <template v-if="venueMapUrl || isTcrfc">
+          <template v-if="venueMapUrl || (isTcrfc && primaryVenue)">
             <dt>{{ tx('地圖', 'Map') }}</dt>
             <dd><a :href="venueMapUrl ?? 'https://www.google.com/maps/search/?api=1&query=%E8%A5%BF%E5%B1%AF%E8%B6%B3%E7%90%83%E5%A0%B4%20%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B7%2011%20%E5%BC%84%2041%20%E8%99%9F'" target="_blank" rel="noopener">{{ tx('在 Google 地圖開啟', 'Open in Google Maps') }} <span class="visually-hidden">{{ tx('（新分頁開啟）', '(opens in a new tab)') }}</span></a></dd>
           </template>
@@ -204,7 +205,7 @@ useCourseSchema(
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2>{{ tx('週期課表', 'Weekly Timetable') }}</h2>
-      <p v-if="sessions.length === 0">{{ tx('梯次尚未開放報名，時段與適合分級將於後台建立梯次後自動顯示於本頁。', 'Sessions are not open for registration yet. Schedules and suitable levels will appear on this page automatically once sessions are created.') }}</p>
+      <p v-if="sessions.length === 0">{{ tx('梯次尚未開放報名，時段與適合分級將於梯次建立後顯示於本頁。', 'Sessions are not open for registration yet. Schedules and suitable levels will appear on this page once sessions are created.') }}</p>
       <p v-else>{{ tx('目前開放中的梯次如下，時段為每週固定上課時間，實際場地請以梯次公告為準。', 'The sessions currently open are listed below. Times are the fixed weekly class times; please refer to the session notice for the actual venue.') }}</p>
     </div>
     <div class="table-wrap">
@@ -217,7 +218,7 @@ useCourseSchema(
           <tr v-for="s in sessions" :key="s.id">
             <td>{{ formatSchedule(s.weeklySchedule) }}<span v-if="s.programName" class="session-program">{{ s.programName }}</span></td>
             <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }}{{ tx(' 人', ' enrolled') }}</td>
-            <td>{{ s.venueName ?? venueName }}</td>
+            <td>{{ s.venueName ?? venueName ?? '—' }}</td>
           </tr>
         </tbody>
       </table>

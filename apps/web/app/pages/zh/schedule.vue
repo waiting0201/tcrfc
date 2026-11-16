@@ -790,7 +790,7 @@ const emptyDesc = computed(() => {
   if (state.mode === 'results') return `本季（${seasonLabel.value}）尚未有已完成的賽事，賽果會在比賽結束後更新。`
   // 一線隊（D1／BW1）與「全部」皆已有真實賽事資料，其餘（各梯隊）尚無賽程可用。
   if (state.team !== 'all' && state.team !== firstTeamCode.value) {
-    return `${teamHeadLabel(state.team)}的賽程資料尚未提供，待客戶提供各梯隊賽程表後將更新於本頁。`
+    return `${teamHeadLabel(state.team)}的賽程尚未公布，賽程確定後將更新於本頁。`
   }
   return '此隊別、賽事類型或主客場組合目前尚無排定賽事。'
 })

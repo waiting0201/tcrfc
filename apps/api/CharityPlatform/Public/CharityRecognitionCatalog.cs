@@ -79,6 +79,24 @@ public sealed class CharityRecognitionCatalog(CharityDbContext db, ICharityImage
             })
             .ToListAsync(cancellationToken);
 
+        // 英文：撥付對象與慈善計畫名稱改用唯讀複本的英文名稱（K-3）；複本沒有英文就回退快照（中文）並標示語系提示。憑證上的名稱仍是快照。
+        var charityEn = new Dictionary<string, string>(StringComparer.Ordinal);
+        var programEn = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (dbLocale != RequestLocale.DefaultDbLocale)
+        {
+            var charityCodes = rows.Select(r => r.CharityRefCode).Where(c => c != null).Distinct().ToList();
+            var programCodes = rows.Select(r => r.CharityProgramRefCode).Where(c => c != null).Distinct().ToList();
+            foreach (var c in await db.CharityRefs.AsNoTracking().Where(c => charityCodes.Contains(c.RefCode) && c.NameEn != null).Select(c => new { c.RefCode, c.NameEn }).ToListAsync(cancellationToken))
+            {
+                charityEn[c.RefCode] = c.NameEn!;
+            }
+
+            foreach (var c in await db.CharityProgramRefs.AsNoTracking().Where(c => programCodes.Contains(c.RefCode) && c.NameEn != null).Select(c => new { c.RefCode, c.NameEn }).ToListAsync(cancellationToken))
+            {
+                programEn[c.RefCode] = c.NameEn!;
+            }
+        }
+
         var fallback = false;
         var groups = rows
             .Select(r => new { Row = r, Name = RequestLocale.Pick(r.Requested?.Name, r.Default?.Name) })
@@ -87,14 +105,29 @@ public sealed class CharityRecognitionCatalog(CharityDbContext db, ICharityImage
             .Select(g =>
             {
                 var first = g.First().Row;
+                var programName = first.CharityProgramNameSnapshot;
+                var charityName = first.CharityNameSnapshot;
+                if (dbLocale != RequestLocale.DefaultDbLocale)
+                {
+                    if (!string.IsNullOrWhiteSpace(programName))
+                    {
+                        if (first.CharityProgramRefCode is { } pc && programEn.TryGetValue(pc, out var pen)) { programName = pen; } else { fallback = true; }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(charityName))
+                    {
+                        if (first.CharityRefCode is { } cc && charityEn.TryGetValue(cc, out var cen)) { charityName = cen; } else { fallback = true; }
+                    }
+                }
+
                 return new PublicImpactProgramDto
                 {
                     ProgramRefCode = first.CharityProgramRefCode,
-                    ProgramName = first.CharityProgramNameSnapshot,
-                    CharityName = first.CharityNameSnapshot,
+                    ProgramName = programName,
+                    CharityName = charityName,
                     Projects = g.Select(x =>
                     {
-                        if (dbLocale != RequestLocale.DefaultDbLocale && string.IsNullOrWhiteSpace(x.Row.Requested?.Name))
+                        if (CharityLocaleFallback.IsMissingTranslation(dbLocale, x.Row.Requested?.Name, x.Row.Default?.Name))
                         {
                             fallback = true;
                         }

@@ -34,6 +34,7 @@ import {
   type AdminFormFieldDto,
 } from '@/api/adminForms'
 import { AdminApiError } from '@/api/http'
+import { buildOptionLabelsZhPayload, initialOptionLabelsZh } from '@/utils/formOptionLabels'
 import { formCodeLabel, isFormFieldsLocked, FIELD_TYPE_ORDER, FIELD_TYPE_LABEL, FIELD_TYPES_REQUIRING_OPTIONS, type FormFieldTypeCode } from '@/types/forms'
 
 const route = useRoute()
@@ -171,8 +172,12 @@ const fieldForm = reactive({
   /** 與 `options` 同順序、同筆數的英文顯示文字，方便逐項對照編輯——送出前由
    * `buildOptionLabelsEnPayload()` 決定要不要真的送出（見該函式說明：要嘛全部填、要嘛全部留空）。 */
   optionLabelsEn: [] as string[],
+  /** 與 `options` 同順序的中文顯示文字，預設值是送出值本身；儲存時由 `buildOptionLabelsZhPayload()` 判斷要送什麼。 */
+  optionLabelsZh: [] as string[],
   isSummary: false,
 })
+/** 開啟對話框時後端回的中文顯示文字原值（`null`＝沒設定），拿來判斷「有沒有動過」。 */
+const savedOptionLabelsZh = ref<string[] | null>(null)
 const newOptionText = ref('')
 
 const fieldNeedsOptions = computed(() => FIELD_TYPES_REQUIRING_OPTIONS.has(fieldForm.fieldType))
@@ -188,6 +193,8 @@ function openCreateFieldDialog() {
   fieldForm.validationRule = ''
   fieldForm.options = []
   fieldForm.optionLabelsEn = []
+  fieldForm.optionLabelsZh = []
+  savedOptionLabelsZh.value = null
   fieldForm.isSummary = false
   newOptionText.value = ''
   fieldDialogError.value = null
@@ -206,6 +213,8 @@ function openEditFieldDialog(field: AdminFormFieldDto) {
   fieldForm.validationRule = field.validationRule ?? ''
   fieldForm.options = field.options ? [...field.options] : []
   fieldForm.optionLabelsEn = field.options ? field.options.map((_, i) => field.optionLabelsEn?.[i] ?? '') : []
+  fieldForm.optionLabelsZh = initialOptionLabelsZh(field.options ?? [], field.optionLabelsZh)
+  savedOptionLabelsZh.value = field.optionLabelsZh ?? null
   fieldForm.isSummary = field.isSummary
   newOptionText.value = ''
   fieldDialogError.value = null
@@ -222,6 +231,7 @@ function addOption() {
   }
   fieldForm.options.push(value)
   fieldForm.optionLabelsEn.push('')
+  fieldForm.optionLabelsZh.push(value)
   newOptionText.value = ''
   formErrors.clear('options')
 }
@@ -229,6 +239,7 @@ function addOption() {
 function removeOption(index: number) {
   fieldForm.options.splice(index, 1)
   fieldForm.optionLabelsEn.splice(index, 1)
+  fieldForm.optionLabelsZh.splice(index, 1)
   formErrors.clear('options')
 }
 
@@ -241,6 +252,24 @@ function buildOptionLabelsEnPayload(): string[] | null {
   return trimmed
 }
 
+const OPTION_LABEL_MAX_LENGTH = 255
+
+/** 選項顯示文字的檢查（鎖定與否共用）。中文留空＝顯示送出值，不算錯；英文要嘛全填、要嘛整組留空。 */
+function validateOptionLabels(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (fieldForm.optionLabelsZh.some((v) => v.trim().length > OPTION_LABEL_MAX_LENGTH)) {
+    errors.optionLabelsZh = `選項的中文顯示文字每一項最多 ${OPTION_LABEL_MAX_LENGTH} 字`
+  }
+  const en = fieldForm.optionLabelsEn.map((v) => v.trim())
+  const filledCount = en.filter(Boolean).length
+  if (filledCount > 0 && filledCount < en.length) {
+    errors.optionLabelsEn = '選項的英文顯示文字要嘛每一項都填，要嘛整組留空（尚未翻譯），不能只填一部分'
+  } else if (en.some((v) => v.length > OPTION_LABEL_MAX_LENGTH)) {
+    errors.optionLabelsEn = `選項的英文顯示文字每一項最多 ${OPTION_LABEL_MAX_LENGTH} 字`
+  }
+  return errors
+}
+
 const FIELD_KEY_PATTERN = /^[a-z][a-z0-9_]{0,63}$/
 
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
@@ -249,10 +278,7 @@ function validateFieldForm(): Record<string, string> {
   if (fieldsLocked.value) {
     // 鎖定表單只能改題目文字與選項英文顯示文字；結構欄位唯讀、不檢查
     if (!fieldForm.labelZh.trim()) errors.labelZh = '題目文字（中文）為必填欄位'
-    const filledCount = fieldForm.optionLabelsEn.filter((v) => v.trim()).length
-    if (filledCount > 0 && filledCount < fieldForm.optionLabelsEn.length) {
-      errors.optionLabelsEn = '選項的英文顯示文字要嘛每一項都填，要嘛整組留空（尚未翻譯），不能只填一部分'
-    }
+    Object.assign(errors, validateOptionLabels())
     return errors
   }
   if (!FIELD_KEY_PATTERN.test(fieldForm.fieldKey)) {
@@ -267,10 +293,7 @@ function validateFieldForm(): Record<string, string> {
   if (fieldNeedsOptions.value) {
     if (fieldForm.options.length === 0) errors.options = '下拉或多選欄位至少要有一個選項'
     else {
-      const filledCount = fieldForm.optionLabelsEn.filter((v) => v.trim()).length
-      if (filledCount > 0 && filledCount < fieldForm.optionLabelsEn.length) {
-        errors.optionLabelsEn = '選項的英文顯示文字要嘛每一項都填，要嘛整組留空（尚未翻譯），不能只填一部分'
-      }
+      Object.assign(errors, validateOptionLabels())
     }
   }
   return errors
@@ -295,6 +318,7 @@ async function submitFieldDialog() {
           isRequired: original.isRequired,
           validationRule: original.validationRule ?? null,
           options: original.options ?? null,
+          optionLabelsZh: buildOptionLabelsZhPayload(original.options ?? [], savedOptionLabelsZh.value, fieldForm.optionLabelsZh),
           optionLabelsEn: buildOptionLabelsEnPayload(),
           isSummary: fieldForm.isSummary,
         }
@@ -306,6 +330,9 @@ async function submitFieldDialog() {
           isRequired: fieldForm.isRequired,
           validationRule: fieldForm.validationRule.trim() || null,
           options: fieldNeedsOptions.value ? fieldForm.options : null,
+          optionLabelsZh: fieldNeedsOptions.value
+            ? buildOptionLabelsZhPayload(fieldForm.options, savedOptionLabelsZh.value, fieldForm.optionLabelsZh)
+            : undefined,
           optionLabelsEn: buildOptionLabelsEnPayload(),
           isSummary: fieldForm.isSummary,
         }
@@ -372,6 +399,7 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
       isRequired: a.isRequired,
       validationRule: a.validationRule ?? null,
       options: a.options ?? null,
+      // optionLabelsZh 故意不帶：省略＝後端保留現值（調整排序不該動到顯示文字）
       optionLabelsEn: a.optionLabelsEn ?? null,
       isSummary: a.isSummary,
       sortOrder: b.sortOrder,
@@ -466,7 +494,7 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
                 <FormSection title="表單欄位">
                   <el-alert
                     v-if="fieldsLocked"
-                    title="這張表單的欄位由網站固定，只能修改題目文字與通知設定"
+                    title="這張表單要填哪些欄位、哪些必填由網站固定，不能新增或刪除；你可以修改題目文字與選項的顯示文字，儲存後官網上的表單會跟著變"
                     type="info"
                     show-icon
                     :closable="false"
@@ -563,7 +591,7 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
       <el-alert v-if="fieldDialogError" :title="fieldDialogError" type="warning" show-icon class="form-edit__dialog-error" />
       <el-alert
         v-if="fieldsLocked"
-        title="這張表單的欄位由網站固定，只能修改題目文字與通知設定；欄位代碼、型別、必填與選項內容不能更動。"
+        title="這張表單要填哪些欄位、哪些必填由網站固定；你可以修改題目文字與選項的顯示文字，儲存後官網上的表單會跟著變。欄位代碼、型別、必填與選項的實際內容不能更動。"
         type="info"
         show-icon
         :closable="false"
@@ -584,6 +612,9 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
             @update:zh="(v) => (fieldForm.labelZh = v)"
             @update:en="(v) => (fieldForm.labelEn = v)"
           />
+          <p class="form-edit__hint form-edit__hint--field">
+            頁面上有些欄位會自動加上「（選填）」，題目文字不用自己寫。
+          </p>
           <FormField field="fieldType" label="欄位型別" required>
             <el-select v-model="fieldForm.fieldType" :disabled="fieldsLocked" style="width: 100%">
               <el-option v-for="t in FIELD_TYPE_ORDER" :key="t" :label="FIELD_TYPE_LABEL[t]" :value="t" />
@@ -595,16 +626,38 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
           <el-form-item label="是否必填">
             <el-switch v-model="fieldForm.isRequired" :disabled="fieldsLocked" />
           </el-form-item>
-          <FormField v-if="fieldNeedsOptions" field="options" label="選項清單（下拉／多選必填，至少一項；英文顯示文字選填，要嘛全部填、要嘛全部留空）">
+          <FormField v-if="fieldNeedsOptions" field="options" label="選項清單（下拉／多選必填，至少一項）">
             <div>
+              <p v-if="fieldForm.options.length > 0" class="form-edit__hint form-edit__hint--field">
+                「選項內容」是訪客選了之後，收件匣、通知信與匯出裡看到的內容，不能修改；「前台顯示文字」是官網表單上實際顯示給訪客看的字，中文預設與選項內容相同，可以自行修改。英文顯示文字要嘛每一項都填，要嘛整組留空（尚未翻譯）。
+              </p>
               <FormField v-if="fieldForm.options.length > 0" field="optionLabelsEn" style="margin-bottom: 8px">
-                <div class="form-edit__option-rows">
-                  <div v-for="(opt, index) in fieldForm.options" :key="opt" class="form-edit__option-row">
-                    <span class="form-edit__option-row-zh">{{ opt }}</span>
-                    <el-input v-model="fieldForm.optionLabelsEn[index]" placeholder="英文顯示文字（選填）" />
-                    <el-button v-if="!fieldsLocked" text type="danger" @click="removeOption(index)">刪除</el-button>
+                <FormField field="optionLabelsZh">
+                  <div class="form-edit__option-rows">
+                    <div class="form-edit__option-row form-edit__option-row--head" aria-hidden="true">
+                      <span class="form-edit__option-row-value">選項內容（不能修改）</span>
+                      <span class="form-edit__option-row-input">前台顯示文字（中文）</span>
+                      <span class="form-edit__option-row-input">前台顯示文字（英文）</span>
+                      <span v-if="!fieldsLocked" class="form-edit__option-row-action" />
+                    </div>
+                    <div v-for="(opt, index) in fieldForm.options" :key="opt" class="form-edit__option-row">
+                      <span class="form-edit__option-row-value" :title="opt">{{ opt }}</span>
+                      <el-input
+                        v-model="fieldForm.optionLabelsZh[index]"
+                        class="form-edit__option-row-input"
+                        :aria-label="`選項「${opt}」的前台顯示文字（中文）`"
+                        :placeholder="opt"
+                      />
+                      <el-input
+                        v-model="fieldForm.optionLabelsEn[index]"
+                        class="form-edit__option-row-input"
+                        :aria-label="`選項「${opt}」的前台顯示文字（英文）`"
+                        placeholder="英文顯示文字（選填）"
+                      />
+                      <el-button v-if="!fieldsLocked" class="form-edit__option-row-action" text type="danger" @click="removeOption(index)">刪除</el-button>
+                    </div>
                   </div>
-                </div>
+                </FormField>
               </FormField>
               <div v-if="!fieldsLocked" class="form-edit__option-add">
                 <el-input v-model="newOptionText" placeholder="輸入選項內容（中文）後按新增" @keyup.enter="addOption" />
@@ -683,11 +736,38 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
   gap: 8px;
 }
 
-.form-edit__option-row-zh {
-  flex: 0 0 140px;
+.form-edit__option-row--head {
+  font-size: 12px;
+  color: var(--admin-text-tertiary);
+}
+
+/* 唯讀的選項內容：用淡底與等寬欄位和可編輯的輸入框區隔，一眼看得出不能改 */
+.form-edit__option-row-value {
+  flex: 0 0 120px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--admin-text-secondary, inherit);
+}
+
+.form-edit__option-row:not(.form-edit__option-row--head) .form-edit__option-row-value {
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--el-fill-color-light);
+}
+
+.form-edit__option-row-input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.form-edit__option-row-action {
+  flex: 0 0 56px;
+}
+
+.form-edit__hint--field {
+  margin: 0 0 8px;
 }
 
 .form-edit__option-add {

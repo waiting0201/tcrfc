@@ -338,7 +338,7 @@ def check_openapi(doc) -> None:
     if not str(doc.get("openapi", "")).startswith("3.1"):
         fail(f"openapi.json：必須是 OpenAPI 3.1.x，目前 {doc.get('openapi')}")
     for p in doc["paths"]:
-        if p.startswith("/api/v1/admin") or p.startswith("/api/v1/donation-platform") or p == "/api/membership/activate":
+        if p.startswith("/api/v1/admin") or p.startswith("/api/v1/donation-platform") or p == "/api/v1/{club}/charity/directory" or p == "/api/membership/activate":
             fail(f"openapi.json：不應包含 {p}（後台／慈善／伺服器內部端點不給 App）")
     schemas = doc["components"]["schemas"]
     refs = set(re.findall(r'"\$ref":\s*"#/components/schemas/([^"]+)"', json.dumps(doc)))

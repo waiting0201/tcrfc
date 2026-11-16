@@ -1,6 +1,6 @@
-#sha256	1ab0eb08da38fc98beb95ab0fefbef7b8d36817b38b677c13fe3f5b7d3a4b5f1
-achievements	3
-achievements_i18n	6
+#sha256	6c69b2db42ba2975377cda602dc43aa896c07ed6c58fc6c4e05b16b49d0a3e66
+achievements	4
+achievements_i18n	8
 ad_campaigns	2
 ad_creatives	1
 ad_daily_stats	28
@@ -70,8 +70,8 @@ pages	23
 pages_i18n	46
 partner_stores	6
 partner_stores_i18n	12
-partners	31
-partners_i18n	44
+partners	39
+partners_i18n	60
 players	56
 players_i18n	90
 press_resources	3
@@ -91,8 +91,8 @@ settings_i18n	75
 sponsor_activations	2
 sponsor_activations_i18n	4
 sponsor_package_links	4
-sponsor_packages	9
-sponsor_packages_i18n	18
+sponsor_packages	17
+sponsor_packages_i18n	34
 sponsors	3
 sponsors_i18n	6
 staff	13

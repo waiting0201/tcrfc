@@ -35,7 +35,11 @@ useSeoMeta({
   description: computed(() => (isEn.value ? (!isTcrfc.value ? seoEnBw.description : 'Talk to Taichung Rock FC about partnership or sponsorship. Complete one form with your company details, partnership direction or the sponsorship packages you are interested in, and your budget range, and our Partnerships Department will be in touch.') : `與${clubAssets.value.nameZh}洽談合作或贊助。一份表單填寫公司資料、合作方向或感興趣的贊助方案與預算區間，商務部將盡快與你聯繫。`)),
 })
 
-const ENQUIRY_TYPE_MAP: Record<string, string> = { partnership: '合作夥伴', sponsorship: '贊助', both: '兩者' }
+// W-3／W-24：洽詢類型的選項清單由後台表單設計器的定義產生（value＝後端選項送出值、label＝顯示文字），
+// 不再自己維護「頁面代碼 → 後端選項值」對照表。下面是定義取不到、或英文缺漏時的退路；value 必須是後端
+// enquiry_type 的選項字面值（db/seed/generate-club-seed-sql.py），由 npm run lint:form-definition 檢查。
+// 產業別、預算區間在定義裡是 text 型別（沒有選項清單），其選項與下方「合作方向／贊助方案」勾選項（組合後併入
+// cooperation_direction／sponsorship_interest 文字送出，W-18 另案）都是頁面自己的，維持原樣。
 const INDUSTRY_LABELS: Record<string, string> = {
   brand: '品牌／零售', education: '教育', tech: '科技', media: '媒體／娛樂', finance: '金融／保險',
   sports: '運動產業', public: '政府／公益機構', other: '其他',
@@ -65,14 +69,20 @@ const proposal = ref('')
 const consent = ref(false)
 const website = ref('')
 
-const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('partnership_sponsorship')
+// fl＝fieldLabel：欄位題目照後台設定顯示（取不到或英文缺漏時用括號內的原寫死文字）。
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken, fieldLabel: fl, fieldOptions } = useFormSubmit('partnership_sponsorship')
+const enquiryTypeOptions = computed(() => fieldOptions('enquiry_type', [
+  { value: '合作夥伴', label: tx('合作夥伴關係', 'A partnership') },
+  { value: '贊助', label: tx('贊助方案', 'A sponsorship package') },
+  { value: '兩者', label: tx('兩者都想了解', 'Both') },
+]))
 
 async function onSubmit() {
   const directionLabels = direction.value.map((v) => DIRECTION_LABELS[v] ?? v)
   const planLabels = plan.value.map((v) => PLAN_LABEL_MAP.value[v] ?? v)
 
   await submit({
-    enquiry_type: ENQUIRY_TYPE_MAP[enquiryType.value] ?? enquiryType.value,
+    enquiry_type: enquiryType.value, // 選項值本身就是後端送出值（見上方 enquiryTypeOptions）
     company: companyName.value,
     industry: INDUSTRY_LABELS[industry.value] ?? industry.value,
     budget_range: BUDGET_LABELS[budgetRange.value] ?? budgetRange.value,
@@ -123,12 +133,10 @@ async function onSubmit() {
           <legend>{{ tx('洽詢類型', 'Enquiry type') }}</legend>
           <div class="form-grid">
             <div class="form-field form-field--full">
-              <label for="pn-type">{{ tx('這次想洽詢的是', 'This enquiry is about') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="pn-type">{{ fl('enquiry_type', tx('這次想洽詢的是', 'This enquiry is about')) }}<span class="req" aria-hidden="true">*</span></label>
               <select id="pn-type" v-model="enquiryType" name="enquiry_type" required aria-describedby="pn-type-error pn-type-hint">
                 <option value="">{{ tx('請選擇', 'Please select') }}</option>
-                <option value="partnership">{{ tx('合作夥伴關係', 'A partnership') }}</option>
-                <option value="sponsorship">{{ tx('贊助方案', 'A sponsorship package') }}</option>
-                <option value="both">{{ tx('兩者都想了解', 'Both') }}</option>
+                <option v-for="o in enquiryTypeOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
               </select>
               <p class="field-error" id="pn-type-error" role="alert">{{ tx('請選擇洽詢類型', 'Please select an enquiry type') }}</p>
               <p class="field-hint" id="pn-type-hint">{{ tx('合作夥伴偏向長期資源互換與共同計畫，贊助則對應特定方案與權益。下方兩區可依需求擇一或同時勾選。', 'Partnerships are about long-term resource exchange and joint projects, while sponsorship relates to specific packages and benefits. In the two sections below, you can tick either one or both.') }}</p>
@@ -140,12 +148,12 @@ async function onSubmit() {
           <legend>{{ tx('公司／機構資料', 'Company / organisation details') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="pn-company">{{ tx('公司／機構名稱', 'Company / organisation name') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="pn-company">{{ fl('company', tx('公司／機構名稱', 'Company / organisation name')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="pn-company" v-model="companyName" type="text" name="company_name" required autocomplete="organization" aria-describedby="pn-company-error">
               <p class="field-error" id="pn-company-error" role="alert">{{ tx('請填寫公司／機構名稱', 'Please enter your company / organisation name') }}</p>
             </div>
             <div class="form-field">
-              <label for="pn-industry">{{ tx('產業別', 'Industry') }}</label>
+              <label for="pn-industry">{{ fl('industry', tx('產業別', 'Industry')) }}</label>
               <select id="pn-industry" v-model="industry" name="industry">
                 <option value="">{{ tx('請選擇', 'Please select') }}</option>
                 <option value="brand">{{ tx('品牌／零售', 'Brand / retail') }}</option>
@@ -159,7 +167,7 @@ async function onSubmit() {
               </select>
             </div>
             <div class="form-field">
-              <label for="pn-budget">{{ tx('預算區間', 'Budget range') }}</label>
+              <label for="pn-budget">{{ fl('budget_range', tx('預算區間', 'Budget range')) }}</label>
               <select id="pn-budget" v-model="budgetRange" name="budget_range">
                 <option value="">{{ tx('請選擇（選填）', 'Please select (optional)') }}</option>
                 <option value="under-100k">{{ tx('NT$10 萬以下', 'Under NT$100,000') }}</option>
@@ -176,7 +184,7 @@ async function onSubmit() {
           <legend>{{ tx('聯絡人資料', 'Contact person') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="pn-contact-name">{{ tx('聯絡人姓名', 'Contact name') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="pn-contact-name">{{ fl('name', tx('聯絡人姓名', 'Contact name')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="pn-contact-name" v-model="contactName" type="text" name="contact_name" required autocomplete="name" aria-describedby="pn-contact-name-error">
               <p class="field-error" id="pn-contact-name-error" role="alert">{{ tx('請填寫聯絡人姓名', 'Please enter the contact name') }}</p>
             </div>

@@ -7741,8 +7741,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'name'), N'zh-Hant', N'姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'name'), N'zh-Hant', N'姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'name') AND locale = N'en')
@@ -7756,58 +7756,58 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'birth_date') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'birth_date'), N'zh-Hant', N'生日');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'birth_date'), N'zh-Hant', N'出生日期', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'birth_date') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'birth_date'), N'en', N'Date of Birth', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'birth_date'), N'en', N'Date of birth', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'position')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'43728391-d5c6-561d-b90e-0d2e6112d086', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player'), N'position', N'text', 0, NULL, NULL, 0, 2);
+  VALUES (N'43728391-d5c6-561d-b90e-0d2e6112d086', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player'), N'position', N'text', 1, NULL, NULL, 0, 2);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'position') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'position'), N'zh-Hant', N'場上位置');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'position'), N'zh-Hant', N'場上位置', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'position') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'position'), N'en', N'Playing Position', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'position'), N'en', N'Playing position', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'experience')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'139648c3-f4c7-54eb-8e49-ff72e30dc66d', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player'), N'experience', N'textarea', 0, NULL, NULL, 1, 3);
+  VALUES (N'139648c3-f4c7-54eb-8e49-ff72e30dc66d', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player'), N'experience', N'textarea', 1, NULL, NULL, 1, 3);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'experience') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'experience'), N'zh-Hant', N'足球經歷');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'experience'), N'zh-Hant', N'足球經歷簡述', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'experience') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'experience'), N'en', N'Football Experience', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'experience'), N'en', N'Football experience', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'video_url')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'48d48340-a2db-53d8-be36-e5e8b7bf71a8', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player'), N'video_url', N'text', 0, NULL, NULL, 0, 4);
+  VALUES (N'48d48340-a2db-53d8-be36-e5e8b7bf71a8', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player'), N'video_url', N'text', 1, NULL, NULL, 0, 4);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'video_url') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'video_url'), N'zh-Hant', N'影片連結');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'video_url'), N'zh-Hant', N'比賽或訓練影片連結', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'video_url') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'video_url'), N'en', N'Video Link', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'video_url'), N'en', N'Match or training video link', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'contact')
@@ -7816,8 +7816,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'contact') AND locale = N'en')
@@ -7831,8 +7831,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'join_player') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -7858,13 +7858,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'zh-Hant', N'報名項目');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'zh-Hant', N'想報名的項目', N'["U10 梯隊", "U12 梯隊", "U14 梯隊", "U16 梯隊", "U18 梯隊", "混齡班", "初學班", "技巧發展班", "專項訓練"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'en', N'Enrollment Category', N'["Academy U10", "Academy U12", "Academy U14", "Academy U16", "Academy U18", "Children Mixed-Age Class", "Children Beginner Class", "Children Skill Development Class", "Specialist Training"]');
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'en', N'Program you would like to join', N'["U10 squad", "U12 squad", "U14 squad", "U16 squad", "U18 squad", "Mixed-age class", "Beginner class", "Skills development class", "Specialist training"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'name')
@@ -7873,8 +7873,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'name'), N'zh-Hant', N'學員姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'name'), N'zh-Hant', N'學員姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'name') AND locale = N'en')
@@ -7888,13 +7888,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'birth_date') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'birth_date'), N'zh-Hant', N'學員生日');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'birth_date'), N'zh-Hant', N'學員出生日期', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'birth_date') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'birth_date'), N'en', N'Student Date of Birth', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'birth_date'), N'en', N'Student''s date of birth', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'location_preference')
@@ -7903,13 +7903,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'location_preference') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'location_preference'), N'zh-Hant', N'地點偏好');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'location_preference'), N'zh-Hant', N'偏好受訓地點', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'location_preference') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'location_preference'), N'en', N'Preferred Location', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'location_preference'), N'en', N'Preferred training location', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'contact')
@@ -7918,8 +7918,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'contact'), N'zh-Hant', N'家長聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'contact'), N'zh-Hant', N'家長聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'contact') AND locale = N'en')
@@ -7933,13 +7933,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'experience') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'experience'), N'zh-Hant', N'足球經歷');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'experience'), N'zh-Hant', N'足球或運動經歷', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'experience') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'experience'), N'en', N'Football Experience', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'experience'), N'en', N'Football or sports experience', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'health_status')
@@ -7948,13 +7948,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'health_status') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'health_status'), N'zh-Hant', N'健康狀況');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'health_status'), N'zh-Hant', N'特殊健康狀況說明', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'health_status') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'health_status'), N'en', N'Health Status', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'health_status'), N'en', N'Special health conditions', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent')
@@ -7963,8 +7963,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -7990,13 +7990,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'session_choice') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'session_choice'), N'zh-Hant', N'營隊梯次');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'session_choice'), N'zh-Hant', N'希望報名的梯次', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'session_choice') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'session_choice'), N'en', N'Camp Session', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'session_choice'), N'en', N'Preferred session', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'name')
@@ -8005,13 +8005,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'name'), N'zh-Hant', N'學員姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'name'), N'zh-Hant', N'學員姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'name'), N'en', N'Student Name', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'name'), N'en', N'Student''s name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'birth_date')
@@ -8020,13 +8020,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'birth_date') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'birth_date'), N'zh-Hant', N'學員生日');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'birth_date'), N'zh-Hant', N'學員出生日期', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'birth_date') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'birth_date'), N'en', N'Student Date of Birth', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'birth_date'), N'en', N'Student''s date of birth', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'health_declaration')
@@ -8035,8 +8035,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'health_declaration') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'health_declaration'), N'zh-Hant', N'健康聲明');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'health_declaration'), N'zh-Hant', N'健康聲明', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'health_declaration') AND locale = N'en')
@@ -8050,8 +8050,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'contact'), N'zh-Hant', N'緊急聯絡人');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'contact'), N'zh-Hant', N'緊急聯絡人', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'contact') AND locale = N'en')
@@ -8065,8 +8065,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'camp_registration') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8092,13 +8092,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'name'), N'zh-Hant', N'姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'name'), N'zh-Hant', N'姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'name'), N'en', N'Name', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'name'), N'en', N'Full Name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'nationality')
@@ -8107,8 +8107,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'nationality') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'nationality'), N'zh-Hant', N'國籍');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'nationality'), N'zh-Hant', N'國籍', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'nationality') AND locale = N'en')
@@ -8122,8 +8122,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'passport_no') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'passport_no'), N'zh-Hant', N'護照號碼');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'passport_no'), N'zh-Hant', N'護照號碼', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'passport_no') AND locale = N'en')
@@ -8133,47 +8133,47 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'experience')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'f01d773f-747f-56fa-9d18-55b1b392d5ff', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry'), N'experience', N'textarea', 0, NULL, NULL, 1, 3);
+  VALUES (N'f01d773f-747f-56fa-9d18-55b1b392d5ff', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry'), N'experience', N'textarea', 1, NULL, NULL, 1, 3);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'experience') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'experience'), N'zh-Hant', N'足球經歷');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'experience'), N'zh-Hant', N'足球經歷簡述', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'experience') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'experience'), N'en', N'Football Experience', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'experience'), N'en', N'Career Summary', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'video_url')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'63664464-944c-56bd-832d-35076d842a74', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry'), N'video_url', N'text', 0, NULL, NULL, 0, 4);
+  VALUES (N'63664464-944c-56bd-832d-35076d842a74', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry'), N'video_url', N'text', 1, NULL, NULL, 0, 4);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'video_url') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'video_url'), N'zh-Hant', N'影片連結');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'video_url'), N'zh-Hant', N'影片連結', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'video_url') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'video_url'), N'en', N'Video Link', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'video_url'), N'en', N'Video Highlight Link', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'10ef0723-6ddf-57e7-af7a-fbe7dbbb282b', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry'), N'visa_status', N'text', 0, NULL, NULL, 0, 5);
+  VALUES (N'10ef0723-6ddf-57e7-af7a-fbe7dbbb282b', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry'), N'visa_status', N'text', 1, NULL, NULL, 0, 5);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status'), N'zh-Hant', N'簽證狀態');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status'), N'zh-Hant', N'簽證狀態', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status'), N'en', N'Visa Status', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status'), N'en', N'Current Visa Status', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'contact')
@@ -8182,8 +8182,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'contact') AND locale = N'en')
@@ -8197,8 +8197,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'international_player_enquiry') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8224,13 +8224,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type'), N'zh-Hant', N'洽詢類型');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type'), N'zh-Hant', N'這次想洽詢的是', N'["合作夥伴關係", "贊助方案", "兩者都想了解"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type'), N'en', N'Enquiry Type', N'["Partnership", "Sponsorship", "Both"]');
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type'), N'en', N'This enquiry is about', N'["A partnership", "A sponsorship package", "Both"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'company')
@@ -8239,13 +8239,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'company') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'company'), N'zh-Hant', N'公司名稱');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'company'), N'zh-Hant', N'公司／機構名稱', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'company') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'company'), N'en', N'Company Name', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'company'), N'en', N'Company / organisation name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'industry')
@@ -8254,8 +8254,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'industry') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'industry'), N'zh-Hant', N'產業別');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'industry'), N'zh-Hant', N'產業別', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'industry') AND locale = N'en')
@@ -8269,23 +8269,23 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range'), N'zh-Hant', N'預算區間');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range'), N'zh-Hant', N'預算區間', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range'), N'en', N'Budget Range', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range'), N'en', N'Budget range', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'87ec282b-ed9e-51af-80ff-adbb6d739403', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship'), N'cooperation_direction', N'textarea', 0, NULL, NULL, 1, 4);
+  VALUES (N'87ec282b-ed9e-51af-80ff-adbb6d739403', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship'), N'cooperation_direction', N'textarea', 1, NULL, NULL, 1, 4);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction'), N'zh-Hant', N'合作方向');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction'), N'zh-Hant', N'合作方向', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction') AND locale = N'en')
@@ -8299,8 +8299,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'sponsorship_interest') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'sponsorship_interest'), N'zh-Hant', N'感興趣的贊助方案');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'sponsorship_interest'), N'zh-Hant', N'感興趣的贊助方案', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'sponsorship_interest') AND locale = N'en')
@@ -8314,13 +8314,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'name'), N'zh-Hant', N'聯絡人姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'name'), N'zh-Hant', N'聯絡人姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'name'), N'en', N'Contact Person', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'name'), N'en', N'Contact name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'contact')
@@ -8329,8 +8329,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'contact') AND locale = N'en')
@@ -8344,8 +8344,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'partnership_sponsorship') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8371,13 +8371,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'media_name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'media_name'), N'zh-Hant', N'媒體名稱');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'media_name'), N'zh-Hant', N'媒體／機構名稱', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'media_name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'media_name'), N'en', N'Media Outlet', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'media_name'), N'en', N'Media outlet / organisation name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'name')
@@ -8386,13 +8386,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'name'), N'zh-Hant', N'記者姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'name'), N'zh-Hant', N'記者／聯絡人姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'name'), N'en', N'Reporter Name', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'name'), N'en', N'Journalist / contact name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'topic')
@@ -8401,28 +8401,28 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'topic') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'topic'), N'zh-Hant', N'採訪主題');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'topic'), N'zh-Hant', N'採訪主題／需求說明', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'topic') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'topic'), N'en', N'Interview Topic', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'topic'), N'en', N'Interview topic / requirements', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'deadline')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'a9973152-6640-5ec7-8bc3-df8c5ab58989', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry'), N'deadline', N'date', 0, NULL, NULL, 0, 3);
+  VALUES (N'a9973152-6640-5ec7-8bc3-df8c5ab58989', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry'), N'deadline', N'date', 1, NULL, NULL, 0, 3);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'deadline') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'deadline'), N'zh-Hant', N'截稿日');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'deadline'), N'zh-Hant', N'期望採訪日期／截稿日', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'deadline') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'deadline'), N'en', N'Deadline', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'deadline'), N'en', N'Preferred interview date / deadline', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'contact')
@@ -8431,8 +8431,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'contact') AND locale = N'en')
@@ -8446,8 +8446,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'media_enquiry') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8473,8 +8473,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'name'), N'zh-Hant', N'姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'name'), N'zh-Hant', N'姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'name') AND locale = N'en')
@@ -8488,8 +8488,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'contact'), N'zh-Hant', N'Email');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'contact'), N'zh-Hant', N'Email', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'contact') AND locale = N'en')
@@ -8503,8 +8503,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'subject') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'subject'), N'zh-Hant', N'主旨');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'subject'), N'zh-Hant', N'主旨', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'subject') AND locale = N'en')
@@ -8518,8 +8518,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'message') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'message'), N'zh-Hant', N'內容');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'message'), N'zh-Hant', N'內容', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'message') AND locale = N'en')
@@ -8533,8 +8533,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'general_contact') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8560,8 +8560,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'company') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'company'), N'zh-Hant', N'公司名稱');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'company'), N'zh-Hant', N'公司名稱', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'company') AND locale = N'en')
@@ -8575,8 +8575,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'name'), N'zh-Hant', N'姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'name'), N'zh-Hant', N'姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'name') AND locale = N'en')
@@ -8590,8 +8590,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'contact'), N'zh-Hant', N'Email');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'contact'), N'zh-Hant', N'Email', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'contact') AND locale = N'en')
@@ -8605,8 +8605,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND form_code = N'proposal_download') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8632,8 +8632,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'name'), N'zh-Hant', N'姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'name'), N'zh-Hant', N'姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'name') AND locale = N'en')
@@ -8647,58 +8647,58 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'birth_date') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'birth_date'), N'zh-Hant', N'生日');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'birth_date'), N'zh-Hant', N'出生日期', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'birth_date') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'birth_date'), N'en', N'Date of Birth', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'birth_date'), N'en', N'Date of birth', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'position')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'32463a0f-34d0-5eb1-ae79-63b4e4fae177', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player'), N'position', N'text', 0, NULL, NULL, 0, 2);
+  VALUES (N'32463a0f-34d0-5eb1-ae79-63b4e4fae177', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player'), N'position', N'text', 1, NULL, NULL, 0, 2);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'position') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'position'), N'zh-Hant', N'場上位置');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'position'), N'zh-Hant', N'場上位置', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'position') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'position'), N'en', N'Playing Position', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'position'), N'en', N'Playing position', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'experience')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'e7da8279-df9c-5adf-b2fd-03089b17786e', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player'), N'experience', N'textarea', 0, NULL, NULL, 1, 3);
+  VALUES (N'e7da8279-df9c-5adf-b2fd-03089b17786e', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player'), N'experience', N'textarea', 1, NULL, NULL, 1, 3);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'experience') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'experience'), N'zh-Hant', N'足球經歷');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'experience'), N'zh-Hant', N'足球經歷簡述', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'experience') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'experience'), N'en', N'Football Experience', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'experience'), N'en', N'Football experience', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'video_url')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'a2b64224-2678-5d77-9eff-c363a033208e', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player'), N'video_url', N'text', 0, NULL, NULL, 0, 4);
+  VALUES (N'a2b64224-2678-5d77-9eff-c363a033208e', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player'), N'video_url', N'text', 1, NULL, NULL, 0, 4);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'video_url') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'video_url'), N'zh-Hant', N'影片連結');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'video_url'), N'zh-Hant', N'比賽或訓練影片連結', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'video_url') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'video_url'), N'en', N'Video Link', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'video_url'), N'en', N'Match or training video link', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'contact')
@@ -8707,8 +8707,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'contact') AND locale = N'en')
@@ -8722,8 +8722,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'join_player') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8749,13 +8749,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'zh-Hant', N'報名項目');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'zh-Hant', N'想報名的項目', N'["U12 青年隊", "U14 青年隊", "U15 青年隊", "混齡班", "初學班", "技巧發展班", "專項訓練"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'en', N'Enrollment Category', N'["Academy U12", "Academy U14", "Academy U15", "Children Mixed-Age Class", "Children Beginner Class", "Children Skill Development Class", "Specialist Training"]');
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'enrollment_category'), N'en', N'Program you would like to join', N'["U12 Youth team", "U14 Youth team", "U15 Youth team", "Mixed-age class", "Beginner class", "Skills development class", "Specialist training"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'name')
@@ -8764,8 +8764,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'name'), N'zh-Hant', N'學員姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'name'), N'zh-Hant', N'學員姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'name') AND locale = N'en')
@@ -8779,13 +8779,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'birth_date') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'birth_date'), N'zh-Hant', N'學員生日');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'birth_date'), N'zh-Hant', N'學員出生日期', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'birth_date') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'birth_date'), N'en', N'Student Date of Birth', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'birth_date'), N'en', N'Student''s date of birth', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'location_preference')
@@ -8794,13 +8794,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'location_preference') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'location_preference'), N'zh-Hant', N'地點偏好');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'location_preference'), N'zh-Hant', N'偏好受訓地點', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'location_preference') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'location_preference'), N'en', N'Preferred Location', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'location_preference'), N'en', N'Preferred training location', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'contact')
@@ -8809,8 +8809,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'contact'), N'zh-Hant', N'家長聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'contact'), N'zh-Hant', N'家長聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'contact') AND locale = N'en')
@@ -8824,13 +8824,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'experience') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'experience'), N'zh-Hant', N'足球經歷');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'experience'), N'zh-Hant', N'足球或運動經歷', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'experience') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'experience'), N'en', N'Football Experience', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'experience'), N'en', N'Football or sports experience', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'health_status')
@@ -8839,13 +8839,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'health_status') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'health_status'), N'zh-Hant', N'健康狀況');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'health_status'), N'zh-Hant', N'特殊健康狀況說明', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'health_status') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'health_status'), N'en', N'Health Status', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'health_status'), N'en', N'Special health conditions', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent')
@@ -8854,8 +8854,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'academy_children_training') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8881,13 +8881,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'session_choice') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'session_choice'), N'zh-Hant', N'營隊梯次');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'session_choice'), N'zh-Hant', N'希望報名的梯次', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'session_choice') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'session_choice'), N'en', N'Camp Session', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'session_choice'), N'en', N'Preferred session', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'name')
@@ -8896,13 +8896,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'name'), N'zh-Hant', N'學員姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'name'), N'zh-Hant', N'學員姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'name'), N'en', N'Student Name', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'name'), N'en', N'Student''s name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'birth_date')
@@ -8911,13 +8911,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'birth_date') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'birth_date'), N'zh-Hant', N'學員生日');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'birth_date'), N'zh-Hant', N'學員出生日期', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'birth_date') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'birth_date'), N'en', N'Student Date of Birth', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'birth_date'), N'en', N'Student''s date of birth', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'health_declaration')
@@ -8926,8 +8926,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'health_declaration') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'health_declaration'), N'zh-Hant', N'健康聲明');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'health_declaration'), N'zh-Hant', N'健康聲明', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'health_declaration') AND locale = N'en')
@@ -8941,8 +8941,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'contact'), N'zh-Hant', N'緊急聯絡人');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'contact'), N'zh-Hant', N'緊急聯絡人', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'contact') AND locale = N'en')
@@ -8956,8 +8956,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'camp_registration') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -8983,13 +8983,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'name'), N'zh-Hant', N'姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'name'), N'zh-Hant', N'姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'name'), N'en', N'Name', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'name'), N'en', N'Full Name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'nationality')
@@ -8998,8 +8998,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'nationality') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'nationality'), N'zh-Hant', N'國籍');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'nationality'), N'zh-Hant', N'國籍', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'nationality') AND locale = N'en')
@@ -9013,8 +9013,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'passport_no') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'passport_no'), N'zh-Hant', N'護照號碼');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'passport_no'), N'zh-Hant', N'護照號碼', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'passport_no') AND locale = N'en')
@@ -9024,47 +9024,47 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'experience')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'74673a44-d8ea-581f-95df-39ebe1684b3e', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry'), N'experience', N'textarea', 0, NULL, NULL, 1, 3);
+  VALUES (N'74673a44-d8ea-581f-95df-39ebe1684b3e', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry'), N'experience', N'textarea', 1, NULL, NULL, 1, 3);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'experience') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'experience'), N'zh-Hant', N'足球經歷');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'experience'), N'zh-Hant', N'足球經歷簡述', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'experience') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'experience'), N'en', N'Football Experience', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'experience'), N'en', N'Career Summary', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'video_url')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'07587ce8-e203-543d-ac58-58b83ec61e7e', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry'), N'video_url', N'text', 0, NULL, NULL, 0, 4);
+  VALUES (N'07587ce8-e203-543d-ac58-58b83ec61e7e', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry'), N'video_url', N'text', 1, NULL, NULL, 0, 4);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'video_url') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'video_url'), N'zh-Hant', N'影片連結');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'video_url'), N'zh-Hant', N'影片連結', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'video_url') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'video_url'), N'en', N'Video Link', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'video_url'), N'en', N'Video Highlight Link', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'3328fe40-55ee-55b2-bab4-9b2fd580e1cf', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry'), N'visa_status', N'text', 0, NULL, NULL, 0, 5);
+  VALUES (N'3328fe40-55ee-55b2-bab4-9b2fd580e1cf', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry'), N'visa_status', N'text', 1, NULL, NULL, 0, 5);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status'), N'zh-Hant', N'簽證狀態');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status'), N'zh-Hant', N'簽證狀態', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status'), N'en', N'Visa Status', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'visa_status'), N'en', N'Current Visa Status', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'contact')
@@ -9073,8 +9073,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'contact') AND locale = N'en')
@@ -9088,8 +9088,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'international_player_enquiry') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -9115,13 +9115,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type'), N'zh-Hant', N'洽詢類型');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type'), N'zh-Hant', N'這次想洽詢的是', N'["合作夥伴關係", "贊助方案", "兩者都想了解"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type'), N'en', N'Enquiry Type', N'["Partnership", "Sponsorship", "Both"]');
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'enquiry_type'), N'en', N'This enquiry is about', N'["A partnership", "A sponsorship package", "Both"]');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'company')
@@ -9130,13 +9130,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'company') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'company'), N'zh-Hant', N'公司名稱');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'company'), N'zh-Hant', N'公司／機構名稱', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'company') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'company'), N'en', N'Company Name', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'company'), N'en', N'Company / organisation name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'industry')
@@ -9145,8 +9145,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'industry') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'industry'), N'zh-Hant', N'產業別');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'industry'), N'zh-Hant', N'產業別', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'industry') AND locale = N'en')
@@ -9160,23 +9160,23 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range'), N'zh-Hant', N'預算區間');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range'), N'zh-Hant', N'預算區間', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range'), N'en', N'Budget Range', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'budget_range'), N'en', N'Budget range', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'52505441-7e73-582a-bcf9-4850321795fa', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship'), N'cooperation_direction', N'textarea', 0, NULL, NULL, 1, 4);
+  VALUES (N'52505441-7e73-582a-bcf9-4850321795fa', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship'), N'cooperation_direction', N'textarea', 1, NULL, NULL, 1, 4);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction'), N'zh-Hant', N'合作方向');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction'), N'zh-Hant', N'合作方向', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'cooperation_direction') AND locale = N'en')
@@ -9190,8 +9190,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'sponsorship_interest') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'sponsorship_interest'), N'zh-Hant', N'感興趣的贊助方案');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'sponsorship_interest'), N'zh-Hant', N'感興趣的贊助方案', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'sponsorship_interest') AND locale = N'en')
@@ -9205,13 +9205,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'name'), N'zh-Hant', N'聯絡人姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'name'), N'zh-Hant', N'聯絡人姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'name'), N'en', N'Contact Person', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'name'), N'en', N'Contact name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'contact')
@@ -9220,8 +9220,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'contact') AND locale = N'en')
@@ -9235,8 +9235,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'partnership_sponsorship') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -9262,13 +9262,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'media_name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'media_name'), N'zh-Hant', N'媒體名稱');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'media_name'), N'zh-Hant', N'媒體／機構名稱', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'media_name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'media_name'), N'en', N'Media Outlet', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'media_name'), N'en', N'Media outlet / organisation name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'name')
@@ -9277,13 +9277,13 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'name'), N'zh-Hant', N'記者姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'name'), N'zh-Hant', N'記者／聯絡人姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'name') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'name'), N'en', N'Reporter Name', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'name'), N'en', N'Journalist / contact name', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'topic')
@@ -9292,28 +9292,28 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'topic') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'topic'), N'zh-Hant', N'採訪主題');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'topic'), N'zh-Hant', N'採訪主題／需求說明', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'topic') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'topic'), N'en', N'Interview Topic', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'topic'), N'en', N'Interview topic / requirements', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'deadline')
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
-  VALUES (N'6d8d8c6a-3c40-5329-82e3-992d796d7bfc', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry'), N'deadline', N'date', 0, NULL, NULL, 0, 3);
+  VALUES (N'6d8d8c6a-3c40-5329-82e3-992d796d7bfc', (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry'), N'deadline', N'date', 1, NULL, NULL, 0, 3);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'deadline') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'deadline'), N'zh-Hant', N'截稿日');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'deadline'), N'zh-Hant', N'期望採訪日期／截稿日', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'deadline') AND locale = N'en')
   INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'deadline'), N'en', N'Deadline', NULL);
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'deadline'), N'en', N'Preferred interview date / deadline', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'contact')
@@ -9322,8 +9322,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'contact'), N'zh-Hant', N'聯絡方式', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'contact') AND locale = N'en')
@@ -9337,8 +9337,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'media_enquiry') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -9364,8 +9364,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'name'), N'zh-Hant', N'姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'name'), N'zh-Hant', N'姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'name') AND locale = N'en')
@@ -9379,8 +9379,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'contact'), N'zh-Hant', N'Email');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'contact'), N'zh-Hant', N'Email', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'contact') AND locale = N'en')
@@ -9394,8 +9394,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'subject') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'subject'), N'zh-Hant', N'主旨');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'subject'), N'zh-Hant', N'主旨', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'subject') AND locale = N'en')
@@ -9409,8 +9409,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'message') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'message'), N'zh-Hant', N'內容');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'message'), N'zh-Hant', N'內容', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'message') AND locale = N'en')
@@ -9424,8 +9424,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'general_contact') AND field_key = N'privacy_consent') AND locale = N'en')
@@ -9451,8 +9451,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'company') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'company'), N'zh-Hant', N'公司名稱');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'company'), N'zh-Hant', N'公司名稱', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'company') AND locale = N'en')
@@ -9466,8 +9466,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'name') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'name'), N'zh-Hant', N'姓名');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'name'), N'zh-Hant', N'姓名', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'name') AND locale = N'en')
@@ -9481,8 +9481,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'contact') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'contact'), N'zh-Hant', N'Email');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'contact'), N'zh-Hant', N'Email', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'contact') AND locale = N'en')
@@ -9496,8 +9496,8 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = (SELECT id FROM forms W
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'privacy_consent') AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料');
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ((SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'privacy_consent'), N'zh-Hant', N'我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料', NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = (SELECT id FROM form_fields WHERE form_id = (SELECT id FROM forms WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND form_code = N'proposal_download') AND field_key = N'privacy_consent') AND locale = N'en')

@@ -55,7 +55,7 @@ useSeoMeta({
   title: computed(() => (isEn.value ? (isTcrfc.value ? getMerchandiseSeoEn(hasProducts.value) : getMerchandiseSeoEnBw(hasProducts.value)).title : `官方商品 Merchandise｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isEn.value ? (isTcrfc.value ? getMerchandiseSeoEn(hasProducts.value) : getMerchandiseSeoEnBw(hasProducts.value)).description : hasProducts.value
     ? `${clubAssets.value.nameZh}官方商品：依系列瀏覽，於本站官方商店選尺寸與顏色、以 LINE Pay 付款並開立電子發票。`
-    : `${clubAssets.value.nameZh}官方商品。商品內容由後台提供，目前尚無可顯示的商品。`)),
+    : `${clubAssets.value.nameZh}官方商品，商品整理中，稍後將陸續上架。`)),
 })
 </script>
 
@@ -77,9 +77,9 @@ useSeoMeta({
     <p class="page-hero__eyebrow">8.3 Merchandise</p>
     <h1>{{ tx('官方商品', 'Merchandise') }}<span v-if="!isEn" class="en">Merchandise</span></h1>
     <p v-if="isEn && hasProducts" class="page-hero__lede">Browse official merchandise by collection. To buy, go to the <a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">official store</a>: choose a size and colour, add to your cart, pay with LINE Pay and receive an e-invoice.</p>
-    <p v-else-if="isEn" class="page-hero__lede">Official merchandise information is provided through the back office, and there is nothing to display at the moment.</p>
+    <p v-else-if="isEn" class="page-hero__lede">Official merchandise is being prepared and will be listed here soon.</p>
     <p v-else-if="hasProducts" class="page-hero__lede">官方商品依系列瀏覽。要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
-    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}官方商品資料由後台提供，目前尚無可顯示的內容。</p>
+    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}官方商品整理中，稍後將陸續上架。</p>
   </div>
 </section>
 
@@ -125,7 +125,7 @@ useSeoMeta({
         <h2 id="club-collection-title" class="section-title">{{ tx('官方商品', 'Merchandise') }}</h2>
       </div>
     </div>
-    <p class="is-pending">{{ tx('商品內容由後台提供，目前尚無可顯示的商品。', 'Product content is provided through the back office, and there are no products to display yet.') }}</p>
+    <p class="is-pending">{{ tx('商品整理中，稍後將陸續上架。', 'Products are being prepared and will be listed here soon.') }}</p>
   </div>
 </section>
 
@@ -139,7 +139,7 @@ useSeoMeta({
         <p v-else>選尺寸與顏色、加入購物車，以 <strong>LINE Pay</strong> 付款並自動開立<strong>電子發票</strong>，可宅配、超商取貨或現場自取；訂單於會員中心查詢，未註冊者以訂單編號與 Email 查詢。</p>
         <p style="margin:1.25rem 0"><a class="btn btn--primary" :href="lp('/zh/shop/')">{{ tx('前往官方商店', 'Go to the official store') }}</a></p>
         <p v-if="isEn && isTcrfc" class="store-band__fine">Until the official launch, you can still buy from the shop on the old website <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a>; once the online store goes live, the old shop will stop selling.</p>
-        <p v-else-if="isTcrfc" class="store-band__fine">正式上線前，仍可透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的商店選購；站內商店上線後舊商店將停售。</p>
+        <p v-else-if="isTcrfc" class="store-band__fine">站內商店開放前，仍可透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的商店選購；站內商店上線後舊商店將停售。</p>
       </div>
     </div>
   </div>

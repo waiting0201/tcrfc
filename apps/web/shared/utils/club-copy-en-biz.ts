@@ -145,11 +145,6 @@ export function getJoinAcademyButtonEn(club: string): string {
   return club === 'bw' ? JOIN_ACADEMY_BUTTON_EN_BW : "Academy & Children's Training"
 }
 
-/** 09 partners: unit-04 sponsorship plan title in English (zh page decoration and en page). */
-export function getPartnersPlanYouthTitleEn(club: string): string {
-  return club === 'bw' ? PARTNERS_PLAN_YOUTH_EN_BW : 'Academy Sponsorship'
-}
-
 // 09 Partners & Sponsors (bw) ------------------------------------------------
 
 export const PARTNERS_INDEX_LEDE_EN_BW = `Join forces with ${BW_NAME_EN} to reach the local community and the international football network through a women's football platform, creating value for your brand and the community alike.`
@@ -164,7 +159,6 @@ export const PARTNERS_BECOME_VALUES_EN_BW = {
   international: `Through international exchange and overseas expansion programs, let your brand travel the world with ${BW_NAME_EN}'s players.`,
 }
 
-export const PARTNERS_PLAN_YOUTH_EN_BW = 'Youth Team Sponsorship'
 export const PARTNERS_PLAN_YOUTH_LABEL_EN_BW = 'Youth team sponsorship'
 
 export function getPartnershipFormSeoEnBw(): SeoCopy {

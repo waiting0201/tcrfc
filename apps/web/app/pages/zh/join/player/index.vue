@@ -59,7 +59,10 @@ const email = ref('')
 const consent = ref(false)
 const website = ref('') // honeypot
 
-const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('join_player')
+// W-3：欄位題目照後台表單設計器的設定顯示（fl＝fieldLabel，取不到或英文缺漏時用括號內的原寫死文字）。
+// 姓名（中文＋英文合併送出）、聯絡方式（電話＋Email 合併送出）是一對多，場上位置在定義裡是 text 型別，
+// 位置選項為頁面自己的清單；這幾處不對應單一定義欄位，維持原樣。
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken, fieldLabel: fl } = useFormSubmit('join_player')
 
 async function onSubmit() {
   await submit({
@@ -121,7 +124,7 @@ async function onSubmit() {
               <input id="p-name-en" v-model="nameEn" type="text" name="name_en" autocomplete="off">
             </div>
             <div class="form-field">
-              <label for="p-dob">{{ tx('出生日期', 'Date of birth') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="p-dob">{{ fl('birth_date', tx('出生日期', 'Date of birth')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="p-dob" v-model="dob" type="date" name="dob" required aria-describedby="p-dob-error">
               <p class="field-error" id="p-dob-error" role="alert">{{ tx('請填寫出生日期', 'Please enter your date of birth') }}</p>
             </div>
@@ -132,7 +135,7 @@ async function onSubmit() {
           <legend>{{ tx('足球背景', 'Football background') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="p-position">{{ tx('場上位置', 'Playing position') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="p-position">{{ fl('position', tx('場上位置', 'Playing position')) }}<span class="req" aria-hidden="true">*</span></label>
               <select id="p-position" v-model="position" name="position" required aria-describedby="p-position-error">
                 <option value="">{{ tx('請選擇', 'Please select') }}</option>
                 <option value="gk">{{ tx('門將 GK', 'Goalkeeper (GK)') }}</option>
@@ -146,13 +149,13 @@ async function onSubmit() {
               <p class="field-error" id="p-position-error" role="alert">{{ tx('請選擇場上位置', 'Please select your playing position') }}</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="p-experience">{{ tx('足球經歷簡述', 'Football experience') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="p-experience">{{ fl('experience', tx('足球經歷簡述', 'Football experience')) }}<span class="req" aria-hidden="true">*</span></label>
               <textarea id="p-experience" v-model="experience" name="experience" required aria-describedby="p-experience-hint p-experience-error"></textarea>
               <p class="field-hint" id="p-experience-hint">{{ tx('曾效力的球隊、參加過的聯賽或代表隊經歷，簡述即可。', 'Clubs you have played for, leagues you have taken part in, or representative-team experience. A brief summary is fine.') }}</p>
               <p class="field-error" id="p-experience-error" role="alert">{{ tx('請簡述你的足球經歷', 'Please briefly describe your football experience') }}</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="p-video">{{ tx('比賽或訓練影片連結', 'Match or training video link') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="p-video">{{ fl('video_url', tx('比賽或訓練影片連結', 'Match or training video link')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="p-video" v-model="videoUrl" type="url" name="video_url" required placeholder="https://" aria-describedby="p-video-hint p-video-error">
               <p class="field-hint" id="p-video-hint">{{ tx('YouTube、雲端硬碟等可公開觀看的連結，有助於加快評估。', 'A publicly viewable link (YouTube, cloud storage, etc.) helps us assess your application faster.') }}</p>
               <p class="field-error" id="p-video-error" role="alert">{{ tx('請提供影片連結', 'Please provide a video link') }}</p>

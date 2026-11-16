@@ -110,7 +110,8 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache ca
         var optionsJson = ValidateOptions(fieldType, request.Options);
         var labelZh = ValidateLabelZh(request.LabelZh);
         var labelEn = NormalizeLabelEn(request.LabelEn);
-        var optionLabelsEnJson = ValidateOptionLabelsEn(request.Options, request.OptionLabelsEn);
+        var optionLabelsZhJson = ValidateOptionLabels(request.Options, request.OptionLabelsZh, "optionLabelsZh", "中文");
+        var optionLabelsEnJson = ValidateOptionLabels(request.Options, request.OptionLabelsEn, "optionLabelsEn", "英文");
 
         if (form.FormFields.Any(f => string.Equals(f.FieldKey, fieldKey, StringComparison.Ordinal)))
         {
@@ -137,7 +138,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache ca
             UpdatedBy = operatorId,
         };
 
-        field.FormFieldsI18ns.Add(new FormFieldsI18n { FormFieldId = field.Id, Locale = RequestLocale.DefaultDbLocale, Label = labelZh });
+        field.FormFieldsI18ns.Add(new FormFieldsI18n { FormFieldId = field.Id, Locale = RequestLocale.DefaultDbLocale, Label = labelZh, OptionsJson = optionLabelsZhJson });
         if (labelEn is not null || optionLabelsEnJson is not null)
         {
             field.FormFieldsI18ns.Add(new FormFieldsI18n { FormFieldId = field.Id, Locale = "en", Label = labelEn ?? labelZh, OptionsJson = optionLabelsEnJson });
@@ -177,7 +178,12 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache ca
         var optionsJson = ValidateOptions(fieldType, request.Options);
         var labelZh = ValidateLabelZh(request.LabelZh);
         var labelEn = NormalizeLabelEn(request.LabelEn);
-        var optionLabelsEnJson = ValidateOptionLabelsEn(request.Options, request.OptionLabelsEn);
+        // 🔴 中文選項顯示文字：省略（null）＝保留現值，空陣列＝清除，有內容＝取代。與英文（整筆取代）不同，
+        // 是為了讓尚未送出 optionLabelsZh 的舊版後台畫面存檔時，不會把已設定的中文顯示文字靜默清掉（E-351 同類風險）。
+        var optionLabelsZhJson = request.OptionLabelsZh is null
+            ? KeepExistingOptionLabelsZh(field, optionsJson)
+            : ValidateOptionLabels(request.Options, request.OptionLabelsZh, "optionLabelsZh", "中文");
+        var optionLabelsEnJson = ValidateOptionLabels(request.Options, request.OptionLabelsEn, "optionLabelsEn", "英文");
 
         if (form.FormFields.Any(f => f.Id != fieldId && string.Equals(f.FieldKey, fieldKey, StringComparison.Ordinal)))
         {
@@ -204,7 +210,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache ca
         field.UpdatedAt = DateTime.UtcNow;
         field.UpdatedBy = operatorId;
 
-        UpsertFieldI18n(field, RequestLocale.DefaultDbLocale, labelZh, null);
+        UpsertFieldI18n(field, RequestLocale.DefaultDbLocale, labelZh, optionLabelsZhJson);
         if (labelEn is not null || optionLabelsEnJson is not null)
         {
             UpsertFieldI18n(field, "en", labelEn ?? labelZh, optionLabelsEnJson);
@@ -260,7 +266,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache ca
     private static string LockedMessage(string what)
         => $"這張表單的欄位由系統固定，{what}；前台表單的欄位、必填與選項已與網站版面綁定。若需調整請聯絡系統維護人員。";
 
-    /// <summary>鎖定表單的欄位只允許改「不影響送出驗證」的東西（題目文字、選項英文顯示文字、內容摘要來源、排序）；
+    /// <summary>鎖定表單的欄位只允許改「不影響送出驗證」的東西（題目文字、選項中英文顯示文字、內容摘要來源、排序）；
     /// 代碼、類型、必填、驗證規則、選項任何一項與現況不同都擋下，錯誤標在對應欄位鍵。</summary>
     private static void EnsureLockedStructureUnchanged(
         FormField field, UpdateAdminFormFieldRequest request, string fieldKey, string fieldType, string? validationRule, string? optionsJson)
@@ -439,32 +445,57 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache ca
         return labelEn.Trim();
     }
 
-    /// <summary>選項英文顯示文字——省略＝尚未翻譯（公開端點回退顯示中文）；提供時筆數必須跟
-    /// <paramref name="canonicalOptionsJson"/>（<see cref="ValidateOptions"/> 算出的 canonical
-    /// 選項，已序列化成 JSON）解析出的筆數一致，否則前台會拿到「選項與顯示文字對不上」的錯位資料。</summary>
-    private static string? ValidateOptionLabelsEn(IReadOnlyList<string>? canonicalOptions, IReadOnlyList<string>? optionLabelsEn)
+    /// <summary>選項顯示文字（中文或英文共用同一套規則）——省略＝不另外設定（中文：前台顯示送出值本身；英文：公開端點回退顯示中文）；
+    /// 提供時筆數必須跟 <paramref name="canonicalOptions"/> 一致，否則前台會拿到「選項與顯示文字對不上」的錯位資料。
+    /// 長度上限 255（與題目文字一致），整份序列化後必須放得進 <c>options_json</c> 的 nvarchar(1000)。
+    /// <paramref name="key"/>＝錯誤鍵（<c>optionLabelsZh</c>／<c>optionLabelsEn</c>），<paramref name="langName"/>＝訊息用語言名。</summary>
+    private static string? ValidateOptionLabels(IReadOnlyList<string>? canonicalOptions, IReadOnlyList<string>? labels, string key, string langName)
     {
-        if (optionLabelsEn is null || optionLabelsEn.Count == 0)
+        if (labels is null || labels.Count == 0)
         {
             return null;
         }
 
         if (canonicalOptions is null || canonicalOptions.Count == 0)
         {
-            throw new AdminFormValidationException("這個欄位沒有選項，不能設定選項的英文顯示文字。", "optionLabelsEn");
+            throw new AdminFormValidationException($"這個欄位沒有選項，不能設定選項的{langName}顯示文字。", key);
         }
-        if (optionLabelsEn.Count != canonicalOptions.Count)
+        if (labels.Count != canonicalOptions.Count)
         {
-            throw new AdminFormValidationException("選項的英文顯示文字筆數必須跟選項本身的筆數一致。", "optionLabelsEn");
+            throw new AdminFormValidationException($"選項的{langName}顯示文字筆數必須跟選項本身的筆數一致。", key);
         }
 
-        var trimmed = optionLabelsEn.Select(o => o.Trim()).ToList();
+        var trimmed = labels.Select(o => (o ?? string.Empty).Trim()).ToList();
         if (trimmed.Any(string.IsNullOrEmpty))
         {
-            throw new AdminFormValidationException("選項的英文顯示文字不能是空字串。", "optionLabelsEn");
+            throw new AdminFormValidationException($"選項的{langName}顯示文字不能是空字串。", key);
+        }
+        if (trimmed.Any(o => o.Length > 255))
+        {
+            throw new AdminFormValidationException($"選項的{langName}顯示文字每一項長度不能超過 255 個字元。", key);
         }
 
-        return JsonSerializer.Serialize(trimmed);
+        var json = JsonSerializer.Serialize(trimmed);
+        if (json.Length > 1000)
+        {
+            throw new AdminFormValidationException($"選項的{langName}顯示文字總長度過長，請縮短。", key);
+        }
+        return json;
+    }
+
+    /// <summary>更新時沒有送 <c>optionLabelsZh</c>：沿用 zh-Hant 列現有的中文選項顯示文字；但選項本身已變動到筆數對不上
+    /// （只可能發生在未鎖定的表單）時丟棄，避免前台拿到錯位的顯示文字。</summary>
+    private static string? KeepExistingOptionLabelsZh(FormField field, string? newOptionsJson)
+    {
+        var existing = field.FormFieldsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.OptionsJson;
+        if (existing is null || newOptionsJson is null)
+        {
+            return null;
+        }
+
+        var labels = JsonSerializer.Deserialize<List<string>>(existing);
+        var options = JsonSerializer.Deserialize<List<string>>(newOptionsJson);
+        return labels is not null && options is not null && labels.Count == options.Count ? existing : null;
     }
 
     private static bool TryMatch(Regex pattern, string input)
@@ -527,7 +558,8 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache ca
 
     private static AdminFormFieldDto ToFieldDto(FormField field)
     {
-        var labelZh = field.FormFieldsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Label ?? string.Empty;
+        var zhRow = field.FormFieldsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
+        var labelZh = zhRow?.Label ?? string.Empty;
         var enRow = field.FormFieldsI18ns.FirstOrDefault(i => i.Locale == "en");
 
         return new AdminFormFieldDto
@@ -540,6 +572,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext, IQueryCache ca
             IsRequired = field.IsRequired,
             ValidationRule = field.ValidationRule,
             Options = field.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(field.OptionsJson),
+            OptionLabelsZh = zhRow?.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(zhRow.OptionsJson),
             OptionLabelsEn = enRow?.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(enRow.OptionsJson),
             IsSummary = field.IsSummary,
             SortOrder = field.SortOrder,

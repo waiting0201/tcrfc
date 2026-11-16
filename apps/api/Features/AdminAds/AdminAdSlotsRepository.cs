@@ -14,7 +14,7 @@ namespace Tcrfc.Api.Features.AdminAds;
 /// 兩條法遵規則在這裡直接擋：<b>兒童向畫面（學院、課程：S15／S16／S17）不設版位</b>；<b>不做慈善相關版位</b>（§7.1）。
 /// 「版位永不空白」：備援素材（自家內容）由公開投放端點在沒有可投放檔期時回傳。
 /// </summary>
-public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IImagePublicUrlResolver imageUrls)
+public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IImagePublicUrlResolver imageUrls, Tcrfc.Api.Features.AdminApp.AppLinkValidator links)
 {
     /// <summary>兒童向畫面（App 規劃書 §2.2：S15 課程列表、S16 課程報名表、S17 我的報名；§3.12）。</summary>
     internal static readonly HashSet<string> ChildFacingScreens = new(StringComparer.OrdinalIgnoreCase) { "S15", "S16", "S17" };
@@ -50,6 +50,7 @@ public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IIma
         Guid id, UpsertAdminAdSlotRequest request, UploadedImageInfo? fallbackImage, Guid? operatorId, CancellationToken cancellationToken)
     {
         Validate(request, out var code);
+        await links.ValidateAsync(request.FallbackLink, "備援連結", "fallbackLink", cancellationToken);
         if (await dbContext.AdSlots.AnyAsync(s => s.SlotCode == code, cancellationToken))
         {
             throw new AdminConflictException("版位代號重複", $"版位代號「{code}」已經有人使用，請換一個。", "slotCode");
@@ -84,6 +85,12 @@ public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IIma
         if (!string.Equals(slot.SlotCode, code, StringComparison.Ordinal))
         {
             throw new AdminValidationException("版位代號建立後不能修改（App 端是用代號取得廣告的）。", "slotCode");
+        }
+
+        // 連結沒改就不重驗，舊的失效連結不該擋住其他欄位的修改。
+        if ((slot.FallbackLink ?? "") != (request.FallbackLink?.Trim() ?? ""))
+        {
+            await links.ValidateAsync(request.FallbackLink, "備援連結", "fallbackLink", cancellationToken);
         }
 
         Apply(slot, request);
@@ -155,7 +162,6 @@ public sealed partial class AdminAdSlotsRepository(ClubDbContext dbContext, IIma
             throw new AdminValidationException("輪播張數上限只能是 1 到 10。", "rotationCap");
         }
 
-        AdminInput.OptionalHttpOrAppLink(request.FallbackLink, "備援連結", 500, "fallbackLink");
         AdminInput.RequireText(request.Content.Zh.Name, "版位名稱（繁中）", 128, "nameZh");
         AdminInput.OptionalText(request.Content.En?.Name, "版位名稱（英文）", 128, "nameEn");
     }

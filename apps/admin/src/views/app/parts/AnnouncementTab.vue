@@ -6,6 +6,7 @@ import MobileCardList from '@/components/MobileCardList.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import FormField from '@/components/FormField.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
+import AppLinkPicker from './AppLinkPicker.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { usePermission } from '@/composables/useCrudPermissions'
@@ -48,6 +49,8 @@ const saving = ref(false)
 /** 只放沒有對到欄位的錯誤。 */
 const formError = ref<string | null>(null)
 const formErrors = provideFormErrors()
+/** 連結選擇器：選了需要對象的目的地卻還沒挑對象。 */
+const linkIncomplete = ref(false)
 const form = reactive({
   messageZh: '', messageEn: '', linkUrl: '', startsAt: null as Date | null, endsAt: null as Date | null,
   audienceTier: 'all' as AudienceTier, audienceClubCode: '', isEnabled: true,
@@ -56,6 +59,7 @@ function openDialog(row: AnnouncementDto | null) {
   editing.value = row
   formError.value = null
   formErrors.clearAll()
+  linkIncomplete.value = false
   Object.assign(form, {
     messageZh: row?.messageZh ?? '', messageEn: row?.messageEn ?? '', linkUrl: row?.linkUrl ?? '', startsAt: utcToPickerDate(row?.startsAt), endsAt: utcToPickerDate(row?.endsAt),
     audienceTier: row?.audienceTier ?? 'all', audienceClubCode: row?.audienceClubCode ?? '', isEnabled: row?.isEnabled ?? true,
@@ -69,7 +73,8 @@ async function save() {
   if (!form.messageZh.trim()) errors.messageZh = '請輸入中文公告內容'
   if (form.startsAt && form.endsAt && form.endsAt.getTime() <= form.startsAt.getTime()) errors.endsAt = '結束時間必須晚於開始時間'
   const link = form.linkUrl.trim()
-  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) errors.linkUrl = '連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結'
+  if (linkIncomplete.value) errors.linkUrl = '請選擇要前往的對象，或把「要前往哪裡」改成其他選項'
+  else if (link && !/^https?:\/\//i.test(link) && !link.startsWith('tcrfc://')) errors.linkUrl = '網址格式不正確：請填完整網址（https:// 開頭）'
   if (formErrors.replaceAll(errors)) {
     await formErrors.focusFirst()
     return
@@ -150,7 +155,7 @@ const periodText = (r: AnnouncementDto) => (r.startsAt || r.endsAt ? `${formatDa
       <el-form label-position="top">
         <LangTabsBar variant="bare">
           <BilingualShortField v-model:zh="form.messageZh" v-model:en="form.messageEn" field="message" label="公告內容（200 字內）" required />
-          <FormField field="linkUrl" label="點擊後前往（選填）"><el-input v-model="form.linkUrl" placeholder="網址（https:// 開頭）或 App 內頁面連結" /></FormField>
+          <FormField field="linkUrl" label="點擊後前往（選填）"><AppLinkPicker v-model="form.linkUrl" @update:incomplete="linkIncomplete = $event" /></FormField>
           <el-row :gutter="12">
             <el-col :xs="24" :sm="12"><el-form-item label="開始時間（台灣時間，選填）"><el-date-picker v-model="form.startsAt" type="datetime" style="width: 100%" /></el-form-item></el-col>
             <el-col :xs="24" :sm="12"><FormField field="endsAt" label="結束時間（台灣時間，選填）"><el-date-picker v-model="form.endsAt" type="datetime" style="width: 100%" @change="formErrors.clear('endsAt')" /></FormField></el-col>

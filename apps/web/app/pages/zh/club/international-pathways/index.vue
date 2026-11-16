@@ -14,10 +14,9 @@
 // 俱樂部 Logo，不得挪用磐石三個海外俱樂部 Logo 充數）。
 //
 // 2026-10-02：海外合作俱樂部 Logo 牆（分區頁籤內的 Logo 與下方「合作俱樂部」牆）改接
-// E1 `GET /{club}/partners`（夥伴類型「國際夥伴」，與 9.1 our-partners 同一份資料、同一個
-// 過渡規則）：後台一旦建立任何國際夥伴就整批換成後台資料；磐石在後台一筆都還沒建時，沿用
-// 既有三個海外合作隊徽作過渡顯示（FALLBACK_INTL_TILES，S0-9 搬遷保留）；藍鯨不使用該備援
-// （E-83）。分區頁籤依夥伴的 `country` 欄位歸類（日本／香港／中國，其餘歸歐洲）。
+// E1 `GET /{club}/partners`（夥伴類型「國際夥伴」，與 9.1 our-partners 同一份資料）。
+// 2026-11-13 起兩站都不再有寫死的海外合作隊徽備援（磐石三個合作俱樂部已搬進資料，隊徽由營運在後台上傳；
+// 上傳前卡片以純文字名稱呈現）。分區頁籤依夥伴的 `country` 欄位歸類（日本／香港／中國，其餘歸歐洲）。
 // ⚠️ 「分區資訊」的旅外球員案例（楊朝景、INTL_PATHWAY_*_NOTES_BW）與各地區說明文字仍是
 // 寫死內容，後端沒有對應型別（待決，見 apps/web/README.md）。
 import { PARTNER_TYPE_SECTIONS, pickLogoUrl, safeExternalUrl } from '#shared/utils/partners'
@@ -39,11 +38,6 @@ interface IntlTile {
   region: 'europe' | 'japan' | 'hk' | 'china'
   href: string | null
 }
-const FALLBACK_INTL_TILES: IntlTile[] = [
-  { key: 'verona', name: 'Hellas Verona FC', country: '義大利 Italy', logo: siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp'), alt: 'Hellas Verona FC 標誌', region: 'europe', href: null },
-  { key: 'rayo', name: 'Rayo Ciudad Alcobendas CF', country: '西班牙 Spain', logo: siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png'), alt: 'Rayo Ciudad Alcobendas CF 標誌', region: 'europe', href: null },
-  { key: 'ahlen', name: 'Rot-Weiss Ahlen', country: '德國 Germany', logo: siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp'), alt: 'Rot-Weiss Ahlen 標誌', region: 'europe', href: null },
-]
 function regionOfCountry(country: string | null): IntlTile['region'] {
   const c = (country ?? '').toLowerCase()
   if (/日本|japan/.test(c)) return 'japan'
@@ -65,10 +59,7 @@ const apiIntlTiles = computed<IntlTile[]>(() =>
       href: safeExternalUrl(p.websiteUrl),
     })),
 )
-const intlTiles = computed<IntlTile[]>(() => {
-  if (apiIntlTiles.value.length) return apiIntlTiles.value
-  return isTcrfc.value ? FALLBACK_INTL_TILES : []
-})
+const intlTiles = apiIntlTiles
 const tilesIn = (region: IntlTile['region']) => intlTiles.value.filter((t) => t.region === region)
 function tileSrc(t: IntlTile): string | null {
   return t.logo
@@ -283,7 +274,7 @@ onMounted(() => {
         <p class="kicker">INTERNATIONAL PARTNERS</p>
         <h2 class="section-title" id="intl-partners-title">{{ tx('合作俱樂部', 'Partner clubs') }}</h2>
       </div>
-      <p class="section-lede">{{ intlTiles.length ? tx('目前已取得標誌授權的合作俱樂部如下，更多合作內容持續更新中。', 'The partner clubs whose logos we are authorised to show are listed below, with more partnership content being added.') : tx('目前尚無可公開的海外合作俱樂部，相關進展將更新於本頁。', 'There are no overseas partner clubs that can be made public yet. Updates will be posted on this page.') }}</p>
+      <p class="section-lede">{{ intlTiles.length ? tx('目前的合作俱樂部如下，更多合作內容持續更新中。', 'Our current partner clubs are listed below, with more partnership content being added.') : tx('目前尚無可公開的海外合作俱樂部，相關進展將更新於本頁。', 'There are no overseas partner clubs that can be made public yet. Updates will be posted on this page.') }}</p>
     </div>
     <div v-if="intlTiles.length" class="sponsor-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
       <PartnerLogoTile v-for="t in intlTiles" :key="t.key" :name="t.name" :logo-url="tileSrc(t)" :href="t.href" external />

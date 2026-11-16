@@ -28,8 +28,8 @@ const categoryLabelZh = computed(() => (isEn.value ? newsCategoryBareLabelEn('ac
 useSeoMeta({
   title: computed(() => isEn.value ? getNewsCategorySeoEn('academy', null, clubKey).title : `${categoryLabelZh.value} ${categoryLabelEn.value}｜新聞 News｜${getClubAssets(club).nameZh}`),
   description: computed(() => isEn.value ? getNewsCategorySeoEn('academy', null, clubKey).description : (club === 'bw'
-    ? '台中藍鯨青年隊動態與各梯隊消息，內容尚待客戶提供，目前為空狀態頁面。'
-    : '台中磐石足球學院動態與各梯隊消息，內容尚待客戶提供，目前為空狀態頁面。')),
+    ? '台中藍鯨青年隊動態與各梯隊消息。'
+    : '台中磐石足球學院動態與各梯隊消息。')),
 })
 </script>
 

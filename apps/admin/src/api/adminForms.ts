@@ -26,6 +26,9 @@ export interface AdminFormFieldDto {
   validationRule?: string | null
   /** 只有下拉／多選會有值，其餘型別一律 `null`。canonical 值，不因語系而變。 */
   options?: string[] | null
+  /** 選項的中文顯示文字，與 `options` 同順序、同筆數；`null`＝沒另外設定，前台中文顯示送出值本身
+   * （畫面以 `optionLabelsZh ?? options` 當預設值）。 */
+  optionLabelsZh?: string[] | null
   /** 選項的英文顯示文字，與 `options` 同順序、同筆數；`null`＝沒有選項或尚未提供英文翻譯。 */
   optionLabelsEn?: string[] | null
   /** G2 收件匣「內容摘要」欄的來源欄位——同一張表單最多一個為 `true`。 */
@@ -64,6 +67,12 @@ export interface FormFieldPayload {
   isRequired: boolean
   validationRule?: string | null
   options?: string[] | null
+  /**
+   * 選項的中文顯示文字。🔴 **更新語意與其他欄位相反**：省略／`null`＝保留現值；`[]`＝清除（前台回到顯示
+   * 送出值）；有內容＝整組取代。呼叫端請用 `buildOptionLabelsZhPayload()`（`@/utils/formOptionLabels`）
+   * 決定要帶什麼，不要自己複製送出值進去。
+   */
+  optionLabelsZh?: string[] | null
   /** 選項的英文顯示文字，省略或 `null`＝尚未翻譯。提供時筆數必須與 `options` 一致。 */
   optionLabelsEn?: string[] | null
   isSummary: boolean

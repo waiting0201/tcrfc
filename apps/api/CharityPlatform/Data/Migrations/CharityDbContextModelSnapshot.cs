@@ -397,6 +397,15 @@ namespace Tcrfc.Api.CharityPlatform.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("deactivated_at");
+
+                    b.Property<Guid?>("ExternalId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("external_id");
+
                     b.Property<DateTime>("ImportedAt")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(3)
@@ -404,11 +413,27 @@ namespace Tcrfc.Api.CharityPlatform.Data.Migrations
                         .HasColumnName("imported_at")
                         .HasDefaultValueSql("(sysutcdatetime())");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("last_synced_at");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)")
                         .HasColumnName("name");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("name_en");
 
                     b.Property<string>("RefCode")
                         .IsRequired()
@@ -448,6 +473,10 @@ namespace Tcrfc.Api.CharityPlatform.Data.Migrations
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "Seq" }, "UQ_charity_program_refs_seq"));
 
+                    b.HasIndex(new[] { "ExternalId" }, "UX_charity_program_refs_external_id")
+                        .IsUnique()
+                        .HasFilter("([external_id] IS NOT NULL)");
+
                     b.ToTable("charity_program_refs", (string)null);
                 });
 
@@ -470,6 +499,15 @@ namespace Tcrfc.Api.CharityPlatform.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<DateTime?>("DeactivatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("deactivated_at");
+
+                    b.Property<Guid?>("ExternalId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("external_id");
+
                     b.Property<DateTime>("ImportedAt")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(3)
@@ -477,11 +515,27 @@ namespace Tcrfc.Api.CharityPlatform.Data.Migrations
                         .HasColumnName("imported_at")
                         .HasDefaultValueSql("(sysutcdatetime())");
 
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<DateTime?>("LastSyncedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("last_synced_at");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)")
                         .HasColumnName("name");
+
+                    b.Property<string>("NameEn")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("name_en");
 
                     b.Property<string>("RefCode")
                         .IsRequired()
@@ -523,6 +577,10 @@ namespace Tcrfc.Api.CharityPlatform.Data.Migrations
                         .IsUnique();
 
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "Seq" }, "UQ_charity_refs_seq"));
+
+                    b.HasIndex(new[] { "ExternalId" }, "UX_charity_refs_external_id")
+                        .IsUnique()
+                        .HasFilter("([external_id] IS NOT NULL)");
 
                     b.ToTable("charity_refs", (string)null);
                 });

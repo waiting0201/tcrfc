@@ -29,7 +29,7 @@ public sealed record PushCaller(Guid AdminUserId, bool CanCreate, bool CanApprov
 /// </summary>
 public sealed class AdminAppPushRepository(
     ClubDbContext dbContext, PushContentGuard guard, PushDispatcher dispatcher, IPushTransport transport, PushTokenProtector protector,
-    IImagePublicUrlResolver imageUrls, SensitiveActionLogger audit)
+    IImagePublicUrlResolver imageUrls, SensitiveActionLogger audit, AppLinkValidator links)
 {
     private static readonly IReadOnlyDictionary<string, string> StatusLabels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -75,7 +75,7 @@ public sealed class AdminAppPushRepository(
     public async Task<AdminPushMessageDto> CreateAsync(
         Guid id, UpsertAdminPushMessageRequest request, UploadedImageInfo? image, PushCaller caller, CancellationToken cancellationToken)
     {
-        var (clubId, teams) = await ValidateAsync(request, cancellationToken);
+        var (clubId, teams) = await ValidateAsync(request, null, cancellationToken);
         await guard.EnsureAllowedAsync(request.Content, request.DeepLink, cancellationToken);
         var now = DateTime.UtcNow;
         var m = new PushMessage { Id = id, Status = "draft", CreatedAt = now, UpdatedAt = now, CreatedBy = caller.AdminUserId, UpdatedBy = caller.AdminUserId };
@@ -103,7 +103,7 @@ public sealed class AdminAppPushRepository(
         }
 
         RequireStatus(m, ["draft"], "只有草稿可以修改；已送審的批次請先退回草稿。");
-        var (clubId, teams) = await ValidateAsync(request, cancellationToken);
+        var (clubId, teams) = await ValidateAsync(request, m.DeepLink, cancellationToken);
         await guard.EnsureAllowedAsync(request.Content, request.DeepLink, cancellationToken);
         Apply(m, request, clubId, teams);
         if (image.Change)
@@ -395,7 +395,7 @@ public sealed class AdminAppPushRepository(
         return new PushAudienceSpec(t, clubId, teams);
     }
 
-    private async Task<(Guid? ClubId, IReadOnlyList<string> Teams)> ValidateAsync(UpsertAdminPushMessageRequest r, CancellationToken cancellationToken)
+    private async Task<(Guid? ClubId, IReadOnlyList<string> Teams)> ValidateAsync(UpsertAdminPushMessageRequest r, string? storedLink, CancellationToken cancellationToken)
     {
         AdminInput.RequireText(r.Content.Zh.Title, "標題（繁中）", 120, "titleZh");
         AdminInput.RequireText(r.Content.Zh.Body, "內文（繁中）", 500, "bodyZh");
@@ -406,10 +406,11 @@ public sealed class AdminAppPushRepository(
         }
 
         AdminInput.OneOf(r.Kind ?? "announcement", Kinds, "推播類型", "「一般公告」「新聞」或「賽事」", "kind");
-        var link = AdminInput.OptionalText(r.DeepLink, "深連結", 500, "deepLink");
-        if (link is not null && !link.StartsWith("tcrfc://", StringComparison.Ordinal))
+        // 稽核 docs/23 M-3：連結必須是 App 開得起來的位置（不得是樣板），有對象時對象要存在且已公開。
+        // 連結沒改就不重驗——舊草稿裡失效的連結不該擋住標題、對象等其他欄位的修改（遷移 20261116_app-link-template-cleanup 也會清掉既有樣板）。
+        if ((storedLink ?? "") != (r.DeepLink?.Trim() ?? ""))
         {
-            AdminInput.OptionalHttpUrl(link, "深連結", 500, "deepLink");
+            await links.ValidateAsync(r.DeepLink, "點擊後前往", "deepLink", cancellationToken);
         }
 
         if (r.ScheduledAt is { } at && at < DateTimeOffset.UtcNow.AddMinutes(-5))

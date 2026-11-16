@@ -50,7 +50,9 @@ const emergencyRelation = ref('')
 const consent = ref(false)
 const website = ref('')
 
-const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('camp_registration')
+// W-3：欄位題目照後台表單設計器的設定顯示（fl＝fieldLabel，取不到或英文缺漏時用括號內的原寫死文字）。
+// 健康聲明與隱私同意的整段聲明文字、緊急聯絡人（姓名＋關係＋電話合併送出）不對應單一定義欄位，維持原樣。
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken, fieldLabel: fl } = useFormSubmit('camp_registration')
 
 async function onSubmit() {
   const relationLabel = EMERGENCY_RELATION_LABELS[emergencyRelation.value] ?? emergencyRelation.value
@@ -103,7 +105,7 @@ async function onSubmit() {
           <legend>{{ tx('營隊梯次', 'Camp session') }}</legend>
           <div class="form-grid">
             <div class="form-field form-field--full">
-              <label for="cp-session">{{ tx('希望報名的梯次', 'Preferred session') }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="cp-session">{{ fl('session_choice', tx('希望報名的梯次', 'Preferred session')) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="cp-session" v-model="campSession" type="text" name="camp_session" required :placeholder="tx('例：2027 年暑假足球營', 'e.g. 2027 summer football camp')" aria-describedby="cp-session-hint cp-session-error">
               <p class="field-hint" id="cp-session-hint">{{ tx('目前梯次日期尚未公布，請填寫大略期望時段（如寒假／暑假），課程部會與最新開課資訊比對後回覆。', 'Session dates have not been announced yet. Please enter your approximate preferred period (for example, winter or summer break), and the Programs Department will check it against the latest schedule and reply.') }}</p>
               <p class="field-error" id="cp-session-error" role="alert">{{ tx('請填寫希望報名的梯次', 'Please enter your preferred session') }}</p>
@@ -116,12 +118,12 @@ async function onSubmit() {
           <legend>{{ tx('學員資料', 'Student details') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="cp-name">{{ tx('學員姓名', "Student's name") }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="cp-name">{{ fl('name', tx('學員姓名', "Student's name")) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="cp-name" v-model="studentName" type="text" name="student_name" required autocomplete="name" aria-describedby="cp-name-error">
               <p class="field-error" id="cp-name-error" role="alert">{{ tx('請填寫學員姓名', 'Please enter the student\'s name') }}</p>
             </div>
             <div class="form-field">
-              <label for="cp-dob">{{ tx('學員出生日期', "Student's date of birth") }}<span class="req" aria-hidden="true">*</span></label>
+              <label for="cp-dob">{{ fl('birth_date', tx('學員出生日期', "Student's date of birth")) }}<span class="req" aria-hidden="true">*</span></label>
               <input id="cp-dob" v-model="studentDob" type="date" name="student_dob" required aria-describedby="cp-dob-error">
               <p class="field-error" id="cp-dob-error" role="alert">{{ tx('請填寫學員出生日期', 'Please enter the student\'s date of birth') }}</p>
             </div>

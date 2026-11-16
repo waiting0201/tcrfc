@@ -24,8 +24,6 @@ const [{ data: upcoming }, { data: past }] = await Promise.all([
   useFetch<FanEvent[]>(`/api/backend/${club}/fan-events`, { query: { phase: 'past', lang }, key: `fan-events-${club}-past-${lang}` }),
 ])
 const feeText = (n: number) => `NT$ ${n.toLocaleString('zh-TW')}`
-// 過渡內容：磐石既有的 4 張真實活動照片，後台 F2 出現任何一筆「活動回顧」資料即整批退場，不混搭
-const showStaticReview = computed(() => isTcrfc.value && (past.value ?? []).length === 0)
 
 useSeoMeta({
   title: computed(() => (isEn.value ? (isTcrfc.value ? CLUB_FAN_CLUB_SEO_EN : CLUB_FAN_CLUB_SEO_EN_BW).title : isTcrfc.value
@@ -165,20 +163,6 @@ useSeoMeta({
         </div>
       </li>
     </ul>
-    <div v-else-if="showStaticReview" class="grid grid--4" style="margin-top:1.25rem">
-      <figure class="event-photo">
-        <img :src="siteImg('/assets/img/fanclub/fanclub-event-01.jpg')" :alt="tx('球迷會周邊展示：主場球衣、TCRFC 球帽、背包與造型抱枕', 'Fan Club merchandise display: the home jersey, a TCRFC cap, a backpack and a novelty cushion')" loading="lazy" width="1600" height="1067">
-      </figure>
-      <figure class="event-photo">
-        <img :src="siteImg('/assets/img/fanclub/fanclub-event-02.jpg')" :alt="tx('學院學員身著台中磐石球衣於球場圍網前合影', 'Academy students in Taichung Rock jerseys posing in front of the pitch fence')" loading="lazy" width="1600" height="1067">
-      </figure>
-      <figure class="event-photo">
-        <img :src="siteImg('/assets/img/fanclub/fanclub-event-03.jpg')" :alt="tx('三位學員手持桃紅色 TCRFC 加油棒於戶外合影', 'Three students holding pink TCRFC cheering sticks outdoors')" loading="lazy" width="1600" height="1067">
-      </figure>
-      <figure class="event-photo">
-        <img :src="siteImg('/assets/img/fanclub/fanclub-event-04.jpg')" :alt="tx('球員、學員與球迷於球場大合照', 'Players, students and fans in a group photo at the ground')" loading="lazy" width="1600" height="1067">
-      </figure>
-    </div>
     <p v-else class="is-pending" style="margin-top:1.25rem;">{{ tx('還沒有活動回顧。', 'There are no event reviews yet.') }}</p>
   </div>
 </section>

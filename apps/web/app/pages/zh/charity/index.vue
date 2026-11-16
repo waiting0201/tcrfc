@@ -183,8 +183,8 @@ useSeoMeta({
         <p v-if="donationCtaText" class="donate-action__note">{{ donationCtaText }}</p>
       </template>
       <template v-else>
-        <button class="btn btn--primary" type="button" disabled aria-disabled="true">{{ tx('前往協會慈善捐款平台（網域待定）', 'Go to the Association\'s charity donation platform (domain to be confirmed)') }}</button>
-        <p class="pending-inline"><template v-if="isEn">The charity donation platform domain is still to be confirmed: the domain name has not yet been settled and the donation platform has not yet been built. The button above is currently a disabled placeholder. The platform is organised by, and donations are received by, the Taiwan Football Strategic Development Association, and the call-to-action text must state the recipient clearly. Once a donation URL is set under Charity & Impact in the admin, this will automatically become a clickable external link.</template><template v-else>慈善捐款平台網域待補 —— 客戶尚未確認網域名稱，捐款平台亦尚未開發。上方按鈕目前為 disabled 佔位。平台主辦與收款主體為台灣足球策略發展協會（規劃書 v1.4），CTA 文案須明示收受者。後台「慈善與社會影響」設定捐款網址後，此處會自動換成可點擊的外連按鈕。</template></p>
+        <button class="btn btn--primary" type="button" disabled aria-disabled="true">{{ tx('前往協會慈善捐款平台（即將開放）', 'Go to the Association\'s charity donation platform (opening soon)') }}</button>
+        <p class="pending-inline"><template v-if="isEn">The charity donation platform is organised by, and donations are received by, the Taiwan Football Strategic Development Association. A link will be provided here when the platform opens.</template><template v-else>慈善捐款平台由台灣足球策略發展協會主辦並收受捐款，平台開放後將於此提供連結。</template></p>
       </template>
     </div>
   </div>

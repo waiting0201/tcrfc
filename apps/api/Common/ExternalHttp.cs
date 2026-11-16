@@ -22,6 +22,9 @@ public static class ExternalHttp
     public const string CharityTurnstile = "charity-turnstile";
     public const string GoogleGeocoding = "google-geocoding";
 
+    /// <summary>慈善後台 N2「從官網更新清單」呼叫主站公開清單 API（K-2）。慈善平台不得持有主站資料庫連線，同行程也必須走 HTTP。</summary>
+    public const string CharityMainSite = "charity-main-site";
+
     /// <summary>未特別列出的名稱使用的逾時；任何值都不得超過 <see cref="MaxTimeout"/>。</summary>
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
 
@@ -36,6 +39,7 @@ public static class ExternalHttp
         [ClubTurnstile] = TimeSpan.FromSeconds(5),
         [CharityTurnstile] = TimeSpan.FromSeconds(5),
         [GoogleGeocoding] = TimeSpan.FromSeconds(5),
+        [CharityMainSite] = TimeSpan.FromSeconds(10),
     };
 
     public static TimeSpan TimeoutFor(string clientName)

@@ -11,11 +11,7 @@ academy/life-10.jpg
 academy/life-11.jpg
 academy/life-12.jpg
 academy/life-13.jpg
-club/first-team-01-squad.jpg
 club/first-team-02-trophy.jpg
-fanclub/fanclub-event-01.jpg
-fanclub/fanclub-event-02.jpg
-fanclub/fanclub-event-03.jpg
 fanclub/fanclub-event-04.jpg
 merch/merch-jersey-01.jpg
 nav-about.jpg
@@ -26,7 +22,6 @@ nav-news.jpg
 nav-partners.jpg
 nav-programs.jpg
 news-mcu.jpg
-news-trencin.jpg
 news-w20.jpg
 news/2024-11-05-international-082.jpg
 news/2024-12-07-match-081.jpg
@@ -110,10 +105,6 @@ news/2026-05-10-match-003.jpg
 news/2026-05-17-match-002.jpg
 news/2026-05-24-match-001.jpg
 news/2026-08-10-international-000.jpg
-partners-intl/partner-intl-01-hellas-verona.webp
-partners-intl/partner-intl-02-rayo-alcobendas.png
-partners-intl/partner-intl-03-rot-weiss-ahlen.webp
-player-09-liu.jpg
 programs/childrens-02.jpg
 programs/childrens-03.jpg
 programs/childrens-04.jpg

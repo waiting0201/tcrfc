@@ -18,7 +18,7 @@ const hero = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getOurStoryH
 const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getOurStorySeoEnBw(facts.value) : getOurStorySeoEn(facts.value)) : getOurStorySeo(clubKey.value, facts.value)))
 const navDescEn = computed(() => (clubKey.value === 'bw' ? ABOUT_NAV_DESC_EN_BW : ABOUT_NAV_DESC_EN))
 // 英文版場地名稱優先用 API 的 en 回應；沒有時才退回中文原名（不自行音譯）。
-const venueName = computed(() => (isEn.value ? (primaryVenue.value.nameEn ?? primaryVenue.value.nameZh) : primaryVenue.value.nameZh))
+const venueName = computed(() => (primaryVenue.value ? (isEn.value ? (primaryVenue.value.nameEn ?? primaryVenue.value.nameZh) : primaryVenue.value.nameZh) : null))
 
 // 稽核 B-1：主內文改讀頁面管理（有已發布區塊用 CMS，否則維持下方寫死內容；hero／麵包屑／CTA 不變）
 const cms = await useCmsPage('about/our-story')
@@ -54,16 +54,12 @@ cms.applySeo({ title: () => seo.value.title, description: () => seo.value.descri
       <div v-if="clubKey === 'tcrfc'" class="prose">
         <!-- GEO-03（S1-12d）：成立年份／首季頭銜／主場為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
         <template v-if="isEn">
-          <p>Taichung Rock FC was founded in Taichung in <strong>{{ facts.foundedYear }}</strong> and won the <strong>National Second Division</strong> title in its first year. The club's home ground is {{ venueName }}. With &ldquo;LOCAL ROOTS. GLOBAL PATHWAYS.&rdquo; as its brand promise, it has steadily built a development system in which the First Team, the Academy and our programs run side by side.</p>
+          <p>Taichung Rock FC was founded in Taichung in <strong>{{ facts.foundedYear }}</strong><template v-if="facts.foundingTitleZh"> and won the <strong>National Second Division</strong> title in its first year</template>.<template v-if="venueName"> The club's home ground is {{ venueName }}.</template> With &ldquo;LOCAL ROOTS. GLOBAL PATHWAYS.&rdquo; as its brand promise, it has steadily built a development system in which the First Team, the Academy and our programs run side by side.</p>
 
-          <h2>Text and Images</h2>
-          <p>This page uses a long-form editorial layout that supports mixed text and images and pull quotes. Once the final copy and images are confirmed, photos from the club's history will be woven in between paragraphs.</p>
         </template>
         <template v-else>
-        <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ facts.foundedYear }} 年</strong>在台中成立，同年即拿下<strong>{{ facts.foundingTitleZh }}</strong>。俱樂部主場設於{{ primaryVenue.nameZh }}，以「在地扎根．放眼世界」為品牌主張，逐步建立起一線隊、學院與課程並行的發展體系。</p>
+        <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ facts.foundedYear }} 年</strong>在台中成立<template v-if="facts.foundingTitleZh">，同年即拿下<strong>{{ facts.foundingTitleZh }}</strong></template>。<template v-if="venueName">俱樂部主場設於{{ venueName }}，</template>以「在地扎根．放眼世界」為品牌主張，逐步建立起一線隊、學院與課程並行的發展體系。</p>
 
-        <h2>圖文段落</h2>
-        <p>本頁版型為長文編輯，支援圖文混排與引言區塊；正式內文與圖片確認後，將依段落穿插俱樂部歷年照片。</p>
         </template>
       </div>
       <div v-else class="prose">

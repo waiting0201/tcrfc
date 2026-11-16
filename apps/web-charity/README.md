@@ -143,3 +143,9 @@ SSR 讀取走內網（結果隨 payload 帶到瀏覽器），**寫入與輪詢�
 6. `curl -I /zh/` 確認 `X-Robots-Tag: noindex, nofollow`。
 7. **徵信名單**：先在後台把一筆具名捐款設為「不列入徵信名單」，開 `/zh/donors/` → 應只有姓名、沒有那一筆；用項目與日期篩選，網址參數隨之改變、重新整理仍保留；後台關閉整站徵信（站台設定）→ 同一網址顯示「本頁功能暫未開放」且頁尾入口消失；匿名捐款不會出現。
 8. **成果回顧**：開 `/zh/impact/` → 已上架且關聯慈善計畫的項目依計畫分組；後台沒填俱樂部官網網址時沒有導回連結，填了以後出現；`/en/impact/` 顯示語系回退提示。
+
+## 2026-11-13：英文頁撥付對象名稱（K-3）與結果頁感謝語（K-1）
+
+- **K-3**：項目詳情的 `charityName`／`charityProgramName`、成果回顧的 `programName`／`charityName`，英文頁現在由後端回官網複本的英文名；複本缺英文時回退中文快照，並把 `isFallback` 設為真。`isFallback` 的語意是「該回應內任一文字回退中文」（項目詳情：項目名稱缺英文**或**撥付對象／計畫名稱回退；成果回顧：整頁任一名稱回退），**前台沿用既有的「本頁尚無此語系版本」單一提示**（`tr.fallbackNotice`），沒有為這兩個名稱另加提示。顯示點只有 `pages/[lang]/p/[projectSlug].vue` 與 `pages/[lang]/impact/index.vue`；`types/charity.ts` 補註解，欄位與後端 DTO 一致。
+- **K-1**：結果頁（`pages/[lang]/result/[orderNo].vue`）付款成功時，在固定標題「感謝您的捐款！／Thank you for your donation!」下方顯示後台「感謝語樣板」（`GET /settings` 的 `thankYouTemplate`）。**後端對這個欄位沒有定義任何 `{標記}`**（標記只屬於系統信樣板、由信件端代換），所以前台**純文字輸出、不代換、不用 `v-html`**，換行以 `white-space: pre-line` 保留。挑選邏輯在 `app/utils/thank-you.ts`：樣板空白→不顯示額外段落（只剩固定標題）；已退款不顯示；英文頁在 `settings.isFallback` 為真且文字含中日韓字元時視為缺英文版，不把中文塞進英文頁。限制：`isFallback` 是整體旗標，英文版若本來就填了中文字會被誤判為缺漏。
+- 驗證：`npm run lint`、`npm run build` 通過（typecheck 無輸出錯誤）。🔵 未實機驗證（本機慈善庫未套新遷移，未對真 API 看英文名與感謝語）。

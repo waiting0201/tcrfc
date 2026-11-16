@@ -245,3 +245,86 @@ public sealed class ScriptedReconciliationSource : IPaymentReconciliationSource
         return Task.FromResult<IReadOnlyList<GatewayTransaction>>(Transactions.ToList());
     }
 }
+
+/// <summary>
+/// 可編排的「主站公開清單」：慈善後台「從官網更新清單」（K-2）以 HTTP 呼叫主站，測試不真的打網路，
+/// 由這個假的 <see cref="HttpMessageHandler"/> 回應。預設回一份空清單；測試用 <see cref="SetDirectory"/> 指定內容，
+/// 或 <see cref="SetStatus"/>／<see cref="SetRaw"/>／<see cref="ThrowOnSend"/> 製造主站回錯、回壞資料、連不上。
+/// </summary>
+public sealed class ScriptedMainSite : HttpMessageHandler
+{
+    private int _calls;
+    private readonly object _gate = new();
+    private Func<HttpResponseMessage> _respond = () => Json("{\"charities\":[],\"programs\":[]}");
+
+    public int Calls => _calls;
+    public List<string> RequestedUris { get; } = [];
+
+    /// <summary>每次回應前的人工延遲（讓並發測試能讓多個同步重疊在鎖的視窗內）。</summary>
+    public TimeSpan Delay { get; set; } = TimeSpan.Zero;
+
+    public void Reset()
+    {
+        lock (_gate)
+        {
+            _respond = () => Json("{\"charities\":[],\"programs\":[]}");
+            RequestedUris.Clear();
+        }
+
+        _calls = 0;
+        Delay = TimeSpan.Zero;
+    }
+
+    private static HttpResponseMessage Json(string body)
+        => new(System.Net.HttpStatusCode.OK) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+
+    public void SetRaw(string body, System.Net.HttpStatusCode status = System.Net.HttpStatusCode.OK)
+        => _respond = () => new HttpResponseMessage(status) { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
+
+    public void SetStatus(System.Net.HttpStatusCode status) => _respond = () => new HttpResponseMessage(status);
+
+    public void ThrowOnSend(Exception exception) => _respond = () => throw exception;
+
+    /// <summary>以契約形狀（camelCase、<c>status = published</c>）編排清單。</summary>
+    public void SetDirectory(IEnumerable<MainSiteCharity> charities, IEnumerable<MainSiteProgram> programs)
+    {
+        var body = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            charities = charities.Select(c => new { id = c.Id, slug = c.Slug, status = c.Status, nameZh = c.NameZh, nameEn = c.NameEn }),
+            programs = programs.Select(p => new { id = p.Id, slug = p.Slug, charityId = p.CharityId, status = p.Status, nameZh = p.NameZh, nameEn = p.NameEn }),
+        });
+        SetRaw(body);
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        Interlocked.Increment(ref _calls);
+        lock (_gate)
+        {
+            RequestedUris.Add(request.RequestUri!.ToString());
+        }
+
+        if (Delay > TimeSpan.Zero)
+        {
+            await Task.Delay(Delay, cancellationToken);
+        }
+
+        Func<HttpResponseMessage> respond;
+        lock (_gate)
+        {
+            respond = _respond;
+        }
+
+        return respond();
+    }
+}
+
+public sealed record MainSiteCharity(Guid Id, string Slug, string NameZh, string? NameEn, string Status = "published");
+
+public sealed record MainSiteProgram(Guid Id, string Slug, Guid CharityId, string NameZh, string? NameEn, string Status = "published");
+
+/// <summary>把所有具名 <see cref="HttpClient"/> 都導向 <see cref="ScriptedMainSite"/>（測試主機沒有任何真正的外部呼叫）。</summary>
+public sealed class ScriptedHttpClientFactory(ScriptedMainSite handler) : IHttpClientFactory
+{
+    public HttpClient CreateClient(string name) => new(handler, disposeHandler: false) { Timeout = TimeSpan.FromSeconds(10) };
+}

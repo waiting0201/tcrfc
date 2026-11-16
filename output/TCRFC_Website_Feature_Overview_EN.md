@@ -1,8 +1,8 @@
 # Taichung Rock FC — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.8
-> **Date**: 2026-09-14 (v1.8 revision: 2026-10-20)
-> **Corresponds to**: *TCRFC Website Functional Specification* v3.31
+> **Document version**: v1.9
+> **Date**: 2026-09-14 (v1.9 revision: 2026-11-13)
+> **Corresponds to**: *TCRFC Website Functional Specification* v3.35
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **How to read this document**
@@ -165,7 +165,7 @@ Membership covers **one thing only — belonging**. **A free registered account 
 | | Performance reports | Impressions and clicks |
 | **Culture** | Comic | Characters, episodes, reading settings |
 | | Supporters' club events | Event scheduling (the roster lives in module K) |
-| **Enquiries** | Form designer | Viewing form fields; setting notifications, auto-replies and CAPTCHA |
+| **Enquiries** | Form designer | Editing form question and option text; setting notifications, auto-replies and CAPTCHA |
 | | Inbox | Seven form types plus proposal downloads; each entry shows the privacy-consent time and policy version |
 | | Newsletter list | Subscriptions and unsubscribes |
 | **Search & sharing settings** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** |

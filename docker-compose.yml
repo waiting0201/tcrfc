@@ -284,6 +284,12 @@ services:
       # 都用它加密。api 沒讀到這個變數不會報錯，金鑰只活在容器可寫層，容器一重建就全部無法解密（E-109）。
       # 路徑對應下方 volumes 的 bind mount，不是機密，所以寫在這裡而不是 secrets env 檔。
       DATA_PROTECTION_KEYS_PATH: /var/lib/tcrfc/data-protection
+      # 慈善後台 N2「從官網更新清單」呼叫主站公開清單 API 的基底網址（K-2，2026-11-13）。
+      # 🔴 慈善平台不得持有主站資料庫連線，即使與主站同在這個 api 行程內也必須走 HTTP（慈善規劃書 §9.3），
+      # 所以明確設定而不是在程式裡寫死；目前是容器內自己的 8080（Dockerfile 的 ASPNETCORE_HTTP_PORTS）。
+      # 日後慈善 api 拆成獨立容器時，改成主站 api 的內部網址即可，程式不動。不是機密，所以寫在這裡。
+      # 由 scripts/check-compose-env.mjs 把關（漏帶 → N2 同步回「尚未設定」）。
+      CHARITY_MAIN_SITE_API_BASE_URL: http://127.0.0.1:8080
       # ── 網域（docs/17-deployment.md §10.2）：補之前完全沒有的缺口 ──────────────
       # 過去 api 容器收不到任何網域變數，系統信連結、CORS 允許來源都無處可取值，只能寫死。
       # 這裡補上同一組六個網域變數，供 backend-engineer 建 api 專案時組信件連結、CORS 清單、

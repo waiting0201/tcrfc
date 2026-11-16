@@ -502,6 +502,7 @@ builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.PushContentGuard>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.PushDispatcher>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.PushRulesStore>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppReleasesRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AppLinkValidator>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppLayoutRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppPushRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppDevicesRepository>();

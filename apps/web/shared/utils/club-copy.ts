@@ -62,7 +62,18 @@ function normalizeClub(club: string): ClubCode {
 /** 主場（`isHomeGround` 第一筆）。等價於 site-facts.ts 的 `getPrimaryVenue(club)`，
  * 差別是這裡直接吃已經取得的 `facts`，不用再認識 `club` 字串去查表。 */
 function primaryVenueOf(facts: SiteFacts) {
-  return facts.venues.find((v) => v.isHomeGround) ?? facts.venues[0]!
+  return facts.venues.find((v) => v.isHomeGround) ?? facts.venues[0] ?? null
+}
+
+/** 「，主場為○○」這類帶標點的主場子句；沒有任何場地時回空字串，整段省略（不留殘句）。 */
+function homeVenueClauseZh(facts: SiteFacts, lead: string, tail: string): string {
+  const v = primaryVenueOf(facts)
+  return v ? `${lead}${v.nameZh}${tail}` : ''
+}
+
+/** 藍鯨的多場地主場清單（頓號相連），沒有場地時為空字串。 */
+function bwVenueListZh(facts: SiteFacts): string {
+  return facts.venues.map((v) => v.nameZh).join('、')
 }
 
 /** 「U15／U14／U12」這種梯隊代碼組字，等價於 site-facts.ts 的 `academyTeamCodesLabel(club, sep)`。 */
@@ -215,23 +226,26 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
 }
 
 /**
- * C-2：把後台維護的聯絡 Email／社群連結／頁尾簡介疊到 `ClubIdentity` 上（過渡期規則）。
- * - Email、頁尾簡介：API 有值優先，null／缺欄位沿用 `identity` 現值。
- * - 社群：`facts.social` 不存在或四個平台全為 null → 整組沿用 `identity.social`（後端種子補上前的過渡）；
- *   只要任一平台有值 → 完全以 API 為準，API 為 null 的平台不顯示（不回退寫死值）。
- * 注意 `lang`：英文版簡介只收 API 的英文值，沒有就沿用英文識別的現值，不混入中文。
+ * C-2：把後台維護的聯絡 Email／社群連結／頁尾簡介疊到 `ClubIdentity` 上。
+ * - **API 成功（`facts.fromApi`）＝完全以後台為準**：值為空就不顯示（社群圖示不出現、Email 列不出現、頁尾簡介不出現），
+ *   不再退回 `identity` 的寫死值（2026-11-13 使用者拍板，docs/23 W-31；原因同 E-291：寫死值後台清不掉）。
+ * - **API 打不到（`fromApi` 不為 true，`useSiteFacts` 退回靜態快照）＝沿用 `identity` 現值**——這是既有的 fail-open 降級，
+ *   不是「後台沒資料」。
+ * 注意 `lang`：英文版簡介只收 API 的英文值，英文值缺漏就不顯示（不混入中文）。
  */
 export function applySiteFactsToIdentity(identity: ClubIdentity, facts: SiteFacts, lang: 'zh' | 'en'): ClubIdentity {
+  if (!facts.fromApi) return identity
   const api = facts.social
-  const apiHasSocial = !!api && [api.facebook, api.instagram, api.youtube, api.line].some((v) => !!v)
-  const blurb = lang === 'en' ? facts.footerBlurbEn : facts.footerBlurbZh
-  const email = facts.contact.email || identity.social.email
   return {
     ...identity,
-    footerBlurb: blurb || identity.footerBlurb,
-    social: apiHasSocial
-      ? { facebook: api!.facebook, instagram: api!.instagram, youtube: api!.youtube, line: api!.line, email }
-      : { ...identity.social, email },
+    footerBlurb: (lang === 'en' ? facts.footerBlurbEn : facts.footerBlurbZh) || '',
+    social: {
+      facebook: api?.facebook || null,
+      instagram: api?.instagram || null,
+      youtube: api?.youtube || null,
+      line: api?.line || null,
+      email: facts.contact.email || null,
+    },
   }
 }
 
@@ -286,7 +300,7 @@ export function getHomeSeo(club: string, facts: SiteFacts): SeoCopy {
   }
   return {
     title: '台中磐石足球俱樂部 TCRFC｜在地扎根．放眼世界',
-    description: `台中磐石足球俱樂部（TCRFC）官方網站。${facts.foundedDisplayZh}，${facts.foundedYear} ${facts.foundingTitleZh}。一線隊、台中磐石足球學院、課程與活動、女子足球四大體系。`,
+    description: `台中磐石足球俱樂部（TCRFC）官方網站。${facts.foundedDisplayZh}${facts.foundingTitleZh ? `，${facts.foundedYear} ${facts.foundingTitleZh}` : ''}。一線隊、台中磐石足球學院、課程與活動、女子足球四大體系。`,
   }
 }
 
@@ -308,7 +322,7 @@ export function getHomeHero(club: string, facts: SiteFacts): HomeHeroCopy {
   return {
     kickerEn: 'LOCAL ROOTS. GLOBAL PATHWAYS.',
     headlineZh: '在地扎根<br>放眼世界',
-    factLineZh: `台中磐石足球俱樂部 · <b>${facts.foundedDisplayZh}</b> · <b>${facts.foundedYear} ${facts.foundingTitleZh}</b>`,
+    factLineZh: `台中磐石足球俱樂部 · <b>${facts.foundedDisplayZh}</b>${facts.foundingTitleZh ? ` · <b>${facts.foundedYear} ${facts.foundingTitleZh}</b>` : ''}`,
     ctaPrimaryHref: '/zh/charity/',
     ctaSecondaryLabelZh: '認識台中磐石',
     ctaSecondaryHref: '/zh/culture/',
@@ -635,7 +649,7 @@ export const OUR_PEOPLE_HERO: ClubText<HeroCopy> = {
   bw: {
     h1Zh: '團隊成員',
     h1En: null,
-    lede: '支撐台中藍鯨一線隊運作的教練團隊。名單由後台維護，內容更新中。',
+    lede: '支撐台中藍鯨一線隊運作的教練團隊。名單整理中，稍後將公布於本頁。',
   },
 }
 
@@ -902,7 +916,7 @@ export const HISTORY_YEARS_BW: HistoryYear[] = [
   },
 ]
 
-// 2.8 重要里程碑（藍鯨這一輪不重建時間軸元件，改指向 2.7 俱樂部歷程；只換 hero／SEO）
+// 2.8 重要里程碑（時間軸內容來自後台，這裡只放 hero／SEO）
 export const MILESTONES_SEO: ClubText<SeoCopy> = {
   tcrfc: {
     title: '重要里程碑 Key Milestones｜關於台中磐石｜台中磐石足球俱樂部',
@@ -923,7 +937,7 @@ export const MILESTONES_HERO: ClubText<HeroCopy> = {
   bw: {
     h1Zh: '重要里程碑',
     h1En: null,
-    lede: '台中藍鯨的年度大事記目前收錄在「俱樂部歷程」頁的 2014～2025 逐年沿革，本頁的年份篩選時間軸尚未依藍鯨資料重建。',
+    lede: '台中藍鯨的重要里程碑，可依年份篩選查看。完整的 2014～2025 逐年沿革請見「俱樂部歷程」頁。',
   },
 }
 
@@ -936,7 +950,7 @@ export function getFirstTeamSeo(club: string, facts: SiteFacts): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
       title: '一線隊｜台中藍鯨女子足球隊',
-      description: `台中藍鯨女子足球隊一線隊：出戰${facts.league.nameZh}，隊史五度奪冠。名單與賽程由後台維護，內容更新中。`,
+      description: `台中藍鯨女子足球隊一線隊：出戰${facts.league.nameZh}，隊史五度奪冠。名單與賽程整理中，稍後將公布。`,
     }
   }
   return {
@@ -950,22 +964,22 @@ export function getFirstTeamHero(club: string, facts: SiteFacts): HeroCopy {
     return {
       h1Zh: '一線隊',
       h1En: null,
-      lede: `台中藍鯨一線隊代表俱樂部出戰${facts.league.nameZh}，${facts.foundedDisplayZh}，隊史五度奪得聯賽冠軍。主場為${facts.venues.map((v) => v.nameZh).join('、')}。`,
+      lede: `台中藍鯨一線隊代表俱樂部出戰${facts.league.nameZh}，${facts.foundedDisplayZh}，隊史五度奪得聯賽冠軍。${bwVenueListZh(facts) ? `主場為${bwVenueListZh(facts)}。` : ''}`,
     }
   }
   return {
     h1Zh: '一線隊',
     h1En: 'First Team',
-    lede: `台中磐石一線隊代表俱樂部出戰${facts.league.nameZh}，是所有青訓與學院球員最終銜接的競技舞台。球隊 ${facts.foundedDisplayZh}，同年即拿下${facts.foundingTitleZh}，主場為${primaryVenueOf(facts).nameZh}。`,
+    lede: `台中磐石一線隊代表俱樂部出戰${facts.league.nameZh}，是所有青訓與學院球員最終銜接的競技舞台。球隊 ${facts.foundedDisplayZh}${facts.foundingTitleZh ? `，同年即拿下${facts.foundingTitleZh}` : ''}。${homeVenueClauseZh(facts, '主場為', '。')}`,
   }
 }
 
 /** 對應 mockup「球隊介紹」段落——藍鯨版逐句改寫自 club-profile.md §1 已核實事實（成立年、聯賽名、主場），不臆測名次或賽季戰績。 */
 export function getFirstTeamIntro(club: string, facts: SiteFacts): string {
   if (normalizeClub(club) === 'bw') {
-    return `台中藍鯨一線隊於 ${facts.foundedYear} 年隨俱樂部創立成軍，出戰${facts.league.nameZh}，隊史累計五度奪得聯賽冠軍（2017、2018、2019、2021、2023）。球隊主場為${facts.venues.map((v) => v.nameZh).join('、')}。名單與最新賽程由後台維護，本頁內容更新中。`
+    return `台中藍鯨一線隊於 ${facts.foundedYear} 年隨俱樂部創立成軍，出戰${facts.league.nameZh}，隊史累計五度奪得聯賽冠軍（2017、2018、2019、2021、2023）。${bwVenueListZh(facts) ? `球隊主場為${bwVenueListZh(facts)}。` : ''}名單與最新賽程整理中，稍後將於本頁公布。`
   }
-  return `台中磐石足球俱樂部一線隊於 ${facts.foundedYear} 年隨俱樂部創立成軍，同年奪下${facts.foundingTitleZh}，現於${facts.league.nameZh}出賽。球隊主場設於${primaryVenueOf(facts).nameZh}，2026/27 賽季共排定 21 場企甲例行賽。`
+  return `台中磐石足球俱樂部一線隊於 ${facts.foundedYear} 年隨俱樂部創立成軍${facts.foundingTitleZh ? `，同年奪下${facts.foundingTitleZh}` : ''}，現於${facts.league.nameZh}出賽。${homeVenueClauseZh(facts, '球隊主場設於', '，')}2026/27 賽季共排定 21 場企甲例行賽。`
 }
 
 // ---------------------------------------------------------------------------
@@ -983,7 +997,7 @@ export function getAcademyOverviewSeo(club: string, facts: SiteFacts): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
       title: '青年隊總覽｜台中藍鯨女子足球隊',
-      description: `台中藍鯨青年隊由 ${squadCodesLabel(facts, '、')} 女子足球隊組成，銜接一線隊的競技體系。招生方式與課表待確認，詳情請洽俱樂部。`,
+      description: `台中藍鯨青年隊由 ${squadCodesLabel(facts, '、')} 女子足球隊組成，銜接一線隊的競技體系，招生方式與課表詳情請洽俱樂部。`,
     }
   }
   return {
@@ -1474,21 +1488,6 @@ export function getSchoolCommunityHero(club: string): HeroCopy {
   }
 }
 
-export interface SchoolPartnerRow {
-  nameZh: string
-  contentZh: string
-  yearZh: string | null
-}
-
-/** 藍鯨建教合作學校列表（5 校，逐字節錄自 club-profile.md §1「建教合作」欄）。 */
-export const SCHOOL_PARTNERS_BW: SchoolPartnerRow[] = [
-  { nameZh: '國立臺灣體育運動大學女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: null },
-  { nameZh: '臺中市立五權國民中學女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: '2015 年' },
-  { nameZh: '南投縣立水里國民中學女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: null },
-  { nameZh: '彰化縣立永靖國民中學女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: null },
-  { nameZh: '臺中市篤行國小女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: null },
-]
-
 /** 藍鯨社區計畫簡介，節錄自 programs.md §2「運動 i 台灣 2.0－運動熱區」（太原足球場）。 */
 export const COMMUNITY_PROGRAM_BODY_BW =
   '台中藍鯨承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫（太原足球場），提供社區足球學校（暱稱「小藍鯨」）等分齡足球課程，推廣全民規律運動。'
@@ -1618,7 +1617,7 @@ export function getYouthCoachesSeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
       title: '青年隊教練團｜台中藍鯨女子足球隊',
-      description: '台中藍鯨青年隊教練團：名單整理中，將於已核實資料到位後公布於本頁。',
+      description: '台中藍鯨青年隊教練團介紹，名單整理中，稍後將公布於本頁。',
     }
   }
   return {
@@ -1632,7 +1631,7 @@ export function getYouthCoachesHero(club: string): HeroCopy {
     return {
       h1Zh: '青年隊教練團',
       h1En: null,
-      lede: '台中藍鯨青年隊教練團名單整理中，將於已核實、非過期的資料到位後公布於本頁。',
+      lede: '台中藍鯨青年隊教練團名單整理中，稍後將公布於本頁。',
     }
   }
   return {
@@ -1646,7 +1645,7 @@ export function getYouthLifeSeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
       title: '青年隊生活｜台中藍鯨女子足球隊',
-      description: '台中藍鯨青年隊訓練與比賽日常影像，待肖像同意到位後將陸續公布於本頁。',
+      description: '台中藍鯨青年隊的訓練與比賽日常影像，將陸續公布於本頁。',
     }
   }
   return {
@@ -1660,7 +1659,7 @@ export function getYouthLifeHero(club: string): HeroCopy {
     return {
       h1Zh: '青年隊生活',
       h1En: null,
-      lede: '訓練日常、比賽現場與隊上活動——待肖像同意到位後，將陸續以影像記錄台中藍鯨青年隊學員的成長點滴。',
+      lede: '訓練日常、比賽現場與隊上活動——將陸續以影像記錄台中藍鯨青年隊學員的成長點滴。',
     }
   }
   return {
@@ -1741,7 +1740,7 @@ export function getSummerCampHero(club: string): HeroCopy {
     return {
       h1Zh: '夏令營',
       h1En: null,
-      lede: '台中藍鯨目前尚未推出獨立的夏令營活動，是否開放另行規劃中。暑期期間可留意「兒童足球訓練」既有班別與官方社群公告。',
+      lede: '台中藍鯨目前尚未推出獨立的夏令營活動。暑期期間可留意「兒童足球訓練」既有班別與官方社群公告。',
     }
   }
   return {
@@ -1769,7 +1768,7 @@ export function getWinterCampHero(club: string): HeroCopy {
     return {
       h1Zh: '冬令營',
       h1En: null,
-      lede: '台中藍鯨目前尚未推出獨立的冬令營活動，是否開放另行規劃中。寒假期間可留意「兒童足球訓練」既有班別與官方社群公告。',
+      lede: '台中藍鯨目前尚未推出獨立的冬令營活動。寒假期間可留意「兒童足球訓練」既有班別與官方社群公告。',
     }
   }
   return {
@@ -1851,7 +1850,7 @@ export function getClubHubHero(club: string, facts: SiteFacts): HeroCopy {
   return {
     h1Zh: '台中磐石足球俱樂部',
     h1En: 'Football Club',
-    lede: `從${primaryVenueOf(facts).nameZh}出發的一線隊，是台中磐石所有青訓體系最終要銜接的舞台。這裡整理球隊陣容、球員發展系統、加入管道，以及選手通往海外的路徑。`,
+    lede: `${homeVenueClauseZh(facts, '從', '出發的一線隊，是台中磐石') || '台中磐石的一線隊，是'}所有青訓體系最終要銜接的舞台。這裡整理球隊陣容、球員發展系統、加入管道，以及選手通往海外的路徑。`,
   }
 }
 
@@ -1870,13 +1869,14 @@ export function getClubHubStats(club: string, facts: SiteFacts): ClubHubStat[] {
     return [
       { num: facts.foundedYear, labelZh: '創立年份' },
       { num: '5', labelZh: '隊史奪得聯賽冠軍次數' },
-      { num: String(facts.squadCodes.length), labelZh: '青年隊梯隊數' },
+      ...(facts.squadCodes.length > 0 ? [{ num: String(facts.squadCodes.length), labelZh: '青年隊梯隊數' }] : []),
       { num: facts.league.shortNameZh ?? facts.league.nameZh, labelZh: '參與聯賽' },
     ]
   }
   return [
     { num: facts.foundedYear, labelZh: '創立年份' },
-    { num: facts.foundedYear, labelZh: facts.foundingTitleZh ?? '' },
+    // 沒有成立首年頭銜時整張統計卡省略（不放空標籤）
+    ...(facts.foundingTitleZh ? [{ num: facts.foundedYear, labelZh: facts.foundingTitleZh }] : []),
     { num: '28', labelZh: '一線隊註冊球員' },
     { num: '21', labelZh: '2026/27 企甲例行賽場次' },
   ]

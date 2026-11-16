@@ -6,9 +6,8 @@
 // 藍鯨規劃書 §2.1「09 須與磐石分區」）；本頁不做任何跨俱樂部合併。
 // 🔴 合作期間：後端只回「合作期間涵蓋今天」的夥伴（沒填起訖視為進行中），前台不重複篩一次。
 // 🔴 空狀態：某類型沒有夥伴就維持既有「尚未公開」虛線格；API 打不到時同樣落回空狀態，不出 500。
-// 🔴 國際夥伴靜態三個隊徽（Hellas Verona／Rayo Alcobendas／Rot-Weiss Ahlen）是磐石一線隊的真實海外
-// 合作對象（S0-9 搬遷保留），**只在磐石、且後台「國際夥伴」類型一筆都還沒建時**作為過渡顯示；後台一
-// 旦建立任何國際夥伴就整批換成後台資料（不混搭兩個來源），藍鯨一律不顯示（E-83）。
+// 🔴 2026-11-13 起沒有任何寫死的夥伴後備（含磐石國際夥伴三個隊徽，已搬進資料，隊徽由營運在後台上傳；
+// 上傳前以純文字名稱呈現）。後台某類型沒有夥伴就一律顯示「尚未公開」虛線格（兩站一致）。
 // 🔴 類型值是中文字面值（標準五類＋俱樂部自訂，如藍鯨的「指導單位」），不隨語系翻譯；標準五類區塊
 // 標題的英文副標是版型固定文字，自訂類型沒有英文副標，只顯示後台填的類型名稱。
 import type { PublicPartner } from '#shared/utils/partners'
@@ -18,7 +17,6 @@ definePageMeta({ nav: 'partners', unit: '9.1', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
-const isTcrfc = computed(() => config.public.club !== 'bw')
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const clubEn = computed(() => bizClubNameEn(config.public.club))
 // 夥伴詳情的「共同參與的公益計畫」連結只在有 11 慈善單元的俱樂部顯示（藍鯨不設 11，連過去會 404）。
@@ -89,19 +87,6 @@ useSeoMeta({
       />
     </div>
 
-    <!-- 國際夥伴：後台尚未建立任何一筆時，磐石沿用既有三個海外合作隊徽（見檔頭說明），藍鯨顯示空格 -->
-    <div v-else-if="sec.key === 'international' && isTcrfc" class="sponsor-grid">
-      <div class="sponsor-tile">
-        <img :src="siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp')" :alt="tx('義大利 Hellas Verona FC 隊徽', 'Hellas Verona FC crest (Italy)')" loading="lazy" width="200" height="200">
-      </div>
-      <div class="sponsor-tile">
-        <img :src="siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png')" :alt="tx('西班牙 Rayo Ciudad Alcobendas CF 隊徽', 'Rayo Ciudad Alcobendas CF crest (Spain)')" loading="lazy" width="200" height="200">
-      </div>
-      <div class="sponsor-tile">
-        <img :src="siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp')" :alt="tx('德國 Rot-Weiss Ahlen 隊徽', 'Rot-Weiss Ahlen crest (Germany)')" loading="lazy" width="200" height="200">
-      </div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>{{ tx('尚未公開', 'Not yet announced') }}</span></div>
-    </div>
     <div v-else class="sponsor-grid">
       <div v-for="n in 4" :key="n" class="sponsor-tile sponsor-tile--empty"><span>{{ tx('尚未公開', 'Not yet announced') }}</span></div>
     </div>
@@ -111,7 +96,7 @@ useSeoMeta({
       <li v-for="p in rosterItems(sec.items)" :key="p.id" class="partner-roster__item">
         <h3 class="partner-roster__name">{{ p.name }}</h3>
         <p v-if="p.country || formatPartnerPeriod(p.startOn, p.endOn)" class="partner-roster__meta">
-          <span v-if="p.country">{{ p.country }}</span>
+          <span v-if="p.country">{{ isEn ? clubCountryLabelEn(p.country) : p.country }}</span>
           <span v-if="formatPartnerPeriod(p.startOn, p.endOn)">{{ tx('合作期間', 'Partnership period') }} {{ formatPartnerPeriod(p.startOn, p.endOn, isEn) }}</span>
         </p>
         <p v-if="p.content" class="partner-roster__content">{{ p.content }}</p>

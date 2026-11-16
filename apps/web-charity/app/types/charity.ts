@@ -52,9 +52,11 @@ export interface PublicProjectDetail {
   minAmount: number
   maxAmount: number
   invoiceMode: InvoiceMode
+  /** 撥付對象與計畫名稱：英文頁取官網複本的英文名（K-3）；複本沒有英文時回退快照（中文）。 */
   charityName: string | null
   charityProgramName: string | null
   charityProgramRefCode: string | null
+  /** 項目名稱缺英文，或上面兩個名稱回退了中文——任一成立就為 true（後端已合併成單一旗標，前台只提示一次）。 */
   isFallback: boolean
 }
 
@@ -142,5 +144,6 @@ export interface PublicImpactProgram {
 export interface PublicImpact {
   clubSiteUrl: string | null
   programs: PublicImpactProgram[]
+  /** 項目名稱或各組的計畫／公益團體名稱（K-3）任一回退中文就為 true；整頁一個旗標，前台只提示一次。 */
   isFallback: boolean
 }

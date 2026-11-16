@@ -7,8 +7,9 @@ import PageHeader from '@/components/PageHeader.vue'
 import SemanticTag from '@/components/SemanticTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ErrorState from '@/components/ErrorState.vue'
+import CharityRefSyncPanel from '@/components/CharityRefSyncPanel.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
-import { listProjects, publishProject, unpublishProject, type ProjectListItem } from '@/api/projects'
+import { getCharityRefs, listProjects, publishProject, unpublishProject, type ProjectListItem } from '@/api/projects'
 import { AdminApiError } from '@/api/http'
 import { hasPermission } from '@/auth/session'
 import { useBreakpoint } from '@/composables/useBreakpoint'
@@ -26,6 +27,17 @@ const items = ref<ProjectListItem[]>([])
 const loading = ref(false)
 const loadError = ref('')
 const busyId = ref<string | null>(null)
+/** 官網清單上次更新時間：undefined＝尚未取得（取不到就不顯示時間行，不影響列表）。 */
+const refsSyncedAt = ref<string | null | undefined>(undefined)
+
+async function loadSyncedAt() {
+  if (!canManage.value) return
+  try {
+    refsSyncedAt.value = (await getCharityRefs()).lastSyncedAt
+  } catch {
+    refsSyncedAt.value = undefined
+  }
+}
 
 const sorted = computed(() => [...items.value].sort((a, b) => a.sortOrder - b.sortOrder))
 
@@ -41,7 +53,10 @@ async function load() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  void load()
+  void loadSyncedAt()
+})
 
 async function toggle(row: ProjectListItem) {
   busyId.value = row.id
@@ -72,6 +87,11 @@ const modeLabel = (m: string) => (m === 'b2c_invoice' ? '電子發票' : '捐贈
         <el-button v-if="canManage" type="primary" @click="router.push('/projects/new')">新增捐款項目</el-button>
       </template>
     </PageHeader>
+
+    <section v-if="canManage" class="project-list__sync">
+      <p class="project-list__sync-hint">項目的撥付對象選單來自官方網站。官網有新增或下架公益機構、公益計畫時，按下面的按鈕更新。</p>
+      <CharityRefSyncPanel :last-synced-at="refsSyncedAt" @synced="loadSyncedAt" />
+    </section>
 
     <ErrorState v-if="loadError" :text="loadError" @retry="load" />
     <EmptyState v-else-if="!loading && items.length === 0" text="目前沒有捐款項目" />
@@ -129,6 +149,17 @@ const modeLabel = (m: string) => (m === 'b2c_invoice' ? '電子發票' : '捐贈
 </template>
 
 <style scoped>
+.project-list__sync {
+  margin-bottom: var(--charity-admin-space-4);
+}
+
+.project-list__sync-hint {
+  margin: 0 0 var(--charity-admin-space-2);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--charity-admin-text-tertiary);
+}
+
 .project-list__en {
   font-size: 12px;
   color: var(--charity-admin-text-tertiary);

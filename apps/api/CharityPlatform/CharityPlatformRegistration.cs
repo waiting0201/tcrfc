@@ -107,6 +107,11 @@ public static class CharityPlatformRegistration
             services.AddSingleton<ICharityImageStorage>(sp => new BlobCharityImageStorage(container, publicBase, sp.GetRequiredService<ILogger<BlobCharityImageStorage>>()));
         }
 
+        // ── 慈善複本同步（K-2）：以 HTTP 呼叫主站公開清單。不重導向（基底網址是設定，不跟著別人的 301 跑）。──
+        services.AddExternalHttpClient(Tcrfc.Api.Common.ExternalHttp.CharityMainSite)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false });
+        services.AddScoped<CharityRefSyncService>();
+
         // ── 前台（公開）與後台的 service ───────────────────────────────────────────
         services.AddScoped<CharityPublicCatalog>();
         services.AddScoped<CharityEmailService>();

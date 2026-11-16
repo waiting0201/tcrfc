@@ -54,8 +54,8 @@ cms.applySeo({ title: () => seo.value.title, description: () => seo.value.descri
     <h2 class="visually-hidden" id="history-title">{{ tx('俱樂部歷程', 'Club History') }}</h2>
     <div v-if="clubKey === 'tcrfc'" class="prose">
       <!-- GEO-03（S1-12d）：成立年份／首季頭銜為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-      <p v-if="isEn">Taichung Rock FC was founded in Taichung in <strong>{{ facts.foundedYear }}</strong> and won the <strong>National Second Division</strong> title in its founding year. The club has since continued to expand the First Team, the Academy and its international exchange network.</p>
-      <p v-else>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ facts.foundedYear }} 年</strong>在台中成立，成立當年即拿下<strong>{{ facts.foundingTitleZh }}</strong>，並持續擴展一線隊、學院與國際交流網絡。</p>
+      <p v-if="isEn">Taichung Rock FC was founded in Taichung in <strong>{{ facts.foundedYear }}</strong><template v-if="facts.foundingTitleZh"> and won the <strong>National Second Division</strong> title in its founding year</template>. The club has since continued to expand the First Team, the Academy and its international exchange network.</p>
+      <p v-else>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ facts.foundedYear }} 年</strong>在台中成立<template v-if="facts.foundingTitleZh">，成立當年即拿下<strong>{{ facts.foundingTitleZh }}</strong></template>，並持續擴展一線隊、學院與國際交流網絡。</p>
     </div>
     <div v-else class="prose history-years">
       <div v-for="(y, yi) in HISTORY_YEARS_BW" :key="y.year" class="history-year">
@@ -64,7 +64,7 @@ cms.applySeo({ title: () => seo.value.title, description: () => seo.value.descri
           <li v-for="(item, i) in (isEn ? HISTORY_YEARS_EN_BW[yi]?.items ?? y.itemsZh : y.itemsZh)" :key="i">{{ item }}</li>
         </ul>
       </div>
-      <p class="field-hint">{{ isEn ? HISTORY_NOTE_EN_BW : '上列沿革整理自舊官網公開內容，部分年度屆數標示與其他資料有出入，正式版本將於俱樂部確認後更新。' }}</p>
+      <p class="field-hint">{{ isEn ? HISTORY_NOTE_EN_BW : '上列沿革整理自舊官網公開內容，部分年度的屆數標示與其他資料略有出入。' }}</p>
     </div>
   </div>
 </section>

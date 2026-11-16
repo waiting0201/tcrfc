@@ -36,6 +36,12 @@ function primaryVenueEn(facts: SiteFacts): string {
   return v ? (v.nameEn ?? v.nameZh) : ''
 }
 
+/** 「<lead><主場名><tail>」子句；沒有任何場地時回空字串，整段省略（不留殘句）。 */
+function homeVenueClauseEn(facts: SiteFacts, lead: string, tail: string): string {
+  const name = primaryVenueEn(facts)
+  return name ? `${lead}${name}${tail}` : ''
+}
+
 // ---------------------------------------------------------------------------
 // 03 單元 hub（club/index.vue）
 // ---------------------------------------------------------------------------
@@ -52,7 +58,7 @@ export function getClubHubHeroEn(facts: SiteFacts): HeroCopy {
   return {
     h1Zh: 'Football Club',
     h1En: null,
-    lede: `The First Team, based at ${primaryVenueEn(facts)}, is the stage that every part of the Taichung Rock youth system leads to. Here you will find the squad, Player Development, ways to join, and the pathways players take overseas.`,
+    lede: `The First Team${homeVenueClauseEn(facts, ', based at ', ',')} is the stage that every part of the Taichung Rock youth system leads to. Here you will find the squad, Player Development, ways to join, and the pathways players take overseas.`,
   }
 }
 
@@ -60,7 +66,7 @@ export function getClubHubHeroEn(facts: SiteFacts): HeroCopy {
 export function getClubHubStatsEn(facts: SiteFacts): ClubHubStat[] {
   return [
     { num: facts.foundedYear, labelZh: 'Year founded' },
-    { num: facts.foundedYear, labelZh: facts.foundingTitleEn ?? '' },
+    ...(facts.foundingTitleEn ? [{ num: facts.foundedYear, labelZh: facts.foundingTitleEn }] : []),
     { num: '28', labelZh: 'First Team registered players' },
     { num: '21', labelZh: '2026/27 regular-season league matches' },
   ]
@@ -108,13 +114,13 @@ export function getFirstTeamHeroEn(facts: SiteFacts): HeroCopy {
   return {
     h1Zh: 'First Team',
     h1En: null,
-    lede: `The Taichung Rock First Team represents the club in ${leagueEn(facts)} and is the competitive stage that every youth and Academy player ultimately works towards. ${foundingClauseEn(facts)}, and its home ground is ${primaryVenueEn(facts)}.`,
+    lede: `The Taichung Rock First Team represents the club in ${leagueEn(facts)} and is the competitive stage that every youth and Academy player ultimately works towards. ${foundingClauseEn(facts)}${homeVenueClauseEn(facts, ', and its home ground is ', '')}.`,
   }
 }
 
 export function getFirstTeamIntroEn(facts: SiteFacts): string {
   const title = facts.foundingTitleEn ? `, won the ${facts.foundingTitleEn} title that same year,` : ''
-  return `The Taichung Rock Football Club First Team was formed with the club in ${facts.foundedYear}${title} and now competes in ${leagueEn(facts)}. The team's home ground is ${primaryVenueEn(facts)}, and 21 regular-season league matches are scheduled for the 2026/27 season.`
+  return `The Taichung Rock Football Club First Team was formed with the club in ${facts.foundedYear}${title} and now competes in ${leagueEn(facts)}. ${homeVenueClauseEn(facts, 'The team\'s home ground is ', ', and 21 regular-season league matches are scheduled for the 2026/27 season.') || 'In the 2026/27 season, 21 regular-season league matches are scheduled.'}`
 }
 
 /** 賽程列「主客」欄。 */
@@ -296,7 +302,10 @@ export function clubFoundedLabelEn(foundingDateIso: string | null, foundedYear: 
 
 /** 梯隊體系（藍鯨：一線隊與青年隊兩個梯隊並行）——由梯隊代碼清單組字。 */
 export function clubWomensSquadStructureEn(squadCodes: string[]): string {
-  return `A development system in which the First Team and the youth team (${squadCodes.join('/')}) run in parallel`
+  const codes = squadCodes.join('/')
+  return codes
+    ? 'A development system in which the First Team and the youth team (' + codes + ') run in parallel'
+    : 'A development system in which the First Team and the youth team run in parallel'
 }
 
 // ---------------------------------------------------------------------------
@@ -346,7 +355,7 @@ export function getMerchandiseSeoEn(hasProducts: boolean): SeoCopy {
     title: 'Merchandise | TCRFC Culture | Taichung Rock FC',
     description: hasProducts
       ? 'Taichung Rock official merchandise: browse by collection, then choose a size and colour in the official store, pay with LINE Pay and receive an e-invoice.'
-      : 'Taichung Rock official merchandise. Product content is provided through the back office and there is nothing to display yet.',
+      : 'Taichung Rock official merchandise. Products are being prepared and will be listed here soon.',
   }
 }
 
@@ -373,6 +382,12 @@ function bwVenuesEn(facts: SiteFacts): string {
   const names = facts.venues.map((v) => v.nameEn ?? v.nameZh)
   if (names.length <= 1) return names.join('')
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/** 「<lead>A and B.<trail>」主場句；沒有任何場地時回空字串（整句省略，不留殘句）。 */
+function bwHomeGroundsSentenceEn(facts: SiteFacts, lead: string, trail = ''): string {
+  const names = bwVenuesEn(facts)
+  return names ? lead + names + '.' + trail : ''
 }
 
 /** 「Founded on 12 April 2014」→ 句中用的「founded on 12 April 2014」；缺英文值時只寫年份。 */
@@ -406,8 +421,8 @@ export function getClubHubStatsEnBw(facts: SiteFacts): ClubHubStat[] {
   return [
     { num: facts.foundedYear, labelZh: 'Year founded' },
     { num: '5', labelZh: 'League titles won in the club\'s history' },
-    { num: String(facts.squadCodes.length), labelZh: 'Youth team age groups' },
-    { num: facts.league.nameEn ?? '', labelZh: 'League' },
+    ...(facts.squadCodes.length > 0 ? [{ num: String(facts.squadCodes.length), labelZh: 'Youth team age groups' }] : []),
+    ...(facts.league.nameEn ? [{ num: facts.league.nameEn, labelZh: 'League' }] : []),
   ]
 }
 
@@ -441,7 +456,7 @@ export function getClubHubJoinPlayerCardEnBw(facts: SiteFacts): CtaCardCopy {
 export function getFirstTeamSeoEnBw(facts: SiteFacts): SeoCopy {
   return {
     title: 'First Team' + BW_SUFFIX_EN,
-    description: `The ${BW_NAME_EN} First Team: competing in ${leagueEn(facts)}, with five league titles in the club's history. The squad and fixtures are maintained in the back office and the content is being updated.`,
+    description: `The ${BW_NAME_EN} First Team: competing in ${leagueEn(facts)}, with five league titles in the club's history. The squad and fixtures are being compiled and will be published soon.`,
   }
 }
 
@@ -449,12 +464,12 @@ export function getFirstTeamHeroEnBw(facts: SiteFacts): HeroCopy {
   return {
     h1Zh: 'First Team',
     h1En: null,
-    lede: `The ${BW_NAME_EN} First Team represents the club in ${leagueEn(facts)}. The club was ${bwFoundedClauseEn(facts)}, and the team has won the league title five times. Its home grounds are ${bwVenuesEn(facts)}.`,
+    lede: `The ${BW_NAME_EN} First Team represents the club in ${leagueEn(facts)}. The club was ${bwFoundedClauseEn(facts)}, and the team has won the league title five times.${bwHomeGroundsSentenceEn(facts, ' Its home grounds are ')}`,
   }
 }
 
 export function getFirstTeamIntroEnBw(facts: SiteFacts): string {
-  return `The ${BW_NAME_EN} First Team was formed with the club in ${facts.foundedYear} and competes in ${leagueEn(facts)}, having won the league title five times in its history (2017, 2018, 2019, 2021 and 2023). The team's home grounds are ${bwVenuesEn(facts)}. The squad and the latest fixtures are maintained in the back office, and this page is being updated.`
+  return `The ${BW_NAME_EN} First Team was formed with the club in ${facts.foundedYear} and competes in ${leagueEn(facts)}, having won the league title five times in its history (2017, 2018, 2019, 2021 and 2023). ${bwHomeGroundsSentenceEn(facts, 'The team\'s home grounds are ', ' ')}The squad and the latest fixtures are being compiled and will be published on this page soon.`
 }
 
 /** 一線隊頁底部 CTA 卡 3.2 的英文（藍鯨：球員培育重點）。 */
@@ -595,7 +610,7 @@ export function getCultureHubSeoEnBw(): SeoCopy {
 
 export const CLUB_CULTURE_PAGE_EN_BW = {
   heroLede: `From the Fan Club and official merchandise to partner perks, ${CLUB_CULTURE_LABEL_EN_BW} is the most direct emotional link between ${BW_NAME_EN}, its fans and the community.`,
-  merchCardDesc: 'Official merchandise and the online store, with product content provided through the back office.',
+  merchCardDesc: 'Official merchandise and the online store.',
   fanClubCardTitle: BW_NAME_EN + ' Fan Club',
 } as const
 
@@ -637,6 +652,6 @@ export function getMerchandiseSeoEnBw(hasProducts: boolean): SeoCopy {
     title: `Merchandise | ${CLUB_CULTURE_LABEL_EN_BW} | ${BW_NAME_EN}`,
     description: hasProducts
       ? `${BW_NAME_EN} official merchandise: browse by collection, then choose a size and colour in the official store, pay with LINE Pay and receive an e-invoice.`
-      : `${BW_NAME_EN} official merchandise. Product content is provided through the back office and there is nothing to display yet.`,
+      : `${BW_NAME_EN} official merchandise. Products are being prepared and will be listed here soon.`,
   }
 }

@@ -1,9 +1,15 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.34
-> **Date**: 2026-08-14 (v3.34 revision: 2026-11-09)
+> **Document version**: v3.35
+> **Date**: 2026-08-14 (v3.35 revision: 2026-11-13)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.34*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.35*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.35 revision summary — which tab a calendar match belongs to; form question text editable in the admin; the charity platform gets a read-only public register**
+> **No new page or module.**
+> ① **A calendar match belongs to Fixtures or Results by its status and match date**: finished matches go to Results; not started, in progress and postponed go to Fixtures; a cancelled match goes to Fixtures when its match date is today or later and to Results when the date has passed; "today" is counted in Taiwan time. Landing point: 3.13 "Tabs and filters".
+> ② **In G1, the question text and the option display text of every form field can be edited in the admin (zh / en), and the public form shows what the admin has set**; the field structure, field types, required flags and the submitted values of options remain predefined by the system. Landing point: 4.7 G1, 4.5 E3.
+> ③ **This site provides a read-only public register for the Charity Donation Platform**: only published charities and charity programmes, with their reference code, Chinese and English names and status. Landing point: 3.11, 4.2 B5.
 
 > **v3.34 revision summary — player nationality is chosen from a country drop-down; the website and the mobile app show the country name in the visitor's language**
 > **A change to how the C2 player-profile field is entered; no new page or module.**
@@ -663,6 +669,7 @@ This site has three responsibilities and no more:
 |---|---|
 | Referral | Every "fan donation" CTA in section 11 links to the Charity Donation Platform; the URL is configured in admin B5 and **never hard-coded into a template**. **The copy must state that the Association receives the donation** |
 | Impact feedback | Donation projects on that platform can link to this site's `CharityProgram` records; how funds were used continues to be presented as structured content in 11.2 / 11.3 |
+| Register supply | This site provides a **read-only public register** for the Charity Donation Platform, containing only published charities and charity programmes with their reference code, Chinese and English names and status; this site is the sole master record of both (see Charity Donation Platform specification §9.3) |
 | Consistency | This site shows no amount options, hosts no donation form, and publishes no bank account details |
 
 > **This site takes no donation payments — unchanged by v2.6.** The shop's payment integration covers **physical merchandise only, collected for by the club**; donation payments, invoicing, revenue share and reporting all belong to the Charity Donation Platform, collected for by the **Association**. The two share an admin and a database, but their public sites, merchant accounts, and invoice tracks are entirely separate, and **the shop must never sell donation items**.
@@ -780,12 +787,23 @@ The calendar is organised primarily **by team**:
 | Control | Options |
 |---|---|
 | Team tabs (first level) | `D1` / `U18` / `U16` / `U14` / `U12` / `U10` (shown according to the teams created; plus `All` and `Club Events`) |
-| Fixtures / Results toggle | `Fixtures` (future, nearest first) / `Results` (past, most recent first) |
+| Fixtures / Results toggle | `Fixtures` (nearest first) / `Results` (most recent first); which tab a match belongs to follows "Fixtures and results assignment" below |
 | Season | Dropdown, defaulting to the current season, with past seasons available |
 | Competition type | All / League / Cup / Friendly / Other |
 | Venue | All / Home / Away |
 | Month grouping | The list is separated by month headings, with quick month jumps |
 | View toggle | `List` (default) / `Calendar` |
+
+**Fixtures and results assignment** (by match status and match date; the list and calendar views agree):
+
+| Match status | Belongs to |
+|---|---|
+| Finished | Results |
+| Not started, in progress | Fixtures |
+| Postponed | Fixtures (stays in Fixtures even when the original match date has passed) |
+| Cancelled | Fixtures when the match date is today or later; Results when the match date has passed |
+
+"Today" is counted in Taiwan time (UTC+8).
 
 #### Public-site functionality
 
@@ -1200,6 +1218,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Impact Record**: three required fields — **charity organisation name**, **what was donated** (free text, e.g. "50 footballs, 100 training bibs" or "N scholarships"), and **event photography** (multiple images); plus date, location, short description, and optionally the parent programme
 - **Charity organisation records**: name, description, logo or representative image, website, contact person, collaboration history; reusable across multiple impact records to avoid re-entry
 - **Impact metrics**: custom statistics (name, unit, value, public visibility); **monetary metrics are private by default**
+- **Public register**: provides a read-only public register containing only published charities and charity programmes, with reference code, Chinese and English names and status; the Charity Donation Platform's admin pulls it by a manual action
 - **Donation referral settings**: the Charity Donation Platform URL (**never hard-coded into a template**), the donation button copy and the fan-donation copy in the "Get Involved" block. Donation records, amount options, invoicing and the donor roll are all maintained in that platform's `N` module and are not duplicated here
 - Display control: ordering and pinning within the charity section (**no fixed charity slot on the homepage**; for temporary exposure, use the hero carousel or publish a news article). **The Mobile App carries no charity slot either** — the Charity Donation Platform is run and collected for by the Association, so this club's app must not sell or grant charity-related placements
 
@@ -1286,7 +1305,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Package management (9.4)**: content, rights schedule, price range (can be hidden), and ordering for the nine packages
 
 #### E3 Sponsorship Deck & Download Tracking
-- Upload the deck PDF (multiple versions / languages); the download form's fields (company, name, email, consent) are predefined by the system, so the admin does not add, delete or change fields, and notification settings sit in G1
+- Upload the deck PDF (multiple versions / languages); the download form's fields (company, name, email, consent) are predefined by the system, so the admin does not add or delete fields, and the question text (zh / en) and notification settings sit in G1
 - **Lead list**: who downloaded, company, timestamp, source page; exportable to CSV with follow-up status flags
 
 #### E4–E6 Mobile App Advertising (added in v2.5)
@@ -1320,7 +1339,8 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ### 4.7 G. Forms & Enquiries
 
 #### G1 Form Designer
-- The fields of the seven public forms (10.1–10.7) and the proposal download form are predefined by the system; the admin views the field list (name, type, required or not, options) and cannot add or delete fields, nor change field codes, required flags or options
+- The field structure of the seven public forms (10.1–10.7) and the proposal download form is predefined by the system: the admin cannot add or delete fields, nor change field types, required flags or the submitted values of options
+- The admin can edit each field's **question text (zh / en)** and each option's **display text (zh / en)**; the public form shows what the admin has set
 - Per form: notification recipients (multiple allowed), auto-reply content (zh / en), CAPTCHA toggle, post-submission redirect
 
 #### G2 Enquiry Inbox

@@ -4,7 +4,7 @@
 > **主辦與收款主體是台灣足球策略發展協會，不是台中磐石足球俱樂部**。
 > 本檔與 [`12-database-schema.md`](12-database-schema.md) **平行且互不包含**——主站綱要明文不含這裡的任何一張表。
 >
-> 來源：[`../output/TCRFC_慈善捐款平台功能規劃書.md`](../output/TCRFC_慈善捐款平台功能規劃書.md)（**v2.7，共 813 行**）。
+> 來源：[`../output/TCRFC_慈善捐款平台功能規劃書.md`](../output/TCRFC_慈善捐款平台功能規劃書.md)（**v2.8，共 816 行**）。
 > 功能看 [`10-charity-donation-site.md`](10-charity-donation-site.md)；部署與快取看 [`17-deployment.md`](17-deployment.md)。
 > 本檔是導航層，不得新增規劃書沒有的規格。
 >
@@ -48,7 +48,7 @@
 🔴 **跨系統參照的三條規則**（慈善規劃書 §9.3）：
 
 1. **主站是公益團體與慈善計畫的唯一主檔。** 本平台的 `*_name_snapshot` 是唯讀複本，兩邊不同步時一律以主站為準。**絕不可讓本平台成為第二個真實來源。**
-2. **不得即時 join、不得同步查詢主站資料庫。** 本平台**不得持有主站資料庫的連線**。清單同步走 N2 後台的 CSV 匯入，或主站提供的唯讀 API 定期拉取。
+2. **不得即時 join、不得同步查詢主站資料庫。** 本平台**不得持有主站資料庫的連線**。清單同步一律由 N2 後台「從官網更新清單」手動觸發（慈善規劃書 v2.8）：主站提供唯讀的公開清單 API，管理員觸發後拉取並更新本庫的唯讀複本；**不設自動排程、不做 CSV 匯入**。複本保存中、英文名稱；主站已下架或刪除的項目在複本中標為停用、不刪除。
    ⚠️ **Azure SQL 本身也不支援跨庫查詢**，這條在技術上是硬的（[`17` §6](17-deployment.md)）。
 3. **快照是刻意的，不是妥協。** 撥付對象名稱要印在對帳單與捐贈收據上——那是已開立的憑證，**不得隨主站日後改名而變動**。
 
@@ -98,13 +98,25 @@ N3 的異常佇列（行 517）也把「對帳差異」列為三類待人工處�
 
 | 表 | 用途 | 標記 |
 |---|---|---|
-| `CharityRef` | 受贈公益團體的**唯讀清單**：`ref_code`、名稱、匯入時間、來源 | 🔒 |
-| `CharityProgramRef` | 慈善計畫的**唯讀清單**：`ref_code`、名稱、所屬 `CharityRef`、匯入時間 | |
+| `CharityRef` | 受贈公益團體的**唯讀清單**：`ref_code`、中文名稱 `name`、英文名稱 `name_en`、**對照主站的外部識別 `external_id`**、啟用狀態 `is_active`、`deactivated_at`、`last_synced_at`、匯入時間、來源（K-2，2026-11-13，見下方「複本欄位」） | 🔒 |
+| `CharityProgramRef` | 慈善計畫的**唯讀清單**：`ref_code`、`name`／`name_en`、所屬 `CharityRef`、`external_id`、`is_active`、`deactivated_at`、`last_synced_at`、匯入時間（欄位語意同上） | |
+
+**複本欄位（K-2，2026-11-13；欄位附加在表尾，與既有庫 `ALTER TABLE ... ADD` 的順序一致）**
+
+| 欄位 | 型別 | 說明 |
+|---|---|---|
+| `external_id` | `uniqueidentifier NULL` | **主站 `charities.id`／`charity_programs.id`**——同步的對照鍵。主站 `slug` 後台可改名（`AdminCharityOrgsRepository`／`AdminCharityProgramsRepository` 的更新會改 `slug`），不可當鍵。**`NULL` ＝ 同步機制之前就存在的列（本機開發種子 `manual_test_seed`），同步永不碰它們**；篩選唯一索引 `UX_charity_refs_external_id`／`UX_charity_program_refs_external_id`（`WHERE external_id IS NOT NULL`） |
+| `name_en` | `nvarchar(128) NULL` | 英文名稱；主站沒有英文時為空，前台英文頁回退中文並出現語系提示 |
+| `is_active` | `bit NOT NULL DEFAULT 1` | 主站已下架、改回草稿或刪除 → `0`（**不刪列**：既有 `DonationProject` 與已開立憑證引用其快照）；重新公開 → 恢復 `1`。`0` 的列不出現在 N2 新增／編輯的下拉，但已選用它的項目照常顯示 |
+| `deactivated_at` | `datetime2(3) NULL` | 最近一次被標為停用的時間；恢復啟用時清空 |
+| `last_synced_at` | `datetime2(3) NULL` | 最近一次被主站清單確認的時間（`external_id` 為空的列恆為空） |
+
+**同步建立的列**：`ref_code` ＝ `external_id` 的 32 碼十六進位（`Guid.ToString("N")`，恰好放得進 `nvarchar(32)`；建立後永不變，`DonationProject.charity_ref_code` 等快照欄位引用它），`source = 'main_site_api'`。
 
 > 🔴 **這兩張只供 N2 選撥付對象用，選定後把 `ref_code` 與名稱值複製進 `DonationProject`。**
 > **不得從 `DonationProject` 外鍵指向它們**——否則清單重新匯入時會改動已開立憑證上的名稱。
-> 🟡 **這兩張表是 §9.3 第 2 條「清單同步採 CSV 匯入或唯讀 API 拉取」的落地形式**，屬實作手段；
-> 規劃書沒有把它們列為型別，**建表前請確認這個讀法**（[§10](#10-本檔不決定的事)）。
+> 🟡 **這兩張表是 §9.3 第 2 條「從官網更新清單」手動同步的落地形式**，屬實作手段；
+> 規劃書沒有把它們列為型別，已於 §10 定案建表。
 
 ### 2.3 後台帳號與權限（6）
 
@@ -317,6 +329,11 @@ erDiagram
     uuid id PK
     string_32 ref_code UK
     string_128 name
+    string_128 name_en
+    uuid external_id UK
+    boolean is_active
+    datetime deactivated_at
+    datetime last_synced_at
     datetime imported_at
     string_32 source
   }
@@ -325,6 +342,11 @@ erDiagram
     string_32 ref_code UK
     uuid charity_ref_id FK
     string_128 name
+    string_128 name_en
+    uuid external_id UK
+    boolean is_active
+    datetime deactivated_at
+    datetime last_synced_at
     datetime imported_at
   }
   admin_refresh_token {
@@ -441,7 +463,7 @@ erDiagram
 | `DonationProject` | `project_slug` |
 | `Donation` | `order_no` |
 | `DonationInvoice` | `invoice_no`（**已開立者**；未開立為空，用篩選唯一索引） |
-| `CharityRef` / `CharityProgramRef` | `ref_code` |
+| `CharityRef` / `CharityProgramRef` | `ref_code`；另 **`external_id`（篩選唯一索引，僅非空者；K-2）** |
 | `AdminUser` | **`username`**（`email` 不設唯一） |
 | `AdminRole` / `Permission` | `code` |
 | `Locale` | `code` |
@@ -506,11 +528,11 @@ erDiagram
 
 ## 10. 本檔不決定的事
 
-- ✅ **`CharityRef`／`CharityProgramRef` 已定案建表**（2026-09-20）：§9.3 說清單同步採 CSV 匯入或唯讀 API 拉取，匯入就要有地方放。
+- ✅ **`CharityRef`／`CharityProgramRef` 已定案建表**（2026-09-20）：§9.3 說清單由 N2 後台手動從官網更新（v2.8，原本待確認的同步方式已結案），拉回來的清單就要有地方放。
 - ✅ **`DonationPayment.status` 已定案為四值**（2026-09-20）：`requested`／`confirmed`／`failed`／**`cancelled`**——對帳與客訴時「使用者取消」與「金流失敗」是兩回事。
 - 🟡 **`Permission.domain` 的值域待權限碼盤點後再定**（2026-09-20 決議：現在硬定會綁死，DDL 先留白不加 `CHECK`）。
-- ~~原：`CharityRef`／`CharityProgramRef` 兩張表的存在形式~~ —— 規劃書 §9.3 只說「清單同步採 CSV 匯入或唯讀 API 拉取」，**沒有列為型別**。本檔的讀法是「要匯入就要有地方放」，但**建表前應確認**；若改為「每次在 N2 現場貼上名稱」則兩張表不需要
-- 🔴 **慈善規劃書 §9.3 表格最後一列與跨系統三條規則牴觸**（「撥付對象直接關聯 `Charity`」vs「值複製快照不是外鍵」）——**須走同步鏈修掉那一列**，屬 `E-02` 型的殘留
+- ~~原：`CharityRef`／`CharityProgramRef` 兩張表的存在形式~~ —— 規劃書 §9.3 只說清單由 N2 手動從官網更新，**沒有列為型別**。本檔的讀法是「拉回來就要有地方放」，但**建表前應確認**；若改為「每次在 N2 現場貼上名稱」則兩張表不需要
+- ✅ **慈善規劃書 §9.3 表格最後一列與跨系統三條規則的牴觸已於 v2.8 修掉**（撥付對象改為參照唯讀複本）
 - **個資保存期限** —— 規劃書 §11.1 標為待客戶與法務確認，直接影響 `Donation`／`DonationInvoice` 的清理策略
 - **協會的法人登記與統編** —— `STATUS.md` **B-7**，**這是上線前提不是一般待確認事項**
 - **定序、Redis 持久化、CI 管線** —— 同 [`17` §8](17-deployment.md)

@@ -95,14 +95,14 @@ const coreValueSummaryEn = (code: string) => splitParagraphs(CORE_VALUE_DESCRIPT
 
 // S3-5：官方商店入口（shop_entry）改接商店資料——「精選商品與 Collection 入口」。精選＝後台排序的前 3 件上架商品
 // （商品列表端點的預設排序）。只顯示名稱／圖片／價格，**不顯示庫存狀態**（首頁沒有 no-store，庫存不得出現在可被快取的畫面）。
-// 磐石：沒有任何上架商品時維持既有的靜態入口（真實球衣照片）；藍鯨：沒有商品整個區塊不顯示。
+// 兩站一致：沒有任何上架商品時整個區塊不顯示（不放寫死球衣照，E-291）。
 const { data: shopEntryData } = await useFetch<PagedResponse<ShopProductListItem> | null>('/api/shop/products', {
   query: computed(() => ({ pageSize: 3, lang: locale.value })),
   key: `home-shop-entry-${config.public.club}-${locale.value}`,
   default: () => null,
 })
 const shopEntryProducts = computed(() => shopEntryData.value?.items ?? [])
-const showShopEntry = computed(() => isSectionEnabled('shop_entry') && (isTcrfc.value || shopEntryProducts.value.length > 0))
+const showShopEntry = computed(() => isSectionEnabled('shop_entry') && shopEntryProducts.value.length > 0)
 
 // 贊助夥伴 Logo 牆（partner_logos）：S2-7 起接上 `GET /api/backend/{club}/partners?home=true`（後台 E1 勾選
 // 「首頁曝光」的夥伴；只回合作期間涵蓋今天者）。規劃書 §3.1「依等級排序輪播，可點擊至 9.1」——
@@ -662,8 +662,8 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
-          <!-- 藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），不沿用磐石新聞頂替，本區塊不顯示。 -->
-          <div v-if="heroNews.length || isTcrfc" class="hero__news">
+          <!-- 沒有已發布新聞時整塊不顯示（兩站一致；不放後台看不到的寫死卡，E-291）。 -->
+          <div v-if="heroNews.length" class="hero__news">
             <template v-if="heroNews.length">
               <a v-for="(a, hi) in heroNews" :key="a.slug" class="hero-card clip-card clip-card--on-dark" :href="lp(`/zh/news/${a.slug}/`)">
                 <div class="hero-card__media">
@@ -677,26 +677,6 @@ onBeforeUnmount(() => {
                   <span class="hero-card__title">{{ a.title }}</span>
                 </div>
               </a>
-            </template>
-            <template v-else>
-            <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
-              <div class="hero-card__media">
-                <img :src="siteImg('/assets/img/news-trencin.jpg')" :srcset="siteImgSrcset('/assets/img/news-trencin.jpg', 1280, 853)" :sizes="HERO_CARD_SIZES" :alt="tx('台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流', 'Taichung Rock FC youth players pose for a group photo with players from AS Trenčín of Slovakia')" loading="eager" fetchpriority="high" width="1280" height="853">
-              </div>
-              <div class="hero-card__body">
-                <span class="hero-card__tag">{{ tx('消息 News', 'News') }}</span>
-                <span class="hero-card__title">{{ tx('台中磐石與 AS Trenčín 深化青訓合作', 'Taichung Rock FC and AS Trenčín deepen youth development cooperation') }}</span>
-              </div>
-            </a>
-            <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
-              <div class="hero-card__media">
-                <img :src="siteImg('/assets/img/news-mcu.jpg')" :srcset="siteImgSrcset('/assets/img/news-mcu.jpg', 1280, 855)" :sizes="HERO_CARD_SIZES" :alt="tx('台中磐石 7 號球員於夜間比賽中盤球突破銘傳大學白色球衣防線', 'Taichung Rock FC number 7 dribbles past the white-shirted Ming Chuan University defence in a night match')" loading="lazy" width="1280" height="855">
-              </div>
-              <div class="hero-card__body">
-                <span class="hero-card__tag">{{ tx('比賽 Matches', 'Matches') }}</span>
-                <span class="hero-card__title">{{ tx('企甲聯賽：台中磐石 3-0 銘傳大學', 'League match: Taichung Rock FC 3-0 Ming Chuan University') }}</span>
-              </div>
-            </a>
             </template>
           </div>
         </div>
@@ -927,7 +907,7 @@ onBeforeUnmount(() => {
   <template v-if="blk === 'shop_entry'">
   <!-- SPEC 3.1「官方商店入口」＋ 3.8 — Official store band（S3-5 接商店資料）
        有上架商品：顯示精選商品卡（名稱／圖片／價格）與站內商店入口（站內頁面，不另開新分頁）。
-       磐石沒有任何上架商品：維持既有的靜態入口（真實球衣照片）；藍鯨沒有商品：整個區塊不顯示（showShopEntry）。 -->
+       兩站沒有任何上架商品：整個區塊不顯示（showShopEntry）。 -->
   <section v-if="showShopEntry" class="band grain grain--2 store-band" aria-labelledby="store-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">08</span>
     <div class="band-inner container">
@@ -948,10 +928,6 @@ onBeforeUnmount(() => {
             </a>
           </li>
         </ul>
-        <div v-else class="store-visual clip-card clip-card--on-dark">
-          <img :src="siteImg('/assets/img/player-09-liu.jpg')" :alt="tx('球員身著台中磐石主場球衣', 'A player wearing the Taichung Rock FC home shirt')" loading="lazy" width="620" height="620">
-          <span class="store-visual__badge">{{ tx('台中磐石主場球衣', 'Taichung Rock FC home shirt') }}</span>
-        </div>
       </div>
     </div>
   </section>

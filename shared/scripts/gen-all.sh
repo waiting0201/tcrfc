@@ -9,6 +9,7 @@
 #   shared/image-derivatives.json            <- apps/api/Images（圖片衍生檔網址命名規則）
 #   shared/enums.json                        <- db/club-schema.sql 的 CHECK 約束＋Common/EnrollmentStatus.cs（封閉值域）
 #   shared/news-body-blocks.json             <- apps/web/app/utils/news-body.ts（新聞內文 bodyJson 區塊型別與別名）
+#   apps/api/Features/AdminApp/deeplinks.contract.json <- shared/deeplinks.json（逐字複本，後台連結驗證用；AppLinkContractTests 比對）
 # 手寫檔（只檢查，不產生）：cache-schema.sql、cache-policy.json、deeplinks.json、ad-viewability.md、ad-viewability-cases.json
 #
 # CI（.github/workflows/ci.yml 的 shared-contract job）跑完本腳本後做 `git diff --exit-code`：
@@ -17,6 +18,7 @@ set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+cp "$here/../deeplinks.json" "$here/../../apps/api/Features/AdminApp/deeplinks.contract.json"
 "$here/gen-openapi.sh"
 node "$here/gen-dto.mjs"
 node "$here/gen-error-codes.mjs"

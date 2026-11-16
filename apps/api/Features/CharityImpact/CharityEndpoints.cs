@@ -64,6 +64,20 @@ public static class CharityEndpoints
         .WithName("GetCharityImpact").WithTags("Charity")
         .Produces<ImpactSummaryDto>().Produces(StatusCodes.Status404NotFound);
 
+        // GET /api/v1/{club}/charity/directory —— 慈善捐款平台後台「從官網更新清單」讀取的公益團體與慈善計畫清單（K-2）。
+        // 唯讀、只含已公開者的識別與中英名稱，沒有任何個資或金額；行動 App 不使用（已從 shared/openapi.json 排除）。
+        // 慈善平台在同一個行程內也必須走 HTTP 呼叫這支，不得直接查主站資料庫（慈善規劃書 §9.3）。
+        app.MapGet("/api/v1/{club}/charity/directory", async (
+            string club, HttpContext http, IClubResolver clubResolver, CharityRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
+            // 可被瀏覽器與 Cloudflare 邊緣短暫快取；主站改名或下架後最多 60 秒內同步到新內容。
+            http.Response.Headers.CacheControl = "public, max-age=60";
+            return Results.Ok(await repository.GetDirectoryAsync(scope, cancellationToken));
+        })
+        .WithName("GetCharityDirectory").WithTags("Charity")
+        .Produces<CharityDirectoryDto>().Produces(StatusCodes.Status404NotFound);
+
         // GET /api/v1/{club}/charity/cta?lang= —— 捐款導流網址與按鈕文案（後台 B5 設定，前台不得寫死）。
         app.MapGet("/api/v1/{club}/charity/cta", async (
             string club, string? lang, IClubResolver clubResolver, CharityRepository repository, CancellationToken cancellationToken) =>

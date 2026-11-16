@@ -159,7 +159,7 @@ const hasFallback = computed(() => hasFallbackLocale(playerData.value))
       </table>
     </div>
     <p v-else>{{ tx('生涯數據準備中，稍後將於本頁公開。', 'Career statistics are being prepared and will be published on this page soon.') }}</p>
-    <p v-if="seasons.length" class="field-hint" style="margin-top:.75rem">{{ tx('數據由已結束的賽事紀錄自動彙總，或由後台手動登錄（以手動為準）。賽事紀錄沒有助攻資料，助攻欄「—」表示未記錄，不是 0。', 'Statistics are compiled automatically from completed match records, or entered manually in the back office (manual entry takes precedence). Match records have no assist data, so a dash in the assists column means not recorded, not zero.') }}</p>
+    <p v-if="seasons.length" class="field-hint" style="margin-top:.75rem">{{ tx('數據由已結束的賽事紀錄自動彙總，或由俱樂部手動登錄（以手動為準）。賽事紀錄沒有助攻資料，助攻欄「—」表示未記錄，不是 0。', 'Statistics are compiled automatically from completed match records, or entered manually by the club (manual entry takes precedence). Match records have no assist data, so a dash in the assists column means not recorded, not zero.') }}</p>
   </div>
 </section>
 

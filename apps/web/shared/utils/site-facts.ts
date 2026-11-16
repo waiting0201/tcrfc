@@ -120,6 +120,9 @@ export interface SiteFacts {
   /** C-2：頁尾品牌簡介（後台維護，中英逐語系）；null／缺＝沿用 club-copy.ts。 */
   footerBlurbZh?: string | null
   footerBlurbEn?: string | null
+  /** 由後端 site-facts API 組出（`useSiteFacts` 的 `mergeSiteFacts` 設為 true）；靜態快照（API 打不到的降級）不帶。
+   * `applySiteFactsToIdentity` 靠它區分「API 成功但值為空＝不顯示」與「API 打不到＝沿用靜態值」。 */
+  fromApi?: boolean
   /** 台中藍鯨官網網址（S1-16／S1-12d 後續補完，2026-09-29）——概念上只屬於 `tcrfc`
    * （藍鯨官網本身沒有 06 單元，`bw` 恆為 `null`）。後端已提供
    * `PublicSiteFactsDto.BlueWhaleSiteUrl`（後台 `I` 網站設定可維護），本檔靜態快照
@@ -205,9 +208,9 @@ export function getSiteFacts(club: string): SiteFacts {
 
 /** 主場（`isHomeGround` 第一筆）。bw 有两个主場，回傳第一筆（太原足球場）供只需要單一
  * 場地名稱的句子使用；需要完整清單（例如場地位置頁）請直接讀 `venues`。 */
-export function getPrimaryVenue(club: string): SiteFactVenue {
+export function getPrimaryVenue(club: string): SiteFactVenue | null {
   const facts = getSiteFacts(club)
-  return facts.venues.find((v) => v.isHomeGround) ?? facts.venues[0]
+  return facts.venues.find((v) => v.isHomeGround) ?? facts.venues[0] ?? null
 }
 
 /** 「U15／U14／U12」這種梯隊代碼組字——單一來源是 `squadCodes`，頁面與 club-copy.ts

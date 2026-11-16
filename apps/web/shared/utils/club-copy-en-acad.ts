@@ -17,7 +17,7 @@
 //   docs/06-conventions.md section 1.1 English glossary.
 // - Facts (founding year, squad codes) always come from the `facts` argument supplied by the caller.
 
-import type { HeroCopy, SeoCopy, AcademyTeamTab, AcademyHubCard, ProgramsHubCard, EnrolFlowStep, CtaCardCopy, ChildrensClassRow, SchoolPartnerRow } from './club-copy'
+import type { HeroCopy, SeoCopy, AcademyHubCard, ProgramsHubCard, EnrolFlowStep, CtaCardCopy, ChildrensClassRow } from './club-copy'
 import type { SiteFacts } from './site-facts'
 import { BW_NAME_EN } from './club-copy'
 
@@ -42,6 +42,12 @@ function squadCodes(facts: SiteFacts, separator = ', '): string {
   return facts.squadCodes.join(separator)
 }
 
+/** 「 (U10, U12)」括號片段；沒有梯隊代碼時回空字串（不留空括號）。 */
+function squadParen(facts: SiteFacts): string {
+  const c = squadCodes(facts)
+  return c ? ' (' + c + ')' : ''
+}
+
 // ---------------------------------------------------------------------------
 // 04 Academy hub
 // ---------------------------------------------------------------------------
@@ -55,7 +61,7 @@ export function getAcademyHubSeoEn(facts: SiteFacts, club: AcadClub = 'tcrfc'): 
   }
   return {
     title: `TCRFC Academy | ${SITE}`,
-    description: `TCRFC Academy is the youth development system of ${SITE}. It offers age-group training (${squadCodes(facts)}), a clear development pathway and the support of a coaching team, linking players to the First Team and to opportunities overseas.`,
+    description: `TCRFC Academy is the youth development system of ${SITE}. It offers age-group training${squadParen(facts)}, a clear development pathway and the support of a coaching team, linking players to the First Team and to opportunities overseas.`,
   }
 }
 
@@ -118,7 +124,7 @@ export function getAcademyOverviewSeoEn(club: AcadClub = 'tcrfc', facts?: SiteFa
   if (club === 'bw') {
     return {
       title: `Youth Teams Overview | ${BW}`,
-      description: `The ${BW} Youth Teams are made up of ${facts ? squadCodesAnd(facts) : 'age-group'} girls' football teams and link to the First Team's competitive system. Admissions and timetables are still to be confirmed; please contact the club for details.`,
+      description: `The ${BW} Youth Teams are made up of ${facts ? squadCodesAnd(facts) : 'age-group'} girls' football teams and link to the First Team's competitive system. For admissions and timetables, please contact the club.`,
     }
   }
   return {
@@ -166,7 +172,7 @@ export function getAcademyTeamsSeoEn(facts: SiteFacts, club: AcadClub = 'tcrfc')
   }
   return {
     title: `Our Teams | TCRFC Academy | ${SITE}`,
-    description: `TCRFC Academy squads (${squadCodes(facts)}): rosters, coaches, fixtures and results by squad (data being collected), with a subscription to each squad's calendar.`,
+    description: `TCRFC Academy squads${squadParen(facts)}: rosters, coaches, fixtures and results by squad (data being collected), with a subscription to each squad's calendar.`,
   }
 }
 
@@ -183,16 +189,6 @@ export function getAcademyTeamsHeroEn(facts: SiteFacts, club: AcadClub = 'tcrfc'
     h1En: null,
     lede: `TCRFC Academy is organised by age into ${squadCodes(facts)} squads. Each squad has its own roster, coaches, fixtures and results, and you can subscribe to a squad's calendar to keep up with every training session and match.`,
   }
-}
-
-/** English tab labels. `id` and `teamCode` are identical to getAcademyTeamTabs() (v3.29: no "other age groups" tab). */
-export function getAcademyTeamTabsEn(facts: SiteFacts, club: AcadClub = 'tcrfc'): AcademyTeamTab[] {
-  if (club === 'bw') {
-    return facts.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: `BW-${code}` }))
-  }
-  return [
-    ...facts.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: code })),
-  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -259,7 +255,7 @@ export function getYouthCoachesSeoEn(club: AcadClub = 'tcrfc'): SeoCopy {
   if (club === 'bw') {
     return {
       title: `Youth Coaches | ${BW}`,
-      description: `The coaching list of the ${BW} Youth Teams is being compiled and will be published on this page once verified information is ready.`,
+      description: `The coaching list of the ${BW} Youth Teams is being compiled and will be published on this page soon.`,
     }
   }
   return {
@@ -273,7 +269,7 @@ export function getYouthCoachesHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
     return {
       h1Zh: 'Youth Coaches',
       h1En: null,
-      lede: `The coaching list of the ${BW} Youth Teams is being compiled and will be published on this page once verified, up-to-date information is ready.`,
+      lede: `The coaching list of the ${BW} Youth Teams is being compiled and will be published on this page soon.`,
     }
   }
   return {
@@ -287,7 +283,7 @@ export function getYouthLifeSeoEn(club: AcadClub = 'tcrfc'): SeoCopy {
   if (club === 'bw') {
     return {
       title: `Youth Life | ${BW}`,
-      description: `Everyday training and match images of the ${BW} Youth Teams will be published on this page progressively once image consent is in place.`,
+      description: `Everyday training and match images of the ${BW} Youth Teams will be published on this page progressively.`,
     }
   }
   return {
@@ -301,7 +297,7 @@ export function getYouthLifeHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
     return {
       h1Zh: 'Youth Life',
       h1En: null,
-      lede: `Everyday training, match days and team activities: once image consent is in place, we will progressively record the growth of ${BW} Youth Team players in photos and video.`,
+      lede: `Everyday training, match days and team activities: we will progressively record the growth of ${BW} Youth Team players in photos and video.`,
     }
   }
   return {
@@ -460,7 +456,7 @@ export function getSummerCampHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
     return {
       h1Zh: 'Summer Camp',
       h1En: null,
-      lede: `${BW} has not yet launched a stand-alone Summer Camp, and whether to offer one is still being planned. During the summer holiday, please keep an eye on the existing classes under Children's Training and announcements on our official social channels.`,
+      lede: `${BW} has not yet launched a stand-alone Summer Camp. During the summer holiday, please keep an eye on the existing classes under Children's Training and announcements on our official social channels.`,
     }
   }
   return {
@@ -488,7 +484,7 @@ export function getWinterCampHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
     return {
       h1Zh: 'Winter Camp',
       h1En: null,
-      lede: `${BW} has not yet launched a stand-alone Winter Camp, and whether to offer one is still being planned. During the winter holiday, please keep an eye on the existing classes under Children's Training and announcements on our official social channels.`,
+      lede: `${BW} has not yet launched a stand-alone Winter Camp. During the winter holiday, please keep an eye on the existing classes under Children's Training and announcements on our official social channels.`,
     }
   }
   return {
@@ -578,18 +574,6 @@ export const GOALKEEPER_CLASS_BW_EN = {
   scheduleZh: '1.5 hours per week',
   signupZh: 'Registration form must be completed first',
 }
-
-/** 5.5 partner school list (zh twin: SCHOOL_PARTNERS_BW). */
-export const SCHOOL_PARTNERS_BW_EN: SchoolPartnerRow[] = [
-  { nameZh: 'National Taiwan Sport University women\'s football team', contentZh: 'Industry-academia cooperation (women\'s football team)', yearZh: null },
-  { nameZh: 'Taichung Municipal Wuquan Junior High School women\'s football team', contentZh: 'Industry-academia cooperation (women\'s football team)', yearZh: '2015' },
-  { nameZh: 'Nantou County Shuili Junior High School women\'s football team', contentZh: 'Industry-academia cooperation (women\'s football team)', yearZh: null },
-  { nameZh: 'Changhua County Yongjing Junior High School women\'s football team', contentZh: 'Industry-academia cooperation (women\'s football team)', yearZh: null },
-  { nameZh: 'Taichung Duxing Elementary School women\'s football team', contentZh: 'Industry-academia cooperation (women\'s football team)', yearZh: null },
-]
-
-/** Label shown when a partner row has no year (zh: the "year not stated" text). */
-export const SCHOOL_PARTNER_NO_YEAR_EN = 'Year not stated'
 
 /** zh twin: COMMUNITY_PROGRAM_BODY_BW. */
 export const COMMUNITY_PROGRAM_BODY_BW_EN = `${BW} runs the Taichung City Government's "Sport i Taiwan 2.0" Sports Hot Zone program (Taiyuan Football Field), offering age-group football classes such as the community football school (nicknamed "Little Blue Whale") to promote regular exercise for everyone.`

@@ -10789,3 +10789,45 @@ Multipart：`payload`（JSON）、`file`（封面）、`ogImage`、內文圖片 
 
 - **測試**：`AuditH1CacheInvalidationTests`（真實 `redis-server`：課程公開頁在報名異動、場地改名、教練改名、夥伴改名後立刻反映；FAQ 分類新增／改名／停用／刪除後公開分類清單立刻反映）、`AuditH1CharityRecordsDraftProgramTests`（草稿計畫的事蹟不出現在公開列表／年份，發布後才出現）。
 - **跑測試的注意**：這幾支會寫資料，請照 `docs/14` 的 `tcrfc_club_test` 流程（`./db/seed/setup-club-db.sh --test-db`，`CLUB_SQL_CONNECTION_STRING` 指向它），不要在使用者的開發庫或正式庫副本上跑（`E-332`、`E-347`）。
+
+---
+
+## 慈善複本「從官網更新清單」（docs/23 K-2／K-3／K-10，2026-11-13）
+
+使用者 2026-11-13 拍板：主站提供唯讀公開清單 API；慈善後台 N2 手動觸發「從官網更新清單」，**慈善平台以 HTTP 呼叫主站**（不設排程、不做 CSV 匯入），整份對齊本庫的唯讀複本。
+
+- **對照鍵**：主站 `charities.id`／`charity_programs.id`（GUID）→ 複本新欄 `external_id`。**不用 slug**：主站後台允許改網址名稱（`AdminCharityOrgsRepository`／`AdminCharityProgramsRepository` 的更新會改 `slug`）。新建複本列的 `ref_code` ＝ 主站 id 的 32 碼十六進位（`Guid.ToString("N")`，剛好放得進 `nvarchar(32)`；建立後永不變，`donation_projects.charity_ref_code` 等快照欄位引用它）、`source = 'main_site_api'`。**既有種子列**（`TEST-CHARITY-A`…，`external_id` 為空）**不屬於同步範圍，永遠不被更新或停用**，所以既有項目的引用不會斷。
+- **主站端點** `GET /api/v1/{club}/charity/directory`（`Features/CharityImpact`，匿名、`Cache-Control: public, max-age=60`、`IQueryCache` entity `charity`，後台 B5 寫入已會失效）。回 `{ charities: [{ id, slug, status, nameZh, nameEn }], programs: [{ id, slug, charityId, status, nameZh, nameEn }] }`。**已公開**＝計畫 `status = 'published'`；公益團體沒有發布狀態，官網只透過已發布計畫呈現它，所以「至少有一個已發布計畫」的團體才輸出。沒有繁中名稱者不輸出，英文空白輸出 `null`（不以中文頂替）。**不含聯絡窗口、金額、個資**。藍鯨不設慈善單元（俱樂部範圍內沒有資料就是空清單）。**已加入 `shared/scripts/filter-openapi.mjs`／`check-shared.py` 的排除清單**（App 不用），`gen-all.sh` 重跑後 `shared/` 產生檔零差異。
+- **慈善端點**（`CharityPlatform/Admin/CharityRefSyncService.cs`）：`POST /api/v1/donation-platform/admin/projects/charity-refs/sync`，權限 `n2.donation_project.manage`。流程：取交易層級 `sp_getapplock`（`charity-ref-sync`，等最多 15 秒，逾時 409）→ 抓清單（具名 `HttpClient` `charity-main-site`，逾時 10 秒、不跟隨重導向、回應上限 2 MB）→ 驗證 → 對齊 → 寫稽核 → 同一個交易提交。**先取鎖再抓清單**，後拿到鎖的人拿到的一定是較新的清單。主站連不上、逾時、回非 200、非 JSON、缺欄位、識別碼缺漏或重複、繁中名稱缺漏或超過 128 字、計畫找不到所屬團體 → **502（`CharityBadGatewayException`），整個交易回復，複本一個欄位都不動**。基底網址未設定 → 503。
+- **對齊規則**：以 `external_id` 對；新增、更新中英名稱（與計畫改掛的團體）、不在清單者標 `is_active = 0`＋`deactivated_at`（**不刪列**）、重新公開者恢復並清空 `deactivated_at`；每個被清單確認的列更新 `last_synced_at`。清單為空是合法的（主站全部下架）。狀態不是 `published` 的項目、或所屬團體不公開的計畫，視為不公開略過。
+- **設定**：`CHARITY_MAIN_SITE_API_BASE_URL`（`CharityOptions.MainSiteApiBaseUrlConfigKey`）。compose 為 api 帶 `http://127.0.0.1:8080`（容器自己；`scripts/check-compose-env.mjs` 第 6 項把關，值必須等於 Dockerfile 的 `ASPNETCORE_HTTP_PORTS`）；本機 Development 未設退回 `http://127.0.0.1:5299`；非本機未設或不是絕對 http(s) 網址 → 回 503，不猜網址。🔴 **慈善平台不得持有主站資料庫連線**：`CharityRefSyncService` 只注入 `IHttpClientFactory`。
+- **N2 讀取端**：`GET …/projects/charity-refs[?projectId=]` 只列啟用中者；帶 `projectId` 時另外保留該項目目前選用的（`isActive = false`）。回應多了 `lastSyncedAt`、每筆多了 `nameEn`／`isActive`。建立／更新項目選用停用的撥付對象或計畫 → 400（「官網已不再公開，請重新選擇」），**但項目原本就選用的可原樣保留、可繼續儲存**。名稱快照仍是儲存當下值複製的中文，憑證與信件不走複本。
+- **公開前台（K-3／K-10）**：項目詳情與成果回顧的撥付對象／計畫名稱，英文頁改用複本的 `name_en`（以 `ref_code` 查），沒有就回退快照（中文）並標 `isFallback`；中文頁永遠用快照。**K-10 的「英文名以中文頂替」一併修了**：英文名稱列的名稱與繁中完全相同且含中日韓字元 → 視為缺譯文，英文頁出現語系提示（`CharityLocaleFallback.IsMissingTranslation`，項目卡片、詳情、成果回顧三處）。K-10 的另一半（金額選項只在項目自設上下限時才驗範圍）**沒有動**。
+- **結構**：`charity_refs`／`charity_program_refs` 各加 `external_id`（可空，篩選唯一索引 `UX_*_external_id`）、`name_en`、`is_active`（預設 1，具名 `DF_*_is_active`）、`deactivated_at`、`last_synced_at`，附加在表尾。遷移 `AddCharityRefSyncColumns`（手寫可重跑 SQL：先檢查欄位／索引是否存在、`CREATE INDEX` 包 `EXEC`——EF 產生的腳本沒有 `GO`，同批次直接建索引會 Msg 207）。已實測：舊 DDL ＋ 這支遷移 ＝ 新 DDL（`schema-drift-check.sh --compare-snapshots`，1073 項結構事實完全相同，含欄位順序與約束名稱）。**正式環境順序（E-289）：先 `db-migrate`（additive，舊版程式不受影響）、再 deploy。**
+- **測試**：`CharityRefSyncTests`（27 項：新增／改名／下架停用／恢復、既有列不受影響、改掛團體、稽核、9 種主站回錯複本零變動、權限、4 路並發恰好一次新增、下拉過濾與保留已選用、快照不隨改名變動、英文頁輸出與回退、K-10、設定解析）、`CharityDirectoryEndpointTests`（3 項：只回已公開、改名立即可見、藍鯨空清單）。主站的 HTTP 回應由 `ScriptedMainSite`（假的 `HttpMessageHandler`，`Fixtures/CharityTestDoubles.cs`）替代，不打網路。🔴 `CharityRefSyncTests` 會對共用的複本表做整份對齊，所以每個測試前後**整表快照與還原**（比照 `CharityAdminSettingsTests`），不依標記清除。
+
+
+### 表單定義對齊頁面與後台中文選項顯示文字（2026-11-13，docs/23 W-3 後端配套）
+
+- **綱要不變**：`form_fields_i18n.options_json` 本來就是逐語系一列，只是 zh-Hant 列從沒使用。現在 zh-Hant 列存「選項的中文顯示文字」（`NULL`＝前台中文顯示送出值本身）。**沒有 EF 遷移**，資料走 `db/migrations/20261113_form-definition-align.sql`（見 `db/seed/README.md`「表單定義對齊前台頁面」）。
+- **後台 API 契約（給前端）**——`GET/POST/PUT /api/v1/admin/{club}/forms/{formId}/fields[/{fieldId}]`：
+  - 回應 `AdminFormFieldDto` 新增 `optionLabelsZh: string[] | null`（與 `options` 同序同筆數）。`null`＝沒另外設定，畫面應以 `optionLabelsZh ?? options` 當中文欄位預設值。
+  - 請求 `CreateAdminFormFieldRequest`／`UpdateAdminFormFieldRequest` 新增 `optionLabelsZh`。🔴 **更新時語意與其他欄位不同**：省略／`null`＝**保留**現值；`[]`＝清除（前台回到顯示送出值）；有內容＝取代。理由：舊版畫面尚未送這個欄位，整筆取代會靜默清掉已設定的中文顯示文字（E-351 同類）。`optionLabelsEn` 維持整筆取代語意。
+  - 驗證（錯誤鍵 `optionLabelsZh`，400）：筆數必須等於 `options` 筆數；不可有空字串；每項 ≤ 255 字；序列化後 ≤ 1000 字元；欄位沒有選項時不可設定。`optionLabelsEn` 同一套驗證（鍵 `optionLabelsEn`）——**英文新增了每項 ≤ 255 與總長 ≤ 1000 的檢查**（原本只有筆數與空字串）。
+  - **系統鎖定的八張表單也允許儲存 `optionLabelsZh`／`optionLabelsEn`**（鎖定的是送出值、必填、型別、代碼；顯示文字不在鎖定範圍），錯誤鍵與既有鎖定檢查不變。
+- **公開端點** `GET /api/v1/{club}/forms/{formCode}?lang=`：`optionLabels` 在 `lang=zh` 回 zh-Hant 列的顯示文字，沒設定（或筆數與送出值對不上）回退成 `options`；`lang=en` 沒有英文就回退成 `options`（中文，前台自行改用頁面英文退路）。形狀沒變，`shared/` 契約不在此端點範圍，**不需跑 `gen-all.sh`**。
+- **收件匣、通知信、匯出**：顯示的一律是**送出值**（`enquiry_answers.value`），不是顯示文字——維持現行行為；因此「顯示文字」改了不影響既有資料與統計。
+- **測試**：`FormDefinitionAlignmentTests`（題目中英逐項、報名項目／洽詢類型選項顯示文字與送出值、藍鯨不外洩學院／Academy、各表單必填集合、必填留空 400、填齊可送出、後台中文選項顯示文字的新增／驗證／更新語意／鎖定表單可存且送出值鎖定仍生效）；`AdminFormsEnquiriesTests` 兩處斷言隨措辭與必填更新。
+
+## App 連結不得是樣板（稽核 docs/23 H-3 M-3／M-5，2026-11-16）
+
+後台任何「給 App 使用者點的連結」寫入時一律驗證；**深連結對照表（`app_deep_links`）本身是路由規則，仍可存樣板，不走這套驗證**。
+
+- **解析器**：`Features/AdminApp/AppLinkContract.cs`。路由表不手抄——內嵌資源 `Features/AdminApp/deeplinks.contract.json` 是 `shared/deeplinks.json` 的**逐字複本**（Docker build context 是 `apps/api`，執行期讀不到 `shared/`）。`shared/scripts/gen-all.sh` 第一步會重新複製；`AppLinkContractTests` 比對兩份位元組相同，並用契約檔的 `parseCases`（`tcrfc://` 那幾案）逐案驗證解析結果。解析規則與 Android `DeepLinkParser` 一致，唯一差異是後台不接受 `?`／`#`。
+- **驗證器**：`Features/AdminApp/AppLinkValidator.cs`（DI scoped）。規則：空白＝無連結；`http(s)://` 完整網址且不得含大括號；`tcrfc://` 必須被契約解析、不得含 `{`／`}`，有參數時驗證對象**存在且已公開**（比賽＝存在；最新消息＝已發布且發布時間已到；課程＝已發布；球員＝在籍（active 或未填）；特約店家＝已發布且在有效期間）。隊別參數只認契約列舉。錯誤訊息日常中文、掛在欄位鍵上，例如「「點擊後前往」還缺少要前往的對象，請選擇一個最新消息。」。
+- **納入驗證的欄位**：推播 `deepLink`（`AdminAppPushRepository`）、公告條 `linkUrl`、廣告素材 `clickUrl`（`AdminAdCreativesRepository`）、廣告版位備援連結 `fallbackLink`（`AdminAdSlotsRepository`）、版面項目（首頁區塊／快捷入口／「更多」）選的深連結列 `deepLinkId`（選到「app_link 含大括號」或 App 解析不了的那一列 → 400）。`AdminInput.OptionalHttpOrAppLink` 也加了語法層檢查（樣板、不可解析、網址含大括號）。
+- **連結沒改就不重驗**：更新時若連結與已存的值相同，不重新驗證（版面項目＝沒換選那一列），避免舊的失效連結擋住其他欄位（開關、名稱、期間）的儲存。新連結或改了連結一律驗證。
+- **選擇器端點**（`/api/v1/admin/app/links/…`，權限：`app.layout.view`／`app.push.view`／`app.push.create` 任一）：`GET destinations`（第一步「要前往哪裡」，由契約路由展開，名稱在 `AppLinkValidator`）、`GET targets?kind=match|news|program|player|store&q=`（第二步，只列已公開的，最多 30 筆，回傳伺服器組好的完整連結；App 後台不分俱樂部，所以不分隊搜尋並附所屬俱樂部）、`POST describe`（把已存連結還原成「目的地＋對象」，狀態 `empty／app／web／template／unrecognized／missing`）。
+- **遷移**：`db/migrations/20261116_app-link-template-cleanup.sql`（冪等）。只把「值含大括號」的使用者連結改為 NULL：`app_layout_items.deep_link_id`（指向樣板列者）、`push_messages.deep_link`、`app_announcements.link_url`、`ad_creatives.click_url`、`ad_slots.fallback_link`；不動 `app_deep_links`。種子產生器 `db/seed/backoffice_seed.py` 與 `db/prod/club-content-seed.sql` 的快捷入口／「更多」`programs` 不再綁 `program` 樣板列（App 對代碼 `programs` 固定走內建課程列表）。**沒套用遷移的庫**：新 API 不會因舊樣板擋住不相關欄位的儲存（連結沒改不重驗），樣板仍留著、App 端照舊視為不可用；後台編輯該項目時選擇器會提示「需要重新選擇」。
+- **測試**：`AppLinkTests.cs`（`AppLinkContractTests` 單元＋`AppLinkWriteTests` 整合，含遷移在外層交易內執行後回滾）；`AdminAppTests` M2 改用完整連結列綁項目。`shared/` 的 OpenAPI 不含後台端點，`gen-all.sh` 無額外產生檔差異。
+- **未做**：版面項目仍是「綁對照表的一列」，所以首頁版面只能前往不需要對象的位置；要前往某一則消息／某個課程只能走推播、公告。若要讓版面項目前往具體對象，需在 `app_layout_items` 新增連結欄位（綱要異動，需規格確認）。

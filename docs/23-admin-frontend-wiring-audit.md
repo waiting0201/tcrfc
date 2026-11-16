@@ -93,7 +93,7 @@
 | ✅ C-2 | 社群連結（FB／IG／YT）、聯絡 Email、頁尾品牌簡介；Organization Schema 缺電話／`sameAs`／Email | `shared/utils/club-copy.ts:183-210`、`useSchemaOrgClub.ts:96-108` |
 | ✅ C-3 | 聯絡頁電話、營業時間、地址對藍鯨整塊 `v-if="isTcrfc"`，藍鯨後台填了也不顯示 | `join/contact/index.vue:72,85,92` |
 | ✅ C-4 | 首頁 Hero 文案、`ecosystem_nav`、`bottom_cta`、球員橫幅（無開關）、核心價值說明與圖示 | `pages/zh/index.vue`、`shared/utils/core-values.ts` |
-| ⏸ C-5 | Fallback 寫死內容（後台建第一筆就整批消失）：三個國際夥伴隊徽、9 張贊助方案卡、慈善事蹟 3 筆與影響力數字 | `partners/our-partners`、`partners/opportunities:141-207`、`charity/impact-stories.vue`、`our-impact.vue` |
+| ✅ C-5（2026-11-16：寫死後備全數拿掉，內容搬進資料，見 H-3a） | Fallback 寫死內容（後台建第一筆就整批消失）：三個國際夥伴隊徽、9 張贊助方案卡、慈善事蹟 3 筆與影響力數字 | `partners/our-partners`、`partners/opportunities:141-207`、`charity/impact-stories.vue`、`our-impact.vue` |
 | ✅ C-6 | 商店：配送方式名稱說明（藍鯨也顯示「主場賽事日」）、發票類型清單、電子發票說明段 | `ShopCatalogRepository.cs:298-310`、`checkout/index.vue:81`、`shop/index.vue:258` |
 | ✅ C-7 | school-community 合作學校表（藍鯨常數、磐石空白）、兒童訓練主要場地 | `programs/school-community`、`childrens-training/index.vue:183` |
 
@@ -140,36 +140,36 @@
 | # | 類型 | 嚴重度 | 問題 | 證據 | 影響 |
 |---|---|---|---|---|---|
 | ✅ W-1 🔍 | E／C | 高 | 賽事狀態設為延賽／取消／進行中後，行事曆頁的賽程分頁只收未開始、賽果分頁只收已結束，**這三種狀態的賽事兩個分頁都不顯示**（深連結除外） | `app/pages/zh/schedule.vue:659`（`statusOk`）；後台五值 `apps/admin/src/types/match.ts:20` | 兩站、中英<br>✅ **2026-11-13 已修**：規格未定義各狀態歸哪個分頁（規劃書 3.13 只定義標記）；採用：進行中與延賽歸賽程，取消依比賽日（今天或未來歸賽程、已過歸賽果）。`matchTabOf`（`app/utils/schedule.ts`） |
-| W-2 🔍 | B | 高 | 首頁 Hero 迷你新聞卡：磐石沒有已發布新聞時改放 2 張寫死新聞（含後台不存在的賽果「3-0 銘傳大學」），沒有任何開關管得到 | `app/pages/zh/index.vue:662,677-696` | 磐石、中英 |
-| W-3 🔍 | E | 高 | 表單設計器可改「題目文字」與選項英文，前台 7 張表單的標籤與選項全寫死，只讀 `captchaEnabled`／`redirectPath`。A-3 拍板鎖住欄位結構後，**題目文字成了死欄位**（只影響收件匣與通知信） | 後台 `views/forms/FormEditView.vue:469,566`；前台 `app/composables/useFormSubmit.ts:47-52` | 兩站、中英 |
+| ✅ W-2 🔍 | B | 高 | 首頁 Hero 迷你新聞卡：磐石沒有已發布新聞時改放 2 張寫死新聞（含後台不存在的賽果「3-0 銘傳大學」），沒有任何開關管得到 | `app/pages/zh/index.vue:662,677-696` | 磐石、中英<br>✅ **2026-11-16**：寫死卡與 `|| isTcrfc` 拿掉，沒有已發布新聞時整塊不顯示。**更正**：兩張卡對應的都是資料庫已有的真實新聞（`2026-08-10-international-000`、`2026-05-24-match-001`），原敘述「後台不存在的賽果」有誤，問題只在寫死於頁面、後台管不到 |
+| ✅ W-3 🔍 | E | 高 | 表單設計器可改「題目文字」與選項英文，前台 7 張表單的標籤與選項全寫死，只讀 `captchaEnabled`／`redirectPath`。A-3 拍板鎖住欄位結構後，**題目文字成了死欄位**（只影響收件匣與通知信） | 後台 `views/forms/FormEditView.vue:469,566`；前台 `app/composables/useFormSubmit.ts:47-52` | 兩站、中英<br>✅ **2026-11-16**：前台七張表單於 SSR 取表單定義，題目與選項文字讀後台（`useFormDefinition`）；種子與既有庫的文字、必填以頁面定稿為準對齊（`20261113_form-definition-align.sql`）；後台可改選項的中英顯示文字（規劃書 v3.35 G1） |
 | ✅ W-4 🔍 | F | 中高 | 後台報名管理（建立、改狀態、轉梯次、候補轉正）會改梯次已報名人數與額滿狀態，但 `AdminRegistrations` 整個目錄沒有快取失效；公開課程頁走 `programs` 快取 | `Features/AdminRegistrations/AdminRegistrationsRepository.cs`（無 Invalidate）；對照 `Features/Programs/ProgramsRepository.cs:377` | 兩站<br>✅ **2026-11-13 已修**：四條寫入路徑於 commit 後失效 `programs` |
 | W-5 🔍 | B／D | 中高 | 藍鯨兒童足球訓練的班別、年齡、費用與守門員班資料寫死在文案檔（中英各一份），後台課程與梯次改費用不會變 | `shared/utils/club-copy.ts:1690-1696,1788-1796`；`club-copy-en-acad.ts:566-577` | 藍鯨、中英 |
 | ✅ W-6 🔍 | C | 中高 | 球員「位置」後台是自由文字（提示寫「門將、中場」），英文頁只認 `GK／DF／MF／FW`，填中文時英文頁顯示中文。**E-357 同形，尚未修** | 後台 `views/teams/PlayerEditView.vue:358`；`shared/utils/club-copy-en-club.ts:133-141` | 兩站英文頁<br>✅ **2026-11-13 已修**：後台改下拉存 `GK／DF／MF／FW`；API `PlayerPosition` 寫入與讀出都正規化（認中文與英文全名，認不得的原樣保留）；官網中英標籤經 `normalizePlayerPosition`，英文頁不輸出中文 |
 | W-7 🔍 | E | 中 | 頁面管理的「不列入網站地圖」開關沒作用：sitemap 的固定頁網址不看這個欄位，只有新聞文章會排除 | 後台 `views/pages/PageEditView.vue:670`；`Features/Seo/SeoRepository.cs:144-175`；`server/utils/sitemap-urls.ts:110-131` | 兩站 |
 | ✅ W-8 🔍 | B | 中 | 夏令營與冬令營頁的「早鳥價」不看 `earlyBirdUntil`，過期仍顯示早鳥價且不顯示正價；同梯次在報名元件的價格可能不同 | `pages/zh/programs/summer-camp/index.vue:152-155`、`winter-camp/index.vue:124-127`；對照 `components/ProgramRegistration.vue:83` | 磐石、中英<br>✅ **2026-11-13 已修**：營隊頁與報名元件共用 `isEarlyBirdActive`，日期用台灣時區 |
 | W-9 | D | 中 | 首頁「四大核心價值」說明讀前台常數，不讀 2.3 足球理念頁後台可編的 `coreValues`；同一事實三個來源 | `Features/AdminPages/PageTemplates.cs`；`shared/utils/core-values.ts`；`Features/Home/CoreValueCatalog.cs:15-18` | 磐石、中英 |
-| W-10 | B | 中 | 里程碑頁：磐石後台里程碑為 0 筆或全隱藏時，回到寫死的 2024–2026 時間軸（C-5 同類，當時未列） | `pages/zh/about/milestones.vue:52-57` | 磐石、中英 |
+| ✅ W-10 | B | 中 | 里程碑頁：磐石後台里程碑為 0 筆或全隱藏時，回到寫死的 2024–2026 時間軸（C-5 同類，當時未列） | `pages/zh/about/milestones.vue:52-57` | 磐石、中英<br>✅ **2026-11-16**：寫死時間軸拿掉，無資料顯示空狀態；正式庫已有客戶文件匯入的 49 筆 |
 | W-11 | D | 中 | 俱樂部數字寫死在文案檔：「28 名註冊球員」「21 場企甲例行賽」「藍鯨五度奪冠（2017…2023）」，不跟球員、賽程、榮譽資料連動 | `shared/utils/club-copy.ts:284,302,939-968,1863-1883` | 兩站 |
 | W-12 | D／A | 中 | 行事曆頁聯賽名稱取自站台事實 `site.league_name`，盃賽與友誼賽的頁首副標與 .ics 標題也套同一個聯賽名 | `pages/zh/schedule.vue:761,778-779,1038` | 兩站、中英 |
 | W-13 | E | 中 | 賽事系列的英文名稱 API 已依語系回傳，英文頁改顯示類型標籤（League／Cup），後台填的英文名沒用到；賽程列表卡中文也不顯示賽事名稱 | `pages/zh/index.vue:295`、`club/first-team/index.vue:354`、`schedule.vue:1341` | 兩站 |
 | W-14 | D | 中 | 梯隊清單三個來源：球隊主檔、站台設定 `site.squad_codes`、行事曆設定。只改一處，另兩處不會跟著變 | `academy/teams.vue:45-50`、`index.vue:726`、`academy/coaches.vue:44-47`、`schedule.vue:340-360` | 兩站 |
 | W-15 | A／E | 中 | 跨梯隊賽事（後台可複選多隊）公開端只掛在排序最前的一隊，其他參賽隊的分頁看不到 | `Features/Schedule/MatchesRepository.cs`（`SELECT TOP 1 … ORDER BY sort_order`）；`schedule.vue:657-660` | 兩站 |
-| W-16 | B | 中 | 一線隊頁：後台沒設主視覺時磐石顯示寫死合影照，獎盃照永遠寫死；名單備註寫死「2026/27 賽季」（兩站兩語都顯示） | `club/first-team/index.vue:213-216,264,470-490` | 兩站 |
-| W-17 | B | 中 | 藍鯨合作學校：後台沒有「教育夥伴」類型的夥伴時顯示寫死 5 所學校；前台以字面值 `'教育夥伴'` 查詢，後台類型可自由輸入 | `programs/school-community/index.vue:28-48`；`views/business/PartnerEditView.vue:240-241` | 藍鯨 |
+| ✅ W-16 | B | 中 | 一線隊頁：後台沒設主視覺時磐石顯示寫死合影照，獎盃照永遠寫死；名單備註寫死「2026/27 賽季」（兩站兩語都顯示） | `club/first-team/index.vue:213-216,264,470-490` | 兩站<br>✅ **2026-11-16**：榮譽後備與寫死合影拿掉（榮譽已進資料）；賽季字樣改由積分榜目前賽季推得。獎盃照是固定版面圖，保留 |
+| ✅ W-17 | B | 中 | 藍鯨合作學校：後台沒有「教育夥伴」類型的夥伴時顯示寫死 5 所學校；前台以字面值 `'教育夥伴'` 查詢，後台類型可自由輸入 | `programs/school-community/index.vue:28-48`；`views/business/PartnerEditView.vue:240-241` | 藍鯨<br>✅ **2026-11-16**：寫死 5 校拿掉，資料搬進夥伴（教育夥伴）；「合作年度」欄只在有起訖年時出現 |
 | W-18 | B | 中 | 贊助洽詢表單「感興趣的贊助方案」9 個勾選項寫死，與後台方案清單無關（方案卡的靜態後備屬 C-5，已知） | `join/partnership/index.vue:56-59,225-240` | 兩站 |
-| W-19 | B | 中 | 場地頁後台沒有場地時磐石顯示寫死的占位卡；學院隊伍頁後台沒有學院球隊時用 `squadCodes` 產生空殼分頁 | `join/location/index.vue:109-126`；`academy/teams.vue:45-50` | 磐石／兩站 |
+| ✅ W-19 | B | 中 | 場地頁後台沒有場地時磐石顯示寫死的占位卡；學院隊伍頁後台沒有學院球隊時用 `squadCodes` 產生空殼分頁 | `join/location/index.vue:109-126`；`academy/teams.vue:45-50` | 磐石／兩站<br>✅ **2026-11-16**：占位卡與空殼分頁拿掉，改顯示空狀態；站台事實場地清單為空時不再 500 |
 | W-20 | E | 中 | 球員「加入日期」、教練在各隊的角色 `roleCode`、賽事系列的 `compType`／`organizer` 後台可填，公開端不輸出或前台不用（後兩項 B-11／B-12 當時只修了部分） | `Features/Players/PlayerDto.cs`、`Features/Staff/StaffDto.cs`、`views/teams/CompetitionEditView.vue:251` | 全站 |
 | W-21 | D | 中低 | 賽事同時有場地主檔與場地文字，選了主檔後文字欄仍可編輯但被忽略，後台沒有提示（對手欄有提示）；公開場地清單含任何被賽事引用的場地（含客場） | `views/teams/MatchEditView.vue:496-503`；`MatchesRepository.cs:539-542`；`SiteSettingsRepository.cs:172-177` | 兩站 |
 | W-22 | A | 中低 | 地圖連結用場地名稱搜尋，沒用場地主檔的座標或地址；SportsEvent JSON-LD 的地址靠名稱完全相等比對，英文頁比不到 | `utils/schedule.ts`（`venueMapUrl`）；`shared/utils/schema-batch2.ts` | 全站 |
-| W-23 | B | 低中 | 球迷會頁活動回顧：後台沒有已結束活動時磐石顯示 4 張寫死照片 | `culture/fan-club/index.vue:30-31,166-181` | 磐石 |
-| W-24 | C／D | 低 | 前台各表單頁自己維護「頁面選項 → 後端選項值」對照表，目前與後端一致但沒有自動檢查，改種子就會變成送出被 400 | `join/academy/index.vue:62-72`；`Features/Forms/FormsRepository.cs:331-346` | 兩站 |
-| W-25 | 其他 | 低 | 行事曆空狀態文案「待客戶提供各梯隊賽程表後將更新於本頁」是內部口吻；新聞分類頁送 `pageSize: 200` 被後端靜默截成 100；新聞上下架不失效 `seo-sitemap-entries`（上限 5 分鐘）；聯賽英文簡稱無消費者（D 段已列未修）；榮譽只有一線隊頁顯示；一線隊代碼 `D1`／`BW1` 多處寫死；「我們的團隊」以寫死姓名清單排序 | `schedule.vue:792`；`news/club.vue:16`；`AdminArticlesRepository.cs:35-36`；`useSiteFacts.ts:105-109`；`shared/utils/club.ts:78-79`；`about/our-people.vue` | — |
+| ✅ W-23 | B | 低中 | 球迷會頁活動回顧：後台沒有已結束活動時磐石顯示 4 張寫死照片 | `culture/fan-club/index.vue:30-31,166-181` | 磐石<br>✅ **2026-11-16**：4 張寫死照片拿掉（沒有活動名稱與日期，不編造活動） |
+| ✅ W-24 | C／D | 低 | 前台各表單頁自己維護「頁面選項 → 後端選項值」對照表，目前與後端一致但沒有自動檢查，改種子就會變成送出被 400 | `join/academy/index.vue:62-72`；`Features/Forms/FormsRepository.cs:331-346` | 兩站<br>✅ **2026-11-16**：頁面送出值由 `scripts/check-form-definition.mjs` 與種子自動對照；`ENQUIRY_TYPE_MAP` 已移除 |
+| W-25 | 其他 | 低 | 行事曆空狀態文案「待客戶提供各梯隊賽程表後將更新於本頁」是內部口吻；新聞分類頁送 `pageSize: 200` 被後端靜默截成 100；新聞上下架不失效 `seo-sitemap-entries`（上限 5 分鐘）；聯賽英文簡稱無消費者（D 段已列未修）；榮譽只有一線隊頁顯示；一線隊代碼 `D1`／`BW1` 多處寫死；「我們的團隊」以寫死姓名清單排序 | `schedule.vue:792`；`news/club.vue:16`；`AdminArticlesRepository.cs:35-36`；`useSiteFacts.ts:105-109`；`shared/utils/club.ts:78-79`；`about/our-people.vue` | —<br>🔄 **2026-11-16**：行事曆空狀態文案已改；另全面清掉二十餘處對訪客顯示的內部用語並加 `check-visitor-copy.mjs`。其餘小項未動 |
 | ✅ W-26 🔍 | F | 高 | 場地改名或改地址只失效 `site-facts`；賽程、行事曆、課程梯次三個公開快取都讀場地名稱，要等過期才更新 | `Features/AdminVenues/AdminVenuesRepository.cs:276-282`；`Schedule/MatchesRepository.cs:434`、`Calendar/CalendarRepository.cs:456`、`Programs/ProgramsRepository.cs:198-203` | 兩站、中英<br>✅ **2026-11-13 已修**：另失效 `schedule`／`calendar`／`programs` |
 | ✅ W-27 🔍 | F | 中 | FAQ 分類的新增、改名、停用從不失效 `faq-categories`（`AdminFaqCategoriesRepository` 沒有任何快取呼叫） | `Features/AdminFaqs/AdminFaqCategoriesRepository.cs`；`Faqs/FaqsRepository.cs:19,31` | 兩站、中英<br>✅ **2026-11-13 已修**：失效 `faq-categories` 與各俱樂部的 `faqs`／`faq-detail`／`faq-embed` |
 | ✅ W-28 🔍 | F | 中 | 課程快取也讀合作夥伴與教練姓名，但 `AdminPartners` 只失效 `partners`／`charity`、`AdminStaff` 只失效 `staff` | `AdminPartners/AdminPartnersRepository.cs:228-231`；`AdminStaff/AdminStaffRepository.cs:139,221`；`Programs/ProgramsRepository.cs:158-185` | 兩站、中英<br>✅ **2026-11-13 已修**：夥伴與教練寫入後補失效 `programs` |
 | ✅ W-29 🔍 | D | 中 | 慈善事蹟紀錄列表不過濾所屬計畫的狀態，**草稿計畫的事蹟與計畫名稱會對外顯示**；同檔的影響力指標有過濾 | `Features/CharityImpact/CharityRepository.cs:198-205`（對照 `:293`） | 磐石、中英<br>✅ **2026-11-13 已修**：列表、count、年份清單與影響力彙總的事蹟件數、地區、參與團體一併過濾 |
 | W-30 | B／D | 中 | 後台只改中文事實（聯賽名、主場、地址等）而沒填英文時，英文頁、英文 JSON-LD 與 `llms-en.txt` 退回前台靜態快照，不跟後台 | `app/composables/useSiteFacts.ts:87-126`；`server/routes/llms-en.txt.ts:65-70` | 兩站英文 |
-| W-31 | B | 中 | 頁尾簡介、社群連結、聯絡 Email 後台清空後退回文案檔寫死值，營運人員無法讓它消失（C-2 的過渡值，沒有結案機制） | `shared/utils/club-copy.ts:208-235`；`useClubIdentity.ts` | 兩站、中英 |
+| ✅ W-31 | B | 中 | 頁尾簡介、社群連結、聯絡 Email 後台清空後退回文案檔寫死值，營運人員無法讓它消失（C-2 的過渡值，沒有結案機制） | `shared/utils/club-copy.ts:208-235`；`useClubIdentity.ts` | 兩站、中英<br>✅ **2026-11-16**：後台有回應但值為空就不顯示；API 打不到時才沿用靜態值（降級保留） |
 | W-32 | C／B | 低 | 特約店家「適用層級」標籤：API 固定回「限尊尚層級」，藍鯨前台篩選顯示「限高階層級」；類別與地區沒有英文欄位；球衣頁說明寫死「例如尊尚會員」 | `AdminPartnerStoresRepository.cs:386-387`；`perks/index.vue:94`；`components/member/MemberJerseys.vue:87-88` | 藍鯨為主 |
 | W-33 | 其他 | 低 | 比賽報導分類頁的磐石 SEO 描述寫死「共 50 篇」；球員故事空狀態寫死舊官網網址；商店篩選選單只取前 60 件商品；`llms-en.txt` 藍鯨定位句寫死「U15 and U12」；已退訂 Email 再訂閱時前台顯示成功但實際沒有重新訂閱（文件化設計，訊息會誤導） | `news/match.vue:35`；`club/player-stories/index.vue:118-119`；`shop/index.vue:70-84`；`llms-en.txt.ts:89-93`；`Newsletter/NewsletterRepository.cs:50-54` | — |
 
@@ -177,16 +177,16 @@
 
 | # | 類型 | 嚴重度 | 問題 | 證據 | 影響 |
 |---|---|---|---|---|---|
-| K-1 🔍 | E | 高 | 「感謝語樣板」後台可存、API 有輸出，**結果頁沒渲染**（標題寫死），系統信也走另一套樣板 | `admin-charity/src/components/SettingsCopyPanel.vue:28`；`CharityPlatform/Public/CharityPublicCatalog.cs:180,202`；`web-charity/app/pages/[lang]/result/[orderNo].vue:250` | 中英 |
-| K-2 🔍 | D | 高 | 公益團體與計畫的唯讀複本（`charity_refs`／`charity_program_refs`）只有種子 SQL 會寫入，沒有同步或匯入入口；主站的表也沒有可對照的鍵。`docs/16` 寫的「CSV 匯入或唯讀 API 拉取」沒有實作 | `CharityPlatform/Admin/CharityProjectsAdminService.cs:348-354`；`db/seed/generate-charity-seed-sql.py:387-406`；`docs/16-charity-schema.md:509` | 中英 |
-| K-3 | E | 中 | 公益團體與計畫名稱的快照只有一個欄位，英文頁永遠顯示中文且不出現語系提示 | `CharityPlatform/Data/Entities/CharityRef.cs`；`Public/CharityPublicCatalog.cs:151-153` | 英文 |
+| ✅ K-1 🔍 | E | 高 | 「感謝語樣板」後台可存、API 有輸出，**結果頁沒渲染**（標題寫死），系統信也走另一套樣板 | `admin-charity/src/components/SettingsCopyPanel.vue:28`；`CharityPlatform/Public/CharityPublicCatalog.cs:180,202`；`web-charity/app/pages/[lang]/result/[orderNo].vue:250` | 中英<br>✅ **2026-11-16**：結果頁成功時顯示後台感謝語（純文字、不支援代換標記；缺英文或已退款不顯示） |
+| ✅ K-2 🔍 | D | 高 | 公益團體與計畫的唯讀複本（`charity_refs`／`charity_program_refs`）只有種子 SQL 會寫入，沒有同步或匯入入口；主站的表也沒有可對照的鍵。`docs/16` 寫的「CSV 匯入或唯讀 API 拉取」沒有實作 | `CharityPlatform/Admin/CharityProjectsAdminService.cs:348-354`；`db/seed/generate-charity-seed-sql.py:387-406`；`docs/16-charity-schema.md:509` | 中英<br>✅ **2026-11-16**：主站 `GET /{club}/charity/directory` 唯讀清單＋慈善後台「從官網更新清單」（規劃書 v2.8）；對照鍵用主站主鍵；停用不刪。**慈善庫需先套 `AddCharityRefSyncColumns`** |
+| ✅ K-3 | E | 中 | 公益團體與計畫名稱的快照只有一個欄位，英文頁永遠顯示中文且不出現語系提示 | `CharityPlatform/Data/Entities/CharityRef.cs`；`Public/CharityPublicCatalog.cs:151-153` | 英文<br>✅ **2026-11-16**：複本存英文名稱，英文頁輸出英文，缺漏時回退並出現語系提示 |
 | K-4 | B | 中 | 首頁說明後台沒填時顯示寫死文案（款項用途的實質宣稱），後台看不到 | `web-charity/app/pages/[lang]/index.vue:14`；`app/utils/i18n.ts`（`home.introFallback`） | 中英 |
 | K-5 | D | 中 | 退款政策兩份文字：後台可改的「捐款須知」只在 `/terms/`，項目頁 FAQ 的「不受理退款」寫死 | `app/utils/i18n.ts`（`project.faqRefundA`）；`pages/[lang]/p/[projectSlug].vue:92-95` | 中英 |
 | K-6 | C | 中 | 主站後台「球迷參與文案」只驗長度；前台在文案不含協會全名時整段丟掉改用固定文案，後台提示沒講英文也有這條 | `Features/AdminCharity/AdminCharitySettingsRepository.cs:67-68`；`apps/web/app/pages/zh/charity/index.vue:12-16` | 主站、中英 |
 | K-7 | E | 低中 | 「捐款須知」整段被放進標題為「關於退款」的紅框，發票規則與款項用途也被標成退款 | `web-charity/app/pages/[lang]/terms/index.vue:31-37` | 中英 |
 | K-8 | D | 低中 | 協會英文名兩個答案：慈善站因未確認而寫 `the Association`，主站已寫死全名 | `web-charity/app/utils/i18n.ts`；`apps/web/shared/utils/charity.ts:15` | 英文 |
 | K-9 | B／D | 低 | 信任區塊的統編與勸募許可字號寫死「洽詢中」，取得後沒有後台欄位可改；主站慈善首頁在 `donationUrl` 為空時向訪客顯示開發備註；頁尾聯絡方式沒有連結 | `web-charity/app/components/TrustSection.vue:21-34`；`apps/web/app/pages/zh/charity/index.vue:186-187`；`components/SiteFooter.vue:21` | 中英 |
-| K-10 | D／E | 低 | 項目金額選項只在項目自設上下限時才驗範圍；只填英文說明沒填英文名時以中文名頂替，英文頁不出現語系提示 | `CharityProjectsAdminService.cs:226-229,397-444`；`views/projects/ProjectEditView.vue:65-66` | 中英 |
+| K-10 | D／E | 低 | 項目金額選項只在項目自設上下限時才驗範圍；只填英文說明沒填英文名時以中文名頂替，英文頁不出現語系提示 | `CharityProjectsAdminService.cs:226-229,397-444`；`views/projects/ProjectEditView.vue:65-66` | 中英<br>🔄 **2026-11-16**：英文名以中文頂替時現在會出現語系提示；金額選項範圍驗證那一半未動 |
 
 ### H-3 行動 App（`mobile/ios`、`mobile/android`）
 
@@ -194,9 +194,9 @@
 |---|---|---|---|---|---|
 | ✅ M-1 🔍 | A | 高 | API 對商店入口回相對網址 `/zh/shop/`，Android `openWeb` 只放行 http／https，**首頁與「更多」的商店入口點了沒反應**。iOS 有把相對路徑接上俱樂部網域 | `Features/AppPublic/AppLayoutReader.cs:37`；Android `ui/Intents.kt:14-18`；iOS `App/AppContainer.swift:22` | Android、兩隊<br>✅ **2026-11-13 已修**：Android 新增統一解析入口 `ClubWeb.resolve`，相對路徑接目前俱樂部網域 |
 | ✅ M-2 🔍 | A／C | 高 | 種子的課程深連結是樣板 `tcrfc://program/{slug}`，Android 解析器把 `{slug}` 當真值，**課程快捷入口開出「找不到課程」**。iOS 有擋含 `{` 的樣板 | `db/prod/club-content-seed.sql:9932`；Android `core/DeepLinks.kt:112-130`；iOS `Domain/QuickEntries.swift:9-14` | Android、兩隊<br>✅ **2026-11-13 已修**：Android 快捷入口與 iOS 同規則；解析器拒收含大括號的參數 |
-| M-3 | A／C | 中 | 後台推播「點擊後前往」、公告條連結的選單給的是樣板（`tcrfc://match/{id}` 等），API 只驗 `tcrfc://` 開頭；iOS 只有快捷入口擋樣板，公告條與通知中心沒擋，Android 全都沒擋，點了開出不存在的詳情頁 | `apps/admin/src/views/app/PushEditView.vue:202-204`；`AdminAppLayoutRepository.cs:269-286`；iOS `Features/Home/HomeView.swift:77`、`Notifications/NotificationCenterView.swift:63`；Android `domain/HomeLogic.kt:42-46` | 兩平台<br>🔄 **2026-11-13 App 端已擋**：兩平台解析器拒收含大括號的參數，iOS 公告條連結不可用時只顯示文字。**後台選單仍給樣板、API 仍不驗**，未修 |
+| ✅ M-3 | A／C | 中 | 後台推播「點擊後前往」、公告條連結的選單給的是樣板（`tcrfc://match/{id}` 等），API 只驗 `tcrfc://` 開頭；iOS 只有快捷入口擋樣板，公告條與通知中心沒擋，Android 全都沒擋，點了開出不存在的詳情頁 | `apps/admin/src/views/app/PushEditView.vue:202-204`；`AdminAppLayoutRepository.cs:269-286`；iOS `Features/Home/HomeView.swift:77`、`Notifications/NotificationCenterView.swift:63`；Android `domain/HomeLogic.kt:42-46` | 兩平台<br>🔄 **2026-11-13 App 端已擋**：兩平台解析器拒收含大括號的參數，iOS 公告條連結不可用時只顯示文字。**後台選單仍給樣板、API 仍不驗**，未修<br>✅ **2026-11-16**：後台改為「先選要前往哪裡、再選對象」（`AppLinkPicker`），API 以 `shared/deeplinks.json` 的逐字複本驗證推播、公告條、廣告、版面項目的連結，樣板與不存在或未公開的對象都拒收；既有樣板值由 `20261116_app-link-template-cleanup.sql` 清除 |
 | M-4 🔍 | E | 中 | 功能開關 `map_enabled`、`biometric_unlock_enabled`、`payment_mode` 後台可設，兩個 App 都不讀（只讀 `ads_enabled`）；`payment_mode` 是三態字串但 `/app/config` 只輸出布林 | `views/app/parts/FlagTab.vue:33-38`；`Features/AppPublic/AppConfigComposer.cs:34-44` | 兩平台 |
-| M-5 🔍 | E | 高 | 首頁區塊的「名稱」與「點擊後前往」後台可改（頁面說明也這樣寫），**兩平台都只取區塊代碼**，標題用字串資源、「查看全部」寫死跳分頁 | `views/app/parts/LayoutItemTab.vue:146,195`；`AppLayoutReader.cs:40-46`；iOS `Features/Home/HomeView.swift:16,152,190`；Android `ui/home/HomeScreen.kt:101-120` | 兩平台 |
+| ✅ M-5 🔍 | E | 高 | 首頁區塊的「名稱」與「點擊後前往」後台可改（頁面說明也這樣寫），**兩平台都只取區塊代碼**，標題用字串資源、「查看全部」寫死跳分頁 | `views/app/parts/LayoutItemTab.vue:146,195`；`AppLayoutReader.cs:40-46`；iOS `Features/Home/HomeView.swift:16,152,190`；Android `ui/home/HomeScreen.kt:101-120` | 兩平台<br>✅ **2026-11-16**：兩平台首頁區塊標題讀後台名稱、「查看全部」依序採用後台深連結／官網網址／內建位置（規劃書 App v3.30）。版面項目沒有自己的連結欄位，目前只能選不需對象的位置 |
 | M-6 | E | 中 | 廣告素材的標題、按鈕文案、影片後台可填，兩平台不顯示（`docs/19` 已列延後，但後台欄位仍開著） | `views/ads/parts/CreativeFormDialog.vue:100-107`；Android `AdSlot.kt`；iOS `AdSlot.swift:235` | 兩平台 |
 | ✅ M-7 | D | 中 | Android「查看方案」永遠開主站網域，沒套目前俱樂部的網域；iOS 有 | Android `ui/AppRoot.kt:276`；iOS `App/AppContainer.swift:38` | Android、藍鯨<br>✅ **2026-11-13 已修**：「查看方案」改走同一個解析入口 |
 | M-8 | B | 低 | 後台把首頁九個區塊全關，兩平台都退回預設全開（API 只回啟用項目，空清單與載入失敗分不出來） | iOS `HomeView.swift:15-18`；Android `ui/home/HomeViewModel.kt:136`；`AppLayoutReader.cs:34` | 兩平台 |
@@ -216,6 +216,13 @@
 - 修正時發現、未處理：Android `lintDevDebug` 有 5 個既有的 `StateFlowValueCalledInComposition` 錯誤（`AdSlot.kt:65`、`AuthScreens.kt:60,151`、`PolicyScreen.kt:85,86`，皆非本批改動的行）；公告條只有一個連結欄位、沒有官網備援網址；兩隊共同（`club_id` 為空）的教練或夥伴寫入時只失效呼叫端俱樂部的快取；延賽賽事匯出行事曆不標示原定時間。
 
 **2026-11-13 第二批（值域收斂，比照 E-357 慣用腳）**：`W-6`、`M-11` 已修。值域 `GK／DF／MF／FW` 寫進 `docs/12a` 與 `docs/14`，未動規劃書；依規劃書不加位置分組或篩選。正式內容種子的 28 位球員位置原本就是代碼，無需遷移。官網賽程頁的中文標籤由「守門員」改為「門將」（與後台一致）；首頁球員橫幅與新聞相關球員原本直接印代碼，改為顯示標籤。測試：API 相關 83 項通過，官網 `check-player-position.mjs` 6 項通過，後台與官網 lint、build 通過。**未實機驗收。**
+
+**2026-11-16 第三批（使用者 2026-11-13 拍板「都要做」；規劃書主站 v3.35／慈善 v2.8／App v3.30）**：`W-2`、`W-3`、`W-10`、`W-16`、`W-17`、`W-19`、`W-23`、`W-24`、`W-31`、`C-5`、`K-1`、`K-2`、`K-3`、`M-3`、`M-5` 已修；`W-1` 的分頁歸屬寫進規劃書。
+- **寫死後備分兩步**：先盤點並把真實內容搬進資料（種子區段 60b ＋ `db/migrations/20261113_fallback-content-import.sql`，逐項結論在 `db/seed/README.md`），前端再拿掉寫死版並加 `scripts/check-no-static-fallback.mjs` 防止加回。圖片（國際夥伴 logo、一線隊合影、兩則新聞封面）須營運人員在後台上傳。
+- **未處理、待使用者決定**：`W-5` 藍鯨兒童訓練班別表與守門員班（計價單位、限女性、外部報名網址模型裝不下）；夏令營頁「曾與以下單位合作」拿掉了「是否為固定合作夥伴待確認」的但書；藍鯨球員故事頁的「肖像同意」四句（與頁面種子逐字同步，需連種子重產）；表單與註冊頁「待法務定稿」提示。
+- **契約缺口**：`/app/layout` 的區塊名稱沒有回退旗標，兩個 App 以偵測中日文字元判斷英文回退；版面項目沒有自己的連結欄位；公告條沒有官網備援網址；廣告素材與版位備援連結的後台畫面仍是手打連結（API 已驗證）；Android 首頁的附近店家區塊沒有「查看全部」而 iOS 有。
+- **部署順序**（`E-289`）：慈善庫欄位遷移須經 `db-migrate.yml` 套用，新版 API 在套用前讀慈善複本會失敗；主站三支資料遷移（`20261113_fallback-content-import`、`20261113_form-definition-align`、`20261116_app-link-template-cleanup`）須對正式庫執行後清快取；之後在慈善後台按一次「從官網更新清單」。
+- **全部未對真 API 實機驗收**；慈善平台測試因本機 `tcrfc_charity` 尚未套遷移，只在臨時容器跑過。
 
 ### H-4 涵蓋範圍與仍未看的部分
 

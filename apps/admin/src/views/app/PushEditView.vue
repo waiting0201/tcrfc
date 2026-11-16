@@ -20,6 +20,7 @@ import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
+import AppLinkPicker from './parts/AppLinkPicker.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { usePermission } from '@/composables/useCrudPermissions'
@@ -28,8 +29,8 @@ import { AdminApiError } from '@/api/http'
 import { nullIfBlank } from '@/api/adminCommon'
 import { listAdminClubTeams } from '@/api/adminTeams'
 import {
-  createPushMessage, estimatePush, getPushMessage, listDeepLinks, updatePushMessage,
-  type AudienceTier, type DeepLinkDto, type PushDetailDto, type PushEstimateDto,
+  createPushMessage, estimatePush, getPushMessage, updatePushMessage,
+  type AudienceTier, type PushDetailDto, type PushEstimateDto,
 } from '@/api/adminApp'
 import { nowAsPickerDate, pickerDateToUtc, utcToPickerDate } from '@/utils/dateTime'
 import { AUDIENCE_TIERS } from './pushLabels'
@@ -58,7 +59,8 @@ const formError = ref<string | null>(null)
 const formErrors = provideFormErrors()
 watch([image, removeImage], () => formErrors.clear('image'))
 const status = ref('draft')
-const deepLinks = ref<DeepLinkDto[]>([])
+/** 連結選擇器：選了需要對象的目的地卻還沒挑對象。 */
+const linkIncomplete = ref(false)
 const teamOptions = ref<{ code: string; label: string }[]>([])
 const readOnly = computed(() => !canCreate.value || status.value !== 'draft')
 const pageTitle = computed(() => (isCreate.value ? '新增推播' : `編輯推播：${form.titleZh || '（未填標題）'}`))
@@ -76,7 +78,6 @@ function apply(d: PushDetailDto) {
 async function load() {
   state.value = 'loading'
   try {
-    deepLinks.value = await listDeepLinks().catch(() => [])
     const teams = await Promise.all(availableClubs.value.map((c) => listAdminClubTeams(c.code).then((ts) => ts.map((t) => ({ code: t.code, label: `${c.name}・${t.nameZh || t.code}` }))).catch(() => [])))
     teamOptions.value = teams.flat()
     if (!isCreate.value && pushId.value) apply(await getPushMessage(pushId.value))
@@ -121,7 +122,8 @@ function validate(): Record<string, string> {
   if (!form.bodyZh.trim()) errors.bodyZh = '請輸入中文內文'
   if (form.titleEn.trim() && !form.bodyEn.trim()) errors.bodyEn = '有英文標題時請一併填寫英文內文（或清空英文標題）'
   const link = form.deepLink.trim()
-  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) errors.deepLink = '連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結'
+  if (linkIncomplete.value) errors.deepLink = '請選擇要前往的對象，或把「要前往哪裡」改成其他選項'
+  else if (link && !/^https?:\/\//i.test(link) && !link.startsWith('tcrfc://')) errors.deepLink = '網址格式不正確：請填完整網址（https:// 開頭）'
   if (form.scheduledAt && form.scheduledAt.getTime() <= nowAsPickerDate().getTime()) errors.scheduledAt = '預定發送時間不能是過去，沒填就是核可後立刻發送'
   return errors
 }
@@ -200,10 +202,8 @@ const back = () => router.push(isCreate.value || !pushId.value ? '/app/push' : `
                   <BilingualShortField v-model:zh="form.titleZh" v-model:en="form.titleEn" field="title" label="標題（120 字內）" required />
                   <BilingualTextareaField v-model:zh="form.bodyZh" v-model:en="form.bodyEn" field="body" label="內文（500 字內）" required :rows="4" />
                   <FormField field="deepLink" label="點擊後前往（選填）">
-                    <el-select v-model="form.deepLink" filterable allow-create clearable default-first-option placeholder="選擇 App 內頁面，或自行輸入連結" style="width: 100%" @change="formErrors.clear('deepLink')">
-                      <el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || d.code" :value="d.appLink" />
-                    </el-select>
-                    <div class="pe__hint">可以填網頁網址（https:// 開頭），或 App 內頁面連結（不確定時請向 App 工程團隊確認）。</div>
+                    <AppLinkPicker v-model="form.deepLink" :disabled="readOnly" @update:incomplete="linkIncomplete = $event" />
+                    <div class="pe__hint">使用者點開通知後會前往這裡；不設定就只是打開 App。</div>
                   </FormField>
                 </FormSection>
 

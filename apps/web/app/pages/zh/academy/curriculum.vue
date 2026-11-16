@@ -117,7 +117,7 @@ const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn(clubKey.val
 <section class="band">
   <div class="container">
     <h2 class="section-title">{{ tx('課綱與週期規劃表', 'Syllabus and Training-Cycle Plan') }}</h2>
-    <p class="section-lede" style="margin-top:.5rem;">{{ tx('各面向的具體課綱內容與週期（年度／學期／週）訓練配比，待客戶資料到位後填入下表。', 'The detailed syllabus and training-cycle breakdown (season / term / week) for each pillar will be added to the table below once the information is ready.') }}</p>
+    <p class="section-lede" style="margin-top:.5rem;">{{ tx('各面向的具體課綱內容與週期（年度／學期／週）訓練配比整理中，稍後將於下表公布。', 'The detailed syllabus and training-cycle breakdown (season / term / week) for each pillar is being compiled and will be published in the table below soon.') }}</p>
     <div class="data-table-wrap" style="margin-top:2rem;">
       <table class="data-table">
         <caption class="visually-hidden">{{ tx('五大訓練面向課綱與週期規劃表', 'Syllabus and training-cycle plan for the five training pillars') }}</caption>

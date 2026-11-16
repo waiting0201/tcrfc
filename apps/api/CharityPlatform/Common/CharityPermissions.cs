@@ -110,6 +110,9 @@ public static class CharityAuditActions
     public const string PaymentEnvironmentSwitch = "payment_channel.env_switch";
     public const string ProjectContentUpdate = "project.content_update";
 
+    /// <summary>N2「從官網更新清單」：以主站公開清單整份對齊公益團體與慈善計畫的唯讀複本（K-2）。</summary>
+    public const string CharityRefSync = "charity_ref.sync";
+
     // 後台帳號與角色管理（動作代碼上限 32 字元）
     public const string AdminAccountCreate = "admin_account.create";
     public const string AdminAccountUpdate = "admin_account.update";
@@ -151,6 +154,7 @@ public static class CharityAuditActions
         [PaymentCredentialSet] = "更新金流或發票憑證",
         [PaymentEnvironmentSwitch] = "切換金流或發票環境",
         [ProjectContentUpdate] = "編輯項目內文",
+        [CharityRefSync] = "從官網更新公益團體與慈善計畫清單",
         [AdminAccountCreate] = "建立後台帳號",
         [AdminAccountUpdate] = "更新後台帳號",
         [AdminAccountStatus] = "啟用或停用後台帳號",
@@ -176,6 +180,7 @@ public static class CharityAuditTargets
     public const string PaymentChannel = "payment_channel";
     public const string AdminAccount = "admin_account";
     public const string AdminRole = "admin_role";
+    public const string CharityRef = "charity_ref";
 
     public static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -191,5 +196,6 @@ public static class CharityAuditTargets
         [PaymentChannel] = "金流與發票憑證",
         [AdminAccount] = "後台帳號",
         [AdminRole] = "角色",
+        [CharityRef] = "公益團體與慈善計畫清單",
     };
 }

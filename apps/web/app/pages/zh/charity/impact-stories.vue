@@ -6,9 +6,8 @@
 // 時間軸依年份分組、年份篩選鈕沿用 useYearChips（與 about/milestones 共用）。
 // 🔴 後端單次最多 50 筆（`maxPageSize`）；超過 50 筆時本頁只顯示最新 50 筆並附「更多紀錄」提示——前台目前
 // 沒有分頁 UI（年份篩選需要整批資料在 client），見 README「S2-9」節範圍縮減。
-// 🔴 後端沒有任何事蹟紀錄（含 API 打不到）時，退回 mockup 時代人工整理的三筆真實事蹟（俱樂部既有新聞報導
-// 為憑據，S0-9 搬遷保留）；後台一旦建立任何一筆事蹟，整頁換成後台資料（不混搭兩個來源）——這三筆應該由
-// 內容人員補登進後台 B5（回報「待內容補登」）。
+// 🔴 2026-11-13 起沒有寫死的過渡事蹟：三筆原靜態事蹟已由客戶文件匯入後台 B5；後端沒有任何事蹟紀錄（含 API 打不到）時
+// 顯示空狀態。
 // 🔴 單元 11 對藍鯨整頁 404（藍鯨規劃書 §2.1）。
 import type { ImpactRecord, PublicCharityImage } from '#shared/utils/charity'
 import type { PagedResponse } from '#shared/utils/api-types'
@@ -53,35 +52,10 @@ interface TimelineItem {
 }
 interface TimelineYear { key: string, label: string, items: TimelineItem[] }
 
-/** 後端沒有任何事蹟時的過渡內容（見檔頭）：三筆都有對應的俱樂部新聞報導。 */
-const STATIC_YEARS: TimelineYear[] = [
-  { key: '2026', label: '2026', items: [{
-    key: 's-2026-01-12', date: '2026-01-12', imageUrl: siteImg('/assets/img/news/2026-01-12-community-017.jpg'),
-    imageAlt: tx('台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場', 'Taichung Rock FC and Subkarma donating English books at a non-profit kindergarten'), imageWidth: 640, imageHeight: 427, gallery: [], logoUrl: null,
-    title: '潭秀非營利幼兒園',
-    facts: [
-      { label: tx('捐助內容', 'Donated'), text: tx('英語書籍（與 Subkarma 合作捐贈）', 'English-language books (donated in partnership with Subkarma)') },
-      { label: tx('相關報導', 'Related news'), text: tx('台中磐石攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園', 'Taichung Rock FC and Subkarma deepen local charity work, donating English books to a non-profit kindergarten'), href: '/zh/news/community/' },
-    ],
-  }] },
-  { key: '2025', label: '2025', items: [{
-    key: 's-2025-05-03', date: '2025-05-03', imageUrl: siteImg('/assets/img/news/2025-05-03-camps-056.jpg'),
-    imageAlt: tx('2025台中磐石盃足球邀請賽活動現場', 'The 2025 Taichung Rock FC Cup football invitational'), imageWidth: 640, imageHeight: 480, gallery: [], logoUrl: null,
-    title: '台中磐石盃少年足球隊伍',
-    facts: [{ label: tx('相關活動', 'Related event'), text: tx('2025 台中磐石盃足球邀請賽', '2025 Taichung Rock FC Cup football invitational') }],
-  }] },
-  { key: '2024', label: '2024', items: [{
-    key: 's-2024-07-23', date: '2024-07-23', imageUrl: null, imageAlt: '', imageWidth: 640, imageHeight: 427, gallery: [], logoUrl: null,
-    title: '潭秀國中暨嶺東高中聯隊', facts: [],
-  }] },
-]
-
 const apiRecords = computed(() => data.value?.items ?? [])
-const usingApi = computed(() => apiRecords.value.length > 0)
 const totalCount = computed(() => data.value?.totalCount ?? 0)
 
 const years = computed<TimelineYear[]>(() => {
-  if (!usingApi.value) return STATIC_YEARS
   const groups = new Map<string, TimelineYear>()
   for (const r of apiRecords.value) {
     const y = recordYear(r)
@@ -139,12 +113,16 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   </div>
 </section>
 
-<LocaleFallbackNotice v-if="isEn && (!usingApi || hasFallbackLocale(data))" partial />
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(data)" partial />
 
 <section class="band impact-band" aria-labelledby="impact-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="impact-title">{{ tx('慈善事蹟時間軸', 'Impact stories timeline') }}</h2>
 
+    <div v-if="years.length === 0" class="news-empty">
+      <p>{{ tx('慈善事蹟整理中，稍後將於本頁公布。', 'Impact stories are being compiled and will be published on this page soon.') }}</p>
+    </div>
+    <template v-else>
     <div class="year-filter" role="group" :aria-label="tx('選擇年份', 'Select a year')">
       <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">{{ tx('全部', 'All') }}</button>
       <button v-for="y in years" :key="y.key" class="year-chip" type="button" :data-year="y.key" :aria-pressed="isPressed(y.key)" @click="activeYear = y.key">{{ y.label }}</button>
@@ -175,7 +153,8 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
         </ol>
       </section>
     </div>
-    <p v-if="usingApi && totalCount > apiRecords.length" class="impact-more"><template v-if="isEn">Showing the latest {{ apiRecords.length }} of {{ totalCount }} records.</template><template v-else>目前顯示最新 {{ apiRecords.length }} 筆，共 {{ totalCount }} 筆紀錄。</template></p>
+    <p v-if="totalCount > apiRecords.length" class="impact-more"><template v-if="isEn">Showing the latest {{ apiRecords.length }} of {{ totalCount }} records.</template><template v-else>目前顯示最新 {{ apiRecords.length }} 筆，共 {{ totalCount }} 筆紀錄。</template></p>
+    </template>
   </div>
 </section>
 

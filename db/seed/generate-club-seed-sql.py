@@ -1958,14 +1958,19 @@ FORM_CODES = [
 
 
 def field(key, type_, required=False, validation=None, options=None, summary=False,
-          *, label_zh, label_en=None, option_labels_en=None):
+          *, label_zh, label_en=None, option_labels_en=None, option_labels_zh=None):
     """單一表單欄位定義。`label_zh` 必填（zh-Hant 題目文字，DB 層 `form_fields_i18n.label NOT
     NULL`）；`label_en`／`option_labels_en` 皆可省略（省略＝尚未翻譯，公開端點回退顯示中文，見
-    apps/api/Features/Forms/FormsRepository.cs 的 `ToPublicFieldDto`）。`option_labels_en` 提供時
-    筆數必須跟 `options` 一致（跟 AdminFormsRepository.ValidateOptionLabelsEn 同一條規則）。"""
-    if options is not None and option_labels_en is not None and len(options) != len(option_labels_en):
-        raise ValueError(f"欄位 {key}：option_labels_en 筆數必須跟 options 一致")
-    return (key, type_, required, validation, options, summary, label_zh, label_en, option_labels_en)
+    apps/api/Features/Forms/FormsRepository.cs 的 `ToPublicFieldDto`）。`option_labels_en`／`option_labels_zh`
+    提供時筆數必須跟 `options` 一致（跟 AdminFormsRepository.ValidateOptionLabels 同一條規則）。
+
+    🔴 `options` 是**送出值**（收件匣既有資料、後端驗證、前台 scripts/check-form-definition.mjs 都依賴，不可改）；
+    `option_labels_zh`／`option_labels_en` 是**顯示文字**（存在 form_fields_i18n 的 zh-Hant／en 列的 options_json）。
+    `option_labels_zh` 省略＝前台中文顯示送出值本身。"""
+    for name, labels in (("option_labels_en", option_labels_en), ("option_labels_zh", option_labels_zh)):
+        if labels is not None and (options is None or len(options) != len(labels)):
+            raise ValueError(f"欄位 {key}：{name} 筆數必須跟 options 一致")
+    return (key, type_, required, validation, options, summary, label_zh, label_en, option_labels_en, option_labels_zh)
 
 
 # is_summary（S1-10 審查回饋補做）：G2 收件匣「內容摘要」欄的來源鍵，同一張表單最多一個 True——
@@ -1981,63 +1986,70 @@ CONSENT_FIELD = field(
 FORM_FIELD_DEFAULTS = {
     "join_player": [  # 10.1：姓名、生日、位置、經歷、影片連結、聯絡方式
         field("name", "text", True, label_zh="姓名", label_en="Name"),
-        field("birth_date", "date", True, label_zh="生日", label_en="Date of Birth"),
-        field("position", "text", label_zh="場上位置", label_en="Playing Position"),
-        field("experience", "textarea", label_zh="足球經歷", label_en="Football Experience", summary=True),  # 內容摘要來源
-        field("video_url", "text", label_zh="影片連結", label_en="Video Link"),
+        field("birth_date", "date", True, label_zh="出生日期", label_en="Date of birth"),
+        field("position", "text", True, label_zh="場上位置", label_en="Playing position"),
+        field("experience", "textarea", True, label_zh="足球經歷簡述", label_en="Football experience", summary=True),  # 內容摘要來源
+        field("video_url", "text", True, label_zh="比賽或訓練影片連結", label_en="Match or training video link"),
         field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
         CONSENT_FIELD,
     ],
     "academy_children_training": [  # 10.2：報名項目、學員資料、地點偏好、家長聯絡、足球經歷、健康狀況
+        # 預設選項組＝藍鯨（青年隊，不稱 Academy／學院，E-233）；磐石的選項組見下方 FORM_FIELD_OVERRIDES。
+        # 顯示文字照頁面（apps/web/app/pages/zh/join/academy/index.vue）：藍鯨頁自己的下拉寫「U15 青年隊」，
+        # 兒童班別與專項訓練沿用磐石頁的「混齡班」等簡稱（藍鯨頁目前不提供這幾項）。送出值不動。
         field("enrollment_category", "select", True,
               options=["學院 U12", "學院 U14", "學院 U15", "兒童混齡班", "兒童初學班", "兒童技巧發展班", "專項訓練"],
-              option_labels_en=["Academy U12", "Academy U14", "Academy U15", "Children Mixed-Age Class",
-                                 "Children Beginner Class", "Children Skill Development Class", "Specialist Training"],
-              label_zh="報名項目", label_en="Enrollment Category"),
+              option_labels_zh=["U12 青年隊", "U14 青年隊", "U15 青年隊", "混齡班", "初學班", "技巧發展班", "專項訓練"],
+              option_labels_en=["U12 Youth team", "U14 Youth team", "U15 Youth team", "Mixed-age class",
+                                 "Beginner class", "Skills development class", "Specialist training"],
+              label_zh="想報名的項目", label_en="Program you would like to join"),
         field("name", "text", True, label_zh="學員姓名", label_en="Student Name"),
-        field("birth_date", "date", True, label_zh="學員生日", label_en="Student Date of Birth"),
-        field("location_preference", "text", label_zh="地點偏好", label_en="Preferred Location"),
+        field("birth_date", "date", True, label_zh="學員出生日期", label_en="Student's date of birth"),
+        field("location_preference", "text", label_zh="偏好受訓地點", label_en="Preferred training location"),
         field("contact", "text", True, label_zh="家長聯絡方式", label_en="Parent Contact Info"),
-        field("experience", "textarea", label_zh="足球經歷", label_en="Football Experience", summary=True),  # 內容摘要來源
-        field("health_status", "textarea", label_zh="健康狀況", label_en="Health Status"),
+        # 頁面的題目帶「（選填）」，前台 fieldLabel(optional: true) 會自己補，定義的題目文字不含
+        field("experience", "textarea", label_zh="足球或運動經歷", label_en="Football or sports experience", summary=True),  # 內容摘要來源
+        field("health_status", "textarea", label_zh="特殊健康狀況說明", label_en="Special health conditions"),
         CONSENT_FIELD,
     ],
     "camp_registration": [  # 10.3：營隊梯次、學員資料、健康聲明、緊急聯絡人——沒有敘述性文字欄位，不標記摘要
-        field("session_choice", "text", True, label_zh="營隊梯次", label_en="Camp Session"),
-        field("name", "text", True, label_zh="學員姓名", label_en="Student Name"),
-        field("birth_date", "date", True, label_zh="學員生日", label_en="Student Date of Birth"),
+        field("session_choice", "text", True, label_zh="希望報名的梯次", label_en="Preferred session"),
+        field("name", "text", True, label_zh="學員姓名", label_en="Student's name"),
+        field("birth_date", "date", True, label_zh="學員出生日期", label_en="Student's date of birth"),
         field("health_declaration", "consent", True, label_zh="健康聲明", label_en="Health Declaration"),
         field("contact", "text", True, label_zh="緊急聯絡人", label_en="Emergency Contact"),
         CONSENT_FIELD,
     ],
     "international_player_enquiry": [  # 10.4：英文姓名、國籍、護照、經歷、影片、簽證狀態
-        field("name", "text", True, label_zh="姓名", label_en="Name"),
+        field("name", "text", True, label_zh="姓名", label_en="Full Name"),
         field("nationality", "text", True, label_zh="國籍", label_en="Nationality"),
         field("passport_no", "text", label_zh="護照號碼", label_en="Passport Number"),
-        field("experience", "textarea", label_zh="足球經歷", label_en="Football Experience", summary=True),  # 內容摘要來源
-        field("video_url", "text", label_zh="影片連結", label_en="Video Link"),
-        field("visa_status", "text", label_zh="簽證狀態", label_en="Visa Status"),
+        field("experience", "textarea", True, label_zh="足球經歷簡述", label_en="Career Summary", summary=True),  # 內容摘要來源
+        field("video_url", "text", True, label_zh="影片連結", label_en="Video Highlight Link"),
+        field("visa_status", "text", True, label_zh="簽證狀態", label_en="Current Visa Status"),
         field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
         CONSENT_FIELD,
     ],
     "partnership_sponsorship": [  # 10.5：洽詢類型、公司、產業、預算區間、合作方向、感興趣贊助方案、聯絡人
         field("enquiry_type", "select", True, options=["合作夥伴", "贊助", "兩者"],
-              option_labels_en=["Partnership", "Sponsorship", "Both"],
-              label_zh="洽詢類型", label_en="Enquiry Type"),
-        field("company", "text", True, label_zh="公司名稱", label_en="Company Name"),
+              option_labels_zh=["合作夥伴關係", "贊助方案", "兩者都想了解"],
+              option_labels_en=["A partnership", "A sponsorship package", "Both"],
+              label_zh="這次想洽詢的是", label_en="This enquiry is about"),
+        field("company", "text", True, label_zh="公司／機構名稱", label_en="Company / organisation name"),
         field("industry", "text", label_zh="產業別", label_en="Industry"),
-        field("budget_range", "text", label_zh="預算區間", label_en="Budget Range"),
-        field("cooperation_direction", "textarea", label_zh="合作方向", label_en="Cooperation Direction", summary=True),  # 內容摘要來源
+        field("budget_range", "text", label_zh="預算區間", label_en="Budget range"),
+        # 頁面的「合作構想或洽詢內容」必填，且與勾選的合作方向併成這一欄送出，所以這欄必填
+        field("cooperation_direction", "textarea", True, label_zh="合作方向", label_en="Cooperation Direction", summary=True),  # 內容摘要來源
         field("sponsorship_interest", "text", label_zh="感興趣的贊助方案", label_en="Sponsorship Package of Interest"),
-        field("name", "text", True, label_zh="聯絡人姓名", label_en="Contact Person"),
+        field("name", "text", True, label_zh="聯絡人姓名", label_en="Contact name"),
         field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
         CONSENT_FIELD,
     ],
     "media_enquiry": [  # 10.6：媒體名稱、記者姓名、採訪主題、截稿日——沒有敘述性文字欄位，不標記摘要
-        field("media_name", "text", True, label_zh="媒體名稱", label_en="Media Outlet"),
-        field("name", "text", True, label_zh="記者姓名", label_en="Reporter Name"),
-        field("topic", "text", True, label_zh="採訪主題", label_en="Interview Topic"),
-        field("deadline", "date", label_zh="截稿日", label_en="Deadline"),
+        field("media_name", "text", True, label_zh="媒體／機構名稱", label_en="Media outlet / organisation name"),
+        field("name", "text", True, label_zh="記者／聯絡人姓名", label_en="Journalist / contact name"),
+        field("topic", "text", True, label_zh="採訪主題／需求說明", label_en="Interview topic / requirements"),
+        field("deadline", "date", True, label_zh="期望採訪日期／截稿日", label_en="Preferred interview date / deadline"),
         field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
         CONSENT_FIELD,
     ],
@@ -2059,10 +2071,12 @@ FORM_FIELD_DEFAULTS = {
 # 2026-10-16（主站 v3.29，客戶 4.3 發展路徑）：磐石學院梯隊代號改為 U10／U12／U14／U16／U18，報名表單「報名項目」選項同步；
 # 藍鯨（BW-U15／BW-U12，不屬學院）維持原選項不動。已存在的資料庫由 db/migrations/20261016_academy-squad-codes.sql 對齊。
 FORM_FIELD_OVERRIDES = {
+    # 值：(送出值, 中文顯示文字, 英文顯示文字)。顯示文字照磐石頁（academy/index.vue 的 ol() 退路）：「U12 梯隊」「混齡班」…
     ("tcrfc", "academy_children_training", "enrollment_category"): (
         ["學院 U10", "學院 U12", "學院 U14", "學院 U16", "學院 U18", "兒童混齡班", "兒童初學班", "兒童技巧發展班", "專項訓練"],
-        ["Academy U10", "Academy U12", "Academy U14", "Academy U16", "Academy U18", "Children Mixed-Age Class",
-         "Children Beginner Class", "Children Skill Development Class", "Specialist Training"],
+        ["U10 梯隊", "U12 梯隊", "U14 梯隊", "U16 梯隊", "U18 梯隊", "混齡班", "初學班", "技巧發展班", "專項訓練"],
+        ["U10 squad", "U12 squad", "U14 squad", "U16 squad", "U18 squad", "Mixed-age class",
+         "Beginner class", "Skills development class", "Specialist training"],
     ),
 }
 
@@ -2083,8 +2097,9 @@ END
 """)
         form_ref = f"(SELECT id FROM forms WHERE club_id = {club_ref} AND form_code = {esc(form_code)})"
         for i, (field_key, field_type, is_required, validation_rule, options, is_summary,
-                label_zh, label_en, option_labels_en) in enumerate(FORM_FIELD_DEFAULTS[form_code]):
-            options, option_labels_en = FORM_FIELD_OVERRIDES.get((club_code, form_code, field_key), (options, option_labels_en))
+                label_zh, label_en, option_labels_en, option_labels_zh) in enumerate(FORM_FIELD_DEFAULTS[form_code]):
+            options, option_labels_zh, option_labels_en = FORM_FIELD_OVERRIDES.get(
+                (club_code, form_code, field_key), (options, option_labels_zh, option_labels_en))
             field_id = new_id("form_field", club_code, form_code, field_key)
             field_ref = f"(SELECT id FROM form_fields WHERE form_id = {form_ref} AND field_key = {esc(field_key)})"
             options_json = esc(json.dumps(options, ensure_ascii=False)) if options else "NULL"
@@ -2097,10 +2112,11 @@ IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = {form_ref} AND field_ke
             # （跟 AdminFormsRepository.UpdateFieldAsync 沒有英文內容時整列刪除是同一套「不留半套
             # 翻譯殘影」的精神）。用 IF NOT EXISTS 個別判斷 zh-Hant／en 兩列，避免種子腳本重跑時
             # 對已存在的列重複 INSERT。
+            option_labels_zh_json = esc(json.dumps(option_labels_zh, ensure_ascii=False)) if option_labels_zh else "NULL"
             block(f"""
 IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = {field_ref} AND locale = N'zh-Hant')
-  INSERT INTO form_fields_i18n (form_field_id, locale, label)
-  VALUES ({field_ref}, N'zh-Hant', {esc(label_zh)});
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ({field_ref}, N'zh-Hant', {esc(label_zh)}, {option_labels_zh_json});
 """)
             if label_en or option_labels_en:
                 option_labels_en_json = esc(json.dumps(option_labels_en, ensure_ascii=False)) if option_labels_en else "NULL"
@@ -2365,6 +2381,12 @@ backoffice_seed.emit_all(
     clubs={"tcrfc": CLUB_TCRFC, "bw": CLUB_BW},
     season_sq=season_sq, venue_by_keyword_sq=venue_by_keyword_sq, category_sq=category_sq,
 )
+
+# 60b. 官網寫死後備轉後台資料（2026-11-13）：磐石國際夥伴、藍鯨建教合作學校、贊助方案名稱、磐石成立首年榮譽、頁尾簡介與社群。
+# 定義與 SQL 在 fallback_content_seed.py（同一份也產生資料遷移 20261113_fallback-content-import.sql）。
+import fallback_content_seed  # noqa: E402
+
+fallback_content_seed.emit_all(emit=emit, block=block, esc=esc, new_id=new_id, clubs={"tcrfc": CLUB_TCRFC, "bw": CLUB_BW})
 
 # 61. 英文欄位回填（*_i18n 的 en 列，僅 tcrfc）：放在所有區段之後，確保繁中列都已存在。見 en_backfill_seed.py 檔頭。
 import en_backfill_seed  # noqa: E402

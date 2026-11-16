@@ -148,6 +148,27 @@ public static class AdminAppEndpoints
             return await repo.DeleteDeepLinkAsync(id, ct) ? Results.NoContent() : Results.NotFound();
         }).WithName("AdminDeleteAppDeepLink").Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status409Conflict);
 
+        // ── 連結選擇器（稽核 docs/23 M-3／M-5）：推播、公告、版面編排共用的「先選要前往哪裡、再選對象」資料來源 ──
+        g.MapGet("/links/destinations", async (HttpContext http, IAdminSystemAuthorizer auth, CancellationToken ct) =>
+        {
+            await AuthorizeLinkPickerAsync(http, auth, ct);
+            return Results.Ok(AppLinkValidator.Destinations().Select(d => new AppLinkDestinationDto { Key = d.Key, Label = d.Label, Link = d.Link, TargetKind = d.TargetKind }).ToList());
+        }).WithName("AdminListAppLinkDestinations").Produces<IReadOnlyList<AppLinkDestinationDto>>();
+
+        g.MapGet("/links/targets", async (string kind, string? q, HttpContext http, IAdminSystemAuthorizer auth, AppLinkValidator links, CancellationToken ct) =>
+        {
+            await AuthorizeLinkPickerAsync(http, auth, ct);
+            var found = await links.SearchAsync(kind, q, ct);
+            return Results.Ok(found.Select(t => new AppLinkTargetDto { Link = t.Link, Label = t.Label, Hint = t.Hint }).ToList());
+        }).WithName("AdminSearchAppLinkTargets").Produces<IReadOnlyList<AppLinkTargetDto>>().Produces(StatusCodes.Status400BadRequest);
+
+        g.MapPost("/links/describe", async (DescribeAppLinkRequest request, HttpContext http, IAdminSystemAuthorizer auth, AppLinkValidator links, CancellationToken ct) =>
+        {
+            await AuthorizeLinkPickerAsync(http, auth, ct);
+            var d = await links.DescribeAsync(request.Link, ct);
+            return Results.Ok(new AppLinkDescriptionDto { Status = d.Status, DestinationKey = d.DestinationKey, TargetLabel = d.TargetLabel, Message = d.Message });
+        }).WithName("AdminDescribeAppLink").Produces<AppLinkDescriptionDto>();
+
         g.MapGet("/layout/announcements", async (HttpContext http, IAdminSystemAuthorizer auth, AdminAppLayoutRepository repo, CancellationToken ct) =>
         {
             await auth.AuthorizeAsync(http, "app.layout.view", ct);
@@ -176,6 +197,25 @@ public static class AdminAppEndpoints
     }
 
     // ═════════ M3 ═════════
+
+    /// <summary>連結選擇器的資料只有「已公開內容的名稱」，編推播或編排版面的人都會用到：任一相關檢視／建立權限即可。</summary>
+    private static async Task AuthorizeLinkPickerAsync(HttpContext http, IAdminSystemAuthorizer auth, CancellationToken ct)
+    {
+        foreach (var code in new[] { "app.layout.view", "app.push.view", "app.push.create" })
+        {
+            try
+            {
+                await auth.AuthorizeAsync(http, code, ct);
+                return;
+            }
+            catch (AdminForbiddenException)
+            {
+                // 換下一個權限碼；全部都沒有才拒絕
+            }
+        }
+
+        await auth.AuthorizeAsync(http, "app.layout.view", ct);
+    }
 
     private static void MapPush(RouteGroupBuilder g)
     {

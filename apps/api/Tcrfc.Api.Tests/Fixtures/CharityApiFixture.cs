@@ -35,6 +35,7 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
     public const string TestJwtKey = "test-only-charity-jwt-signing-key-not-for-production-32b";
     public const string TestEmailDomain = "charity-test.invalid";
     public const string PublicBaseUrl = "http://charity.test";
+    public const string MainSiteBaseUrl = "http://main-site.test";
     public const string AssociationNotifyEmail = "notify@charity-test.invalid";
 
     public ScriptedPaymentGateway Gateway { get; } = new();
@@ -42,6 +43,7 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
     public CapturingEmailSender Mail { get; } = new();
     public ScriptedReconciliationSource Reconciliation { get; } = new();
     public InMemoryCharityImageStorage Images { get; } = new();
+    public ScriptedMainSite MainSite { get; } = new();
 
     private string _connectionString = string.Empty;
     public string ConnectionString => _connectionString;
@@ -64,6 +66,7 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             [CharityRateLimitPolicies.ReadPermitLimitConfigKey] = ReadPermits,
             [CharityOptions.WorkersEnabledConfigKey] = "false",
             [CharityOptions.PublicBaseUrlConfigKey] = PublicBaseUrl,
+            [CharityOptions.MainSiteApiBaseUrlConfigKey] = MainSiteBaseUrl,
             [CharityInvoiceService.AssociationNotifyEmailConfigKey] = AssociationNotifyEmail,
         }));
         builder.ConfigureTestServices(ReplaceExternalServices);
@@ -83,6 +86,9 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         services.AddSingleton<IInvoiceIssuer>(Invoices);
         services.AddSingleton<IEmailSender>(Mail);
         services.AddSingleton<ICharityImageStorage>(Images);
+        // 「從官網更新清單」的 HTTP 呼叫：不真的打網路，由 MainSite 這個假處理器回應（K-2）。
+        services.RemoveAll<IHttpClientFactory>();
+        services.AddSingleton<IHttpClientFactory>(new ScriptedHttpClientFactory(MainSite));
     }
 
     public async Task InitializeAsync()
@@ -120,6 +126,7 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         Reconciliation.Reset();
         Images.Reset();
         Turnstile.Reset();
+        MainSite.Reset();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

@@ -157,6 +157,39 @@ public sealed record AdminAppDeepLinkDto
     public required int UsedByCount { get; init; }
 }
 
+// ═════════ 連結選擇器 ═════════
+
+/// <summary>選擇器第一步「要前往哪裡」的一個選項。<c>Link</c> 有值＝不需要對象的完整連結；<c>TargetKind</c> 有值＝還要再挑一個對象（比賽／最新消息／課程／球員／特約店家）。</summary>
+public sealed record AppLinkDestinationDto
+{
+    public required string Key { get; init; }
+    public required string Label { get; init; }
+    public string? Link { get; init; }
+    public string? TargetKind { get; init; }
+}
+
+/// <summary>第二步可挑的對象。<c>Link</c> 是伺服器組好的完整連結（前端原樣送出，不自行拼接）。</summary>
+public sealed record AppLinkTargetDto
+{
+    public required string Link { get; init; }
+    public required string Label { get; init; }
+    public string? Hint { get; init; }
+}
+
+public sealed record DescribeAppLinkRequest
+{
+    public string? Link { get; init; }
+}
+
+/// <summary><c>Status</c>：<c>empty</c>／<c>app</c>／<c>web</c>／<c>template</c>／<c>unrecognized</c>／<c>missing</c>。後三者畫面要提示重新選擇。</summary>
+public sealed record AppLinkDescriptionDto
+{
+    public required string Status { get; init; }
+    public string? DestinationKey { get; init; }
+    public string? TargetLabel { get; init; }
+    public string? Message { get; init; }
+}
+
 public sealed record UpsertAdminAppAnnouncementRequest
 {
     public string? LinkUrl { get; init; }

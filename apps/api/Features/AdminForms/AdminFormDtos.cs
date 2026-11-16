@@ -37,8 +37,14 @@ public sealed record AdminFormFieldDto
     /// 驗證與儲存，不因語系而變，語意上等同這些選項的中文顯示文字）。</summary>
     public IReadOnlyList<string>? Options { get; init; }
 
+    /// <summary>選項的中文顯示文字，與 <see cref="Options"/> 同順序、同筆數（<c>form_fields_i18n</c> zh-Hant 列的
+    /// <c>options_json</c>）；<c>null</c>＝這個欄位沒有選項，或沒有另外設定中文顯示文字——此時前台顯示
+    /// <see cref="Options"/> 的送出值本身（既有行為）。後台畫面應以「<c>OptionLabelsZh ?? Options</c>」當作
+    /// 中文欄位的預設值。<c>Options</c> 是**送出值**（鎖定、不因語系而變），本欄位只影響顯示。</summary>
+    public IReadOnlyList<string>? OptionLabelsZh { get; init; }
+
     /// <summary>選項的英文顯示文字，與 <see cref="Options"/> 同順序、同筆數；<c>null</c>＝這個
-    /// 欄位沒有選項，或選項尚未提供英文翻譯（公開端點會回退顯示中文 <see cref="Options"/>）。</summary>
+    /// 欄位沒有選項，或選項尚未提供英文翻譯（公開端點會回退顯示中文）。</summary>
     public IReadOnlyList<string>? OptionLabelsEn { get; init; }
 
     /// <summary>是否為 G2 收件匣「內容摘要」欄的來源欄位——同一張表單最多一個欄位為
@@ -93,8 +99,12 @@ public sealed record CreateAdminFormFieldRequest
     public string? ValidationRule { get; init; }
     public IReadOnlyList<string>? Options { get; init; }
 
-    /// <summary>選項的英文顯示文字，省略或 <c>null</c>＝尚未翻譯（公開端點回退顯示 <see cref="Options"/>
-    /// 中文）。提供時筆數必須與 <see cref="Options"/> 一致，見 <c>AdminFormsRepository.ValidateOptionLabelsEn</c>。</summary>
+    /// <summary>選項的中文顯示文字，省略或 <c>null</c>＝不另外設定（前台顯示 <see cref="Options"/> 送出值本身）。
+    /// 提供時筆數必須與 <see cref="Options"/> 一致、不可有空字串，見 <c>AdminFormsRepository.ValidateOptionLabels</c>。</summary>
+    public IReadOnlyList<string>? OptionLabelsZh { get; init; }
+
+    /// <summary>選項的英文顯示文字，省略或 <c>null</c>＝尚未翻譯（公開端點回退顯示中文）。
+    /// 提供時筆數必須與 <see cref="Options"/> 一致，見 <c>AdminFormsRepository.ValidateOptionLabels</c>。</summary>
     public IReadOnlyList<string>? OptionLabelsEn { get; init; }
 
     public bool IsSummary { get; init; }
@@ -110,6 +120,11 @@ public sealed record UpdateAdminFormFieldRequest
     public bool IsRequired { get; init; }
     public string? ValidationRule { get; init; }
     public IReadOnlyList<string>? Options { get; init; }
+
+    /// <summary>選項的中文顯示文字，語意同 <see cref="CreateAdminFormFieldRequest.OptionLabelsZh"/>。
+    /// 🔴 與其他欄位不同：省略（<c>null</c>）＝**保留**現有的中文顯示文字，空陣列 <c>[]</c>＝清除（前台回到顯示送出值），
+    /// 有內容＝取代——讓尚未送出本欄位的舊版畫面存檔時不會靜默清掉已設定的文字。</summary>
+    public IReadOnlyList<string>? OptionLabelsZh { get; init; }
     public IReadOnlyList<string>? OptionLabelsEn { get; init; }
     public bool IsSummary { get; init; }
     public required int SortOrder { get; init; }

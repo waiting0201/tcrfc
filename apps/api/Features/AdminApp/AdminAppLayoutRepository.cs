@@ -12,7 +12,7 @@ namespace Tcrfc.Api.Features.AdminApp;
 /// 深連結對照表（App 畫面 ↔ 官網網址，供推播與廣告素材選用）、App 專屬公告條。
 /// <b>不做</b> App 內的內容 CRUD——新聞、賽事、球員、店家仍在既有模組維護，這裡只管呈現順序與開關。
 /// </summary>
-public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
+public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext, AppLinkValidator links)
 {
     public static readonly IReadOnlySet<string> Kinds = new HashSet<string>(["home_section", "quick_entry", "more_item"], StringComparer.Ordinal);
     private static readonly IReadOnlyDictionary<string, string> KindLabels = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -64,7 +64,7 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
             throw new AdminConflictException("識別代碼重複", $"這個類型已經有識別代碼「{key}」了。", "itemKey");
         }
 
-        await ValidateLinkAsync(request.DeepLinkId, cancellationToken);
+        await ValidateLinkAsync(request.DeepLinkId, null, cancellationToken);
         var now = DateTime.UtcNow;
         var max = await dbContext.AppLayoutItems.Where(i => i.Kind == kind).Select(i => (int?)i.SortOrder).MaxAsync(cancellationToken) ?? -1;
         var item = new AppLayoutItem
@@ -86,7 +86,7 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
             return null;
         }
 
-        await ValidateLinkAsync(request.DeepLinkId, cancellationToken);
+        await ValidateLinkAsync(request.DeepLinkId, item.DeepLinkId, cancellationToken);
         Apply(item, request);
         SetLabel(item, request.Label);
         item.UpdatedAt = DateTime.UtcNow;
@@ -151,11 +151,34 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
         return i is null ? null : ToDto(i);
     }
 
-    private async Task ValidateLinkAsync(Guid? id, CancellationToken cancellationToken)
+    /// <summary>
+    /// 版面項目（首頁區塊、快捷入口、「更多」）選的是深連結對照表的一列，所以選到的那一列必須是「完整的連結」：
+    /// 不得是樣板（<c>tcrfc://news/{slug}</c> 之類，App 會當成不可用、入口退回內建位置），且 App 解析得了。
+    /// <paramref name="currentId"/> 是這個項目目前存的那一列；沒換選就不重驗（<b>不相關欄位的修改——開關、名稱——不該被舊的樣板擋住</b>）。
+    /// </summary>
+    private async Task ValidateLinkAsync(Guid? id, Guid? currentId, CancellationToken cancellationToken)
     {
-        if (id is { } linkId && !await dbContext.AppDeepLinks.AnyAsync(l => l.Id == linkId, cancellationToken))
+        if (id is not { } linkId)
         {
-            throw new AdminValidationException("找不到這個深連結，請重新挑選。", "deepLinkId");
+            return;
+        }
+
+        var row = await dbContext.AppDeepLinks.AsNoTracking().Include(l => l.AppDeepLinksI18ns).FirstOrDefaultAsync(l => l.Id == linkId, cancellationToken)
+                  ?? throw new AdminValidationException("找不到這個連結，請重新挑選。", "deepLinkId");
+        if (currentId == linkId)
+        {
+            return;
+        }
+
+        var name = row.AppDeepLinksI18ns.FirstOrDefault(x => x.Locale == RequestLocale.DefaultDbLocale)?.Label ?? "這個位置";
+        if (AppLinkContract.HasPlaceholder(row.AppLink))
+        {
+            throw new AdminValidationException($"「{name}」還缺少要前往的對象，首頁版面只能選不需要指定對象的位置（例如賽程、會員卡），請改選其他位置。", "deepLinkId");
+        }
+
+        if (AppLinkContract.Instance.TryParse(row.AppLink) is null)
+        {
+            throw new AdminValidationException($"「{name}」不是 App 能開啟的位置，請改選其他位置。", "deepLinkId");
         }
     }
 
@@ -327,7 +350,7 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
 
     public async Task<AdminAppAnnouncementDto> CreateAnnouncementAsync(UpsertAdminAppAnnouncementRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var clubId = await ValidateAnnouncementAsync(request, cancellationToken);
+        var clubId = await ValidateAnnouncementAsync(request, null, cancellationToken);
         var now = DateTime.UtcNow;
         var a = new AppAnnouncement { Id = Guid.NewGuid(), CreatedAt = now, UpdatedAt = now, CreatedBy = operatorId, UpdatedBy = operatorId };
         ApplyAnnouncement(a, request, clubId);
@@ -338,12 +361,13 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
 
     public async Task<AdminAppAnnouncementDto?> UpdateAnnouncementAsync(Guid id, UpsertAdminAppAnnouncementRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var clubId = await ValidateAnnouncementAsync(request, cancellationToken);
         var a = await dbContext.AppAnnouncements.Include(x => x.AppAnnouncementsI18ns).FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         if (a is null)
         {
             return null;
         }
+
+        var clubId = await ValidateAnnouncementAsync(request, a.LinkUrl, cancellationToken);
 
         ApplyAnnouncement(a, request, clubId);
         a.UpdatedAt = DateTime.UtcNow;
@@ -368,14 +392,15 @@ public sealed partial class AdminAppLayoutRepository(ClubDbContext dbContext)
     private async Task<AdminAppAnnouncementDto> ReloadAsync(Guid id, CancellationToken cancellationToken)
         => ToDto(await dbContext.AppAnnouncements.AsNoTracking().Include(a => a.AppAnnouncementsI18ns).Include(a => a.AudienceClub).FirstAsync(a => a.Id == id, cancellationToken));
 
-    private async Task<Guid?> ValidateAnnouncementAsync(UpsertAdminAppAnnouncementRequest r, CancellationToken cancellationToken)
+    private async Task<Guid?> ValidateAnnouncementAsync(UpsertAdminAppAnnouncementRequest r, string? storedLink, CancellationToken cancellationToken)
     {
         AdminInput.RequireText(r.Message.Zh, "公告文案（繁中）", 200, "messageZh");
         AdminInput.OptionalText(r.Message.En, "公告文案（英文）", 200, "messageEn");
-        var link = AdminInput.OptionalText(r.LinkUrl, "連結", 500, "linkUrl");
-        if (link is not null && !link.StartsWith("tcrfc://", StringComparison.Ordinal))
+        // 稽核 docs/23 M-3：連結必須是 App 開得起來的位置（不得是樣板），有對象時對象要存在且已公開。
+        // 連結沒改就不重驗：舊公告裡失效的連結不該擋住期間、對象等其他欄位的修改。
+        if ((storedLink ?? "") != (r.LinkUrl?.Trim() ?? ""))
         {
-            AdminInput.OptionalHttpUrl(link, "連結", 500, "linkUrl");
+            await links.ValidateAsync(r.LinkUrl, "點擊後前往", "linkUrl", cancellationToken);
         }
 
         AdminInput.OneOf(r.AudienceTier ?? "all", Tcrfc.Api.Features.AppPublic.PushAudienceSpec.Tiers, "目標對象", "「全部」「持有效會籍者」「尊尚會員」或「無有效會籍者」", "audienceTier");

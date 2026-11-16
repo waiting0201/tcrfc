@@ -14,6 +14,7 @@ import { useLang } from '../../../composables/useLang'
 import { formatTwd } from '../../../utils/currency'
 import { resultStateOf } from '../../../utils/donation-status'
 import { interpolate } from '../../../utils/i18n'
+import { pickThankYouText } from '../../../utils/thank-you'
 import type { PublicDonationResult, StartPaymentResponse } from '../../../types/charity'
 
 definePageMeta({ layout: 'default' })
@@ -24,6 +25,8 @@ const orderNo = route.params.orderNo as string
 
 const { lang, tr } = useLang()
 const api = useCharityApi()
+// 後台的「感謝語樣板」（K-1）：純文字、依語系；取不到或沒填就只顯示固定標題。
+const { data: settings } = await useCharitySettings()
 
 type Phase = 'loading' | 'ready' | 'notfound' | 'error'
 
@@ -46,6 +49,7 @@ let disposed = false
 
 const state = computed(() => (result.value ? resultStateOf(result.value.status, result.value.processing) : 'processing'))
 const isRefunded = computed(() => result.value?.status === 'refunded')
+const thankYou = computed(() => (isRefunded.value ? null : pickThankYouText(settings.value?.thankYouTemplate, lang.value, Boolean(settings.value?.isFallback))))
 
 const voucherText = computed(() => {
   const r = result.value
@@ -248,6 +252,7 @@ useHead(() => {
       <template v-else-if="state === 'success'">
         <div class="result-icon result-icon-success" aria-hidden="true">✓</div>
         <h1>{{ tr.result.successTitle }}</h1>
+        <p v-if="thankYou" class="thank-you-message">{{ thankYou }}</p>
         <p v-if="isRefunded" class="tag tag-refund" style="margin-bottom: var(--sp-3);">
           {{ tr.status.refunded }}
         </p>
@@ -322,3 +327,12 @@ useHead(() => {
     </section>
   </div>
 </template>
+
+<style scoped>
+/* 後台樣板是純文字，換行照原樣呈現（不經 v-html）。 */
+.thank-you-message {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  margin-bottom: var(--sp-4);
+}
+</style>

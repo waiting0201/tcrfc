@@ -1,8 +1,12 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.29
-> **Date**: 2026-09-04 (v3.29 revision: 2026-11-09)
+> **Document version**: v3.30
+> **Date**: 2026-09-04 (v3.30 revision: 2026-11-13)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.30 revision summary — the Fixtures / Results assignment matches the website; home block names and "See all" destinations are set in the admin**
+> ① **Which tab a match belongs to**: finished matches go to Results; not started, in progress and postponed go to Fixtures; a cancelled match goes to Fixtures when its match date is today or later and to Results when the date has passed; "today" is counted in Taiwan time. The same rule as website 3.13 (v3.35). Landing point: 3.2.
+> ② **Admin M2 can set each home block's display name (zh / en) and the destination of its "See all" link**; the app's home block titles and "See all" follow the admin settings, and fall back to the app's built-in names and default destinations when unset. Landing point: 3.1, 8.2.
 
 > **v3.29 revision summary — the player detail shows nationality as a country name in the app's language**
 > The nationality on the player detail is chosen from a country drop-down in the main-site admin, and the app shows the country name in the current language ("台灣" in Chinese, "Taiwan" in English), consistent with the website (main-site C2, v3.34). Where: §3 player detail.
@@ -544,6 +548,8 @@ Block order from top to bottom (order and visibility controlled by admin M2):
 | 8 | Shortcuts | — | Program booking, store (to the website shop) |
 | 9 | Sponsor logo wall | `Sponsor` / `Partner` | The current club's sponsors; **no impressions counted, never in advertising reports** (see 3.11) |
 
+**Block titles and "See all"**: each block's title and the destination of its "See all" link follow the admin M2 settings (8.2); when the admin has not set them, the app's built-in block names and default destinations apply (for example "Upcoming matches" goes to the Fixtures tab).
+
 **No fixed charity slot on the home screen** — consistent with the website rule. The charity entry point sits in the More tab and must state that the recipient is the Association.
 
 **How the two clubs appear on the home screen**:
@@ -581,6 +587,17 @@ Adding a squad later requires only a new record in admin C1, with no app release
 | Third | **Competition** (Premier League, each tournament — generated from `Competition`) | Yes (horizontally scrolling chips) |
 | Secondary | Competition type (league / cup / friendly / other), home or away, month | Inside a filter sheet |
 | Calendar view | **Not built**; replaced by export to the system calendar | — |
+
+**Fixtures and results assignment** (the same rule as the website calendar, by match status and match date; both platforms agree):
+
+| Match status | Belongs to |
+|---|---|
+| Finished | Results |
+| Not started, in progress | Fixtures |
+| Postponed | Fixtures (stays in Fixtures even when the original match date has passed) |
+| Cancelled | Fixtures when the match date is today or later; Results when the match date has passed |
+
+"Today" is counted in Taiwan time (UTC+8).
 
 > The website fixture page carries five simultaneously visible filter states, which a phone width cannot hold. This reduction is deliberate and **the website layout must not simply be copied across** during implementation.
 > **The third level is new in v2.0**: both clubs play several competitions, and with only a four-value league/cup enum a user cannot answer "when does Blue Whale play in that tournament?"
@@ -1334,6 +1351,7 @@ E. Commercial                        (extends the existing module)
 ### 8.2 M2 App composition and deep links
 
 - **Home block visibility and order** (the nine blocks in 3.1)
+- **Each home block's display name (zh / en) and the destination of its "See all" link**: the app's home block titles and "See all" follow these settings; when unset, the app's built-in names and default destinations apply
 - Shortcut items and order
 - More-tab items and order
 - Deep-link mapping table: app screen to website URL, for use by push and advertising creatives

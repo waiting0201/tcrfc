@@ -65,7 +65,7 @@ async function onLoggedOut() {
       <h2 class="section-title" style="margin-top:4rem;">{{ tx('登入後送出入會申請', 'Sign in to submit a membership request') }}</h2>
       <MemberAuthPanel />
       <div class="pending-note" style="margin-top:2rem;">
-        {{ tx('會費採 LINE Pay 收款連結與現場收款，網頁只接受入會申請、不收款，不走商店結帳（見規劃書 3.14）。', 'Membership fees are collected through a LINE Pay payment link or in person. This website only accepts membership requests and does not take payment, and it does not use shop checkout.') }}
+        {{ tx('會費採 LINE Pay 收款連結與現場收款，網頁只接受入會申請、不收款，不走商店結帳。', 'Membership fees are collected through a LINE Pay payment link or in person. This website only accepts membership requests and does not take payment, and it does not use shop checkout.') }}
       </div>
     </template>
   </div>
