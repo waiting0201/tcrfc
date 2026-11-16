@@ -353,7 +353,7 @@ export function getProgramsHubHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
 
 export function getProgramsHubIntroEn(club: AcadClub = 'tcrfc'): string {
   if (club === 'bw') {
-    return `${BW} programs are mainly registered in person on site, with no trial class, no assessment and no membership fee. The "Little Blue Whale" community football school runs the Taichung City Government's "Sport i Taiwan 2.0" Sports Hot Zone program, and we also offer a Goalkeeper Foundation Class and school and community partnerships. The five areas below serve different ages and needs. Select a card to see the details.`
+    return `${BW} programs are mainly registered in person on site, with no trial class, no assessment and no membership fee. The "Little Blue Whale" community football school runs the Taichung City Government's "Sport i Taiwan 2.0" Sports Hot Zone program, and we also run school and community partnerships. The five areas below serve different ages and needs. Select a card to see the details.`
   }
   return 'Programs at Taichung Rock FC are managed by session: every program has a clear level or category, training venue, schedule, capacity and fee, and can be booked online. The five areas below serve players of different ages and needs. Select a card to see the details.'
 }
@@ -362,9 +362,9 @@ export function getProgramsHubCardsEn(club: AcadClub = 'tcrfc'): ProgramsHubCard
   if (club === 'bw') {
     return [
       { num: '5.1', titleZh: 'Children\'s Training', titleEn: 'Children\'s Training', descZh: 'The "Little Blue Whale" community football school and Sport i Taiwan 2.0 classes for ages 3 to 15, with in-person individual registration.', href: '/zh/programs/childrens-training/', hasPhoto: false },
-      { num: '5.2', titleZh: 'Summer Camp', titleEn: 'Summer Camp', descZh: 'No stand-alone Summer Camp has been launched yet. Please follow our official social channels for summer activities.', href: '/zh/programs/summer-camp/', hasPhoto: false },
-      { num: '5.3', titleZh: 'Winter Camp', titleEn: 'Winter Camp', descZh: 'No stand-alone Winter Camp has been launched yet. Please follow our official social channels for winter holiday activities.', href: '/zh/programs/winter-camp/', hasPhoto: false },
-      { num: '5.4', titleZh: 'Specialist Training', titleEn: 'Specialist Training', descZh: 'Currently the Goalkeeper Foundation Class (ages 7 to 12). Other specialist programs have not been launched yet.', href: '/zh/programs/specialist/', hasPhoto: false },
+      { num: '5.2', titleZh: 'Summer Camp', titleEn: 'Summer Camp', descZh: 'Football camps during the summer holiday. Programs, who they are for and sessions are published in this section.', href: '/zh/programs/summer-camp/', hasPhoto: false },
+      { num: '5.3', titleZh: 'Winter Camp', titleEn: 'Winter Camp', descZh: 'Football camps during the winter holiday. Programs, who they are for and sessions are published in this section.', href: '/zh/programs/winter-camp/', hasPhoto: false },
+      { num: '5.4', titleZh: 'Specialist Training', titleEn: 'Specialist Training', descZh: 'Specialist training designed around particular positions and abilities. Programs and sessions are published in this section.', href: '/zh/programs/specialist/', hasPhoto: false },
       { num: '5.5', titleZh: 'School & Community', titleEn: 'School & Community', descZh: 'A list of industry-academia partner schools, community football outreach and coach education. Schools and community organisations are welcome to get in touch.', href: '/zh/programs/school-community/', hasPhoto: false },
     ]
   }
@@ -442,7 +442,7 @@ export function getSummerCampSeoEn(club: AcadClub = 'tcrfc'): SeoCopy {
   if (club === 'bw') {
     return {
       title: `Summer Camp | Programs | ${BW}`,
-      description: `${BW} has not yet launched a stand-alone Summer Camp. For summer activities, please follow our official social channels and the Programs page.`,
+      description: `${BW} Summer Camp: programs, who they are for, sessions and registration details are published on this page.`,
     }
   }
   return {
@@ -456,7 +456,7 @@ export function getSummerCampHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
     return {
       h1Zh: 'Summer Camp',
       h1En: null,
-      lede: `${BW} has not yet launched a stand-alone Summer Camp. During the summer holiday, please keep an eye on the existing classes under Children's Training and announcements on our official social channels.`,
+      lede: 'Football camps during the summer holiday. Programs, who they are for and sessions are published on this page.',
     }
   }
   return {
@@ -470,7 +470,7 @@ export function getWinterCampSeoEn(club: AcadClub = 'tcrfc'): SeoCopy {
   if (club === 'bw') {
     return {
       title: `Winter Camp | Programs | ${BW}`,
-      description: `${BW} has not yet launched a stand-alone Winter Camp. For winter holiday activities, please follow our official social channels and the Programs page.`,
+      description: `${BW} Winter Camp: programs, who they are for, sessions and registration details are published on this page.`,
     }
   }
   return {
@@ -484,7 +484,7 @@ export function getWinterCampHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
     return {
       h1Zh: 'Winter Camp',
       h1En: null,
-      lede: `${BW} has not yet launched a stand-alone Winter Camp. During the winter holiday, please keep an eye on the existing classes under Children's Training and announcements on our official social channels.`,
+      lede: 'Football camps during the winter holiday. Programs, who they are for and sessions are published on this page.',
     }
   }
   return {
@@ -498,7 +498,7 @@ export function getSpecialistTrainingSeoEn(club: AcadClub = 'tcrfc'): SeoCopy {
   if (club === 'bw') {
     return {
       title: `Specialist Training | Programs | ${BW}`,
-      description: `${BW} Specialist Training currently offers the Goalkeeper Foundation Class (ages 7 to 12). Other specialist programs have not been launched yet.`,
+      description: `${BW} Specialist Training: programs, who they are for, sessions and registration details are published on this page.`,
     }
   }
   return {
@@ -512,7 +512,7 @@ export function getSpecialistTrainingHeroEn(club: AcadClub = 'tcrfc'): HeroCopy 
     return {
       h1Zh: 'Specialist Training',
       h1En: null,
-      lede: `${BW} currently offers a Goalkeeper Foundation Class, a specialist program designed for the goalkeeping position. Other specialist training has not been launched yet; any future opening will be announced on this page.`,
+      lede: 'Specialist training designed around particular positions and abilities. Programs and sessions are published on this page.',
     }
   }
   return {

@@ -3742,6 +3742,26 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 
 **改讀資料後與原寫死表的差異（轉營運）**：見交付回報；摘要：「每堂」計價單位、「限女性」、守門員班外部表單、U8／U10 合併成一列、「每週 1.5 小時」不再自動出現，要在後台課程的適合對象／簡介與梯次的每週時段補寫。
 
-**仍保留的寫死敘述（未動，待決定）**：專項頁藍鯨 hero 與 SEO「目前提供守門員基礎班（7–12 歲），其餘專項尚未推出」、5.x 總覽卡片與英文對應、藍鯨夏令營頁「目前尚無對應的夏令營活動」段落，都是不隨後台變動的固定說明。
+**原本保留的寫死現況敘述**（專項頁「其餘專項尚未推出」、夏令營頁「目前尚無對應的夏令營活動」等）已於同日改由課程資料決定，見下一節。
 
 **驗證**：`npm run lint` 0 error；`NUXT_PUBLIC_CLUB=tcrfc`／`bw` 各 `npm run build` 通過。用 scratchpad 假 API 起 bw 站看了 兒童訓練／專項／夏令營 × 中英 SSR（有課程資料、沒有課程資料兩種）：有資料時班別、梯次、費用 `NT$200`、後台合作夥伴出現，無 `forms.gle`、無寫死 200 元／堂表；沒資料時走空狀態。**週期時段欄用假資料格式不對而顯示「—」，真正的 `weeklySchedule` 格式未驗**；磐石站頁面未起 SSR 看（只動共用樣板，磐石分支沒改）；未對真實 `apps/api` 驗證。`nuxt typecheck` 全專案 119 筆既有錯誤；改過的檔案只有 `specialist/index.vue` 第 38 行（`programList.value?.items`，該段程式未改）兩筆既有錯誤，其餘改動檔無錯誤。
+
+## 課程頁「現在有什麼／沒有什麼」的寫死敘述改由課程資料決定（W-5 後續，2026-11-16，`frontend-architect`）
+
+W-5 留下的三處「不隨後台變動」的固定說明（專項頁藍鯨「目前提供守門員基礎班，其餘尚未推出」、5.x 總覽卡片與英文對應、夏令營頁「目前尚無對應的夏令營活動」）依使用者同意拿掉。原則：**有沒有某類課程只看課程資料**——有課程就顯示 `ProgramInfoBand`／梯次表，沒有才顯示「整理中」空狀態；hero 與 SEO 只描述「這一頁是什麼」，不寫具體班別、年齡或是否已推出。同型的冬令營與總覽導言一併處理。只動 `apps/web`。
+
+| 位置 | 原文 | 新文案 |
+|---|---|---|
+| 專項訓練 SEO（藍鯨） | 台中藍鯨專項訓練目前提供守門員基礎班（7–12 歲），其餘專項尚未推出。／…currently offers the Goalkeeper Foundation Class (ages 7 to 12). Other specialist programs have not been launched yet. | 台中藍鯨專項訓練的課程內容、適合對象、梯次與報名資訊，公布於本頁。／`${BW}` Specialist Training: programs, who they are for, sessions and registration details are published on this page. |
+| 專項訓練 hero | 台中藍鯨目前提供守門員基礎班，針對守門位置設計專項訓練，其餘專項訓練尚未推出，後續開放將公布於本頁。／…currently offers a Goalkeeper Foundation Class… | 針對特定位置與能力設計的分科訓練，課程與梯次公布於本頁。／Specialist training designed around particular positions and abilities. Programs and sessions are published on this page. |
+| 夏令營 SEO／hero（藍鯨） | 目前尚未推出獨立的夏令營活動…／has not yet launched a stand-alone Summer Camp… | SEO：台中藍鯨夏令營的課程內容、適合對象、梯次與報名資訊，公布於本頁。hero：暑假期間的足球營隊，課程內容、適合對象與梯次公布於本頁。（英文對應） |
+| 冬令營 SEO／hero（藍鯨） | 同上（冬令營） | 同上（寒假期間） |
+| 5.2／5.3／5.4 總覽卡片（藍鯨，中英） | 目前尚未推出獨立的夏／冬令營活動…；目前提供守門員基礎班（7–12 歲），其餘專項尚未推出。 | 暑假／寒假期間的足球營隊，課程內容、適合對象與梯次公布於此單元。；針對特定位置與能力設計的分科訓練，課程與梯次公布於此單元。（英文對應）。每張卡下方原本就依後台已發布課程列出清單，沒課程就沒有清單 |
+| 總覽導言（藍鯨，中英） | …另提供守門員基礎班與校園、社區合作方案。 | …另有校園、社區合作方案。 |
+| 夏令營頁藍鯨主體段 | 目前尚無對應的夏令營活動，如未來規劃將於本頁與官方社群公布。 | 有夏令營課程：顯示 `ProgramInfoBand`（課程內容、教練、後台合作夥伴）＋「梯次與費用」卡（費用、剩餘名額、梯次，沒填「待公告」）。沒有課程：夏令營資訊整理中，稍後將於本頁公布。／Summer Camp information is being compiled and will be published on this page soon. |
+| 夏令營頁藍鯨 CTA 文字 | 是否推出夏令營活動將視規劃進度公布… | 梯次與最新消息將公布於本頁與官方社群，歡迎持續關注。／Sessions and the latest news will be published on this page and on our official social channels. |
+
+- **保留未動**：① 磐石專項頁「六大專項」固定介紹（規劃書 §3 5.4：六類專項是版型定義的課程分類，不是現況）；② 專項頁「目前尚無開放報名中的專項梯次」、兒童訓練「梯次尚未開放報名」、`[slug]`「梯次尚未公布」等——本來就由資料（梯次）決定；③ 總覽 SEO／hero 的類別清單（社區足球學校、運動熱區課程、專項訓練…）是單元結構描述，不是班別現況；④ 磐石夏／冬令營 SEO 的「梯次…將於報名開放時公告」是報名流程說明；⑤ 校園與社區頁藍鯨的社區計畫與教練培訓說明是固定介紹（讀的是 `club-copy` 的介紹文，非班別現況）。`check-page-seed-sync` 沒有任何一句落在被改動的字串，不受影響。
+- 註解同步：`join/camp-registration`、`programs/specialist`、`summer-camp` 檔頭註解中「5.2／5.3 現況為尚未推出」的說法已更正；`shared/utils/units.ts` 的歷史說明註解未動（描述 BW-C1 當時決策）。
+- **防回歸**：`check-no-static-fallback.mjs` 新增三條（守門員班現況句、夏／冬令營「尚無／尚未推出」、總覽導言守門員班），中英字面值。
+- **驗證**：`npm run lint` 0 error；`NUXT_PUBLIC_CLUB=tcrfc`／`bw` 各 `npm run build` 通過。用 scratchpad 假 API（`w5/fake.mjs`，`NUXT_PUBLIC_CLUB=bw` 啟動）看了藍鯨夏令營／冬令營／專項／總覽 × 中英 × 有課程／沒課程的 SSR：沒課程時顯示「整理中」、無「尚無／尚未推出」；有夏令營課程時出現「梯次與費用」卡與課程內容、不再有空狀態句。**冬令營頁沒有改版面**（原本就走 `ProgramInfoBand`＋共用梯次卡，兩站一致）。磐石站頁面未起 SSR 看（磐石分支只動到無，文案檔 tcrfc 分支未改）；未對真實 `apps/api` 驗證。`nuxt typecheck` 全專案 error 數與改動前相同；改過的檔案只有 `specialist/index.vue` 第 38 行兩筆既有錯誤（該行未動）。

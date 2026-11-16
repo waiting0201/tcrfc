@@ -23,9 +23,8 @@ definePageMeta({ nav: '', unit: '10.3', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
-// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。⚠️ 規格疑點：藍鯨目前沒有
-// 已開放的寒／暑令營活動（5.2／5.3 現況皆為「尚未推出」，見 club-copy.ts
-// getSummerCampSeo／getWinterCampSeo bw 分支），本頁描述改為中性用詞，不臆造藍鯨的
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。⚠️ 規格疑點：藍鯨有無
+// 寒／暑令營由後台課程資料決定（5.2／5.3 頁面讀課程資料，不再寫死「尚未推出」），本頁描述改為中性用詞，不臆造藍鯨的
 // 具體營隊名稱；表單本身是否該對藍鯨開放，留待營隊真的推出時再確認（不在本輪自行
 // 決定關閉）。
 const clubAssets = computed(() => getClubAssets(config.public.club))

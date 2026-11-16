@@ -3477,4 +3477,4 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：推送前只檢查了「這批 API 是否依賴尚未套用的資料庫結構」（`E-289` 的檢查），沒有檢查「這批改動的路徑會觸發哪些 workflow」。派工時允許 agent 改 `infra/README.md`，沒有意識到那個目錄下任何檔案都是部署觸發點。Bicep 本身沒改，照理是空部署，但線上資源若曾被手動調整（先前記錄過資料庫 SKU 與大小的情形），Incremental 部署會把它改回模板的值。
 - **修正**：取消該次執行（run `43798811831`，停在 what-if，`deploy` 為 skipped）。
 - **下次怎麼避免**：推送 `master` 前跑一次 `git diff --stat <上次推送>..HEAD -- infra .github deploy docker-compose.yml`，對照 `docs/20` §1 的觸發表，把會被觸發的 workflow 列給使用者；純文件改動不要放在 `infra/` 之下的說明以外的時機推送，或先確認使用者接受跑一次基礎設施部署。
-- **防呆**：無。可行的機制是讓 `infra.yml` 的 `paths` 排除 `infra/**/*.md`（需使用者同意改 workflow）。
+- **防呆**：`infra.yml` 的 `paths` 已排除 `infra/**/*.md`（2026-11-16，使用者同意）。⚠️ 改 `infra.yml` 本身仍會觸發一次部署，推送這類改動前要先告知使用者。

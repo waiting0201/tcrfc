@@ -58,6 +58,9 @@ const RULES = [
   [/first-team-01-squad/, '一線隊寫死合影', null],
   [/CHILDRENS_TRAINING_CLASSES_BW|GOALKEEPER_CLASS_BW|ChildrensClassRow|classesBw|gkClass/, '藍鯨兒童訓練班別表／守門員班寫死資料（W-5，一律讀課程與梯次）', null],
   [/forms\.gle\/ffQTf1uaZinZd2mt5/, '守門員班寫死的外部報名表單網址（W-5）', null],
+  [/目前提供守門員基礎班|其餘專項(?:訓練)?尚未推出|Currently the Goalkeeper Foundation Class|currently offers a Goalkeeper|currently offers the Goalkeeper|Other specialist (?:training|programs) (?:has|have) not been launched/, '專項訓練「目前只有守門員班、其餘未推出」寫死現況（W-5 後續，有無課程只看課程資料）', null],
+  [/目前尚無對應的夏令營活動|There is no Summer Camp at the moment|尚未推出獨立的(?:夏|冬)令營|has not yet launched a stand-alone (?:Summer|Winter) Camp|No stand-alone (?:Summer|Winter) Camp has been launched|是否推出夏令營活動將視規劃進度公布/, '夏／冬令營「尚無／尚未推出」寫死現況（W-5 後續，有無課程只看課程資料）', null],
+  [/另提供守門員基礎班|also offer a Goalkeeper Foundation Class/, '推廣活動總覽導言寫死守門員班（W-5 後續）', null],
   [/曾與以下單位合作|worked with the organisation below|summer-camp-02/, '夏令營寫死的合作單位段落（是否為固定合作夥伴待確認，只讀後台課程合作夥伴）', null],
 ]
 

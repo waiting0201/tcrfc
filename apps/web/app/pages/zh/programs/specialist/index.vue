@@ -6,7 +6,7 @@
 // 404，是誤用——理由同 programs/childrens-training/index.vue 檔頭）。藍鯨有部分真實
 // 對應內容：「藍鯨守門員基礎班」（programs.md §2 第 10 項，7–12 歲），但規模與定位
 // 不是磐石「六大專項競技訓練」同一種產品，不套用六大專項框架——改為單獨呈現這一項
-// 真實課程，其餘專項維持誠實的「尚未推出」空狀態。改讀 getSpecialistTrainingSeo()／
+// 真實課程。2026-11-16 起 hero／SEO 為中性描述，有無課程只看課程資料（空狀態「整理中」）。改讀 getSpecialistTrainingSeo()／
 // getSpecialistTrainingHero()（club-copy.ts）。TCRFC 專屬的
 // 「AFC 教練證照」宣傳文案與訓練花絮照片對藍鯨隱藏，CTA 不連到磐石專屬的
 // `/zh/join/academy/`，改走官方 LINE 洽詢（2026-11-16 起守門員基礎班等班別一律讀課程資料，不再寫死班別與外部報名表單網址）。

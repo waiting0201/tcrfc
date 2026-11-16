@@ -1167,7 +1167,8 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 - 測試：iOS `LayoutRefreshAndTemplateLinkTests` 5 項、Android `WebLinksAndQuickEntriesTest` 11 項。**未實機驗收。**
 - ✅ Android `lintDevDebug` 原有的 5 個 `StateFlowValueCalledInComposition` 錯誤已於 2026-11-16 修掉（改用 `collectAsState`／`collectAsStateWithLifecycle`），lint 轉綠。
 - **首頁區塊顯示設定（`M-5`，App 規劃書 v3.30 §3.1／§8.2）**：區塊標題用後台 `label`（非空白才用），否則用內建字串；「查看全部」依序採用後台 `deepLink`（解析器認得且非樣板）→ `webUrl`（經 `resolveWeb`）→ 內建預設位置，原本有的入口不會因後台沒設而消失。只套用在原本就有「查看全部」的區塊。入口：iOS `HomeLogic.sectionDisplay`、Android `HomeLogic.sectionLabel`／`seeAllTarget`。
-- ⚠️ **契約缺口**：`AppLayoutItemDto` 沒有「名稱是否為回退語系」的旗標，兩平台在英文介面下以偵測中日文字元判斷回退（中英混寫的名稱會被誤判）；`app_layout_items` 存的是深連結對照表的列，沒有自己的連結欄位，「查看全部」目前只能設不需對象的位置（賽程、會員卡、會籍升級）；Android 首頁的附近店家區塊沒有「查看全部」而 iOS 有。
+- ⚠️ **契約缺口**：`AppLayoutItemDto` 沒有「名稱是否為回退語系」的旗標，兩平台在英文介面下以偵測中日文字元判斷回退（中英混寫的名稱會被誤判）；`app_layout_items` 存的是深連結對照表的列，沒有自己的連結欄位，「查看全部」目前只能設不需對象的位置（賽程、會員卡、會籍升級）。
+- **兩平台有「查看全部」的區塊一致**（2026-11-16 Android 補上附近店家，內建前往特約店家列表）：最新消息、近期賽事、附近店家、贊助商四個。殘留差異：贊助商區塊沒有資料時，iOS 仍顯示標題列與「洽談中」卡片，Android 整塊隱藏。
 
 ## 12. 本檔不決定的事
 

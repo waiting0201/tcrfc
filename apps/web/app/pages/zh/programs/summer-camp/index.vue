@@ -82,7 +82,7 @@ useCourseSchema(
 </nav>
 
 <section class="page-hero page-hero--media">
-  <!-- 藍鯨目前沒有對應的夏令營活動，不沿用磐石照片頂替 -->
+  <!-- 藍鯨沒有自己的夏令營照片可用，不沿用磐石照片頂替 -->
   <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/programs/summer-camp-05.jpg')" alt="" width="1600" height="1200">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
@@ -151,7 +151,26 @@ useCourseSchema(
         </div>
       </div>
     </template>
-    <p v-else class="section-lede is-pending">{{ tx('目前尚無對應的夏令營活動，如未來規劃將於本頁與官方社群公布。', 'There is no Summer Camp at the moment. If one is planned in future it will be announced on this page and on our official social channels.') }}</p>
+    <!-- 藍鯨：有夏令營課程（後台 P1）就顯示梯次與費用卡，沒有才顯示空狀態；不寫死「尚無／尚未推出」 -->
+    <template v-else-if="programs.length">
+      <div class="prose" style="margin-bottom:1.5rem;"><h2>{{ tx('梯次與費用', 'Sessions and Fees') }}</h2></div>
+      <div v-for="c in sessionCards" :key="c.key" class="signup-preview">
+        <div v-if="c.name" class="signup-preview__row"><span>{{ tx('課程', 'Program') }}</span><span class="signup-preview__value">{{ c.name }}</span></div>
+        <div class="signup-preview__row">
+          <span>{{ tx('費用', 'Fee') }}</span>
+          <span class="signup-preview__value">{{ sessionPriceView(c.session).regular != null ? `NT$ ${sessionPriceView(c.session).regular}` : tx('待公告', 'To be announced') }}</span>
+        </div>
+        <div class="signup-preview__row">
+          <span>{{ tx('剩餘名額', 'Places left') }}</span>
+          <span class="signup-preview__value">{{ c.session?.capacity ? Math.max(c.session.capacity - c.session.enrolledCount, 0) : tx('待公告', 'To be announced') }}</span>
+        </div>
+        <div class="signup-preview__row">
+          <span>{{ tx('梯次', 'Session') }}</span>
+          <span class="signup-preview__value">{{ c.session ? `${c.session.startOn}${tx(' ～ ', ' - ')}${c.session.endOn}` : tx('待公告', 'To be announced') }}</span>
+        </div>
+      </div>
+    </template>
+    <p v-else class="section-lede is-pending">{{ tx('夏令營資訊整理中，稍後將於本頁公布。', 'Summer Camp information is being compiled and will be published on this page soon.') }}</p>
   </div>
 </section>
 
@@ -200,7 +219,7 @@ useCourseSchema(
       </div>
     </div>
     <p v-if="isTcrfc" class="section-lede">{{ tx('梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。', 'Once sessions are announced they will be posted here and on our social accounts. Payment is not taken on this site.') }}</p>
-    <p v-else class="section-lede">{{ tx('是否推出夏令營活動將視規劃進度公布，歡迎關注「推廣活動」總覽與官方社群最新消息。', 'Whether a Summer Camp will be offered will be announced as plans progress. Please follow the Programs overview and the latest news on our official social channels.') }}</p>
+    <p v-else class="section-lede">{{ tx('梯次與最新消息將公布於本頁與官方社群，歡迎持續關注。', 'Sessions and the latest news will be published on this page and on our official social channels.') }}</p>
     <div class="hero__ctas" style="margin-top:2rem;">
       <a v-if="isTcrfc && hasRegistrable" class="btn btn--primary" href="#register">{{ tx('線上報名', 'Register Online') }}</a>
       <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">{{ tx('加入候補通知', 'Join the Notification List') }}</a>

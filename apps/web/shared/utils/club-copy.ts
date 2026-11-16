@@ -1709,7 +1709,7 @@ export function getSummerCampSeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
       title: '夏令營｜課程與活動｜台中藍鯨女子足球隊',
-      description: '台中藍鯨目前尚未推出獨立的夏令營活動，暑期相關活動請關注官方社群與推廣活動頁面。',
+      description: '台中藍鯨夏令營的課程內容、適合對象、梯次與報名資訊，公布於本頁。',
     }
   }
   return {
@@ -1723,7 +1723,7 @@ export function getSummerCampHero(club: string): HeroCopy {
     return {
       h1Zh: '夏令營',
       h1En: null,
-      lede: '台中藍鯨目前尚未推出獨立的夏令營活動。暑期期間可留意「兒童足球訓練」既有班別與官方社群公告。',
+      lede: '暑假期間的足球營隊，課程內容、適合對象與梯次公布於本頁。',
     }
   }
   return {
@@ -1737,7 +1737,7 @@ export function getWinterCampSeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
       title: '冬令營｜課程與活動｜台中藍鯨女子足球隊',
-      description: '台中藍鯨目前尚未推出獨立的冬令營活動，寒假相關活動請關注官方社群與推廣活動頁面。',
+      description: '台中藍鯨冬令營的課程內容、適合對象、梯次與報名資訊，公布於本頁。',
     }
   }
   return {
@@ -1751,7 +1751,7 @@ export function getWinterCampHero(club: string): HeroCopy {
     return {
       h1Zh: '冬令營',
       h1En: null,
-      lede: '台中藍鯨目前尚未推出獨立的冬令營活動。寒假期間可留意「兒童足球訓練」既有班別與官方社群公告。',
+      lede: '寒假期間的足球營隊，課程內容、適合對象與梯次公布於本頁。',
     }
   }
   return {
@@ -1765,7 +1765,7 @@ export function getSpecialistTrainingSeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
       title: '專項訓練｜課程與活動｜台中藍鯨女子足球隊',
-      description: '台中藍鯨專項訓練目前提供守門員基礎班（7–12 歲），其餘專項尚未推出。',
+      description: '台中藍鯨專項訓練的課程內容、適合對象、梯次與報名資訊，公布於本頁。',
     }
   }
   return {
@@ -1779,7 +1779,7 @@ export function getSpecialistTrainingHero(club: string): HeroCopy {
     return {
       h1Zh: '專項訓練',
       h1En: null,
-      lede: '台中藍鯨目前提供守門員基礎班，針對守門位置設計專項訓練，其餘專項訓練尚未推出，後續開放將公布於本頁。',
+      lede: '針對特定位置與能力設計的分科訓練，課程與梯次公布於本頁。',
     }
   }
   return {
@@ -1918,7 +1918,7 @@ export function getProgramsHubHero(club: string): HeroCopy {
 
 export function getProgramsHubIntro(club: string): string {
   if (normalizeClub(club) === 'bw') {
-    return '台中藍鯨的推廣活動以現場個人報名為主，免試上、免測試、免入會費：社區足球學校「小藍鯨」承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫，另提供守門員基礎班與校園、社區合作方案。以下五個單元分別對應不同年齡與需求，點選卡片查看各單元詳情。'
+    return '台中藍鯨的推廣活動以現場個人報名為主，免試上、免測試、免入會費：社區足球學校「小藍鯨」承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫，另有校園、社區合作方案。以下五個單元分別對應不同年齡與需求，點選卡片查看各單元詳情。'
   }
   return '台中磐石足球俱樂部的課程與活動皆採梯次（Session）方式管理：每個課程項目具備明確的分級或分類、訓練地點、時間安排、名額上限與費用資訊，並提供線上報名。以下五個單元分別對應不同年齡與需求的學員，點選卡片查看各單元詳情。'
 }
@@ -1934,15 +1934,14 @@ export interface ProgramsHubCard {
 }
 
 /** 05 hub 五張導覽卡——tcrfc 逐字沿用既有文字與照片；bw 版描述改為真實對應內容（5.1／
- * 5.4／5.5）或誠實的「尚未推出」空狀態（5.2／5.3，見 getSummerCampSeo／
- * getWinterCampSeo 既有 bw 分支同一組事實）。 */
+ * 5.4／5.5）或中性描述（5.2／5.3／5.4，不寫現況是否已推出，有無課程由各頁讀課程資料決定）。 */
 export function getProgramsHubCards(club: string): ProgramsHubCard[] {
   if (normalizeClub(club) === 'bw') {
     return [
       { num: '5.1', titleZh: '兒童足球訓練', titleEn: "Children's Training", descZh: '社區足球學校「小藍鯨」與運動 i 台灣 2.0 課程，3–15 歲多種班別，現場個人報名。', href: '/zh/programs/childrens-training/', hasPhoto: false },
-      { num: '5.2', titleZh: '夏令營', titleEn: 'Summer Camp', descZh: '目前尚未推出獨立的夏令營活動，暑期活動請關注官方社群公告。', href: '/zh/programs/summer-camp/', hasPhoto: false },
-      { num: '5.3', titleZh: '冬令營', titleEn: 'Winter Camp', descZh: '目前尚未推出獨立的冬令營活動，寒假活動請關注官方社群公告。', href: '/zh/programs/winter-camp/', hasPhoto: false },
-      { num: '5.4', titleZh: '專項訓練', titleEn: 'Specialist Training', descZh: '目前提供守門員基礎班（7–12 歲），其餘專項尚未推出。', href: '/zh/programs/specialist/', hasPhoto: false },
+      { num: '5.2', titleZh: '夏令營', titleEn: 'Summer Camp', descZh: '暑假期間的足球營隊，課程內容、適合對象與梯次公布於此單元。', href: '/zh/programs/summer-camp/', hasPhoto: false },
+      { num: '5.3', titleZh: '冬令營', titleEn: 'Winter Camp', descZh: '寒假期間的足球營隊，課程內容、適合對象與梯次公布於此單元。', href: '/zh/programs/winter-camp/', hasPhoto: false },
+      { num: '5.4', titleZh: '專項訓練', titleEn: 'Specialist Training', descZh: '針對特定位置與能力設計的分科訓練，課程與梯次公布於此單元。', href: '/zh/programs/specialist/', hasPhoto: false },
       { num: '5.5', titleZh: '校園與社區', titleEn: 'School & Community', descZh: '建教合作學校列表、社區足球推廣計畫、教練培訓，歡迎學校與社區單位洽談合作。', href: '/zh/programs/school-community/', hasPhoto: false },
     ]
   }
