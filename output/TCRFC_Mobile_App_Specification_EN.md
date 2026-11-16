@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.30
-> **Date**: 2026-09-04 (v3.30 revision: 2026-11-13)
+> **Document version**: v3.31
+> **Date**: 2026-09-04 (v3.31 revision: 2026-11-16)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.31 revision summary — a destination link set in the admin must be a complete link the app can open**
+> The destination link set for a push, an announcement bar, an ad creative or slot, or a layout item always points to a complete destination the app can open: the schedule (for a given team), the member card, the membership upgrade, a specific match, news article, program, player or partner store, or a web address. The admin sets it by choosing where to go first and then, where needed, the item; on save the system confirms the chosen item exists and is public. A home block's "See all" may be set to a destination that needs no item. Landing point: 2.3, 8.2, 8.3, 8.8.
 
 > **v3.30 revision summary — the Fixtures / Results assignment matches the website; home block names and "See all" destinations are set in the admin**
 > ① **Which tab a match belongs to**: finished matches go to Results; not started, in progress and postponed go to Fixtures; a cancelled match goes to Fixtures when its match date is today or later and to Results when the date has passed; "today" is counted in Taiwan time. The same rule as website 3.13 (v3.35). Landing point: 3.2.
@@ -399,6 +402,8 @@ Five fixed bottom tabs, never more than three levels deep:
 | Program detail | `tcrfc://program/{slug}` | `/zh/programs/{slug}` |
 | Membership card | `tcrfc://membercard` | (no public equivalent) |
 | Membership plans page | `tcrfc://upgrade` | `/zh/member/upgrade/` |
+
+**Destination links set in the admin**: the destination link set for a push, an announcement bar, an ad creative or slot, or a layout item must be a complete link the app can open — a screen from the table above plus the item it needs (squad, match, article, player, store, program), or a web address. The `{id}` and `{slug}` in the table are routing-rule placeholders; the admin may not store a template with no item filled in. The admin sets a link by choosing where to go first and then, where needed, the item; on save the system confirms the chosen item exists and is public.
 
 **Deep links and the current club**: where the content opened belongs to the other club, the app **switches the current club automatically and then opens it**, without asking (3.0); links not tied to a particular club (membership card, membership plans page, content shared by both clubs) open under the current club.
 
@@ -1355,13 +1360,14 @@ E. Commercial                        (extends the existing module)
 - Shortcut items and order
 - More-tab items and order
 - Deep-link mapping table: app screen to website URL, for use by push and advertising creatives
-- App-only announcement bar: copy (zh / en), link, display period, audience
+- **How a destination link is set**: for a push, an announcement bar, an ad creative or slot, and a layout item alike, choose where to go first and then, where needed, the item (a squad for the schedule; one specific match, article, program, player or partner store; or a web address); on save the system confirms the chosen item exists and is public, and a template with no item filled in is not accepted. A home block's "See all" may be set to a destination that needs no item (2.3)
+- App-only announcement bar: copy (zh / en), destination link, display period, audience
 
 **Not built**: content CRUD inside the app. All content (news, fixtures, players, stores) is still maintained in its existing module; M2 controls **order and visibility only**.
 
 ### 8.3 M3 Push notification management
 
-- Push batch: title and body (zh / en), image, deep-link destination, segmentation, scheduled time
+- Push batch: title and body (zh / en), image, destination link (how it is set: 8.2), segmentation, scheduled time
 - **Audience-size estimate before sending** (returns a count only, writes nothing)
 - Preview (one per language) and test sends to designated devices
 - Send, cancel undelivered batches, resend failures
@@ -1401,7 +1407,7 @@ E. Commercial                        (extends the existing module)
 ### 8.8 E5 Advertising flights and creatives
 
 - Flight CRUD (fields per 7.4) and state-machine operations
-- Creative upload and management: language, dark and light variants, A/B markers, alt text, click destination
+- Creative upload and management: language, dark and light variants, A/B markers, alt text, click destination (a destination link; how it is set: 8.2)
 - **Creative review**: pending / approved / rejected (with a reason)
 - Flight conflict view: the flights sharing one slot at one time, with a weight-share preview
 - **Emergency pause**: any single flight or creative can be stopped immediately

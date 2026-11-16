@@ -519,7 +519,7 @@ E4–E6 版位 2／廣告主 2／檔期 2（含 1 個已結束檔期與 14 天�
 | 藍鯨建教合作學校 5 所 | `partners`（類型「教育夥伴」）；合作內容「建教合作（女子足球隊）」；`start_on` 不填，五權國中的 2015 年寫在合作內容文字（來源 `content/blue-whale/club-profile.md` 沿革） | `(club_id, slug)` |
 | 贊助方案名稱：磐石 9、藍鯨 8（藍鯨不設漫畫、「學院贊助」稱「青年隊贊助」） | `sponsor_packages`（已發布、價格不公開，只有名稱；金額與權益規劃書沒有，由營運在後台填） | **(club_id, 繁中名稱)**：本機種子的 tcrfc 已有同名的【測試】方案（名稱就是規劃書方案名），同名不再補，免得出現 18 張卡；正式庫沒有測試方案，會補齊 9 張 |
 | 磐石榮譽：成立首年頭銜「2024 全國乙級聯賽 冠軍」（英 National Second Division / Champions） | `achievements`（球隊 D1；球季掛該俱樂部最新一筆，因為「成立首年」沒有對應的球季列，與【測試】榮譽同做法） | `(club_id, 年, 繁中賽事名)`；找不到 D1 或任何球季就整筆略過 |
-| 頁尾簡介、社群連結、藍鯨聯絡 Email | `settings`／`settings_i18n`（與 `CONTACT_SEEDS` 同值，皆為俱樂部官方公開資訊；藍鯨 Email 出自舊站頁尾，本來就在版控內） | 只補「列不存在」或「值為空且 `updated_by IS NULL`（沒人儲存過）」；後台人員存過的值（含刻意清空）不動 |
+| 頁尾簡介、社群連結、藍鯨聯絡 Email | `settings`／`settings_i18n`（與 `CONTACT_SEEDS` 同值，皆為俱樂部官方公開資訊；藍鯨 Email 出自舊站頁尾，本來就在版控內） | **一致規則**：`settings` 列已存在且 `updated_by IS NOT NULL`（有人在後台儲存過）時，不論值在 `setting_value` 還是 `settings_i18n`（含語系列被刪、值被清空）一律不補；只有「列不存在」或「列存在但從未被人儲存過」才補（逐語系的 `site.footer_blurb` 亦同，2026-11-16 修正前會把被清空的語系列補回） |
 
 **沒有任何【測試】值**，所以不新增「測試值清單」項目。守門測試：`FallbackContentSeedTests`（走公開端點，確認合作期間、已發布、俱樂部分區後官網讀得到；庫沒灌這一段會先紅燈）。
 
@@ -557,3 +557,5 @@ E4–E6 版位 2／廣告主 2／檔期 2（含 1 個已結束檔期與 14 天�
 
 - 種子：`backoffice_seed.py` 的快捷入口與「更多」的 `programs` 不再綁 `program`（`tcrfc://program/{slug}` 樣板列）——App 對代碼 `programs` 固定走內建課程列表；`db/prod/club-content-seed.sql` 同步（兩處 `deep_link_id` 改 `NULL`）。深連結對照表本身維持九列（含樣板，是路由規則）。
 - 既有庫：[`../migrations/20261116_app-link-template-cleanup.sql`](../migrations/20261116_app-link-template-cleanup.sql)（冪等、單一交易、事後斷言無殘留）。只把「值含大括號」的使用者連結設為 `NULL`（版面項目綁到樣板列、推播、公告條、廣告素材點擊目的地、版位備援連結），不動 `app_deep_links`、不動完整連結。不需先 migrate 再 deploy，任何時間可套用；不含中文字面值。
+
+⚠️ `fallback-content-import` 與 `app-link-template-cleanup` 兩支遷移含 `SET NOCOUNT ON`，不印逐步筆數；套用後請以前後查詢核對（例如各表筆數、`settings_i18n` 語系列數），不要用輸出判斷有沒有生效。

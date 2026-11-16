@@ -7,9 +7,9 @@
 // 對應內容：「藍鯨守門員基礎班」（programs.md §2 第 10 項，7–12 歲），但規模與定位
 // 不是磐石「六大專項競技訓練」同一種產品，不套用六大專項框架——改為單獨呈現這一項
 // 真實課程，其餘專項維持誠實的「尚未推出」空狀態。改讀 getSpecialistTrainingSeo()／
-// getSpecialistTrainingHero()／GOALKEEPER_CLASS_BW（club-copy.ts）。TCRFC 專屬的
+// getSpecialistTrainingHero()（club-copy.ts）。TCRFC 專屬的
 // 「AFC 教練證照」宣傳文案與訓練花絮照片對藍鯨隱藏，CTA 不連到磐石專屬的
-// `/zh/join/academy/`，改用真實舊站報名表單連結。
+// `/zh/join/academy/`，改走官方 LINE 洽詢（2026-11-16 起守門員基礎班等班別一律讀課程資料，不再寫死班別與外部報名表單網址）。
 //
 // 本輪新增：讀真實 05 課程與活動公開 API 查詢 `program_type='specialist_training'`。
 // 六大專項本身是固定分類介紹（既有靜態內容，非資料驅動），不覆寫；新增「目前開放
@@ -31,13 +31,15 @@ useSeoMeta({
 })
 const hero = computed(() => (isEn.value ? getSpecialistTrainingHeroEn(clubKey.value) : getSpecialistTrainingHero(clubKey.value)))
 
-const gkClass = computed(() => (isEn.value ? { ...GOALKEEPER_CLASS_BW, ...GOALKEEPER_CLASS_BW_EN } : GOALKEEPER_CLASS_BW))
+const identity = useClubIdentity()
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'specialist_training', pageSize: 10, lang: locale.value },
 })
 const openPrograms = computed(() => (programList.value?.items ?? []).filter((p) => p.hasOpenSession))
 // B-8：全部已發布專項課程的詳情（內容、教練團、合作夥伴、封面）；Course Schema 仍只取第一筆（見下方說明）。
 const { programs, first: programDetail } = await useProgramsOfType('specialist_training')
+/** 藍鯨梯次表：全部專項課程的梯次攤平（班別名稱＝課程名稱）。 */
+const sessions = computed(() => programs.value.flatMap((p) => p.sessions.map((s) => ({ ...s, programName: p.name }))))
 
 const { programs: registrablePrograms, hasRegistrable } = await useRegistrablePrograms('specialist_training', { enabled: isTcrfc.value })
 
@@ -131,22 +133,28 @@ useCourseSchema(
   </div>
 </section>
 
-<!-- 藍鯨：唯一真實對應的專項課程（守門員基礎班），不套用磐石六大專項框架。 -->
+<!-- 藍鯨：班別、年齡、費用與梯次一律讀後台課程（P1）與梯次，不寫死；沒有課程時顯示空狀態 -->
 <section v-else class="band">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
-      <h2>{{ tx('目前提供的專項', 'Specialist Programs Currently Offered') }}</h2>
-      <p>{{ tx('台中藍鯨目前提供守門員基礎班，其餘專項訓練尚未推出，後續開放將公布於本頁。', `${BW_NAME_EN} currently offers a Goalkeeper Foundation Class. Other specialist training has not been launched yet; any future opening will be announced on this page.`) }}</p>
+      <h2>{{ tx('專項課程與梯次', 'Specialist Programs and Sessions') }}</h2>
+      <p v-if="sessions.length === 0">{{ tx('專項課程與梯次整理中，稍後將於本頁公布。', 'Specialist programs and sessions are being compiled and will be published on this page soon.') }}</p>
+      <p v-else>{{ tx('目前的梯次如下，時段為每週固定上課時間，實際場地請以梯次公告為準。', 'The current sessions are listed below. Times are the fixed weekly class times; please refer to the session notice for the actual venue.') }}</p>
     </div>
-
-    <div class="level-grid level-grid--specialist">
-      <div class="level-card">
-        <p class="level-card__num">01</p>
-        <h3>{{ gkClass.nameZh }}<span v-if="!isEn" class="en">Goalkeeper</span></h3>
-        <p v-if="isEn">Age: {{ gkClass.ageZh }}. {{ gkClass.scheduleZh }}, {{ gkClass.feeZh }}. {{ gkClass.signupZh }}.</p>
-        <p v-else>適合年齡：{{ gkClass.ageZh }}。{{ gkClass.scheduleZh }}，{{ gkClass.feeZh }}。{{ gkClass.signupZh }}。</p>
-        <a class="btn btn--light" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener" style="margin-top:.75rem;">{{ tx('前往報名表單', 'Go to the registration form') }}</a>
-      </div>
+    <div v-if="sessions.length" class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th scope="col">{{ tx('課程', 'Program') }}</th><th scope="col">{{ tx('時段', 'Schedule') }}</th><th scope="col">{{ tx('地點', 'Venue') }}</th><th scope="col">{{ tx('費用', 'Fee') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="s in sessions" :key="s.id">
+            <td>{{ s.programName }}</td>
+            <td>{{ formatWeeklySchedule(s.weeklySchedule, locale) ?? '—' }}</td>
+            <td>{{ s.venueName ?? '—' }}</td>
+            <td>{{ formatPrice(s.price) }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
@@ -236,10 +244,10 @@ useCourseSchema(
       </div>
     </div>
     <p v-if="isTcrfc" class="section-lede">{{ tx('梯次、地點與費用將於報名開放時公告，站內不接受金流付款。', 'Sessions, venues and fees will be announced when registration opens. Payment is not taken on this site.') }}</p>
-    <p v-else class="section-lede">{{ tx('守門員基礎班須先填寫報名表單，其餘專項尚未推出。', 'The Goalkeeper Foundation Class requires a registration form to be completed first. Other specialist programs have not been launched yet.') }}</p>
+    <p v-else class="section-lede">{{ tx('梯次、地點與費用以本頁公告為準，報名方式請洽台中藍鯨官方 LINE。', `Sessions, venues and fees follow the announcements on this page; to register, contact the official ${BW_NAME_EN} LINE account.`) }}</p>
     <div class="hero__ctas" style="margin-top:2rem;">
       <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">{{ tx('線上報名', 'Register Online') }}</a>
-      <a v-else class="btn btn--primary" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener">{{ tx('前往報名表單', 'Go to the registration form') }}</a>
+      <a v-else-if="identity.social.line" class="btn btn--primary" :href="identity.social.line" target="_blank" rel="noopener">{{ tx('洽詢官方 LINE', 'Contact us on LINE') }}</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
     </div>
   </div>
@@ -258,6 +266,11 @@ useCourseSchema(
 .level-card h3 .en{ display:block; font-size:.72rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:.15rem; }
 .level-card p{ font-size:.85rem; color:var(--muted); line-height:1.7; }
 .level-grid--specialist{ grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+
+.table-wrap{ overflow-x:auto; }
+.data-table{ width:100%; border-collapse:collapse; min-width:560px; }
+.data-table th, .data-table td{ padding:.85rem 1rem; text-align:left; border-bottom:1px solid var(--rule); font-size:.85rem; }
+.data-table thead th{ background:var(--ink); color:#fff; font-weight:700; letter-spacing:.03em; }
 
 .photo-grid{ display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
 .photo-grid figure{ margin:0; position:relative; }

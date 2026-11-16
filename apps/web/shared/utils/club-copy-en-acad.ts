@@ -17,7 +17,7 @@
 //   docs/06-conventions.md section 1.1 English glossary.
 // - Facts (founding year, squad codes) always come from the `facts` argument supplied by the caller.
 
-import type { HeroCopy, SeoCopy, AcademyHubCard, ProgramsHubCard, EnrolFlowStep, CtaCardCopy, ChildrensClassRow } from './club-copy'
+import type { HeroCopy, SeoCopy, AcademyHubCard, ProgramsHubCard, EnrolFlowStep, CtaCardCopy } from './club-copy'
 import type { SiteFacts } from './site-facts'
 import { BW_NAME_EN } from './club-copy'
 
@@ -364,7 +364,7 @@ export function getProgramsHubCardsEn(club: AcadClub = 'tcrfc'): ProgramsHubCard
       { num: '5.1', titleZh: 'Children\'s Training', titleEn: 'Children\'s Training', descZh: 'The "Little Blue Whale" community football school and Sport i Taiwan 2.0 classes for ages 3 to 15, with in-person individual registration.', href: '/zh/programs/childrens-training/', hasPhoto: false },
       { num: '5.2', titleZh: 'Summer Camp', titleEn: 'Summer Camp', descZh: 'No stand-alone Summer Camp has been launched yet. Please follow our official social channels for summer activities.', href: '/zh/programs/summer-camp/', hasPhoto: false },
       { num: '5.3', titleZh: 'Winter Camp', titleEn: 'Winter Camp', descZh: 'No stand-alone Winter Camp has been launched yet. Please follow our official social channels for winter holiday activities.', href: '/zh/programs/winter-camp/', hasPhoto: false },
-      { num: '5.4', titleZh: 'Specialist Training', titleEn: 'Specialist Training', descZh: 'Currently the Goalkeeper Foundation Class (ages 7 to 12); a registration form must be completed first. Other specialist programs have not been launched yet.', href: '/zh/programs/specialist/', hasPhoto: false },
+      { num: '5.4', titleZh: 'Specialist Training', titleEn: 'Specialist Training', descZh: 'Currently the Goalkeeper Foundation Class (ages 7 to 12). Other specialist programs have not been launched yet.', href: '/zh/programs/specialist/', hasPhoto: false },
       { num: '5.5', titleZh: 'School & Community', titleEn: 'School & Community', descZh: 'A list of industry-academia partner schools, community football outreach and coach education. Schools and community organisations are welcome to get in touch.', href: '/zh/programs/school-community/', hasPhoto: false },
     ]
   }
@@ -388,7 +388,7 @@ export const ENROL_FLOW_STEPS_TCRFC_EN: EnrolFlowStep[] = [
 
 /** Blue Whale replaces the six-step online registration block with this plain note (in-person registration). */
 export function getProgramsHubEnrolNoteEnBw(): string {
-  return `${BW} programs are registered in person on site, with no trial class, no assessment and no membership fee. The Goalkeeper Foundation Class requires an online registration form to be completed first. See each program page for registration details, or contact the official ${BW} LINE account.`
+  return `${BW} programs are registered in person on site, with no trial class, no assessment and no membership fee. See each program page for registration details, or contact the official ${BW} LINE account.`
 }
 
 export function getProgramsHubCtaCardsEn(club: AcadClub = 'tcrfc'): CtaCardCopy[] {
@@ -498,7 +498,7 @@ export function getSpecialistTrainingSeoEn(club: AcadClub = 'tcrfc'): SeoCopy {
   if (club === 'bw') {
     return {
       title: `Specialist Training | Programs | ${BW}`,
-      description: `${BW} Specialist Training currently offers the Goalkeeper Foundation Class (ages 7 to 12). Other specialist programs have not been launched yet, and a registration form must be completed first.`,
+      description: `${BW} Specialist Training currently offers the Goalkeeper Foundation Class (ages 7 to 12). Other specialist programs have not been launched yet.`,
     }
   }
   return {
@@ -556,24 +556,6 @@ export function getSchoolCommunityHeroEn(club: AcadClub = 'tcrfc'): HeroCopy {
 // Organisation / class names have no official English source: they are conservative descriptions
 // and are listed as "to be confirmed by the client" in the hand-over report.
 // ---------------------------------------------------------------------------
-
-/** 5.1 class list (zh twin: CHILDRENS_TRAINING_CLASSES_BW; fields hold English values). */
-export const CHILDRENS_TRAINING_CLASSES_BW_EN: ChildrensClassRow[] = [
-  { nameZh: 'Community toddler football class', ageZh: 'Ages 3-4', feeZh: 'NT$ 200 / session' },
-  { nameZh: 'Young children\'s community football class', ageZh: 'Ages 6-8', feeZh: 'NT$ 200 / session' },
-  { nameZh: 'Blue Whale U8/U10 football class', ageZh: 'Ages 9-10', feeZh: 'NT$ 200 / session' },
-  { nameZh: 'Blue Whale U12 girls\' football class', ageZh: 'Ages 10-12 (girls only)', feeZh: 'NT$ 200 / session' },
-  { nameZh: 'Blue Whale U15 girls\' football class', ageZh: 'Ages 13 and over (girls only)', feeZh: 'NT$ 200 / session' },
-]
-
-/** 5.4 Goalkeeper Foundation Class (zh twin: GOALKEEPER_CLASS_BW; `signupUrl` is language-neutral and stays on the zh constant). */
-export const GOALKEEPER_CLASS_BW_EN = {
-  nameZh: 'Blue Whale Goalkeeper Foundation Class',
-  ageZh: 'Ages 7-12 (boys and girls welcome, places reserved for girls, limited to 10)',
-  feeZh: 'NT$ 200 / session',
-  scheduleZh: '1.5 hours per week',
-  signupZh: 'Registration form must be completed first',
-}
 
 /** zh twin: COMMUNITY_PROGRAM_BODY_BW. */
 export const COMMUNITY_PROGRAM_BODY_BW_EN = `${BW} runs the Taichung City Government's "Sport i Taiwan 2.0" Sports Hot Zone program (Taiyuan Football Field), offering age-group football classes such as the community football school (nicknamed "Little Blue Whale") to promote regular exercise for everyone.`

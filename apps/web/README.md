@@ -3725,3 +3725,23 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 **注意**：`check-en-copy.mjs` 的字串解析不認巢狀樣板字串（`` `…${cond ? `…` : ''}…` ``），英文文案裡要條件式省略一段時請用輔助函式回傳字串（見 `club-copy-en-club.ts` 的 `homeVenueClauseEn`、`bwHomeGroundsSentenceEn`）。
 
 **驗證**：`npm run lint` 0 error（293 warning，皆既有的 `vue/attributes-order` 類）；`NUXT_PUBLIC_CLUB=tcrfc`／`bw` 各 `npm run build` 通過；`nuxi typecheck` 全專案仍有既有錯誤（`useFetch` 推成 `{}` 的 `items` 等），本輪改過的檔案沒有新增錯誤——區分方式：逐檔過濾錯誤輸出，改過的檔案裡剩下的錯誤都是既有類型（`items` 不存在於 `{}`、`ClubIdentity.shortNameZh`、`useSiteFacts.ts` 第 171 行 `en.value` 的 `undefined`/`null`），行號不在本輪編輯處，`primaryVenue` 可為空沒有引發任何新錯誤。**未對真實 `apps/api` 驗證。**
+
+## W-5 藍鯨兒童訓練班別與守門員班改讀課程資料、夏令營合作單位段落拿掉（2026-11-16，`frontend-architect`）
+
+使用者選定「不改資料結構」：班別、年齡、費用、梯次一律來自課程 API（`programs`／`sessions`，藍鯨 6 個兒童班＋守門員基礎班在種子區段 28），兩站同一條路徑。只動 `apps/web`。
+
+| 項目 | 做法 |
+|---|---|
+| 移除 | `CHILDRENS_TRAINING_CLASSES_BW`／`_EN`、`GOALKEEPER_CLASS_BW`／`_EN`、`ChildrensClassRow`（`club-copy.ts`、`club-copy-en-acad.ts`），及頁面的 `classesBw`／`gkClass`、Google 表單網址 |
+| `programs/childrens-training` | 藍鯨「課程班別」寫死表整段移除；「課程介紹」（`ProgramInfoBand`）與「週期課表」兩站共用。週期課表**新增「費用」欄**：直接顯示 `sessions.price`，格式沿用 `formatPrice`（`NT$200`），**不加「／堂」**；沒填顯示「—」。沒有梯次時沿用「梯次資訊準備中」 |
+| `programs/specialist` | 藍鯨「守門員基礎班」寫死卡移除，改為「專項課程與梯次」表（課程名稱、時段、地點、費用，讀專項課程梯次；兩站課程資料取法相同，磐石仍是六大專項固定介紹）。沒有梯次顯示「專項課程與梯次整理中，稍後將於本頁公布。」。藍鯨報名 CTA 由外部表單改為官方 LINE 洽詢（`useClubIdentity().social.line`，沒有 LINE 則不顯示按鈕），與兒童訓練頁一致 |
+| 文案連動 | 因為不再有外部表單，移除各處「須先填寫報名表單」（專項 SEO、5.x 總覽卡片、總覽報名說明；中英） |
+| `programs/summer-camp` | 「台中磐石曾與以下單位合作」整段（含 Rot Weiss Ahlen 簽約照）移除；合作夥伴只讀後台課程（P1）設定，有設才顯示。`scripts/site-images.txt` 同步拿掉 `programs/summer-camp-02.jpg`，檔案本身沒動 |
+| 其他課程頁 | 冬令營、兒童訓練、專項、校園社區、`[slug]` 檢查過，沒有同型寫死合作單位（校園社區讀 E1 教育夥伴，冬令營只讀課程合作夥伴） |
+| 防回歸 | `check-no-static-fallback.mjs` 新增三條：上述常數與 `classesBw`／`gkClass`、守門員表單網址、夏令營合作單位段落與 `summer-camp-02` |
+
+**改讀資料後與原寫死表的差異（轉營運）**：見交付回報；摘要：「每堂」計價單位、「限女性」、守門員班外部表單、U8／U10 合併成一列、「每週 1.5 小時」不再自動出現，要在後台課程的適合對象／簡介與梯次的每週時段補寫。
+
+**仍保留的寫死敘述（未動，待決定）**：專項頁藍鯨 hero 與 SEO「目前提供守門員基礎班（7–12 歲），其餘專項尚未推出」、5.x 總覽卡片與英文對應、藍鯨夏令營頁「目前尚無對應的夏令營活動」段落，都是不隨後台變動的固定說明。
+
+**驗證**：`npm run lint` 0 error；`NUXT_PUBLIC_CLUB=tcrfc`／`bw` 各 `npm run build` 通過。用 scratchpad 假 API 起 bw 站看了 兒童訓練／專項／夏令營 × 中英 SSR（有課程資料、沒有課程資料兩種）：有資料時班別、梯次、費用 `NT$200`、後台合作夥伴出現，無 `forms.gle`、無寫死 200 元／堂表；沒資料時走空狀態。**週期時段欄用假資料格式不對而顯示「—」，真正的 `weeklySchedule` 格式未驗**；磐石站頁面未起 SSR 看（只動共用樣板，磐石分支沒改）；未對真實 `apps/api` 驗證。`nuxt typecheck` 全專案 119 筆既有錯誤；改過的檔案只有 `specialist/index.vue` 第 38 行（`programList.value?.items`，該段程式未改）兩筆既有錯誤，其餘改動檔無錯誤。

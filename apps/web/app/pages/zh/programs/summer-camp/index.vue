@@ -6,8 +6,8 @@
 // 活動集合」為由整頁 404，是誤用——理由同 programs/childrens-training/index.vue 檔頭）。
 // `content/blue-whale/programs.md` 舊站內容盤點沒有找到對應的「夏令營」產品（不同於
 // 5.1 兒童足球訓練有真實對應內容），本頁對藍鯨內容改為誠實的空狀態，不臆造，改讀
-// getSummerCampSeo()／getSummerCampHero()（club-copy.ts）。TCRFC 專屬的合作夥伴
-// 照片（Rot-Weiss Ahlen）與往年花絮照片對藍鯨隱藏。CTA 不連到磐石專屬的
+// getSummerCampSeo()／getSummerCampHero()（club-copy.ts）。往年花絮照片對藍鯨隱藏。
+// 2026-11-16：寫死的合作單位段落（簽約照）拿掉，是否為夏令營固定合作夥伴待確認；合作夥伴只讀後台課程（P1）設定。CTA 不連到磐石專屬的
 // `/zh/join/camp-registration/`，改導向已開放的聯絡頁面。
 //
 // 本輪新增：讀真實 05 課程與活動公開 API 查詢 `program_type='summer_camp'`
@@ -117,22 +117,6 @@ useCourseSchema(
     <ProgramPartnersList :programs="programs" />
   </div>
 </section>
-<section v-else-if="isTcrfc" class="band" style="background:var(--paper-2);">
-  <div class="container">
-    <div class="prose" style="margin-bottom:1.75rem;">
-      <h2>{{ tx('合作夥伴', 'Partners') }}</h2>
-      <p>{{ tx('台中磐石曾與以下單位合作：', 'Taichung Rock FC has worked with the organisation below:') }}</p>
-    </div>
-    <div class="grid grid--2">
-      <figure class="clip-card" style="margin:0;">
-        <img :src="siteImg('/assets/img/programs/summer-camp-02.jpg')" loading="lazy" width="1600" height="1200" :alt="tx('台中磐石與德國 Rot Weiss Ahlen 足球俱樂部代表於簽約儀式上握手，背板印有雙方隊徽與合作備忘錄字樣', 'Representatives of Taichung Rock FC and German club Rot Weiss Ahlen shake hands at a signing ceremony, in front of a backdrop showing both club crests and the words memorandum of cooperation')">
-
-      </figure>
-
-    </div>
-  </div>
-</section>
-
 <section class="band">
   <div class="container">
     <template v-if="isTcrfc">

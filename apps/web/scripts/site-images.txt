@@ -117,7 +117,6 @@ programs/specialist-04.jpg
 programs/specialist-05.jpg
 programs/specialist-06.jpg
 programs/specialist-07.jpg
-programs/summer-camp-02.jpg
 programs/summer-camp-03.jpg
 programs/summer-camp-04.jpg
 programs/summer-camp-05.jpg

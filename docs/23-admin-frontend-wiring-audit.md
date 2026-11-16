@@ -143,7 +143,7 @@
 | ✅ W-2 🔍 | B | 高 | 首頁 Hero 迷你新聞卡：磐石沒有已發布新聞時改放 2 張寫死新聞（含後台不存在的賽果「3-0 銘傳大學」），沒有任何開關管得到 | `app/pages/zh/index.vue:662,677-696` | 磐石、中英<br>✅ **2026-11-16**：寫死卡與 `|| isTcrfc` 拿掉，沒有已發布新聞時整塊不顯示。**更正**：兩張卡對應的都是資料庫已有的真實新聞（`2026-08-10-international-000`、`2026-05-24-match-001`），原敘述「後台不存在的賽果」有誤，問題只在寫死於頁面、後台管不到 |
 | ✅ W-3 🔍 | E | 高 | 表單設計器可改「題目文字」與選項英文，前台 7 張表單的標籤與選項全寫死，只讀 `captchaEnabled`／`redirectPath`。A-3 拍板鎖住欄位結構後，**題目文字成了死欄位**（只影響收件匣與通知信） | 後台 `views/forms/FormEditView.vue:469,566`；前台 `app/composables/useFormSubmit.ts:47-52` | 兩站、中英<br>✅ **2026-11-16**：前台七張表單於 SSR 取表單定義，題目與選項文字讀後台（`useFormDefinition`）；種子與既有庫的文字、必填以頁面定稿為準對齊（`20261113_form-definition-align.sql`）；後台可改選項的中英顯示文字（規劃書 v3.35 G1） |
 | ✅ W-4 🔍 | F | 中高 | 後台報名管理（建立、改狀態、轉梯次、候補轉正）會改梯次已報名人數與額滿狀態，但 `AdminRegistrations` 整個目錄沒有快取失效；公開課程頁走 `programs` 快取 | `Features/AdminRegistrations/AdminRegistrationsRepository.cs`（無 Invalidate）；對照 `Features/Programs/ProgramsRepository.cs:377` | 兩站<br>✅ **2026-11-13 已修**：四條寫入路徑於 commit 後失效 `programs` |
-| W-5 🔍 | B／D | 中高 | 藍鯨兒童足球訓練的班別、年齡、費用與守門員班資料寫死在文案檔（中英各一份），後台課程與梯次改費用不會變 | `shared/utils/club-copy.ts:1690-1696,1788-1796`；`club-copy-en-acad.ts:566-577` | 藍鯨、中英 |
+| ✅ W-5 🔍 | B／D | 中高 | 藍鯨兒童足球訓練的班別、年齡、費用與守門員班資料寫死在文案檔（中英各一份），後台課程與梯次改費用不會變 | `shared/utils/club-copy.ts:1690-1696,1788-1796`；`club-copy-en-acad.ts:566-577` | 藍鯨、中英<br>✅ **2026-11-16**：寫死班別表與守門員班拿掉，改讀課程與梯次（不改資料結構）；計價單位、限女性、保留名額由營運人員寫在課程文字，守門員班改為官方 LINE 洽詢 |
 | ✅ W-6 🔍 | C | 中高 | 球員「位置」後台是自由文字（提示寫「門將、中場」），英文頁只認 `GK／DF／MF／FW`，填中文時英文頁顯示中文。**E-357 同形，尚未修** | 後台 `views/teams/PlayerEditView.vue:358`；`shared/utils/club-copy-en-club.ts:133-141` | 兩站英文頁<br>✅ **2026-11-13 已修**：後台改下拉存 `GK／DF／MF／FW`；API `PlayerPosition` 寫入與讀出都正規化（認中文與英文全名，認不得的原樣保留）；官網中英標籤經 `normalizePlayerPosition`，英文頁不輸出中文 |
 | W-7 🔍 | E | 中 | 頁面管理的「不列入網站地圖」開關沒作用：sitemap 的固定頁網址不看這個欄位，只有新聞文章會排除 | 後台 `views/pages/PageEditView.vue:670`；`Features/Seo/SeoRepository.cs:144-175`；`server/utils/sitemap-urls.ts:110-131` | 兩站 |
 | ✅ W-8 🔍 | B | 中 | 夏令營與冬令營頁的「早鳥價」不看 `earlyBirdUntil`，過期仍顯示早鳥價且不顯示正價；同梯次在報名元件的價格可能不同 | `pages/zh/programs/summer-camp/index.vue:152-155`、`winter-camp/index.vue:124-127`；對照 `components/ProgramRegistration.vue:83` | 磐石、中英<br>✅ **2026-11-13 已修**：營隊頁與報名元件共用 `isEarlyBirdActive`，日期用台灣時區 |
@@ -219,7 +219,8 @@
 
 **2026-11-16 第三批（使用者 2026-11-13 拍板「都要做」；規劃書主站 v3.35／慈善 v2.8／App v3.30）**：`W-2`、`W-3`、`W-10`、`W-16`、`W-17`、`W-19`、`W-23`、`W-24`、`W-31`、`C-5`、`K-1`、`K-2`、`K-3`、`M-3`、`M-5` 已修；`W-1` 的分頁歸屬寫進規劃書。
 - **寫死後備分兩步**：先盤點並把真實內容搬進資料（種子區段 60b ＋ `db/migrations/20261113_fallback-content-import.sql`，逐項結論在 `db/seed/README.md`），前端再拿掉寫死版並加 `scripts/check-no-static-fallback.mjs` 防止加回。圖片（國際夥伴 logo、一線隊合影、兩則新聞封面）須營運人員在後台上傳。
-- **未處理、待使用者決定**：`W-5` 藍鯨兒童訓練班別表與守門員班（計價單位、限女性、外部報名網址模型裝不下）；夏令營頁「曾與以下單位合作」拿掉了「是否為固定合作夥伴待確認」的但書；藍鯨球員故事頁的「肖像同意」四句（與頁面種子逐字同步，需連種子重產）；表單與註冊頁「待法務定稿」提示。
+- **同日後續**：`W-5` 已修（使用者選定不改資料結構）；夏令營頁寫死的合作單位段落移除，只顯示後台課程設定的合作夥伴；App 規劃書 v3.31 補上「後台的前往連結須為完整連結」；`fallback-content-import` 遷移修正為「有人在後台儲存過的設定一律不補」（原本逐語系的頁尾簡介只看語系列存不存在）；本機 `tcrfc_charity`／`tcrfc_club` 已套用遷移。
+- **未處理、待使用者決定**：藍鯨專項頁與夏令營頁仍有寫死的現況敘述（「其餘專項尚未推出」「目前尚無對應的夏令營活動」）；藍鯨球員故事頁的「肖像同意」四句（與頁面種子逐字同步，需連種子重產）；表單與註冊頁「待法務定稿」提示。
 - **契約缺口**：`/app/layout` 的區塊名稱沒有回退旗標，兩個 App 以偵測中日文字元判斷英文回退；版面項目沒有自己的連結欄位；公告條沒有官網備援網址；廣告素材與版位備援連結的後台畫面仍是手打連結（API 已驗證）；Android 首頁的附近店家區塊沒有「查看全部」而 iOS 有。
 - **部署順序**（`E-289`）：慈善庫欄位遷移須經 `db-migrate.yml` 套用，新版 API 在套用前讀慈善複本會失敗；主站三支資料遷移（`20261113_fallback-content-import`、`20261113_form-definition-align`、`20261116_app-link-template-cleanup`）須對正式庫執行後清快取；之後在慈善後台按一次「從官網更新清單」。
 - **全部未對真 API 實機驗收**；慈善平台測試因本機 `tcrfc_charity` 尚未套遷移，只在臨時容器跑過。

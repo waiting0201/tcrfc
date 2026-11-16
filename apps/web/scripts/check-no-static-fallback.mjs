@@ -56,6 +56,9 @@ const RULES = [
   [/待客戶提供各梯隊賽程表/, '行事曆空狀態內部口吻', null],
   [/\|\|\s*identity\.footerBlurb|\|\|\s*identity\.social\.email/, '頁尾簡介／Email 寫死退路', null],
   [/first-team-01-squad/, '一線隊寫死合影', null],
+  [/CHILDRENS_TRAINING_CLASSES_BW|GOALKEEPER_CLASS_BW|ChildrensClassRow|classesBw|gkClass/, '藍鯨兒童訓練班別表／守門員班寫死資料（W-5，一律讀課程與梯次）', null],
+  [/forms\.gle\/ffQTf1uaZinZd2mt5/, '守門員班寫死的外部報名表單網址（W-5）', null],
+  [/曾與以下單位合作|worked with the organisation below|summer-camp-02/, '夏令營寫死的合作單位段落（是否為固定合作夥伴待確認，只讀後台課程合作夥伴）', null],
 ]
 
 const failures = []

@@ -8,8 +8,7 @@
 // 的明文依據，不是關閉整頁的理由；見 shared/utils/units.ts 檔頭）。藍鯨其實有真實
 // 對應內容：`content/blue-whale/programs.md` §1（社區足球學校「小藍鯨」）與 §2
 // （運動 i 台灣 2.0 運動熱區課程表，3–15 歲多種班別），改為讀
-// getChildrensTrainingSeo()／getChildrensTrainingHero()／
-// CHILDRENS_TRAINING_CLASSES_BW（club-copy.ts）。報名 CTA 對藍鯨不接站內報名流程
+// getChildrensTrainingSeo()／getChildrensTrainingHero()（club-copy.ts）。報名 CTA 對藍鯨不接站內報名流程
 // （「是否開放線上報名」尚未確認），改顯示舊站真實報名方式（現場個人報名）＋
 // 官方 LINE 聯絡連結，不連到磐石專屬的 `/zh/join/academy/`。
 //
@@ -31,7 +30,6 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = useClubIdentity()
 
-const classesBw = computed(() => (isEn.value ? CHILDRENS_TRAINING_CLASSES_BW_EN : CHILDRENS_TRAINING_CLASSES_BW))
 // BW-C1：改讀 useSiteFacts(clubKey)（後端公開端點），不再固定讀 tcrfc。
 const { primaryVenue } = useSiteFacts(clubKey.value)
 // C-6／S2-13：英文版場地名取後端 en 回應的 nameEn，沒有就退回中文名（不自行音譯）。
@@ -142,32 +140,6 @@ useCourseSchema(
   </div>
 </section>
 
-<!-- 藍鯨：真實課程班別（programs.md §1／§2，年齡 3–15 歲），逐字節錄，非分級框架。 -->
-<section v-else class="band">
-  <div class="container">
-    <div class="grid grid--2">
-      <div class="prose">
-        <h2>{{ tx('課程班別', 'Classes') }}</h2>
-        <p>{{ tx('社區足球學校「小藍鯨」承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫，依年齡分為多種班別，免試上、免測試、免入會費。', 'The "Little Blue Whale" community football school runs the Taichung City Government\'s "Sport i Taiwan 2.0" Sports Hot Zone program, with classes grouped by age. No trial class or assessment is required and there is no membership fee.') }}</p>
-      </div>
-    </div>
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr><th scope="col">{{ tx('班別', 'Class') }}</th><th scope="col">{{ tx('適合年齡', 'Age') }}</th><th scope="col">{{ tx('費用', 'Fee') }}</th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="c in classesBw" :key="c.nameZh">
-            <td>{{ c.nameZh }}</td>
-            <td>{{ c.ageZh }}</td>
-            <td>{{ c.feeZh }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
 <section class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
@@ -211,14 +183,15 @@ useCourseSchema(
     <div class="table-wrap">
       <table class="data-table">
         <thead>
-          <tr><th scope="col">{{ tx('時段', 'Schedule') }}</th><th scope="col">{{ tx('分級／人數', 'Level / Enrolled') }}</th><th scope="col">{{ tx('地點', 'Venue') }}</th></tr>
+          <tr><th scope="col">{{ tx('時段', 'Schedule') }}</th><th scope="col">{{ tx('分級／人數', 'Level / Enrolled') }}</th><th scope="col">{{ tx('地點', 'Venue') }}</th><th scope="col">{{ tx('費用', 'Fee') }}</th></tr>
         </thead>
         <tbody>
-          <tr v-if="sessions.length === 0"><td colspan="3" class="is-pending">{{ tx('梯次資訊準備中', 'Session information is being prepared') }}</td></tr>
+          <tr v-if="sessions.length === 0"><td colspan="4" class="is-pending">{{ tx('梯次資訊準備中', 'Session information is being prepared') }}</td></tr>
           <tr v-for="s in sessions" :key="s.id">
             <td>{{ formatSchedule(s.weeklySchedule) }}<span v-if="s.programName" class="session-program">{{ s.programName }}</span></td>
             <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }}{{ tx(' 人', ' enrolled') }}</td>
             <td>{{ s.venueName ?? venueName ?? '—' }}</td>
+            <td>{{ formatPrice(s.price) }}</td>
           </tr>
         </tbody>
       </table>

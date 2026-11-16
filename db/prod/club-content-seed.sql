@@ -10696,29 +10696,29 @@ IF NOT EXISTS (SELECT 1 FROM settings WHERE club_id = (SELECT id FROM clubs WHER
 GO
 
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.footer_blurb');
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   BEGIN TRANSACTION;
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = N'zh-Hant')
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, N'zh-Hant', N'台中磐石足球俱樂部致力於透過專業模式，培育選手追求卓越，讓世界看見台灣足球。');
   ELSE
     UPDATE settings_i18n SET value = N'台中磐石足球俱樂部致力於透過專業模式，培育選手追求卓越，讓世界看見台灣足球。'
-    WHERE setting_id = @sid AND locale = N'zh-Hant' AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = N'zh-Hant' AND NULLIF(value, N'') IS NULL;
   COMMIT TRANSACTION;
 END
 GO
 
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.footer_blurb');
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   BEGIN TRANSACTION;
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = N'en')
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, N'en', N'Taichung Rock FC develops players who pursue excellence through a professional model, so the world can see Taiwan football.');
   ELSE
     UPDATE settings_i18n SET value = N'Taichung Rock FC develops players who pursue excellence through a professional model, so the world can see Taiwan football.'
-    WHERE setting_id = @sid AND locale = N'en' AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = N'en' AND NULLIF(value, N'') IS NULL;
   COMMIT TRANSACTION;
 END
 GO
@@ -10768,29 +10768,29 @@ IF NOT EXISTS (SELECT 1 FROM settings WHERE club_id = (SELECT id FROM clubs WHER
 GO
 
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.footer_blurb');
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   BEGIN TRANSACTION;
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = N'zh-Hant')
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, N'zh-Hant', N'隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。');
   ELSE
     UPDATE settings_i18n SET value = N'隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。'
-    WHERE setting_id = @sid AND locale = N'zh-Hant' AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = N'zh-Hant' AND NULLIF(value, N'') IS NULL;
   COMMIT TRANSACTION;
 END
 GO
 
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.footer_blurb');
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   BEGIN TRANSACTION;
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = N'en')
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, N'en', N'Taichung Blue Whale Women''s Football Club, part of the Taichung City Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football, and hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.');
   ELSE
     UPDATE settings_i18n SET value = N'Taichung Blue Whale Women''s Football Club, part of the Taichung City Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football, and hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.'
-    WHERE setting_id = @sid AND locale = N'en' AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = N'en' AND NULLIF(value, N'') IS NULL;
   COMMIT TRANSACTION;
 END
 GO

@@ -1677,23 +1677,6 @@ export function getYouthLifeHero(club: string): HeroCopy {
 // 開放）」的明文依據。S1-15／S2-10 兩輪把這句話誤讀成整頁關閉的理由，本輪重開。
 // ---------------------------------------------------------------------------
 
-/** 藍鯨真實課程班別，逐字節錄自 programs.md §1（社區足球學校）與 §2（運動 i 台灣
- * 2.0－運動熱區 10 種課程規格），只取與「兒童足球訓練」對應的班別（3–15 歲），
- * 不含守門員基礎班（另見 5.4 GOALKEEPER_CLASS_BW，規模與定位不同不合併）與成人
- * 性質的野團足球賽。 */
-export interface ChildrensClassRow {
-  nameZh: string
-  ageZh: string
-  feeZh: string
-}
-export const CHILDRENS_TRAINING_CLASSES_BW: ChildrensClassRow[] = [
-  { nameZh: '社區幼幼足球班', ageZh: '3–4 歲', feeZh: '200 元／堂' },
-  { nameZh: '幼兒社區足球班', ageZh: '6–8 歲', feeZh: '200 元／堂' },
-  { nameZh: '藍鯨 U8／U10 足球教室', ageZh: '9–10 歲', feeZh: '200 元／堂' },
-  { nameZh: '藍鯨 U12 女子足球班', ageZh: '10–12 歲（限女性）', feeZh: '200 元／堂' },
-  { nameZh: '藍鯨 U15 女子足球班', ageZh: '13 歲以上（限女性）', feeZh: '200 元／堂' },
-]
-
 export function getChildrensTrainingSeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
@@ -1778,23 +1761,11 @@ export function getWinterCampHero(club: string): HeroCopy {
   }
 }
 
-/** 藍鯨守門員基礎班，逐字節錄自 programs.md §2 第 10 項——規模（7–12 歲、限額 10 位）
- * 與定位（社區推廣性質）都不是磐石「六大專項競技訓練」同一種產品，不得套用六大專項
- * 框架，維持它自己的真實樣貌單獨呈現。 */
-export const GOALKEEPER_CLASS_BW = {
-  nameZh: '藍鯨守門員基礎班',
-  ageZh: '7–12 歲（男女不拘，女生保留錄取名額，限額 10 位）',
-  feeZh: '200 元／堂',
-  scheduleZh: '每週 1.5 小時／堂',
-  signupZh: '須先填寫報名表單',
-  signupUrl: 'https://forms.gle/ffQTf1uaZinZd2mt5',
-}
-
 export function getSpecialistTrainingSeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
       title: '專項訓練｜課程與活動｜台中藍鯨女子足球隊',
-      description: '台中藍鯨專項訓練目前提供守門員基礎班（7–12 歲），其餘專項尚未推出，須先填寫報名表單。',
+      description: '台中藍鯨專項訓練目前提供守門員基礎班（7–12 歲），其餘專項尚未推出。',
     }
   }
   return {
@@ -1971,7 +1942,7 @@ export function getProgramsHubCards(club: string): ProgramsHubCard[] {
       { num: '5.1', titleZh: '兒童足球訓練', titleEn: "Children's Training", descZh: '社區足球學校「小藍鯨」與運動 i 台灣 2.0 課程，3–15 歲多種班別，現場個人報名。', href: '/zh/programs/childrens-training/', hasPhoto: false },
       { num: '5.2', titleZh: '夏令營', titleEn: 'Summer Camp', descZh: '目前尚未推出獨立的夏令營活動，暑期活動請關注官方社群公告。', href: '/zh/programs/summer-camp/', hasPhoto: false },
       { num: '5.3', titleZh: '冬令營', titleEn: 'Winter Camp', descZh: '目前尚未推出獨立的冬令營活動，寒假活動請關注官方社群公告。', href: '/zh/programs/winter-camp/', hasPhoto: false },
-      { num: '5.4', titleZh: '專項訓練', titleEn: 'Specialist Training', descZh: '目前提供守門員基礎班（7–12 歲），須先填寫報名表單，其餘專項尚未推出。', href: '/zh/programs/specialist/', hasPhoto: false },
+      { num: '5.4', titleZh: '專項訓練', titleEn: 'Specialist Training', descZh: '目前提供守門員基礎班（7–12 歲），其餘專項尚未推出。', href: '/zh/programs/specialist/', hasPhoto: false },
       { num: '5.5', titleZh: '校園與社區', titleEn: 'School & Community', descZh: '建教合作學校列表、社區足球推廣計畫、教練培訓，歡迎學校與社區單位洽談合作。', href: '/zh/programs/school-community/', hasPhoto: false },
     ]
   }
@@ -2004,7 +1975,7 @@ export const ENROL_FLOW_STEPS_TCRFC: EnrolFlowStep[] = [
 
 /** bw 版報名說明，取代 tcrfc 六步驟區塊，如實描述現場個人報名。 */
 export function getProgramsHubEnrolNoteBw(): string {
-  return '台中藍鯨推廣活動現場個人報名，免試上、免測試、免入會費；守門員基礎班須先填寫線上報名表單。詳細報名方式請見各單元頁面，或洽詢台中藍鯨官方 LINE。'
+  return '台中藍鯨推廣活動現場個人報名，免試上、免測試、免入會費。詳細報名方式請見各單元頁面，或洽詢台中藍鯨官方 LINE。'
 }
 
 // ---------------------------------------------------------------------------

@@ -203,13 +203,13 @@ IF NOT EXISTS (SELECT 1 FROM settings WHERE club_id = {club_sq} AND setting_key 
         for locale, value in (("zh-Hant", zh_v), ("en", en_v)):
             block(f"""
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = {club_sq} AND setting_key = {esc(key)});
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = {esc(locale)})
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, {esc(locale)}, {esc(value)});
   ELSE
     UPDATE settings_i18n SET value = {esc(value)}
-    WHERE setting_id = @sid AND locale = {esc(locale)} AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = {esc(locale)} AND NULLIF(value, N'') IS NULL;
 END
 """)

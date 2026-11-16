@@ -8,7 +8,7 @@
      ② 藍鯨建教合作學校 5 所（類型「教育夥伴」）
      ③ 贊助方案名稱：磐石 9、藍鯨 8（規劃書 §3.9 9.4；只有名稱，價格不公開、沒有權益文字）
      ④ 磐石榮譽：成立首年頭銜「2024 全國乙級聯賽 冠軍」（找不到球隊 D1 或任何球季就略過）
-     ⑤ 頁尾簡介、社群連結、藍鯨聯絡 Email（只補「列不存在」或「值為空且從沒人儲存過」）
+     ⑤ 頁尾簡介、社群連結、藍鯨聯絡 Email（只補「列不存在」或「列存在但從未被人儲存過（updated_by 為空）」；有人儲存過就不補，含語系列被刪或清空）
 
    ── 不在本檔（原因見 db/seed/README.md「官網寫死後備轉後台資料（區段 60b）」）──
      里程碑（正式庫已有客戶文件匯入的 49 筆）、慈善事蹟與影響力（同上，3 筆）、球迷會活動照片（沒有活動名稱與日期）、
@@ -16,7 +16,7 @@
 
    ── 冪等與保護 ──
      夥伴以 (俱樂部, slug)；贊助方案以 (俱樂部, 繁中名稱)——同名方案（含本機種子的【測試】方案）已存在就不再補；
-     榮譽以 (俱樂部, 年, 繁中賽事名)；設定只動空值且沒人儲存過者。後台人員改過的內容一律不動。可重複執行。
+     榮譽以 (俱樂部, 年, 繁中賽事名)；設定列 updated_by 有值（有人在後台存過）一律不動。後台人員改過的內容一律不動。可重複執行。
    • 任何事後斷言失敗即 THROW；搭配 XACT_ABORT 與 sqlcmd -b，失敗時不留半套資料（每批各自成交易）。
    ============================================================================ */
 SET NOCOUNT ON;
@@ -387,29 +387,29 @@ IF NOT EXISTS (SELECT 1 FROM settings WHERE club_id = (SELECT id FROM clubs WHER
 GO
 
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.footer_blurb');
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   BEGIN TRANSACTION;
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = N'zh-Hant')
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, N'zh-Hant', N'台中磐石足球俱樂部致力於透過專業模式，培育選手追求卓越，讓世界看見台灣足球。');
   ELSE
     UPDATE settings_i18n SET value = N'台中磐石足球俱樂部致力於透過專業模式，培育選手追求卓越，讓世界看見台灣足球。'
-    WHERE setting_id = @sid AND locale = N'zh-Hant' AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = N'zh-Hant' AND NULLIF(value, N'') IS NULL;
   COMMIT TRANSACTION;
 END
 GO
 
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.footer_blurb');
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   BEGIN TRANSACTION;
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = N'en')
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, N'en', N'Taichung Rock FC develops players who pursue excellence through a professional model, so the world can see Taiwan football.');
   ELSE
     UPDATE settings_i18n SET value = N'Taichung Rock FC develops players who pursue excellence through a professional model, so the world can see Taiwan football.'
-    WHERE setting_id = @sid AND locale = N'en' AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = N'en' AND NULLIF(value, N'') IS NULL;
   COMMIT TRANSACTION;
 END
 GO
@@ -459,29 +459,29 @@ IF NOT EXISTS (SELECT 1 FROM settings WHERE club_id = (SELECT id FROM clubs WHER
 GO
 
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.footer_blurb');
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   BEGIN TRANSACTION;
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = N'zh-Hant')
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, N'zh-Hant', N'隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。');
   ELSE
     UPDATE settings_i18n SET value = N'隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。'
-    WHERE setting_id = @sid AND locale = N'zh-Hant' AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = N'zh-Hant' AND NULLIF(value, N'') IS NULL;
   COMMIT TRANSACTION;
 END
 GO
 
 DECLARE @sid uniqueidentifier = (SELECT id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.footer_blurb');
-IF @sid IS NOT NULL
+-- 有人在後台儲存過（updated_by 有值）就一律不補：語系列被刪或清空都視為人為清空
+IF @sid IS NOT NULL AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL)
 BEGIN
   BEGIN TRANSACTION;
   IF NOT EXISTS (SELECT 1 FROM settings_i18n WHERE setting_id = @sid AND locale = N'en')
     INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@sid, N'en', N'Taichung Blue Whale Women''s Football Club, part of the Taichung City Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football, and hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.');
   ELSE
     UPDATE settings_i18n SET value = N'Taichung Blue Whale Women''s Football Club, part of the Taichung City Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football, and hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.'
-    WHERE setting_id = @sid AND locale = N'en' AND NULLIF(value, N'') IS NULL
-      AND EXISTS (SELECT 1 FROM settings s WHERE s.id = @sid AND s.updated_by IS NULL);
+    WHERE setting_id = @sid AND locale = N'en' AND NULLIF(value, N'') IS NULL;
   COMMIT TRANSACTION;
 END
 GO

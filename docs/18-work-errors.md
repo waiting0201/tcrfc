@@ -3471,3 +3471,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **修正**：後續由表單種子的 agent 重產；主 session 收尾時以三支產生器的 `--check` 確認一致、無 U+FFFD。
 - **下次怎麼避免**：不熟的腳本先讀原始碼開頭，不用執行來探測；EF 的 `migrations add／remove` 不帶 `--no-build`。並行派工時，在派工說明列出「會重產哪些共用檔案的腳本只能由誰跑」。
 - **防呆**：`generate-prod-content-sql.py --check`（CI 的 `prod-seed` job）能抓到產物不一致，但擋不住本機誤跑。
+
+### E-362 推送的 commit 含 `infra/README.md` 的一行改動，觸發了 `infra.yml` 的 Azure 基礎設施部署（2026-11-16，主 session）
+- **錯在哪**：稽核第三批的 commit `53cd921` 裡，做慈善同步的 agent 在 `infra/README.md` 的設定表補了一列。`infra.yml` 的觸發條件是「push master 且 `infra/**` 有變動」，不分程式或文件，推送後它就開始跑 what-if → deploy（Incremental）。我在推送後查 CI 狀態時才看到，當下它已通過 Azure 登入、進到 what-if；我隨即取消，`deploy` 步驟被跳過，沒有動到任何資源。
+- **根因（可改掉的行為）**：推送前只檢查了「這批 API 是否依賴尚未套用的資料庫結構」（`E-289` 的檢查），沒有檢查「這批改動的路徑會觸發哪些 workflow」。派工時允許 agent 改 `infra/README.md`，沒有意識到那個目錄下任何檔案都是部署觸發點。Bicep 本身沒改，照理是空部署，但線上資源若曾被手動調整（先前記錄過資料庫 SKU 與大小的情形），Incremental 部署會把它改回模板的值。
+- **修正**：取消該次執行（run `43798811831`，停在 what-if，`deploy` 為 skipped）。
+- **下次怎麼避免**：推送 `master` 前跑一次 `git diff --stat <上次推送>..HEAD -- infra .github deploy docker-compose.yml`，對照 `docs/20` §1 的觸發表，把會被觸發的 workflow 列給使用者；純文件改動不要放在 `infra/` 之下的說明以外的時機推送，或先確認使用者接受跑一次基礎設施部署。
+- **防呆**：無。可行的機制是讓 `infra.yml` 的 `paths` 排除 `infra/**/*.md`（需使用者同意改 workflow）。
