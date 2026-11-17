@@ -240,6 +240,125 @@ try {
     console.log(`        段落 ${seen.paragraphs}、小標 ${seen.heading}、清單 ${seen.list}、含段內換行 ${seen.newline}、長段落 ${seen.long}`)
     assert.ok(seen.paragraphs > 0)
   })
+
+  // ───────── 貼上填格子／英文分頁刪除保護（整篇貼上譯文的翻譯流程） ─────────
+  /** 中文 8 段、第 4 段後夾一張圖，英文全空。 */
+  const zhOnly = () => {
+    const out = []
+    for (let i = 1; i <= 8; i++) {
+      out.push(text(`中文第${i}段`, '', `p${i}`))
+      if (i === 4) out.push(block('image', { image: slot(1), caption: bi('說明', '') }, 'img'))
+    }
+    return out
+  }
+  const enLines = Array.from({ length: 8 }, (_, i) => `English paragraph ${i + 1}`)
+  /** 套用規劃後走完「英文編輯器 → 區塊清單」，回傳新區塊。 */
+  const applyEn = (blocks, plan) => D.docToBlocks(plan.doc, 'en', blocks, D.createGraveyard())
+  const keysOf = (blocks) => blocks.map((b) => b.localKey)
+
+  await test('flattenPasteLines：段落、小標、清單項目各一行，圖片與空行略過，裸文字依換行拆開', () => {
+    const lines = D.flattenPasteLines([
+      { type: 'paragraph', content: [{ type: 'text', text: ' A ' }] },
+      { type: 'paragraph' },
+      { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'H' }] },
+      { type: 'newsImage' },
+      { type: 'bulletList', content: [
+        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x' }] }] },
+        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'y' }] }] },
+      ] },
+    ])
+    assert.deepEqual(lines, ['A', 'H', 'x', 'y'])
+    assert.deepEqual(D.flattenPasteLines([{ type: 'text', text: 'one\ntwo\n\nthree' }]), ['one', 'two', 'three'])
+  })
+
+  await test('(a) 游標在第 1 段貼 8 段：依序填入英文、跳過圖片、區塊數與 bid 不變', () => {
+    const blocks = zhOnly()
+    const plan = D.planPasteFill(D.blocksToDoc(blocks, 'en'), 0, [], enLines)
+    assert.equal(plan.filled, 8)
+    assert.equal(plan.appended, 0)
+    const next = applyEn(blocks, plan)
+    assert.deepEqual(keysOf(next), keysOf(blocks))
+    const texts = next.filter((b) => b.blockType === 'text')
+    texts.forEach((b, i) => {
+      assert.equal(b.content.body.en, enLines[i])
+      assert.equal(b.content.body.zh, `中文第${i + 1}段`)
+    })
+    assert.equal(next[4], blocks[4]) // 圖片沿用同一物件
+  })
+
+  await test('(b) 英文全選後貼上：不刪任何區塊，格子被換成新文字', () => {
+    const blocks = zhOnly().map((b) => (b.blockType === 'text' ? { ...b, content: { body: bi(b.content.body.zh, '舊英文') } } : b))
+    const doc = D.blocksToDoc(blocks, 'en')
+    const all = doc.content.map((_, i) => i)
+    const plan = D.planPasteFill(doc, 0, all, enLines)
+    const next = applyEn(blocks, plan)
+    assert.deepEqual(keysOf(next), keysOf(blocks))
+    assert.equal(next.filter((b) => b.blockType === 'text').map((b) => b.content.body.en).join('|'), enLines.join('|'))
+    assert.equal(next.filter((b) => b.blockType === 'text').every((b) => b.content.body.zh.startsWith('中文第')), true)
+    // 貼的段數少於格子：選取範圍內多的格子英文清空、結構不動
+    const fewer = applyEn(blocks, D.planPasteFill(doc, 0, all, enLines.slice(0, 3)))
+    assert.deepEqual(keysOf(fewer), keysOf(blocks))
+    assert.deepEqual(fewer.filter((b) => b.blockType === 'text').map((b) => b.content.body.en), [...enLines.slice(0, 3), '', '', '', '', ''])
+  })
+
+  await test('(c) 貼的段數多於空格子：多的接在最後一個被填的格子後面成新段落，原區塊 bid 不變', () => {
+    const blocks = [text('中一', '', 'a'), text('中二', '', 'b'), block('image', { image: slot(1), caption: bi('', '') }, 'img')]
+    const lines = ['E1', 'E2', 'E3', 'E4']
+    const plan = D.planPasteFill(D.blocksToDoc(blocks, 'en'), 0, [], lines)
+    assert.equal(plan.filled, 2)
+    assert.equal(plan.appended, 2)
+    const next = applyEn(blocks, plan)
+    assert.equal(next.length, 5)
+    assert.deepEqual(keysOf(next).filter((k) => k === 'a' || k === 'b' || k === 'img'), ['a', 'b', 'img'])
+    assert.deepEqual(next.map((b) => b.blockType), ['text', 'text', 'text', 'text', 'image'])
+    assert.deepEqual(next.map((b) => b.content.body?.en ?? null), ['E1', 'E2', 'E3', 'E4', null])
+    assert.deepEqual(next.slice(2, 4).map((b) => b.content.body.zh), ['', ''])
+  })
+
+  await test('貼上遇到已有英文且未被選取的格子就停，其餘接在後面；清單項目也算格子', () => {
+    const blocks = [
+      text('甲', '', 'a'),
+      text('乙', 'Already', 'b'),
+      block('list', { ordered: false, items: [bi('一', ''), bi('二', '')], itemKeys: ['i1', 'i2'] }, 'l'),
+    ]
+    const stop = D.planPasteFill(D.blocksToDoc(blocks, 'en'), 0, [], ['X', 'Y', 'Z'])
+    assert.equal(stop.filled, 1)
+    assert.equal(stop.appended, 2)
+    const stopped = applyEn(blocks, stop)
+    assert.deepEqual(stopped.slice(0, 4).map((b) => b.content.body.en), ['X', 'Y', 'Z', 'Already'])
+    assert.equal(stopped[3].localKey, 'b') // 既有英文的區塊 bid 不變，只是被新段落擠後
+    const li = D.planPasteFill(D.blocksToDoc(blocks, 'en'), 2, [], ['X', 'Y', 'Z'])
+    const next = applyEn(blocks, li)
+    assert.deepEqual(next[2].content.items.map((i) => i.en), ['X', 'Y'])
+    assert.deepEqual(next[2].content.items.map((i) => i.zh), ['一', '二'])
+    assert.equal(next[3].content.body.en, 'Z')
+  })
+
+  await test('中文分頁同一規則：貼進空的中文格子也不新增區塊、不動英文', () => {
+    const blocks = [text('', 'E1', 'a'), text('', 'E2', 'b')]
+    const plan = D.planPasteFill(D.blocksToDoc(blocks, 'zh'), 0, [], ['一', '二'])
+    const next = D.docToBlocks(plan.doc, 'zh', blocks, D.createGraveyard())
+    assert.deepEqual(keysOf(next), ['a', 'b'])
+    assert.deepEqual(next.map((b) => [b.content.body.zh, b.content.body.en]), [['一', 'E1'], ['二', 'E2']])
+  })
+
+  await test('(d) 英文分頁全選刪除：中文與圖片都還在、英文清空；中文分頁不保護', () => {
+    const blocks = zhOnly().map((b) => (b.blockType === 'text' ? { ...b, content: { body: bi(b.content.body.zh, 'old') } } : b))
+    const doc = D.blocksToDoc(blocks, 'en')
+    const idx = doc.content.map((_, i) => i)
+    const plan = D.planGuardedDelete(doc, 'en', blocks, 0, idx.length - 1, idx)
+    assert.equal(plan.protect, true)
+    const next = applyEn(blocks, { doc: plan.doc })
+    assert.deepEqual(keysOf(next), keysOf(blocks))
+    assert.equal(next.filter((b) => b.blockType === 'text').every((b) => b.content.body.en === '' && b.content.body.zh.startsWith('中文第')), true)
+    assert.equal(next[4], blocks[4])
+    assert.equal(D.planGuardedDelete(D.blocksToDoc(blocks, 'zh'), 'zh', blocks, 0, idx.length - 1, idx).protect, false)
+    // 沒有中文、也沒有圖片的純英文區塊：照預設刪除
+    const enOnly = [text('', 'a', 'a'), text('', 'b', 'b')]
+    assert.equal(D.planGuardedDelete(D.blocksToDoc(enOnly, 'en'), 'en', enOnly, 0, 1, [0, 1]).protect, false)
+    // 只選到單一區塊：不保護
+    assert.equal(D.planGuardedDelete(doc, 'en', blocks, 2, 2, [2]).protect, false)
+  })
 } finally {
   await server.close()
 }

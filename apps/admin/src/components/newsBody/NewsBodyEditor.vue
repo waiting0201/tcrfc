@@ -288,7 +288,7 @@ const enHasText = computed(() => props.modelValue.some((b) => hasLangText(b, 'en
         </FormField>
       </li>
     </ul>
-    <p class="news-body__hint">中文與英文共用同一份段落結構：在一種語言新增或刪除段落、圖片，另一種語言會跟著增減；文字則各寫各的。</p>
+    <p class="news-body__hint">中文與英文共用同一份段落結構：在一種語言新增或刪除段落、圖片，另一種語言會跟著增減；文字則各寫各的。在英文分頁貼上整篇譯文，會依序填入對應的段落（圖片自動跳過）；多出來的段落才接在後面。</p>
   </div>
 </template>
 

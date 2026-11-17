@@ -8,12 +8,22 @@
  */
 import { Extension, Node } from '@tiptap/core'
 import { ListItem } from '@tiptap/extension-list'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, Selection, type EditorState } from '@tiptap/pm/state'
+import type { EditorView } from '@tiptap/pm/view'
 import { Mapping } from '@tiptap/pm/transform'
 import { VueNodeViewRenderer } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import type { Component } from 'vue'
-import { BID_NODE_TYPES, newKey, type NewsLang } from '@/utils/newsBodyDoc'
+import {
+  BID_NODE_TYPES,
+  flattenPasteLines,
+  newKey,
+  planGuardedDelete,
+  planPasteFill,
+  type DocJSON,
+  type DocNode,
+  type NewsLang,
+} from '@/utils/newsBodyDoc'
 import type { PageBlockState } from '@/types/pageBlocks'
 
 /** 編輯器 `storage.newsBody`：節點畫面元件透過它取得區塊清單與目前狀態（不用 provide/inject，避免跨 Teleport 取不到）。 */
@@ -91,6 +101,107 @@ const BlockId = Extension.create({
   },
 })
 
+
+// ───────────────────────────── 貼上填格子／英文分頁刪除保護 ─────────────────────────────
+// 規劃邏輯在 `utils/newsBodyDoc.ts`（純函式、有測試）；這裡只負責把編輯器選取範圍換成索引，再把結果套回編輯器。
+
+/** 選取範圍涉及的頂層節點索引，以及「內容整個被選到」的節點。 */
+function selectionInfo(state: EditorState) {
+  const { doc, selection } = state
+  const fromIdx = doc.resolve(selection.from).index(0)
+  const toIdx = selection.empty ? fromIdx : doc.resolve(Math.max(selection.from, selection.to - 1)).index(0)
+  const covered: number[] = []
+  if (!selection.empty) {
+    doc.forEach((node, offset, idx) => {
+      if (idx < fromIdx || idx > toIdx) return
+      let n = node
+      let s = offset
+      let e = offset + node.nodeSize
+      while (!n.isTextblock && !n.isLeaf && n.firstChild) {
+        s += 1
+        e -= 1
+        n = n.firstChild
+      }
+      if (n.isTextblock) {
+        s += 1
+        e -= 1
+      }
+      if (selection.from <= s && selection.to >= e) covered.push(idx)
+    })
+  }
+  return { fromIdx, toIdx, covered }
+}
+
+/** 用新文件整份取代內容（結構與 bid 不變），游標放在指定頂層節點的結尾。 */
+function replaceDoc(view: EditorView, next: DocJSON, cursorIdx: number): boolean {
+  try {
+    const nodes = view.state.schema.nodeFromJSON(next)
+    const tr = view.state.tr.replaceWith(0, view.state.doc.content.size, nodes.content)
+    let pos = 0
+    tr.doc.forEach((node, offset, idx) => {
+      if (idx <= cursorIdx) pos = offset + node.nodeSize
+    })
+    tr.setSelection(Selection.near(tr.doc.resolve(Math.max(0, pos - 1)), -1)).scrollIntoView()
+    view.dispatch(tr)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function guardedDelete(view: EditorView, storage: NewsBodyStorage) {
+  if (storage.lang !== 'en' || view.state.selection.empty) return null
+  const { fromIdx, toIdx, covered } = selectionInfo(view.state)
+  const plan = planGuardedDelete(view.state.doc.toJSON() as DocJSON, storage.lang, storage.getBlocks(), fromIdx, toIdx, covered)
+  return plan.protect && plan.doc ? { doc: plan.doc, fromIdx } : null
+}
+
+function createPasteAndDeleteGuard(storage: NewsBodyStorage) {
+  return Extension.create({
+    name: 'newsBodyPasteGuard',
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: new PluginKey('newsBodyPasteGuard'),
+          props: {
+            handlePaste(view, _event, slice) {
+              if (!view.editable) return false
+              const lines = flattenPasteLines((slice.content.toJSON() ?? []) as DocNode[])
+              const { fromIdx, covered } = selectionInfo(view.state)
+              // 單段貼上維持預設；但選取跨多個區塊時，預設會把整批區塊刪掉，一律走填格子
+              if (lines.length < 2 && !(lines.length === 1 && covered.length >= 2)) return false
+              const plan = planPasteFill(view.state.doc.toJSON() as DocJSON, fromIdx, covered, lines)
+              return replaceDoc(view, plan.doc, plan.lastIdx)
+            },
+            handleKeyDown(view, event) {
+              if (event.key !== 'Backspace' && event.key !== 'Delete') return false
+              const guard = guardedDelete(view, storage)
+              if (!guard) return false
+              replaceDoc(view, guard.doc, guard.fromIdx)
+              return true
+            },
+            handleDOMEvents: {
+              cut(view, event) {
+                const guard = guardedDelete(view, storage)
+                if (!guard) return false
+                const data = (event as ClipboardEvent).clipboardData
+                if (data) {
+                  const { dom, text } = view.serializeForClipboard(view.state.selection.content())
+                  data.setData('text/html', dom.innerHTML)
+                  data.setData('text/plain', text)
+                }
+                event.preventDefault()
+                replaceDoc(view, guard.doc, guard.fromIdx)
+                return true
+              },
+            },
+          },
+        }),
+      ]
+    },
+  })
+}
+
 function atomNode(name: string, view: Component) {
   return Node.create({
     name,
@@ -141,6 +252,7 @@ export function createNewsBodyExtensions(views: { atom: Component; quote: Compon
     // 清單項目只放一個段落：不開巢狀清單（區塊格式的清單是單層）。
     ListItem.extend({ content: 'paragraph' }),
     BlockId,
+    createPasteAndDeleteGuard(storage),
     NewsQuote,
     atomNode('newsImage', views.atom),
     atomNode('newsGallery', views.atom),

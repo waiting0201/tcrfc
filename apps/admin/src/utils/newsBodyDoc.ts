@@ -309,6 +309,187 @@ export function ensureTrailingText(blocks: PageBlockState[]): PageBlockState[] {
   return [...blocks, { ...createEmptyBlock('text'), localKey: newKey() }]
 }
 
+// ───────────────────────────── 貼上「填格子」與跨區塊刪除保護 ─────────────────────────────
+//
+// 為什麼需要：兩個語言的編輯器共用同一份區塊結構，`bid` 又刻意不從貼上的 HTML 解析（見 `extensions.ts`）。
+// 在英文分頁貼上整篇譯文，若照預設行為，每一段都會變成「新區塊」（中文空白），原本帶中文的區塊被擠到後面；
+// 全選後貼上或刪除，帶中文與圖片的區塊更會整個被刪掉。所以改成：貼上時依序把文字「填進」目前語言的空格子，
+// 結構（區塊數、bid、圖片）一個都不動；英文分頁的跨區塊刪除只清空英文文字。
+
+const TEXT_NODE_TYPES = ['paragraph', 'heading', 'newsQuote']
+const LIST_NODE_TYPES = ['bulletList', 'orderedList']
+const ATOM_NODE_TYPES = ['newsImage', 'newsGallery', 'newsVideo']
+
+/** 把貼上的內容攤平成文字行：段落、小標、引言、清單項目各一行；圖片等沒有文字的節點略過；空行丟掉。 */
+export function flattenPasteLines(nodes: DocNode[]): string[] {
+  const lines: string[] = []
+  const clean = (s: string) => s.replace(/\u00a0/g, ' ').replace(/[ \t]+\n/g, '\n').trim()
+  const push = (s: string) => {
+    const t = clean(s)
+    if (t) lines.push(t)
+  }
+  const walk = (list: DocNode[]) => {
+    let inlineBuf: DocNode[] = []
+    const flush = () => {
+      if (inlineBuf.length) for (const part of inlineToText(inlineBuf).split(/\n+/)) push(part)
+      inlineBuf = []
+    }
+    for (const n of list) {
+      if (n.type === 'text' || n.type === 'hardBreak') {
+        inlineBuf.push(n)
+        continue
+      }
+      flush()
+      if (TEXT_NODE_TYPES.includes(n.type)) push(inlineToText(n.content))
+      else if (n.content) walk(n.content)
+    }
+    flush()
+  }
+  walk(nodes)
+  return lines
+}
+
+interface Cell {
+  top: number
+  item: number // -1＝頂層節點本身；否則是清單項目的索引
+  text: string
+}
+
+function listCells(doc: DocJSON, startIdx: number): Cell[] {
+  const cells: Cell[] = []
+  doc.content.forEach((node, top) => {
+    if (top < startIdx) return
+    if (TEXT_NODE_TYPES.includes(node.type)) cells.push({ top, item: -1, text: inlineToText(node.content) })
+    else if (LIST_NODE_TYPES.includes(node.type)) {
+      (node.content ?? []).forEach((li, item) => cells.push({ top, item, text: inlineToText(li.content?.[0]?.content) }))
+    }
+    // 圖片、圖集、影音：不佔格
+  })
+  return cells
+}
+
+function withText(node: DocNode, text: string): DocNode {
+  const { content: _drop, ...rest } = node
+  void _drop
+  const inline = textToInline(text)
+  return inline.length ? { ...rest, content: inline } : rest
+}
+
+function setCell(doc: DocJSON, cell: Cell, text: string) {
+  const node = doc.content[cell.top]
+  if (cell.item < 0) {
+    doc.content[cell.top] = withText(node, text)
+    return
+  }
+  const items = [...(node.content ?? [])]
+  const li = items[cell.item]
+  items[cell.item] = { ...li, content: [withText(li.content?.[0] ?? { type: 'paragraph' }, text)] }
+  doc.content[cell.top] = { ...node, content: items }
+}
+
+export interface PasteFillPlan {
+  doc: DocJSON
+  /** 填進既有格子的行數 */
+  filled: number
+  /** 格子不夠而接在後面成新段落的行數 */
+  appended: number
+  /** 最後動到的頂層節點索引（游標放這裡） */
+  lastIdx: number
+}
+
+/**
+ * 規劃貼上：從 `startIdx`（游標所在的頂層節點）起依序找格子，格子在「目前語言」為空、或落在選取範圍（`selectedIdx`，頂層節點索引）內，
+ * 就填入下一行；碰到有字且未被選取的格子就停。沒填完的行接在最後一個被填的格子之後成新段落（沒有新的 bid，由編輯器補）。
+ * 選取範圍內沒被填到的格子，目前語言的文字清空（使用者選了就是要換掉）；結構與 bid 不動。
+ */
+export function planPasteFill(source: DocJSON, startIdx: number, selectedIdx: number[], lines: string[]): PasteFillPlan {
+  const doc: DocJSON = { type: 'doc', content: [...source.content] }
+  const selected = new Set(selectedIdx)
+  const cells = listCells(doc, startIdx)
+  let li = 0
+  let lastTop = -1
+  for (let c = 0; c < cells.length && li < lines.length; c++) {
+    const cell = cells[c]
+    if (cell.text.trim() === '' || selected.has(cell.top)) {
+      setCell(doc, cell, lines[li++])
+      lastTop = cell.top
+    } else {
+      break
+    }
+  }
+  const filled = li
+  // 選取範圍內沒被填到的格子：清空目前語言的文字
+  for (const cell of cells.slice(filled)) {
+    if (selected.has(cell.top) && cell.text !== '') setCell(doc, cell, '')
+  }
+  let lastIdx = lastTop >= 0 ? lastTop : Math.min(startIdx, doc.content.length - 1)
+  const rest = lines.slice(li)
+  if (rest.length) {
+    const extra: DocNode[] = rest.map((t) => withText({ type: 'paragraph' }, t))
+    doc.content.splice(lastIdx + 1, 0, ...extra)
+    lastIdx += rest.length
+  }
+  return { doc, filled, appended: rest.length, lastIdx }
+}
+
+/** 區塊裡某語言是否有文字（遞迴看所有 `lang` 欄位；清單、引言說明都算）。 */
+export function blockHasLangText(block: PageBlockState | undefined, lang: NewsLang): boolean {
+  const walk = (v: unknown): boolean => {
+    if (v === null || typeof v !== 'object' || (typeof File !== 'undefined' && v instanceof File)) return false
+    if (Array.isArray(v)) return v.some(walk)
+    return Object.entries(v as Record<string, unknown>).some(([k, x]) => (k === lang && typeof x === 'string' && x.trim() !== '') || walk(x))
+  }
+  return !!block && walk(block.content)
+}
+
+/** 把指定頂層節點的文字清空（清單的每個項目、引言的出處都清）；圖片等節點不動。 */
+export function clearTextInNodes(source: DocJSON, idxs: number[]): DocJSON {
+  const doc: DocJSON = { type: 'doc', content: [...source.content] }
+  for (const i of idxs) {
+    const node = doc.content[i]
+    if (!node) continue
+    if (TEXT_NODE_TYPES.includes(node.type)) {
+      const next = withText(node, '')
+      doc.content[i] = node.type === 'newsQuote' ? { ...next, attrs: { ...next.attrs, attribution: '' } } : next
+    } else if (LIST_NODE_TYPES.includes(node.type)) {
+      doc.content[i] = { ...node, content: (node.content ?? []).map((li) => ({ ...li, content: [withText(li.content?.[0] ?? { type: 'paragraph' }, '')] })) }
+    }
+  }
+  return doc
+}
+
+export interface GuardedDeletePlan {
+  protect: boolean
+  doc?: DocJSON
+}
+
+/**
+ * 英文分頁的跨區塊刪除（Backspace／Delete／剪下）：選取範圍涵蓋多個頂層節點、且其中有帶中文的區塊或圖片／圖集／影音時，
+ * 不刪結構，只把「整個被選到」的格子清空英文文字（只選到一半的頭尾節點不動，寧可少刪不可多刪）。
+ * 中文分頁維持預設行為（結構以中文為主）。
+ */
+export function planGuardedDelete(
+  source: DocJSON,
+  lang: NewsLang,
+  blocks: PageBlockState[],
+  fromIdx: number,
+  toIdx: number,
+  coveredIdx: number[],
+): GuardedDeletePlan {
+  if (lang !== 'en' || toIdx <= fromIdx) return { protect: false }
+  const byKey = new Map(blocks.map((b) => [b.localKey, b]))
+  let risky = false
+  for (let i = fromIdx; i <= toIdx; i++) {
+    const node = source.content[i]
+    if (!node) continue
+    if (ATOM_NODE_TYPES.includes(node.type)) risky = true
+    else if (blockHasLangText(byKey.get(String(node.attrs?.bid ?? '')), 'zh')) risky = true
+    if (risky) break
+  }
+  if (!risky) return { protect: false }
+  return { protect: true, doc: clearTextInNodes(source, coveredIdx) }
+}
+
 // ───────────────────────────── 影音網址 ─────────────────────────────
 
 const VIDEO_ID = /^[A-Za-z0-9_-]{1,64}$/
